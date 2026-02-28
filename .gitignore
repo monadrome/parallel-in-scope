@@ -1,0 +1,12 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Claude
+.claude/
