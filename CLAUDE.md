@@ -26,7 +26,7 @@ Base package: `io.github.linzee1.concurrent` with 7 sub-packages:
 
 | Package | Purpose | Classes |
 |---|---|---|
-| `scope` | API facade (user-facing) | `ParallelHelper`, `ParallelOptions`, `AsyncBatchResult`, `TaskType`, `StructuredParallel` |
+| `scope` | API facade (user-facing) | `ParallelHelper`, `ParallelOptions`, `AsyncBatchResult`, `TaskType`, `Par` |
 | `cancel` | Cancellation subsystem | `CancellationToken`, `CancellationTokenState`, `Checkpoints`, `FatCancellationException`, `LeanCancellationException`, `PurgeService` |
 | `context` | TTL/TL context propagation | `ThreadRelay`, `TaskScopeTl` |
 | `context.graph` | Livelock detection | `TaskGraph`, `TaskEdge`, `TaskEdgeEntry` |
@@ -52,7 +52,7 @@ Base package: `io.github.linzee1.concurrent` with 7 sub-packages:
 - **Two-Map Context Relay** (`ThreadRelay`): parent thread's `curMap` becomes child thread's `parentMap` via TTL, propagating `CancellationToken`, `ParallelOptions`, and task names
 - **Task-Type-Aware Scheduling** (`SmartBlockingQueue`): CPU_BOUND tasks' `offer()` returns `false` to trigger `ThreadPoolExecutor` rejection handler (typically `CallerRunsPolicy`), preventing queue buildup
 - **Dual Cancellation Exceptions**: `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios; `FatCancellationException` (full stack trace) for debugging
-- **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener`, `ParallelLogger` registered on `StructuredParallel` — no hard-coded business dependencies
+- **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener`, `ParallelLogger` registered on `Par` — no hard-coded business dependencies
 
 ### Key Dependencies
 
