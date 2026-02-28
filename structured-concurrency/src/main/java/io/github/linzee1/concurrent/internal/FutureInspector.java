@@ -26,7 +26,7 @@ public final class FutureInspector {
         RUNNING,
         SUCCESS,
         FAILED,
-        CANCELLED
+        CANCELED
     }
 
     private FutureInspector() {
@@ -40,7 +40,7 @@ public final class FutureInspector {
      */
     public static State state(Future<?> future) {
         if (future.isCancelled()) {
-            return State.CANCELLED;
+            return State.CANCELED;
         }
         if (!future.isDone()) {
             return State.RUNNING;
@@ -49,7 +49,7 @@ public final class FutureInspector {
             future.get(0, TimeUnit.NANOSECONDS);
             return State.SUCCESS;
         } catch (CancellationException e) {
-            return State.CANCELLED;
+            return State.CANCELED;
         } catch (ExecutionException e) {
             return State.FAILED;
         } catch (TimeoutException e) {

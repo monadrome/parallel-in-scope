@@ -23,7 +23,7 @@ public class CancellationTokenTest {
     public void testManualCancel() {
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
-        assertEquals(CancellationTokenState.MUTUAL_CANCELLED, token.getState());
+        assertEquals(CancellationTokenState.MUTUAL_CANCELED, token.getState());
         assertTrue(token.getState().shouldInterruptCurrentThread());
     }
 
@@ -36,7 +36,7 @@ public class CancellationTokenTest {
         assertEquals(CancellationTokenState.RUNNING, child.getState());
 
         parent.cancel(false);
-        assertEquals(CancellationTokenState.MUTUAL_CANCELLED, parent.getState());
+        assertEquals(CancellationTokenState.MUTUAL_CANCELED, parent.getState());
     }
 
     @Test
@@ -45,9 +45,9 @@ public class CancellationTokenTest {
         assertEquals(1, CancellationTokenState.SUCCESS.getCode());
         assertFalse(CancellationTokenState.RUNNING.shouldInterruptCurrentThread());
         assertFalse(CancellationTokenState.SUCCESS.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.FAIL_FAST_CANCELLED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.TIMEOUT_CANCELLED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.MUTUAL_CANCELLED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.PROPAGATING_CANCELLED.shouldInterruptCurrentThread());
+        assertTrue(CancellationTokenState.FAIL_FAST_CANCELED.shouldInterruptCurrentThread());
+        assertTrue(CancellationTokenState.TIMEOUT_CANCELED.shouldInterruptCurrentThread());
+        assertTrue(CancellationTokenState.MUTUAL_CANCELED.shouldInterruptCurrentThread());
+        assertTrue(CancellationTokenState.PROPAGATING_CANCELED.shouldInterruptCurrentThread());
     }
 }
