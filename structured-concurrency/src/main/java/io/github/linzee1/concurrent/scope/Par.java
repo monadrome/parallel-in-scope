@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -98,28 +99,41 @@ public final class Par {
 
     // ==================== Timer Service ====================
 
-    private static final int TIMER_CORE_POOL_SIZE = 16;
-    private static final ListeningScheduledExecutorService TIMER;
+    private static final class TimerHolder {
+        private static final int CORE_POOL_SIZE = 16;
+        static final ListeningScheduledExecutorService INSTANCE;
+
+        static {
+            ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setNameFormat("Par-Timer-%d")
+                    .setUncaughtExceptionHandler((t, e) ->
+                            logger.error("Uncaught exception in timer thread: ", e))
+                    .setPriority(Thread.MAX_PRIORITY)
+                    .build();
+
+            ScheduledThreadPoolExecutor timerImpl = new ScheduledThreadPoolExecutor(
+                    CORE_POOL_SIZE, threadFactory);
+            timerImpl.setRemoveOnCancelPolicy(true);
+            INSTANCE = MoreExecutors.listeningDecorator(timerImpl);
+        }
+    }
+
+    // ==================== Submitter Pool ====================
+
+    private static final class SubmitterPoolHolder {
+        static final ListeningExecutorService INSTANCE = MoreExecutors.listeningDecorator(
+                Executors.newCachedThreadPool(
+                        new ThreadFactoryBuilder()
+                                .setDaemon(true)
+                                .setNameFormat("Par-Submitter-%d")
+                                .build()));
+    }
 
     // ==================== Default Config ====================
 
     private static volatile long defaultTimeoutMillis = 60_000L;
     private static volatile boolean livelockDetectionEnabled = false;
-
-    static {
-        ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setNameFormat("Par-Timer-%d")
-                .setUncaughtExceptionHandler((t, e) ->
-                        logger.error("Uncaught exception in timer thread: ", e))
-                .setPriority(Thread.MAX_PRIORITY)
-                .build();
-
-        ScheduledThreadPoolExecutor timerImpl = new ScheduledThreadPoolExecutor(
-                TIMER_CORE_POOL_SIZE, threadFactory);
-        timerImpl.setRemoveOnCancelPolicy(true);
-        TIMER = MoreExecutors.listeningDecorator(timerImpl);
-    }
 
     private Par() {
     }
@@ -132,7 +146,20 @@ public final class Par {
      * @return the global ListeningScheduledExecutorService
      */
     public static ListeningScheduledExecutorService getTimer() {
-        return TIMER;
+        return TimerHolder.INSTANCE;
+    }
+
+    // ==================== Submitter Pool Access ====================
+
+    /**
+     * Gets the lazy-initialized cached thread pool for running sliding-window
+     * submitter loops. Unlike the timer pool, this pool is designed for
+     * potentially long-blocking tasks and scales on demand.
+     *
+     * @return the global submitter ListeningExecutorService
+     */
+    public static ListeningExecutorService getSubmitterPool() {
+        return SubmitterPoolHolder.INSTANCE;
     }
 
     // ==================== Logger Registration ====================

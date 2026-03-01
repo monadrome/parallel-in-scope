@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.linzee1.concurrent.scope.AsyncBatchResult;
 import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.Par;
 import io.github.linzee1.concurrent.scope.TaskType;
 
 import java.util.List;
@@ -40,18 +39,20 @@ public class ConcurrentLimitExecutor<V> {
     private final ExecutorCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final ParallelOptions options;
+    private final ListeningExecutorService submitterPool;
 
     @SuppressWarnings("unchecked")
-    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParallelOptions options) {
+    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParallelOptions options, ListeningExecutorService submitterPool) {
         this.options = options;
+        this.submitterPool = submitterPool;
         this.cs = new ExecutorCompletionService<>(pool, (BlockingQueue<Future<V>>) (BlockingQueue<?>) blockingQueue);
     }
 
     /**
      * Creates a new executor with the given pool and options.
      */
-    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParallelOptions options) {
-        return new ConcurrentLimitExecutor<>(pool, options);
+    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParallelOptions options, ListeningExecutorService submitterPool) {
+        return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
     }
 
     /**
@@ -87,7 +88,7 @@ public class ConcurrentLimitExecutor<V> {
                 .collect(toImmutableList());
 
         ImmutableList<ListenableFuture<V>> results = resultBuilder.addAll(others).build();
-        ListenableFuture<?> submittingFuture = Par.getTimer()
+        ListenableFuture<?> submittingFuture = submitterPool
                 .submit(() -> submitRemaining(tasks, results, start));
 
         return AsyncBatchResult.of(submittingFuture, results);
