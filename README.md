@@ -1,4 +1,29 @@
-# Structured Parallel
+# VFormation
+
+> **⚠️ 项目状态：开发中（Pre-release）**
+>
+> 本项目仍在积极开发中，API 可能会发生变化。目前尚未发布到 Maven Central，正在收集社区反馈以完善设计，待稳定后发布正式版本。
+>
+> 如需使用，请 fork 本仓库后自行构建：
+> ```bash
+> git clone https://github.com/<your-fork>/vformation.git
+> cd vformation
+> mvn clean install -DskipTests
+> ```
+> 欢迎通过 Issue 提交反馈和建议。
+
+## 名称由来
+
+**V-Formation**（V 字阵型）是大雁迁徙时采用的经典飞行编队。领头雁破开气流，后方的雁借助前方翅膀产生的上升气流减少阻力，每只雁只需承担一部分空气阻力，整个雁群便能以远超个体的效率完成长途飞行。当领头雁疲劳时，队形会自动轮换，实现协作式的负载均衡。
+
+这与本项目的并发设计理念高度契合：
+
+- **滑动窗口调度** — 如同雁阵中每个位置依次轮替，任务完成一个、补入一个，始终保持最优并发度
+- **协作式取消** — 如同领头雁发出转向信号后整个编队同步响应，父任务取消时子任务级联终止
+- **跨线程上下文传播** — 如同雁阵中每只雁都能感知整体队形的变化，子线程自动继承父线程的执行上下文
+- **活锁检测** — 如同雁群避免编队冲突，框架自动检测任务间的循环依赖
+
+---
 
 **基于 Guava ListenableFuture 和 TransmittableThreadLocal 的结构化并发工具包**
 
@@ -10,15 +35,15 @@
 
 ### 1. 结构化并行执行
 
-- **`ParallelHelper.parForEach`** — 对集合元素并行执行 Consumer 操作
-- **`ParallelHelper.parMap`** — 对集合元素并行执行 Function 映射，返回结果列表
+- **`ParallelHelper.parForEach`** — 通过注册的执行器名称，对集合元素并行执行 Consumer 操作
+- **`ParallelHelper.parMap`** — 通过注册的执行器名称，对集合元素并行执行 Function 映射，返回结果列表
 - 自动规范化并行参数（并发度不超过任务数，自动填充默认超时）
 - 空集合快速返回，零开销
 
 ### 2. 协作式取消（Cooperative Cancellation）
 
 - **`CancellationToken`** — 基于 `AtomicReference<CancellationTokenState>` 的状态机
-- 支持 6 种取消状态：`RUNNING` / `SUCCESS` / `TIMEOUT_CANCELLED` / `FAIL_FAST_CANCELLED` / `MUTUAL_CANCELLED` / `PROPAGATING_CANCELLED`
+- 支持 6 种取消状态：`RUNNING` / `SUCCESS` / `TIMEOUT_CANCELED` / `FAIL_FAST_CANCELED` / `MUTUAL_CANCELED` / `PROPAGATING_CANCELED`
 - **父子令牌链**：父任务取消时自动级联到子任务
 - **Late Binding 模式**：任务提交后延迟绑定 timeout、fail-fast 逻辑
 - **`Checkpoints`** — 在任务中设置协作式检查点，配合 CancellationToken 抛出取消异常
@@ -67,10 +92,10 @@
 
 | SPI 接口 | 用途 | 注册方式 |
 |-----------|------|----------|
-| `TaskListener` | 任务生命周期回调（耗时、排队时间、异常） | `StructuredParallel.addTaskListener()` |
-| `ExecutorResolver` | 线程池解析（按名称查找 ThreadPoolExecutor） | `StructuredParallel.setExecutorResolver()` |
-| `LivelockListener` | 活锁检测事件通知 | `StructuredParallel.addLivelockListener()` |
-| `ParallelLogger` | 框架内部日志输出（默认 JUL，用户可桥接到 SLF4J/Log4j2） | `StructuredParallel.setLogger()` |
+| `TaskListener` | 任务生命周期回调（耗时、排队时间、异常） | `Par.addTaskListener()` |
+| `ExecutorResolver` | 线程池解析（按名称查找 ThreadPoolExecutor） | `Par.setExecutorResolver()` |
+| `LivelockListener` | 活锁检测事件通知 | `Par.addLivelockListener()` |
+| `ParallelLogger` | 框架内部日志输出（默认 JUL，用户可桥接到 SLF4J/Log4j2） | `Par.setLogger()` |
 
 ### 9. 全生命周期任务包装
 
@@ -86,11 +111,8 @@
 
 - **`AsyncBatchResult`** — 批量 Future 结果容器
   - 封装所有子任务的 `ListenableFuture` 列表
-  - 提供 `report()` 方法统计成功/失败/取消/运行中数量
+  - 提供 `report()` 方法统计成功/失败/取消/运行中数量（基于 cffu2 `CffuState`）
   - 管理 `submitCanceller` 用于取消后续提交
-- **`FutureInspector`** — Future 状态检测工具
-  - 非阻塞查询 Future 状态：`SUCCESS` / `FAILED` / `CANCELLED` / `RUNNING`
-  - 安全提取异常：`exceptionNow()`
 
 ### 11. 线程池清理服务
 
@@ -117,7 +139,7 @@
 ```xml
 <dependency>
     <groupId>io.github.linzee1</groupId>
-    <artifactId>structured-parallel</artifactId>
+    <artifactId>vformation</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -125,12 +147,12 @@
 ### 基本用法
 
 ```java
-import io.github.linzee1.parallel.*;
+import io.github.linzee1.vformation.scope.*;
 import com.google.common.util.concurrent.*;
 
-// 创建线程池
-ListeningExecutorService executor = MoreExecutors.listeningDecorator(
-    Executors.newFixedThreadPool(10));
+// 创建并注册线程池
+ExecutorService executor = Executors.newFixedThreadPool(10);
+Par.registerExecutor("io-pool", executor);
 
 // 配置任务参数
 ParallelOptions options = ParallelOptions.ioTask("fetchData")
@@ -141,10 +163,10 @@ ParallelOptions options = ParallelOptions.ioTask("fetchData")
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
 AsyncBatchResult<String> result = ParallelHelper.parMap(
+    "io-pool",                      // 注册的执行器名称
     urls,
-    url -> httpClient.fetch(url),  // 你的业务逻辑
-    options,
-    executor
+    url -> httpClient.fetch(url),   // 你的业务逻辑
+    options
 );
 
 // 获取结果
@@ -155,7 +177,7 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 ```java
 // 注册任务耗时监控
-StructuredParallel.addTaskListener(event -> {
+Par.addTaskListener(event -> {
     System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
         event.getTaskName(),
         event.executionTimeMillis(),
@@ -171,10 +193,10 @@ StructuredParallel.addTaskListener(event -> {
 
 ```java
 // 启用活锁检测
-StructuredParallel.setLivelockDetectionEnabled(true);
+Par.setLivelockDetectionEnabled(true);
 
 // 注册活锁监听器
-StructuredParallel.addLivelockListener(event -> {
+Par.addLivelockListener(event -> {
     if (event.isExecutorSelfLoop()) {
         log.warn("Potential deadlock: executor self-loop detected! {}",
             event.getExecutorEdges());
@@ -182,7 +204,7 @@ StructuredParallel.addLivelockListener(event -> {
 });
 
 // 提供任务到线程池的映射关系
-StructuredParallel.setExecutorResolver(new ExecutorResolver() {
+Par.setExecutorResolver(new ExecutorResolver() {
     @Override
     public ThreadPoolExecutor resolveThreadPool(String name) {
         return executorMap.get(name);
@@ -213,7 +235,7 @@ CancellationToken childToken = new CancellationToken(parentToken);
 
 // 取消父任务 → 自动级联到子任务
 parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELLED
+// childToken 状态也会变为 PROPAGATING_CANCELED
 
 // 在子任务代码中设置检查点
 Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
@@ -273,41 +295,47 @@ ParallelOptions ioOptions = ParallelOptions.ioTask("fetchRemote")
 |------|------|------|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
+| cffu2 | 2.0.7 | Future 状态检测（替代原 FutureInspector） |
 
 ---
 
 ## 包结构
 
 ```
-io.github.linzee1.parallel
-├── ParallelHelper              # 主入口门面
-├── ParallelOptions             # 任务配置 (Builder)
-├── StructuredParallel          # 中央配置与 SPI 注册中心
-├── CancellationToken           # 协作式取消令牌
-├── CancellationTokenState      # 取消状态枚举
-├── Checkpoints                 # 协作式检查点
-├── ScopedCallable              # 任务生命周期包装器
-├── ConcurrentLimitExecutor     # 滑动窗口并发控制
-├── AsyncBatchResult            # 批量结果容器
-├── FutureInspector             # Future 状态检测工具
-├── TaskGraph                   # 活锁/死锁检测图
-├── ThreadRelay                 # 跨线程上下文接力 (TTL)
-├── TaskScopeTl                 # 任务作用域 ThreadLocal
-├── TaskType                    # 任务类型枚举 (CPU/IO)
-├── Attachable                  # 键值对附件接口
-├── ListeningExecutorAdapter    # 执行器适配器
-├── PurgeService                # 线程池清理服务
-├── spi/
-│   ├── TaskListener            # 任务监控回调 SPI
-│   ├── ExecutorResolver        # 线程池解析 SPI
-│   ├── LivelockListener        # 活锁检测回调 SPI
-│   └── ParallelLogger          # 日志输出 SPI（默认 JUL）
-├── exception/
+io.github.linzee1.vformation
+├── scope/
+│   ├── ParallelHelper              # 主入口门面
+│   ├── ParallelOptions             # 任务配置 (Builder)
+│   ├── Par                         # 中央配置与 SPI 注册中心
+│   ├── AsyncBatchResult            # 批量结果容器
+│   └── TaskType                    # 任务类型枚举 (CPU/IO)
+├── cancel/
+│   ├── CancellationToken           # 协作式取消令牌
+│   ├── CancellationTokenState      # 取消状态枚举
+│   ├── Checkpoints                 # 协作式检查点
+│   ├── PurgeService                # 线程池清理服务
 │   ├── LeanCancellationException   # 轻量取消异常(无堆栈)
 │   └── FatCancellationException    # 完整取消异常(有堆栈)
-└── queue/
-    ├── SmartBlockingQueue          # 任务类型感知队列
-    └── VariableLinkedBlockingQueue # 动态容量阻塞队列
+├── context/
+│   ├── ThreadRelay                 # 跨线程上下文接力 (TTL)
+│   ├── TaskScopeTl                 # 任务作用域 ThreadLocal
+│   └── graph/
+│       ├── TaskGraph               # 活锁/死锁检测图
+│       ├── TaskEdge                # 任务依赖边
+│       └── TaskEdgeEntry           # 边条目
+├── internal/
+│   ├── ConcurrentLimitExecutor     # 滑动窗口并发控制
+│   ├── ScopedCallable              # 任务生命周期包装器
+│   ├── Attachable                  # 键值对附件接口
+│   └── ListeningExecutorAdapter    # 执行器适配器
+├── queue/
+│   ├── SmartBlockingQueue          # 任务类型感知队列
+│   └── VariableLinkedBlockingQueue # 动态容量阻塞队列
+└── spi/
+    ├── TaskListener                # 任务监控回调 SPI
+    ├── ExecutorResolver            # 线程池解析 SPI
+    ├── LivelockListener            # 活锁检测回调 SPI
+    └── ParallelLogger              # 日志输出 SPI（默认 JUL）
 ```
 
 ---
