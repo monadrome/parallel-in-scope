@@ -39,6 +39,7 @@ public class ScopedCallable<V> implements Callable<V>, Attachable {
 
     public static final String KEY_PARALLEL_OPTIONS = "parallelOptions";
     public static final String KEY_CANCELLATION_TOKEN = "cancellationToken";
+    public static final String KEY_EXECUTOR_NAME = "executorName";
     private static final long NANO_TO_MS = 1_000_000L;
     private static final long QUEUE_THRESHOLD = 3L;
 
@@ -87,6 +88,11 @@ public class ScopedCallable<V> implements Callable<V>, Attachable {
         return (CancellationToken) attachments.get(KEY_CANCELLATION_TOKEN);
     }
 
+    public String getExecutorName() {
+        Object val = attachments.get(KEY_EXECUTOR_NAME);
+        return val instanceof String ? (String) val : "NA";
+    }
+
     @Override
     public V call() throws Exception {
         // ==================== prepareContext ====================
@@ -97,6 +103,7 @@ public class ScopedCallable<V> implements Callable<V>, Attachable {
         ThreadRelay.setCurrentCancellationToken(currentToken);
         ThreadRelay.setCurrentParallelOptions(currentOptions);
         ThreadRelay.setCurrentTaskName(taskName);
+        ThreadRelay.setCurrentExecutorName(getExecutorName());
 
         Throwable taskException = null;
         try {

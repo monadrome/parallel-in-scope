@@ -27,7 +27,8 @@ public class ThreadRelay {
     public enum RelayItem {
         CANCELLATION_TOKEN,
         PARALLEL_OPTIONS,
-        TASK_NAME
+        TASK_NAME,
+        EXECUTOR_NAME
     }
 
     private static final TransmittableThreadLocal<ThreadRelay> THREAD_RELAY_TTL =
@@ -133,6 +134,28 @@ public class ThreadRelay {
         ThreadRelay relay = THREAD_RELAY_TTL.get();
         if (relay != null) {
             relay.curMap.remove(RelayItem.TASK_NAME);
+        }
+    }
+
+    // ==================== ExecutorName relay ====================
+
+    @SuppressWarnings("unchecked")
+    public static String getCurrentExecutorName() {
+        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        if (relay == null) {
+            return "NA";
+        }
+        Object wrapped = relay.curMap.get(RelayItem.EXECUTOR_NAME);
+        if (wrapped instanceof Optional) {
+            return ((Optional<String>) wrapped).orElse("NA");
+        }
+        return "NA";
+    }
+
+    public static void setCurrentExecutorName(String executorName) {
+        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        if (relay != null) {
+            relay.curMap.put(RelayItem.EXECUTOR_NAME, Optional.ofNullable(executorName));
         }
     }
 }
