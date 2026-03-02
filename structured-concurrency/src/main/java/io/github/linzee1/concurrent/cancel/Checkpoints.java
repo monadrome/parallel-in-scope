@@ -59,6 +59,22 @@ public final class Checkpoints {
     }
 
     /**
+     * Cancellation-aware sleep. Converts {@link InterruptedException} into
+     * a {@link FatCancellationException} so that task cancellation via
+     * thread interrupt is treated uniformly as a cooperative cancellation.
+     *
+     * @param millis sleep duration in milliseconds
+     */
+    public static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FatCancellationException("Cancel during sleep by interruption");
+        }
+    }
+
+    /**
      * Re-throws if the throwable is a cancellation exception.
      *
      * @param ex the exception to check
