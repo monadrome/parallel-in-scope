@@ -2,7 +2,6 @@ package io.github.linzee1.vformation.demo;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.linzee1.vformation.cancel.Checkpoints;
-import io.foldright.cffu2.CffuState;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
 import io.github.linzee1.vformation.scope.Par;
 import io.github.linzee1.vformation.scope.ParallelHelper;
@@ -11,7 +10,6 @@ import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -75,11 +73,7 @@ public class CancellationDemo {
             Thread.sleep(200);
 
             // Print report
-            Map.Entry<Map<CffuState, Integer>, Throwable> report = result.report();
-            System.out.println("[main] Report: " + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
-            if (report.getValue() != null) {
-                System.out.println("[main] First failure: " + report.getValue().getMessage());
-            }
+            System.out.println("[main] Report: " + result.reportString());
 
             System.out.println("\n=== Demo Complete ===");
         } catch (InterruptedException e) {

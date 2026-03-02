@@ -129,9 +129,9 @@ public final class ParallelHelper {
         List<Callable<R>> tasks = list.stream()
                 .map(item -> {
                     ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item));
-                    scopedCallable.put(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
-                    scopedCallable.put(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
-                    scopedCallable.put(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
                     return (Callable<R>) scopedCallable;
                 })
                 .collect(toImmutableList());
@@ -153,7 +153,7 @@ public final class ParallelHelper {
     /**
      * Records a fork relationship for livelock detection.
      */
-    public static void logForking(String taskName, TaskEdge edge) {
+    private static void logForking(String taskName, TaskEdge edge) {
         TaskGraph.logTaskPair(ThreadRelay.getCurrentTaskName(), taskName, edge);
     }
 

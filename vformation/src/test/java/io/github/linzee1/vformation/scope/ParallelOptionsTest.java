@@ -1,7 +1,5 @@
-package io.github.linzee1.vformation;
+package io.github.linzee1.vformation.scope;
 
-import io.github.linzee1.vformation.scope.ParallelOptions;
-import io.github.linzee1.vformation.scope.TaskType;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;

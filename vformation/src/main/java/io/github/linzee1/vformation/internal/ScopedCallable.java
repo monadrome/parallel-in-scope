@@ -1,5 +1,6 @@
 package io.github.linzee1.vformation.internal;
 
+import com.alibaba.ttl.spi.TtlAttachments;
 import com.google.common.base.Ticker;
 import io.github.linzee1.vformation.cancel.CancellationToken;
 import io.github.linzee1.vformation.cancel.Checkpoints;
@@ -27,7 +28,7 @@ import java.util.concurrent.ConcurrentMap;
  *   <li>Cleanup on completion</li>
  * </ul>
  * <p>
- * Implements {@link Attachable} using {@link ConcurrentHashMap} for passing
+ * Implements {@link TtlAttachments} using {@link ConcurrentHashMap} for passing
  * context between task submission and execution phases.
  * <p>
  * Timeline: submitTime -> startTime -> endTime
@@ -35,7 +36,7 @@ import java.util.concurrent.ConcurrentMap;
  * @param <V> return value type
  * @author linqh (linqinghua4 at gmail dot com)
  */
-public class ScopedCallable<V> implements Callable<V>, Attachable {
+public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
 
     public static final String KEY_PARALLEL_OPTIONS = "parallelOptions";
     public static final String KEY_CANCELLATION_TOKEN = "cancellationToken";
@@ -72,13 +73,18 @@ public class ScopedCallable<V> implements Callable<V>, Attachable {
     /** Total duration from submission to completion (nanoseconds) */
     public long totalTime() { return endTime - submitTime; }
 
-    // ==================== Attachable ====================
+    // ==================== TtlAttachments ====================
 
     @Override
-    public Object get(String key) { return attachments.get(key); }
+    public void setTtlAttachment(@SuppressWarnings("NullableProblems") String key, Object value) {
+        attachments.put(key, value);
+    }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Object put(String key, Object value) { return attachments.put(key, value); }
+    public <T> T getTtlAttachment(@SuppressWarnings("NullableProblems") String key) {
+        return (T) attachments.get(key);
+    }
 
     public ParallelOptions getParallelOptions() {
         return (ParallelOptions) attachments.get(KEY_PARALLEL_OPTIONS);
