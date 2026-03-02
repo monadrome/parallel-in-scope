@@ -1,10 +1,10 @@
-package io.github.linzee1.concurrent.spi;
+package io.github.linzee1.vformation.spi;
 
 /**
  * SPI: Task lifecycle listener for metrics collection and monitoring.
  * <p>
  * Implementations can record task execution times, queue wait times, etc.
- * Register via {@link io.github.linzee1.concurrent.scope.Par#addTaskListener(TaskListener)}.
+ * Register via {@link io.github.linzee1.vformation.scope.Par#addTaskListener(TaskListener)}.
  * <p>
  * All time values are in nanoseconds.
  *

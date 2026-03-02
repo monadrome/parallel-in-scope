@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.context.graph;
+package io.github.linzee1.vformation.context.graph;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.graph.ElementOrder;
@@ -7,9 +7,9 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.spi.LivelockListener;
-import io.github.linzee1.concurrent.spi.LivelockListener.LivelockEvent;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.spi.LivelockListener;
+import io.github.linzee1.vformation.spi.LivelockListener.LivelockEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;

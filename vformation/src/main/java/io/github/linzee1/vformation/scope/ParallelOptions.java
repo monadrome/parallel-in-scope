@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.scope;
+package io.github.linzee1.vformation.scope;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;

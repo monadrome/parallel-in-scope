@@ -1,6 +1,6 @@
-package io.github.linzee1.concurrent.context.graph;
+package io.github.linzee1.vformation.context.graph;
 
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.scope.TaskType;
 
 /**
  * Value object representing metadata associated with a task dependency edge

@@ -81,6 +81,6 @@ task-A-inner: {p=2, type=IO_BOUND, src=shared-pool,  exec=shared-pool, count=2, 
 
 ```bash
 mvn install -DskipTests -Dmaven.javadoc.skip=true
-mvn -pl structured-concurrency-demo exec:java \
-    -Dexec.mainClass="io.github.linzee1.concurrent.demo.DeadlockDemo"
+mvn -pl vformation-demo exec:java \
+    -Dexec.mainClass="io.github.linzee1.vformation.demo.DeadlockDemo"
 ```

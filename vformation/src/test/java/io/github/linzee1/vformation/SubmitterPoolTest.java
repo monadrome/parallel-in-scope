@@ -1,7 +1,7 @@
-package io.github.linzee1.concurrent;
+package io.github.linzee1.vformation;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import io.github.linzee1.concurrent.scope.Par;
+import io.github.linzee1.vformation.scope.Par;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Callable;

@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.spi;
+package io.github.linzee1.vformation.spi;
 
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;

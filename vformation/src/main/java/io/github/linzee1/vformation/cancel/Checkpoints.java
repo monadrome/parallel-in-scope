@@ -1,8 +1,8 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 import com.google.common.base.Throwables;
-import io.github.linzee1.concurrent.context.TaskScopeTl;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
+import io.github.linzee1.vformation.context.TaskScopeTl;
+import io.github.linzee1.vformation.scope.ParallelOptions;
 
 /**
  * Cooperative cancellation checkpoint utility.

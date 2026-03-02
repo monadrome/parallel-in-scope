@@ -1,17 +1,17 @@
-package io.github.linzee1.concurrent.scope;
+package io.github.linzee1.vformation.scope;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.linzee1.concurrent.cancel.CancellationToken;
-import io.github.linzee1.concurrent.cancel.PurgeService;
-import io.github.linzee1.concurrent.context.ThreadRelay;
-import io.github.linzee1.concurrent.context.graph.TaskEdge;
-import io.github.linzee1.concurrent.context.graph.TaskGraph;
-import io.github.linzee1.concurrent.internal.ConcurrentLimitExecutor;
-import io.github.linzee1.concurrent.internal.ScopedCallable;
+import io.github.linzee1.vformation.cancel.CancellationToken;
+import io.github.linzee1.vformation.cancel.PurgeService;
+import io.github.linzee1.vformation.context.ThreadRelay;
+import io.github.linzee1.vformation.context.graph.TaskEdge;
+import io.github.linzee1.vformation.context.graph.TaskGraph;
+import io.github.linzee1.vformation.internal.ConcurrentLimitExecutor;
+import io.github.linzee1.vformation.internal.ScopedCallable;
 
 import java.util.Collection;
 import java.util.List;

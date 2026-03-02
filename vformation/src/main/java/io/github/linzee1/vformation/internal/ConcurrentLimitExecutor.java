@@ -1,13 +1,13 @@
-package io.github.linzee1.concurrent.internal;
+package io.github.linzee1.vformation.internal;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.linzee1.concurrent.scope.AsyncBatchResult;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;

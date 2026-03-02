@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.context.graph;
+package io.github.linzee1.vformation.context.graph;
 
 import com.google.common.graph.EndpointPair;
 

@@ -1,13 +1,13 @@
-package io.github.linzee1.concurrent;
+package io.github.linzee1.vformation;
 
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
-import io.github.linzee1.concurrent.context.graph.TaskEdge;
-import io.github.linzee1.concurrent.context.graph.TaskGraph;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.scope.TaskType;
-import io.github.linzee1.concurrent.spi.LivelockListener;
-import io.github.linzee1.concurrent.spi.LivelockListener.LivelockEvent;
+import io.github.linzee1.vformation.context.graph.TaskEdge;
+import io.github.linzee1.vformation.context.graph.TaskGraph;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.TaskType;
+import io.github.linzee1.vformation.spi.LivelockListener;
+import io.github.linzee1.vformation.spi.LivelockListener.LivelockEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

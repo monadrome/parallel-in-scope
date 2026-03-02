@@ -6,16 +6,16 @@
 
     <parent>
         <groupId>io.github.linzee1</groupId>
-        <artifactId>structured-concurrency-parent</artifactId>
+        <artifactId>vformation-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>structured-concurrency</artifactId>
+    <artifactId>vformation</artifactId>
     <packaging>jar</packaging>
 
-    <name>Structured Concurrency</name>
+    <name>VFormation</name>
     <description>
-        A structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
+        VFormation — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
     </description>
 
     <build>

@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.spi;
+package io.github.linzee1.vformation.spi;
 
 /**
  * SPI: Livelock/deadlock detection event listener.

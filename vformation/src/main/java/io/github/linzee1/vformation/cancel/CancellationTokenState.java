@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 /**
  * State enum for {@link CancellationToken}.

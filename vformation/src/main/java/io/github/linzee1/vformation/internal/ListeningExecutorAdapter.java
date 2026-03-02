@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.internal;
+package io.github.linzee1.vformation.internal;
 
 import com.google.common.util.concurrent.ForwardingExecutorService;
 import com.google.common.util.concurrent.JdkFutureAdapters;

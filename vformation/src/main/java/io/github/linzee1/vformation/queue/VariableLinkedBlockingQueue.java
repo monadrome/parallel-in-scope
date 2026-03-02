@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.queue;
+package io.github.linzee1.vformation.queue;
 
 import java.io.Serializable;
 import java.util.AbstractQueue;
