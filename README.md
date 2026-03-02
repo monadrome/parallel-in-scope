@@ -12,6 +12,19 @@
 > ```
 > 欢迎通过 Issue 提交反馈和建议。
 
+## 名称由来
+
+**V-Formation**（V 字阵型）是大雁迁徙时采用的经典飞行编队。领头雁破开气流，后方的雁借助前方翅膀产生的上升气流减少阻力，每只雁只需承担一部分空气阻力，整个雁群便能以远超个体的效率完成长途飞行。当领头雁疲劳时，队形会自动轮换，实现协作式的负载均衡。
+
+这与本项目的并发设计理念高度契合：
+
+- **滑动窗口调度** — 如同雁阵中每个位置依次轮替，任务完成一个、补入一个，始终保持最优并发度
+- **协作式取消** — 如同领头雁发出转向信号后整个编队同步响应，父任务取消时子任务级联终止
+- **跨线程上下文传播** — 如同雁阵中每只雁都能感知整体队形的变化，子线程自动继承父线程的执行上下文
+- **活锁检测** — 如同雁群避免编队冲突，框架自动检测任务间的循环依赖
+
+---
+
 **基于 Guava ListenableFuture 和 TransmittableThreadLocal 的结构化并发工具包**
 
 专为 Java 8+ 设计，提供协作取消、活锁检测、滑动窗口并发控制、任务感知调度和可插拔监控。
@@ -22,8 +35,8 @@
 
 ### 1. 结构化并行执行
 
-- **`ParallelHelper.parForEach`** — 对集合元素并行执行 Consumer 操作
-- **`ParallelHelper.parMap`** — 对集合元素并行执行 Function 映射，返回结果列表
+- **`ParallelHelper.parForEach`** — 通过注册的执行器名称，对集合元素并行执行 Consumer 操作
+- **`ParallelHelper.parMap`** — 通过注册的执行器名称，对集合元素并行执行 Function 映射，返回结果列表
 - 自动规范化并行参数（并发度不超过任务数，自动填充默认超时）
 - 空集合快速返回，零开销
 
@@ -98,11 +111,8 @@
 
 - **`AsyncBatchResult`** — 批量 Future 结果容器
   - 封装所有子任务的 `ListenableFuture` 列表
-  - 提供 `report()` 方法统计成功/失败/取消/运行中数量
+  - 提供 `report()` 方法统计成功/失败/取消/运行中数量（基于 cffu2 `CffuState`）
   - 管理 `submitCanceller` 用于取消后续提交
-- **`FutureInspector`** — Future 状态检测工具
-  - 非阻塞查询 Future 状态：`SUCCESS` / `FAILED` / `CANCELED` / `RUNNING`
-  - 安全提取异常：`exceptionNow()`
 
 ### 11. 线程池清理服务
 
@@ -140,9 +150,9 @@
 import io.github.linzee1.vformation.scope.*;
 import com.google.common.util.concurrent.*;
 
-// 创建线程池
-ListeningExecutorService executor = MoreExecutors.listeningDecorator(
-    Executors.newFixedThreadPool(10));
+// 创建并注册线程池
+ExecutorService executor = Executors.newFixedThreadPool(10);
+Par.registerExecutor("io-pool", executor);
 
 // 配置任务参数
 ParallelOptions options = ParallelOptions.ioTask("fetchData")
@@ -153,10 +163,10 @@ ParallelOptions options = ParallelOptions.ioTask("fetchData")
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
 AsyncBatchResult<String> result = ParallelHelper.parMap(
+    "io-pool",                      // 注册的执行器名称
     urls,
-    url -> httpClient.fetch(url),  // 你的业务逻辑
-    options,
-    executor
+    url -> httpClient.fetch(url),   // 你的业务逻辑
+    options
 );
 
 // 获取结果
@@ -285,6 +295,7 @@ ParallelOptions ioOptions = ParallelOptions.ioTask("fetchRemote")
 |------|------|------|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
+| cffu2 | 2.0.7 | Future 状态检测（替代原 FutureInspector） |
 
 ---
 
@@ -315,7 +326,6 @@ io.github.linzee1.vformation
 ├── internal/
 │   ├── ConcurrentLimitExecutor     # 滑动窗口并发控制
 │   ├── ScopedCallable              # 任务生命周期包装器
-│   ├── FutureInspector             # Future 状态检测工具
 │   ├── Attachable                  # 键值对附件接口
 │   └── ListeningExecutorAdapter    # 执行器适配器
 ├── queue/
