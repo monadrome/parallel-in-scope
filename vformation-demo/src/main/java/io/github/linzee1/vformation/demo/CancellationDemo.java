@@ -1,13 +1,13 @@
-package io.github.linzee1.concurrent.demo;
+package io.github.linzee1.vformation.demo;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.linzee1.concurrent.cancel.Checkpoints;
-import io.github.linzee1.concurrent.internal.FutureInspector;
-import io.github.linzee1.concurrent.scope.AsyncBatchResult;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.scope.ParallelHelper;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.cancel.Checkpoints;
+import io.foldright.cffu2.CffuState;
+import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParallelHelper;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
 import java.util.List;
@@ -75,7 +75,7 @@ public class CancellationDemo {
             Thread.sleep(200);
 
             // Print report
-            Map.Entry<Map<FutureInspector.State, Integer>, Throwable> report = result.report();
+            Map.Entry<Map<CffuState, Integer>, Throwable> report = result.report();
             System.out.println("[main] Report: " + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
             if (report.getValue() != null) {
                 System.out.println("[main] First failure: " + report.getValue().getMessage());

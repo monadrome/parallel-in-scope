@@ -5,17 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.linzee1</groupId>
-    <artifactId>structured-concurrency-parent</artifactId>
+    <artifactId>vformation-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Structured Concurrency Parent</name>
+    <name>VFormation Parent</name>
     <description>
-        A structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
+        VFormation — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
         Provides cooperative cancellation, livelock detection, sliding-window concurrency control,
         task-type-aware scheduling, and pluggable metrics/monitoring.
     </description>
-    <url>https://github.com/linzee1/structured-concurrency</url>
+    <url>https://github.com/linzee1/vformation</url>
 
     <licenses>
         <license>
@@ -25,8 +25,8 @@
     </licenses>
 
     <modules>
-        <module>structured-concurrency</module>
-        <module>structured-concurrency-demo</module>
+        <module>vformation</module>
+        <module>vformation-demo</module>
     </modules>
 
     <properties>
@@ -39,6 +39,7 @@
         <junit-jupiter.version>5.12.2</junit-jupiter.version>
         <mockito.version>5.18.0</mockito.version>
         <assertj.version>3.27.3</assertj.version>
+        <cffu.version>2.0.7</cffu.version>
     </properties>
 
     <dependencyManagement>
@@ -77,6 +78,11 @@
                 <version>${assertj.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>io.foldright</groupId>
+                <artifactId>cffu2</artifactId>
+                <version>${cffu.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -91,6 +97,12 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>transmittable-thread-local</artifactId>
+        </dependency>
+
+        <!-- Core: CFFU (Future state inspection) -->
+        <dependency>
+            <groupId>io.foldright</groupId>
+            <artifactId>cffu2</artifactId>
         </dependency>
 
         <!-- Lombok (compile-only) -->
