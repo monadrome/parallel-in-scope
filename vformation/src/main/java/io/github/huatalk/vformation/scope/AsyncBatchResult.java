@@ -2,8 +2,8 @@ package io.github.huatalk.vformation.scope;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.foldright.cffu2.CffuState;
-import io.foldright.cffu2.CompletableFutureUtils;
+import io.github.huatalk.vformation.internal.FutureInspector;
+import io.github.huatalk.vformation.internal.FutureState;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -51,13 +51,13 @@ public final class AsyncBatchResult<T> {
      * @return a BatchReport containing state counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<CffuState, Integer> stateMap = results.stream().collect(Collectors.toMap(
-                CompletableFutureUtils::state, x -> 1, Integer::sum, () -> new EnumMap<>(CffuState.class)));
+        Map<FutureState, Integer> stateMap = results.stream().collect(Collectors.toMap(
+                FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(FutureState.class)));
         Throwable firstException = null;
-        if (stateMap.containsKey(CffuState.FAILED)) {
+        if (stateMap.containsKey(FutureState.FAILED)) {
             firstException = results.stream()
-                    .filter(x -> CompletableFutureUtils.state(x) == CffuState.FAILED)
-                    .map(CompletableFutureUtils::exceptionNow)
+                    .filter(x -> FutureInspector.state(x) == FutureState.FAILED)
+                    .map(FutureInspector::exceptionNow)
                     .findFirst()
                     .orElse(null);
         }
@@ -75,7 +75,7 @@ public final class AsyncBatchResult<T> {
         BatchReport r = report();
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<CffuState, Integer> e : r.getStateCounts().entrySet()) {
+        for (Map.Entry<FutureState, Integer> e : r.getStateCounts().entrySet()) {
             if (!first) sb.append(',');
             sb.append(e.getKey()).append(':').append(e.getValue());
             first = false;
@@ -90,16 +90,16 @@ public final class AsyncBatchResult<T> {
      * Immutable report of batch task execution state.
      */
     public static final class BatchReport {
-        private final Map<CffuState, Integer> stateCounts;
+        private final Map<FutureState, Integer> stateCounts;
         private final Throwable firstException;
 
-        public BatchReport(Map<CffuState, Integer> stateCounts, Throwable firstException) {
+        public BatchReport(Map<FutureState, Integer> stateCounts, Throwable firstException) {
             this.stateCounts = stateCounts;
             this.firstException = firstException;
         }
 
         /** State count map (e.g. SUCCESS=3, FAILED=1). */
-        public Map<CffuState, Integer> getStateCounts() { return stateCounts; }
+        public Map<FutureState, Integer> getStateCounts() { return stateCounts; }
 
         /** First exception from failed tasks, or null if none failed. */
         public Throwable getFirstException() { return firstException; }

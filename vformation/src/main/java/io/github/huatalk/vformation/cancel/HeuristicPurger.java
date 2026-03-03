@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.foldright.cffu2.CffuState;
+import io.github.huatalk.vformation.internal.FutureState;
 import io.github.huatalk.vformation.scope.AsyncBatchResult.BatchReport;
 import io.github.huatalk.vformation.scope.ParConfig;
 
@@ -89,7 +89,7 @@ public class HeuristicPurger {
         if (report == null || report.getStateCounts() == null || report.getFirstException() == null) {
             return Futures.immediateCancelledFuture();
         }
-        int staleCount = report.getStateCounts().getOrDefault(CffuState.CANCELLED, 0);
+        int staleCount = report.getStateCounts().getOrDefault(FutureState.CANCELLED, 0);
         if (staleCount <= 0) {
             return Futures.immediateCancelledFuture();
         }
