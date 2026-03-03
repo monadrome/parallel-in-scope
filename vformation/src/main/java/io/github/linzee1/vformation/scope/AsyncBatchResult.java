@@ -48,9 +48,9 @@ public final class AsyncBatchResult<T> {
     /**
      * Generates execution report: counts tasks by state and extracts first failure exception.
      *
-     * @return a map entry of (state count map, first exception or null)
+     * @return a BatchReport containing state counts and the first exception (if any)
      */
-    public Map.Entry<Map<CffuState, Integer>, Throwable> report() {
+    public BatchReport report() {
         Map<CffuState, Integer> stateMap = results.stream().collect(Collectors.toMap(
                 CompletableFutureUtils::state, x -> 1, Integer::sum, () -> new EnumMap<>(CffuState.class)));
         Throwable firstException = null;
@@ -61,7 +61,7 @@ public final class AsyncBatchResult<T> {
                     .findFirst()
                     .orElse(null);
         }
-        return new java.util.AbstractMap.SimpleImmutableEntry<>(stateMap, firstException);
+        return new BatchReport(stateMap, firstException);
     }
 
     /**
@@ -72,17 +72,41 @@ public final class AsyncBatchResult<T> {
      * @return formatted report string
      */
     public String reportString() {
-        Map.Entry<Map<CffuState, Integer>, Throwable> r = report();
+        BatchReport r = report();
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<CffuState, Integer> e : r.getKey().entrySet()) {
+        for (Map.Entry<CffuState, Integer> e : r.getStateCounts().entrySet()) {
             if (!first) sb.append(',');
             sb.append(e.getKey()).append(':').append(e.getValue());
             first = false;
         }
-        if (r.getValue() != null) {
-            sb.append(" | firstException=").append(r.getValue().getMessage());
+        if (r.getFirstException() != null) {
+            sb.append(" | firstException=").append(r.getFirstException().getMessage());
         }
         return sb.toString();
+    }
+
+    /**
+     * Immutable report of batch task execution state.
+     */
+    public static final class BatchReport {
+        private final Map<CffuState, Integer> stateCounts;
+        private final Throwable firstException;
+
+        public BatchReport(Map<CffuState, Integer> stateCounts, Throwable firstException) {
+            this.stateCounts = stateCounts;
+            this.firstException = firstException;
+        }
+
+        /** State count map (e.g. SUCCESS=3, FAILED=1). */
+        public Map<CffuState, Integer> getStateCounts() { return stateCounts; }
+
+        /** First exception from failed tasks, or null if none failed. */
+        public Throwable getFirstException() { return firstException; }
+
+        @Override
+        public String toString() {
+            return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
+        }
     }
 }

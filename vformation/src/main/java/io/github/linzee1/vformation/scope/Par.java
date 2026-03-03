@@ -13,7 +13,6 @@ import io.github.linzee1.vformation.context.graph.TaskGraph;
 import io.github.linzee1.vformation.internal.ConcurrentLimitExecutor;
 import io.github.linzee1.vformation.internal.ScopedCallable;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -83,7 +82,7 @@ public final class Par {
     }
 
     /**
-     * Executes a consumer in parallel for each element in the collection.
+     * Executes a consumer in parallel for each element in the list.
      * The executor is resolved from the registry by name.
      *
      * @param executorName registered executor name
@@ -95,7 +94,7 @@ public final class Par {
      */
     public <T> AsyncBatchResult<Void> parForEach(
             String executorName,
-            Collection<T> list,
+            List<T> list,
             Consumer<? super T> consumer,
             ParOptions options) {
 
@@ -136,7 +135,7 @@ public final class Par {
     }
 
     private <T, R> AsyncBatchResult<R> executeParallel(
-            Collection<T> list,
+            List<T> list,
             Function<T, Callable<R>> callableMapper,
             ParOptions options,
             ListeningExecutorService executor,

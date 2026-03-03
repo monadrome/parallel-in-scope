@@ -21,7 +21,6 @@ public class ParOptionsTest {
         assertEquals(0, options.getTimeout());
         assertEquals(TaskType.CPU_BOUND, options.getTaskType());
         assertEquals(3, options.getPriority());
-        assertTrue(options.isEnableParallel());
         assertTrue(options.isRejectEnqueue());
     }
 

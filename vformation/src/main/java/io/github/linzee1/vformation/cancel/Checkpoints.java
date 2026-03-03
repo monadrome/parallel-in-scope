@@ -35,7 +35,7 @@ public final class Checkpoints {
     public static void checkpoint(String taskName, boolean lean) {
         ParOptions options = TaskScopeTl.getParallelOptions();
         if (taskName == null || options == null
-                || "task".equals(options.getTaskName()) || !taskName.equals(options.getTaskName())) {
+                || !taskName.equals(options.getTaskName())) {
             return;
         }
         CancellationToken cancelToken = TaskScopeTl.getCancellationToken();

@@ -119,7 +119,7 @@ public final class ParConfig {
     // ==================== Timer Service (Global) ====================
 
     private static final class TimerHolder {
-        private static final int CORE_POOL_SIZE = 16;
+        private static final int CORE_POOL_SIZE = 2;
         static final ListeningScheduledExecutorService INSTANCE;
 
         static {

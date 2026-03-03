@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.foldright.cffu2.CffuState;
+import io.github.linzee1.vformation.scope.AsyncBatchResult.BatchReport;
 import io.github.linzee1.vformation.scope.ParConfig;
 
 import java.util.Map;
@@ -80,11 +81,11 @@ public class HeuristicPurger {
      * @param config       the ParConfig instance for thread pool resolution
      * @return future of the purge task
      */
-    public static ListenableFuture<?> tryPurge(String executorName, Map.Entry<Map<CffuState, Integer>, Throwable> report, ParConfig config) {
-        if (report == null || report.getKey() == null || report.getValue() == null) {
+    public static ListenableFuture<?> tryPurge(String executorName, BatchReport report, ParConfig config) {
+        if (report == null || report.getStateCounts() == null || report.getFirstException() == null) {
             return Futures.immediateCancelledFuture();
         }
-        int staleCount = report.getKey().getOrDefault(CffuState.CANCELLED, 0);
+        int staleCount = report.getStateCounts().getOrDefault(CffuState.CANCELLED, 0);
         if (staleCount <= 0) {
             return Futures.immediateCancelledFuture();
         }
