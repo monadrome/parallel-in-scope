@@ -56,7 +56,7 @@ ParOptions options = ParOptions.ioTask("fetchData")
 
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.parMap(
+AsyncBatchResult<String> result = par.map(
     "io-pool",                      // 注册的执行器名称
     urls,
     url -> httpClient.fetch(url),   // 你的业务逻辑
@@ -161,7 +161,7 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        Par                                │
-│              (parForEach / parMap Facade)                │
+│              (forEach / map Facade)                │
 ├─────────────────────────────────────────────────────────┤
 │  ParOptions           │  ConcurrentLimitExecutor           │
 │  (Task Config)        │  (Sliding Window Scheduler)        │

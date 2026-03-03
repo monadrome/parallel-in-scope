@@ -50,7 +50,7 @@ public class CancellationDemo {
             System.out.println("=== Cancellation Demo (fail-fast) ===\n");
             System.out.println("10 tasks, parallelism=3, task #5 will fail after 500ms\n");
 
-            AsyncBatchResult<String> result = par.parMap("demo", items, n -> {
+            AsyncBatchResult<String> result = par.map("demo", items, n -> {
                 if (n == 5) {
                     Checkpoints.sleep(500);
                     System.out.println("[task-" + n + "] Throwing exception!");

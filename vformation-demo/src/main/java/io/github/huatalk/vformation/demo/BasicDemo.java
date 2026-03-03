@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 
 
 /**
- * Basic demo showing Par.parMap usage.
+ * Basic demo showing Par.map usage.
  */
 public class BasicDemo {
 
@@ -29,7 +29,7 @@ public class BasicDemo {
                     .parallelism(3)
                     .build();
 
-            AsyncBatchResult<Integer> result = par.parMap("demo", numbers, n -> {
+            AsyncBatchResult<Integer> result = par.map("demo", numbers, n -> {
                 System.out.println(Thread.currentThread().getName() + " processing " + n);
                 return n * n;
             }, options);

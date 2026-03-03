@@ -87,7 +87,7 @@ public class ExecutorRegistryTest {
                 () -> config.registerExecutor(POOL_NAME, null));
     }
 
-    // ==================== 5.3: parMap and parForEach with executor name ====================
+    // ==================== 5.3: map and forEach with executor name ====================
 
     @Test
     public void testParMapWithExecutorName() throws Exception {
@@ -98,7 +98,7 @@ public class ExecutorRegistryTest {
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Integer> batch = par.parMap(
+        AsyncBatchResult<Integer> batch = par.map(
                 POOL_NAME, input, x -> x * 10, options);
 
         List<Integer> results = new ArrayList<>();
@@ -120,7 +120,7 @@ public class ExecutorRegistryTest {
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.parForEach(
+        AsyncBatchResult<Void> batch = par.forEach(
                 POOL_NAME, input, results::add, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
@@ -137,14 +137,14 @@ public class ExecutorRegistryTest {
     public void testParMapWithUnregisteredNameThrows() {
         ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
-                () -> par.parMap("nonexistent", Arrays.asList(1), x -> x, options));
+                () -> par.map("nonexistent", Arrays.asList(1), x -> x, options));
     }
 
     @Test
     public void testParForEachWithUnregisteredNameThrows() {
         ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
-                () -> par.parForEach("nonexistent", Arrays.asList(1), x -> {}, options));
+                () -> par.forEach("nonexistent", Arrays.asList(1), x -> {}, options));
     }
 
     // ==================== 5.5: Auto-bridge to purge subsystem ====================
