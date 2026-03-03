@@ -39,7 +39,6 @@
         <mockito.version>5.18.0</mockito.version>
         <assertj.version>3.27.3</assertj.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <cffu.version>2.0.7</cffu.version>
     </properties>
 
     <dependencyManagement>
@@ -84,11 +83,6 @@
                 <version>${awaitility.version}</version>
                 <scope>test</scope>
             </dependency>
-            <dependency>
-                <groupId>io.foldright</groupId>
-                <artifactId>cffu2</artifactId>
-                <version>${cffu.version}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -103,12 +97,6 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>transmittable-thread-local</artifactId>
-        </dependency>
-
-        <!-- Core: CFFU (Future state inspection) -->
-        <dependency>
-            <groupId>io.foldright</groupId>
-            <artifactId>cffu2</artifactId>
         </dependency>
 
         <!-- Lombok (compile-only) -->

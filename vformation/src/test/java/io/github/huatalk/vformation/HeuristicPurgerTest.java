@@ -1,6 +1,6 @@
 package io.github.huatalk.vformation;
 
-import io.foldright.cffu2.CffuState;
+import io.github.huatalk.vformation.internal.FutureState;
 import io.github.huatalk.vformation.cancel.HeuristicPurger;
 import io.github.huatalk.vformation.scope.AsyncBatchResult.BatchReport;
 import io.github.huatalk.vformation.scope.ParConfig;
@@ -51,9 +51,9 @@ public class HeuristicPurgerTest {
 
     @Test
     public void testTryPurge_zeroStaleCount_returnsCancelledFuture() {
-        Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
-        stateMap.put(CffuState.CANCELLED, 0);
-        stateMap.put(CffuState.SUCCESS, 5);
+        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
+        stateMap.put(FutureState.CANCELLED, 0);
+        stateMap.put(FutureState.SUCCESS, 5);
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
@@ -65,8 +65,8 @@ public class HeuristicPurgerTest {
         // Configure with low threshold so any stale count triggers purge
         HeuristicPurger.configure(0.33, 1, 1000, 100.0);
 
-        Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
-        stateMap.put(CffuState.CANCELLED, 5);
+        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
+        stateMap.put(FutureState.CANCELLED, 5);
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
@@ -82,8 +82,8 @@ public class HeuristicPurgerTest {
         // Configure with very high threshold
         HeuristicPurger.configure(0.33, 1000, 5000, 100.0);
 
-        Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
-        stateMap.put(CffuState.CANCELLED, 1);
+        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
+        stateMap.put(FutureState.CANCELLED, 1);
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
@@ -94,8 +94,8 @@ public class HeuristicPurgerTest {
 
     @Test
     public void testCounterAccumulation() {
-        Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
-        stateMap.put(CffuState.CANCELLED, 3);
+        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
+        stateMap.put(FutureState.CANCELLED, 3);
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         // Use a unique pool name to avoid interference from other tests
