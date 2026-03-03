@@ -6,7 +6,7 @@ import com.google.common.graph.EndpointPair;
  * Bundles an {@link EndpointPair} edge with its associated {@link TaskEdge} metadata.
  * Used in the concurrent queue within {@link TaskGraph.Data}.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class TaskEdgeEntry {
 

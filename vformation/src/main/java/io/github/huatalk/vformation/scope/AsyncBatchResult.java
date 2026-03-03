@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * with a {@code submitCanceller} future used to cancel ongoing submission.
  *
  * @param <T> the result type of individual tasks
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class AsyncBatchResult<T> {
 

@@ -5,7 +5,7 @@ package io.github.huatalk.vformation.cancel;
  * <p>
  * Negative values indicate cancellation states where the task should be interrupted.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public enum CancellationTokenState {
 

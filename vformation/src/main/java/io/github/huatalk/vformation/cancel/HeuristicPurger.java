@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * Uses the {@link io.github.huatalk.vformation.spi.ExecutorResolver} SPI for thread pool resolution.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @SuppressWarnings("UnstableApiUsage")
 public class HeuristicPurger {

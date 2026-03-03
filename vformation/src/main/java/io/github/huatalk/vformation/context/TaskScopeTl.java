@@ -10,7 +10,7 @@ import io.github.huatalk.vformation.scope.ParOptions;
  * on the current thread. Intentionally non-propagating -- this data belongs only to the current
  * task node and should not be inherited by child threads.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class TaskScopeTl {
 

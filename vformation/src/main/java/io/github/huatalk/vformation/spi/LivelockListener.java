@@ -6,7 +6,7 @@ package io.github.huatalk.vformation.spi;
  * Receives notifications when potential livelock or deadlock situations
  * are detected in the task dependency graph.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public interface LivelockListener {
 

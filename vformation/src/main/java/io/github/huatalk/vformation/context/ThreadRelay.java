@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>Task name - for task graph / livelock detection</li>
  * </ul>
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class ThreadRelay {
 

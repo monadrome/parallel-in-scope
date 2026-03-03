@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * Implementations should provide thread pool lookup by name, and optionally
  * support purge operations on underlying {@link ThreadPoolExecutor}.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public interface ExecutorResolver {
 

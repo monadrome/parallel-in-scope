@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  *     .build();
  * </pre>
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class ParOptions {
 

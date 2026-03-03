@@ -7,7 +7,7 @@ package io.github.huatalk.vformation.scope;
  * and {@link io.github.huatalk.vformation.internal.ConcurrentLimitExecutor ConcurrentLimitExecutor}
  * to control how tasks are queued and executed.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public enum TaskType {
     /** Network, RPC, database operations */

@@ -7,7 +7,7 @@ package io.github.huatalk.vformation.cancel;
  * stack traces in production environments. Use when cancellation is frequent and
  * stack trace information is not needed.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  * @see FatCancellationException
  */
 public class LeanCancellationException extends java.util.concurrent.CancellationException {

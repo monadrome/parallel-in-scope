@@ -28,7 +28,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  * Uses Guava's {@link SettableFuture} for late binding -- after all sub-futures are submitted,
  * {@link #lateBind} wires up timeout, fail-fast, and parent cancellation propagation.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class CancellationToken {
 

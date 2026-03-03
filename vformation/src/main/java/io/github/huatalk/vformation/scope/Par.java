@@ -41,7 +41,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  *   <li>Asynchronous purge on timeout</li>
  * </ul>
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class Par {
 
