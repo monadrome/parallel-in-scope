@@ -50,8 +50,8 @@ public class HeuristicPurger {
     private static final ConcurrentMap<String, AtomicInteger> STALE_COUNTERS = new ConcurrentHashMap<>();
     private static volatile RateLimiter rateLimiter = RateLimiter.create(1.0);
 
-    private static volatile double purgeThresholdFactor = 0.33;
-    private static volatile int purgeMinThreshold = 10;
+    private static volatile double purgeThresholdFactor = 0.8;
+    private static volatile int purgeMinThreshold = 50;
     private static volatile int purgeMaxThreshold = 1000;
 
     // Sliding-window monitoring
@@ -146,7 +146,7 @@ public class HeuristicPurger {
      * @return future of the purge task
      */
     public static ListenableFuture<?> tryPurge(String executorName, BatchReport report, ParConfig config) {
-        if (report == null || report.getStateCounts() == null || report.getFirstException() == null) {
+        if (report == null || report.getStateCounts() == null) {
             return Futures.immediateCancelledFuture();
         }
         int staleCount = report.getStateCounts().getOrDefault(FutureState.CANCELLED, 0);
@@ -170,8 +170,9 @@ public class HeuristicPurger {
             int queueSize = executor.getQueue().size();
             boolean shouldPurge = evaluatePurge(executorName, counter, queueSize, windowCounter);
             if (shouldPurge && rateLimiter.tryAcquire()) {
+                int snapshot = counter.get();
                 executor.purge();
-                counter.set(0);
+                counter.addAndGet(-snapshot);
                 return true;
             }
             return false;
