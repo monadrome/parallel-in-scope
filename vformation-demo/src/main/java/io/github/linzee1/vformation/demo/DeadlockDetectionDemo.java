@@ -4,9 +4,9 @@ import com.google.common.util.concurrent.Futures;
 import io.github.linzee1.vformation.cancel.Checkpoints;
 import io.github.linzee1.vformation.context.graph.TaskGraph;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.scope.Par;
-import io.github.linzee1.vformation.scope.ParallelHelper;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 import io.github.linzee1.vformation.spi.LivelockListener;
 
@@ -44,8 +44,8 @@ public class DeadlockDetectionDemo {
         // A small fixed pool — deliberately undersized to trigger deadlock
         ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
-            Par.registerExecutor("shared-pool", pool);
-            Par.setLivelockDetectionEnabled(true);
+            ParConfig.registerExecutor("shared-pool", pool);
+            ParConfig.setLivelockDetectionEnabled(true);
 
             // Register listener to capture livelock/deadlock detection
             LivelockListener listener = event -> {
@@ -59,7 +59,7 @@ public class DeadlockDetectionDemo {
                 System.out.println("toString     : " + event.getExecutorEdges());
                 System.out.println("=========================================\n");
             };
-            Par.addLivelockListener(listener);
+            ParConfig.addLivelockListener(listener);
 
             // Initialize task graph for this "request"
             TaskGraph.initOnRequest();
@@ -69,7 +69,7 @@ public class DeadlockDetectionDemo {
             System.out.println("task-A spawns 4 subtasks, each calling task-B, each calling task-A-inner");
             System.out.println("All use the SAME pool => deadlock!\n");
 
-            ParallelOptions optionsA = ParallelOptions.of("task-A")
+            ParOptions optionsA = ParOptions.of("task-A")
                     .parallelism(4)
                     .timeout(5_000)
                     .taskType(TaskType.IO_BOUND)
@@ -77,7 +77,7 @@ public class DeadlockDetectionDemo {
 
             long start = System.currentTimeMillis();
 
-            AsyncBatchResult<Void> result = ParallelHelper.parForEach("shared-pool",
+            AsyncBatchResult<Void> result = Par.parForEach("shared-pool",
                     Arrays.asList(1, 2, 3, 4), item -> {
                         System.out.println("[task-A-" + item + "] started on " + Thread.currentThread().getName());
                         // Each task-A subtask calls task-B
@@ -104,8 +104,8 @@ public class DeadlockDetectionDemo {
 
             System.out.println("=== Demo Complete ===");
         } finally {
-            Par.setLivelockDetectionEnabled(false);
-            Par.unregisterExecutor("shared-pool");
+            ParConfig.setLivelockDetectionEnabled(false);
+            ParConfig.unregisterExecutor("shared-pool");
             pool.shutdownNow();
         }
     }
@@ -114,14 +114,14 @@ public class DeadlockDetectionDemo {
      * task-B: called from within task-A, submits work to the SAME pool.
      */
     private static void callTaskB(int parentItem) {
-        ParallelOptions optionsB = ParallelOptions.of("task-B")
+        ParOptions optionsB = ParOptions.of("task-B")
                 .parallelism(2)
                 .timeout(5_000)
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         List<String> items = Arrays.asList("x", "y");
-        AsyncBatchResult<String> resultB = ParallelHelper.parMap("shared-pool", items, sub -> {
+        AsyncBatchResult<String> resultB = Par.parMap("shared-pool", items, sub -> {
             System.out.println("  [task-B-" + parentItem + "-" + sub + "] started on " + Thread.currentThread().getName());
             // task-B calls back into task-A-inner — circular!
             callTaskAInner(parentItem, sub);
@@ -140,14 +140,14 @@ public class DeadlockDetectionDemo {
      * At this point all pool threads are occupied by task-A and task-B — deadlock.
      */
     private static void callTaskAInner(int parentItem, String subItem) {
-        ParallelOptions optionsAInner = ParallelOptions.of("task-A-inner")
+        ParOptions optionsAInner = ParOptions.of("task-A-inner")
                 .parallelism(2)
                 .timeout(5_000)
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         List<Integer> items = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> resultAInner = ParallelHelper.parMap("shared-pool", items, i -> {
+        AsyncBatchResult<Integer> resultAInner = Par.parMap("shared-pool", items, i -> {
             System.out.println("    [task-A-inner-" + parentItem + "-" + subItem + "-" + i
                     + "] started on " + Thread.currentThread().getName());
             Checkpoints.sleep(100);

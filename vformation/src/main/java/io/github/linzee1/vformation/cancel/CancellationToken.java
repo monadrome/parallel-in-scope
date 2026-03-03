@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParConfig;
 
 import java.time.Duration;
 import java.util.List;
@@ -72,7 +72,7 @@ public class CancellationToken {
 
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
                 .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-                .withTimeout(timeout, Par.getTimer());
+                .withTimeout(timeout, ParConfig.getTimer());
 
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 

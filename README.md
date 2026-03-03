@@ -35,8 +35,8 @@
 
 ### 1. 结构化并行执行
 
-- **`ParallelHelper.parForEach`** — 通过注册的执行器名称，对集合元素并行执行 Consumer 操作
-- **`ParallelHelper.parMap`** — 通过注册的执行器名称，对集合元素并行执行 Function 映射，返回结果列表
+- **`Par.parForEach`** — 通过注册的执行器名称，对集合元素并行执行 Consumer 操作
+- **`Par.parMap`** — 通过注册的执行器名称，对集合元素并行执行 Function 映射，返回结果列表
 - 自动规范化并行参数（并发度不超过任务数，自动填充默认超时）
 - 空集合快速返回，零开销
 
@@ -66,7 +66,7 @@
 - **`SmartBlockingQueue`** — 任务类型感知的阻塞队列
   - `CPU_BOUND` + `rejectEnqueue=true` 时直接拒绝入队（返回 `false`），避免线程饥饿
   - `IO_BOUND` 任务正常排队等待
-- **`ParallelOptions`** — 丰富的任务配置，支持 Builder 模式
+- **`ParOptions`** — 丰富的任务配置，支持 Builder 模式
   - 任务名称、并行度、超时时间、任务类型、优先级
   - 快捷工厂方法：`ioTask()`, `cpuTask()`, `criticalIoTask()`
 
@@ -74,7 +74,7 @@
 
 - **`ThreadRelay`** — 基于 TransmittableThreadLocal 的两级 Map 接力设计
   - 父线程的 `curMap` 自动成为子线程的 `parentMap`
-  - 传播内容：CancellationToken、ParallelOptions、TaskName
+  - 传播内容：CancellationToken、ParOptions、TaskName
 - **`TaskScopeTl`** — 当前任务作用域的 ThreadLocal 绑定
 
 ### 7. 活锁/死锁检测
@@ -92,10 +92,10 @@
 
 | SPI 接口 | 用途 | 注册方式 |
 |-----------|------|----------|
-| `TaskListener` | 任务生命周期回调（耗时、排队时间、异常） | `Par.addTaskListener()` |
-| `ExecutorResolver` | 线程池解析（按名称查找 ThreadPoolExecutor） | `Par.setExecutorResolver()` |
-| `LivelockListener` | 活锁检测事件通知 | `Par.addLivelockListener()` |
-| `ParallelLogger` | 框架内部日志输出（默认 JUL，用户可桥接到 SLF4J/Log4j2） | `Par.setLogger()` |
+| `TaskListener` | 任务生命周期回调（耗时、排队时间、异常） | `ParConfig.addTaskListener()` |
+| `ExecutorResolver` | 线程池解析（按名称查找 ThreadPoolExecutor） | `ParConfig.setExecutorResolver()` |
+| `LivelockListener` | 活锁检测事件通知 | `ParConfig.addLivelockListener()` |
+| `ParallelLogger` | 框架内部日志输出（默认 JUL，用户可桥接到 SLF4J/Log4j2） | `ParConfig.setLogger()` |
 
 ### 9. 全生命周期任务包装
 
@@ -152,17 +152,17 @@ import com.google.common.util.concurrent.*;
 
 // 创建并注册线程池
 ExecutorService executor = Executors.newFixedThreadPool(10);
-Par.registerExecutor("io-pool", executor);
+ParConfig.registerExecutor("io-pool", executor);
 
 // 配置任务参数
-ParallelOptions options = ParallelOptions.ioTask("fetchData")
+ParOptions options = ParOptions.ioTask("fetchData")
     .parallelism(5)
     .timeout(3000)  // 3秒超时
     .build();
 
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = ParallelHelper.parMap(
+AsyncBatchResult<String> result = Par.parMap(
     "io-pool",                      // 注册的执行器名称
     urls,
     url -> httpClient.fetch(url),   // 你的业务逻辑
@@ -177,7 +177,7 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 ```java
 // 注册任务耗时监控
-Par.addTaskListener(event -> {
+ParConfig.addTaskListener(event -> {
     System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
         event.getTaskName(),
         event.executionTimeMillis(),
@@ -193,10 +193,10 @@ Par.addTaskListener(event -> {
 
 ```java
 // 启用活锁检测
-Par.setLivelockDetectionEnabled(true);
+ParConfig.setLivelockDetectionEnabled(true);
 
 // 注册活锁监听器
-Par.addLivelockListener(event -> {
+ParConfig.addLivelockListener(event -> {
     if (event.isExecutorSelfLoop()) {
         log.warn("Potential deadlock: executor self-loop detected! {}",
             event.getExecutorEdges());
@@ -204,7 +204,7 @@ Par.addLivelockListener(event -> {
 });
 
 // 提供任务到线程池的映射关系
-Par.setExecutorResolver(new ExecutorResolver() {
+ParConfig.setExecutorResolver(new ExecutorResolver() {
     @Override
     public ThreadPoolExecutor resolveThreadPool(String name) {
         return executorMap.get(name);
@@ -219,7 +219,7 @@ Par.setExecutorResolver(new ExecutorResolver() {
 // 在请求入口初始化
 TaskGraph.initOnRequest();
 try {
-    // ... 执行业务逻辑，期间所有 ParallelHelper 调用会自动记录依赖关系
+    // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
 } finally {
     // 请求结束时自动检测并通知
     TaskGraph.destroyAfterRequest();
@@ -245,12 +245,12 @@ Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancell
 
 ```java
 // CPU 密集型任务：拒绝入队，宁可同步执行也不阻塞工作线程
-ParallelOptions cpuOptions = ParallelOptions.cpuTask("compute")
+ParOptions cpuOptions = ParOptions.cpuTask("compute")
     .parallelism(Runtime.getRuntime().availableProcessors())
     .build();
 
 // IO 密集型任务：允许入队等待
-ParallelOptions ioOptions = ParallelOptions.ioTask("fetchRemote")
+ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
     .parallelism(20)
     .timeout(5000)
     .build();
@@ -262,11 +262,11 @@ ParallelOptions ioOptions = ParallelOptions.ioTask("fetchRemote")
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    ParallelHelper                        │
+│                        Par                                │
 │              (parForEach / parMap Facade)                │
 ├─────────────────────────────────────────────────────────┤
-│  ParallelOptions    │  ConcurrentLimitExecutor           │
-│  (Task Config)      │  (Sliding Window Scheduler)        │
+│  ParOptions           │  ConcurrentLimitExecutor           │
+│  (Task Config)        │  (Sliding Window Scheduler)        │
 ├─────────────────────┼───────────────────────────────────┤
 │         ScopedCallable (Lifecycle Wrapper)                │
 │  ┌─────────┐  ┌──────────┐  ┌────────────┐              │
@@ -304,9 +304,9 @@ ParallelOptions ioOptions = ParallelOptions.ioTask("fetchRemote")
 ```
 io.github.linzee1.vformation
 ├── scope/
-│   ├── ParallelHelper              # 主入口门面
-│   ├── ParallelOptions             # 任务配置 (Builder)
-│   ├── Par                         # 中央配置与 SPI 注册中心
+│   ├── Par                          # 主入口门面
+│   ├── ParOptions                   # 任务配置 (Builder)
+│   ├── ParConfig                    # 中央配置与 SPI 注册中心
 │   ├── AsyncBatchResult            # 批量结果容器
 │   └── TaskType                    # 任务类型枚举 (CPU/IO)
 ├── cancel/

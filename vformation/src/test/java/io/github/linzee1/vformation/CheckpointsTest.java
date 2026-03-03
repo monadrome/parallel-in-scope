@@ -5,7 +5,7 @@ import io.github.linzee1.vformation.cancel.Checkpoints;
 import io.github.linzee1.vformation.cancel.FatCancellationException;
 import io.github.linzee1.vformation.cancel.LeanCancellationException;
 import io.github.linzee1.vformation.context.TaskScopeTl;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +25,7 @@ public class CheckpointsTest {
 
     @Test
     public void testCheckpoint_noCancellation() {
-        ParallelOptions options = ParallelOptions.of("myTask").build();
+        ParOptions options = ParOptions.of("myTask").build();
         CancellationToken token = CancellationToken.create();
         TaskScopeTl.init(token, options);
 
@@ -35,7 +35,7 @@ public class CheckpointsTest {
 
     @Test
     public void testCheckpoint_leanCancellation() {
-        ParallelOptions options = ParallelOptions.of("myTask").build();
+        ParOptions options = ParOptions.of("myTask").build();
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
         TaskScopeTl.init(token, options);
@@ -46,7 +46,7 @@ public class CheckpointsTest {
 
     @Test
     public void testCheckpoint_fatCancellation() {
-        ParallelOptions options = ParallelOptions.of("myTask").build();
+        ParOptions options = ParOptions.of("myTask").build();
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
         TaskScopeTl.init(token, options);
@@ -57,7 +57,7 @@ public class CheckpointsTest {
 
     @Test
     public void testCheckpoint_differentTaskName_noThrow() {
-        ParallelOptions options = ParallelOptions.of("taskA").build();
+        ParOptions options = ParOptions.of("taskA").build();
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
         TaskScopeTl.init(token, options);

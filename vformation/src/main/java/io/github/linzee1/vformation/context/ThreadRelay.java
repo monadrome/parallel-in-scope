@@ -2,7 +2,7 @@ package io.github.linzee1.vformation.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import io.github.linzee1.vformation.cancel.CancellationToken;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 
 import java.util.Map;
 import java.util.Optional;
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * the child thread's {@code parentMap}. This enables parent-to-child propagation of:
  * <ul>
  *   <li>{@link CancellationToken} - for cascading cancellation</li>
- *   <li>{@link ParallelOptions} - for context awareness</li>
+ *   <li>{@link ParOptions} - for context awareness</li>
  *   <li>Task name - for task graph / livelock detection</li>
  * </ul>
  *
@@ -73,22 +73,22 @@ public class ThreadRelay {
         }
     }
 
-    // ==================== ParallelOptions relay ====================
+    // ==================== ParOptions relay ====================
 
     @SuppressWarnings("unchecked")
-    public static ParallelOptions getParentParallelOptions() {
+    public static ParOptions getParentParallelOptions() {
         ThreadRelay relay = THREAD_RELAY_TTL.get();
         if (relay == null) {
             return null;
         }
         Object wrapped = relay.parentMap.get(RelayItem.PARALLEL_OPTIONS);
         if (wrapped instanceof Optional) {
-            return ((Optional<ParallelOptions>) wrapped).orElse(null);
+            return ((Optional<ParOptions>) wrapped).orElse(null);
         }
         return null;
     }
 
-    public static void setCurrentParallelOptions(ParallelOptions options) {
+    public static void setCurrentParallelOptions(ParOptions options) {
         ThreadRelay relay = THREAD_RELAY_TTL.get();
         if (relay != null) {
             relay.curMap.put(RelayItem.PARALLEL_OPTIONS, Optional.ofNullable(options));

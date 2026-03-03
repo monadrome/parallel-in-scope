@@ -3,9 +3,9 @@ package io.github.linzee1.vformation;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import io.github.linzee1.vformation.context.graph.TaskGraph;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
-import io.github.linzee1.vformation.scope.ParallelHelper;
-import io.github.linzee1.vformation.scope.ParallelOptions;
 import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParOptions;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.spi.ExecutorResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the executor registry and name-based ParallelHelper API.
+ * Tests for the executor registry and name-based Par API.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
@@ -44,8 +44,8 @@ public class ExecutorRegistryTest {
     @AfterEach
     public void tearDown() {
         TaskGraph.destroyAfterRequest();
-        Par.unregisterExecutor(POOL_NAME);
-        Par.setExecutorResolver(null);
+        ParConfig.unregisterExecutor(POOL_NAME);
+        ParConfig.setExecutorResolver(null);
         executor.shutdownNow();
     }
 
@@ -53,14 +53,14 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testRegisterGetUnregisterLifecycle() {
-        assertNull(Par.getExecutor(POOL_NAME));
+        assertNull(ParConfig.getExecutor(POOL_NAME));
 
-        Par.registerExecutor(POOL_NAME, executor);
-        ListeningExecutorService retrieved = Par.getExecutor(POOL_NAME);
+        ParConfig.registerExecutor(POOL_NAME, executor);
+        ListeningExecutorService retrieved = ParConfig.getExecutor(POOL_NAME);
         assertNotNull(retrieved);
 
-        Par.unregisterExecutor(POOL_NAME);
-        assertNull(Par.getExecutor(POOL_NAME));
+        ParConfig.unregisterExecutor(POOL_NAME);
+        assertNull(ParConfig.getExecutor(POOL_NAME));
     }
 
     // ==================== 5.2: Null Validation ====================
@@ -68,33 +68,33 @@ public class ExecutorRegistryTest {
     @Test
     public void testRegisterWithNullNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> Par.registerExecutor(null, executor));
+                () -> ParConfig.registerExecutor(null, executor));
     }
 
     @Test
     public void testRegisterWithEmptyNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> Par.registerExecutor("", executor));
+                () -> ParConfig.registerExecutor("", executor));
     }
 
     @Test
     public void testRegisterWithNullExecutorThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> Par.registerExecutor(POOL_NAME, null));
+                () -> ParConfig.registerExecutor(POOL_NAME, null));
     }
 
     // ==================== 5.3: parMap and parForEach with executor name ====================
 
     @Test
     public void testParMapWithExecutorName() throws Exception {
-        Par.registerExecutor(POOL_NAME, executor);
+        ParConfig.registerExecutor(POOL_NAME, executor);
         List<Integer> input = Arrays.asList(1, 2, 3);
 
-        ParallelOptions options = ParallelOptions.of("registryParMap")
+        ParOptions options = ParOptions.of("registryParMap")
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Integer> batch = ParallelHelper.parMap(
+        AsyncBatchResult<Integer> batch = Par.parMap(
                 POOL_NAME, input, x -> x * 10, options);
 
         List<Integer> results = new ArrayList<>();
@@ -108,15 +108,15 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testParForEachWithExecutorName() throws Exception {
-        Par.registerExecutor(POOL_NAME, executor);
+        ParConfig.registerExecutor(POOL_NAME, executor);
         List<String> input = Arrays.asList("a", "b", "c");
         CopyOnWriteArrayList<String> results = new CopyOnWriteArrayList<>();
 
-        ParallelOptions options = ParallelOptions.of("registryParForEach")
+        ParOptions options = ParOptions.of("registryParForEach")
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = ParallelHelper.parForEach(
+        AsyncBatchResult<Void> batch = Par.parForEach(
                 POOL_NAME, input, results::add, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
@@ -131,16 +131,16 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testParMapWithUnregisteredNameThrows() {
-        ParallelOptions options = ParallelOptions.of("test").build();
+        ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
-                () -> ParallelHelper.parMap("nonexistent", Arrays.asList(1), x -> x, options));
+                () -> Par.parMap("nonexistent", Arrays.asList(1), x -> x, options));
     }
 
     @Test
     public void testParForEachWithUnregisteredNameThrows() {
-        ParallelOptions options = ParallelOptions.of("test").build();
+        ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
-                () -> ParallelHelper.parForEach("nonexistent", Arrays.asList(1), x -> {}, options));
+                () -> Par.parForEach("nonexistent", Arrays.asList(1), x -> {}, options));
     }
 
     // ==================== 5.5: Auto-bridge to purge subsystem ====================
@@ -150,10 +150,10 @@ public class ExecutorRegistryTest {
         ThreadPoolExecutor tpe = new ThreadPoolExecutor(
                 2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         try {
-            Par.registerExecutor(POOL_NAME, tpe);
+            ParConfig.registerExecutor(POOL_NAME, tpe);
 
             // No explicit ExecutorResolver set
-            ThreadPoolExecutor resolved = Par.resolveThreadPool(POOL_NAME);
+            ThreadPoolExecutor resolved = ParConfig.resolveThreadPool(POOL_NAME);
             assertNotNull(resolved);
             assertSame(tpe, resolved);
         } finally {
@@ -165,9 +165,9 @@ public class ExecutorRegistryTest {
     public void testResolveThreadPoolReturnsNullForNonThreadPoolExecutor() {
         // Executors.newFixedThreadPool returns a ThreadPoolExecutor in practice,
         // but let's test with a non-TPE to verify the instanceof check
-        Par.registerExecutor(POOL_NAME, executor);
+        ParConfig.registerExecutor(POOL_NAME, executor);
         // executor from Executors.newFixedThreadPool IS a ThreadPoolExecutor, so it should resolve
-        ThreadPoolExecutor resolved = Par.resolveThreadPool(POOL_NAME);
+        ThreadPoolExecutor resolved = ParConfig.resolveThreadPool(POOL_NAME);
         assertNotNull(resolved);
     }
 
@@ -181,9 +181,9 @@ public class ExecutorRegistryTest {
                 2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
         try {
-            Par.registerExecutor(POOL_NAME, registryTpe);
+            ParConfig.registerExecutor(POOL_NAME, registryTpe);
 
-            Par.setExecutorResolver(new ExecutorResolver() {
+            ParConfig.setExecutorResolver(new ExecutorResolver() {
                 @Override
                 public ThreadPoolExecutor resolveThreadPool(String executorName) {
                     if (POOL_NAME.equals(executorName)) {
@@ -198,7 +198,7 @@ public class ExecutorRegistryTest {
                 }
             });
 
-            ThreadPoolExecutor resolved = Par.resolveThreadPool(POOL_NAME);
+            ThreadPoolExecutor resolved = ParConfig.resolveThreadPool(POOL_NAME);
             assertSame(resolverTpe, resolved, "Explicit ExecutorResolver should take priority over registry");
         } finally {
             registryTpe.shutdownNow();

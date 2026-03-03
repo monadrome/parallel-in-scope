@@ -2,9 +2,9 @@ package io.github.linzee1.vformation;
 
 import io.github.linzee1.vformation.context.graph.TaskGraph;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
-import io.github.linzee1.vformation.scope.ParallelHelper;
-import io.github.linzee1.vformation.scope.ParallelOptions;
 import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParOptions;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.scope.TaskType;
 import io.github.linzee1.vformation.spi.TaskListener;
 import io.github.linzee1.vformation.spi.TaskListener.TaskEvent;
@@ -28,11 +28,11 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the core ParallelHelper functionality.
+ * Tests for the core Par functionality.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
-public class ParallelHelperTest {
+public class ParTest {
 
     private static final String EXECUTOR_NAME = "test-pool";
     private ExecutorService executor;
@@ -41,17 +41,17 @@ public class ParallelHelperTest {
     @BeforeEach
     public void setUp() {
         executor = Executors.newFixedThreadPool(4);
-        Par.registerExecutor(EXECUTOR_NAME, executor);
+        ParConfig.registerExecutor(EXECUTOR_NAME, executor);
         listener = new RecordingTaskListener();
-        Par.addTaskListener(listener);
+        ParConfig.addTaskListener(listener);
         TaskGraph.initOnRequest();
     }
 
     @AfterEach
     public void tearDown() {
         TaskGraph.destroyAfterRequest();
-        Par.removeTaskListener(listener);
-        Par.unregisterExecutor(EXECUTOR_NAME);
+        ParConfig.removeTaskListener(listener);
+        ParConfig.unregisterExecutor(EXECUTOR_NAME);
         executor.shutdownNow();
     }
 
@@ -60,12 +60,12 @@ public class ParallelHelperTest {
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         CopyOnWriteArrayList<Integer> results = new CopyOnWriteArrayList<>();
 
-        ParallelOptions options = ParallelOptions.of("testForEach")
+        ParOptions options = ParOptions.of("testForEach")
                 .timeout(5000)
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
-        AsyncBatchResult<Void> batch = ParallelHelper.parForEach(
+        AsyncBatchResult<Void> batch = Par.parForEach(
                 EXECUTOR_NAME, input, results::add, options);
 
         // Wait for all to complete
@@ -82,12 +82,12 @@ public class ParallelHelperTest {
     public void testParMap_basic() throws Exception {
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
 
-        ParallelOptions options = ParallelOptions.of("testMap")
+        ParOptions options = ParOptions.of("testMap")
                 .timeout(5000)
                 .taskType(TaskType.CPU_BOUND)
                 .build();
 
-        AsyncBatchResult<Integer> batch = ParallelHelper.parMap(
+        AsyncBatchResult<Integer> batch = Par.parMap(
                 EXECUTOR_NAME, input, x -> x * 2, options);
 
         List<Integer> results = new ArrayList<>();
@@ -101,8 +101,8 @@ public class ParallelHelperTest {
 
     @Test
     public void testParForEach_empty() {
-        ParallelOptions options = ParallelOptions.of("testEmpty").build();
-        AsyncBatchResult<Void> batch = ParallelHelper.parForEach(
+        ParOptions options = ParOptions.of("testEmpty").build();
+        AsyncBatchResult<Void> batch = Par.parForEach(
                 EXECUTOR_NAME, Collections.emptyList(), x -> {}, options);
         assertTrue(batch.getResults().isEmpty());
     }
@@ -113,14 +113,14 @@ public class ParallelHelperTest {
         AtomicInteger maxConcurrency = new AtomicInteger(0);
         List<Integer> input = IntStream.range(0, 20).boxed().collect(Collectors.toList());
 
-        ParallelOptions options = ParallelOptions.of("testConcurrency")
+        ParOptions options = ParOptions.of("testConcurrency")
                 .parallelism(2)
                 .timeout(10000)
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<Void> batch = ParallelHelper.parForEach(EXECUTOR_NAME, input, x -> {
+        AsyncBatchResult<Void> batch = Par.parForEach(EXECUTOR_NAME, input, x -> {
             int cur = concurrency.incrementAndGet();
             maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
             try {
@@ -144,11 +144,11 @@ public class ParallelHelperTest {
     public void testTaskListener_invoked() throws Exception {
         List<Integer> input = Arrays.asList(1, 2, 3);
 
-        ParallelOptions options = ParallelOptions.of("testListener")
+        ParOptions options = ParOptions.of("testListener")
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = ParallelHelper.parForEach(
+        AsyncBatchResult<Void> batch = Par.parForEach(
                 EXECUTOR_NAME, input, x -> {}, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {

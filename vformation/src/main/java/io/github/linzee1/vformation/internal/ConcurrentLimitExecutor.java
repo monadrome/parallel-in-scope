@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.List;
@@ -38,11 +38,11 @@ public class ConcurrentLimitExecutor<V> {
 
     private final ExecutorCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
-    private final ParallelOptions options;
+    private final ParOptions options;
     private final ListeningExecutorService submitterPool;
 
     @SuppressWarnings("unchecked")
-    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParallelOptions options, ListeningExecutorService submitterPool) {
+    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         this.options = options;
         this.submitterPool = submitterPool;
         this.cs = new ExecutorCompletionService<>(pool, (BlockingQueue<Future<V>>) (BlockingQueue<?>) blockingQueue);
@@ -51,7 +51,7 @@ public class ConcurrentLimitExecutor<V> {
     /**
      * Creates a new executor with the given pool and options.
      */
-    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParallelOptions options, ListeningExecutorService submitterPool) {
+    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
     }
 

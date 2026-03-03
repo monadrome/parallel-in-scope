@@ -1,7 +1,7 @@
 package io.github.linzee1.vformation.queue;
 
 import io.github.linzee1.vformation.context.TaskScopeTl;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.AbstractQueue;
@@ -45,7 +45,7 @@ public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
      */
     @Override
     public boolean offer(E o) {
-        ParallelOptions options = TaskScopeTl.getParallelOptions();
+        ParOptions options = TaskScopeTl.getParallelOptions();
         if (options != null && options.getTaskType() == TaskType.CPU_BOUND) {
             return false;
         }

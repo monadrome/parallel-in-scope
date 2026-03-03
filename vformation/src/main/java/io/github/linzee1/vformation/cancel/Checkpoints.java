@@ -2,7 +2,7 @@ package io.github.linzee1.vformation.cancel;
 
 import com.google.common.base.Throwables;
 import io.github.linzee1.vformation.context.TaskScopeTl;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 
 /**
  * Cooperative cancellation checkpoint utility.
@@ -33,7 +33,7 @@ public final class Checkpoints {
      *                 false to throw FatCancellationException (full stack trace)
      */
     public static void checkpoint(String taskName, boolean lean) {
-        ParallelOptions options = TaskScopeTl.getParallelOptions();
+        ParOptions options = TaskScopeTl.getParallelOptions();
         if (taskName == null || options == null
                 || "task".equals(options.getTaskName()) || !taskName.equals(options.getTaskName())) {
             return;

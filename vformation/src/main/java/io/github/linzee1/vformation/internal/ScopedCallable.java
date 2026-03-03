@@ -6,8 +6,8 @@ import io.github.linzee1.vformation.cancel.CancellationToken;
 import io.github.linzee1.vformation.cancel.Checkpoints;
 import io.github.linzee1.vformation.context.TaskScopeTl;
 import io.github.linzee1.vformation.context.ThreadRelay;
-import io.github.linzee1.vformation.scope.ParallelOptions;
-import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParOptions;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.spi.TaskListener;
 import io.github.linzee1.vformation.spi.TaskListener.TaskEvent;
 
@@ -86,8 +86,8 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
         return (T) attachments.get(key);
     }
 
-    public ParallelOptions getParallelOptions() {
-        return (ParallelOptions) attachments.get(KEY_PARALLEL_OPTIONS);
+    public ParOptions getParallelOptions() {
+        return (ParOptions) attachments.get(KEY_PARALLEL_OPTIONS);
     }
 
     public CancellationToken getCancellationToken() {
@@ -103,7 +103,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     public V call() throws Exception {
         // ==================== prepareContext ====================
         CancellationToken currentToken = getCancellationToken();
-        ParallelOptions currentOptions = getParallelOptions();
+        ParOptions currentOptions = getParallelOptions();
         TaskScopeTl.init(currentToken, currentOptions);
 
         ThreadRelay.setCurrentCancellationToken(currentToken);
@@ -131,7 +131,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     }
 
     private void notifyListeners(Throwable exception) {
-        List<TaskListener> listeners = Par.getTaskListeners();
+        List<TaskListener> listeners = ParConfig.getTaskListeners();
         if (listeners.isEmpty()) {
             return;
         }
@@ -144,7 +144,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
             try {
                 listener.onTaskComplete(event);
             } catch (Exception e) {
-                Par.getLogger().warn("TaskListener callback failed: {}", listener.getClass().getName(), e);
+                ParConfig.getLogger().warn("TaskListener callback failed: {}", listener.getClass().getName(), e);
             }
         }
     }
