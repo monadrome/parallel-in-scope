@@ -193,7 +193,7 @@ public class HeuristicPurger {
             return strategy.shouldPurge(ctx);
         }
 
-        // Window-based thresholds
+        // Window-based thresholds (fast-path guard: skip when both thresholds are disabled)
         if (rpsThreshold > 0 || windowCountThreshold > 0) {
             if (rpsThreshold > 0 && windowCounter.getRatePerSecond() >= rpsThreshold) {
                 return true;
