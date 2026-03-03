@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.linzee1.vformation.cancel.CancellationToken;
-import io.github.linzee1.vformation.cancel.PurgeService;
+import io.github.linzee1.vformation.cancel.HeuristicPurger;
 import io.github.linzee1.vformation.context.ThreadRelay;
 import io.github.linzee1.vformation.context.graph.TaskEdge;
 import io.github.linzee1.vformation.context.graph.TaskGraph;
@@ -203,7 +203,7 @@ public final class Par {
     private <T> void tryPurgeOnTimeout(String executorName, AsyncBatchResult<T> result) {
         FluentFuture.from(result.getSubmitCanceller())
                 .catching(TimeoutException.class, ex -> {
-                    PurgeService.tryPurge(executorName, result.report(), config);
+                    HeuristicPurger.tryPurge(executorName, result.report(), config);
                     return null;
                 }, MoreExecutors.directExecutor());
     }

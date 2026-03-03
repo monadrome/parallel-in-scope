@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit;
  * Configuration for parallel execution.
  * <p>
  * Encapsulates task name, parallelism degree, timeout, task type, priority,
- * fail-fast mode, and reject-enqueue behavior.
+ * and reject-enqueue behavior.
  * <p>
  * Use the builder pattern:
  * <pre>
@@ -29,7 +29,6 @@ public final class ParOptions {
     private final boolean enableParallel;
     private final int priority;
     private final TaskType taskType;
-    private final boolean failFast;
     private final boolean rejectEnqueue;
 
     private ParOptions(Builder builder) {
@@ -40,7 +39,6 @@ public final class ParOptions {
         this.enableParallel = builder.enableParallel;
         this.priority = builder.priority;
         this.taskType = builder.taskType;
-        this.failFast = builder.failFast;
         this.rejectEnqueue = builder.rejectEnqueue;
     }
 
@@ -53,7 +51,6 @@ public final class ParOptions {
     public boolean isEnableParallel() { return enableParallel; }
     public int getPriority() { return priority; }
     public TaskType getTaskType() { return taskType; }
-    public boolean isFailFast() { return failFast; }
     public boolean isRejectEnqueue() { return rejectEnqueue; }
 
     // ========== Static factory methods ==========
@@ -144,7 +141,6 @@ public final class ParOptions {
                 .enableParallel(options.enableParallel)
                 .priority(options.priority)
                 .taskType(options.taskType)
-                .failFast(options.failFast)
                 .rejectEnqueue(options.rejectEnqueue)
                 .build();
     }
@@ -161,7 +157,6 @@ public final class ParOptions {
                 .enableParallel(this.enableParallel)
                 .priority(this.priority)
                 .taskType(this.taskType)
-                .failFast(this.failFast)
                 .rejectEnqueue(this.rejectEnqueue)
                 .build();
     }
@@ -188,7 +183,6 @@ public final class ParOptions {
         private boolean enableParallel = true;
         private int priority = 3;
         private TaskType taskType = TaskType.CPU_BOUND;
-        private boolean failFast = false;
         private boolean rejectEnqueue = true;
 
         public Builder taskName(String taskName) { this.taskName = taskName; return this; }
@@ -198,7 +192,6 @@ public final class ParOptions {
         public Builder enableParallel(boolean enableParallel) { this.enableParallel = enableParallel; return this; }
         public Builder priority(int priority) { this.priority = priority; return this; }
         public Builder taskType(TaskType taskType) { this.taskType = taskType; return this; }
-        public Builder failFast(boolean failFast) { this.failFast = failFast; return this; }
         public Builder rejectEnqueue(boolean rejectEnqueue) { this.rejectEnqueue = rejectEnqueue; return this; }
 
         public ParOptions build() {

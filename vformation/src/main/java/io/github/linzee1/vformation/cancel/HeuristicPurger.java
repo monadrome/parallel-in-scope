@@ -17,7 +17,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Thread pool purge service for cleaning stale canceled task references from work queues.
+ * Heuristic thread pool purger for cleaning stale canceled task references from work queues.
  * <p>
  * When tasks are canceled, {@link ThreadPoolExecutor}'s work queue may retain Future references
  * of canceled tasks, occupying memory until GC. This service proactively cleans these
@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
-@SuppressWarnings("all")
-public class PurgeService {
+@SuppressWarnings("UnstableApiUsage")
+public class HeuristicPurger {
 
     private static volatile ListeningExecutorService purgeExecutor;
     private static final ConcurrentMap<String, AtomicInteger> STALE_COUNTERS = new ConcurrentHashMap<>();
@@ -38,12 +38,12 @@ public class PurgeService {
     private static volatile int purgeMinThreshold = 10;
     private static volatile int purgeMaxThreshold = 1000;
 
-    private PurgeService() {
+    private HeuristicPurger() {
     }
 
     private static ListeningExecutorService getPurgeExecutor() {
         if (purgeExecutor == null) {
-            synchronized (PurgeService.class) {
+            synchronized (HeuristicPurger.class) {
                 if (purgeExecutor == null) {
                     purgeExecutor = MoreExecutors.listeningDecorator(
                             Executors.newSingleThreadExecutor(

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -85,6 +87,7 @@ public class ConcurrentLimitExecutorTest {
     public void testSubmitAll_slidingWindow() throws Exception {
         AtomicInteger concurrency = new AtomicInteger(0);
         AtomicInteger maxConcurrency = new AtomicInteger(0);
+        CountDownLatch gate = new CountDownLatch(1);
         int parallelism = 2;
         int taskCount = 10;
 
@@ -101,7 +104,7 @@ public class ConcurrentLimitExecutorTest {
                     int cur = concurrency.incrementAndGet();
                     maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
                     try {
-                        Thread.sleep(30);
+                        gate.await(10, TimeUnit.SECONDS);
                     } finally {
                         concurrency.decrementAndGet();
                     }
@@ -110,6 +113,11 @@ public class ConcurrentLimitExecutorTest {
                 .collect(Collectors.toList());
 
         AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+
+        // Wait for the sliding window to fill up
+        await().atMost(5, TimeUnit.SECONDS).until(() -> maxConcurrency.get() >= 1);
+        // Release all tasks
+        gate.countDown();
 
         List<Integer> values = new ArrayList<>();
         for (ListenableFuture<Integer> f : result.getResults()) {

@@ -27,16 +27,16 @@ Base package: `io.github.linzee1.vformation` with 7 sub-packages:
 | Package | Purpose | Classes |
 |---|---|---|
 | `scope` | API facade (user-facing) | `Par`, `ParOptions`, `AsyncBatchResult`, `TaskType`, `ParConfig` |
-| `cancel` | Cancellation subsystem | `CancellationToken`, `CancellationTokenState`, `Checkpoints`, `FatCancellationException`, `LeanCancellationException`, `PurgeService` |
+| `cancel` | Cancellation subsystem | `CancellationToken`, `CancellationTokenState`, `Checkpoints`, `FatCancellationException`, `LeanCancellationException`, `HeuristicPurger` |
 | `context` | TTL/TL context propagation | `ThreadRelay`, `TaskScopeTl` |
 | `context.graph` | Livelock detection | `TaskGraph`, `TaskEdge`, `TaskEdgeEntry` |
-| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable`, `Attachable`, `FutureInspector`, `ListeningExecutorAdapter` |
+| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable` |
 | `queue` | Scheduling queues | `SmartBlockingQueue`, `VariableLinkedBlockingQueue` |
 | `spi` | Extension points | `TaskListener`, `ExecutorResolver`, `LivelockListener`, `ParallelLogger` |
 
 ### Execution Flow
 
-1. **`Par`** (facade) — entry point via `parForEach()` / `parMap()` static methods
+1. **`Par`** (facade) — entry point via `parForEach()` / `parMap()` instance methods
 2. **`ParOptions.formalized()`** — normalizes config (caps parallelism to task count, fills default timeout)
 3. **`TaskGraph.logTaskPair()`** — records parent-child task dependency for livelock detection
 4. **`CancellationToken`** — created and chained to parent token from `ThreadRelay`

@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
-@SuppressWarnings("all")
+@SuppressWarnings("UnstableApiUsage")
 public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
 
     private static final TaskGraph TTL = new TaskGraph();
