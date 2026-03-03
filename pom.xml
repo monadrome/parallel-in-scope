@@ -4,18 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.linzee1</groupId>
+    <groupId>io.github.huatalk</groupId>
     <artifactId>vformation-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>VFormation Parent</name>
     <description>
-        VFormation — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
-        Provides cooperative cancellation, livelock detection, sliding-window concurrency control,
-        task-type-aware scheduling, and pluggable metrics/monitoring.
+        VFormation (雁阵) — A structured concurrency toolkit for Java 8+.
+        Cooperative cancellation, fail-fast, deadlock detection, context propagation, sliding-window scheduling.
     </description>
-    <url>https://github.com/linzee1/vformation</url>
+    <url>https://github.com/huatalk/vformation</url>
 
     <licenses>
         <license>
@@ -39,6 +38,7 @@
         <junit-jupiter.version>5.12.2</junit-jupiter.version>
         <mockito.version>5.18.0</mockito.version>
         <assertj.version>3.27.3</assertj.version>
+        <awaitility.version>4.3.0</awaitility.version>
         <cffu.version>2.0.7</cffu.version>
     </properties>
 
@@ -76,6 +76,12 @@
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
                 <version>${assertj.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -127,6 +133,12 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+        </dependency>
+
+        <!-- Test: Awaitility -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
         </dependency>
     </dependencies>
 
