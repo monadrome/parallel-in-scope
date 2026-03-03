@@ -30,7 +30,7 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 | `cancel` | Cancellation subsystem | `CancellationToken`, `CancellationTokenState`, `Checkpoints`, `FatCancellationException`, `LeanCancellationException`, `HeuristicPurger` |
 | `context` | TTL/TL context propagation | `ThreadRelay`, `TaskScopeTl` |
 | `context.graph` | Livelock detection | `TaskGraph`, `TaskEdge`, `TaskEdgeEntry` |
-| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable` |
+| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable`, `FutureInspector`, `FutureState` |
 | `queue` | Scheduling queues | `SmartBlockingQueue`, `VariableLinkedBlockingQueue` |
 | `spi` | Extension points | `TaskListener`, `ExecutorResolver`, `LivelockListener` |
 
