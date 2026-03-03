@@ -325,11 +325,7 @@ public final class ParConfig {
             throw new IllegalArgumentException("Executor must not be null");
         }
         executorRawRegistry.put(name, executor);
-        if (executor instanceof ListeningExecutorService) {
-            executorRegistry.put(name, (ListeningExecutorService) executor);
-        } else {
-            executorRegistry.put(name, MoreExecutors.listeningDecorator(executor));
-        }
+        executorRegistry.put(name, MoreExecutors.listeningDecorator(executor));
     }
 
     /**
