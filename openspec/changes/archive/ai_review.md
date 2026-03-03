@@ -58,7 +58,7 @@ ParConfig.java:327-328 — executorRawRegistry.put() 和 executorRegistry.put() 
    ├─────────────────────────────────────────────┼──────────┤
    │ ThreadRelay 跨线程上下文传播                │ 高       │
    ├─────────────────────────────────────────────┼──────────┤
-   │ 嵌套 Par 调用（task 内再调 parMap）         │ 高       │
+   │ 嵌套 Par 调用（task 内再调 map）         │ 高       │
    ├─────────────────────────────────────────────┼──────────┤
    │ ScopedCallable 完整生命周期                 │ 高       │
    ├─────────────────────────────────────────────┼──────────┤
@@ -76,9 +76,9 @@ ParConfig.java:327-328 — executorRawRegistry.put() 和 executorRegistry.put() 
 
 四、API 设计问题
 
-11. parForEach 接收 Collection，parMap 接收 List
+11. forEach 接收 Collection，map 接收 List
 
-Par.java:96 vs Par.java:120 — 入参类型不一致，没有明显理由。parMap 需要保序可以理解，但 parForEach 返回的 AsyncBatchResult 里的 future list 同样和输入顺序对应（通过 stream 的 collect(toImmutableList()) 保序）。建议统一为 Collection 或都要求 List。
+Par.java:96 vs Par.java:120 — 入参类型不一致，没有明显理由。map 需要保序可以理解，但 forEach 返回的 AsyncBatchResult 里的 future list 同样和输入顺序对应（通过 stream 的 collect(toImmutableList()) 保序）。建议统一为 Collection 或都要求 List。
 
 12. ParOptions.enableParallel 未实现
 

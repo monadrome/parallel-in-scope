@@ -36,7 +36,7 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 
 ### Execution Flow
 
-1. **`Par`** (facade) — entry point via `parForEach()` / `parMap()` instance methods
+1. **`Par`** (facade) — entry point via `forEach()` / `map()` instance methods
 2. **`ParOptions.formalized()`** — normalizes config (caps parallelism to task count, fills default timeout)
 3. **`TaskGraph.logTaskPair()`** — records parent-child task dependency for livelock detection
 4. **`CancellationToken`** — created and chained to parent token from `ThreadRelay`
