@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  * Implements {@link TtlAttachments} using {@link ConcurrentHashMap} for passing
  * context between task submission and execution phases.
  * <p>
- * Timeline: submitTime -> startTime -> endTime
+ * Timeline: {@code submitTime -> startTime -> endTime}
  *
  * @param <V> return value type
  * @author Eric Lin (linqinghua4 at gmail dot com)
