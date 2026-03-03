@@ -24,9 +24,9 @@ import java.util.concurrent.TimeoutException;
  * <pre>
  *   A single fixed-size thread pool (size=4) is used for all tasks.
  *
- *   "task-A" parForEach [1,2,3,4] on this pool:
- *     Each subtask occupies a thread and calls "task-B" parMap [x,y] on the SAME pool.
- *       Each "task-B" subtask calls "task-A-inner" parMap [i,j] on the SAME pool.
+ *   "task-A" forEach [1,2,3,4] on this pool:
+ *     Each subtask occupies a thread and calls "task-B" map [x,y] on the SAME pool.
+ *       Each "task-B" subtask calls "task-A-inner" map [i,j] on the SAME pool.
  *
  *   Since the pool only has 4 threads, and all 4 are blocked waiting for inner tasks
  *   that can never be scheduled (no free threads), the system deadlocks.
@@ -79,7 +79,7 @@ public class DeadlockDetectionDemo {
 
             long start = System.currentTimeMillis();
 
-            AsyncBatchResult<Void> result = par.parForEach("shared-pool",
+            AsyncBatchResult<Void> result = par.forEach("shared-pool",
                     Arrays.asList(1, 2, 3, 4), item -> {
                         System.out.println("[task-A-" + item + "] started on " + Thread.currentThread().getName());
                         // Each task-A subtask calls task-B
@@ -123,7 +123,7 @@ public class DeadlockDetectionDemo {
                 .build();
 
         List<String> items = Arrays.asList("x", "y");
-        AsyncBatchResult<String> resultB = par.parMap("shared-pool", items, sub -> {
+        AsyncBatchResult<String> resultB = par.map("shared-pool", items, sub -> {
             System.out.println("  [task-B-" + parentItem + "-" + sub + "] started on " + Thread.currentThread().getName());
             // task-B calls back into task-A-inner — circular!
             callTaskAInner(par, parentItem, sub);
@@ -149,7 +149,7 @@ public class DeadlockDetectionDemo {
                 .build();
 
         List<Integer> items = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> resultAInner = par.parMap("shared-pool", items, i -> {
+        AsyncBatchResult<Integer> resultAInner = par.map("shared-pool", items, i -> {
             System.out.println("    [task-A-inner-" + parentItem + "-" + subItem + "-" + i
                     + "] started on " + Thread.currentThread().getName());
             Checkpoints.sleep(100);

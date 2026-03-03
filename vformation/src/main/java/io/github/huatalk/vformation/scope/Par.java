@@ -30,7 +30,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * {@link ParConfig#getInstance()}, or create custom instances via
  * {@link #Par(ParConfig)} for isolated configurations.
  * <p>
- * Provides {@link #parForEach} and {@link #parMap} instance methods that wire together
+ * Provides {@link #forEach} and {@link #map} instance methods that wire together
  * the entire parallel execution pipeline:
  * <ul>
  *   <li>Normalization of {@link ParOptions}</li>
@@ -92,7 +92,7 @@ public final class Par {
      * @return batch result containing futures for each task
      * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public <T> AsyncBatchResult<Void> parForEach(
+    public <T> AsyncBatchResult<Void> forEach(
             String executorName,
             List<T> list,
             Consumer<? super T> consumer,
@@ -116,7 +116,7 @@ public final class Par {
      * @return batch result containing futures for each mapped result
      * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public <T, R> AsyncBatchResult<R> parMap(
+    public <T, R> AsyncBatchResult<R> map(
             String executorName,
             List<T> list,
             Function<? super T, ? extends R> function,
