@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Configuration for parallel execution.
  * <p>
- * Encapsulates task name, parallelism degree, timeout, task type, priority,
+ * Encapsulates task name, parallelism degree, timeout, task type,
  * and reject-enqueue behavior.
  * <p>
  * Use the builder pattern:
@@ -26,7 +26,6 @@ public final class ParOptions {
     private final int parallelism;
     private final long timeout;
     private final TimeUnit timeUnit;
-    private final int priority;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
 
@@ -35,7 +34,6 @@ public final class ParOptions {
         this.parallelism = builder.parallelism;
         this.timeout = builder.timeout;
         this.timeUnit = builder.timeUnit;
-        this.priority = builder.priority;
         this.taskType = builder.taskType;
         this.rejectEnqueue = builder.rejectEnqueue;
     }
@@ -46,7 +44,6 @@ public final class ParOptions {
     public int getParallelism() { return parallelism; }
     public long getTimeout() { return timeout; }
     public TimeUnit getTimeUnit() { return timeUnit; }
-    public int getPriority() { return priority; }
     public TaskType getTaskType() { return taskType; }
     public boolean isRejectEnqueue() { return rejectEnqueue; }
 
@@ -60,33 +57,30 @@ public final class ParOptions {
     }
 
     /**
-     * Creates a builder for an IO-bound task with high priority.
+     * Creates a builder for an IO-bound task.
      */
     public static Builder ioTask(String taskName) {
         return new Builder()
                 .taskName(taskName)
-                .taskType(TaskType.IO_BOUND)
-                .priority(2);
+                .taskType(TaskType.IO_BOUND);
     }
 
     /**
-     * Creates a builder for a CPU-bound task with medium priority.
+     * Creates a builder for a CPU-bound task.
      */
     public static Builder cpuTask(String taskName) {
         return new Builder()
                 .taskName(taskName)
-                .taskType(TaskType.CPU_BOUND)
-                .priority(3);
+                .taskType(TaskType.CPU_BOUND);
     }
 
     /**
-     * Creates a builder for a critical IO task with highest priority and timeout.
+     * Creates a builder for a critical IO task with explicit timeout.
      */
     public static Builder criticalIoTask(String taskName, long timeoutMillis) {
         return new Builder()
                 .taskName(taskName)
                 .taskType(TaskType.IO_BOUND)
-                .priority(1)
                 .timeout(timeoutMillis)
                 .timeUnit(TimeUnit.MILLISECONDS);
     }
@@ -135,7 +129,6 @@ public final class ParOptions {
                 .parallelism(maxDegreeOfParallelism)
                 .timeout(timeoutMillis)
                 .timeUnit(TimeUnit.MILLISECONDS)
-                .priority(options.priority)
                 .taskType(options.taskType)
                 .rejectEnqueue(options.rejectEnqueue)
                 .build();
@@ -150,7 +143,6 @@ public final class ParOptions {
                 .parallelism(this.parallelism)
                 .timeout(timeout)
                 .timeUnit(this.timeUnit)
-                .priority(this.priority)
                 .taskType(this.taskType)
                 .rejectEnqueue(this.rejectEnqueue)
                 .build();
@@ -164,7 +156,6 @@ public final class ParOptions {
                 ", timeout=" + timeout +
                 ", timeUnit=" + timeUnit +
                 ", taskType=" + taskType +
-                ", priority=" + priority +
                 '}';
     }
 
@@ -175,7 +166,6 @@ public final class ParOptions {
         private int parallelism = -1;
         private long timeout = 0;
         private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
-        private int priority = 3;
         private TaskType taskType = TaskType.CPU_BOUND;
         private boolean rejectEnqueue = true;
 
@@ -183,7 +173,6 @@ public final class ParOptions {
         public Builder parallelism(int parallelism) { this.parallelism = parallelism; return this; }
         public Builder timeout(long timeout) { this.timeout = timeout; return this; }
         public Builder timeUnit(TimeUnit timeUnit) { this.timeUnit = timeUnit; return this; }
-        public Builder priority(int priority) { this.priority = priority; return this; }
         public Builder taskType(TaskType taskType) { this.taskType = taskType; return this; }
         public Builder rejectEnqueue(boolean rejectEnqueue) { this.rejectEnqueue = rejectEnqueue; return this; }
 
