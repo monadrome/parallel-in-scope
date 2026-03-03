@@ -43,9 +43,11 @@ public class DeadlockDetectionDemo {
     public static void main(String[] args) throws Exception {
         // A small fixed pool — deliberately undersized to trigger deadlock
         ExecutorService pool = Executors.newFixedThreadPool(4);
+        ParConfig config = new ParConfig();
+        Par par = new Par(config);
         try {
-            ParConfig.registerExecutor("shared-pool", pool);
-            ParConfig.setLivelockDetectionEnabled(true);
+            config.registerExecutor("shared-pool", pool);
+            config.setLivelockDetectionEnabled(true);
 
             // Register listener to capture livelock/deadlock detection
             LivelockListener listener = event -> {
@@ -59,7 +61,7 @@ public class DeadlockDetectionDemo {
                 System.out.println("toString     : " + event.getExecutorEdges());
                 System.out.println("=========================================\n");
             };
-            ParConfig.addLivelockListener(listener);
+            config.addLivelockListener(listener);
 
             // Initialize task graph for this "request"
             TaskGraph.initOnRequest();
@@ -77,11 +79,11 @@ public class DeadlockDetectionDemo {
 
             long start = System.currentTimeMillis();
 
-            AsyncBatchResult<Void> result = Par.parForEach("shared-pool",
+            AsyncBatchResult<Void> result = par.parForEach("shared-pool",
                     Arrays.asList(1, 2, 3, 4), item -> {
                         System.out.println("[task-A-" + item + "] started on " + Thread.currentThread().getName());
                         // Each task-A subtask calls task-B
-                        callTaskB(item);
+                        callTaskB(par, item);
                     }, optionsA);
 
             // Wait with timeout — will timeout because of deadlock
@@ -100,12 +102,12 @@ public class DeadlockDetectionDemo {
 
             // Trigger livelock detection
             System.out.println("\n[main] Running livelock detection on task graph...");
-            TaskGraph.destroyAfterRequest();
+            TaskGraph.destroyAfterRequest(config);
 
             System.out.println("=== Demo Complete ===");
         } finally {
-            ParConfig.setLivelockDetectionEnabled(false);
-            ParConfig.unregisterExecutor("shared-pool");
+            config.setLivelockDetectionEnabled(false);
+            config.unregisterExecutor("shared-pool");
             pool.shutdownNow();
         }
     }
@@ -113,7 +115,7 @@ public class DeadlockDetectionDemo {
     /**
      * task-B: called from within task-A, submits work to the SAME pool.
      */
-    private static void callTaskB(int parentItem) {
+    private static void callTaskB(Par par, int parentItem) {
         ParOptions optionsB = ParOptions.of("task-B")
                 .parallelism(2)
                 .timeout(5_000)
@@ -121,10 +123,10 @@ public class DeadlockDetectionDemo {
                 .build();
 
         List<String> items = Arrays.asList("x", "y");
-        AsyncBatchResult<String> resultB = Par.parMap("shared-pool", items, sub -> {
+        AsyncBatchResult<String> resultB = par.parMap("shared-pool", items, sub -> {
             System.out.println("  [task-B-" + parentItem + "-" + sub + "] started on " + Thread.currentThread().getName());
             // task-B calls back into task-A-inner — circular!
-            callTaskAInner(parentItem, sub);
+            callTaskAInner(par, parentItem, sub);
             return "B-" + parentItem + "-" + sub;
         }, optionsB);
 
@@ -139,7 +141,7 @@ public class DeadlockDetectionDemo {
      * task-A-inner: called from task-B, tries to submit work back to the SAME pool.
      * At this point all pool threads are occupied by task-A and task-B — deadlock.
      */
-    private static void callTaskAInner(int parentItem, String subItem) {
+    private static void callTaskAInner(Par par, int parentItem, String subItem) {
         ParOptions optionsAInner = ParOptions.of("task-A-inner")
                 .parallelism(2)
                 .timeout(5_000)
@@ -147,7 +149,7 @@ public class DeadlockDetectionDemo {
                 .build();
 
         List<Integer> items = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> resultAInner = Par.parMap("shared-pool", items, i -> {
+        AsyncBatchResult<Integer> resultAInner = par.parMap("shared-pool", items, i -> {
             System.out.println("    [task-A-inner-" + parentItem + "-" + subItem + "-" + i
                     + "] started on " + Thread.currentThread().getName());
             Checkpoints.sleep(100);

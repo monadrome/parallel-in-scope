@@ -55,7 +55,7 @@ public class ParOptionsTest {
         ParOptions original = ParOptions.of("test")
                 .parallelism(100)
                 .build();
-        ParOptions formalized = ParOptions.formalized(original, 10);
+        ParOptions formalized = ParOptions.formalized(original, 10, 60_000L);
 
         // Parallelism should be constrained to taskSize
         assertEquals(10, formalized.getParallelism());
@@ -68,7 +68,7 @@ public class ParOptionsTest {
         ParOptions original = ParOptions.of("test")
                 .parallelism(-1)
                 .build();
-        ParOptions formalized = ParOptions.formalized(original, 5);
+        ParOptions formalized = ParOptions.formalized(original, 5, 60_000L);
         assertEquals(5, formalized.getParallelism());
     }
 

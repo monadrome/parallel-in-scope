@@ -25,14 +25,18 @@ import java.util.logging.Logger;
 /**
  * Central configuration and service registry for the vformation framework.
  * <p>
+ * Instance-based: each {@code ParConfig} holds its own SPI registries, executor registry,
+ * and configuration. Use {@link #getInstance()} for the default shared singleton,
+ * or create custom instances via {@link #ParConfig()} for isolated configurations.
+ * <p>
+ * Timer and submitter pool are global infrastructure shared across all instances.
+ * <p>
  * Users configure the framework by registering SPI implementations:
  * <ul>
  *   <li>{@link TaskListener} - metrics/monitoring callbacks</li>
  *   <li>{@link ExecutorResolver} - thread pool resolution for purge and livelock detection</li>
  *   <li>{@link LivelockListener} - livelock detection event callbacks</li>
  * </ul>
- * <p>
- * Also provides the global timer service and default configuration.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
@@ -40,9 +44,24 @@ public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
 
+    // ==================== Lazy Singleton ====================
+
+    private static final class Holder {
+        static final ParConfig INSTANCE = new ParConfig();
+    }
+
+    /**
+     * Returns the default shared singleton instance.
+     *
+     * @return the default ParConfig instance
+     */
+    public static ParConfig getInstance() {
+        return Holder.INSTANCE;
+    }
+
     // ==================== Logger SPI ====================
 
-    private static volatile ParallelLogger logger = new ParallelLogger() {
+    private volatile ParallelLogger logger = new ParallelLogger() {
         @Override
         public void debug(String message, Object... args) {
             if (JUL_LOGGER.isLoggable(Level.FINE)) {
@@ -88,16 +107,16 @@ public final class ParConfig {
 
     // ==================== SPI Registries ====================
 
-    private static final List<TaskListener> TASK_LISTENERS = new CopyOnWriteArrayList<>();
-    private static final List<LivelockListener> LIVELOCK_LISTENERS = new CopyOnWriteArrayList<>();
-    private static volatile ExecutorResolver executorResolver;
+    private final List<TaskListener> taskListeners = new CopyOnWriteArrayList<>();
+    private final List<LivelockListener> livelockListeners = new CopyOnWriteArrayList<>();
+    private volatile ExecutorResolver executorResolver;
 
     // ==================== Executor Registry ====================
 
-    private static final ConcurrentHashMap<String, ListeningExecutorService> EXECUTOR_REGISTRY = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, ExecutorService> EXECUTOR_RAW_REGISTRY = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ListeningExecutorService> executorRegistry = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ExecutorService> executorRawRegistry = new ConcurrentHashMap<>();
 
-    // ==================== Timer Service ====================
+    // ==================== Timer Service (Global) ====================
 
     private static final class TimerHolder {
         private static final int CORE_POOL_SIZE = 16;
@@ -108,7 +127,7 @@ public final class ParConfig {
                     .setDaemon(true)
                     .setNameFormat("Par-Timer-%d")
                     .setUncaughtExceptionHandler((t, e) ->
-                            logger.error("Uncaught exception in timer thread: ", e))
+                            getInstance().getLogger().error("Uncaught exception in timer thread: ", e))
                     .setPriority(Thread.MAX_PRIORITY)
                     .build();
 
@@ -119,7 +138,7 @@ public final class ParConfig {
         }
     }
 
-    // ==================== Submitter Pool ====================
+    // ==================== Submitter Pool (Global) ====================
 
     private static final class SubmitterPoolHolder {
         static final ListeningExecutorService INSTANCE = MoreExecutors.listeningDecorator(
@@ -132,13 +151,16 @@ public final class ParConfig {
 
     // ==================== Default Config ====================
 
-    private static volatile long defaultTimeoutMillis = 60_000L;
-    private static volatile boolean livelockDetectionEnabled = false;
+    private volatile long defaultTimeoutMillis = 60_000L;
+    private volatile boolean livelockDetectionEnabled = false;
 
-    private ParConfig() {
+    /**
+     * Creates a new ParConfig instance with default settings.
+     */
+    public ParConfig() {
     }
 
-    // ==================== Timer Access ====================
+    // ==================== Timer Access (Global) ====================
 
     /**
      * Gets the global timer service for timeout and scheduling operations.
@@ -149,7 +171,7 @@ public final class ParConfig {
         return TimerHolder.INSTANCE;
     }
 
-    // ==================== Submitter Pool Access ====================
+    // ==================== Submitter Pool Access (Global) ====================
 
     /**
      * Gets the lazy-initialized cached thread pool for running sliding-window
@@ -169,7 +191,7 @@ public final class ParConfig {
      *
      * @param customLogger the logger implementation, or null for default
      */
-    public static void setLogger(ParallelLogger customLogger) {
+    public void setLogger(ParallelLogger customLogger) {
         if (customLogger == null) {
             return;
         }
@@ -179,7 +201,7 @@ public final class ParConfig {
     /**
      * Returns the current logger (internal use by framework classes).
      */
-    public static ParallelLogger getLogger() {
+    public ParallelLogger getLogger() {
         return logger;
     }
 
@@ -190,9 +212,9 @@ public final class ParConfig {
      *
      * @param listener the listener to register
      */
-    public static void addTaskListener(TaskListener listener) {
+    public void addTaskListener(TaskListener listener) {
         if (listener != null) {
-            TASK_LISTENERS.add(listener);
+            taskListeners.add(listener);
         }
     }
 
@@ -201,15 +223,15 @@ public final class ParConfig {
      *
      * @param listener the listener to remove
      */
-    public static void removeTaskListener(TaskListener listener) {
-        TASK_LISTENERS.remove(listener);
+    public void removeTaskListener(TaskListener listener) {
+        taskListeners.remove(listener);
     }
 
     /**
      * Returns all registered task listeners (internal use).
      */
-    public static List<TaskListener> getTaskListeners() {
-        return TASK_LISTENERS;
+    public List<TaskListener> getTaskListeners() {
+        return taskListeners;
     }
 
     // ==================== LivelockListener Registration ====================
@@ -219,9 +241,9 @@ public final class ParConfig {
      *
      * @param listener the listener to register
      */
-    public static void addLivelockListener(LivelockListener listener) {
+    public void addLivelockListener(LivelockListener listener) {
         if (listener != null) {
-            LIVELOCK_LISTENERS.add(listener);
+            livelockListeners.add(listener);
         }
     }
 
@@ -230,15 +252,15 @@ public final class ParConfig {
      *
      * @param listener the listener to remove
      */
-    public static void removeLivelockListener(LivelockListener listener) {
-        LIVELOCK_LISTENERS.remove(listener);
+    public void removeLivelockListener(LivelockListener listener) {
+        livelockListeners.remove(listener);
     }
 
     /**
      * Returns all registered livelock listeners (internal use).
      */
-    public static List<LivelockListener> getLivelockListeners() {
-        return LIVELOCK_LISTENERS;
+    public List<LivelockListener> getLivelockListeners() {
+        return livelockListeners;
     }
 
     // ==================== ExecutorResolver Registration ====================
@@ -248,14 +270,14 @@ public final class ParConfig {
      *
      * @param resolver the executor resolver implementation
      */
-    public static void setExecutorResolver(ExecutorResolver resolver) {
+    public void setExecutorResolver(ExecutorResolver resolver) {
         executorResolver = resolver;
     }
 
     /**
      * Gets the registered executor resolver.
      */
-    public static ExecutorResolver getExecutorResolver() {
+    public ExecutorResolver getExecutorResolver() {
         return executorResolver;
     }
 
@@ -264,13 +286,13 @@ public final class ParConfig {
      * then falls back to the executor registry (if the raw executor is a {@link ThreadPoolExecutor}).
      * Returns null if not found.
      */
-    public static ThreadPoolExecutor resolveThreadPool(String executorName) {
+    public ThreadPoolExecutor resolveThreadPool(String executorName) {
         ExecutorResolver resolver = executorResolver;
         if (resolver != null) {
             return resolver.resolveThreadPool(executorName);
         }
         // Fall back to registry: check if the raw executor is a ThreadPoolExecutor
-        ExecutorService raw = EXECUTOR_RAW_REGISTRY.get(executorName);
+        ExecutorService raw = executorRawRegistry.get(executorName);
         if (raw instanceof ThreadPoolExecutor) {
             return (ThreadPoolExecutor) raw;
         }
@@ -280,7 +302,7 @@ public final class ParConfig {
     /**
      * Returns task-to-executor mapping from the registered resolver.
      */
-    public static Map<String, String> getTaskToExecutorMapping() {
+    public Map<String, String> getTaskToExecutorMapping() {
         ExecutorResolver resolver = executorResolver;
         return resolver != null ? resolver.getTaskToExecutorMapping() : Collections.<String, String>emptyMap();
     }
@@ -295,18 +317,18 @@ public final class ParConfig {
      * @param executor the executor service to register (must not be null)
      * @throws IllegalArgumentException if name is null/empty or executor is null
      */
-    public static void registerExecutor(String name, ExecutorService executor) {
+    public void registerExecutor(String name, ExecutorService executor) {
         if (name == null || name.isEmpty()) {
             throw new IllegalArgumentException("Executor name must not be null or empty");
         }
         if (executor == null) {
             throw new IllegalArgumentException("Executor must not be null");
         }
-        EXECUTOR_RAW_REGISTRY.put(name, executor);
+        executorRawRegistry.put(name, executor);
         if (executor instanceof ListeningExecutorService) {
-            EXECUTOR_REGISTRY.put(name, (ListeningExecutorService) executor);
+            executorRegistry.put(name, (ListeningExecutorService) executor);
         } else {
-            EXECUTOR_REGISTRY.put(name, MoreExecutors.listeningDecorator(executor));
+            executorRegistry.put(name, MoreExecutors.listeningDecorator(executor));
         }
     }
 
@@ -316,8 +338,8 @@ public final class ParConfig {
      * @param name the executor name
      * @return the registered ListeningExecutorService, or null
      */
-    public static ListeningExecutorService getExecutor(String name) {
-        return EXECUTOR_REGISTRY.get(name);
+    public ListeningExecutorService getExecutor(String name) {
+        return executorRegistry.get(name);
     }
 
     /**
@@ -325,10 +347,10 @@ public final class ParConfig {
      *
      * @param name the executor name
      */
-    public static void unregisterExecutor(String name) {
+    public void unregisterExecutor(String name) {
         if (name != null) {
-            EXECUTOR_REGISTRY.remove(name);
-            EXECUTOR_RAW_REGISTRY.remove(name);
+            executorRegistry.remove(name);
+            executorRawRegistry.remove(name);
         }
     }
 
@@ -339,7 +361,7 @@ public final class ParConfig {
      *
      * @param millis default timeout in milliseconds (must be positive)
      */
-    public static void setDefaultTimeoutMillis(long millis) {
+    public void setDefaultTimeoutMillis(long millis) {
         if (millis > 0) {
             defaultTimeoutMillis = millis;
         }
@@ -348,7 +370,7 @@ public final class ParConfig {
     /**
      * Gets the default timeout in milliseconds.
      */
-    public static long getDefaultTimeoutMillis() {
+    public long getDefaultTimeoutMillis() {
         return defaultTimeoutMillis;
     }
 
@@ -357,14 +379,14 @@ public final class ParConfig {
      *
      * @param enabled true to enable livelock detection
      */
-    public static void setLivelockDetectionEnabled(boolean enabled) {
+    public void setLivelockDetectionEnabled(boolean enabled) {
         livelockDetectionEnabled = enabled;
     }
 
     /**
      * Returns whether livelock detection is enabled.
      */
-    public static boolean isLivelockDetectionEnabled() {
+    public boolean isLivelockDetectionEnabled() {
         return livelockDetectionEnabled;
     }
 }

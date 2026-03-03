@@ -15,6 +15,7 @@ import io.github.linzee1.vformation.internal.ScopedCallable;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -25,7 +26,12 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 /**
  * Main facade for parallel execution.
  * <p>
- * Provides {@link #parForEach} and {@link #parMap} static methods that wire together
+ * Instance-based: each {@code Par} holds a reference to a {@link ParConfig}.
+ * Use {@link #getInstance()} for the default shared singleton backed by
+ * {@link ParConfig#getInstance()}, or create custom instances via
+ * {@link #Par(ParConfig)} for isolated configurations.
+ * <p>
+ * Provides {@link #parForEach} and {@link #parMap} instance methods that wire together
  * the entire parallel execution pipeline:
  * <ul>
  *   <li>Normalization of {@link ParOptions}</li>
@@ -40,7 +46,40 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  */
 public final class Par {
 
-    private Par() {
+    private final ParConfig config;
+
+    // ==================== Lazy Singleton ====================
+
+    private static final class Holder {
+        static final Par INSTANCE = new Par(ParConfig.getInstance());
+    }
+
+    /**
+     * Returns the default shared singleton instance backed by {@link ParConfig#getInstance()}.
+     *
+     * @return the default Par instance
+     */
+    public static Par getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    /**
+     * Creates a new Par instance with the given configuration.
+     *
+     * @param config the ParConfig instance to use
+     * @throws NullPointerException if config is null
+     */
+    public Par(ParConfig config) {
+        this.config = Objects.requireNonNull(config, "config cannot be null");
+    }
+
+    /**
+     * Returns the ParConfig associated with this Par instance.
+     *
+     * @return the ParConfig
+     */
+    public ParConfig getConfig() {
+        return config;
     }
 
     /**
@@ -54,7 +93,7 @@ public final class Par {
      * @return batch result containing futures for each task
      * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public static <T> AsyncBatchResult<Void> parForEach(
+    public <T> AsyncBatchResult<Void> parForEach(
             String executorName,
             Collection<T> list,
             Consumer<? super T> consumer,
@@ -78,7 +117,7 @@ public final class Par {
      * @return batch result containing futures for each mapped result
      * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public static <T, R> AsyncBatchResult<R> parMap(
+    public <T, R> AsyncBatchResult<R> parMap(
             String executorName,
             List<T> list,
             Function<? super T, ? extends R> function,
@@ -88,15 +127,15 @@ public final class Par {
         return executeParallel(list, item -> () -> function.apply(item), options, executor, executorName);
     }
 
-    private static ListeningExecutorService resolveExecutor(String executorName) {
-        ListeningExecutorService executor = ParConfig.getExecutor(executorName);
+    private ListeningExecutorService resolveExecutor(String executorName) {
+        ListeningExecutorService executor = config.getExecutor(executorName);
         if (executor == null) {
             throw new IllegalArgumentException("No executor registered with name '" + executorName + "'");
         }
         return executor;
     }
 
-    private static <T, R> AsyncBatchResult<R> executeParallel(
+    private <T, R> AsyncBatchResult<R> executeParallel(
             Collection<T> list,
             Function<T, Callable<R>> callableMapper,
             ParOptions options,
@@ -107,7 +146,7 @@ public final class Par {
             return emptyBatchResult();
         }
 
-        ParOptions normalizedOptions = ParOptions.formalized(options, list.size());
+        ParOptions normalizedOptions = ParOptions.formalized(options, list.size(), config.getDefaultTimeoutMillis());
         String taskName = normalizedOptions.getTaskName();
 
         // Record task pair for livelock detection
@@ -128,7 +167,7 @@ public final class Par {
         // Create ScopedCallable list with context attachments
         List<Callable<R>> tasks = list.stream()
                 .map(item -> {
-                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item));
+                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config);
                     scopedCallable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
                     scopedCallable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
                     scopedCallable.setTtlAttachment(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
@@ -161,10 +200,10 @@ public final class Par {
         return AsyncBatchResult.of(ImmutableList.<ListenableFuture<T>>of());
     }
 
-    private static <T> void tryPurgeOnTimeout(String executorName, AsyncBatchResult<T> result) {
+    private <T> void tryPurgeOnTimeout(String executorName, AsyncBatchResult<T> result) {
         FluentFuture.from(result.getSubmitCanceller())
                 .catching(TimeoutException.class, ex -> {
-                    PurgeService.tryPurge(executorName, result.report());
+                    PurgeService.tryPurge(executorName, result.report(), config);
                     return null;
                 }, MoreExecutors.directExecutor());
     }

@@ -35,8 +35,10 @@ public class NestedScopeCancellationDemo {
 
     public static void main(String[] args) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
+        ParConfig config = new ParConfig();
+        Par par = new Par(config);
         try {
-            ParConfig.registerExecutor("demo", pool);
+            config.registerExecutor("demo", pool);
 
             List<String> outerItems = Arrays.asList("A", "B", "C");
 
@@ -50,10 +52,10 @@ public class NestedScopeCancellationDemo {
             System.out.println("Outer scope starts 3 tasks: A (nested), B (fails), C (nested)");
             System.out.println();
 
-            AsyncBatchResult<Void> outerResult = Par.parForEach("demo", outerItems, item -> {
+            AsyncBatchResult<Void> outerResult = par.parForEach("demo", outerItems, item -> {
                 switch (item) {
                     case "A":
-                        runInnerScope("A", Arrays.asList(1, 2, 3, 4, 5));
+                        runInnerScope(par, "A", Arrays.asList(1, 2, 3, 4, 5));
                         break;
                     case "B":
                         // Delay slightly so A and C have time to start their inner scopes
@@ -61,7 +63,7 @@ public class NestedScopeCancellationDemo {
                         System.out.println("[outer-B] Throwing RuntimeException to trigger fail-fast!");
                         throw new RuntimeException("Simulated failure in task B");
                     case "C":
-                        runInnerScope("C", Arrays.asList(6, 7, 8, 9, 10));
+                        runInnerScope(par, "C", Arrays.asList(6, 7, 8, 9, 10));
                         break;
                 }
             }, outerOptions);
@@ -83,7 +85,7 @@ public class NestedScopeCancellationDemo {
 
             System.out.println("\n=== Demo Complete ===");
         } finally {
-            ParConfig.unregisterExecutor("demo");
+            config.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }
@@ -92,7 +94,7 @@ public class NestedScopeCancellationDemo {
      * Runs a nested inner parMap scope with slow tasks.
      * When the outer scope cancels, these inner tasks get canceled via token propagation.
      */
-    private static void runInnerScope(String outerTask, List<Integer> items) {
+    private static void runInnerScope(Par par, String outerTask, List<Integer> items) {
         ParOptions innerOptions = ParOptions.of("inner-" + outerTask)
                 .parallelism(2)
                 .timeout(10_000)
@@ -101,7 +103,7 @@ public class NestedScopeCancellationDemo {
 
         System.out.println("[outer-" + outerTask + "] Starting inner parMap with items: " + items);
 
-        AsyncBatchResult<String> innerResult = Par.parMap("demo", items, n -> {
+        AsyncBatchResult<String> innerResult = par.parMap("demo", items, n -> {
             System.out.println("  [inner-" + outerTask + "] Processing item " + n + " ...");
             // Simulate slow work -- gives time for B to fail and cancel to propagate
             Checkpoints.sleep(2000);
