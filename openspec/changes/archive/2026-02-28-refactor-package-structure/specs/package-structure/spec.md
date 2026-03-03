@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Package layout
-The project SHALL organize all classes into the following 7 packages under the base `io.github.linzee1.vformation`:
+The project SHALL organize all classes into the following 7 packages under the base `io.github.huatalk.vformation`:
 - `scope` — API facade classes
 - `context` — TTL/TL context propagation classes
 - `context.graph` — Livelock detection classes
@@ -27,7 +27,7 @@ The system SHALL place classes into packages as follows:
 
 #### Scenario: No class remains in the old package
 - **WHEN** the refactoring is complete
-- **THEN** no `.java` file SHALL have package declaration `io.github.linzee1.vformation` or `io.github.linzee1.vformation.exception`
+- **THEN** no `.java` file SHALL have package declaration `io.github.huatalk.vformation` or `io.github.huatalk.vformation.exception`
 
 ### Requirement: All classes are public
 All classes and interfaces SHALL have `public` visibility after the refactoring.
@@ -44,11 +44,11 @@ The Maven artifactId SHALL be `vformation` and the project name SHALL reflect "S
 - **THEN** the artifactId SHALL be `vformation`
 
 ### Requirement: Old packages deleted
-The old package directories `io.github.linzee1.vformation` and `io.github.linzee1.vformation.exception` SHALL be completely removed after all classes are migrated.
+The old package directories `io.github.huatalk.vformation` and `io.github.huatalk.vformation.exception` SHALL be completely removed after all classes are migrated.
 
 #### Scenario: No residual files in old locations
 - **WHEN** migration is complete
-- **THEN** the directory `src/main/java/io/github/linzee1/parallel/` SHALL not exist
+- **THEN** the directory `src/main/java/io/github/huatalk/parallel/` SHALL not exist
 
 ### Requirement: Tests updated
 All test files SHALL update their package declarations and imports to reference the new package structure, and all tests SHALL pass after the refactoring.

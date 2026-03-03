@@ -138,7 +138,7 @@
 
 ```xml
 <dependency>
-    <groupId>io.github.linzee1</groupId>
+    <groupId>io.github.huatalk</groupId>
     <artifactId>vformation</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
@@ -147,7 +147,7 @@
 ### 基本用法
 
 ```java
-import io.github.linzee1.vformation.scope.*;
+import io.github.huatalk.vformation.scope.*;
 import com.google.common.util.concurrent.*;
 
 // 创建并注册线程池
@@ -302,7 +302,7 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 ## 包结构
 
 ```
-io.github.linzee1.vformation
+io.github.huatalk.vformation
 ├── scope/
 │   ├── Par                          # 主入口门面
 │   ├── ParOptions                   # 任务配置 (Builder)
