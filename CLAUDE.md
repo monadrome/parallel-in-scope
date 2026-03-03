@@ -32,7 +32,7 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 | `context.graph` | Livelock detection | `TaskGraph`, `TaskEdge`, `TaskEdgeEntry` |
 | `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable` |
 | `queue` | Scheduling queues | `SmartBlockingQueue`, `VariableLinkedBlockingQueue` |
-| `spi` | Extension points | `TaskListener`, `ExecutorResolver`, `LivelockListener`, `ParallelLogger` |
+| `spi` | Extension points | `TaskListener`, `ExecutorResolver`, `LivelockListener` |
 
 ### Execution Flow
 
@@ -52,7 +52,8 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 - **Two-Map Context Relay** (`ThreadRelay`): parent thread's `curMap` becomes child thread's `parentMap` via TTL, propagating `CancellationToken`, `ParOptions`, and task names
 - **Task-Type-Aware Scheduling** (`SmartBlockingQueue`): CPU_BOUND tasks' `offer()` returns `false` to trigger `ThreadPoolExecutor` rejection handler (typically `CallerRunsPolicy`), preventing queue buildup
 - **Dual Cancellation Exceptions**: `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios; `FatCancellationException` (full stack trace) for debugging
-- **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener`, `ParallelLogger` registered on `ParConfig` — no hard-coded business dependencies
+- **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener` registered on `ParConfig` — no hard-coded business dependencies
+- **JUL Logging**: Framework uses `java.util.logging.Logger` directly; users bridge to SLF4J/Log4j2 via standard JUL handlers
 
 ### Key Dependencies
 

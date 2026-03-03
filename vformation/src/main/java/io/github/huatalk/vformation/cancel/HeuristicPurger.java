@@ -16,6 +16,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Heuristic thread pool purger for cleaning stale canceled task references from work queues.
@@ -30,6 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class HeuristicPurger {
+
+    private static final Logger logger = Logger.getLogger(HeuristicPurger.class.getName());
 
     private static volatile ListeningExecutorService purgeExecutor;
     private static final ConcurrentMap<String, AtomicInteger> STALE_COUNTERS = new ConcurrentHashMap<>();
@@ -95,7 +99,7 @@ public class HeuristicPurger {
         return getPurgeExecutor().submit(() -> {
             ThreadPoolExecutor executor = config.resolveThreadPool(executorName);
             if (executor == null) {
-                config.getLogger().debug("Cannot resolve thread pool '{}' for purge", executorName);
+                logger.log(Level.FINE, "Cannot resolve thread pool '" + executorName + "' for purge");
                 return false;
             }
             int queueSize = executor.getQueue().size();

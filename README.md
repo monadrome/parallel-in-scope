@@ -18,7 +18,7 @@
 - **🔗 Context Propagation** — 两级 Map 接力，取消令牌、任务配置自动传播到子线程
 - **🚀 Sliding-Window Scheduling** — 完成一个补一个，不淹没线程池
 - **🎯 Task-Type-Aware Dispatch** — CPU 密集型拒绝入队防饥饿，IO 密集型正常排队
-- **🔌 Pluggable SPI** — TaskListener / ExecutorResolver / LivelockListener / ParallelLogger
+- **🔌 Pluggable SPI** — TaskListener / ExecutorResolver / LivelockListener
 
 ---
 
@@ -172,6 +172,8 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 ├─────────────────────────────────────────────────────────┤
 │                    SPI Layer                              │
 │  TaskListener │ ExecutorResolver │ LivelockListener       │
+│                                                           │
+│  Logging: java.util.logging (JUL)                        │
 └─────────────────────────────────────────────────────────┘
 │          Guava ListenableFuture + TTL                    │
 └─────────────────────────────────────────────────────────┘
@@ -224,8 +226,7 @@ io.github.huatalk.vformation
 └── spi/
     ├── TaskListener                # 任务监控回调 SPI
     ├── ExecutorResolver            # 线程池解析 SPI
-    ├── LivelockListener            # 活锁检测回调 SPI
-    └── ParallelLogger              # 日志输出 SPI（默认 JUL）
+    └── LivelockListener            # 活锁检测回调 SPI
 ```
 
 ---
