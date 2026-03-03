@@ -56,7 +56,7 @@ public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
     }
 
     /**
-     * Creates a blocking queue: returns {@link SynchronousQueue} for capacity <= 0,
+     * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0},
      * otherwise returns {@link SmartBlockingQueue}.
      */
     @SuppressWarnings("unchecked")
