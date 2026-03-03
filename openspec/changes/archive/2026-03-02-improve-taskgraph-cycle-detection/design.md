@@ -48,7 +48,7 @@ static boolean canDeadlock(String executorName) {
 
 当前 `TaskEdge` 已存储 `executorName`（子任务的 executor）。为获取父任务的 executor name：
 
-- 在 `TaskEdge` 中新增 `sourceExecutorName` 字段，记录父任务调用 `parMap/parForEach` 时所在的 executor name
+- 在 `TaskEdge` 中新增 `sourceExecutorName` 字段，记录父任务调用 `map/forEach` 时所在的 executor name
 - 父任务的 executor name 来源：`ThreadRelay` 中新增 `EXECUTOR_NAME` relay item，由 `ScopedCallable` 在任务开始时设置
 - 对于顶层调用（非 Par 管理的线程），sourceExecutorName 为 `"NA"`
 
