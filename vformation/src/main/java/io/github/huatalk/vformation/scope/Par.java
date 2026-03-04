@@ -26,7 +26,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * <p>
  * Instance-based: each {@code Par} holds a reference to a {@link ParConfig}.
  * Use {@link #getInstance()} for the default shared singleton backed by
- * {@link ParConfig#getInstance()}, or create custom instances via
+ * {@link ParConfig#getDefault()}, or create custom instances via
  * {@link #Par(ParConfig)} for isolated configurations.
  * <p>
  * Provides the {@link #map} instance method that wires together
@@ -49,11 +49,11 @@ public final class Par {
     // ==================== Lazy Singleton ====================
 
     private static final class Holder {
-        static final Par INSTANCE = new Par(ParConfig.getInstance());
+        static final Par INSTANCE = new Par(ParConfig.getDefault());
     }
 
     /**
-     * Returns the default shared singleton instance backed by {@link ParConfig#getInstance()}.
+     * Returns the default shared singleton instance backed by {@link ParConfig#getDefault()}.
      *
      * @return the default Par instance
      */

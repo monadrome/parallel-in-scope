@@ -43,26 +43,27 @@ public class DeadlockDetectionDemo {
     public static void main(String[] args) throws Exception {
         // A small fixed pool — deliberately undersized to trigger deadlock
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        ParConfig config = new ParConfig();
+
+        // Register listener to capture livelock/deadlock detection
+        LivelockListener listener = event -> {
+            System.out.println("\n========== LIVELOCK DETECTION ==========");
+            System.out.println("Task cycle detected : " + event.hasTaskCycle());
+            System.out.println("Task self-loop      : " + event.hasSelfLoop());
+            System.out.println("Executor cycle      : " + event.hasExecutorCycle());
+            System.out.println("Executor self-loop  : " + event.hasExecutorSelfLoop());
+            System.out.println("Task edges          : " + event.getTaskEdges());
+            System.out.println("Executor edges      : " + event.getExecutorEdges());
+            System.out.println("toString     : " + event.getExecutorEdges());
+            System.out.println("=========================================\n");
+        };
+
+        ParConfig config = ParConfig.builder()
+                .executor("shared-pool", pool)
+                .livelockDetectionEnabled(true)
+                .livelockListener(listener)
+                .build();
         Par par = new Par(config);
         try {
-            config.registerExecutor("shared-pool", pool);
-            config.setLivelockDetectionEnabled(true);
-
-            // Register listener to capture livelock/deadlock detection
-            LivelockListener listener = event -> {
-                System.out.println("\n========== LIVELOCK DETECTION ==========");
-                System.out.println("Task cycle detected : " + event.hasTaskCycle());
-                System.out.println("Task self-loop      : " + event.hasSelfLoop());
-                System.out.println("Executor cycle      : " + event.hasExecutorCycle());
-                System.out.println("Executor self-loop  : " + event.hasExecutorSelfLoop());
-                System.out.println("Task edges          : " + event.getTaskEdges());
-                System.out.println("Executor edges      : " + event.getExecutorEdges());
-                System.out.println("toString     : " + event.getExecutorEdges());
-                System.out.println("=========================================\n");
-            };
-            config.addLivelockListener(listener);
-
             // Initialize task graph for this "request"
             TaskGraph.initOnRequest();
 
@@ -107,8 +108,6 @@ public class DeadlockDetectionDemo {
 
             System.out.println("=== Demo Complete ===");
         } finally {
-            config.setLivelockDetectionEnabled(false);
-            config.unregisterExecutor("shared-pool");
             pool.shutdownNow();
         }
     }

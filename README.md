@@ -10,6 +10,52 @@
 
 ---
 
+## 快速开始
+
+大多数场景下，你只需要用 **`Par.map`** 一个方法：
+
+### 1. 添加 Maven 依赖
+
+```xml
+<dependency>
+    <groupId>io.github.huatalk</groupId>
+    <artifactId>vformation</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+### 2. 初始化（应用启动时执行一次）
+
+```java
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
+Par par = new Par(config);
+```
+
+### 3. 使用 `Par.map` 并行处理
+
+```java
+ParOptions options = ParOptions.ioTask("fetchData")
+    .parallelism(5)
+    .timeout(3000)
+    .build();
+
+List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
+AsyncBatchResult<String> result = par.map(
+    "io-pool",
+    urls,
+    url -> httpClient.fetch(url),
+    options
+);
+
+List<ListenableFuture<String>> futures = result.getResults();
+```
+
+以上就是全部。`Par.map` 内部自动处理滑动窗口调度、超时控制、快速失败取消和上下文传播，无需额外配置。
+
+---
+
 ## 核心特性
 
 - **🛡️ Cooperative Cancellation** — 父子令牌级联，Late-Binding 避免竞态，轻量异常零堆栈开销
@@ -22,97 +68,53 @@
 
 ---
 
-## 快速开始
+## 进阶功能
 
-### Maven 依赖
-
-```xml
-<dependency>
-    <groupId>io.github.huatalk</groupId>
-    <artifactId>vformation</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-</dependency>
-```
-
-### 基本用法
-
-```java
-import io.github.huatalk.vformation.scope.*;
-import com.google.common.util.concurrent.*;
-
-// 创建配置与 Par 实例
-ParConfig config = new ParConfig();
-Par par = new Par(config);
-
-// 创建并注册线程池
-ExecutorService executor = Executors.newFixedThreadPool(10);
-config.registerExecutor("io-pool", executor);
-
-// 配置任务参数
-ParOptions options = ParOptions.ioTask("fetchData")
-    .parallelism(5)
-    .timeout(3000)  // 3秒超时
-    .build();
-
-// 并行执行
-List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.map(
-    "io-pool",                      // 注册的执行器名称
-    urls,
-    url -> httpClient.fetch(url),   // 你的业务逻辑
-    options
-);
-
-// 获取结果
-List<ListenableFuture<String>> futures = result.getResults();
-```
+以下功能按需启用，不影响 `Par.map` 的基本使用。
 
 ### 注册监控回调
 
 ```java
-ParConfig config = new ParConfig();
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .taskListener(event -> {
+        System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
+            event.getTaskName(),
+            event.executionTimeMillis(),
+            event.waitTimeMillis());
 
-// 注册任务耗时监控
-config.addTaskListener(event -> {
-    System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
-        event.getTaskName(),
-        event.executionTimeMillis(),
-        event.waitTimeMillis());
-
-    if (event.getException() != null) {
-        System.err.println("Task failed: " + event.getException().getMessage());
-    }
-});
+        if (event.getException() != null) {
+            System.err.println("Task failed: " + event.getException().getMessage());
+        }
+    })
+    .build();
 ```
 
 ### 活锁检测
 
 ```java
-ParConfig config = new ParConfig();
+// 通过 Builder 构建包含活锁检测的配置
+ParConfig config = ParConfig.builder()
+    .executor("shared-pool", pool)
+    .livelockDetectionEnabled(true)
+    .livelockListener(event -> {
+        if (event.hasExecutorSelfLoop()) {
+            log.warn("Potential deadlock: executor self-loop detected! {}",
+                event.getExecutorEdges());
+        }
+    })
+    .executorResolver(new ExecutorResolver() {
+        @Override
+        public ThreadPoolExecutor resolveThreadPool(String name) {
+            return executorMap.get(name);
+        }
 
-// 启用活锁检测
-config.setLivelockDetectionEnabled(true);
-
-// 注册活锁监听器
-config.addLivelockListener(event -> {
-    if (event.hasExecutorSelfLoop()) {
-        log.warn("Potential deadlock: executor self-loop detected! {}",
-            event.getExecutorEdges());
-    }
-});
-
-// 提供任务到线程池的映射关系
-config.setExecutorResolver(new ExecutorResolver() {
-    @Override
-    public ThreadPoolExecutor resolveThreadPool(String name) {
-        return executorMap.get(name);
-    }
-
-    @Override
-    public Map<String, String> getTaskToExecutorMapping() {
-        return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
-    }
-});
+        @Override
+        public Map<String, String> getTaskToExecutorMapping() {
+            return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
+        }
+    })
+    .build();
 
 // 在请求入口初始化
 TaskGraph.initOnRequest();
@@ -122,21 +124,6 @@ try {
     // 请求结束时自动检测并通知
     TaskGraph.destroyAfterRequest(config);
 }
-```
-
-### 协作式取消
-
-```java
-// 父任务中
-CancellationToken parentToken = CancellationToken.create();
-CancellationToken childToken = new CancellationToken(parentToken);
-
-// 取消父任务 → 自动级联到子任务
-parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELED
-
-// 在子任务代码中设置检查点
-Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
 ```
 
 ### CPU-Bound 任务调度
@@ -152,6 +139,21 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
     .parallelism(20)
     .timeout(5000)
     .build();
+```
+
+### 协作式取消
+
+```java
+// 父任务中
+CancellationToken parentToken = CancellationToken.create();
+CancellationToken childToken = new CancellationToken(parentToken);
+
+// 取消父任务 → 自动级联到子任务
+parentToken.cancel(false);
+// childToken 状态也会变为 PROPAGATING_CANCELED
+
+// 在子任务代码中设置检查点
+Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
 ```
 
 ---
