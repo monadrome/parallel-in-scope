@@ -58,19 +58,71 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 ## 核心特性
 
-- **🛡️ Cooperative Cancellation** — 父子令牌级联，Late-Binding 避免竞态，轻量异常零堆栈开销
-- **⚡ Fail-Fast Only** — 任一子任务失败立即取消同批剩余任务。这是刻意的设计选择：框架只提供 fail-fast 语义，不提供"忽略失败继续执行"模式。如需容错，请在任务内部自行 catch 异常
-- **🔍 Deadlock Detection** — DAG 环路检测，覆盖任务级循环依赖和执行器级自环
-- **🔗 Context Propagation** — 两级 Map 接力，取消令牌、任务配置自动传播到子线程
-- **🚀 Sliding-Window Scheduling** — 完成一个补一个，不淹没线程池
-- **🎯 Task-Type-Aware Dispatch** — CPU 密集型拒绝入队防饥饿，IO 密集型正常排队
-- **🔌 Pluggable SPI** — TaskListener / ExecutorResolver / LivelockListener
+### ⚡ 快速失败（Fail-Fast）
+
+**问题：** 传统并行处理中，某个子任务失败后其余任务仍继续执行，白白消耗线程和 IO 资源，调用方还得等所有任务结束才能拿到错误。
+
+**方案：** 任一子任务抛出异常，框架立即取消同批所有剩余任务。这是刻意的设计选择——只提供 fail-fast 语义，不提供"忽略失败继续执行"模式。如需容错，在任务函数内部自行 catch。
+
+### 🛡️ 协作式取消（Cooperative Cancellation）
+
+**问题：** `Thread.interrupt()` 对不检查中断标志的代码无效，强制 kill 线程可能导致资源泄漏。嵌套并行调用时，取消信号无法自动向下传播。
+
+**方案：** 父子令牌自动级联，取消父任务即级联取消所有子任务。Late-Binding 机制在所有任务提交后才绑定超时和 fail-fast，避免竞态。双异常策略——`LeanCancellationException`（无堆栈，零开销）用于高频场景，`FatCancellationException`（完整堆栈）用于调试。
+
+### 🔗 上下文传播（Context Propagation）
+
+**问题：** `ThreadLocal` 值在任务提交到线程池后丢失，请求级上下文（链路追踪 ID、用户身份、取消令牌）无法自动传递到子线程，开发者被迫在每个任务中手动传参。
+
+**方案：** 基于 Alibaba TTL 的两级 Map 接力——父线程的 `curMap` 自动成为子线程的 `parentMap`，取消令牌、任务配置、任务名称透明传播，零侵入业务代码。
+
+### 🚀 滑动窗口调度（Sliding-Window Scheduling）
+
+**问题：** 一次性提交所有任务到线程池，任务量大时造成内存压力和线程饥饿；`invokeAll()` 阻塞到全部完成，无法逐个获取结果。
+
+**方案：** "完成一个补一个"的滑动窗口——初始提交 parallelism 个任务，每完成一个立即补充一个，既保持线程池满载又避免溢出。
+
+### 🔌 可插拔扩展（Pluggable SPI）
+
+**问题：** 硬编码的监控和扩展点难以适配不同技术栈，框架与业务监控系统耦合。
+
+**方案：** 三个 SPI 扩展点注册在 `ParConfig` 上，零硬编码依赖：
+- **TaskListener** — 任务生命周期回调（耗时、排队时间、异常），对接任意监控系统
+- **ExecutorResolver** — 线程池名称解析，支持 purge 清理和死锁检测
+- **LivelockListener** — 死锁检测事件回调
+
+### 🔍 死锁检测（Deadlock Detection）
+
+**问题：** 嵌套并行调用共享同一线程池时，外层任务占住线程等待内层完成，内层排队等外层释放线程——死锁。此类问题在生产环境极难复现和定位。
+
+**方案：** 请求级 DAG 图自动记录任务依赖关系，请求结束时执行环路检测，覆盖任务级循环依赖和执行器级自环，通过 SPI 回调通知诊断结果。
+
+### 🎯 任务类型感知调度（Task-Type-Aware Dispatch）
+
+**问题：** CPU 密集型和 IO 密集型任务混用同一队列，大量 IO 任务排队会饿死 CPU 任务，计算延迟飙升。
+
+**方案：** CPU 密集型任务的 `offer()` 返回 `false`，触发拒绝策略（通常 `CallerRunsPolicy`），宁可调用方线程同步执行也不阻塞工作线程；IO 密集型正常排队。
 
 ---
 
 ## 进阶功能
 
 以下功能按需启用，不影响 `Par.map` 的基本使用。
+
+### 协作式取消
+
+```java
+// 父任务中
+CancellationToken parentToken = CancellationToken.create();
+CancellationToken childToken = new CancellationToken(parentToken);
+
+// 取消父任务 → 自动级联到子任务
+parentToken.cancel(false);
+// childToken 状态也会变为 PROPAGATING_CANCELED
+
+// 在子任务代码中设置检查点
+Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
+```
 
 ### 注册监控回调
 
@@ -90,10 +142,10 @@ ParConfig config = ParConfig.builder()
     .build();
 ```
 
-### 活锁检测
+### 死锁检测
 
 ```java
-// 通过 Builder 构建包含活锁检测的配置
+// 通过 Builder 构建包含死锁检测的配置
 ParConfig config = ParConfig.builder()
     .executor("shared-pool", pool)
     .livelockDetectionEnabled(true)
@@ -141,21 +193,6 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
     .build();
 ```
 
-### 协作式取消
-
-```java
-// 父任务中
-CancellationToken parentToken = CancellationToken.create();
-CancellationToken childToken = new CancellationToken(parentToken);
-
-// 取消父任务 → 自动级联到子任务
-parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELED
-
-// 在子任务代码中设置检查点
-Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
-```
-
 ---
 
 ## 架构设计
@@ -191,7 +228,7 @@ block-beta
 
     block:detect:2
         columns 2
-        I["<b>TaskGraph</b><br/>Livelock Detection"]
+        I["<b>TaskGraph</b><br/>Deadlock Detection"]
         J["<b>HeuristicPurger</b><br/>Pool Cleanup"]
     end
 
