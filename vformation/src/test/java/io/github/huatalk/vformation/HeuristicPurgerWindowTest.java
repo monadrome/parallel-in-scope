@@ -27,9 +27,10 @@ public class HeuristicPurgerWindowTest {
 
     @BeforeEach
     public void setUp() {
-        config = new ParConfig();
         tpe = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-        config.registerExecutor(POOL_NAME, tpe);
+        config = ParConfig.builder()
+                .executor(POOL_NAME, tpe)
+                .build();
         // Reset to known state
         HeuristicPurger.configure(0.33, 1, 1000, 100.0);
         HeuristicPurger.configureWindow(60_000L, 60, 0, 0);
@@ -38,7 +39,6 @@ public class HeuristicPurgerWindowTest {
 
     @AfterEach
     public void tearDown() {
-        config.unregisterExecutor(POOL_NAME);
         tpe.shutdownNow();
         HeuristicPurger.setPurgeStrategy(null);
         HeuristicPurger.configureWindow(60_000L, 60, 0, 0);
@@ -121,21 +121,21 @@ public class HeuristicPurgerWindowTest {
         HeuristicPurger.configure(0.33, 100_000, 200_000, 100.0);
 
         String pool = "window-count-test-" + System.nanoTime();
-        config.registerExecutor(pool, tpe);
+        ParConfig poolConfig = ParConfig.builder()
+                .executor(pool, tpe)
+                .build();
 
         // First call: 3 cancellations (below threshold of 5)
         ListenableFuture<?> r1 = HeuristicPurger.tryPurge(pool,
-                TestHelper.createReport(3), config);
+                TestHelper.createReport(3), poolConfig);
         Object v1 = r1.get(5, TimeUnit.SECONDS);
         assertEquals(false, v1, "Should not purge when below window count threshold");
 
         // Second call: 3 more cancellations (total 6, above threshold of 5)
         ListenableFuture<?> r2 = HeuristicPurger.tryPurge(pool,
-                TestHelper.createReport(3), config);
+                TestHelper.createReport(3), poolConfig);
         Object v2 = r2.get(5, TimeUnit.SECONDS);
         assertEquals(true, v2, "Should purge when window count exceeds threshold");
-
-        config.unregisterExecutor(pool);
     }
 
     @Test
@@ -146,15 +146,15 @@ public class HeuristicPurgerWindowTest {
         HeuristicPurger.configure(0.33, 100_000, 200_000, 100.0);
 
         String pool = "rps-test-" + System.nanoTime();
-        config.registerExecutor(pool, tpe);
+        ParConfig poolConfig = ParConfig.builder()
+                .executor(pool, tpe)
+                .build();
 
         // Record cancellations: 5 in a 1-second window -> 5 RPS > threshold of 1.0
         ListenableFuture<?> r = HeuristicPurger.tryPurge(pool,
-                TestHelper.createReport(5), config);
+                TestHelper.createReport(5), poolConfig);
         Object v = r.get(5, TimeUnit.SECONDS);
         assertEquals(true, v, "Should purge when RPS exceeds threshold");
-
-        config.unregisterExecutor(pool);
     }
 
     @Test
