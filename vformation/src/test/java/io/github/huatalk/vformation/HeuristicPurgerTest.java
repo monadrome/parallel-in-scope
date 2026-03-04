@@ -30,16 +30,16 @@ public class HeuristicPurgerTest {
 
     @BeforeEach
     public void setUp() {
-        config = new ParConfig();
         tpe = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-        config.registerExecutor(POOL_NAME, tpe);
+        config = ParConfig.builder()
+                .executor(POOL_NAME, tpe)
+                .build();
         // Reset to known state with high rate limit
         HeuristicPurger.configure(0.33, 1, 1000, 100.0);
     }
 
     @AfterEach
     public void tearDown() {
-        config.unregisterExecutor(POOL_NAME);
         tpe.shutdownNow();
     }
 
@@ -100,18 +100,18 @@ public class HeuristicPurgerTest {
 
         // Use a unique pool name to avoid interference from other tests
         String uniquePool = "accumulation-test-" + System.nanoTime();
-        config.registerExecutor(uniquePool, tpe);
+        ParConfig uniqueConfig = ParConfig.builder()
+                .executor(uniquePool, tpe)
+                .build();
 
         HeuristicPurger.configure(0.33, 10000, 50000, 100.0);
-        HeuristicPurger.tryPurge(uniquePool, report, config);
-        HeuristicPurger.tryPurge(uniquePool, report, config);
+        HeuristicPurger.tryPurge(uniquePool, report, uniqueConfig);
+        HeuristicPurger.tryPurge(uniquePool, report, uniqueConfig);
 
         // Should accumulate: 3 + 3 = 6
         // Note: counter is incremented before the async purge task runs,
         // so we can read it immediately
         assertTrue(HeuristicPurger.getStaleCount(uniquePool) >= 6,
                 "Stale count should accumulate: " + HeuristicPurger.getStaleCount(uniquePool));
-
-        config.unregisterExecutor(uniquePool);
     }
 }

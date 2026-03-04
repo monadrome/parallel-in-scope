@@ -1,5 +1,7 @@
 package io.github.huatalk.vformation.scope;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -9,28 +11,29 @@ import io.github.huatalk.vformation.spi.LivelockListener;
 import io.github.huatalk.vformation.spi.TaskListener;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Central configuration and service registry for the vformation framework.
  * <p>
- * Instance-based: each {@code ParConfig} holds its own SPI registries, executor registry,
- * and configuration. Use {@link #getInstance()} for the default shared singleton,
- * or create custom instances via {@link #ParConfig()} for isolated configurations.
+ * Immutable after construction. Use {@link #builder()} to create instances
+ * via the fluent {@link Builder} API, or {@link #getDefault()} for the
+ * global default instance.
  * <p>
  * Timer and submitter pool are global infrastructure shared across all instances.
  * <p>
- * Users configure the framework by registering SPI implementations:
+ * Users configure the framework by registering SPI implementations at build time:
  * <ul>
  *   <li>{@link TaskListener} - metrics/monitoring callbacks</li>
  *   <li>{@link ExecutorResolver} - thread pool resolution for purge and livelock detection</li>
@@ -46,31 +49,173 @@ public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
 
-    // ==================== Lazy Singleton ====================
+    // ==================== Global Default ====================
 
-    private static final class Holder {
-        static final ParConfig INSTANCE = new ParConfig();
+    private static final AtomicReference<ParConfig> DEFAULT =
+            new AtomicReference<>(new Builder().build());
+
+    /**
+     * Returns the current global default instance.
+     *
+     * @return the global default ParConfig
+     */
+    public static ParConfig getDefault() {
+        return DEFAULT.get();
     }
 
     /**
-     * Returns the default shared singleton instance.
+     * Replaces the global default instance. Intended for application bootstrap
+     * or test setup.
      *
-     * @return the default ParConfig instance
+     * @param config the new global default (must not be null)
+     * @throws NullPointerException if config is null
      */
-    public static ParConfig getInstance() {
-        return Holder.INSTANCE;
+    public static void setDefault(ParConfig config) {
+        DEFAULT.set(Objects.requireNonNull(config));
     }
 
-    // ==================== SPI Registries ====================
+    // ==================== Immutable Fields ====================
 
-    private final List<TaskListener> taskListeners = new CopyOnWriteArrayList<>();
-    private final List<LivelockListener> livelockListeners = new CopyOnWriteArrayList<>();
-    private volatile ExecutorResolver executorResolver;
+    private final ImmutableList<TaskListener> taskListeners;
+    private final ImmutableList<LivelockListener> livelockListeners;
+    private final ExecutorResolver executorResolver;
+    private final ImmutableMap<String, ListeningExecutorService> executorRegistry;
+    private final ImmutableMap<String, ExecutorService> executorRawRegistry;
+    private final long defaultTimeoutMillis;
+    private final boolean livelockDetectionEnabled;
 
-    // ==================== Executor Registry ====================
+    private ParConfig(Builder builder) {
+        this.taskListeners = builder.taskListeners.build();
+        this.livelockListeners = builder.livelockListeners.build();
+        this.executorResolver = builder.executorResolver;
+        this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
+        this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
 
-    private final ConcurrentHashMap<String, ListeningExecutorService> executorRegistry = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ExecutorService> executorRawRegistry = new ConcurrentHashMap<>();
+        // Build executor maps: adapt raw executors to ListeningExecutorService
+        ImmutableMap.Builder<String, ListeningExecutorService> decoratedBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ExecutorService> rawBuilder = ImmutableMap.builder();
+        for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
+            rawBuilder.put(entry.getKey(), entry.getValue());
+            decoratedBuilder.put(entry.getKey(), MoreExecutors.listeningDecorator(entry.getValue()));
+        }
+        this.executorRawRegistry = rawBuilder.build();
+        this.executorRegistry = decoratedBuilder.build();
+    }
+
+    // ==================== Builder ====================
+
+    /**
+     * Returns a new {@link Builder} with default settings.
+     *
+     * @return a new Builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Fluent builder for constructing immutable {@link ParConfig} instances.
+     */
+    public static final class Builder {
+
+        private final ImmutableList.Builder<TaskListener> taskListeners = ImmutableList.builder();
+        private final ImmutableList.Builder<LivelockListener> livelockListeners = ImmutableList.builder();
+        private ExecutorResolver executorResolver;
+        private final LinkedHashMap<String, ExecutorService> executors = new LinkedHashMap<>();
+        private long defaultTimeoutMillis = 60_000L;
+        private boolean livelockDetectionEnabled = false;
+
+        Builder() {
+        }
+
+        /**
+         * Sets the default timeout in milliseconds.
+         *
+         * @param millis default timeout (must be positive)
+         * @return this builder
+         */
+        public Builder defaultTimeoutMillis(long millis) {
+            if (millis <= 0) {
+                throw new IllegalArgumentException("defaultTimeoutMillis must be positive");
+            }
+            this.defaultTimeoutMillis = millis;
+            return this;
+        }
+
+        /**
+         * Enables or disables livelock detection.
+         *
+         * @param enabled true to enable
+         * @return this builder
+         */
+        public Builder livelockDetectionEnabled(boolean enabled) {
+            this.livelockDetectionEnabled = enabled;
+            return this;
+        }
+
+        /**
+         * Adds a task lifecycle listener.
+         *
+         * @param listener the listener (must not be null)
+         * @return this builder
+         * @throws NullPointerException if listener is null
+         */
+        public Builder taskListener(TaskListener listener) {
+            this.taskListeners.add(Objects.requireNonNull(listener));
+            return this;
+        }
+
+        /**
+         * Adds a livelock detection listener.
+         *
+         * @param listener the listener (must not be null)
+         * @return this builder
+         * @throws NullPointerException if listener is null
+         */
+        public Builder livelockListener(LivelockListener listener) {
+            this.livelockListeners.add(Objects.requireNonNull(listener));
+            return this;
+        }
+
+        /**
+         * Sets the executor resolver for thread pool lookups.
+         *
+         * @param resolver the resolver implementation
+         * @return this builder
+         */
+        public Builder executorResolver(ExecutorResolver resolver) {
+            this.executorResolver = resolver;
+            return this;
+        }
+
+        /**
+         * Registers an executor by name.
+         *
+         * @param name     the executor name (must not be null or empty)
+         * @param executor the executor service (must not be null)
+         * @return this builder
+         * @throws IllegalArgumentException if name is null or empty, or executor is null
+         */
+        public Builder executor(String name, ExecutorService executor) {
+            if (name == null || name.isEmpty()) {
+                throw new IllegalArgumentException("Executor name must not be null or empty");
+            }
+            if (executor == null) {
+                throw new IllegalArgumentException("Executor must not be null");
+            }
+            this.executors.put(name, executor);
+            return this;
+        }
+
+        /**
+         * Builds an immutable {@link ParConfig} instance.
+         *
+         * @return the built ParConfig
+         */
+        public ParConfig build() {
+            return new ParConfig(this);
+        }
+    }
 
     // ==================== Timer Service (Global) ====================
 
@@ -105,17 +250,6 @@ public final class ParConfig {
                                 .build()));
     }
 
-    // ==================== Default Config ====================
-
-    private volatile long defaultTimeoutMillis = 60_000L;
-    private volatile boolean livelockDetectionEnabled = false;
-
-    /**
-     * Creates a new ParConfig instance with default settings.
-     */
-    public ParConfig() {
-    }
-
     // ==================== Timer Access (Global) ====================
 
     /**
@@ -140,80 +274,43 @@ public final class ParConfig {
         return SubmitterPoolHolder.INSTANCE;
     }
 
-    // ==================== TaskListener Registration ====================
+    // ==================== Getters (Read-Only) ====================
 
     /**
-     * Registers a task lifecycle listener for metrics/monitoring.
+     * Returns all registered task listeners.
      *
-     * @param listener the listener to register
-     */
-    public void addTaskListener(TaskListener listener) {
-        if (listener != null) {
-            taskListeners.add(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered task listener.
-     *
-     * @param listener the listener to remove
-     */
-    public void removeTaskListener(TaskListener listener) {
-        taskListeners.remove(listener);
-    }
-
-    /**
-     * Returns all registered task listeners (internal use).
+     * @return an immutable list of task listeners
      */
     public List<TaskListener> getTaskListeners() {
         return taskListeners;
     }
 
-    // ==================== LivelockListener Registration ====================
-
     /**
-     * Registers a livelock detection event listener.
+     * Returns all registered livelock listeners.
      *
-     * @param listener the listener to register
-     */
-    public void addLivelockListener(LivelockListener listener) {
-        if (listener != null) {
-            livelockListeners.add(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered livelock listener.
-     *
-     * @param listener the listener to remove
-     */
-    public void removeLivelockListener(LivelockListener listener) {
-        livelockListeners.remove(listener);
-    }
-
-    /**
-     * Returns all registered livelock listeners (internal use).
+     * @return an immutable list of livelock listeners
      */
     public List<LivelockListener> getLivelockListeners() {
         return livelockListeners;
     }
 
-    // ==================== ExecutorResolver Registration ====================
-
-    /**
-     * Sets the executor resolver for thread pool lookups (purge, livelock detection).
-     *
-     * @param resolver the executor resolver implementation
-     */
-    public void setExecutorResolver(ExecutorResolver resolver) {
-        executorResolver = resolver;
-    }
-
     /**
      * Gets the registered executor resolver.
+     *
+     * @return the executor resolver, or null if none set
      */
     public ExecutorResolver getExecutorResolver() {
         return executorResolver;
+    }
+
+    /**
+     * Returns the executor registered under the given name, or {@code null} if not found.
+     *
+     * @param name the executor name
+     * @return the registered ListeningExecutorService, or null
+     */
+    public ListeningExecutorService getExecutor(String name) {
+        return executorRegistry.get(name);
     }
 
     /**
@@ -242,76 +339,11 @@ public final class ParConfig {
         return resolver != null ? resolver.getTaskToExecutorMapping() : Collections.<String, String>emptyMap();
     }
 
-    // ==================== Executor Registry ====================
-
-    /**
-     * Registers an executor by name. The executor is adapted to {@link ListeningExecutorService}
-     * via {@code MoreExecutors.listeningDecorator()} at registration time.
-     *
-     * @param name     the executor name (must not be null or empty)
-     * @param executor the executor service to register (must not be null)
-     * @throws IllegalArgumentException if name is null/empty or executor is null
-     */
-    public void registerExecutor(String name, ExecutorService executor) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Executor name must not be null or empty");
-        }
-        if (executor == null) {
-            throw new IllegalArgumentException("Executor must not be null");
-        }
-        executorRawRegistry.put(name, executor);
-        executorRegistry.put(name, MoreExecutors.listeningDecorator(executor));
-    }
-
-    /**
-     * Returns the executor registered under the given name, or {@code null} if not found.
-     *
-     * @param name the executor name
-     * @return the registered ListeningExecutorService, or null
-     */
-    public ListeningExecutorService getExecutor(String name) {
-        return executorRegistry.get(name);
-    }
-
-    /**
-     * Removes the executor registered under the given name. No-op if absent.
-     *
-     * @param name the executor name
-     */
-    public void unregisterExecutor(String name) {
-        if (name != null) {
-            executorRegistry.remove(name);
-            executorRawRegistry.remove(name);
-        }
-    }
-
-    // ==================== Configuration ====================
-
-    /**
-     * Sets the default timeout in milliseconds, used when no explicit timeout is configured.
-     *
-     * @param millis default timeout in milliseconds (must be positive)
-     */
-    public void setDefaultTimeoutMillis(long millis) {
-        if (millis > 0) {
-            defaultTimeoutMillis = millis;
-        }
-    }
-
     /**
      * Gets the default timeout in milliseconds.
      */
     public long getDefaultTimeoutMillis() {
         return defaultTimeoutMillis;
-    }
-
-    /**
-     * Enables or disables livelock detection.
-     *
-     * @param enabled true to enable livelock detection
-     */
-    public void setLivelockDetectionEnabled(boolean enabled) {
-        livelockDetectionEnabled = enabled;
     }
 
     /**

@@ -18,11 +18,11 @@ public class BasicDemo {
 
     public static void main(String[] args) {
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        ParConfig config = new ParConfig();
+        ParConfig config = ParConfig.builder()
+                .executor("demo", pool)
+                .build();
         Par par = new Par(config);
         try {
-            config.registerExecutor("demo", pool);
-
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
             ParOptions options = ParOptions.of("basic-demo")
@@ -36,7 +36,6 @@ public class BasicDemo {
 
             System.out.println("Results: " + result.report());
         } finally {
-            config.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }
