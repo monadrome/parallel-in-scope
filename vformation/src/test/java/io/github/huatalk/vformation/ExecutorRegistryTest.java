@@ -120,8 +120,11 @@ public class ExecutorRegistryTest {
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.forEach(
-                POOL_NAME, input, results::add, options);
+        AsyncBatchResult<Void> batch = par.map(
+                POOL_NAME, input, item -> {
+                    results.add(item);
+                    return null;
+                }, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
             f.get(5, TimeUnit.SECONDS);
@@ -144,7 +147,7 @@ public class ExecutorRegistryTest {
     public void testParForEachWithUnregisteredNameThrows() {
         ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
-                () -> par.forEach("nonexistent", Arrays.asList(1), x -> {}, options));
+                () -> par.map("nonexistent", Arrays.asList(1), x -> null, options));
     }
 
     // ==================== 5.5: Auto-bridge to purge subsystem ====================
