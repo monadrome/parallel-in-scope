@@ -70,8 +70,11 @@ public class ParTest {
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.forEach(
-                EXECUTOR_NAME, input, results::add, options);
+        AsyncBatchResult<Void> batch = par.map(
+                EXECUTOR_NAME, input, item -> {
+                    results.add(item);
+                    return null;
+                }, options);
 
         // Wait for all to complete
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
@@ -107,8 +110,8 @@ public class ParTest {
     @Test
     public void testParForEach_empty() {
         ParOptions options = ParOptions.of("testEmpty").build();
-        AsyncBatchResult<Void> batch = par.forEach(
-                EXECUTOR_NAME, Collections.emptyList(), x -> {}, options);
+        AsyncBatchResult<Void> batch = par.map(
+                EXECUTOR_NAME, Collections.emptyList(), x -> null, options);
         assertTrue(batch.getResults().isEmpty());
     }
 
@@ -126,7 +129,7 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.forEach(EXECUTOR_NAME, input, x -> {
+        AsyncBatchResult<Void> batch = par.map(EXECUTOR_NAME, input, x -> {
             int cur = concurrency.incrementAndGet();
             maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
             try {
@@ -135,6 +138,7 @@ public class ParTest {
                 Thread.currentThread().interrupt();
             }
             concurrency.decrementAndGet();
+            return null;
         }, options);
 
         // Let tasks accumulate at the barrier, then sample concurrency
@@ -159,8 +163,8 @@ public class ParTest {
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.forEach(
-                EXECUTOR_NAME, input, x -> {}, options);
+        AsyncBatchResult<Void> batch = par.map(
+                EXECUTOR_NAME, input, x -> null, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
             f.get(5, TimeUnit.SECONDS);
@@ -285,7 +289,7 @@ public class ParTest {
     @Test
     public void testParForEach_nullInput() {
         ParOptions options = ParOptions.of("testNull").timeout(5000).build();
-        AsyncBatchResult<Void> batch = par.forEach(EXECUTOR_NAME, null, x -> {}, options);
+        AsyncBatchResult<Void> batch = par.map(EXECUTOR_NAME, null, x -> null, options);
         assertTrue(batch.getResults().isEmpty());
     }
 
