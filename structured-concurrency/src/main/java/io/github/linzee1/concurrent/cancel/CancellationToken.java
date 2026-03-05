@@ -12,12 +12,12 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.FAIL_FAST_CANCELLED;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.MUTUAL_CANCELLED;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.PROPAGATING_CANCELLED;
+import static io.github.linzee1.concurrent.cancel.CancellationTokenState.FAIL_FAST_CANCELED;
+import static io.github.linzee1.concurrent.cancel.CancellationTokenState.MUTUAL_CANCELED;
+import static io.github.linzee1.concurrent.cancel.CancellationTokenState.PROPAGATING_CANCELED;
 import static io.github.linzee1.concurrent.cancel.CancellationTokenState.RUNNING;
 import static io.github.linzee1.concurrent.cancel.CancellationTokenState.SUCCESS;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.TIMEOUT_CANCELLED;
+import static io.github.linzee1.concurrent.cancel.CancellationTokenState.TIMEOUT_CANCELED;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 /**
@@ -63,7 +63,7 @@ public class CancellationToken {
                 futureToken.cancel(true);
             } else {
                 Futures.catching(parent.futureToken, Throwable.class, ex -> {
-                    state.compareAndSet(RUNNING, PROPAGATING_CANCELLED);
+                    state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
                     futureToken.cancel(true);
                     return null;
                 }, directExecutor());
@@ -86,9 +86,9 @@ public class CancellationToken {
             public void onFailure(Throwable t) {
                 allFutures.cancel(true);
                 if (t instanceof TimeoutException) {
-                    state.compareAndSet(RUNNING, TIMEOUT_CANCELLED);
+                    state.compareAndSet(RUNNING, TIMEOUT_CANCELED);
                 } else {
-                    state.compareAndSet(RUNNING, FAIL_FAST_CANCELLED);
+                    state.compareAndSet(RUNNING, FAIL_FAST_CANCELED);
                 }
             }
         }, directExecutor());
@@ -102,7 +102,7 @@ public class CancellationToken {
      * @param useInterrupt whether to interrupt running threads
      */
     public void cancel(boolean useInterrupt) {
-        state.compareAndSet(RUNNING, MUTUAL_CANCELLED);
+        state.compareAndSet(RUNNING, MUTUAL_CANCELED);
         futureToken.cancel(useInterrupt);
     }
 

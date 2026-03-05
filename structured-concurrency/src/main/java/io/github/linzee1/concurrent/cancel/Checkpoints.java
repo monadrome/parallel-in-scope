@@ -26,7 +26,7 @@ public final class Checkpoints {
 
     /**
      * Standard checkpoint: checks CancellationToken state from TaskScopeTl.
-     * Throws cancellation exception if the task has been cancelled.
+     * Throws cancellation exception if the task has been canceled.
      *
      * @param taskName the task name for validation
      * @param lean     true to throw LeanCancellationException (no stack trace),

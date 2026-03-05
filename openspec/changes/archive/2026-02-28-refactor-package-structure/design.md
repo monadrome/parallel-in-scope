@@ -44,7 +44,7 @@ The `structured-parallel` library currently places 19 of its 27 classes in a sin
 
 **Decision:** `PurgeService` moves to `cancel`, not `internal`.
 
-**Rationale:** `PurgeService` exists specifically to clean up cancelled task references from thread pool queues. Its purpose is tightly coupled to the cancellation lifecycle.
+**Rationale:** `PurgeService` exists specifically to clean up canceled task references from thread pool queues. Its purpose is tightly coupled to the cancellation lifecycle.
 
 ### 5. Utilities merged into `internal`
 

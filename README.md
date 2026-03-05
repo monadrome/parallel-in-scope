@@ -18,7 +18,7 @@
 ### 2. 协作式取消（Cooperative Cancellation）
 
 - **`CancellationToken`** — 基于 `AtomicReference<CancellationTokenState>` 的状态机
-- 支持 6 种取消状态：`RUNNING` / `SUCCESS` / `TIMEOUT_CANCELLED` / `FAIL_FAST_CANCELLED` / `MUTUAL_CANCELLED` / `PROPAGATING_CANCELLED`
+- 支持 6 种取消状态：`RUNNING` / `SUCCESS` / `TIMEOUT_CANCELED` / `FAIL_FAST_CANCELED` / `MUTUAL_CANCELED` / `PROPAGATING_CANCELED`
 - **父子令牌链**：父任务取消时自动级联到子任务
 - **Late Binding 模式**：任务提交后延迟绑定 timeout、fail-fast 逻辑
 - **`Checkpoints`** — 在任务中设置协作式检查点，配合 CancellationToken 抛出取消异常
@@ -89,7 +89,7 @@
   - 提供 `report()` 方法统计成功/失败/取消/运行中数量
   - 管理 `submitCanceller` 用于取消后续提交
 - **`FutureInspector`** — Future 状态检测工具
-  - 非阻塞查询 Future 状态：`SUCCESS` / `FAILED` / `CANCELLED` / `RUNNING`
+  - 非阻塞查询 Future 状态：`SUCCESS` / `FAILED` / `CANCELED` / `RUNNING`
   - 安全提取异常：`exceptionNow()`
 
 ### 11. 线程池清理服务
@@ -213,7 +213,7 @@ CancellationToken childToken = new CancellationToken(parentToken);
 
 // 取消父任务 → 自动级联到子任务
 parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELLED
+// childToken 状态也会变为 PROPAGATING_CANCELED
 
 // 在子任务代码中设置检查点
 Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException

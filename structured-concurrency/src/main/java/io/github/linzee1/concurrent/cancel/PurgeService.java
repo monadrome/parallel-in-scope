@@ -17,10 +17,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Thread pool purge service for cleaning stale cancelled task references from work queues.
+ * Thread pool purge service for cleaning stale canceled task references from work queues.
  * <p>
- * When tasks are cancelled, {@link ThreadPoolExecutor}'s work queue may retain Future references
- * of cancelled tasks, occupying memory until GC. This service proactively cleans these
+ * When tasks are canceled, {@link ThreadPoolExecutor}'s work queue may retain Future references
+ * of canceled tasks, occupying memory until GC. This service proactively cleans these
  * references by calling {@link ThreadPoolExecutor#purge()}.
  * <p>
  * Uses the {@link io.github.linzee1.concurrent.spi.ExecutorResolver} SPI for thread pool resolution.
@@ -73,7 +73,7 @@ public class PurgeService {
     }
 
     /**
-     * Attempts to purge stale cancelled task references from the named thread pool.
+     * Attempts to purge stale canceled task references from the named thread pool.
      *
      * @param executorName thread pool name
      * @param report       batch task execution report
@@ -83,7 +83,7 @@ public class PurgeService {
         if (report == null || report.getKey() == null || report.getValue() == null) {
             return Futures.immediateCancelledFuture();
         }
-        int staleCount = report.getKey().getOrDefault(State.CANCELLED, 0);
+        int staleCount = report.getKey().getOrDefault(State.CANCELED, 0);
         if (staleCount <= 0) {
             return Futures.immediateCancelledFuture();
         }

@@ -15,14 +15,14 @@ public enum CancellationTokenState {
     SUCCESS(1),
     /** No operation performed */
     NO_OP(2),
-    /** Cancelled because a sibling task failed (fail-fast) */
-    FAIL_FAST_CANCELLED(-1),
-    /** Cancelled due to timeout */
-    TIMEOUT_CANCELLED(-2),
-    /** Externally cancelled via manual cancel() call */
-    MUTUAL_CANCELLED(-3),
-    /** Cancelled because parent token was cancelled */
-    PROPAGATING_CANCELLED(-4);
+    /** Canceled because a sibling task failed (fail-fast) */
+    FAIL_FAST_CANCELED(-1),
+    /** Canceled due to timeout */
+    TIMEOUT_CANCELED(-2),
+    /** Externally canceled via manual cancel() call */
+    MUTUAL_CANCELED(-3),
+    /** Canceled because parent token was canceled */
+    PROPAGATING_CANCELED(-4);
 
     private final int code;
 
@@ -35,7 +35,7 @@ public enum CancellationTokenState {
     }
 
     /**
-     * Returns true if the current state indicates the task should be cancelled/interrupted.
+     * Returns true if the current state indicates the task should be canceled/interrupted.
      * All negative code values indicate cancellation.
      */
     public boolean shouldInterruptCurrentThread() {

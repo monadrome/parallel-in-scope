@@ -23,14 +23,14 @@ import java.util.concurrent.Executors;
  * When an outer parallel scope fails (one task throws), the CancellationToken
  * chain propagates cancellation to all inner (nested) scopes. Inner tasks that
  * haven't started yet are never submitted, and running inner tasks observe the
- * cancelled state at their next checkpoint.
+ * canceled state at their next checkpoint.
  * <p>
  * Scenario:
  * <pre>
  *   outer parForEach [A, B, C]
- *     ├── A: inner parMap [1,2,3,4,5]  (slow tasks, will be cancelled)
+ *     ├── A: inner parMap [1,2,3,4,5]  (slow tasks, will be canceled)
  *     ├── B: throws RuntimeException   (triggers fail-fast)
- *     └── C: inner parMap [6,7,8,9,10] (slow tasks, will be cancelled)
+ *     └── C: inner parMap [6,7,8,9,10] (slow tasks, will be canceled)
  * </pre>
  */
 public class NestedScopeCancellationDemo {
@@ -72,7 +72,7 @@ public class NestedScopeCancellationDemo {
             try {
                 Futures.allAsList(outerResult.getResults()).get();
             } catch (CancellationException e) {
-                System.out.println("\n[main] Outer scope was cancelled (fail-fast triggered)");
+                System.out.println("\n[main] Outer scope was canceled (fail-fast triggered)");
             } catch (ExecutionException e) {
                 System.out.println("\n[main] Outer scope completed with exception: " + e.getCause().getMessage());
             }
@@ -96,7 +96,7 @@ public class NestedScopeCancellationDemo {
 
     /**
      * Runs a nested inner parMap scope with slow tasks.
-     * When the outer scope cancels, these inner tasks get cancelled via token propagation.
+     * When the outer scope cancels, these inner tasks get canceled via token propagation.
      */
     private static void runInnerScope(String outerTask, List<Integer> items) {
         ParallelOptions innerOptions = ParallelOptions.of("inner-" + outerTask)
@@ -115,7 +115,7 @@ public class NestedScopeCancellationDemo {
             return outerTask + "-" + n;
         }, innerOptions);
 
-        // Block until inner scope finishes (or is cancelled)
+        // Block until inner scope finishes (or is canceled)
         try {
             List<String> results = Futures.allAsList(innerResult.getResults()).get();
             System.out.println("[outer-" + outerTask + "] Inner results: " + results);
@@ -123,7 +123,7 @@ public class NestedScopeCancellationDemo {
             // Let cancellation fully propagate before reporting
             Checkpoints.sleep(200);
             Map.Entry<Map<FutureInspector.State, Integer>, Throwable> report = innerResult.report();
-            System.out.println("[outer-" + outerTask + "] Inner scope cancelled! Report: "
+            System.out.println("[outer-" + outerTask + "] Inner scope canceled! Report: "
                     + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
         }
     }

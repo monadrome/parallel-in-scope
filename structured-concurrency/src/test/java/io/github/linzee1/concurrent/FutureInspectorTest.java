@@ -26,9 +26,9 @@ public class FutureInspectorTest {
     }
 
     @Test
-    public void testState_cancelled() {
+    public void testState_canceled() {
         ListenableFuture<String> future = Futures.immediateCancelledFuture();
-        assertEquals(FutureInspector.State.CANCELLED, FutureInspector.state(future));
+        assertEquals(FutureInspector.State.CANCELED, FutureInspector.state(future));
     }
 
     @Test

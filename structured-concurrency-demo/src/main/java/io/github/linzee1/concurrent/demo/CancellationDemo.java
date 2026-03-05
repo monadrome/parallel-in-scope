@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
  *   Tasks 1-3 start immediately (parallelism window)
  *   Task #5 fails after 500ms
  *   Sleeping tasks (1-4, 6+) get interrupted → FatCancellationException
- *   Report shows: SUCCESS + FAILED + CANCELLED mix
+ *   Report shows: SUCCESS + FAILED + CANCELED mix
  * </pre>
  */
 public class CancellationDemo {
@@ -66,7 +66,7 @@ public class CancellationDemo {
             try {
                 Futures.allAsList(result.getResults()).get();
             } catch (CancellationException e) {
-                System.out.println("\n[main] Scope was cancelled (fail-fast)");
+                System.out.println("\n[main] Scope was canceled (fail-fast)");
             } catch (ExecutionException e) {
                 System.out.println("\n[main] Scope failed: " + e.getCause().getMessage());
             }
