@@ -46,7 +46,6 @@ public class HeuristicPurger {
 
     private static final Logger logger = Logger.getLogger(HeuristicPurger.class.getName());
 
-    private static volatile ListeningExecutorService purgeExecutor;
     private static final ConcurrentMap<String, AtomicInteger> STALE_COUNTERS = new ConcurrentHashMap<>();
     private static volatile RateLimiter rateLimiter = RateLimiter.create(1.0);
 
@@ -67,20 +66,17 @@ public class HeuristicPurger {
     private HeuristicPurger() {
     }
 
+    private static final class PurgeExecutorHolder {
+        static final ListeningExecutorService INSTANCE = MoreExecutors.listeningDecorator(
+                Executors.newSingleThreadExecutor(
+                        new ThreadFactoryBuilder()
+                                .setDaemon(true)
+                                .setNameFormat("ThreadPoolPurger-%d")
+                                .build()));
+    }
+
     private static ListeningExecutorService getPurgeExecutor() {
-        if (purgeExecutor == null) {
-            synchronized (HeuristicPurger.class) {
-                if (purgeExecutor == null) {
-                    purgeExecutor = MoreExecutors.listeningDecorator(
-                            Executors.newSingleThreadExecutor(
-                                    new ThreadFactoryBuilder()
-                                            .setDaemon(true)
-                                            .setNameFormat("ThreadPoolPurger-%d")
-                                            .build()));
-                }
-            }
-        }
-        return purgeExecutor;
+        return PurgeExecutorHolder.INSTANCE;
     }
 
     /**

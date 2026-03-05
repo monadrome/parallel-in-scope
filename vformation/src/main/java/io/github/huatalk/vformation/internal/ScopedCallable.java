@@ -1,6 +1,5 @@
 package io.github.huatalk.vformation.internal;
 
-import com.alibaba.ttl.spi.TtlAttachments;
 import com.google.common.base.Ticker;
 import io.github.huatalk.vformation.cancel.CancellationToken;
 import io.github.huatalk.vformation.cancel.Checkpoints;
@@ -14,8 +13,6 @@ import io.github.huatalk.vformation.spi.TaskListener.TaskEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,30 +27,41 @@ import java.util.logging.Logger;
  *   <li>Cleanup on completion</li>
  * </ul>
  * <p>
- * Implements {@link TtlAttachments} using {@link ConcurrentHashMap} for passing
- * context between task submission and execution phases.
+ * Exposes the currently executing instance via {@link #current()}, allowing
+ * inner callables to access task metadata (CancellationToken, ParOptions, etc.)
+ * through the enclosing ScopedCallable.
  * <p>
  * Timeline: {@code submitTime -> startTime -> endTime}
  *
  * @param <V> return value type
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
+public class ScopedCallable<V> implements Callable<V> {
 
     private static final Logger logger = Logger.getLogger(ScopedCallable.class.getName());
 
-    public static final String KEY_PARALLEL_OPTIONS = "parallelOptions";
-    public static final String KEY_CANCELLATION_TOKEN = "cancellationToken";
-    public static final String KEY_EXECUTOR_NAME = "executorName";
     private static final long NANO_TO_MS = 1_000_000L;
     private static final long QUEUE_THRESHOLD = 3L;
+
+    private static final ThreadLocal<ScopedCallable<?>> CURRENT = new ThreadLocal<>();
+
+    /**
+     * Returns the ScopedCallable currently executing on the calling thread,
+     * or {@code null} if no task is running.
+     */
+    public static ScopedCallable<?> current() {
+        return CURRENT.get();
+    }
 
     private final String taskName;
     private final Callable<V> delegate;
     private final Ticker ticker;
     private final ParConfig config;
     private final long submitTime;
-    private final ConcurrentMap<String, Object> attachments = new ConcurrentHashMap<>();
+
+    private ParOptions parallelOptions;
+    private CancellationToken cancellationToken;
+    private String executorName = "NA";
 
     private long startTime;
     private long endTime;
@@ -79,35 +87,37 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     /** Total duration from submission to completion (nanoseconds) */
     long totalTime() { return endTime - submitTime; }
 
-    // ==================== TtlAttachments ====================
-
-    @Override
-    public void setTtlAttachment(@SuppressWarnings("NullableProblems") String key, Object value) {
-        attachments.put(key, value);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T> T getTtlAttachment(@SuppressWarnings("NullableProblems") String key) {
-        return (T) attachments.get(key);
-    }
+    // ==================== Context Fields ====================
 
     public ParOptions getParallelOptions() {
-        return (ParOptions) attachments.get(KEY_PARALLEL_OPTIONS);
+        return parallelOptions;
+    }
+
+    public void setParallelOptions(ParOptions parallelOptions) {
+        this.parallelOptions = parallelOptions;
     }
 
     public CancellationToken getCancellationToken() {
-        return (CancellationToken) attachments.get(KEY_CANCELLATION_TOKEN);
+        return cancellationToken;
+    }
+
+    public void setCancellationToken(CancellationToken cancellationToken) {
+        this.cancellationToken = cancellationToken;
     }
 
     public String getExecutorName() {
-        Object val = attachments.get(KEY_EXECUTOR_NAME);
-        return val instanceof String ? (String) val : "NA";
+        return executorName;
+    }
+
+    public void setExecutorName(String executorName) {
+        this.executorName = executorName != null ? executorName : "NA";
     }
 
     @Override
     public V call() throws Exception {
         // ==================== prepareContext ====================
+        CURRENT.set(this);
+
         CancellationToken currentToken = getCancellationToken();
         ParOptions currentOptions = getParallelOptions();
         TaskScopeTl.init(currentToken, currentOptions);
@@ -133,6 +143,8 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
 
             // Fire SPI callbacks
             notifyListeners(taskException);
+
+            CURRENT.remove();
         }
     }
 

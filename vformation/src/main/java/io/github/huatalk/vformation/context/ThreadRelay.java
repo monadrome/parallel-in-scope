@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Cross-thread context relay using {@link TransmittableThreadLocal}.
+ * Cross-thread context relay using {@link TransmittableThreadLocal.Transmitter}.
  * <p>
  * Implements a two-map design ({@code parentMap} and {@code curMap}):
  * when a child thread is spawned, the parent thread's {@code curMap} becomes
@@ -19,6 +19,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@link ParOptions} - for context awareness</li>
  *   <li>Task name - for task graph / livelock detection</li>
  * </ul>
+ * <p>
+ * Uses {@link TransmittableThreadLocal.Transmitter#registerThreadLocal} to register
+ * a plain {@link ThreadLocal} for TTL propagation, following the recommended
+ * third-party library integration pattern.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -31,13 +35,16 @@ public class ThreadRelay {
         EXECUTOR_NAME
     }
 
-    private static final TransmittableThreadLocal<ThreadRelay> THREAD_RELAY_TTL =
-            TransmittableThreadLocal.withInitialAndCopier(
-                    ThreadRelay::new, tr -> new ThreadRelay(tr.curMap)
-            );
+    private static final ThreadLocal<ThreadRelay> THREAD_RELAY_TL =
+            ThreadLocal.withInitial(ThreadRelay::new);
+
+    static {
+        TransmittableThreadLocal.Transmitter.registerThreadLocal(
+                THREAD_RELAY_TL, tr -> new ThreadRelay(tr.curMap));
+    }
 
     public static ThreadRelay getThreadRelay() {
-        return THREAD_RELAY_TTL.get();
+        return THREAD_RELAY_TL.get();
     }
 
     private final Map<RelayItem, Object> parentMap = new ConcurrentHashMap<>();
@@ -55,7 +62,7 @@ public class ThreadRelay {
     // ==================== CancellationToken relay ====================
 
     public static CancellationToken getParentCancellationToken() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return null;
         }
@@ -67,7 +74,7 @@ public class ThreadRelay {
         if (token == null) {
             return;
         }
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
             relay.curMap.put(RelayItem.CANCELLATION_TOKEN, token);
         }
@@ -77,7 +84,7 @@ public class ThreadRelay {
 
     @SuppressWarnings("unchecked")
     public static ParOptions getParentParallelOptions() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return null;
         }
@@ -89,7 +96,7 @@ public class ThreadRelay {
     }
 
     public static void setCurrentParallelOptions(ParOptions options) {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
             relay.curMap.put(RelayItem.PARALLEL_OPTIONS, Optional.ofNullable(options));
         }
@@ -99,7 +106,7 @@ public class ThreadRelay {
 
     @SuppressWarnings("unchecked")
     public static String getParentTaskName() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return null;
         }
@@ -112,7 +119,7 @@ public class ThreadRelay {
 
     @SuppressWarnings("unchecked")
     public static String getCurrentTaskName() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return "NA";
         }
@@ -124,14 +131,14 @@ public class ThreadRelay {
     }
 
     public static void setCurrentTaskName(String taskName) {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
             relay.curMap.put(RelayItem.TASK_NAME, Optional.ofNullable(taskName));
         }
     }
 
     public static void clearCurrentTaskName() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
             relay.curMap.remove(RelayItem.TASK_NAME);
         }
@@ -141,7 +148,7 @@ public class ThreadRelay {
 
     @SuppressWarnings("unchecked")
     public static String getCurrentExecutorName() {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return "NA";
         }
@@ -153,7 +160,7 @@ public class ThreadRelay {
     }
 
     public static void setCurrentExecutorName(String executorName) {
-        ThreadRelay relay = THREAD_RELAY_TTL.get();
+        ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
             relay.curMap.put(RelayItem.EXECUTOR_NAME, Optional.ofNullable(executorName));
         }

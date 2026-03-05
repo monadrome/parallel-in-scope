@@ -7,6 +7,8 @@ import io.github.huatalk.vformation.cancel.CancellationToken;
 import io.github.huatalk.vformation.cancel.CancellationTokenState;
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableList;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -86,7 +88,7 @@ public class CancellationTokenTest {
 
         SettableFuture<String> f1 = SettableFuture.create(); // never completed
 
-        token.lateBind(List.of(f1), Duration.ofMillis(100), Futures.immediateVoidFuture());
+        token.lateBind(ImmutableList.of(f1), Duration.ofMillis(100), Futures.immediateVoidFuture());
 
         // Wait for timeout to fire
         Thread.sleep(300);
@@ -117,7 +119,7 @@ public class CancellationTokenTest {
 
         SettableFuture<String> f1 = SettableFuture.create();
 
-        child.lateBind(List.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
 
         parent.cancel(true);
 
@@ -135,7 +137,7 @@ public class CancellationTokenTest {
         CancellationToken child = new CancellationToken(parent);
 
         SettableFuture<String> f1 = SettableFuture.create();
-        child.lateBind(List.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
 
         // The future should be cancelled immediately because parent is already canceled
         assertTrue(f1.isCancelled());
