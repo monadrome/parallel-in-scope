@@ -138,13 +138,13 @@ public final class Par {
         CancellationToken parentToken = ThreadRelay.getParentCancellationToken();
         CancellationToken cancellationToken = new CancellationToken(parentToken);
 
-        // Create ScopedCallable list with context attachments
+        // Create ScopedCallable list with context fields
         List<Callable<R>> tasks = list.stream()
                 .map(item -> {
                     ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config);
-                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
-                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
-                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
+                    scopedCallable.setParallelOptions(normalizedOptions);
+                    scopedCallable.setCancellationToken(cancellationToken);
+                    scopedCallable.setExecutorName(executorName != null ? executorName : "NA");
                     return (Callable<R>) scopedCallable;
                 })
                 .collect(toImmutableList());
