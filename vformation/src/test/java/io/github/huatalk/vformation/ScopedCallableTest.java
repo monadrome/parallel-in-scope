@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -49,9 +50,9 @@ public class ScopedCallableTest {
             return "result";
         }, config);
 
-        callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, token);
-        callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, options);
-        callable.setTtlAttachment(ScopedCallable.KEY_EXECUTOR_NAME, "test-pool");
+        callable.setCancellationToken(token);
+        callable.setParallelOptions(options);
+        callable.setExecutorName("test-pool");
 
         String result = callable.call();
         assertEquals("result", result);
@@ -83,8 +84,8 @@ public class ScopedCallableTest {
         }, listenerConfig, fakeTicker);
 
         // Use default taskName "task" to bypass checkpoint
-        callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
-        callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
 
         // Simulate 2ms queue wait
         nanos.addAndGet(2_000_000);
@@ -107,8 +108,8 @@ public class ScopedCallableTest {
                 .build();
 
         ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", listenerConfig);
-        callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
-        callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
 
         callable.call();
 
@@ -130,8 +131,8 @@ public class ScopedCallableTest {
         ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> {
             throw error;
         }, listenerConfig);
-        callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
-        callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
 
         assertThrows(RuntimeException.class, callable::call);
 
@@ -148,11 +149,44 @@ public class ScopedCallableTest {
                 .build();
 
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", listenerConfig);
-        callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
-        callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
 
         // Should not throw even though listener throws
         String result = callable.call();
         assertEquals("ok", result);
+    }
+
+    @Test
+    public void testCurrent_availableDuringExecution() throws Exception {
+        AtomicReference<ScopedCallable<?>> captured = new AtomicReference<>();
+
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
+            captured.set(ScopedCallable.current());
+            return "ok";
+        }, config);
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
+
+        callable.call();
+
+        assertSame(callable, captured.get());
+    }
+
+    @Test
+    public void testCurrent_nullOutsideExecution() {
+        assertNull(ScopedCallable.current());
+    }
+
+    @Test
+    public void testCurrent_cleanedUpAfterException() {
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
+            throw new RuntimeException("boom");
+        }, config);
+        callable.setParallelOptions(ParOptions.of("task").build());
+        callable.setCancellationToken(CancellationToken.create());
+
+        assertThrows(RuntimeException.class, callable::call);
+        assertNull(ScopedCallable.current());
     }
 }
