@@ -1,7 +1,7 @@
 package io.github.huatalk.vformation.spi;
 
 /**
- * SPI: Custom purge trigger strategy for {@link io.github.huatalk.vformation.cancel.HeuristicPurger}.
+ * SPI: Custom purge trigger strategy for {@link io.github.huatalk.vformation.HeuristicPurger}.
  * <p>
  * Implementations decide whether a purge operation should be triggered for a given executor
  * based on the cancellation metrics provided via {@link PurgeContext}.
@@ -9,7 +9,7 @@ package io.github.huatalk.vformation.spi;
  * When a {@code PurgeStrategy} is registered, it takes precedence over the built-in
  * threshold-based logic (RPS threshold, window count threshold, accumulated stale count threshold).
  * <p>
- * Register via {@link io.github.huatalk.vformation.cancel.HeuristicPurger#setPurgeStrategy(PurgeStrategy)}.
+ * Register via {@link io.github.huatalk.vformation.HeuristicPurger#setPurgeStrategy(PurgeStrategy)}.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */

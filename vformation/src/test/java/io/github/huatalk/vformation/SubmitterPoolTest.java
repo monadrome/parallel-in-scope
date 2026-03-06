@@ -1,7 +1,6 @@
 package io.github.huatalk.vformation;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import io.github.huatalk.vformation.scope.ParConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Callable;
