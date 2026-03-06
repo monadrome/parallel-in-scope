@@ -1,9 +1,9 @@
 package io.github.huatalk.vformation.queue;
 
 import com.google.common.util.concurrent.ForwardingBlockingQueue;
-import io.github.huatalk.vformation.context.TaskScopeTl;
-import io.github.huatalk.vformation.scope.ParOptions;
-import io.github.huatalk.vformation.scope.TaskType;
+import io.github.huatalk.vformation.TaskScopeTl;
+import io.github.huatalk.vformation.ParOptions;
+import io.github.huatalk.vformation.TaskType;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;

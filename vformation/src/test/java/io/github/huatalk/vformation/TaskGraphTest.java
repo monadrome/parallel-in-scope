@@ -2,10 +2,6 @@ package io.github.huatalk.vformation;
 
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
-import io.github.huatalk.vformation.context.graph.TaskEdge;
-import io.github.huatalk.vformation.context.graph.TaskGraph;
-import io.github.huatalk.vformation.scope.ParConfig;
-import io.github.huatalk.vformation.scope.TaskType;
 import io.github.huatalk.vformation.spi.LivelockListener;
 import io.github.huatalk.vformation.spi.LivelockListener.LivelockEvent;
 import org.junit.jupiter.api.AfterEach;

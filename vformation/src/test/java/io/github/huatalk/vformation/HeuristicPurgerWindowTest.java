@@ -1,7 +1,5 @@
 package io.github.huatalk.vformation;
 
-import io.github.huatalk.vformation.cancel.HeuristicPurger;
-import io.github.huatalk.vformation.scope.ParConfig;
 import io.github.huatalk.vformation.spi.PurgeStrategy;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.jupiter.api.AfterEach;
