@@ -122,7 +122,7 @@ public final class Par {
                 normalizedOptions.getParallelism(),
                 normalizedOptions.getTaskType(),
                 executorName != null ? executorName : "NA",
-                sourceExecutorName != null ? sourceExecutorName : "NA",
+                sourceExecutorName,
                 list.size(),
                 normalizedOptions.timeoutMillis());
         logForking(taskName, edge);
