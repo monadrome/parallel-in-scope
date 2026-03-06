@@ -43,11 +43,7 @@ public class ScopedCallableTest {
             assertNotNull(TaskScopeTl.getCancellationToken());
             assertNotNull(TaskScopeTl.getParallelOptions());
             return "result";
-        }, config);
-
-        callable.setCancellationToken(token);
-        callable.setParallelOptions(options);
-        callable.setExecutorName("test-pool");
+        }, config, options, token, "test-pool");
 
         String result = callable.call();
         assertEquals("result", result);
@@ -76,11 +72,7 @@ public class ScopedCallableTest {
             // Simulate 5ms execution
             nanos.addAndGet(5_000_000);
             return "ok";
-        }, listenerConfig, fakeTicker);
-
-        // Use default taskName "task" to bypass checkpoint
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        }, listenerConfig, fakeTicker, ParOptions.of("task").build(), CancellationToken.create(), "NA");
 
         // Simulate 2ms queue wait
         nanos.addAndGet(2_000_000);
@@ -102,9 +94,8 @@ public class ScopedCallableTest {
                 .taskListener(events::add)
                 .build();
 
-        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", listenerConfig);
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", listenerConfig,
+                ParOptions.of("task").build(), CancellationToken.create());
 
         callable.call();
 
@@ -125,9 +116,7 @@ public class ScopedCallableTest {
         RuntimeException error = new RuntimeException("test error");
         ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> {
             throw error;
-        }, listenerConfig);
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        }, listenerConfig, ParOptions.of("task").build(), CancellationToken.create());
 
         assertThrows(RuntimeException.class, callable::call);
 
@@ -143,9 +132,8 @@ public class ScopedCallableTest {
                 })
                 .build();
 
-        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", listenerConfig);
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", listenerConfig,
+                ParOptions.of("task").build(), CancellationToken.create());
 
         // Should not throw even though listener throws
         String result = callable.call();
@@ -159,9 +147,7 @@ public class ScopedCallableTest {
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
             captured.set(ScopedCallable.current());
             return "ok";
-        }, config);
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        }, config, ParOptions.of("task").build(), CancellationToken.create());
 
         callable.call();
 
@@ -177,9 +163,7 @@ public class ScopedCallableTest {
     public void testCurrent_cleanedUpAfterException() {
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
             throw new RuntimeException("boom");
-        }, config);
-        callable.setParallelOptions(ParOptions.of("task").build());
-        callable.setCancellationToken(CancellationToken.create());
+        }, config, ParOptions.of("task").build(), CancellationToken.create());
 
         assertThrows(RuntimeException.class, callable::call);
         assertNull(ScopedCallable.current());
