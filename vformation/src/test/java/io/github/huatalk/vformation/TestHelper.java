@@ -1,7 +1,6 @@
 package io.github.huatalk.vformation;
 
-import io.github.huatalk.vformation.internal.FutureState;
-import io.github.huatalk.vformation.scope.AsyncBatchResult.BatchReport;
+import io.github.huatalk.vformation.AsyncBatchResult.BatchReport;
 
 import java.util.EnumMap;
 import java.util.Map;

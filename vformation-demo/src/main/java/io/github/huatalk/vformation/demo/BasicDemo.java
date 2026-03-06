@@ -1,9 +1,9 @@
 package io.github.huatalk.vformation.demo;
 
-import io.github.huatalk.vformation.scope.AsyncBatchResult;
-import io.github.huatalk.vformation.scope.ParConfig;
-import io.github.huatalk.vformation.scope.Par;
-import io.github.huatalk.vformation.scope.ParOptions;
+import io.github.huatalk.vformation.AsyncBatchResult;
+import io.github.huatalk.vformation.ParConfig;
+import io.github.huatalk.vformation.Par;
+import io.github.huatalk.vformation.ParOptions;
 
 import java.util.Arrays;
 import java.util.List;
