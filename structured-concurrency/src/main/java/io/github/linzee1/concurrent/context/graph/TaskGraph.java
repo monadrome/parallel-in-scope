@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 /**
@@ -55,14 +57,14 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
     public static class Data {
         final BlockingQueue<TaskEdgeEntry> subTaskList = new LinkedTransferQueue<>();
 
-        private volatile ValueGraph<String, TaskEdge> graph;
+        private volatile ValueGraph<String, List<TaskEdge>> graph;
         private volatile Boolean taskCycle;
         private volatile Boolean selfLoop;
         private volatile ValueGraph<String, List<TaskEdge>> executorGraph;
         private volatile Boolean executorCycle;
         private volatile Boolean executorSelfLoop;
 
-        public ValueGraph<String, TaskEdge> getGraph() {
+        public ValueGraph<String, List<TaskEdge>> getGraph() {
             if (graph == null) {
                 synchronized (this) {
                     if (graph == null) {
@@ -112,22 +114,27 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
             return executorSelfLoop;
         }
 
-        ValueGraph<String, TaskEdge> generateGraph() {
-            ImmutableValueGraph.Builder<String, TaskEdge> graphBuilder =
+        ValueGraph<String, List<TaskEdge>> generateGraph() {
+            Map<EndpointPair<String>, List<TaskEdge>> edgeMap = new LinkedHashMap<>();
+            for (TaskEdgeEntry entry : subTaskList) {
+                edgeMap.computeIfAbsent(entry.getEdge(), k -> new ArrayList<>())
+                        .add(entry.getValue());
+            }
+            ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
                     ValueGraphBuilder.directed()
                             .allowsSelfLoops(true)
-                            .<String, TaskEdge>immutable();
-            for (TaskEdgeEntry entry : subTaskList) {
+                            .<String, List<TaskEdge>>immutable();
+            for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : edgeMap.entrySet()) {
                 graphBuilder.putEdgeValue(
-                        entry.getEdge().source(),
-                        entry.getEdge().target(),
-                        entry.getValue());
+                        entry.getKey().source(),
+                        entry.getKey().target(),
+                        Collections.unmodifiableList(entry.getValue()));
             }
             return graphBuilder.build();
         }
 
         boolean checkTaskCycle() {
-            ValueGraph<String, TaskEdge> g = getGraph();
+            ValueGraph<String, List<TaskEdge>> g = getGraph();
             return g != null && Graphs.hasCycle(g.asGraph());
         }
 
@@ -137,22 +144,26 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
         }
 
         ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
-            Map<String, String> taskToExecutorMap = Par.getTaskToExecutorMapping();
             Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
-                String sourceExecutor = taskToExecutorMap.getOrDefault(taskEdgePair.source(), "NA");
-                String targetExecutor = taskToExecutorMap.getOrDefault(taskEdgePair.target(), "NA");
-                EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
-                TaskEdge taskEdge = getGraph().edgeValueOrDefault(
-                        taskEdgePair.source(), taskEdgePair.target(), null);
-                executorEdges.computeIfAbsent(executorPair, k -> new ArrayList<>()).add(taskEdge);
+                List<TaskEdge> edges = getGraph().edgeValueOrDefault(
+                        taskEdgePair.source(), taskEdgePair.target(), Collections.<TaskEdge>emptyList());
+                for (TaskEdge taskEdge : edges) {
+                    String sourceExecutor = taskEdge.getSourceExecutorName();
+                    String targetExecutor = taskEdge.getExecutorName();
+                    if (!canDeadlock(targetExecutor)) {
+                        continue;
+                    }
+                    EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
+                    executorEdges.computeIfAbsent(executorPair, k -> new ArrayList<>()).add(taskEdge);
+                }
             }
 
             ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
                     ValueGraphBuilder.directed()
                             .allowsSelfLoops(true)
-                            .incidentEdgeOrder(ElementOrder.insertion())
+                            .incidentEdgeOrder(ElementOrder.stable())
                             .<String, List<TaskEdge>>immutable();
             for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : executorEdges.entrySet()) {
                 graphBuilder.putEdgeValue(
@@ -227,9 +238,9 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
 
         String taskEdges = data.getGraph().edges().stream()
                 .map(p -> {
-                    TaskEdge edge = data.getGraph().edgeValueOrDefault(p.source(), p.target(), null);
-                    String edgeStr = edge != null ? " " + edge : "";
-                    return p.source() + " -> " + p.target() + edgeStr;
+                    List<TaskEdge> edges = data.getGraph().edgeValueOrDefault(
+                            p.source(), p.target(), Collections.<TaskEdge>emptyList());
+                    return p.source() + " -> " + p.target() + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
         String executorEdges = data.getExecutorGraph().edges().stream()
@@ -255,6 +266,36 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                 Par.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
             }
         }
+    }
+
+    // ==================== Pool-aware deadlock risk ====================
+
+    /**
+     * Determines whether the given executor can participate in deadlocks.
+     * <p>
+     * Executors with unbounded thread creation (e.g., CachedThreadPool using
+     * SynchronousQueue with MAX_VALUE maximumPoolSize) cannot deadlock because
+     * new threads are always available. Only executors with bounded threads
+     * and a blocking queue pose deadlock risk.
+     *
+     * @param executorName the executor name to check
+     * @return true if the executor is deadlock-prone or unknown
+     */
+    public static boolean canDeadlock(String executorName) {
+        if (executorName == null || "NA".equals(executorName)) {
+            return true;
+        }
+        ThreadPoolExecutor tpe = Par.resolveThreadPool(executorName);
+        if (tpe == null) {
+            return true;
+        }
+        if (tpe.getQueue() instanceof SynchronousQueue) {
+            return false;
+        }
+        if (tpe.getMaximumPoolSize() >= Integer.MAX_VALUE) {
+            return false;
+        }
+        return true;
     }
 
     // ==================== Data access ====================

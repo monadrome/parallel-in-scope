@@ -111,10 +111,12 @@ public final class ParallelHelper {
         String taskName = normalizedOptions.getTaskName();
 
         // Record task pair for livelock detection
+        String sourceExecutorName = ThreadRelay.getCurrentExecutorName();
         TaskEdge edge = new TaskEdge(
                 normalizedOptions.getParallelism(),
                 normalizedOptions.getTaskType(),
                 executorName != null ? executorName : "NA",
+                sourceExecutorName != null ? sourceExecutorName : "NA",
                 list.size(),
                 normalizedOptions.timeoutMillis());
         logForking(taskName, edge);
@@ -129,6 +131,7 @@ public final class ParallelHelper {
                     ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item));
                     scopedCallable.put(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
                     scopedCallable.put(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
+                    scopedCallable.put(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
                     return (Callable<R>) scopedCallable;
                 })
                 .collect(toImmutableList());

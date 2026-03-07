@@ -16,14 +16,16 @@ public final class TaskEdge {
     private final int parallelism;
     private final TaskType taskType;
     private final String executorName;
+    private final String sourceExecutorName;
     private final int taskCount;
     private final long timeoutMillis;
 
     public TaskEdge(int parallelism, TaskType taskType, String executorName,
-             int taskCount, long timeoutMillis) {
+             String sourceExecutorName, int taskCount, long timeoutMillis) {
         this.parallelism = parallelism;
         this.taskType = taskType;
         this.executorName = executorName;
+        this.sourceExecutorName = sourceExecutorName;
         this.taskCount = taskCount;
         this.timeoutMillis = timeoutMillis;
     }
@@ -31,12 +33,13 @@ public final class TaskEdge {
     public int getParallelism() { return parallelism; }
     public TaskType getTaskType() { return taskType; }
     public String getExecutorName() { return executorName; }
+    public String getSourceExecutorName() { return sourceExecutorName; }
     public int getTaskCount() { return taskCount; }
     public long getTimeoutMillis() { return timeoutMillis; }
 
     @Override
     public String toString() {
-        return String.format("{p=%d, type=%s, exec=%s, count=%d, timeout=%dms}",
-                parallelism, taskType, executorName, taskCount, timeoutMillis);
+        return String.format("{p=%d, type=%s, src=%s, exec=%s, count=%d, timeout=%dms}",
+                parallelism, taskType, sourceExecutorName, executorName, taskCount, timeoutMillis);
     }
 }
