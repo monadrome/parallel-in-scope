@@ -133,7 +133,7 @@ public final class ParallelHelper {
                 })
                 .collect(toImmutableList());
 
-        AsyncBatchResult<R> result = ConcurrentLimitExecutor.<R>create(executor, normalizedOptions)
+        AsyncBatchResult<R> result = ConcurrentLimitExecutor.<R>create(executor, normalizedOptions, Par.getSubmitterPool())
                 .submitAll(tasks);
 
         // Late bind: wire up cancellation, timeout, fail-fast
