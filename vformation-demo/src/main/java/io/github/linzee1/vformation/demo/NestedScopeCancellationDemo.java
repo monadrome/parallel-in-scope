@@ -1,13 +1,13 @@
-package io.github.linzee1.concurrent.demo;
+package io.github.linzee1.vformation.demo;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.linzee1.concurrent.cancel.Checkpoints;
-import io.github.linzee1.concurrent.internal.FutureInspector;
-import io.github.linzee1.concurrent.scope.AsyncBatchResult;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.scope.ParallelHelper;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.cancel.Checkpoints;
+import io.foldright.cffu2.CffuState;
+import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParallelHelper;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +81,7 @@ public class NestedScopeCancellationDemo {
             Thread.sleep(200);
 
             // Print report
-            Map.Entry<Map<FutureInspector.State, Integer>, Throwable> report = outerResult.report();
+            Map.Entry<Map<CffuState, Integer>, Throwable> report = outerResult.report();
             System.out.println("[main] Outer report: " + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
             if (report.getValue() != null) {
                 System.out.println("[main] First failure : " + report.getValue().getMessage());
@@ -122,7 +122,7 @@ public class NestedScopeCancellationDemo {
         } catch (Exception e) {
             // Let cancellation fully propagate before reporting
             Checkpoints.sleep(200);
-            Map.Entry<Map<FutureInspector.State, Integer>, Throwable> report = innerResult.report();
+            Map.Entry<Map<CffuState, Integer>, Throwable> report = innerResult.report();
             System.out.println("[outer-" + outerTask + "] Inner scope canceled! Report: "
                     + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
         }

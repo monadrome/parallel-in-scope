@@ -1,11 +1,11 @@
-package io.github.linzee1.concurrent.scope;
+package io.github.linzee1.vformation.scope;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Joiner.MapJoiner;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.github.linzee1.concurrent.internal.FutureInspector;
-import io.github.linzee1.concurrent.internal.FutureInspector.State;
+import io.foldright.cffu2.CffuState;
+import io.foldright.cffu2.CompletableFutureUtils;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -61,14 +61,14 @@ public final class AsyncBatchResult<T> {
      *
      * @return a map entry of (state count map, first exception or null)
      */
-    public Map.Entry<Map<State, Integer>, Throwable> report() {
-        Map<State, Integer> stateMap = results.stream().collect(Collectors.toMap(
-                FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(State.class)));
+    public Map.Entry<Map<CffuState, Integer>, Throwable> report() {
+        Map<CffuState, Integer> stateMap = results.stream().collect(Collectors.toMap(
+                CompletableFutureUtils::state, x -> 1, Integer::sum, () -> new EnumMap<>(CffuState.class)));
         Throwable firstException = null;
-        if (stateMap.containsKey(State.FAILED)) {
+        if (stateMap.containsKey(CffuState.FAILED)) {
             firstException = results.stream()
-                    .filter(x -> FutureInspector.state(x) == State.FAILED)
-                    .map(FutureInspector::exceptionNow)
+                    .filter(x -> CompletableFutureUtils.state(x) == CffuState.FAILED)
+                    .map(CompletableFutureUtils::exceptionNow)
                     .findFirst()
                     .orElse(null);
         }

@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -6,8 +6,8 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.github.linzee1.concurrent.internal.FutureInspector.State;
-import io.github.linzee1.concurrent.scope.Par;
+import io.foldright.cffu2.CffuState;
+import io.github.linzee1.vformation.scope.Par;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * of canceled tasks, occupying memory until GC. This service proactively cleans these
  * references by calling {@link ThreadPoolExecutor#purge()}.
  * <p>
- * Uses the {@link io.github.linzee1.concurrent.spi.ExecutorResolver} SPI for thread pool resolution.
+ * Uses the {@link io.github.linzee1.vformation.spi.ExecutorResolver} SPI for thread pool resolution.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
@@ -79,11 +79,11 @@ public class PurgeService {
      * @param report       batch task execution report
      * @return future of the purge task
      */
-    public static ListenableFuture<?> tryPurge(String executorName, Map.Entry<Map<State, Integer>, Throwable> report) {
+    public static ListenableFuture<?> tryPurge(String executorName, Map.Entry<Map<CffuState, Integer>, Throwable> report) {
         if (report == null || report.getKey() == null || report.getValue() == null) {
             return Futures.immediateCancelledFuture();
         }
-        int staleCount = report.getKey().getOrDefault(State.CANCELED, 0);
+        int staleCount = report.getKey().getOrDefault(CffuState.CANCELLED, 0);
         if (staleCount <= 0) {
             return Futures.immediateCancelledFuture();
         }
