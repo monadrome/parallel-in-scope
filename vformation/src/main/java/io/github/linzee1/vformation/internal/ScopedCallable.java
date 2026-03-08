@@ -1,14 +1,14 @@
-package io.github.linzee1.concurrent.internal;
+package io.github.linzee1.vformation.internal;
 
 import com.google.common.base.Ticker;
-import io.github.linzee1.concurrent.cancel.CancellationToken;
-import io.github.linzee1.concurrent.cancel.Checkpoints;
-import io.github.linzee1.concurrent.context.TaskScopeTl;
-import io.github.linzee1.concurrent.context.ThreadRelay;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.spi.TaskListener;
-import io.github.linzee1.concurrent.spi.TaskListener.TaskEvent;
+import io.github.linzee1.vformation.cancel.CancellationToken;
+import io.github.linzee1.vformation.cancel.Checkpoints;
+import io.github.linzee1.vformation.context.TaskScopeTl;
+import io.github.linzee1.vformation.context.ThreadRelay;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.spi.TaskListener;
+import io.github.linzee1.vformation.spi.TaskListener.TaskEvent;
 
 import java.util.List;
 import java.util.Objects;

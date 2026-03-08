@@ -1,8 +1,8 @@
-package io.github.linzee1.concurrent.queue;
+package io.github.linzee1.vformation.queue;
 
-import io.github.linzee1.concurrent.context.TaskScopeTl;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.context.TaskScopeTl;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.AbstractQueue;
 import java.util.Collection;

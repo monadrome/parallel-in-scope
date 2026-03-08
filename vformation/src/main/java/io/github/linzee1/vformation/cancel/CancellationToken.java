@@ -1,23 +1,23 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.linzee1.concurrent.scope.Par;
+import io.github.linzee1.vformation.scope.Par;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.FAIL_FAST_CANCELED;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.MUTUAL_CANCELED;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.PROPAGATING_CANCELED;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.RUNNING;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.SUCCESS;
-import static io.github.linzee1.concurrent.cancel.CancellationTokenState.TIMEOUT_CANCELED;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.FAIL_FAST_CANCELED;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.MUTUAL_CANCELED;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.PROPAGATING_CANCELED;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.RUNNING;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.SUCCESS;
+import static io.github.linzee1.vformation.cancel.CancellationTokenState.TIMEOUT_CANCELED;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 /**

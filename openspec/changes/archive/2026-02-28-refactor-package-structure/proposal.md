@@ -1,11 +1,11 @@
 ## Why
 
-The project's root package `io.github.linzee1.parallel` contains 19 classes with mixed responsibilities — API facade, execution engine, cancellation mechanism, livelock detection, and utilities all flat in one package. This makes it hard for users to understand the API surface and for maintainers to reason about module boundaries. The project name `structured-parallel` also doesn't accurately reflect the structured concurrency paradigm the library implements.
+The project's root package `io.github.linzee1.vformation` contains 19 classes with mixed responsibilities — API facade, execution engine, cancellation mechanism, livelock detection, and utilities all flat in one package. This makes it hard for users to understand the API surface and for maintainers to reason about module boundaries. The project name `vformation` also doesn't accurately reflect the structured concurrency paradigm the library implements.
 
 ## What Changes
 
-- **BREAKING**: Rename base package from `io.github.linzee1.parallel` to `io.github.linzee1.concurrent`
-- **BREAKING**: Rename Maven artifactId from `structured-parallel` to `structured-concurrency`
+- **BREAKING**: Rename base package from `io.github.linzee1.vformation` to `io.github.linzee1.vformation`
+- **BREAKING**: Rename Maven artifactId from `vformation` to `vformation`
 - Reorganize 27 classes/interfaces into 7 domain-oriented sub-packages:
   - `scope` — API facade (ParallelHelper, ParallelOptions, AsyncBatchResult, TaskType, StructuredParallel)
   - `context` — TTL/TL context propagation (ThreadRelay, TaskScopeTl)

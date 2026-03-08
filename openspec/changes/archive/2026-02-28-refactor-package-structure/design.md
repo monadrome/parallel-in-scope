@@ -1,13 +1,13 @@
 ## Context
 
-The `structured-parallel` library currently places 19 of its 27 classes in a single root package `io.github.linzee1.parallel`, with only `queue`, `exception`, and `spi` as sub-packages. The root package mixes API facades, execution internals, cancellation logic, context propagation, livelock detection, and utilities. This refactoring reorganizes into 7 domain-oriented packages under a renamed base `io.github.linzee1.concurrent`.
+The `vformation` library currently places 19 of its 27 classes in a single root package `io.github.linzee1.vformation`, with only `queue`, `exception`, and `spi` as sub-packages. The root package mixes API facades, execution internals, cancellation logic, context propagation, livelock detection, and utilities. This refactoring reorganizes into 7 domain-oriented packages under a renamed base `io.github.linzee1.vformation`.
 
 ## Goals / Non-Goals
 
 **Goals:**
 - Clear package boundaries that reflect domain concepts (scope, context, cancel, internal, queue, spi)
 - Obvious API surface — users look at `scope` and `spi` packages, everything else is supporting infrastructure
-- Rename project and Maven artifact to `structured-concurrency` to match the paradigm
+- Rename project and Maven artifact to `vformation` to match the paradigm
 - All classes become `public` to unblock the move; visibility tightening is a follow-up
 
 **Non-Goals:**

@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 /**
  * Light-weight cancellation exception that skips stack trace filling for performance.

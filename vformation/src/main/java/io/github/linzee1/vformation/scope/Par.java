@@ -1,13 +1,13 @@
-package io.github.linzee1.concurrent.scope;
+package io.github.linzee1.vformation.scope;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.github.linzee1.concurrent.spi.ExecutorResolver;
-import io.github.linzee1.concurrent.spi.LivelockListener;
-import io.github.linzee1.concurrent.spi.ParallelLogger;
-import io.github.linzee1.concurrent.spi.TaskListener;
+import io.github.linzee1.vformation.spi.ExecutorResolver;
+import io.github.linzee1.vformation.spi.LivelockListener;
+import io.github.linzee1.vformation.spi.ParallelLogger;
+import io.github.linzee1.vformation.spi.TaskListener;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Central configuration and service registry for the structured-concurrency framework.
+ * Central configuration and service registry for the vformation framework.
  * <p>
  * Users configure the framework by registering SPI implementations:
  * <ul>

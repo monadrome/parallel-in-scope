@@ -1,9 +1,9 @@
-package io.github.linzee1.concurrent;
+package io.github.linzee1.vformation;
 
-import io.github.linzee1.concurrent.context.TaskScopeTl;
-import io.github.linzee1.concurrent.queue.SmartBlockingQueue;
-import io.github.linzee1.concurrent.queue.VariableLinkedBlockingQueue;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
+import io.github.linzee1.vformation.context.TaskScopeTl;
+import io.github.linzee1.vformation.queue.SmartBlockingQueue;
+import io.github.linzee1.vformation.queue.VariableLinkedBlockingQueue;
+import io.github.linzee1.vformation.scope.ParallelOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 

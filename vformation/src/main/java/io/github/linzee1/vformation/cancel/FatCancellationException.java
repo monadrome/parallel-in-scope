@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.cancel;
+package io.github.linzee1.vformation.cancel;
 
 /**
  * Heavy-weight cancellation exception that preserves the full stack trace.

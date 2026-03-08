@@ -1,9 +1,9 @@
-package io.github.linzee1.concurrent.demo;
+package io.github.linzee1.vformation.demo;
 
-import io.github.linzee1.concurrent.scope.AsyncBatchResult;
-import io.github.linzee1.concurrent.scope.Par;
-import io.github.linzee1.concurrent.scope.ParallelHelper;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParallelHelper;
+import io.github.linzee1.vformation.scope.ParallelOptions;
 
 import java.util.Arrays;
 import java.util.List;

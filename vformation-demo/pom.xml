@@ -6,20 +6,20 @@
 
     <parent>
         <groupId>io.github.linzee1</groupId>
-        <artifactId>structured-concurrency-parent</artifactId>
+        <artifactId>vformation-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>structured-concurrency-demo</artifactId>
+    <artifactId>vformation-demo</artifactId>
     <packaging>jar</packaging>
 
-    <name>Structured Concurrency Demo</name>
-    <description>Demo and examples for structured-concurrency.</description>
+    <name>VFormation Demo</name>
+    <description>Demo and examples for VFormation.</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.linzee1</groupId>
-            <artifactId>structured-concurrency</artifactId>
+            <artifactId>vformation</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

@@ -1,12 +1,12 @@
-package io.github.linzee1.concurrent;
+package io.github.linzee1.vformation;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.linzee1.concurrent.internal.ConcurrentLimitExecutor;
-import io.github.linzee1.concurrent.scope.AsyncBatchResult;
-import io.github.linzee1.concurrent.scope.ParallelOptions;
-import io.github.linzee1.concurrent.scope.TaskType;
+import io.github.linzee1.vformation.internal.ConcurrentLimitExecutor;
+import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.TaskType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
-package io.github.linzee1.concurrent;
+package io.github.linzee1.vformation;
 
-import io.github.linzee1.concurrent.cancel.CancellationToken;
-import io.github.linzee1.concurrent.cancel.CancellationTokenState;
+import io.github.linzee1.vformation.cancel.CancellationToken;
+import io.github.linzee1.vformation.cancel.CancellationTokenState;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

@@ -1,4 +1,4 @@
-package io.github.linzee1.concurrent.internal;
+package io.github.linzee1.vformation.internal;
 
 /**
  * Marker interface for Runnable/Callable with key-value attachment support.
