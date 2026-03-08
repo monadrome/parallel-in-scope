@@ -1,5 +1,17 @@
 # Structured Parallel
 
+> **⚠️ 项目状态：开发中（Pre-release）**
+>
+> 本项目仍在积极开发中，API 可能会发生变化。目前尚未发布到 Maven Central，正在收集社区反馈以完善设计，待稳定后发布正式版本。
+>
+> 如需使用，请 fork 本仓库后自行构建：
+> ```bash
+> git clone https://github.com/<your-fork>/structured-parallel.git
+> cd structured-parallel
+> mvn clean install -DskipTests
+> ```
+> 欢迎通过 Issue 提交反馈和建议。
+
 **基于 Guava ListenableFuture 和 TransmittableThreadLocal 的结构化并发工具包**
 
 专为 Java 8+ 设计，提供协作取消、活锁检测、滑动窗口并发控制、任务感知调度和可插拔监控。
