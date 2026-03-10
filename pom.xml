@@ -99,6 +99,20 @@
             <artifactId>transmittable-thread-local</artifactId>
         </dependency>
 
+        <!-- Nullability annotations (compile-only, transitively provided by Guava) -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+            <version>3.42.0</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Lombok (compile-only) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

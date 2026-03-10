@@ -10,6 +10,8 @@ import io.github.huatalk.vformation.spi.ExecutorResolver;
 import io.github.huatalk.vformation.spi.LivelockListener;
 import io.github.huatalk.vformation.spi.TaskListener;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -299,6 +301,7 @@ public final class ParConfig {
      *
      * @return the executor resolver, or null if none set
      */
+    @Nullable
     public ExecutorResolver getExecutorResolver() {
         return executorResolver;
     }
@@ -309,6 +312,7 @@ public final class ParConfig {
      * @param name the executor name
      * @return the registered ListeningExecutorService, or null
      */
+    @Nullable
     public ListeningExecutorService getExecutor(String name) {
         return executorRegistry.get(name);
     }
@@ -318,6 +322,7 @@ public final class ParConfig {
      * then falls back to the executor registry (if the raw executor is a {@link ThreadPoolExecutor}).
      * Returns null if not found.
      */
+    @Nullable
     public ThreadPoolExecutor resolveThreadPool(String executorName) {
         ExecutorResolver resolver = executorResolver;
         if (resolver != null) {
