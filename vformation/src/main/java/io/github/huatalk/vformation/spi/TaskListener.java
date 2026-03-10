@@ -1,5 +1,7 @@
 package io.github.huatalk.vformation.spi;
 
+import javax.annotation.Nullable;
+
 /**
  * SPI: Task lifecycle listener for metrics collection and monitoring.
  * <p>
@@ -31,7 +33,7 @@ public interface TaskListener {
         private final Throwable exception;
 
         public TaskEvent(String taskName, long submitTimeNanos, long startTimeNanos,
-                         long endTimeNanos, boolean enqueued, Throwable exception) {
+                         long endTimeNanos, boolean enqueued, @Nullable Throwable exception) {
             this.taskName = taskName;
             this.submitTimeNanos = submitTimeNanos;
             this.startTimeNanos = startTimeNanos;
@@ -45,6 +47,7 @@ public interface TaskListener {
         public long getStartTimeNanos() { return startTimeNanos; }
         public long getEndTimeNanos() { return endTimeNanos; }
         public boolean isEnqueued() { return enqueued; }
+        @Nullable
         public Throwable getException() { return exception; }
 
         /** Execution duration in nanoseconds */

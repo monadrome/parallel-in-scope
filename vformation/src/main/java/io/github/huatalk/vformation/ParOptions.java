@@ -1,5 +1,7 @@
 package io.github.huatalk.vformation;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +45,7 @@ public final class ParOptions {
     public String getTaskName() { return taskName; }
     public int getParallelism() { return parallelism; }
     public long getTimeout() { return timeout; }
+    @Nullable
     public TimeUnit getTimeUnit() { return timeUnit; }
     public TaskType getTaskType() { return taskType; }
     public boolean isRejectEnqueue() { return rejectEnqueue; }
