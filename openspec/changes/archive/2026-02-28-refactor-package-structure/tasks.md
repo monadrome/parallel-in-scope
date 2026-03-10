@@ -59,7 +59,7 @@
 
 ## 10. Update project metadata
 
-- [x] 10.1 Update `pom.xml`: artifactId to `structured-concurrency`, update name and description
+- [x] 10.1 Update `pom.xml`: artifactId to `vformation`, update name and description
 - [x] 10.2 Update `CLAUDE.md` to reflect new package structure and project name
 
 ## 11. Cleanup and verify
