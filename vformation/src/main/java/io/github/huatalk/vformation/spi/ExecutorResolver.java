@@ -1,5 +1,7 @@
 package io.github.huatalk.vformation.spi;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -20,6 +22,7 @@ public interface ExecutorResolver {
      * @param executorName the executor name
      * @return the underlying ThreadPoolExecutor, or null if not found
      */
+    @Nullable
     ThreadPoolExecutor resolveThreadPool(String executorName);
 
     /**
