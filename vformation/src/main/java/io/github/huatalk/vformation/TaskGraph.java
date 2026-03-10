@@ -9,6 +9,7 @@ import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
 import io.github.huatalk.vformation.spi.LivelockListener;
 import io.github.huatalk.vformation.spi.LivelockListener.LivelockEvent;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -290,7 +291,7 @@ public final class TaskGraph {
     /**
      * Gets the current request's Data.
      */
-    public static Data data() {
+    public static @Nullable Data data() {
         return TTL.get();
     }
 
@@ -301,7 +302,7 @@ public final class TaskGraph {
      * @param child  child task name
      * @param edge   edge metadata (parallelism, task type, executor, etc.)
      */
-    static void logTaskPair(String parent, String child, TaskEdge edge) {
+    static void logTaskPair(@Nullable String parent, String child, TaskEdge edge) {
         Data data = TTL.get();
         if (data == null) {
             return;
