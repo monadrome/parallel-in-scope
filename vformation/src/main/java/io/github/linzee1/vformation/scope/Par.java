@@ -289,7 +289,7 @@ public final class Par {
 
     /**
      * Registers an executor by name. The executor is adapted to {@link ListeningExecutorService}
-     * via {@link ListeningExecutorAdapter#adapt(ExecutorService)} at registration time.
+     * via {@code MoreExecutors.listeningDecorator()} at registration time.
      *
      * @param name     the executor name (must not be null or empty)
      * @param executor the executor service to register (must not be null)

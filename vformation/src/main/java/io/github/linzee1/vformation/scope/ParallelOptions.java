@@ -123,7 +123,7 @@ public final class ParallelOptions {
      * @param taskSize number of tasks to execute
      * @return normalized options
      */
-    public static ParallelOptions formalized(ParallelOptions options, int taskSize) {
+    static ParallelOptions formalized(ParallelOptions options, int taskSize) {
         int parallelism = options.parallelism;
         int maxDegreeOfParallelism;
         if (parallelism <= 0 || parallelism > taskSize) {

@@ -2,7 +2,6 @@ package io.github.linzee1.vformation.demo;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.linzee1.vformation.cancel.Checkpoints;
-import io.foldright.cffu2.CffuState;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
 import io.github.linzee1.vformation.scope.Par;
 import io.github.linzee1.vformation.scope.ParallelHelper;
@@ -11,7 +10,6 @@ import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -81,11 +79,7 @@ public class NestedScopeCancellationDemo {
             Thread.sleep(200);
 
             // Print report
-            Map.Entry<Map<CffuState, Integer>, Throwable> report = outerResult.report();
-            System.out.println("[main] Outer report: " + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
-            if (report.getValue() != null) {
-                System.out.println("[main] First failure : " + report.getValue().getMessage());
-            }
+            System.out.println("[main] Outer report: " + outerResult.reportString());
 
             System.out.println("\n=== Demo Complete ===");
         } finally {
@@ -122,9 +116,8 @@ public class NestedScopeCancellationDemo {
         } catch (Exception e) {
             // Let cancellation fully propagate before reporting
             Checkpoints.sleep(200);
-            Map.Entry<Map<CffuState, Integer>, Throwable> report = innerResult.report();
             System.out.println("[outer-" + outerTask + "] Inner scope canceled! Report: "
-                    + AsyncBatchResult.MAP_JOINER.join(report.getKey()));
+                    + innerResult.reportString());
         }
     }
 }
