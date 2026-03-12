@@ -16,7 +16,7 @@ mvn clean package        # Package JAR
 
 **vformation** is a structured concurrency toolkit for Java 8+, built on Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`. It provides parallel collection processing with cooperative cancellation, sliding-window concurrency control, livelock detection, cross-thread context propagation, and pluggable monitoring via SPI.
 
-- **Maven coordinates:** `io.github.huatalk:vformation:1.0.0-SNAPSHOT`
+- **Maven coordinates:** `io.github.huatalk:vformation:1.0.0`
 - **Java version:** source/target 1.8 (Java 8 compatible)
 - **Test framework:** JUnit 5, run via Maven Surefire Plugin
 
