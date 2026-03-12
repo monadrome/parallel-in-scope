@@ -24,7 +24,7 @@
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>vformation</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
