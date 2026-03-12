@@ -203,64 +203,65 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 
 ```mermaid
 block-beta
-    columns 2
+    columns 3
 
-    block:par:2
-        columns 2
-        A["<b>Par</b><br/>forEach / map Facade"]
-        space
-    end
-
-    block:config:2
-        columns 2
-        B["<b>ParOptions</b><br/>Task Config"]
-        C["<b>ConcurrentLimitExecutor</b><br/>Sliding Window Scheduler"]
-    end
-
-    block:scoped:2
+    block:api:3
         columns 3
-        D["Context<br/>Setup"]
-        E["Checkpoint<br/>Check"]
-        F["Metrics<br/>(SPI)"]
+        A["<b>Par</b><br/>map() Facade"]
+        B["<b>ParConfig</b><br/>Global Config"]
+        C["<b>ParOptions</b><br/>Task Options"]
     end
 
-    block:core:2
+    block:engine:3
         columns 2
-        G["<b>CancellationToken</b><br/>Cooperative Cancel"]
-        H["<b>ThreadRelay</b><br/>Context Propagation (TTL)"]
+        D["<b>ConcurrentLimitExecutor</b><br/>Sliding Window Scheduler"]
+        E["<b>ScopedCallable</b><br/>Task Wrapper"]
     end
 
-    block:detect:2
+    block:core:3
+        columns 3
+        F["<b>CancellationToken</b><br/>Cooperative Cancel"]
+        G["<b>ThreadRelay</b><br/>Context Propagation"]
+        H["<b>Checkpoints</b><br/>Cancel Check"]
+    end
+
+    block:detect:3
         columns 2
-        I["<b>TaskGraph</b><br/>Deadlock Detection"]
+        I["<b>TaskGraph</b><br/>Livelock Detection"]
         J["<b>HeuristicPurger</b><br/>Pool Cleanup"]
     end
 
-    block:spi:2
+    block:queue:3
+        columns 2
+        K["<b>SmartBlockingQueue</b><br/>Task-Type Aware"]
+        L["<b>VariableLinkedBlockingQueue</b><br/>Dynamic Capacity"]
+    end
+
+    block:spi:3
         columns 4
-        K["TaskListener"]
-        L["ExecutorResolver"]
-        M["LivelockListener"]
-        N["JUL Logging"]
+        M["TaskListener"]
+        N["ExecutorResolver"]
+        O["LivelockListener"]
+        P["PurgeStrategy"]
     end
 
-    block:deps:2
+    block:deps:3
         columns 1
-        O["Guava ListenableFuture + Alibaba TTL"]
+        Q["Guava ListenableFuture + Alibaba TTL"]
     end
 
-    par --> config
-    config --> scoped
-    scoped --> core
+    api --> engine
+    engine --> core
     core --> detect
-    detect --> spi
+    detect --> queue
+    queue --> spi
     spi --> deps
 
-    style par fill:#4a90d9,color:#fff
-    style config fill:#5ba55b,color:#fff
-    style scoped fill:#d4a843,color:#fff
+    style api fill:#4a90d9,color:#fff
+    style engine fill:#5ba55b,color:#fff
     style core fill:#c0392b,color:#fff
     style detect fill:#8e44ad,color:#fff
+    style queue fill:#d4a843,color:#fff
     style spi fill:#2c3e50,color:#fff
     style deps fill:#7f8c8d,color:#fff
 ```
