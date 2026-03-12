@@ -77,9 +77,10 @@ public class PurgeService {
      *
      * @param executorName thread pool name
      * @param report       batch task execution report
+     * @param config       the ParConfig instance for thread pool resolution
      * @return future of the purge task
      */
-    public static ListenableFuture<?> tryPurge(String executorName, Map.Entry<Map<CffuState, Integer>, Throwable> report) {
+    public static ListenableFuture<?> tryPurge(String executorName, Map.Entry<Map<CffuState, Integer>, Throwable> report, ParConfig config) {
         if (report == null || report.getKey() == null || report.getValue() == null) {
             return Futures.immediateCancelledFuture();
         }
@@ -91,9 +92,9 @@ public class PurgeService {
         counter.addAndGet(staleCount);
 
         return getPurgeExecutor().submit(() -> {
-            ThreadPoolExecutor executor = ParConfig.resolveThreadPool(executorName);
+            ThreadPoolExecutor executor = config.resolveThreadPool(executorName);
             if (executor == null) {
-                ParConfig.getLogger().debug("Cannot resolve thread pool '{}' for purge", executorName);
+                config.getLogger().debug("Cannot resolve thread pool '{}' for purge", executorName);
                 return false;
             }
             int queueSize = executor.getQueue().size();

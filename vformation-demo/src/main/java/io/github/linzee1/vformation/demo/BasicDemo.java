@@ -18,8 +18,10 @@ public class BasicDemo {
 
     public static void main(String[] args) {
         ExecutorService pool = Executors.newFixedThreadPool(4);
+        ParConfig config = new ParConfig();
+        Par par = new Par(config);
         try {
-            ParConfig.registerExecutor("demo", pool);
+            config.registerExecutor("demo", pool);
 
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
@@ -27,14 +29,14 @@ public class BasicDemo {
                     .parallelism(3)
                     .build();
 
-            AsyncBatchResult<Integer> result = Par.parMap("demo", numbers, n -> {
+            AsyncBatchResult<Integer> result = par.parMap("demo", numbers, n -> {
                 System.out.println(Thread.currentThread().getName() + " processing " + n);
                 return n * n;
             }, options);
 
             System.out.println("Results: " + result.report());
         } finally {
-            ParConfig.unregisterExecutor("demo");
+            config.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }

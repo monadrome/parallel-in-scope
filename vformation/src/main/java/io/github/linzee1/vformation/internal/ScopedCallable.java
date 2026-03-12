@@ -47,21 +47,23 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     private final String taskName;
     private final Callable<V> delegate;
     private final Ticker ticker;
+    private final ParConfig config;
     private final long submitTime;
     private final ConcurrentMap<String, Object> attachments = new ConcurrentHashMap<>();
 
     private long startTime;
     private long endTime;
 
-    public ScopedCallable(String taskName, Callable<V> delegate, Ticker ticker) {
+    public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config, Ticker ticker) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
+        this.config = Objects.requireNonNull(config, "config cannot be null");
         this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
         this.submitTime = ticker.read();
     }
 
-    public ScopedCallable(String taskName, Callable<V> delegate) {
-        this(taskName, delegate, Ticker.systemTicker());
+    public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config) {
+        this(taskName, delegate, config, Ticker.systemTicker());
     }
 
     /** Actual execution duration (nanoseconds) */
@@ -131,7 +133,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     }
 
     private void notifyListeners(Throwable exception) {
-        List<TaskListener> listeners = ParConfig.getTaskListeners();
+        List<TaskListener> listeners = config.getTaskListeners();
         if (listeners.isEmpty()) {
             return;
         }
@@ -144,7 +146,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
             try {
                 listener.onTaskComplete(event);
             } catch (Exception e) {
-                ParConfig.getLogger().warn("TaskListener callback failed: {}", listener.getClass().getName(), e);
+                config.getLogger().warn("TaskListener callback failed: {}", listener.getClass().getName(), e);
             }
         }
     }

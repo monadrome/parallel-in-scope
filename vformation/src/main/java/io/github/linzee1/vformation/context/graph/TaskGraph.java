@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>Request start: {@link #initOnRequest()} creates a new Data instance</li>
  *   <li>During request: {@link #logTaskPair(String, String, TaskEdge)} records fork relationships</li>
- *   <li>Request end: {@link #destroyAfterRequest()} checks for cycles and notifies listeners</li>
+ *   <li>Request end: {@link #destroyAfterRequest(ParConfig)} checks for cycles and notifies listeners</li>
  * </ul>
  *
  * @author linqh (linqinghua4 at gmail dot com)
@@ -60,9 +60,6 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
         private volatile ValueGraph<String, List<TaskEdge>> graph;
         private volatile Boolean taskCycle;
         private volatile Boolean selfLoop;
-        private volatile ValueGraph<String, List<TaskEdge>> executorGraph;
-        private volatile Boolean executorCycle;
-        private volatile Boolean executorSelfLoop;
 
         public ValueGraph<String, List<TaskEdge>> getGraph() {
             if (graph == null) {
@@ -89,29 +86,27 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
             return selfLoop;
         }
 
-        public ValueGraph<String, List<TaskEdge>> getExecutorGraph() {
-            if (executorGraph == null) {
-                synchronized (this) {
-                    if (executorGraph == null) {
-                        executorGraph = generateExecutorGraph();
-                    }
-                }
-            }
-            return executorGraph;
+        /**
+         * Gets the executor-level graph, using the provided config for thread pool resolution.
+         */
+        public ValueGraph<String, List<TaskEdge>> getExecutorGraph(ParConfig config) {
+            return generateExecutorGraph(config);
         }
 
-        public boolean isExecutorCycle() {
-            if (executorCycle == null) {
-                executorCycle = checkExecutorCycle();
-            }
-            return executorCycle;
+        /**
+         * Checks if any executor cycle exists, using the provided config.
+         */
+        public boolean isExecutorCycle(ParConfig config) {
+            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph(config);
+            return g != null && Graphs.hasCycle(g.asGraph());
         }
 
-        public boolean isExecutorSelfLoop() {
-            if (executorSelfLoop == null) {
-                executorSelfLoop = checkExecutorSelfLoop();
-            }
-            return executorSelfLoop;
+        /**
+         * Checks if any executor self-loop exists, using the provided config.
+         */
+        public boolean isExecutorSelfLoop(ParConfig config) {
+            return getExecutorGraph(config).edges().stream()
+                    .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
         ValueGraph<String, List<TaskEdge>> generateGraph() {
@@ -143,7 +138,7 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                     .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
-        ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
+        ValueGraph<String, List<TaskEdge>> generateExecutorGraph(ParConfig config) {
             Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
@@ -152,7 +147,7 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();
-                    if (!canDeadlock(targetExecutor)) {
+                    if (!canDeadlock(targetExecutor, config)) {
                         continue;
                     }
                     EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
@@ -172,16 +167,6 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                         Collections.unmodifiableList(entry.getValue()));
             }
             return graphBuilder.build();
-        }
-
-        boolean checkExecutorCycle() {
-            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph();
-            return g != null && Graphs.hasCycle(g.asGraph());
-        }
-
-        boolean checkExecutorSelfLoop() {
-            return getExecutorGraph().edges().stream()
-                    .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
     }
 
@@ -206,31 +191,33 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
 
     /**
      * Destroys task graph at request end. Runs livelock detection and notifies listeners.
+     *
+     * @param config the ParConfig instance for livelock detection settings and listeners
      */
-    public static void destroyAfterRequest() {
+    public static void destroyAfterRequest(ParConfig config) {
         try {
             Data data = TTL.get();
             if (data != null && !data.subTaskList.isEmpty()) {
-                if (ParConfig.isLivelockDetectionEnabled()) {
-                    LivelockEvent event = buildDetectionEvent(data);
+                if (config.isLivelockDetectionEnabled()) {
+                    LivelockEvent event = buildDetectionEvent(data, config);
                     if (event != null && event.hasAnyIssue()) {
-                        ParConfig.getLogger().warn("[[title=TaskGraph,function=livelockDetection]]{}", event);
-                        notifyLivelockListeners(event);
+                        config.getLogger().warn("[[title=TaskGraph,function=livelockDetection]]{}", event);
+                        notifyLivelockListeners(config, event);
                     }
                 }
             }
         } catch (Exception e) {
-            ParConfig.getLogger().warn("[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
+            config.getLogger().warn("[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
         } finally {
             TTL.remove();
         }
     }
 
-    private static LivelockEvent buildDetectionEvent(Data data) {
+    private static LivelockEvent buildDetectionEvent(Data data, ParConfig config) {
         boolean hasTaskCycle = data.isTaskCycle();
         boolean hasSelfLoop = data.isSelfLoop();
-        boolean hasExecutorCycle = data.isExecutorCycle();
-        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop();
+        boolean hasExecutorCycle = data.isExecutorCycle(config);
+        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop(config);
 
         if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
             return null;
@@ -243,9 +230,9 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
-        String executorEdges = data.getExecutorGraph().edges().stream()
+        String executorEdges = data.getExecutorGraph(config).edges().stream()
                 .map(p -> {
-                    List<TaskEdge> edges = data.getExecutorGraph()
+                    List<TaskEdge> edges = data.getExecutorGraph(config)
                             .edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
@@ -257,13 +244,13 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                 taskEdges, executorEdges);
     }
 
-    private static void notifyLivelockListeners(LivelockEvent event) {
-        List<LivelockListener> listeners = ParConfig.getLivelockListeners();
+    private static void notifyLivelockListeners(ParConfig config, LivelockEvent event) {
+        List<LivelockListener> listeners = config.getLivelockListeners();
         for (LivelockListener listener : listeners) {
             try {
                 listener.onDetection(event);
             } catch (Exception e) {
-                ParConfig.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
+                config.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
             }
         }
     }
@@ -271,21 +258,18 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
     // ==================== Pool-aware deadlock risk ====================
 
     /**
-     * Determines whether the given executor can participate in deadlocks.
-     * <p>
-     * Executors with unbounded thread creation (e.g., CachedThreadPool using
-     * SynchronousQueue with MAX_VALUE maximumPoolSize) cannot deadlock because
-     * new threads are always available. Only executors with bounded threads
-     * and a blocking queue pose deadlock risk.
+     * Determines whether the given executor can participate in deadlocks,
+     * using the provided ParConfig for thread pool resolution.
      *
      * @param executorName the executor name to check
+     * @param config       the ParConfig instance for thread pool resolution
      * @return true if the executor is deadlock-prone or unknown
      */
-    public static boolean canDeadlock(String executorName) {
+    public static boolean canDeadlock(String executorName, ParConfig config) {
         if (executorName == null || "NA".equals(executorName)) {
             return true;
         }
-        ThreadPoolExecutor tpe = ParConfig.resolveThreadPool(executorName);
+        ThreadPoolExecutor tpe = config.resolveThreadPool(executorName);
         if (tpe == null) {
             return true;
         }
@@ -340,18 +324,18 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
     }
 
     /**
-     * Checks if any executor cycle exists.
+     * Checks if any executor cycle exists, using the provided config.
      */
-    public static boolean hasExecutorCycle() {
+    public static boolean hasExecutorCycle(ParConfig config) {
         Data data = data();
-        return data != null && data.isExecutorCycle();
+        return data != null && data.isExecutorCycle(config);
     }
 
     /**
-     * Checks if any executor self-loop exists.
+     * Checks if any executor self-loop exists, using the provided config.
      */
-    public static boolean hasExecutorSelfLoop() {
+    public static boolean hasExecutorSelfLoop(ParConfig config) {
         Data data = data();
-        return data != null && data.isExecutorSelfLoop();
+        return data != null && data.isExecutorSelfLoop(config);
     }
 }

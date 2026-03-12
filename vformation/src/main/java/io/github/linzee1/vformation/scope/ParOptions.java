@@ -119,11 +119,12 @@ public final class ParOptions {
     /**
      * Normalizes options: constrains parallelism to [1, taskSize], applies default timeout.
      *
-     * @param options  original options
-     * @param taskSize number of tasks to execute
+     * @param options              original options
+     * @param taskSize             number of tasks to execute
+     * @param defaultTimeoutMillis default timeout to use when options has no explicit timeout
      * @return normalized options
      */
-    static ParOptions formalized(ParOptions options, int taskSize) {
+    static ParOptions formalized(ParOptions options, int taskSize, long defaultTimeoutMillis) {
         int parallelism = options.parallelism;
         int maxDegreeOfParallelism;
         if (parallelism <= 0 || parallelism > taskSize) {
@@ -133,7 +134,7 @@ public final class ParOptions {
         }
 
         long millis = options.timeoutMillis();
-        long timeoutMillis = millis > 0 ? millis : ParConfig.getDefaultTimeoutMillis();
+        long timeoutMillis = millis > 0 ? millis : defaultTimeoutMillis;
 
         return new Builder()
                 .taskName(options.taskName)
