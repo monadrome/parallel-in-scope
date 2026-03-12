@@ -3,7 +3,7 @@ package io.github.linzee1.vformation;
 import io.github.linzee1.vformation.context.TaskScopeTl;
 import io.github.linzee1.vformation.queue.SmartBlockingQueue;
 import io.github.linzee1.vformation.queue.VariableLinkedBlockingQueue;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +51,7 @@ public class SmartBlockingQueueTest {
         SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(10);
 
         // Set CPU_BOUND context
-        ParallelOptions cpuOptions = ParallelOptions.cpuTask("cpuTask").build();
+        ParOptions cpuOptions = ParOptions.cpuTask("cpuTask").build();
         TaskScopeTl.setParallelOptions(cpuOptions);
 
         assertFalse(queue.offer("task")); // CPU_BOUND returns false
@@ -61,7 +61,7 @@ public class SmartBlockingQueueTest {
     public void testSmartBlockingQueue_ioBound_accepts() {
         SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(10);
 
-        ParallelOptions ioOptions = ParallelOptions.ioTask("ioTask").rejectEnqueue(false).build();
+        ParOptions ioOptions = ParOptions.ioTask("ioTask").rejectEnqueue(false).build();
         TaskScopeTl.setParallelOptions(ioOptions);
 
         assertTrue(queue.offer("task")); // IO_BOUND should be accepted

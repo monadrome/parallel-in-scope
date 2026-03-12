@@ -7,7 +7,7 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.spi.LivelockListener;
 import io.github.linzee1.vformation.spi.LivelockListener.LivelockEvent;
 
@@ -211,16 +211,16 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
         try {
             Data data = TTL.get();
             if (data != null && !data.subTaskList.isEmpty()) {
-                if (Par.isLivelockDetectionEnabled()) {
+                if (ParConfig.isLivelockDetectionEnabled()) {
                     LivelockEvent event = buildDetectionEvent(data);
                     if (event != null && event.hasAnyIssue()) {
-                        Par.getLogger().warn("[[title=TaskGraph,function=livelockDetection]]{}", event);
+                        ParConfig.getLogger().warn("[[title=TaskGraph,function=livelockDetection]]{}", event);
                         notifyLivelockListeners(event);
                     }
                 }
             }
         } catch (Exception e) {
-            Par.getLogger().warn("[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
+            ParConfig.getLogger().warn("[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
         } finally {
             TTL.remove();
         }
@@ -258,12 +258,12 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
     }
 
     private static void notifyLivelockListeners(LivelockEvent event) {
-        List<LivelockListener> listeners = Par.getLivelockListeners();
+        List<LivelockListener> listeners = ParConfig.getLivelockListeners();
         for (LivelockListener listener : listeners) {
             try {
                 listener.onDetection(event);
             } catch (Exception e) {
-                Par.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
+                ParConfig.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
             }
         }
     }
@@ -285,7 +285,7 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
         if (executorName == null || "NA".equals(executorName)) {
             return true;
         }
-        ThreadPoolExecutor tpe = Par.resolveThreadPool(executorName);
+        ThreadPoolExecutor tpe = ParConfig.resolveThreadPool(executorName);
         if (tpe == null) {
             return true;
         }

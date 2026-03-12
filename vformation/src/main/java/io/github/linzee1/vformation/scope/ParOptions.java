@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * Use the builder pattern:
  * <pre>
- * ParallelOptions options = ParallelOptions.of("myTask")
+ * ParOptions options = ParOptions.of("myTask")
  *     .parallelism(4)
  *     .timeout(5000)
  *     .taskType(TaskType.IO_BOUND)
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
-public final class ParallelOptions {
+public final class ParOptions {
 
     private final String taskName;
     private final int parallelism;
@@ -32,7 +32,7 @@ public final class ParallelOptions {
     private final boolean failFast;
     private final boolean rejectEnqueue;
 
-    private ParallelOptions(Builder builder) {
+    private ParOptions(Builder builder) {
         this.taskName = builder.taskName;
         this.parallelism = builder.parallelism;
         this.timeout = builder.timeout;
@@ -123,7 +123,7 @@ public final class ParallelOptions {
      * @param taskSize number of tasks to execute
      * @return normalized options
      */
-    static ParallelOptions formalized(ParallelOptions options, int taskSize) {
+    static ParOptions formalized(ParOptions options, int taskSize) {
         int parallelism = options.parallelism;
         int maxDegreeOfParallelism;
         if (parallelism <= 0 || parallelism > taskSize) {
@@ -133,7 +133,7 @@ public final class ParallelOptions {
         }
 
         long millis = options.timeoutMillis();
-        long timeoutMillis = millis > 0 ? millis : Par.getDefaultTimeoutMillis();
+        long timeoutMillis = millis > 0 ? millis : ParConfig.getDefaultTimeoutMillis();
 
         return new Builder()
                 .taskName(options.taskName)
@@ -151,7 +151,7 @@ public final class ParallelOptions {
     /**
      * Creates a copy with a different timeout.
      */
-    public ParallelOptions withTimeout(long timeout) {
+    public ParOptions withTimeout(long timeout) {
         return new Builder()
                 .taskName(this.taskName)
                 .parallelism(this.parallelism)
@@ -167,7 +167,7 @@ public final class ParallelOptions {
 
     @Override
     public String toString() {
-        return "ParallelOptions{" +
+        return "ParOptions{" +
                 "taskName='" + taskName + '\'' +
                 ", parallelism=" + parallelism +
                 ", timeout=" + timeout +
@@ -200,8 +200,8 @@ public final class ParallelOptions {
         public Builder failFast(boolean failFast) { this.failFast = failFast; return this; }
         public Builder rejectEnqueue(boolean rejectEnqueue) { this.rejectEnqueue = rejectEnqueue; return this; }
 
-        public ParallelOptions build() {
-            return new ParallelOptions(this);
+        public ParOptions build() {
+            return new ParOptions(this);
         }
     }
 }

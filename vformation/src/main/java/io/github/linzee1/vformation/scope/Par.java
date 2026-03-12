@@ -1,370 +1,171 @@
 package io.github.linzee1.vformation.scope;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.FluentFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.github.linzee1.vformation.spi.ExecutorResolver;
-import io.github.linzee1.vformation.spi.LivelockListener;
-import io.github.linzee1.vformation.spi.ParallelLogger;
-import io.github.linzee1.vformation.spi.TaskListener;
+import io.github.linzee1.vformation.cancel.CancellationToken;
+import io.github.linzee1.vformation.cancel.PurgeService;
+import io.github.linzee1.vformation.context.ThreadRelay;
+import io.github.linzee1.vformation.context.graph.TaskEdge;
+import io.github.linzee1.vformation.context.graph.TaskGraph;
+import io.github.linzee1.vformation.internal.ConcurrentLimitExecutor;
+import io.github.linzee1.vformation.internal.ScopedCallable;
 
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 /**
- * Central configuration and service registry for the vformation framework.
+ * Main facade for parallel execution.
  * <p>
- * Users configure the framework by registering SPI implementations:
+ * Provides {@link #parForEach} and {@link #parMap} static methods that wire together
+ * the entire parallel execution pipeline:
  * <ul>
- *   <li>{@link TaskListener} - metrics/monitoring callbacks</li>
- *   <li>{@link ExecutorResolver} - thread pool resolution for purge and livelock detection</li>
- *   <li>{@link LivelockListener} - livelock detection event callbacks</li>
+ *   <li>Normalization of {@link ParOptions}</li>
+ *   <li>Creation of {@link ScopedCallable} wrappers with lifecycle instrumentation</li>
+ *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}</li>
+ *   <li>Parent-child {@link CancellationToken} chaining</li>
+ *   <li>Late binding for timeout and fail-fast cancellation</li>
+ *   <li>Asynchronous purge on timeout</li>
  * </ul>
- * <p>
- * Also provides the global timer service and default configuration.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
 public final class Par {
 
-    private static final Logger JUL_LOGGER = Logger.getLogger(Par.class.getName());
-
-    // ==================== Logger SPI ====================
-
-    private static volatile ParallelLogger logger = new ParallelLogger() {
-        @Override
-        public void debug(String message, Object... args) {
-            if (JUL_LOGGER.isLoggable(Level.FINE)) {
-                JUL_LOGGER.log(Level.FINE, formatMessage(message, args));
-            }
-        }
-
-        @Override
-        public void warn(String message, Object... args) {
-            JUL_LOGGER.log(Level.WARNING, formatMessage(message, args), extractThrowable(args));
-        }
-
-        @Override
-        public void error(String message, Object... args) {
-            JUL_LOGGER.log(Level.SEVERE, formatMessage(message, args), extractThrowable(args));
-        }
-
-        private String formatMessage(String message, Object... args) {
-            if (args == null || args.length == 0) {
-                return message;
-            }
-            StringBuilder sb = new StringBuilder();
-            int argIndex = 0;
-            int start = 0;
-            int idx;
-            while ((idx = message.indexOf("{}", start)) != -1 && argIndex < args.length) {
-                sb.append(message, start, idx);
-                Object arg = args[argIndex++];
-                sb.append(arg instanceof Throwable ? arg.toString() : arg);
-                start = idx + 2;
-            }
-            sb.append(message, start, message.length());
-            return sb.toString();
-        }
-
-        private Throwable extractThrowable(Object... args) {
-            if (args != null && args.length > 0 && args[args.length - 1] instanceof Throwable) {
-                return (Throwable) args[args.length - 1];
-            }
-            return null;
-        }
-    };
-
-    // ==================== SPI Registries ====================
-
-    private static final List<TaskListener> TASK_LISTENERS = new CopyOnWriteArrayList<>();
-    private static final List<LivelockListener> LIVELOCK_LISTENERS = new CopyOnWriteArrayList<>();
-    private static volatile ExecutorResolver executorResolver;
-
-    // ==================== Executor Registry ====================
-
-    private static final ConcurrentHashMap<String, ListeningExecutorService> EXECUTOR_REGISTRY = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, ExecutorService> EXECUTOR_RAW_REGISTRY = new ConcurrentHashMap<>();
-
-    // ==================== Timer Service ====================
-
-    private static final class TimerHolder {
-        private static final int CORE_POOL_SIZE = 16;
-        static final ListeningScheduledExecutorService INSTANCE;
-
-        static {
-            ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                    .setDaemon(true)
-                    .setNameFormat("Par-Timer-%d")
-                    .setUncaughtExceptionHandler((t, e) ->
-                            logger.error("Uncaught exception in timer thread: ", e))
-                    .setPriority(Thread.MAX_PRIORITY)
-                    .build();
-
-            ScheduledThreadPoolExecutor timerImpl = new ScheduledThreadPoolExecutor(
-                    CORE_POOL_SIZE, threadFactory);
-            timerImpl.setRemoveOnCancelPolicy(true);
-            INSTANCE = MoreExecutors.listeningDecorator(timerImpl);
-        }
-    }
-
-    // ==================== Submitter Pool ====================
-
-    private static final class SubmitterPoolHolder {
-        static final ListeningExecutorService INSTANCE = MoreExecutors.listeningDecorator(
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder()
-                                .setDaemon(true)
-                                .setNameFormat("Par-Submitter-%d")
-                                .build()));
-    }
-
-    // ==================== Default Config ====================
-
-    private static volatile long defaultTimeoutMillis = 60_000L;
-    private static volatile boolean livelockDetectionEnabled = false;
-
     private Par() {
     }
 
-    // ==================== Timer Access ====================
-
     /**
-     * Gets the global timer service for timeout and scheduling operations.
+     * Executes a consumer in parallel for each element in the collection.
+     * The executor is resolved from the registry by name.
      *
-     * @return the global ListeningScheduledExecutorService
+     * @param executorName registered executor name
+     * @param list         collection to process
+     * @param consumer     processing function
+     * @param options      execution parameters
+     * @return batch result containing futures for each task
+     * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public static ListeningScheduledExecutorService getTimer() {
-        return TimerHolder.INSTANCE;
+    public static <T> AsyncBatchResult<Void> parForEach(
+            String executorName,
+            Collection<T> list,
+            Consumer<? super T> consumer,
+            ParOptions options) {
+
+        ListeningExecutorService executor = resolveExecutor(executorName);
+        return executeParallel(list, item -> () -> {
+            consumer.accept(item);
+            return null;
+        }, options, executor, executorName);
     }
 
-    // ==================== Submitter Pool Access ====================
-
     /**
-     * Gets the lazy-initialized cached thread pool for running sliding-window
-     * submitter loops. Unlike the timer pool, this pool is designed for
-     * potentially long-blocking tasks and scales on demand.
+     * Executes a function in parallel for each element, returning mapped results.
+     * The executor is resolved from the registry by name.
      *
-     * @return the global submitter ListeningExecutorService
+     * @param executorName registered executor name
+     * @param list         collection to process
+     * @param function     mapping function
+     * @param options      execution parameters
+     * @return batch result containing futures for each mapped result
+     * @throws IllegalArgumentException if no executor is registered with the given name
      */
-    public static ListeningExecutorService getSubmitterPool() {
-        return SubmitterPoolHolder.INSTANCE;
+    public static <T, R> AsyncBatchResult<R> parMap(
+            String executorName,
+            List<T> list,
+            Function<? super T, ? extends R> function,
+            ParOptions options) {
+
+        ListeningExecutorService executor = resolveExecutor(executorName);
+        return executeParallel(list, item -> () -> function.apply(item), options, executor, executorName);
     }
 
-    // ==================== Logger Registration ====================
-
-    /**
-     * Sets a custom logger implementation. Pass {@code null} to restore the default JUL logger.
-     *
-     * @param customLogger the logger implementation, or null for default
-     */
-    public static void setLogger(ParallelLogger customLogger) {
-        if (customLogger == null) {
-            return;
-        }
-        logger = customLogger;
-    }
-
-    /**
-     * Returns the current logger (internal use by framework classes).
-     */
-    public static ParallelLogger getLogger() {
-        return logger;
-    }
-
-    // ==================== TaskListener Registration ====================
-
-    /**
-     * Registers a task lifecycle listener for metrics/monitoring.
-     *
-     * @param listener the listener to register
-     */
-    public static void addTaskListener(TaskListener listener) {
-        if (listener != null) {
-            TASK_LISTENERS.add(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered task listener.
-     *
-     * @param listener the listener to remove
-     */
-    public static void removeTaskListener(TaskListener listener) {
-        TASK_LISTENERS.remove(listener);
-    }
-
-    /**
-     * Returns all registered task listeners (internal use).
-     */
-    public static List<TaskListener> getTaskListeners() {
-        return TASK_LISTENERS;
-    }
-
-    // ==================== LivelockListener Registration ====================
-
-    /**
-     * Registers a livelock detection event listener.
-     *
-     * @param listener the listener to register
-     */
-    public static void addLivelockListener(LivelockListener listener) {
-        if (listener != null) {
-            LIVELOCK_LISTENERS.add(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered livelock listener.
-     *
-     * @param listener the listener to remove
-     */
-    public static void removeLivelockListener(LivelockListener listener) {
-        LIVELOCK_LISTENERS.remove(listener);
-    }
-
-    /**
-     * Returns all registered livelock listeners (internal use).
-     */
-    public static List<LivelockListener> getLivelockListeners() {
-        return LIVELOCK_LISTENERS;
-    }
-
-    // ==================== ExecutorResolver Registration ====================
-
-    /**
-     * Sets the executor resolver for thread pool lookups (purge, livelock detection).
-     *
-     * @param resolver the executor resolver implementation
-     */
-    public static void setExecutorResolver(ExecutorResolver resolver) {
-        executorResolver = resolver;
-    }
-
-    /**
-     * Gets the registered executor resolver.
-     */
-    public static ExecutorResolver getExecutorResolver() {
-        return executorResolver;
-    }
-
-    /**
-     * Resolves a thread pool by name. Checks the explicit {@link ExecutorResolver} first,
-     * then falls back to the executor registry (if the raw executor is a {@link ThreadPoolExecutor}).
-     * Returns null if not found.
-     */
-    public static ThreadPoolExecutor resolveThreadPool(String executorName) {
-        ExecutorResolver resolver = executorResolver;
-        if (resolver != null) {
-            return resolver.resolveThreadPool(executorName);
-        }
-        // Fall back to registry: check if the raw executor is a ThreadPoolExecutor
-        ExecutorService raw = EXECUTOR_RAW_REGISTRY.get(executorName);
-        if (raw instanceof ThreadPoolExecutor) {
-            return (ThreadPoolExecutor) raw;
-        }
-        return null;
-    }
-
-    /**
-     * Returns task-to-executor mapping from the registered resolver.
-     */
-    public static Map<String, String> getTaskToExecutorMapping() {
-        ExecutorResolver resolver = executorResolver;
-        return resolver != null ? resolver.getTaskToExecutorMapping() : Collections.<String, String>emptyMap();
-    }
-
-    // ==================== Executor Registry ====================
-
-    /**
-     * Registers an executor by name. The executor is adapted to {@link ListeningExecutorService}
-     * via {@code MoreExecutors.listeningDecorator()} at registration time.
-     *
-     * @param name     the executor name (must not be null or empty)
-     * @param executor the executor service to register (must not be null)
-     * @throws IllegalArgumentException if name is null/empty or executor is null
-     */
-    public static void registerExecutor(String name, ExecutorService executor) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Executor name must not be null or empty");
-        }
+    private static ListeningExecutorService resolveExecutor(String executorName) {
+        ListeningExecutorService executor = ParConfig.getExecutor(executorName);
         if (executor == null) {
-            throw new IllegalArgumentException("Executor must not be null");
+            throw new IllegalArgumentException("No executor registered with name '" + executorName + "'");
         }
-        EXECUTOR_RAW_REGISTRY.put(name, executor);
-        if (executor instanceof ListeningExecutorService) {
-            EXECUTOR_REGISTRY.put(name, (ListeningExecutorService) executor);
-        } else {
-            EXECUTOR_REGISTRY.put(name, MoreExecutors.listeningDecorator(executor));
+        return executor;
+    }
+
+    private static <T, R> AsyncBatchResult<R> executeParallel(
+            Collection<T> list,
+            Function<T, Callable<R>> callableMapper,
+            ParOptions options,
+            ListeningExecutorService executor,
+            String executorName) {
+
+        if (list == null || list.isEmpty()) {
+            return emptyBatchResult();
         }
-    }
 
-    /**
-     * Returns the executor registered under the given name, or {@code null} if not found.
-     *
-     * @param name the executor name
-     * @return the registered ListeningExecutorService, or null
-     */
-    public static ListeningExecutorService getExecutor(String name) {
-        return EXECUTOR_REGISTRY.get(name);
-    }
+        ParOptions normalizedOptions = ParOptions.formalized(options, list.size());
+        String taskName = normalizedOptions.getTaskName();
 
-    /**
-     * Removes the executor registered under the given name. No-op if absent.
-     *
-     * @param name the executor name
-     */
-    public static void unregisterExecutor(String name) {
-        if (name != null) {
-            EXECUTOR_REGISTRY.remove(name);
-            EXECUTOR_RAW_REGISTRY.remove(name);
+        // Record task pair for livelock detection
+        String sourceExecutorName = ThreadRelay.getCurrentExecutorName();
+        TaskEdge edge = new TaskEdge(
+                normalizedOptions.getParallelism(),
+                normalizedOptions.getTaskType(),
+                executorName != null ? executorName : "NA",
+                sourceExecutorName != null ? sourceExecutorName : "NA",
+                list.size(),
+                normalizedOptions.timeoutMillis());
+        logForking(taskName, edge);
+
+        // Build parent-child CancellationToken chain
+        CancellationToken parentToken = ThreadRelay.getParentCancellationToken();
+        CancellationToken cancellationToken = new CancellationToken(parentToken);
+
+        // Create ScopedCallable list with context attachments
+        List<Callable<R>> tasks = list.stream()
+                .map(item -> {
+                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item));
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, normalizedOptions);
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, cancellationToken);
+                    scopedCallable.setTtlAttachment(ScopedCallable.KEY_EXECUTOR_NAME, executorName != null ? executorName : "NA");
+                    return (Callable<R>) scopedCallable;
+                })
+                .collect(toImmutableList());
+
+        AsyncBatchResult<R> result = ConcurrentLimitExecutor.<R>create(executor, normalizedOptions, ParConfig.getSubmitterPool())
+                .submitAll(tasks);
+
+        // Late bind: wire up cancellation, timeout, fail-fast
+        cancellationToken.lateBind(result.getResults(), normalizedOptions.forTimeout(), result.getSubmitCanceller());
+
+        // Try purge on timeout
+        if (executorName != null) {
+            tryPurgeOnTimeout(executorName, result);
         }
-    }
 
-    // ==================== Configuration ====================
-
-    /**
-     * Sets the default timeout in milliseconds, used when no explicit timeout is configured.
-     *
-     * @param millis default timeout in milliseconds (must be positive)
-     */
-    public static void setDefaultTimeoutMillis(long millis) {
-        if (millis > 0) {
-            defaultTimeoutMillis = millis;
-        }
+        return result;
     }
 
     /**
-     * Gets the default timeout in milliseconds.
+     * Records a fork relationship for livelock detection.
      */
-    public static long getDefaultTimeoutMillis() {
-        return defaultTimeoutMillis;
+    private static void logForking(String taskName, TaskEdge edge) {
+        TaskGraph.logTaskPair(ThreadRelay.getCurrentTaskName(), taskName, edge);
     }
 
-    /**
-     * Enables or disables livelock detection.
-     *
-     * @param enabled true to enable livelock detection
-     */
-    public static void setLivelockDetectionEnabled(boolean enabled) {
-        livelockDetectionEnabled = enabled;
+    private static <T> AsyncBatchResult<T> emptyBatchResult() {
+        return AsyncBatchResult.of(ImmutableList.<ListenableFuture<T>>of());
     }
 
-    /**
-     * Returns whether livelock detection is enabled.
-     */
-    public static boolean isLivelockDetectionEnabled() {
-        return livelockDetectionEnabled;
+    private static <T> void tryPurgeOnTimeout(String executorName, AsyncBatchResult<T> result) {
+        FluentFuture.from(result.getSubmitCanceller())
+                .catching(TimeoutException.class, ex -> {
+                    PurgeService.tryPurge(executorName, result.report());
+                    return null;
+                }, MoreExecutors.directExecutor());
     }
 }

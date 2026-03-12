@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.foldright.cffu2.CffuState;
-import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParConfig;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,9 +91,9 @@ public class PurgeService {
         counter.addAndGet(staleCount);
 
         return getPurgeExecutor().submit(() -> {
-            ThreadPoolExecutor executor = Par.resolveThreadPool(executorName);
+            ThreadPoolExecutor executor = ParConfig.resolveThreadPool(executorName);
             if (executor == null) {
-                Par.getLogger().debug("Cannot resolve thread pool '{}' for purge", executorName);
+                ParConfig.getLogger().debug("Cannot resolve thread pool '{}' for purge", executorName);
                 return false;
             }
             int queueSize = executor.getQueue().size();

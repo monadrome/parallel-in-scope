@@ -3,9 +3,9 @@ package io.github.linzee1.vformation.demo;
 import com.google.common.util.concurrent.Futures;
 import io.github.linzee1.vformation.cancel.Checkpoints;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.scope.Par;
-import io.github.linzee1.vformation.scope.ParallelHelper;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
@@ -35,11 +35,11 @@ public class CancellationDemo {
     public static void main(String[] args) {
         ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
-            Par.registerExecutor("demo", pool);
+            ParConfig.registerExecutor("demo", pool);
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-            ParallelOptions options = ParallelOptions.of("cancel-demo")
+            ParOptions options = ParOptions.of("cancel-demo")
                     .parallelism(3)
                     .timeout(10_000)
                     .taskType(TaskType.IO_BOUND)
@@ -48,7 +48,7 @@ public class CancellationDemo {
             System.out.println("=== Cancellation Demo (fail-fast) ===\n");
             System.out.println("10 tasks, parallelism=3, task #5 will fail after 500ms\n");
 
-            AsyncBatchResult<String> result = ParallelHelper.parMap("demo", items, n -> {
+            AsyncBatchResult<String> result = Par.parMap("demo", items, n -> {
                 if (n == 5) {
                     Checkpoints.sleep(500);
                     System.out.println("[task-" + n + "] Throwing exception!");
@@ -79,7 +79,7 @@ public class CancellationDemo {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            Par.unregisterExecutor("demo");
+            ParConfig.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }

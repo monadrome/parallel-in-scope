@@ -3,9 +3,9 @@ package io.github.linzee1.vformation.demo;
 import com.google.common.util.concurrent.Futures;
 import io.github.linzee1.vformation.cancel.Checkpoints;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
+import io.github.linzee1.vformation.scope.ParConfig;
 import io.github.linzee1.vformation.scope.Par;
-import io.github.linzee1.vformation.scope.ParallelHelper;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 
 import java.util.Arrays;
@@ -36,11 +36,11 @@ public class NestedScopeCancellationDemo {
     public static void main(String[] args) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {
-            Par.registerExecutor("demo", pool);
+            ParConfig.registerExecutor("demo", pool);
 
             List<String> outerItems = Arrays.asList("A", "B", "C");
 
-            ParallelOptions outerOptions = ParallelOptions.of("outer-scope")
+            ParOptions outerOptions = ParOptions.of("outer-scope")
                     .parallelism(3)
                     .timeout(10_000)
                     .taskType(TaskType.IO_BOUND)
@@ -50,7 +50,7 @@ public class NestedScopeCancellationDemo {
             System.out.println("Outer scope starts 3 tasks: A (nested), B (fails), C (nested)");
             System.out.println();
 
-            AsyncBatchResult<Void> outerResult = ParallelHelper.parForEach("demo", outerItems, item -> {
+            AsyncBatchResult<Void> outerResult = Par.parForEach("demo", outerItems, item -> {
                 switch (item) {
                     case "A":
                         runInnerScope("A", Arrays.asList(1, 2, 3, 4, 5));
@@ -83,7 +83,7 @@ public class NestedScopeCancellationDemo {
 
             System.out.println("\n=== Demo Complete ===");
         } finally {
-            Par.unregisterExecutor("demo");
+            ParConfig.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }
@@ -93,7 +93,7 @@ public class NestedScopeCancellationDemo {
      * When the outer scope cancels, these inner tasks get canceled via token propagation.
      */
     private static void runInnerScope(String outerTask, List<Integer> items) {
-        ParallelOptions innerOptions = ParallelOptions.of("inner-" + outerTask)
+        ParOptions innerOptions = ParOptions.of("inner-" + outerTask)
                 .parallelism(2)
                 .timeout(10_000)
                 .taskType(TaskType.IO_BOUND)
@@ -101,7 +101,7 @@ public class NestedScopeCancellationDemo {
 
         System.out.println("[outer-" + outerTask + "] Starting inner parMap with items: " + items);
 
-        AsyncBatchResult<String> innerResult = ParallelHelper.parMap("demo", items, n -> {
+        AsyncBatchResult<String> innerResult = Par.parMap("demo", items, n -> {
             System.out.println("  [inner-" + outerTask + "] Processing item " + n + " ...");
             // Simulate slow work -- gives time for B to fail and cancel to propagate
             Checkpoints.sleep(2000);

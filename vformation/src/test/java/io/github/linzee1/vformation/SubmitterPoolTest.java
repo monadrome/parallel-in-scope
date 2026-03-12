@@ -1,7 +1,7 @@
 package io.github.linzee1.vformation;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import io.github.linzee1.vformation.scope.Par;
+import io.github.linzee1.vformation.scope.ParConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Callable;
@@ -10,33 +10,33 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link Par#getSubmitterPool()} lazy initialization and thread naming.
+ * Tests for {@link ParConfig#getSubmitterPool()} lazy initialization and thread naming.
  */
 public class SubmitterPoolTest {
 
     @Test
     public void testGetSubmitterPool_returnsNonNull() {
-        ListeningExecutorService pool = Par.getSubmitterPool();
+        ListeningExecutorService pool = ParConfig.getSubmitterPool();
         assertNotNull(pool);
     }
 
     @Test
     public void testGetSubmitterPool_returnsSameInstance() {
-        ListeningExecutorService pool1 = Par.getSubmitterPool();
-        ListeningExecutorService pool2 = Par.getSubmitterPool();
+        ListeningExecutorService pool1 = ParConfig.getSubmitterPool();
+        ListeningExecutorService pool2 = ParConfig.getSubmitterPool();
         assertSame(pool1, pool2);
     }
 
     @Test
     public void testGetSubmitterPool_canExecuteTasks() throws Exception {
-        ListeningExecutorService pool = Par.getSubmitterPool();
+        ListeningExecutorService pool = ParConfig.getSubmitterPool();
         String result = pool.submit((Callable<String>) () -> "hello").get(5, TimeUnit.SECONDS);
         assertEquals("hello", result);
     }
 
     @Test
     public void testGetSubmitterPool_threadNaming() throws Exception {
-        ListeningExecutorService pool = Par.getSubmitterPool();
+        ListeningExecutorService pool = ParConfig.getSubmitterPool();
         String threadName = pool.submit(() -> Thread.currentThread().getName()).get(5, TimeUnit.SECONDS);
         assertTrue(threadName.startsWith("Par-Submitter-"),
                 "Expected thread name starting with 'Par-Submitter-', got: " + threadName);
@@ -44,7 +44,7 @@ public class SubmitterPoolTest {
 
     @Test
     public void testGetSubmitterPool_daemonThreads() throws Exception {
-        ListeningExecutorService pool = Par.getSubmitterPool();
+        ListeningExecutorService pool = ParConfig.getSubmitterPool();
         Boolean isDaemon = pool.submit(() -> Thread.currentThread().isDaemon()).get(5, TimeUnit.SECONDS);
         assertTrue(isDaemon, "Submitter pool threads should be daemon threads");
     }
@@ -58,7 +58,7 @@ public class SubmitterPoolTest {
 
         for (int i = 0; i < threadCount; i++) {
             final int idx = i;
-            threads[i] = new Thread(() -> results[idx] = Par.getSubmitterPool());
+            threads[i] = new Thread(() -> results[idx] = ParConfig.getSubmitterPool());
             threads[i].start();
         }
         for (Thread t : threads) {

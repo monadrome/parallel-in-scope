@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.linzee1.vformation.internal.ConcurrentLimitExecutor;
 import io.github.linzee1.vformation.scope.AsyncBatchResult;
-import io.github.linzee1.vformation.scope.ParallelOptions;
+import io.github.linzee1.vformation.scope.ParOptions;
 import io.github.linzee1.vformation.scope.TaskType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +50,7 @@ public class ConcurrentLimitExecutorTest {
 
     @Test
     public void testSubmitAll_empty() {
-        ParallelOptions options = ParallelOptions.of("test").parallelism(4).timeout(5000).build();
+        ParOptions options = ParOptions.of("test").parallelism(4).timeout(5000).build();
         ConcurrentLimitExecutor<String> executor = ConcurrentLimitExecutor.create(pool, options, submitterPool);
 
         AsyncBatchResult<String> result = executor.submitAll(Collections.emptyList());
@@ -60,7 +60,7 @@ public class ConcurrentLimitExecutorTest {
 
     @Test
     public void testSubmitAll_allWithinInitialBatch() throws Exception {
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(10)
                 .timeout(5000)
                 .build();
@@ -88,7 +88,7 @@ public class ConcurrentLimitExecutorTest {
         int parallelism = 2;
         int taskCount = 10;
 
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(parallelism)
                 .timeout(10000)
                 .taskType(TaskType.IO_BOUND)
@@ -126,7 +126,7 @@ public class ConcurrentLimitExecutorTest {
 
     @Test
     public void testSubmitAll_preservesOrder() throws Exception {
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(2)
                 .timeout(5000)
                 .taskType(TaskType.IO_BOUND)
@@ -161,7 +161,7 @@ public class ConcurrentLimitExecutorTest {
         CopyOnWriteArrayList<String> submitterThreadNames = new CopyOnWriteArrayList<>();
         CountDownLatch allDone = new CountDownLatch(1);
 
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(1)
                 .timeout(5000)
                 .taskType(TaskType.IO_BOUND)
@@ -195,7 +195,7 @@ public class ConcurrentLimitExecutorTest {
     @Test
     public void testSubmitAll_noRemainingTasks_noSubmitterUsed() {
         // When all tasks fit in the initial batch, submitCanceller should be immediate
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(5)
                 .timeout(5000)
                 .build();
@@ -213,7 +213,7 @@ public class ConcurrentLimitExecutorTest {
 
     @Test
     public void testSubmitAll_taskException_doesNotBlockOthers() throws Exception {
-        ParallelOptions options = ParallelOptions.of("test")
+        ParOptions options = ParOptions.of("test")
                 .parallelism(2)
                 .timeout(5000)
                 .taskType(TaskType.IO_BOUND)

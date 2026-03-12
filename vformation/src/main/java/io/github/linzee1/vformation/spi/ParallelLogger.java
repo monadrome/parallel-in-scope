@@ -5,7 +5,7 @@ package io.github.linzee1.vformation.spi;
  * <p>
  * Default implementation delegates to {@link java.util.logging.Logger}.
  * Users can provide their own implementation (e.g. bridging to SLF4J, Log4j2)
- * via {@code Par.setLogger(ParallelLogger)}.
+ * via {@code ParConfig.setLogger(ParallelLogger)}.
  *
  * @author linqh (linqinghua4 at gmail dot com)
  */
