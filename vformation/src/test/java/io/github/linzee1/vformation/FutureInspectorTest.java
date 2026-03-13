@@ -66,11 +66,11 @@ public class FutureInspectorTest {
                 Futures.immediateFailedFuture(new RuntimeException("fail"))
         );
         AsyncBatchResult<String> batch = AsyncBatchResult.of(futures);
-        java.util.Map.Entry<java.util.Map<CffuState, Integer>, Throwable> report = batch.report();
+        AsyncBatchResult.BatchReport report = batch.report();
 
-        assertEquals(2, (int) report.getKey().get(CffuState.SUCCESS));
-        assertEquals(1, (int) report.getKey().get(CffuState.FAILED));
-        assertNotNull(report.getValue());
-        assertEquals("fail", report.getValue().getMessage());
+        assertEquals(2, (int) report.getStateCounts().get(CffuState.SUCCESS));
+        assertEquals(1, (int) report.getStateCounts().get(CffuState.FAILED));
+        assertNotNull(report.getFirstException());
+        assertEquals("fail", report.getFirstException().getMessage());
     }
 }

@@ -67,13 +67,13 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
     }
 
     /** Actual execution duration (nanoseconds) */
-    public long executionTime() { return endTime - startTime; }
+    long executionTime() { return endTime - startTime; }
 
     /** Queue wait duration (nanoseconds) */
-    public long waitTime() { return startTime - submitTime; }
+    long waitTime() { return startTime - submitTime; }
 
     /** Total duration from submission to completion (nanoseconds) */
-    public long totalTime() { return endTime - submitTime; }
+    long totalTime() { return endTime - submitTime; }
 
     // ==================== TtlAttachments ====================
 

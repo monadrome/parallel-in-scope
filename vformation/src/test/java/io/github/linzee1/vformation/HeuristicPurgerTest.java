@@ -2,13 +2,13 @@ package io.github.linzee1.vformation;
 
 import io.foldright.cffu2.CffuState;
 import io.github.linzee1.vformation.cancel.HeuristicPurger;
+import io.github.linzee1.vformation.scope.AsyncBatchResult.BatchReport;
 import io.github.linzee1.vformation.scope.ParConfig;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.AbstractMap;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -54,8 +54,7 @@ public class HeuristicPurgerTest {
         Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
         stateMap.put(CffuState.CANCELLED, 0);
         stateMap.put(CffuState.SUCCESS, 5);
-        Map.Entry<Map<CffuState, Integer>, Throwable> report =
-                new AbstractMap.SimpleImmutableEntry<>(stateMap, new RuntimeException("dummy"));
+        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
         assertTrue(result.isCancelled());
@@ -68,8 +67,7 @@ public class HeuristicPurgerTest {
 
         Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
         stateMap.put(CffuState.CANCELLED, 5);
-        Map.Entry<Map<CffuState, Integer>, Throwable> report =
-                new AbstractMap.SimpleImmutableEntry<>(stateMap, new RuntimeException("dummy"));
+        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
         // Wait for async purge to complete
@@ -86,8 +84,7 @@ public class HeuristicPurgerTest {
 
         Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
         stateMap.put(CffuState.CANCELLED, 1);
-        Map.Entry<Map<CffuState, Integer>, Throwable> report =
-                new AbstractMap.SimpleImmutableEntry<>(stateMap, new RuntimeException("dummy"));
+        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
         Object value = result.get(5, TimeUnit.SECONDS);
@@ -99,8 +96,7 @@ public class HeuristicPurgerTest {
     public void testCounterAccumulation() {
         Map<CffuState, Integer> stateMap = new EnumMap<>(CffuState.class);
         stateMap.put(CffuState.CANCELLED, 3);
-        Map.Entry<Map<CffuState, Integer>, Throwable> report =
-                new AbstractMap.SimpleImmutableEntry<>(stateMap, new RuntimeException("dummy"));
+        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         // Use a unique pool name to avoid interference from other tests
         String uniquePool = "accumulation-test-" + System.nanoTime();

@@ -71,6 +71,9 @@ public class ScopedCallableTest {
             }
         };
 
+        CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
+        config.addTaskListener(events::add);
+
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
             // Simulate 5ms execution
             nanos.addAndGet(5_000_000);
@@ -86,9 +89,12 @@ public class ScopedCallableTest {
 
         callable.call();
 
-        assertEquals(5_000_000, callable.executionTime());
-        assertEquals(2_000_000, callable.waitTime());
-        assertEquals(7_000_000, callable.totalTime());
+        // Verify timing through TaskEvent SPI (timing methods are package-private)
+        assertEquals(1, events.size());
+        TaskEvent event = events.get(0);
+        assertEquals(5_000_000, event.executionTimeNanos());
+        assertEquals(2_000_000, event.waitTimeNanos());
+        assertEquals(7_000_000, event.totalTimeNanos());
     }
 
     @Test

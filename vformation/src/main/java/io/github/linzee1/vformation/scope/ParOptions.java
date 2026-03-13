@@ -26,7 +26,6 @@ public final class ParOptions {
     private final int parallelism;
     private final long timeout;
     private final TimeUnit timeUnit;
-    private final boolean enableParallel;
     private final int priority;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
@@ -36,7 +35,6 @@ public final class ParOptions {
         this.parallelism = builder.parallelism;
         this.timeout = builder.timeout;
         this.timeUnit = builder.timeUnit;
-        this.enableParallel = builder.enableParallel;
         this.priority = builder.priority;
         this.taskType = builder.taskType;
         this.rejectEnqueue = builder.rejectEnqueue;
@@ -48,7 +46,6 @@ public final class ParOptions {
     public int getParallelism() { return parallelism; }
     public long getTimeout() { return timeout; }
     public TimeUnit getTimeUnit() { return timeUnit; }
-    public boolean isEnableParallel() { return enableParallel; }
     public int getPriority() { return priority; }
     public TaskType getTaskType() { return taskType; }
     public boolean isRejectEnqueue() { return rejectEnqueue; }
@@ -138,7 +135,6 @@ public final class ParOptions {
                 .parallelism(maxDegreeOfParallelism)
                 .timeout(timeoutMillis)
                 .timeUnit(TimeUnit.MILLISECONDS)
-                .enableParallel(options.enableParallel)
                 .priority(options.priority)
                 .taskType(options.taskType)
                 .rejectEnqueue(options.rejectEnqueue)
@@ -154,7 +150,6 @@ public final class ParOptions {
                 .parallelism(this.parallelism)
                 .timeout(timeout)
                 .timeUnit(this.timeUnit)
-                .enableParallel(this.enableParallel)
                 .priority(this.priority)
                 .taskType(this.taskType)
                 .rejectEnqueue(this.rejectEnqueue)
@@ -180,7 +175,6 @@ public final class ParOptions {
         private int parallelism = -1;
         private long timeout = 0;
         private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
-        private boolean enableParallel = true;
         private int priority = 3;
         private TaskType taskType = TaskType.CPU_BOUND;
         private boolean rejectEnqueue = true;
@@ -189,7 +183,6 @@ public final class ParOptions {
         public Builder parallelism(int parallelism) { this.parallelism = parallelism; return this; }
         public Builder timeout(long timeout) { this.timeout = timeout; return this; }
         public Builder timeUnit(TimeUnit timeUnit) { this.timeUnit = timeUnit; return this; }
-        public Builder enableParallel(boolean enableParallel) { this.enableParallel = enableParallel; return this; }
         public Builder priority(int priority) { this.priority = priority; return this; }
         public Builder taskType(TaskType taskType) { this.taskType = taskType; return this; }
         public Builder rejectEnqueue(boolean rejectEnqueue) { this.rejectEnqueue = rejectEnqueue; return this; }
