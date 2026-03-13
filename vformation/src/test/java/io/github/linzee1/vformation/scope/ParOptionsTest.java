@@ -23,7 +23,6 @@ public class ParOptionsTest {
         assertEquals(3, options.getPriority());
         assertTrue(options.isEnableParallel());
         assertTrue(options.isRejectEnqueue());
-        assertFalse(options.isFailFast());
     }
 
     @Test

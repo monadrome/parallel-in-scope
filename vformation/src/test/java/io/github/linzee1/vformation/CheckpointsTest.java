@@ -77,4 +77,55 @@ public class CheckpointsTest {
         FatCancellationException ex = new FatCancellationException("test");
         assertTrue(ex.getStackTrace().length > 0);
     }
+
+    // ==================== rawCheckpoint / sleep / propagateCancellation tests ====================
+
+    @Test
+    public void testRawCheckpoint_interruptedThread_throwsFatCancellationException() {
+        Thread.currentThread().interrupt();
+        assertThrows(FatCancellationException.class, Checkpoints::rawCheckpoint);
+        // interrupt flag should have been consumed by Thread.interrupted()
+        assertFalse(Thread.currentThread().isInterrupted());
+    }
+
+    @Test
+    public void testSleep_interrupted_throwsFatCancellationException() throws Exception {
+        java.util.concurrent.CountDownLatch started = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Throwable> caught = new java.util.concurrent.atomic.AtomicReference<>();
+
+        Thread t = new Thread(() -> {
+            try {
+                started.countDown();
+                Checkpoints.sleep(5000);
+            } catch (Throwable ex) {
+                caught.set(ex);
+            }
+        });
+        t.start();
+        started.await(1, java.util.concurrent.TimeUnit.SECONDS);
+        Thread.sleep(50); // small delay to ensure sleep is entered
+        t.interrupt();
+        t.join(2000);
+
+        assertInstanceOf(FatCancellationException.class, caught.get());
+    }
+
+    @Test
+    public void testPropagateCancellation_rethrowsFatCancellationException() {
+        FatCancellationException ex = new FatCancellationException("test");
+        assertThrows(FatCancellationException.class, () -> Checkpoints.propagateCancellation(ex));
+    }
+
+    @Test
+    public void testPropagateCancellation_rethrowsLeanCancellationException() {
+        LeanCancellationException ex = new LeanCancellationException("test");
+        assertThrows(LeanCancellationException.class, () -> Checkpoints.propagateCancellation(ex));
+    }
+
+    @Test
+    public void testPropagateCancellation_doesNothingForOtherExceptions() {
+        RuntimeException ex = new RuntimeException("not a cancellation");
+        // Should not throw
+        Checkpoints.propagateCancellation(ex);
+    }
 }
