@@ -1,134 +1,24 @@
-# VFormation
+# 🪿 VFormation（雁阵）
 
 > **⚠️ 项目状态：开发中（Pre-release）**
 >
-> 本项目仍在积极开发中，API 可能会发生变化。目前尚未发布到 Maven Central，正在收集社区反馈以完善设计，待稳定后发布正式版本。
->
-> 如需使用，请 fork 本仓库后自行构建：
-> ```bash
-> git clone https://github.com/<your-fork>/vformation.git
-> cd vformation
-> mvn clean install -DskipTests
-> ```
-> 欢迎通过 Issue 提交反馈和建议。
+> 本项目仍在积极开发中，API 可能会发生变化。欢迎通过 Issue 提交反馈和建议。
 
-## 名称由来
+🪿 **VFormation**（雁阵）是一个 Java 8+ 结构化并发工具包，将现代结构化并发思想——协作式取消、快速失败、死锁检测、上下文传播——带入 Java 8 生态。🛡️🚀🎯
 
-**V-Formation**（V 字阵型）是大雁迁徙时采用的经典飞行编队。领头雁破开气流，后方的雁借助前方翅膀产生的上升气流减少阻力，每只雁只需承担一部分空气阻力，整个雁群便能以远超个体的效率完成长途飞行。当领头雁疲劳时，队形会自动轮换，实现协作式的负载均衡。
-
-这与本项目的并发设计理念高度契合：
-
-- **滑动窗口调度** — 如同雁阵中每个位置依次轮替，任务完成一个、补入一个，始终保持最优并发度
-- **协作式取消** — 如同领头雁发出转向信号后整个编队同步响应，父任务取消时子任务级联终止
-- **跨线程上下文传播** — 如同雁阵中每只雁都能感知整体队形的变化，子线程自动继承父线程的执行上下文
-- **活锁检测** — 如同雁群避免编队冲突，框架自动检测任务间的循环依赖
+正如大雁以 V 字阵型分担飞行阻力，雁阵通过协作式取消、快速失败、死锁检测、上下文传播和滑动窗口调度来编排你的并行任务——**失败即止，取消级联，死锁可见**。
 
 ---
 
-**基于 Guava ListenableFuture 和 TransmittableThreadLocal 的结构化并发工具包**
+## 核心特性
 
-专为 Java 8+ 设计，提供协作取消、活锁检测、滑动窗口并发控制、任务感知调度和可插拔监控。
-
----
-
-## 特性列表
-
-### 1. 结构化并行执行
-
-- **`Par.parForEach`** — 通过注册的执行器名称，对集合元素并行执行 Consumer 操作
-- **`Par.parMap`** — 通过注册的执行器名称，对集合元素并行执行 Function 映射，返回结果列表
-- 自动规范化并行参数（并发度不超过任务数，自动填充默认超时）
-- 空集合快速返回，零开销
-
-### 2. 协作式取消（Cooperative Cancellation）
-
-- **`CancellationToken`** — 基于 `AtomicReference<CancellationTokenState>` 的状态机
-- 支持 6 种取消状态：`RUNNING` / `SUCCESS` / `TIMEOUT_CANCELED` / `FAIL_FAST_CANCELED` / `MUTUAL_CANCELED` / `PROPAGATING_CANCELED`
-- **父子令牌链**：父任务取消时自动级联到子任务
-- **Late Binding 模式**：任务提交后延迟绑定 timeout、fail-fast 逻辑
-- **`Checkpoints`** — 在任务中设置协作式检查点，配合 CancellationToken 抛出取消异常
-
-### 3. 取消异常体系
-
-- **`LeanCancellationException`** — 轻量取消异常，**不捕获堆栈**（`stackTrace.length == 0`），适用于高频取消场景
-- **`FatCancellationException`** — 完整取消异常，保留堆栈信息，用于诊断分析
-
-### 4. 滑动窗口并发控制
-
-- **`ConcurrentLimitExecutor`** — 基于 `ExecutorCompletionService` 的滑动窗口执行器
-- 先提交 `parallelism` 数量的初始批次
-- 使用阻塞队列检测完成事件，空出槽位后逐步提交剩余任务
-- CPU_BOUND 任务被拒绝时自动降级到 `directExecutor()` 同步执行
-
-### 5. 任务类型感知调度
-
-- **`TaskType`** — 区分 `CPU_BOUND` 和 `IO_BOUND` 任务
-- **`SmartBlockingQueue`** — 任务类型感知的阻塞队列
-  - `CPU_BOUND` + `rejectEnqueue=true` 时直接拒绝入队（返回 `false`），避免线程饥饿
-  - `IO_BOUND` 任务正常排队等待
-- **`ParOptions`** — 丰富的任务配置，支持 Builder 模式
-  - 任务名称、并行度、超时时间、任务类型、优先级
-  - 快捷工厂方法：`ioTask()`, `cpuTask()`, `criticalIoTask()`
-
-### 6. 跨线程上下文传播
-
-- **`ThreadRelay`** — 基于 TransmittableThreadLocal 的两级 Map 接力设计
-  - 父线程的 `curMap` 自动成为子线程的 `parentMap`
-  - 传播内容：CancellationToken、ParOptions、TaskName
-- **`TaskScopeTl`** — 当前任务作用域的 ThreadLocal 绑定
-
-### 7. 活锁/死锁检测
-
-- **`TaskGraph`** — 基于 TransmittableThreadLocal 的任务依赖图
-- 使用 Guava `Graph` API 构建有向图，`Graphs.hasCycle()` 检测环路
-- 双层检测：
-  - **任务级**：检测任务间的循环依赖
-  - **执行器级**：检测线程池间的循环依赖（同一个线程池内的嵌套提交 = 自环 = 潜在死锁）
-- 通过 `LivelockListener` SPI 接收检测事件
-
-### 8. SPI 可插拔架构
-
-所有外部依赖通过 SPI 接口解耦，无任何硬编码业务依赖：
-
-| SPI 接口 | 用途 | 注册方式 |
-|-----------|------|----------|
-| `TaskListener` | 任务生命周期回调（耗时、排队时间、异常） | `ParConfig.addTaskListener()` |
-| `ExecutorResolver` | 线程池解析（按名称查找 ThreadPoolExecutor） | `ParConfig.setExecutorResolver()` |
-| `LivelockListener` | 活锁检测事件通知 | `ParConfig.addLivelockListener()` |
-| `ParallelLogger` | 框架内部日志输出（默认 JUL，用户可桥接到 SLF4J/Log4j2） | `ParConfig.setLogger()` |
-
-### 9. 全生命周期任务包装
-
-- **`ScopedCallable`** — 核心任务包装器，提供完整的执行生命周期：
-  - 上下文建立（TaskScopeTl、ThreadRelay 初始化）
-  - 协作式取消检查点
-  - 精确计时（submitTime → startTime → endTime）
-  - SPI 回调通知
-  - 上下文清理
-- 实现 `Attachable` 接口，支持通过 `ConcurrentHashMap` 在提交和执行阶段之间传递上下文
-
-### 10. 批量结果管理
-
-- **`AsyncBatchResult`** — 批量 Future 结果容器
-  - 封装所有子任务的 `ListenableFuture` 列表
-  - 提供 `report()` 方法统计成功/失败/取消/运行中数量（基于 cffu2 `CffuState`）
-  - 管理 `submitCanceller` 用于取消后续提交
-
-### 11. 线程池清理服务
-
-- **`PurgeService`** — 周期性清理线程池中的已取消任务引用
-- 超时触发时自动清理对应线程池
-- 可配置清理间隔和最小池大小阈值
-
-### 12. 执行器适配
-
-- **`ListeningExecutorAdapter`** — 将普通 `ExecutorService` / `ScheduledExecutorService` 适配为 Guava `ListeningExecutorService` / `ListeningScheduledExecutorService`
-
-### 13. 动态容量队列
-
-- **`VariableLinkedBlockingQueue`** — 支持运行时动态调整容量的 `LinkedBlockingQueue`
-  - 基于双锁算法（putLock / takeLock）
-  - `setCapacity()` 运行时安全调整队列容量
+- **🛡️ Cooperative Cancellation** — 父子令牌级联，Late-Binding 避免竞态，轻量异常零堆栈开销
+- **⚡ Fail-Fast Only** — 任一子任务失败立即取消同批剩余任务。这是刻意的设计选择：框架只提供 fail-fast 语义，不提供"忽略失败继续执行"模式。如需容错，请在任务内部自行 catch 异常
+- **🔍 Deadlock Detection** — DAG 环路检测，覆盖任务级循环依赖和执行器级自环
+- **🔗 Context Propagation** — 两级 Map 接力，取消令牌、任务配置自动传播到子线程
+- **🚀 Sliding-Window Scheduling** — 完成一个补一个，不淹没线程池
+- **🎯 Task-Type-Aware Dispatch** — CPU 密集型拒绝入队防饥饿，IO 密集型正常排队
+- **🔌 Pluggable SPI** — TaskListener / ExecutorResolver / LivelockListener / ParallelLogger
 
 ---
 

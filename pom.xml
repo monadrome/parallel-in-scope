@@ -11,9 +11,8 @@
 
     <name>VFormation Parent</name>
     <description>
-        VFormation — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
-        Provides cooperative cancellation, livelock detection, sliding-window concurrency control,
-        task-type-aware scheduling, and pluggable metrics/monitoring.
+        VFormation (雁阵) — A structured concurrency toolkit for Java 8+.
+        Cooperative cancellation, fail-fast, deadlock detection, context propagation, sliding-window scheduling.
     </description>
     <url>https://github.com/huatalk/vformation</url>
 
