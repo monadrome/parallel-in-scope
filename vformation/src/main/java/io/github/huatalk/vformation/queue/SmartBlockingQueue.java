@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  * This prevents CPU-bound tasks from queuing up and causing latency.
  *
  * @param <E> the type of elements held in this queue
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
 

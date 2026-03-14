@@ -32,7 +32,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  * </ol>
  *
  * @param <V> the result type of tasks
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class ConcurrentLimitExecutor<V> {
 

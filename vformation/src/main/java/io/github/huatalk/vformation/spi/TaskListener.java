@@ -8,7 +8,7 @@ package io.github.huatalk.vformation.spi;
  * <p>
  * All time values are in nanoseconds.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public interface TaskListener {
 

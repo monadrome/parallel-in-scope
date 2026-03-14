@@ -7,7 +7,7 @@ package io.github.huatalk.vformation.spi;
  * Users can provide their own implementation (e.g. bridging to SLF4J, Log4j2)
  * via {@code ParConfig.setLogger(ParallelLogger)}.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public interface ParallelLogger {
 

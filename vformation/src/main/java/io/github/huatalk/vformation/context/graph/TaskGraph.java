@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  *   <li>Request end: {@link #destroyAfterRequest(ParConfig)} checks for cycles and notifies listeners</li>
  * </ul>
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {

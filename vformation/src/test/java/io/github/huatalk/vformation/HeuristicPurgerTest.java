@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests for HeuristicPurger (thread pool purge service).
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class HeuristicPurgerTest {
 

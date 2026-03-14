@@ -9,7 +9,7 @@ import io.github.huatalk.vformation.scope.TaskType;
  * Captures the execution parameters that were active when a parent task
  * forked a child task batch.
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class TaskEdge {
 

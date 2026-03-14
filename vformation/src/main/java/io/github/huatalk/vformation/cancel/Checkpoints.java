@@ -17,7 +17,7 @@ import io.github.huatalk.vformation.scope.ParOptions;
  *   <li>{@link LeanCancellationException}: skips stack trace, better for production performance</li>
  * </ul>
  *
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class Checkpoints {
 

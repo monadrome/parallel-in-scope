@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentMap;
  * Timeline: submitTime -> startTime -> endTime
  *
  * @param <V> return value type
- * @author linqh (linqinghua4 at gmail dot com)
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
 
