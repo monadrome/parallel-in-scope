@@ -1,6 +1,6 @@
 ## Context
 
-The `vformation` library currently places 19 of its 27 classes in a single root package `io.github.linzee1.vformation`, with only `queue`, `exception`, and `spi` as sub-packages. The root package mixes API facades, execution internals, cancellation logic, context propagation, livelock detection, and utilities. This refactoring reorganizes into 7 domain-oriented packages under a renamed base `io.github.linzee1.vformation`.
+The `vformation` library currently places 19 of its 27 classes in a single root package `io.github.huatalk.vformation`, with only `queue`, `exception`, and `spi` as sub-packages. The root package mixes API facades, execution internals, cancellation logic, context propagation, livelock detection, and utilities. This refactoring reorganizes into 7 domain-oriented packages under a renamed base `io.github.huatalk.vformation`.
 
 ## Goals / Non-Goals
 
