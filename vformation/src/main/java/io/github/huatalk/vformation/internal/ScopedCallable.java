@@ -16,6 +16,8 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Central task wrapper with full lifecycle instrumentation.
@@ -37,6 +39,8 @@ import java.util.concurrent.ConcurrentMap;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
+
+    private static final Logger logger = Logger.getLogger(ScopedCallable.class.getName());
 
     public static final String KEY_PARALLEL_OPTIONS = "parallelOptions";
     public static final String KEY_CANCELLATION_TOKEN = "cancellationToken";
@@ -146,7 +150,7 @@ public class ScopedCallable<V> implements Callable<V>, TtlAttachments {
             try {
                 listener.onTaskComplete(event);
             } catch (Exception e) {
-                config.getLogger().warn("TaskListener callback failed: {}", listener.getClass().getName(), e);
+                logger.log(Level.WARNING, "TaskListener callback failed: " + listener.getClass().getName(), e);
             }
         }
     }

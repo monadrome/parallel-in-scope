@@ -21,6 +21,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +47,8 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
+
+    private static final Logger logger = Logger.getLogger(TaskGraph.class.getName());
 
     private static final TaskGraph TTL = new TaskGraph();
 
@@ -201,13 +205,13 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
                 if (config.isLivelockDetectionEnabled()) {
                     LivelockEvent event = buildDetectionEvent(data, config);
                     if (event != null && event.hasAnyIssue()) {
-                        config.getLogger().warn("[[title=TaskGraph,function=livelockDetection]]{}", event);
+                        logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
                         notifyLivelockListeners(config, event);
                     }
                 }
             }
         } catch (Exception e) {
-            config.getLogger().warn("[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
+            logger.log(Level.WARNING, "[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
         } finally {
             TTL.remove();
         }
@@ -250,7 +254,7 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
             try {
                 listener.onDetection(event);
             } catch (Exception e) {
-                config.getLogger().warn("LivelockListener callback failed: {}", listener.getClass().getName(), e);
+                logger.log(Level.WARNING, "LivelockListener callback failed: " + listener.getClass().getName(), e);
             }
         }
     }

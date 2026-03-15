@@ -6,7 +6,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.vformation.spi.ExecutorResolver;
 import io.github.huatalk.vformation.spi.LivelockListener;
-import io.github.huatalk.vformation.spi.ParallelLogger;
 import io.github.huatalk.vformation.spi.TaskListener;
 
 import java.util.Collections;
@@ -38,6 +37,9 @@ import java.util.logging.Logger;
  *   <li>{@link LivelockListener} - livelock detection event callbacks</li>
  * </ul>
  *
+ * Framework logging uses {@link java.util.logging.Logger} (JUL) directly.
+ * To bridge to SLF4J or Log4j2, configure a JUL bridge (e.g. {@code SLF4JBridgeHandler}).
+ *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class ParConfig {
@@ -58,52 +60,6 @@ public final class ParConfig {
     public static ParConfig getInstance() {
         return Holder.INSTANCE;
     }
-
-    // ==================== Logger SPI ====================
-
-    private volatile ParallelLogger logger = new ParallelLogger() {
-        @Override
-        public void debug(String message, Object... args) {
-            if (JUL_LOGGER.isLoggable(Level.FINE)) {
-                JUL_LOGGER.log(Level.FINE, formatMessage(message, args));
-            }
-        }
-
-        @Override
-        public void warn(String message, Object... args) {
-            JUL_LOGGER.log(Level.WARNING, formatMessage(message, args), extractThrowable(args));
-        }
-
-        @Override
-        public void error(String message, Object... args) {
-            JUL_LOGGER.log(Level.SEVERE, formatMessage(message, args), extractThrowable(args));
-        }
-
-        private String formatMessage(String message, Object... args) {
-            if (args == null || args.length == 0) {
-                return message;
-            }
-            StringBuilder sb = new StringBuilder();
-            int argIndex = 0;
-            int start = 0;
-            int idx;
-            while ((idx = message.indexOf("{}", start)) != -1 && argIndex < args.length) {
-                sb.append(message, start, idx);
-                Object arg = args[argIndex++];
-                sb.append(arg instanceof Throwable ? arg.toString() : arg);
-                start = idx + 2;
-            }
-            sb.append(message, start, message.length());
-            return sb.toString();
-        }
-
-        private Throwable extractThrowable(Object... args) {
-            if (args != null && args.length > 0 && args[args.length - 1] instanceof Throwable) {
-                return (Throwable) args[args.length - 1];
-            }
-            return null;
-        }
-    };
 
     // ==================== SPI Registries ====================
 
@@ -127,7 +83,7 @@ public final class ParConfig {
                     .setDaemon(true)
                     .setNameFormat("Par-Timer-%d")
                     .setUncaughtExceptionHandler((t, e) ->
-                            getInstance().getLogger().error("Uncaught exception in timer thread: ", e))
+                            JUL_LOGGER.log(Level.SEVERE, "Uncaught exception in timer thread", e))
                     .setPriority(Thread.MAX_PRIORITY)
                     .build();
 
@@ -182,27 +138,6 @@ public final class ParConfig {
      */
     public static ListeningExecutorService getSubmitterPool() {
         return SubmitterPoolHolder.INSTANCE;
-    }
-
-    // ==================== Logger Registration ====================
-
-    /**
-     * Sets a custom logger implementation. Pass {@code null} to restore the default JUL logger.
-     *
-     * @param customLogger the logger implementation, or null for default
-     */
-    public void setLogger(ParallelLogger customLogger) {
-        if (customLogger == null) {
-            return;
-        }
-        logger = customLogger;
-    }
-
-    /**
-     * Returns the current logger (internal use by framework classes).
-     */
-    public ParallelLogger getLogger() {
-        return logger;
     }
 
     // ==================== TaskListener Registration ====================
