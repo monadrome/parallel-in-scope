@@ -199,71 +199,48 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 
 ---
 
-## 架构设计
+## 执行时序
 
 ```mermaid
-block-beta
-    columns 3
+sequenceDiagram
+    participant U as 用户代码
+    participant P as Par
+    participant O as ParOptions
+    participant G as TaskGraph
+    participant T as CancellationToken
+    participant S as ScopedCallable
+    participant E as ConcurrentLimitExecutor
+    participant R as AsyncBatchResult
 
-    block:api:3
-        columns 3
-        A["<b>Par</b><br/>map() Facade"]
-        B["<b>ParConfig</b><br/>Global Config"]
-        C["<b>ParOptions</b><br/>Task Options"]
+    U ->> P: map(pool, items, fn, options)
+
+    rect rgb(230, 240, 255)
+        Note over P, T: ① 初始化
+        P ->> O: formalized()
+        Note right of O: 规范化配置<br/>封顶并行度 / 填充默认超时
+        P ->> G: logTaskPair()
+        Note right of G: 记录父→子任务依赖<br/>用于活锁检测
+        P ->> T: create & chain
+        Note right of T: 创建子令牌<br/>链接父令牌（via ThreadRelay）
     end
 
-    block:engine:3
-        columns 2
-        D["<b>ConcurrentLimitExecutor</b><br/>Sliding Window Scheduler"]
-        E["<b>ScopedCallable</b><br/>Task Wrapper"]
+    rect rgb(230, 255, 230)
+        Note over S, E: ② 包装 & 提交
+        P ->> S: wrap(task)
+        Note right of S: 上下文设置 + 检查点<br/>+ SPI 回调 + 清理
+        P ->> E: submitAll(wrappedTasks)
+        Note right of E: 滑动窗口提交<br/>先提交 parallelism 个<br/>后续完成一个补一个
     end
 
-    block:core:3
-        columns 3
-        F["<b>CancellationToken</b><br/>Cooperative Cancel"]
-        G["<b>ThreadRelay</b><br/>Context Propagation"]
-        H["<b>Checkpoints</b><br/>Cancel Check"]
+    rect rgb(255, 235, 230)
+        Note over T, R: ③ 后绑定（Late Binding）
+        P ->> T: lateBind(futures, timeout)
+        Note right of T: 绑定超时（withTimeout）<br/>绑定快速失败（allAsList）<br/>绑定父级取消传播
+        E -->> R: return futures
+        Note right of R: futures + report()
     end
 
-    block:detect:3
-        columns 2
-        I["<b>TaskGraph</b><br/>Livelock Detection"]
-        J["<b>HeuristicPurger</b><br/>Pool Cleanup"]
-    end
-
-    block:queue:3
-        columns 2
-        K["<b>SmartBlockingQueue</b><br/>Task-Type Aware"]
-        L["<b>VariableLinkedBlockingQueue</b><br/>Dynamic Capacity"]
-    end
-
-    block:spi:3
-        columns 4
-        M["TaskListener"]
-        N["ExecutorResolver"]
-        O["LivelockListener"]
-        P["PurgeStrategy"]
-    end
-
-    block:deps:3
-        columns 1
-        Q["Guava ListenableFuture + Alibaba TTL"]
-    end
-
-    api --> engine
-    engine --> core
-    core --> detect
-    detect --> queue
-    queue --> spi
-    spi --> deps
-
-    style api fill:#4a90d9,color:#fff
-    style engine fill:#5ba55b,color:#fff
-    style core fill:#c0392b,color:#fff
-    style detect fill:#8e44ad,color:#fff
-    style queue fill:#d4a843,color:#fff
-    style spi fill:#2c3e50,color:#fff
-    style deps fill:#7f8c8d,color:#fff
+    P -->> U: AsyncBatchResult
 ```
 
 ---
