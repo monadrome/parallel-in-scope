@@ -30,9 +30,8 @@ public class HeuristicPurgerTest {
         tpe = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         config = ParConfig.builder()
                 .executor(POOL_NAME, tpe)
+                .maxPurgeRate(100.0)
                 .build();
-        // Reset to known state with high rate limit
-        HeuristicPurger.configure(0.33, 1, 1000, 100.0);
     }
 
     @AfterEach
@@ -41,8 +40,9 @@ public class HeuristicPurgerTest {
     }
 
     @Test
-    public void testTryPurge_nullReport_returnsCancelledFuture() {
-        ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, null, config);
+    public void testTryPurge_nullStateCounts_returnsCancelledFuture() {
+        BatchReport report = new BatchReport(null, new RuntimeException("dummy"));
+        ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
         assertTrue(result.isCancelled());
     }
 
@@ -58,57 +58,15 @@ public class HeuristicPurgerTest {
     }
 
     @Test
-    public void testTryPurge_aboveThreshold_purgeTriggered() throws Exception {
-        // Configure with low threshold so any stale count triggers purge
-        HeuristicPurger.configure(0.33, 1, 1000, 100.0);
-
+    public void testTryPurge_withCancelled_purgeTriggered() throws Exception {
         Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
         stateMap.put(FutureState.CANCELLED, 5);
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
-        // Wait for async purge to complete
         Object value = result.get(5, TimeUnit.SECONDS);
-        // Should have completed (purge triggered and returned true)
         assertTrue(result.isDone());
         assertFalse(result.isCancelled());
-    }
-
-    @Test
-    public void testTryPurge_belowThreshold_purgeSkipped() throws Exception {
-        // Configure with very high threshold
-        HeuristicPurger.configure(0.33, 1000, 5000, 100.0);
-
-        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
-        stateMap.put(FutureState.CANCELLED, 1);
-        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
-
-        ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
-        Object value = result.get(5, TimeUnit.SECONDS);
-        // Purge should not have been triggered (returns false)
-        assertEquals(false, value);
-    }
-
-    @Test
-    public void testCounterAccumulation() {
-        Map<FutureState, Integer> stateMap = new EnumMap<>(FutureState.class);
-        stateMap.put(FutureState.CANCELLED, 3);
-        BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
-
-        // Use a unique pool name to avoid interference from other tests
-        String uniquePool = "accumulation-test-" + System.nanoTime();
-        ParConfig uniqueConfig = ParConfig.builder()
-                .executor(uniquePool, tpe)
-                .build();
-
-        HeuristicPurger.configure(0.33, 10000, 50000, 100.0);
-        HeuristicPurger.tryPurge(uniquePool, report, uniqueConfig);
-        HeuristicPurger.tryPurge(uniquePool, report, uniqueConfig);
-
-        // Should accumulate: 3 + 3 = 6
-        // Note: counter is incremented before the async purge task runs,
-        // so we can read it immediately
-        assertTrue(HeuristicPurger.getStaleCount(uniquePool) >= 6,
-                "Stale count should accumulate: " + HeuristicPurger.getStaleCount(uniquePool));
+        assertEquals(true, value);
     }
 }
