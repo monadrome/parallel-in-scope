@@ -1,7 +1,7 @@
 ## 1. Create new directory structure
 
-- [x] 1.1 Create package directories under `src/main/java/io/github/linzee1/concurrent/`: `scope`, `context`, `context/graph`, `cancel`, `internal`, `queue`, `spi`
-- [x] 1.2 Create test package directories under `src/test/java/io/github/linzee1/concurrent/`
+- [x] 1.1 Create package directories under `src/main/java/io/github/huatalk/concurrent/`: `scope`, `context`, `context/graph`, `cancel`, `internal`, `queue`, `spi`
+- [x] 1.2 Create test package directories under `src/test/java/io/github/huatalk/concurrent/`
 
 ## 2. Move and update SPI interfaces (zero internal deps — move first)
 
@@ -64,7 +64,7 @@
 
 ## 11. Cleanup and verify
 
-- [x] 11.1 Delete old directory tree `src/main/java/io/github/linzee1/parallel/`
-- [x] 11.2 Delete old test directory `src/test/java/io/github/linzee1/parallel/`
+- [x] 11.1 Delete old directory tree `src/main/java/io/github/huatalk/parallel/`
+- [x] 11.2 Delete old test directory `src/test/java/io/github/huatalk/parallel/`
 - [x] 11.3 Run `mvn clean compile` — verify zero compilation errors
 - [x] 11.4 Run `mvn test` — verify all tests pass
