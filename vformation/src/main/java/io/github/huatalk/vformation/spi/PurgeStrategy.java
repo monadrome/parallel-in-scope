@@ -13,6 +13,7 @@ package io.github.huatalk.vformation.spi;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
+@FunctionalInterface
 public interface PurgeStrategy {
 
     /**
