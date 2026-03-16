@@ -60,7 +60,6 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0},
      * otherwise returns {@link SmartBlockingQueue}.
      */
-    @SuppressWarnings("unchecked")
     public static <T> BlockingQueue<T> create(int capacity) {
         if (capacity <= 0) {
             return new SynchronousQueue<>();
