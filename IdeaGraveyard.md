@@ -101,7 +101,7 @@ Par.parMap("io-pool", urls, url -> {
 
 **为什么不做：**
 
-`ParOptions` 确实有一个 `priority` 字段，但它作用于 `SmartBlockingQueue` 的**批次间调度**（多个 `parMap` 调用竞争同一个线程池时，高优先级批次的任务先出队），而不是批次内的任务排序。
+`ParOptions` 曾经有一个 `priority` 字段（已移除），原本设想用于 `SmartBlockingQueue` 的**批次间调度**（多个 `parMap` 调用竞争同一个线程池时，高优先级批次的任务先出队），但从未实际使用，因此被清理掉了。
 
 批次内优先级不实现的原因：
 
