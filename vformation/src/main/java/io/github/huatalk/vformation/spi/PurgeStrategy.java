@@ -26,6 +26,11 @@ public interface PurgeStrategy {
     /**
      * Cancellation metrics snapshot for a specific executor, provided to
      * {@link PurgeStrategy#shouldPurge(PurgeContext)} for decision making.
+     * <p>
+     * Created inside the asynchronous purge task just before calling {@code shouldPurge()}.
+     * The {@code windowCancelCount} and {@code cancelRatePerSecond} reflect the state of the
+     * sliding window counter at that instant; because the counter is concurrently updated,
+     * values are approximate and should be treated as heuristic indicators.
      */
     class PurgeContext {
         private final String executorName;
