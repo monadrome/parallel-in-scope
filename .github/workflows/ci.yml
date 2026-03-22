@@ -9,10 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     strategy:
       matrix:
-        java-version: [ 17, 21 ]
+        java-version: [ 11, 17, 21 ]
 
     steps:
       - uses: actions/checkout@v4
