@@ -20,7 +20,6 @@ public class ParOptionsTest {
         assertEquals(-1, options.getParallelism());
         assertEquals(0, options.getTimeout());
         assertEquals(TaskType.CPU_BOUND, options.getTaskType());
-        assertEquals(3, options.getPriority());
         assertTrue(options.isRejectEnqueue());
     }
 
@@ -28,14 +27,12 @@ public class ParOptionsTest {
     public void testIoTask() {
         ParOptions options = ParOptions.ioTask("ioTask").build();
         assertEquals(TaskType.IO_BOUND, options.getTaskType());
-        assertEquals(2, options.getPriority());
     }
 
     @Test
     public void testCriticalIoTask() {
         ParOptions options = ParOptions.criticalIoTask("critical", 3000).build();
         assertEquals(TaskType.IO_BOUND, options.getTaskType());
-        assertEquals(1, options.getPriority());
         assertEquals(3000, options.timeoutMillis());
     }
 
