@@ -40,9 +40,13 @@
 import io.github.huatalk.vformation.scope.*;
 import com.google.common.util.concurrent.*;
 
+// 创建配置与 Par 实例
+ParConfig config = new ParConfig();
+Par par = new Par(config);
+
 // 创建并注册线程池
 ExecutorService executor = Executors.newFixedThreadPool(10);
-ParConfig.registerExecutor("io-pool", executor);
+config.registerExecutor("io-pool", executor);
 
 // 配置任务参数
 ParOptions options = ParOptions.ioTask("fetchData")
@@ -52,7 +56,7 @@ ParOptions options = ParOptions.ioTask("fetchData")
 
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = Par.parMap(
+AsyncBatchResult<String> result = par.parMap(
     "io-pool",                      // 注册的执行器名称
     urls,
     url -> httpClient.fetch(url),   // 你的业务逻辑
@@ -66,8 +70,10 @@ List<ListenableFuture<String>> futures = result.getResults();
 ### 注册监控回调
 
 ```java
+ParConfig config = new ParConfig();
+
 // 注册任务耗时监控
-ParConfig.addTaskListener(event -> {
+config.addTaskListener(event -> {
     System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
         event.getTaskName(),
         event.executionTimeMillis(),
@@ -82,19 +88,21 @@ ParConfig.addTaskListener(event -> {
 ### 活锁检测
 
 ```java
+ParConfig config = new ParConfig();
+
 // 启用活锁检测
-ParConfig.setLivelockDetectionEnabled(true);
+config.setLivelockDetectionEnabled(true);
 
 // 注册活锁监听器
-ParConfig.addLivelockListener(event -> {
-    if (event.isExecutorSelfLoop()) {
+config.addLivelockListener(event -> {
+    if (event.hasExecutorSelfLoop()) {
         log.warn("Potential deadlock: executor self-loop detected! {}",
             event.getExecutorEdges());
     }
 });
 
 // 提供任务到线程池的映射关系
-ParConfig.setExecutorResolver(new ExecutorResolver() {
+config.setExecutorResolver(new ExecutorResolver() {
     @Override
     public ThreadPoolExecutor resolveThreadPool(String name) {
         return executorMap.get(name);
@@ -112,7 +120,7 @@ try {
     // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
 } finally {
     // 请求结束时自动检测并通知
-    TaskGraph.destroyAfterRequest();
+    TaskGraph.destroyAfterRequest(config);
 }
 ```
 
@@ -187,7 +195,6 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 |------|------|------|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
-| cffu2 | 2.0.7 | Future 状态检测（替代原 FutureInspector） |
 
 ---
 
