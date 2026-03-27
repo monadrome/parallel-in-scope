@@ -7,9 +7,9 @@
 ```
 shared-pool (FixedThreadPool, size=4)
 
-task-A parForEach [1,2,3,4]       ← 占满 4 个线程
-  └── task-B parMap [x,y]          ← 需要线程，被阻塞
-        └── task-A-inner parMap [1,2]  ← 需要线程，永远排不上
+task-A forEach [1,2,3,4]       ← 占满 4 个线程
+  └── task-B map [x,y]          ← 需要线程，被阻塞
+        └── task-A-inner map [1,2]  ← 需要线程，永远排不上
 ```
 
 ## 死锁原理

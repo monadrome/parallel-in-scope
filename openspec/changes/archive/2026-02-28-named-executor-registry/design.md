@@ -1,6 +1,6 @@
 ## Context
 
-Currently `ParallelHelper.parMap()` and `parForEach()` require callers to pass both a `ListeningExecutorService` instance and an optional `String executorName` at every call site. There are 4 public overloads (2 with name, 2 without). This leads to scattered executor references, potential name-instance mismatches, and inconsistent usage across a codebase.
+Currently `ParallelHelper.map()` and `forEach()` require callers to pass both a `ListeningExecutorService` instance and an optional `String executorName` at every call site. There are 4 public overloads (2 with name, 2 without). This leads to scattered executor references, potential name-instance mismatches, and inconsistent usage across a codebase.
 
 The project already has `ListeningExecutorAdapter.adapt()` for wrapping plain `ExecutorService` into `ListeningExecutorService`, making it natural to accept any `ExecutorService` at registration time.
 
@@ -8,7 +8,7 @@ The project already has `ListeningExecutorAdapter.adapt()` for wrapping plain `E
 
 **Goals:**
 - Provide a central, thread-safe executor registry on `StructuredParallel` where users register executors by name once at startup.
-- Replace the entire `ParallelHelper` public API with exactly two methods: `parMap(String executorName, List, Function, ParallelOptions)` and `parForEach(String executorName, Collection, Consumer, ParallelOptions)`.
+- Replace the entire `ParallelHelper` public API with exactly two methods: `map(String executorName, List, Function, ParallelOptions)` and `forEach(String executorName, Collection, Consumer, ParallelOptions)`.
 - Remove all existing overloads that accept `ListeningExecutorService` directly — the executor name is the only way to specify an executor.
 - Automatically bridge registered executors into the purge/livelock subsystem.
 - Update all existing tests to use the new API.
@@ -48,8 +48,8 @@ The project already has `ListeningExecutorAdapter.adapt()` for wrapping plain `E
 ### 5. Replace all `ParallelHelper` public methods (BREAKING)
 
 **Decision:** Remove all 4 existing public methods on `ParallelHelper`. Replace with exactly two:
-- `parForEach(String executorName, Collection<T> list, Consumer<? super T> consumer, ParallelOptions options)`
-- `parMap(String executorName, List<T> list, Function<? super T, ? extends R> function, ParallelOptions options)`
+- `forEach(String executorName, Collection<T> list, Consumer<? super T> consumer, ParallelOptions options)`
+- `map(String executorName, List<T> list, Function<? super T, ? extends R> function, ParallelOptions options)`
 
 The executor name is the first parameter. Internally these resolve the executor from the registry and delegate to the private `executeParallel()`.
 
