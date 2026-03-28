@@ -25,10 +25,10 @@ import java.util.concurrent.Executors;
  * <p>
  * Scenario:
  * <pre>
- *   outer parForEach [A, B, C]
- *     ├── A: inner parMap [1,2,3,4,5]  (slow tasks, will be canceled)
+ *   outer forEach [A, B, C]
+ *     ├── A: inner map [1,2,3,4,5]  (slow tasks, will be canceled)
  *     ├── B: throws RuntimeException   (triggers fail-fast)
- *     └── C: inner parMap [6,7,8,9,10] (slow tasks, will be canceled)
+ *     └── C: inner map [6,7,8,9,10] (slow tasks, will be canceled)
  * </pre>
  */
 public class NestedScopeCancellationDemo {
@@ -52,7 +52,7 @@ public class NestedScopeCancellationDemo {
             System.out.println("Outer scope starts 3 tasks: A (nested), B (fails), C (nested)");
             System.out.println();
 
-            AsyncBatchResult<Void> outerResult = par.parForEach("demo", outerItems, item -> {
+            AsyncBatchResult<Void> outerResult = par.forEach("demo", outerItems, item -> {
                 switch (item) {
                     case "A":
                         runInnerScope(par, "A", Arrays.asList(1, 2, 3, 4, 5));
@@ -91,7 +91,7 @@ public class NestedScopeCancellationDemo {
     }
 
     /**
-     * Runs a nested inner parMap scope with slow tasks.
+     * Runs a nested inner map scope with slow tasks.
      * When the outer scope cancels, these inner tasks get canceled via token propagation.
      */
     private static void runInnerScope(Par par, String outerTask, List<Integer> items) {
@@ -101,9 +101,9 @@ public class NestedScopeCancellationDemo {
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
-        System.out.println("[outer-" + outerTask + "] Starting inner parMap with items: " + items);
+        System.out.println("[outer-" + outerTask + "] Starting inner map with items: " + items);
 
-        AsyncBatchResult<String> innerResult = par.parMap("demo", items, n -> {
+        AsyncBatchResult<String> innerResult = par.map("demo", items, n -> {
             System.out.println("  [inner-" + outerTask + "] Processing item " + n + " ...");
             // Simulate slow work -- gives time for B to fail and cancel to propagate
             Checkpoints.sleep(2000);

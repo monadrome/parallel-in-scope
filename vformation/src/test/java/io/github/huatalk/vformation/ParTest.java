@@ -70,7 +70,7 @@ public class ParTest {
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.parForEach(
+        AsyncBatchResult<Void> batch = par.forEach(
                 EXECUTOR_NAME, input, results::add, options);
 
         // Wait for all to complete
@@ -92,7 +92,7 @@ public class ParTest {
                 .taskType(TaskType.CPU_BOUND)
                 .build();
 
-        AsyncBatchResult<Integer> batch = par.parMap(
+        AsyncBatchResult<Integer> batch = par.map(
                 EXECUTOR_NAME, input, x -> x * 2, options);
 
         List<Integer> results = new ArrayList<>();
@@ -107,7 +107,7 @@ public class ParTest {
     @Test
     public void testParForEach_empty() {
         ParOptions options = ParOptions.of("testEmpty").build();
-        AsyncBatchResult<Void> batch = par.parForEach(
+        AsyncBatchResult<Void> batch = par.forEach(
                 EXECUTOR_NAME, Collections.emptyList(), x -> {}, options);
         assertTrue(batch.getResults().isEmpty());
     }
@@ -126,7 +126,7 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.parForEach(EXECUTOR_NAME, input, x -> {
+        AsyncBatchResult<Void> batch = par.forEach(EXECUTOR_NAME, input, x -> {
             int cur = concurrency.incrementAndGet();
             maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
             try {
@@ -159,7 +159,7 @@ public class ParTest {
                 .timeout(5000)
                 .build();
 
-        AsyncBatchResult<Void> batch = par.parForEach(
+        AsyncBatchResult<Void> batch = par.forEach(
                 EXECUTOR_NAME, input, x -> {}, options);
 
         for (com.google.common.util.concurrent.ListenableFuture<Void> f : batch.getResults()) {
@@ -188,7 +188,7 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<Integer> batch = par.parMap(EXECUTOR_NAME, input, x -> {
+        AsyncBatchResult<Integer> batch = par.map(EXECUTOR_NAME, input, x -> {
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -215,7 +215,7 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<Integer> batch = par.parMap(EXECUTOR_NAME, input, x -> {
+        AsyncBatchResult<Integer> batch = par.map(EXECUTOR_NAME, input, x -> {
             if (x == 1) {
                 failLatch.countDown();
                 throw new RuntimeException("task 1 failed");
@@ -248,7 +248,7 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
-        AsyncBatchResult<List<Integer>> batch = par.parMap(EXECUTOR_NAME, outerInput, outerItem -> {
+        AsyncBatchResult<List<Integer>> batch = par.map(EXECUTOR_NAME, outerInput, outerItem -> {
             List<Integer> innerInput = Arrays.asList(outerItem * 10, outerItem * 10 + 1);
 
             ParOptions innerOptions = ParOptions.of("innerTask")
@@ -257,7 +257,7 @@ public class ParTest {
                     .rejectEnqueue(false)
                     .build();
 
-            AsyncBatchResult<Integer> innerBatch = par.parMap(EXECUTOR_NAME, innerInput, x -> x + 1, innerOptions);
+            AsyncBatchResult<Integer> innerBatch = par.map(EXECUTOR_NAME, innerInput, x -> x + 1, innerOptions);
 
             List<Integer> innerResults = new ArrayList<>();
             for (com.google.common.util.concurrent.ListenableFuture<Integer> f : innerBatch.getResults()) {
@@ -285,7 +285,7 @@ public class ParTest {
     @Test
     public void testParForEach_nullInput() {
         ParOptions options = ParOptions.of("testNull").timeout(5000).build();
-        AsyncBatchResult<Void> batch = par.parForEach(EXECUTOR_NAME, null, x -> {}, options);
+        AsyncBatchResult<Void> batch = par.forEach(EXECUTOR_NAME, null, x -> {}, options);
         assertTrue(batch.getResults().isEmpty());
     }
 

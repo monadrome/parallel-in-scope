@@ -56,7 +56,7 @@ ParOptions options = ParOptions.ioTask("fetchData")
 
 // 并行执行
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.parMap(
+AsyncBatchResult<String> result = par.map(
     "io-pool",                      // 注册的执行器名称
     urls,
     url -> httpClient.fetch(url),   // 你的业务逻辑
@@ -158,33 +158,68 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 
 ## 架构设计
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                        Par                                │
-│              (parForEach / parMap Facade)                │
-├─────────────────────────────────────────────────────────┤
-│  ParOptions           │  ConcurrentLimitExecutor           │
-│  (Task Config)        │  (Sliding Window Scheduler)        │
-├─────────────────────┼───────────────────────────────────┤
-│         ScopedCallable (Lifecycle Wrapper)                │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐              │
-│  │ Context  │  │Checkpoint│  │  Metrics   │              │
-│  │ Setup    │  │  Check   │  │  (SPI)     │              │
-│  └─────────┘  └──────────┘  └────────────┘              │
-├─────────────────────────────────────────────────────────┤
-│  CancellationToken          │  ThreadRelay (TTL)         │
-│  (Cooperative Cancel)       │  (Context Propagation)     │
-├─────────────────────────────┼───────────────────────────┤
-│  TaskGraph                  │  PurgeService              │
-│  (Livelock Detection)       │  (Pool Cleanup)            │
-├─────────────────────────────────────────────────────────┤
-│                    SPI Layer                              │
-│  TaskListener │ ExecutorResolver │ LivelockListener       │
-│                                                           │
-│  Logging: java.util.logging (JUL)                        │
-└─────────────────────────────────────────────────────────┘
-│          Guava ListenableFuture + TTL                    │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    block:par:2
+        columns 2
+        A["<b>Par</b><br/>forEach / map Facade"]
+        space
+    end
+
+    block:config:2
+        columns 2
+        B["<b>ParOptions</b><br/>Task Config"]
+        C["<b>ConcurrentLimitExecutor</b><br/>Sliding Window Scheduler"]
+    end
+
+    block:scoped:2
+        columns 3
+        D["Context<br/>Setup"]
+        E["Checkpoint<br/>Check"]
+        F["Metrics<br/>(SPI)"]
+    end
+
+    block:core:2
+        columns 2
+        G["<b>CancellationToken</b><br/>Cooperative Cancel"]
+        H["<b>ThreadRelay</b><br/>Context Propagation (TTL)"]
+    end
+
+    block:detect:2
+        columns 2
+        I["<b>TaskGraph</b><br/>Livelock Detection"]
+        J["<b>HeuristicPurger</b><br/>Pool Cleanup"]
+    end
+
+    block:spi:2
+        columns 4
+        K["TaskListener"]
+        L["ExecutorResolver"]
+        M["LivelockListener"]
+        N["JUL Logging"]
+    end
+
+    block:deps:2
+        columns 1
+        O["Guava ListenableFuture + Alibaba TTL"]
+    end
+
+    par --> config
+    config --> scoped
+    scoped --> core
+    core --> detect
+    detect --> spi
+    spi --> deps
+
+    style par fill:#4a90d9,color:#fff
+    style config fill:#5ba55b,color:#fff
+    style scoped fill:#d4a843,color:#fff
+    style core fill:#c0392b,color:#fff
+    style detect fill:#8e44ad,color:#fff
+    style spi fill:#2c3e50,color:#fff
+    style deps fill:#7f8c8d,color:#fff
 ```
 
 ---
@@ -195,46 +230,6 @@ ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
 |------|------|------|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
-
----
-
-## 包结构
-
-```
-io.github.huatalk.vformation
-├── scope/
-│   ├── Par                          # 主入口门面
-│   ├── ParOptions                   # 任务配置 (Builder)
-│   ├── ParConfig                    # 中央配置与 SPI 注册中心
-│   ├── AsyncBatchResult            # 批量结果容器
-│   └── TaskType                    # 任务类型枚举 (CPU/IO)
-├── cancel/
-│   ├── CancellationToken           # 协作式取消令牌
-│   ├── CancellationTokenState      # 取消状态枚举
-│   ├── Checkpoints                 # 协作式检查点
-│   ├── PurgeService                # 线程池清理服务
-│   ├── LeanCancellationException   # 轻量取消异常(无堆栈)
-│   └── FatCancellationException    # 完整取消异常(有堆栈)
-├── context/
-│   ├── ThreadRelay                 # 跨线程上下文接力 (TTL)
-│   ├── TaskScopeTl                 # 任务作用域 ThreadLocal
-│   └── graph/
-│       ├── TaskGraph               # 活锁/死锁检测图
-│       ├── TaskEdge                # 任务依赖边
-│       └── TaskEdgeEntry           # 边条目
-├── internal/
-│   ├── ConcurrentLimitExecutor     # 滑动窗口并发控制
-│   ├── ScopedCallable              # 任务生命周期包装器
-│   ├── Attachable                  # 键值对附件接口
-│   └── ListeningExecutorAdapter    # 执行器适配器
-├── queue/
-│   ├── SmartBlockingQueue          # 任务类型感知队列
-│   └── VariableLinkedBlockingQueue # 动态容量阻塞队列
-└── spi/
-    ├── TaskListener                # 任务监控回调 SPI
-    ├── ExecutorResolver            # 线程池解析 SPI
-    └── LivelockListener            # 活锁检测回调 SPI
-```
 
 ---
 
