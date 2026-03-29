@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * Task dependency graph for livelock/deadlock detection.
  * <p>
- * Extends {@link TransmittableThreadLocal} to share a directed {@link ValueGraph} of task
+ * Uses a composed {@link TransmittableThreadLocal} to share a directed {@link ValueGraph} of task
  * dependencies across all threads within a single request. Records parent-child task
  * relationships as edges with {@link TaskEdge} metadata (parallelism, task type, executor name,
  * task count, timeout).
@@ -46,11 +46,21 @@ import java.util.stream.Collectors;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @SuppressWarnings("UnstableApiUsage")
-public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
+public final class TaskGraph {
 
     private static final Logger logger = Logger.getLogger(TaskGraph.class.getName());
 
-    private static final TaskGraph TTL = new TaskGraph();
+    private static final TransmittableThreadLocal<Data> TTL = new TransmittableThreadLocal<Data>() {
+        @Override
+        protected Data initialValue() {
+            return null;
+        }
+
+        @Override
+        public Data copy(Data parentValue) {
+            return parentValue;
+        }
+    };
 
     private TaskGraph() {
     }
@@ -172,16 +182,6 @@ public class TaskGraph extends TransmittableThreadLocal<TaskGraph.Data> {
             }
             return graphBuilder.build();
         }
-    }
-
-    @Override
-    protected Data initialValue() {
-        return null;
-    }
-
-    @Override
-    public Data copy(Data parentValue) {
-        return parentValue;
     }
 
     // ==================== Request lifecycle ====================
