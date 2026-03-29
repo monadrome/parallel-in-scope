@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
  * <p>
  * Scenario:
  * <pre>
- *   outer forEach [A, B, C]
+ *   outer map [A, B, C]
  *     ├── A: inner map [1,2,3,4,5]  (slow tasks, will be canceled)
  *     ├── B: throws RuntimeException   (triggers fail-fast)
  *     └── C: inner map [6,7,8,9,10] (slow tasks, will be canceled)
@@ -52,7 +52,7 @@ public class NestedScopeCancellationDemo {
             System.out.println("Outer scope starts 3 tasks: A (nested), B (fails), C (nested)");
             System.out.println();
 
-            AsyncBatchResult<Void> outerResult = par.forEach("demo", outerItems, item -> {
+            AsyncBatchResult<Void> outerResult = par.map("demo", outerItems, item -> {
                 switch (item) {
                     case "A":
                         runInnerScope(par, "A", Arrays.asList(1, 2, 3, 4, 5));
@@ -66,6 +66,7 @@ public class NestedScopeCancellationDemo {
                         runInnerScope(par, "C", Arrays.asList(6, 7, 8, 9, 10));
                         break;
                 }
+                return null;
             }, outerOptions);
 
             // Wait for everything to settle
