@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -30,7 +29,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * {@link ParConfig#getInstance()}, or create custom instances via
  * {@link #Par(ParConfig)} for isolated configurations.
  * <p>
- * Provides {@link #forEach} and {@link #map} instance methods that wire together
+ * Provides the {@link #map} instance method that wires together
  * the entire parallel execution pipeline:
  * <ul>
  *   <li>Normalization of {@link ParOptions}</li>
@@ -79,30 +78,6 @@ public final class Par {
      */
     public ParConfig getConfig() {
         return config;
-    }
-
-    /**
-     * Executes a consumer in parallel for each element in the list.
-     * The executor is resolved from the registry by name.
-     *
-     * @param executorName registered executor name
-     * @param list         collection to process
-     * @param consumer     processing function
-     * @param options      execution parameters
-     * @return batch result containing futures for each task
-     * @throws IllegalArgumentException if no executor is registered with the given name
-     */
-    public <T> AsyncBatchResult<Void> forEach(
-            String executorName,
-            List<T> list,
-            Consumer<? super T> consumer,
-            ParOptions options) {
-
-        ListeningExecutorService executor = resolveExecutor(executorName);
-        return executeParallel(list, item -> () -> {
-            consumer.accept(item);
-            return null;
-        }, options, executor, executorName);
     }
 
     /**

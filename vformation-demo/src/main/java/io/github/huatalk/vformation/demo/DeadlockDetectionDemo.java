@@ -24,7 +24,7 @@ import java.util.concurrent.TimeoutException;
  * <pre>
  *   A single fixed-size thread pool (size=4) is used for all tasks.
  *
- *   "task-A" forEach [1,2,3,4] on this pool:
+ *   "task-A" map [1,2,3,4] on this pool:
  *     Each subtask occupies a thread and calls "task-B" map [x,y] on the SAME pool.
  *       Each "task-B" subtask calls "task-A-inner" map [i,j] on the SAME pool.
  *
@@ -79,11 +79,12 @@ public class DeadlockDetectionDemo {
 
             long start = System.currentTimeMillis();
 
-            AsyncBatchResult<Void> result = par.forEach("shared-pool",
+            AsyncBatchResult<Void> result = par.map("shared-pool",
                     Arrays.asList(1, 2, 3, 4), item -> {
                         System.out.println("[task-A-" + item + "] started on " + Thread.currentThread().getName());
                         // Each task-A subtask calls task-B
                         callTaskB(par, item);
+                        return null;
                     }, optionsA);
 
             // Wait with timeout — will timeout because of deadlock
