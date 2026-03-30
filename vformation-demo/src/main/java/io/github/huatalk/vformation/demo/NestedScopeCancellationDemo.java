@@ -35,11 +35,11 @@ public class NestedScopeCancellationDemo {
 
     public static void main(String[] args) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
-        ParConfig config = new ParConfig();
+        ParConfig config = ParConfig.builder()
+                .executor("demo", pool)
+                .build();
         Par par = new Par(config);
         try {
-            config.registerExecutor("demo", pool);
-
             List<String> outerItems = Arrays.asList("A", "B", "C");
 
             ParOptions outerOptions = ParOptions.of("outer-scope")
@@ -86,7 +86,6 @@ public class NestedScopeCancellationDemo {
 
             System.out.println("\n=== Demo Complete ===");
         } finally {
-            config.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }

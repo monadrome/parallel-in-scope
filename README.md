@@ -27,11 +27,10 @@
 ### 2. 初始化（应用启动时执行一次）
 
 ```java
-ParConfig config = new ParConfig();
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
 Par par = new Par(config);
-
-// 注册线程池
-config.registerExecutor("io-pool", Executors.newFixedThreadPool(10));
 ```
 
 ### 3. 使用 `Par.map` 并行处理
@@ -76,44 +75,46 @@ List<ListenableFuture<String>> futures = result.getResults();
 ### 注册监控回调
 
 ```java
-config.addTaskListener(event -> {
-    System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
-        event.getTaskName(),
-        event.executionTimeMillis(),
-        event.waitTimeMillis());
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .taskListener(event -> {
+        System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
+            event.getTaskName(),
+            event.executionTimeMillis(),
+            event.waitTimeMillis());
 
-    if (event.getException() != null) {
-        System.err.println("Task failed: " + event.getException().getMessage());
-    }
-});
+        if (event.getException() != null) {
+            System.err.println("Task failed: " + event.getException().getMessage());
+        }
+    })
+    .build();
 ```
 
 ### 活锁检测
 
 ```java
-// 启用活锁检测
-config.setLivelockDetectionEnabled(true);
+// 通过 Builder 构建包含活锁检测的配置
+ParConfig config = ParConfig.builder()
+    .executor("shared-pool", pool)
+    .livelockDetectionEnabled(true)
+    .livelockListener(event -> {
+        if (event.hasExecutorSelfLoop()) {
+            log.warn("Potential deadlock: executor self-loop detected! {}",
+                event.getExecutorEdges());
+        }
+    })
+    .executorResolver(new ExecutorResolver() {
+        @Override
+        public ThreadPoolExecutor resolveThreadPool(String name) {
+            return executorMap.get(name);
+        }
 
-// 注册活锁监听器
-config.addLivelockListener(event -> {
-    if (event.hasExecutorSelfLoop()) {
-        log.warn("Potential deadlock: executor self-loop detected! {}",
-            event.getExecutorEdges());
-    }
-});
-
-// 提供任务到线程池的映射关系
-config.setExecutorResolver(new ExecutorResolver() {
-    @Override
-    public ThreadPoolExecutor resolveThreadPool(String name) {
-        return executorMap.get(name);
-    }
-
-    @Override
-    public Map<String, String> getTaskToExecutorMapping() {
-        return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
-    }
-});
+        @Override
+        public Map<String, String> getTaskToExecutorMapping() {
+            return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
+        }
+    })
+    .build();
 
 // 在请求入口初始化
 TaskGraph.initOnRequest();

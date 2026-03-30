@@ -28,7 +28,7 @@ public class ScopedCallableTest {
 
     @BeforeEach
     public void setUp() {
-        config = new ParConfig();
+        config = ParConfig.builder().build();
     }
 
     @AfterEach
@@ -72,13 +72,15 @@ public class ScopedCallableTest {
         };
 
         CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
-        config.addTaskListener(events::add);
+        ParConfig listenerConfig = ParConfig.builder()
+                .taskListener(events::add)
+                .build();
 
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
             // Simulate 5ms execution
             nanos.addAndGet(5_000_000);
             return "ok";
-        }, config, fakeTicker);
+        }, listenerConfig, fakeTicker);
 
         // Use default taskName "task" to bypass checkpoint
         callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
@@ -100,9 +102,11 @@ public class ScopedCallableTest {
     @Test
     public void testListener_notifiedOnSuccess() throws Exception {
         CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
-        config.addTaskListener(events::add);
+        ParConfig listenerConfig = ParConfig.builder()
+                .taskListener(events::add)
+                .build();
 
-        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", config);
+        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", listenerConfig);
         callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
         callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
 
@@ -118,12 +122,14 @@ public class ScopedCallableTest {
     @Test
     public void testListener_notifiedOnFailure() {
         CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
-        config.addTaskListener(events::add);
+        ParConfig listenerConfig = ParConfig.builder()
+                .taskListener(events::add)
+                .build();
 
         RuntimeException error = new RuntimeException("test error");
         ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> {
             throw error;
-        }, config);
+        }, listenerConfig);
         callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
         callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
 
@@ -135,11 +141,13 @@ public class ScopedCallableTest {
 
     @Test
     public void testListenerException_swallowed() throws Exception {
-        config.addTaskListener(event -> {
-            throw new RuntimeException("listener boom");
-        });
+        ParConfig listenerConfig = ParConfig.builder()
+                .taskListener(event -> {
+                    throw new RuntimeException("listener boom");
+                })
+                .build();
 
-        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", config);
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", listenerConfig);
         callable.setTtlAttachment(ScopedCallable.KEY_PARALLEL_OPTIONS, ParOptions.of("task").build());
         callable.setTtlAttachment(ScopedCallable.KEY_CANCELLATION_TOKEN, CancellationToken.create());
 
