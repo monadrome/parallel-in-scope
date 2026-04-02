@@ -4,7 +4,7 @@ package io.github.huatalk.vformation.spi;
  * SPI: Task lifecycle listener for metrics collection and monitoring.
  * <p>
  * Implementations can record task execution times, queue wait times, etc.
- * Register via {@link io.github.huatalk.vformation.scope.ParConfig#addTaskListener(TaskListener)}.
+ * Register via {@link io.github.huatalk.vformation.scope.ParConfig.Builder#taskListener(TaskListener)}.
  * <p>
  * All time values are in nanoseconds.
  *
