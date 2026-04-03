@@ -1,16 +1,12 @@
 package io.github.huatalk.vformation.queue;
 
+import com.google.common.util.concurrent.ForwardingBlockingQueue;
 import io.github.huatalk.vformation.context.TaskScopeTl;
 import io.github.huatalk.vformation.scope.ParOptions;
 import io.github.huatalk.vformation.scope.TaskType;
 
-import java.util.AbstractQueue;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Smart blocking queue that dynamically adjusts enqueue behavior based on task type.
@@ -23,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * @param <E> the type of elements held in this queue
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
+public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 
     private final VariableLinkedBlockingQueue<E> delegate;
 
@@ -32,6 +28,11 @@ public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
             throw new IllegalArgumentException("capacity must be positive");
         }
         this.delegate = new VariableLinkedBlockingQueue<>(capacity);
+    }
+
+    @Override
+    protected BlockingQueue<E> delegate() {
+        return delegate;
     }
 
     /** Dynamically adjust queue capacity */
@@ -66,29 +67,4 @@ public class SmartBlockingQueue<E> extends AbstractQueue<E> implements BlockingQ
         }
         return new SmartBlockingQueue<>(capacity);
     }
-
-    // ==================== Delegation ====================
-
-    @Override public boolean add(E e) { return delegate.add(e); }
-    @Override public void put(E e) throws InterruptedException { delegate.put(e); }
-    @Override public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException { return delegate.offer(e, timeout, unit); }
-    @Override public E take() throws InterruptedException { return delegate.take(); }
-    @Override public E poll(long timeout, TimeUnit unit) throws InterruptedException { return delegate.poll(timeout, unit); }
-    @Override public E poll() { return delegate.poll(); }
-    @Override public E peek() { return delegate.peek(); }
-    @Override public int remainingCapacity() { return delegate.remainingCapacity(); }
-    @Override public boolean remove(Object o) { return delegate.remove(o); }
-    @Override public boolean contains(Object o) { return delegate.contains(o); }
-    @Override public int drainTo(Collection<? super E> c) { return delegate.drainTo(c); }
-    @Override public int drainTo(Collection<? super E> c, int maxElements) { return delegate.drainTo(c, maxElements); }
-    @Override public int size() { return delegate.size(); }
-    @Override public boolean isEmpty() { return delegate.isEmpty(); }
-    @Override public Iterator<E> iterator() { return delegate.iterator(); }
-    @Override public Object[] toArray() { return delegate.toArray(); }
-    @Override public <T> T[] toArray(T[] a) { return delegate.toArray(a); }
-    @Override public boolean containsAll(Collection<?> c) { return delegate.containsAll(c); }
-    @Override public boolean addAll(Collection<? extends E> c) { return delegate.addAll(c); }
-    @Override public boolean removeAll(Collection<?> c) { return delegate.removeAll(c); }
-    @Override public boolean retainAll(Collection<?> c) { return delegate.retainAll(c); }
-    @Override public void clear() { delegate.clear(); }
 }

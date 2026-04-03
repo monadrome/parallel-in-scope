@@ -34,11 +34,11 @@ public class CancellationDemo {
 
     public static void main(String[] args) {
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        ParConfig config = new ParConfig();
+        ParConfig config = ParConfig.builder()
+                .executor("demo", pool)
+                .build();
         Par par = new Par(config);
         try {
-            config.registerExecutor("demo", pool);
-
             List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
             ParOptions options = ParOptions.of("cancel-demo")
@@ -81,7 +81,6 @@ public class CancellationDemo {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            config.unregisterExecutor("demo");
             pool.shutdownNow();
         }
     }

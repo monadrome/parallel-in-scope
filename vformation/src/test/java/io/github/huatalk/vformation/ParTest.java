@@ -43,11 +43,12 @@ public class ParTest {
 
     @BeforeEach
     public void setUp() {
-        config = new ParConfig();
         executor = Executors.newFixedThreadPool(4);
-        config.registerExecutor(EXECUTOR_NAME, executor);
         listener = new RecordingTaskListener();
-        config.addTaskListener(listener);
+        config = ParConfig.builder()
+                .executor(EXECUTOR_NAME, executor)
+                .taskListener(listener)
+                .build();
         par = new Par(config);
         TaskGraph.initOnRequest();
     }
@@ -55,8 +56,6 @@ public class ParTest {
     @AfterEach
     public void tearDown() {
         TaskGraph.destroyAfterRequest(config);
-        config.removeTaskListener(listener);
-        config.unregisterExecutor(EXECUTOR_NAME);
         executor.shutdownNow();
     }
 

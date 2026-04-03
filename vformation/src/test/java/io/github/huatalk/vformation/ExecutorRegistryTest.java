@@ -34,36 +34,35 @@ public class ExecutorRegistryTest {
 
     private static final String POOL_NAME = "registry-test-pool";
     private ExecutorService executor;
-    private ParConfig config;
-    private Par par;
 
     @BeforeEach
     public void setUp() {
-        config = new ParConfig();
         executor = Executors.newFixedThreadPool(2);
-        par = new Par(config);
         TaskGraph.initOnRequest();
     }
 
     @AfterEach
     public void tearDown() {
+        ParConfig config = ParConfig.builder().build();
         TaskGraph.destroyAfterRequest(config);
-        config.unregisterExecutor(POOL_NAME);
-        config.setExecutorResolver(null);
         executor.shutdownNow();
     }
 
-    // ==================== 5.1: Register/Get/Unregister Lifecycle ====================
+    // ==================== 5.1: Register/Get Lifecycle ====================
 
     @Test
-    public void testRegisterGetUnregisterLifecycle() {
-        assertNull(config.getExecutor(POOL_NAME));
+    public void testRegisterAndGet() {
+        ParConfig config = ParConfig.builder()
+                .executor(POOL_NAME, executor)
+                .build();
 
-        config.registerExecutor(POOL_NAME, executor);
         ListeningExecutorService retrieved = config.getExecutor(POOL_NAME);
         assertNotNull(retrieved);
+    }
 
-        config.unregisterExecutor(POOL_NAME);
+    @Test
+    public void testGetUnregistered_returnsNull() {
+        ParConfig config = ParConfig.builder().build();
         assertNull(config.getExecutor(POOL_NAME));
     }
 
@@ -72,26 +71,29 @@ public class ExecutorRegistryTest {
     @Test
     public void testRegisterWithNullNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> config.registerExecutor(null, executor));
+                () -> ParConfig.builder().executor(null, executor));
     }
 
     @Test
     public void testRegisterWithEmptyNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> config.registerExecutor("", executor));
+                () -> ParConfig.builder().executor("", executor));
     }
 
     @Test
     public void testRegisterWithNullExecutorThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> config.registerExecutor(POOL_NAME, null));
+                () -> ParConfig.builder().executor(POOL_NAME, null));
     }
 
     // ==================== 5.3: map and forEach with executor name ====================
 
     @Test
     public void testParMapWithExecutorName() throws Exception {
-        config.registerExecutor(POOL_NAME, executor);
+        ParConfig config = ParConfig.builder()
+                .executor(POOL_NAME, executor)
+                .build();
+        Par par = new Par(config);
         List<Integer> input = Arrays.asList(1, 2, 3);
 
         ParOptions options = ParOptions.of("registryParMap")
@@ -112,7 +114,10 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testParForEachWithExecutorName() throws Exception {
-        config.registerExecutor(POOL_NAME, executor);
+        ParConfig config = ParConfig.builder()
+                .executor(POOL_NAME, executor)
+                .build();
+        Par par = new Par(config);
         List<String> input = Arrays.asList("a", "b", "c");
         CopyOnWriteArrayList<String> results = new CopyOnWriteArrayList<>();
 
@@ -138,6 +143,8 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testParMapWithUnregisteredNameThrows() {
+        ParConfig config = ParConfig.builder().build();
+        Par par = new Par(config);
         ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
                 () -> par.map("nonexistent", Arrays.asList(1), x -> x, options));
@@ -145,6 +152,8 @@ public class ExecutorRegistryTest {
 
     @Test
     public void testParForEachWithUnregisteredNameThrows() {
+        ParConfig config = ParConfig.builder().build();
+        Par par = new Par(config);
         ParOptions options = ParOptions.of("test").build();
         assertThrows(IllegalArgumentException.class,
                 () -> par.map("nonexistent", Arrays.asList(1), x -> null, options));
@@ -157,7 +166,9 @@ public class ExecutorRegistryTest {
         ThreadPoolExecutor tpe = new ThreadPoolExecutor(
                 2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         try {
-            config.registerExecutor(POOL_NAME, tpe);
+            ParConfig config = ParConfig.builder()
+                    .executor(POOL_NAME, tpe)
+                    .build();
 
             // No explicit ExecutorResolver set
             ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
@@ -172,7 +183,9 @@ public class ExecutorRegistryTest {
     public void testResolveThreadPoolReturnsNullForNonThreadPoolExecutor() {
         // Executors.newFixedThreadPool returns a ThreadPoolExecutor in practice,
         // but let's test with a non-TPE to verify the instanceof check
-        config.registerExecutor(POOL_NAME, executor);
+        ParConfig config = ParConfig.builder()
+                .executor(POOL_NAME, executor)
+                .build();
         // executor from Executors.newFixedThreadPool IS a ThreadPoolExecutor, so it should resolve
         ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
         assertNotNull(resolved);
@@ -188,22 +201,23 @@ public class ExecutorRegistryTest {
                 2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
         try {
-            config.registerExecutor(POOL_NAME, registryTpe);
+            ParConfig config = ParConfig.builder()
+                    .executor(POOL_NAME, registryTpe)
+                    .executorResolver(new ExecutorResolver() {
+                        @Override
+                        public ThreadPoolExecutor resolveThreadPool(String executorName) {
+                            if (POOL_NAME.equals(executorName)) {
+                                return resolverTpe;
+                            }
+                            return null;
+                        }
 
-            config.setExecutorResolver(new ExecutorResolver() {
-                @Override
-                public ThreadPoolExecutor resolveThreadPool(String executorName) {
-                    if (POOL_NAME.equals(executorName)) {
-                        return resolverTpe;
-                    }
-                    return null;
-                }
-
-                @Override
-                public Map<String, String> getTaskToExecutorMapping() {
-                    return Collections.emptyMap();
-                }
-            });
+                        @Override
+                        public Map<String, String> getTaskToExecutorMapping() {
+                            return Collections.emptyMap();
+                        }
+                    })
+                    .build();
 
             ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
             assertSame(resolverTpe, resolved, "Explicit ExecutorResolver should take priority over registry");
