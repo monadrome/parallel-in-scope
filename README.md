@@ -1,3 +1,5 @@
+**中文** | [**English**](README_EN.md)
+
 # 🪿 VFormation（雁阵）
 
 > **⚠️ 项目状态：开发中（Pre-release）**
