@@ -11,6 +11,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableList;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -80,7 +82,7 @@ public class ConcurrentLimitExecutorTest {
         }
         assertEquals(3, values.size());
         Collections.sort(values);
-        assertEquals(List.of(0, 10, 20), values);
+        assertEquals(ImmutableList.of(0, 10, 20), values);
     }
 
     @Test
