@@ -3,8 +3,6 @@ package io.github.huatalk.vformation;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.huatalk.vformation.cancel.CancellationToken;
-import io.github.huatalk.vformation.cancel.CancellationTokenState;
 import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableList;

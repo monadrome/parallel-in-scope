@@ -1,9 +1,7 @@
 package io.github.huatalk.vformation;
 
-import io.github.huatalk.vformation.context.TaskScopeTl;
 import io.github.huatalk.vformation.queue.SmartBlockingQueue;
 import io.github.huatalk.vformation.queue.VariableLinkedBlockingQueue;
-import io.github.huatalk.vformation.scope.ParOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
