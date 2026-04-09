@@ -1,12 +1,12 @@
 package io.github.huatalk.vformation.demo;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.huatalk.vformation.cancel.Checkpoints;
-import io.github.huatalk.vformation.scope.AsyncBatchResult;
-import io.github.huatalk.vformation.scope.ParConfig;
-import io.github.huatalk.vformation.scope.Par;
-import io.github.huatalk.vformation.scope.ParOptions;
-import io.github.huatalk.vformation.scope.TaskType;
+import io.github.huatalk.vformation.Checkpoints;
+import io.github.huatalk.vformation.AsyncBatchResult;
+import io.github.huatalk.vformation.ParConfig;
+import io.github.huatalk.vformation.Par;
+import io.github.huatalk.vformation.ParOptions;
+import io.github.huatalk.vformation.TaskType;
 
 import java.util.Arrays;
 import java.util.List;
