@@ -134,10 +134,8 @@ public final class Par {
         // Create ScopedCallable list with context fields
         List<Callable<R>> tasks = list.stream()
                 .map(item -> {
-                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config);
-                    scopedCallable.setParallelOptions(normalizedOptions);
-                    scopedCallable.setCancellationToken(cancellationToken);
-                    scopedCallable.setExecutorName(executorName != null ? executorName : "NA");
+                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config,
+                            normalizedOptions, cancellationToken, executorName != null ? executorName : "NA");
                     return (Callable<R>) scopedCallable;
                 })
                 .collect(toImmutableList());

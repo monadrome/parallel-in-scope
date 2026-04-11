@@ -53,23 +53,33 @@ public class ScopedCallable<V> implements Callable<V> {
     private final ParConfig config;
     private final long submitTime;
 
-    private ParOptions parallelOptions;
-    private CancellationToken cancellationToken;
-    private String executorName = "NA";
+    private final ParOptions parallelOptions;
+    private final CancellationToken cancellationToken;
+    private final String executorName;
 
-    private long startTime;
-    private long endTime;
+    private volatile long startTime;
+    private volatile long endTime;
 
-    ScopedCallable(String taskName, Callable<V> delegate, ParConfig config, Ticker ticker) {
+    ScopedCallable(String taskName, Callable<V> delegate, ParConfig config, Ticker ticker,
+                   ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.config = Objects.requireNonNull(config, "config cannot be null");
         this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
+        this.parallelOptions = Objects.requireNonNull(parallelOptions, "parallelOptions cannot be null");
+        this.cancellationToken = Objects.requireNonNull(cancellationToken, "cancellationToken cannot be null");
+        this.executorName = executorName != null ? executorName : "NA";
         this.submitTime = ticker.read();
     }
 
-    ScopedCallable(String taskName, Callable<V> delegate, ParConfig config) {
-        this(taskName, delegate, config, Ticker.systemTicker());
+    ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
+                   ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
+        this(taskName, delegate, config, Ticker.systemTicker(), parallelOptions, cancellationToken, executorName);
+    }
+
+    ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
+                   ParOptions parallelOptions, CancellationToken cancellationToken) {
+        this(taskName, delegate, config, parallelOptions, cancellationToken, "NA");
     }
 
     /** Actual execution duration (nanoseconds) */
@@ -87,24 +97,12 @@ public class ScopedCallable<V> implements Callable<V> {
         return parallelOptions;
     }
 
-    void setParallelOptions(ParOptions parallelOptions) {
-        this.parallelOptions = parallelOptions;
-    }
-
     public CancellationToken getCancellationToken() {
         return cancellationToken;
     }
 
-    void setCancellationToken(CancellationToken cancellationToken) {
-        this.cancellationToken = cancellationToken;
-    }
-
     public String getExecutorName() {
         return executorName;
-    }
-
-    void setExecutorName(String executorName) {
-        this.executorName = executorName != null ? executorName : "NA";
     }
 
     @Override
