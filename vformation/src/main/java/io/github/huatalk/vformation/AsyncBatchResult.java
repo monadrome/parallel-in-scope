@@ -3,6 +3,8 @@ package io.github.huatalk.vformation;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import javax.annotation.Nullable;
+
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +24,7 @@ public final class AsyncBatchResult<T> {
     private final ListenableFuture<?> submitCanceller;
     private final List<ListenableFuture<T>> results;
 
-    private AsyncBatchResult(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+    private AsyncBatchResult(@Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = results;
     }
@@ -91,7 +93,7 @@ public final class AsyncBatchResult<T> {
         private final Map<FutureState, Integer> stateCounts;
         private final Throwable firstException;
 
-        public BatchReport(Map<FutureState, Integer> stateCounts, Throwable firstException) {
+        public BatchReport(Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
             this.stateCounts = stateCounts;
             this.firstException = firstException;
         }
@@ -100,6 +102,7 @@ public final class AsyncBatchResult<T> {
         public Map<FutureState, Integer> getStateCounts() { return stateCounts; }
 
         /** First exception from failed tasks, or null if none failed. */
+        @Nullable
         public Throwable getFirstException() { return firstException; }
 
         @Override

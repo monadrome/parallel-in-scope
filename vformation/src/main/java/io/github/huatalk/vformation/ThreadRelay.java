@@ -1,6 +1,7 @@
 package io.github.huatalk.vformation;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +60,7 @@ class ThreadRelay {
 
     // ==================== CancellationToken relay ====================
 
-    static CancellationToken getParentCancellationToken() {
+    static @Nullable CancellationToken getParentCancellationToken() {
         ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
             return null;

@@ -62,3 +62,26 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 | Guava 33.2.1-jre | `ListenableFuture`, `FluentFuture`, `Futures`, `Graph` API, `MoreExecutors` |
 | TransmittableThreadLocal 2.14.5 | Cross-thread context propagation (Alibaba TTL) |
 | Lombok 1.18.30 | Compile-time code generation (provided scope) |
+| JSR-305 3.0.2 | `javax.annotation.Nullable`/`@Nonnull` for Public API (provided scope) |
+| Checker Framework checker-qual 3.42.0 | `org.checkerframework.checker.nullness.qual.Nullable` for Internal code (provided scope) |
+
+### Nullability Conventions
+
+The project uses a **hybrid nullability annotation strategy** with package-level default `@NonNull`:
+
+**Package-level default**: Every package has `package-info.java` with `@javax.annotation.ParametersAreNonnullByDefault`, so all method parameters are non-null by default. Only `@Nullable` annotations are needed on exceptions.
+
+**Annotation source rules by class category:**
+
+| Category | Classes | Annotation Source |
+|----------|---------|-------------------|
+| Public API | `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState` | `javax.annotation.Nullable` (JSR-305) |
+| SPI | `TaskListener`, `ExecutorResolver`, `LivelockListener`, `PurgeStrategy` | `javax.annotation.Nullable` (JSR-305) |
+| Internal | All other classes | `org.checkerframework.checker.nullness.qual.Nullable` (Checker Framework) |
+
+**When to add `@Nullable`:**
+- Return values that can be `null` (e.g., `getExecutor()` returns null if not found)
+- Parameters that explicitly accept `null` (e.g., `setPurgeStrategy(null)` to clear)
+- Do NOT add `@Nonnull`/`@NonNull` on parameters — covered by package default
+
+**Checker Framework TYPE_USE style** (Internal classes only): Use `@Nullable` before the type, e.g., `public static @Nullable Data data()`
