@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.vformation.AsyncBatchResult.BatchReport;
 import io.github.huatalk.vformation.spi.PurgeStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -120,14 +121,14 @@ public class HeuristicPurger {
      *
      * @param strategy the custom strategy, or null to clear
      */
-    public static void setPurgeStrategy(PurgeStrategy strategy) {
+    public static void setPurgeStrategy(@Nullable PurgeStrategy strategy) {
         purgeStrategy = strategy;
     }
 
     /**
      * Returns the currently registered purge strategy, or {@code null} if none.
      */
-    public static PurgeStrategy getPurgeStrategy() {
+    public static @Nullable PurgeStrategy getPurgeStrategy() {
         return purgeStrategy;
     }
 

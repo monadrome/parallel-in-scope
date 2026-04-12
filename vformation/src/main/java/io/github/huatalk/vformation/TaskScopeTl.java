@@ -1,5 +1,6 @@
 package io.github.huatalk.vformation;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Task-level thread-local storage using regular {@link ThreadLocal} (NOT TransmittableThreadLocal).
@@ -18,7 +19,7 @@ public final class TaskScopeTl {
     private TaskScopeTl() {
     }
 
-    public static CancellationToken getCancellationToken() {
+    public static @Nullable CancellationToken getCancellationToken() {
         return CANCELLATION_TOKEN_TL.get();
     }
 
@@ -26,7 +27,7 @@ public final class TaskScopeTl {
         CANCELLATION_TOKEN_TL.set(token);
     }
 
-    public static ParOptions getParallelOptions() {
+    public static @Nullable ParOptions getParallelOptions() {
         return PARALLEL_OPTIONS_TL.get();
     }
 

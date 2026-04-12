@@ -6,6 +6,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -86,7 +88,7 @@ public final class Par {
      */
     public <T, R> AsyncBatchResult<R> map(
             String executorName,
-            List<T> list,
+            @Nullable List<T> list,
             Function<? super T, ? extends R> function,
             ParOptions options) {
 

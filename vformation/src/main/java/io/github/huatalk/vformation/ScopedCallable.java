@@ -3,6 +3,7 @@ package io.github.huatalk.vformation;
 import com.google.common.base.Ticker;
 import io.github.huatalk.vformation.spi.TaskListener;
 import io.github.huatalk.vformation.spi.TaskListener.TaskEvent;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,7 +44,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * Returns the ScopedCallable currently executing on the calling thread,
      * or {@code null} if no task is running.
      */
-    public static ScopedCallable<?> current() {
+    public static @Nullable ScopedCallable<?> current() {
         return CURRENT.get();
     }
 
