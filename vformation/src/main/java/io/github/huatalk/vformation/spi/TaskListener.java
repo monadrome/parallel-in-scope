@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
+@FunctionalInterface
 public interface TaskListener {
 
     /**
