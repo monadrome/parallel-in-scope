@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Key addition: {@link #setCapacity(int)} allows runtime capacity adjustment.
  *
  * @param <E> the type of elements held in this queue
- * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @author Doug Lea
  */
 public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E>, Serializable {
