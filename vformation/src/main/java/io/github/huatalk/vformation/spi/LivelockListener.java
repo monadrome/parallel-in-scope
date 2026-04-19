@@ -1,5 +1,8 @@
 package io.github.huatalk.vformation.spi;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * SPI: Livelock/deadlock detection event listener.
  * <p>
@@ -8,6 +11,7 @@ package io.github.huatalk.vformation.spi;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
+@FunctionalInterface
 public interface LivelockListener {
 
     /**
