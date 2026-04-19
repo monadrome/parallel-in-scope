@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.vformation.spi.ExecutorResolver;
 import io.github.huatalk.vformation.spi.LivelockListener;
@@ -47,6 +48,7 @@ import java.util.logging.Logger;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
+@SuppressWarnings("UnstableApiUsage")
 public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
@@ -85,6 +87,7 @@ public final class ParConfig {
     private final ImmutableMap<String, ExecutorService> executorRawRegistry;
     private final long defaultTimeoutMillis;
     private final boolean livelockDetectionEnabled;
+    private final RateLimiter purgeRateLimiter;
 
     private ParConfig(Builder builder) {
         this.taskListeners = builder.taskListeners.build();
@@ -92,6 +95,7 @@ public final class ParConfig {
         this.executorResolver = builder.executorResolver;
         this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
+        this.purgeRateLimiter = RateLimiter.create(builder.maxPurgeRate);
 
         // Build executor maps: adapt raw executors to ListeningExecutorService
         ImmutableMap.Builder<String, ListeningExecutorService> decoratedBuilder = ImmutableMap.builder();
@@ -126,6 +130,7 @@ public final class ParConfig {
         private final LinkedHashMap<String, ExecutorService> executors = new LinkedHashMap<>();
         private long defaultTimeoutMillis = 60_000L;
         private boolean livelockDetectionEnabled = false;
+        private double maxPurgeRate = 1.0;
 
         Builder() {
         }
@@ -152,6 +157,21 @@ public final class ParConfig {
          */
         public Builder livelockDetectionEnabled(boolean enabled) {
             this.livelockDetectionEnabled = enabled;
+            return this;
+        }
+
+        /**
+         * Sets the maximum purge rate (permits per second) for
+         * {@link HeuristicPurger}. Default is {@code 1.0}.
+         *
+         * @param maxPurgeRate maximum purge operations per second (must be positive)
+         * @return this builder
+         */
+        public Builder maxPurgeRate(double maxPurgeRate) {
+            if (maxPurgeRate <= 0) {
+                throw new IllegalArgumentException("maxPurgeRate must be positive");
+            }
+            this.maxPurgeRate = maxPurgeRate;
             return this;
         }
 
@@ -356,5 +376,12 @@ public final class ParConfig {
      */
     public boolean isLivelockDetectionEnabled() {
         return livelockDetectionEnabled;
+    }
+
+    /**
+     * Returns the rate limiter for {@link HeuristicPurger} purge operations.
+     */
+    RateLimiter getPurgeRateLimiter() {
+        return purgeRateLimiter;
     }
 }

@@ -76,12 +76,12 @@ The project uses a **hybrid nullability annotation strategy** with package-level
 | Category | Classes | Annotation Source |
 |----------|---------|-------------------|
 | Public API | `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState` | `javax.annotation.Nullable` (JSR-305) |
-| SPI | `TaskListener`, `ExecutorResolver`, `LivelockListener`, `PurgeStrategy` | `javax.annotation.Nullable` (JSR-305) |
+| SPI | `TaskListener`, `ExecutorResolver`, `LivelockListener` | `javax.annotation.Nullable` (JSR-305) |
 | Internal | All other classes | `org.checkerframework.checker.nullness.qual.Nullable` (Checker Framework) |
 
 **When to add `@Nullable`:**
 - Return values that can be `null` (e.g., `getExecutor()` returns null if not found)
-- Parameters that explicitly accept `null` (e.g., `setPurgeStrategy(null)` to clear)
+- Parameters that explicitly accept `null`
 - Do NOT add `@Nonnull`/`@NonNull` on parameters — covered by package default
 
 **Checker Framework TYPE_USE style** (Internal classes only): Use `@Nullable` before the type, e.g., `public static @Nullable Data data()`
