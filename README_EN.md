@@ -6,15 +6,10 @@
 >
 > This project is under active development. APIs may change. Feedback and suggestions are welcome via Issues.
 
-🪿 **VFormation** is a structured concurrency toolkit for Java 8+, bringing modern structured concurrency concepts — cooperative cancellation, fail-fast, deadlock detection, context propagation — to the Java 8 ecosystem. 🛡️🚀🎯
-
-Just as geese share aerodynamic drag in a V-formation, VFormation orchestrates your parallel tasks through cooperative cancellation, fail-fast, deadlock detection, context propagation, and sliding-window scheduling — **fail immediately, cancel cascadingly, deadlocks visible**.
-
-## Design Boundaries (Idea Graveyard)
-
-To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](IdeaGraveyard.md) (inspired by Guava's same practice): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
-
----
+🪿 **VFormation** is a structured concurrency toolkit for Java 8+, built around cooperative cancellation, fail-fast behavior, context propagation, deadlock detection, and sliding-window scheduling.  
+It targets practical Java 8 pain points: lost cancellation signals, missing `ThreadLocal` context across thread pools, and hard-to-debug deadlocks in nested parallel calls.  
+Compared with CompletableFuture chains and traditional `ExecutorService + invokeAll` workflows, VFormation prioritizes structured semantics and operational safety.  
+The goal is simple: without upgrading JDK, make concurrent code move from “just works” to **fail immediately, cancel cascadingly, deadlocks visible**.
 
 ## Quick Start
 
@@ -108,6 +103,16 @@ That's it. `Par.map` internally handles sliding-window scheduling, timeout contr
 **Problem:** When CPU-bound and IO-bound tasks share the same queue, a flood of IO tasks can starve CPU tasks, causing computation latency to spike.
 
 **Solution:** CPU-bound tasks' `offer()` returns `false`, triggering the rejection policy (typically `CallerRunsPolicy`) — preferring synchronous execution on the caller thread over blocking worker threads. IO-bound tasks queue normally.
+
+---
+
+## When to Use & Design Boundaries
+
+**Recommended for:** Java 8 parallel batch workloads that need fail-fast behavior, cascading cancellation, context propagation, and better observability.
+
+**Not ideal for:** workflows that require reactive chain orchestration, built-in retry/fault-tolerance policies, or a Spring Boot Starter (intentionally out of scope for now).
+
+To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](IdeaGraveyard.md) (inspired by Guava's same practice): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
 
 ---
 
@@ -253,6 +258,16 @@ sequenceDiagram
 |---|---|---|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | Cross-thread context propagation |
+
+---
+
+## Compatibility
+
+| Item | Notes |
+|---|---|
+| JDK | Java 8+ (`maven.compiler.source/target = 1.8`) |
+| Build Tool | Maven 3.x (recommended) |
+| Core Modules | `vformation` (library), `vformation-demo` (sample project) |
 
 ---
 
