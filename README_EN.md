@@ -256,7 +256,7 @@ sequenceDiagram
 
 | Dependency | Version | Purpose |
 |---|---|---|
-| Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
+| Guava | 33.6.0-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | Cross-thread context propagation |
 
 ---

@@ -59,11 +59,11 @@ Base package: `io.github.huatalk.vformation` with 7 sub-packages:
 
 | Dependency | Purpose |
 |---|---|
-| Guava 33.2.1-jre | `ListenableFuture`, `FluentFuture`, `Futures`, `Graph` API, `MoreExecutors` |
+| Guava 33.6.0-jre | `ListenableFuture`, `FluentFuture`, `Futures`, `Graph` API, `MoreExecutors` |
 | TransmittableThreadLocal 2.14.5 | Cross-thread context propagation (Alibaba TTL) |
-| Lombok 1.18.30 | Compile-time code generation (provided scope) |
+| Lombok 1.18.46 | Compile-time code generation (provided scope) |
 | JSR-305 3.0.2 | `javax.annotation.Nullable`/`@Nonnull` for Public API (provided scope) |
-| Checker Framework checker-qual 3.42.0 | `org.checkerframework.checker.nullness.qual.Nullable` for Internal code (provided scope) |
+| Checker Framework checker-qual 3.55.1 | `org.checkerframework.checker.nullness.qual.Nullable` for Internal code (provided scope) |
 
 ### Nullability Conventions
 
