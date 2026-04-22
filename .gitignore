@@ -10,3 +10,6 @@ target/
 
 # Claude
 .claude/
+
+# Local worktrees
+.worktrees/
