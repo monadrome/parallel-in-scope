@@ -1,10 +1,14 @@
 ## MODIFIED Requirements
 
 ### Requirement: Package layout
-The project SHALL organize all classes into the following 3 packages under the base `io.github.huatalk.vformation`:
-- root package — API facade, cancellation, context, livelock, execution engine classes
-- `queue` — Scheduling queue classes
-- `spi` — Extension point interfaces
+The project SHALL organize all classes into the following packages under the base `io.github.huatalk.parallelinscope`:
+- `scope` — public scope API and configuration classes (`Par`, `ParConfig`, `ParOptions`, `AsyncBatchResult`, `TaskType`)
+- `cancel` — cancellation and purge classes (`CancellationToken`, `CancellationTokenState`, `Checkpoints`, cancellation exceptions, `HeuristicPurger`)
+- `context` — task context relay classes (`TaskScopeTl`, `ThreadRelay`)
+- `context.graph` — task graph and livelock graph classes (`TaskGraph`, `TaskEdge`, `TaskEdgeEntry`)
+- `internal` — execution internals (`ConcurrentLimitExecutor`, `FutureInspector`, `FutureState`, `ScopedCallable`)
+- `queue` — scheduling queue classes
+- `spi` — extension point interfaces
 
 Each package SHALL contain a `package-info.java` file with `@javax.annotation.ParametersAreNonnullByDefault` annotation.
 
@@ -14,4 +18,4 @@ Each package SHALL contain a `package-info.java` file with `@javax.annotation.Pa
 
 #### Scenario: Each package has package-info.java
 - **WHEN** the source directory is listed
-- **THEN** each of the 3 packages SHALL contain a `package-info.java` file
+- **THEN** each package listed above SHALL contain a `package-info.java` file

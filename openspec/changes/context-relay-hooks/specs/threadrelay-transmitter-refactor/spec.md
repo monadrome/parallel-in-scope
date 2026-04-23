@@ -8,7 +8,7 @@
 - **THEN** the child thread's ThreadRelay.parentMap SHALL contain the parent's curMap entries, identical to the current TransmittableThreadLocal behavior
 
 #### Scenario: Initial value for new threads
-- **WHEN** a thread that has never been used by vformation accesses ThreadRelay
+- **WHEN** a thread that has never been used by parallel-in-scope accesses ThreadRelay
 - **THEN** it SHALL receive a fresh ThreadRelay instance with empty parentMap and curMap (via ThreadLocal.withInitial)
 
 ### Requirement: ScopedCallable exposes current instance via ThreadLocal

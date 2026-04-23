@@ -1,6 +1,6 @@
 ## Context
 
-vformation 框架通过 `ThreadRelay`（Two-Map TTL 模式）和 `TaskScopeTl`（Plain ThreadLocal）实现了框架内部上下文（CancellationToken、ParOptions、taskName、executorName）的跨线程传播。`ScopedCallable.call()` 在执行前设置上下文、执行后清理上下文。
+parallel-in-scope 框架通过 `ThreadRelay`（Two-Map TTL 模式）和 `TaskScopeTl`（Plain ThreadLocal）实现了框架内部上下文（CancellationToken、ParOptions、taskName、executorName）的跨线程传播。`ScopedCallable.call()` 在执行前设置上下文、执行后清理上下文。
 
 当前存在两个架构问题：
 

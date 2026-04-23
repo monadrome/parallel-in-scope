@@ -5,16 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.huatalk</groupId>
-    <artifactId>vformation-parent</artifactId>
+    <artifactId>parallel-in-scope-parent</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
-    <name>VFormation Parent</name>
+    <name>parallel-in-scope Parent</name>
     <description>
-        VFormation (雁阵) — A structured concurrency toolkit for Java 8+.
+        parallel-in-scope (雁阵) — A structured concurrency toolkit for Java 8+.
         Cooperative cancellation, fail-fast, deadlock detection, context propagation, sliding-window scheduling.
     </description>
-    <url>https://github.com/huatalk/vformation</url>
+    <url>https://github.com/huatalk/parallel-in-scope</url>
 
     <licenses>
         <license>
@@ -24,8 +24,8 @@
     </licenses>
 
     <modules>
-        <module>vformation</module>
-        <module>vformation-demo</module>
+        <module>parallel-in-scope</module>
+        <module>parallel-in-scope-demo</module>
     </modules>
 
     <properties>

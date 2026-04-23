@@ -1,14 +1,14 @@
 [**中文**](README.md) | **English**
 
-# 🪿 VFormation
+# 🪿 parallel-in-scope
 
 > **⚠️ Status: In Development (Pre-release)**
 >
 > This project is under active development. APIs may change. Feedback and suggestions are welcome via Issues.
 
-🪿 **VFormation** is a structured concurrency toolkit for Java 8+, built around cooperative cancellation, fail-fast behavior, context propagation, deadlock detection, and sliding-window scheduling.  
-It targets practical Java 8 pain points: lost cancellation signals, missing `ThreadLocal` context across thread pools, and hard-to-debug deadlocks in nested parallel calls.  
-Compared with CompletableFuture chains and traditional `ExecutorService + invokeAll` workflows, VFormation prioritizes structured semantics and operational safety.  
+🪿 **parallel-in-scope** is a structured concurrency toolkit for Java 8+, built around cooperative cancellation, fail-fast behavior, context propagation, deadlock detection, and sliding-window scheduling.
+It targets practical Java 8 pain points: lost cancellation signals, missing `ThreadLocal` context across thread pools, and hard-to-debug deadlocks in nested parallel calls.
+Compared with CompletableFuture chains and traditional `ExecutorService + invokeAll` workflows, parallel-in-scope prioritizes structured semantics and operational safety.
 The goal is simple: without upgrading JDK, make concurrent code move from “just works” to **fail immediately, cancel cascadingly, deadlocks visible**.
 
 ## Quick Start
@@ -20,7 +20,7 @@ In most cases, all you need is a single method: **`Par.map`**.
 ```xml
 <dependency>
     <groupId>io.github.huatalk</groupId>
-    <artifactId>vformation</artifactId>
+    <artifactId>parallel-in-scope</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -267,7 +267,7 @@ sequenceDiagram
 |---|---|
 | JDK | Java 8+ (`maven.compiler.source/target = 1.8`) |
 | Build Tool | Maven 3.x (recommended) |
-| Core Modules | `vformation` (library), `vformation-demo` (sample project) |
+| Core Modules | `parallel-in-scope` (library), `parallel-in-scope-demo` (sample project) |
 
 ---
 
