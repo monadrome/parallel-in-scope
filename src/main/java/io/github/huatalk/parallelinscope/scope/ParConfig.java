@@ -162,7 +162,7 @@ public final class ParConfig {
 
         /**
          * Sets the maximum purge rate (permits per second) for
-         * {@link HeuristicPurger}. Default is {@code 1.0}.
+         * {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger}. Default is {@code 1.0}.
          *
          * @param maxPurgeRate maximum purge operations per second (must be positive)
          * @return this builder
@@ -379,7 +379,7 @@ public final class ParConfig {
     }
 
     /**
-     * Returns the rate limiter for {@link HeuristicPurger} purge operations.
+     * Returns the rate limiter for {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger} purge operations.
      */
     public RateLimiter getPurgeRateLimiter() {
         return purgeRateLimiter;
