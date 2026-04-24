@@ -160,7 +160,7 @@
   <header>
     <h1>最近更新复盘与重做报告</h1>
     <div class="subtitle">
-      仓库：/Users/qinghualin/Documents/javaProjects/vformation · 日期：2026-05-21 · 当前分支：main
+      仓库：/Users/qinghualin/Documents/javaProjects/vformation · 日期：2026-05-22 · 当前分支：task/renamev2-5fed0b
     </div>
   </header>
 
@@ -259,7 +259,7 @@ Tests run: 100, Failures: 0, Errors: 0, Skipped: 0
 Residual-name scan:
 rg "PurgeStrategy|PurgeService|\bvformation\b|io\.github\.huatalk\.vformation|vformation-demo" \
   openspec/specs openspec/changes/context-relay-hooks README.md README_EN.md CLAUDE.md doc pom.xml \
-  parallel-in-scope parallel-in-scope-demo --glob '!**/src/test/**'
+  src demo --glob '!**/src/test/**'
 Result: no matches</div>
   </section>
 
@@ -267,8 +267,8 @@ Result: no matches</div>
     <h2>当前状态</h2>
     <table>
       <tbody>
-      <tr><th>Git 状态</th><td><code>main...origin/main [ahead 3]</code>，包含两个 revert 提交和当前未提交的重做改动。</td></tr>
-      <tr><th>模块重命名</th><td><code>vformation</code> → <code>parallel-in-scope</code>；<code>vformation-demo</code> → <code>parallel-in-scope-demo</code>。</td></tr>
+      <tr><th>Git 状态</th><td>当前工作树包含重命名重做、根 POM 单模块化、独立 demo 工程和文档同步改动。</td></tr>
+      <tr><th>发布结构</th><td>根目录 <code>pom.xml</code> 是唯一发布库；<code>demo/</code> 是独立示例工程，不参与发布。</td></tr>
       <tr><th>报告文件</th><td><code>reports/recent-update-analysis.html</code> 已更新为本次复盘与重做结论。</td></tr>
       <tr><th>剩余注意点</th><td>本次改动还未提交；如果需要保留报告文件，需要把 <code>reports/</code> 一并纳入提交。</td></tr>
       </tbody>

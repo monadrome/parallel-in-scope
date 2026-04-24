@@ -81,6 +81,6 @@ task-A-inner: {p=2, type=IO_BOUND, src=shared-pool,  exec=shared-pool, count=2, 
 
 ```bash
 mvn install -DskipTests -Dmaven.javadoc.skip=true
-mvn -pl parallel-in-scope-demo exec:java \
-    -Dexec.mainClass="io.github.huatalk.parallelinscope.demo.DeadlockDemo"
+mvn -f demo/pom.xml exec:java \
+    -Dexec.mainClass="io.github.huatalk.parallelinscope.demo.DeadlockDetectionDemo"
 ```
