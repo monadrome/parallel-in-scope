@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for Future state inspection via FutureInspector.
@@ -28,25 +28,25 @@ public class FutureInspectorTest {
     @Test
     public void testState_success() {
         ListenableFuture<String> future = Futures.immediateFuture("ok");
-        assertEquals(FutureState.SUCCESS, FutureInspector.state(future));
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.SUCCESS);
     }
 
     @Test
     public void testState_canceled() {
         ListenableFuture<String> future = Futures.immediateCancelledFuture();
-        assertEquals(FutureState.CANCELLED, FutureInspector.state(future));
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.CANCELLED);
     }
 
     @Test
     public void testState_failed() {
         ListenableFuture<String> future = Futures.immediateFailedFuture(new RuntimeException("fail"));
-        assertEquals(FutureState.FAILED, FutureInspector.state(future));
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.FAILED);
     }
 
     @Test
     public void testState_running() {
         SettableFuture<String> future = SettableFuture.create();
-        assertEquals(FutureState.RUNNING, FutureInspector.state(future));
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.RUNNING);
     }
 
     @Test
@@ -54,13 +54,14 @@ public class FutureInspectorTest {
         RuntimeException expected = new RuntimeException("fail");
         ListenableFuture<String> future = Futures.immediateFailedFuture(expected);
         Throwable actual = FutureInspector.exceptionNow(future);
-        assertSame(expected, actual);
+        assertThat(actual).isSameAs(expected);
     }
 
     @Test
     public void testExceptionNow_success() {
         ListenableFuture<String> future = Futures.immediateFuture("ok");
-        assertThrows(IllegalStateException.class, () -> FutureInspector.exceptionNow(future));
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(future))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -73,9 +74,11 @@ public class FutureInspectorTest {
         AsyncBatchResult<String> batch = AsyncBatchResult.of(futures);
         AsyncBatchResult.BatchReport report = batch.report();
 
-        assertEquals(2, (int) report.getStateCounts().get(FutureState.SUCCESS));
-        assertEquals(1, (int) report.getStateCounts().get(FutureState.FAILED));
-        assertNotNull(report.getFirstException());
-        assertEquals("fail", report.getFirstException().getMessage());
+        assertThat(report.getStateCounts())
+                .containsEntry(FutureState.SUCCESS, 2)
+                .containsEntry(FutureState.FAILED, 1);
+        assertThat(report.getFirstException())
+                .isNotNull()
+                .hasMessage("fail");
     }
 }

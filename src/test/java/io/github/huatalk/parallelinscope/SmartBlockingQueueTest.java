@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for SmartBlockingQueue and VariableLinkedBlockingQueue.
@@ -33,23 +33,23 @@ public class SmartBlockingQueueTest {
     @Test
     public void testVariableLinkedBlockingQueue_basicOps() throws Exception {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(10);
-        assertTrue(queue.offer("a"));
-        assertTrue(queue.offer("b"));
-        assertEquals(2, queue.size());
-        assertEquals("a", queue.take());
-        assertEquals(1, queue.size());
+        assertThat(queue.offer("a")).isTrue();
+        assertThat(queue.offer("b")).isTrue();
+        assertThat(queue).hasSize(2);
+        assertThat(queue.take()).isEqualTo("a");
+        assertThat(queue).hasSize(1);
     }
 
     @Test
     public void testVariableLinkedBlockingQueue_setCapacity() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
-        assertTrue(queue.offer("a"));
-        assertTrue(queue.offer("b"));
-        assertFalse(queue.offer("c")); // Full
+        assertThat(queue.offer("a")).isTrue();
+        assertThat(queue.offer("b")).isTrue();
+        assertThat(queue.offer("c")).isFalse(); // Full
 
         queue.setCapacity(3);
-        assertTrue(queue.offer("c")); // Now has room
-        assertEquals(3, queue.size());
+        assertThat(queue.offer("c")).isTrue(); // Now has room
+        assertThat(queue).hasSize(3);
     }
 
     @Test
@@ -60,7 +60,7 @@ public class SmartBlockingQueueTest {
         ParOptions cpuOptions = ParOptions.cpuTask("cpuTask").build();
         TaskScopeTl.setParallelOptions(cpuOptions);
 
-        assertFalse(queue.offer("task")); // CPU_BOUND returns false
+        assertThat(queue.offer("task")).isFalse(); // CPU_BOUND returns false
     }
 
     @Test
@@ -70,25 +70,25 @@ public class SmartBlockingQueueTest {
         ParOptions ioOptions = ParOptions.ioTask("ioTask").rejectEnqueue(false).build();
         TaskScopeTl.setParallelOptions(ioOptions);
 
-        assertTrue(queue.offer("task")); // IO_BOUND should be accepted
+        assertThat(queue.offer("task")).isTrue(); // IO_BOUND should be accepted
     }
 
     @Test
     public void testSmartBlockingQueue_noContext_accepts() {
         SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(10);
         // No TaskScopeTl context set
-        assertTrue(queue.offer("task"));
+        assertThat(queue.offer("task")).isTrue();
     }
 
     @Test
     public void testCreate_zeroCapacity_returnsSynchronousQueue() {
         BlockingQueue<String> queue = SmartBlockingQueue.create(0);
-        assertTrue(queue instanceof SynchronousQueue);
+        assertThat(queue).isInstanceOf(SynchronousQueue.class);
     }
 
     @Test
     public void testCreate_positiveCapacity_returnsSmartQueue() {
         BlockingQueue<String> queue = SmartBlockingQueue.create(10);
-        assertTrue(queue instanceof SmartBlockingQueue);
+        assertThat(queue).isInstanceOf(SmartBlockingQueue.class);
     }
 }

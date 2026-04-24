@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for {@link ParConfig#getSubmitterPool()} lazy initialization and thread naming.
@@ -24,36 +24,35 @@ public class SubmitterPoolTest {
     @Test
     public void testGetSubmitterPool_returnsNonNull() {
         ListeningExecutorService pool = ParConfig.getSubmitterPool();
-        assertNotNull(pool);
+        assertThat(pool).isNotNull();
     }
 
     @Test
     public void testGetSubmitterPool_returnsSameInstance() {
         ListeningExecutorService pool1 = ParConfig.getSubmitterPool();
         ListeningExecutorService pool2 = ParConfig.getSubmitterPool();
-        assertSame(pool1, pool2);
+        assertThat(pool2).isSameAs(pool1);
     }
 
     @Test
     public void testGetSubmitterPool_canExecuteTasks() throws Exception {
         ListeningExecutorService pool = ParConfig.getSubmitterPool();
         String result = pool.submit((Callable<String>) () -> "hello").get(5, TimeUnit.SECONDS);
-        assertEquals("hello", result);
+        assertThat(result).isEqualTo("hello");
     }
 
     @Test
     public void testGetSubmitterPool_threadNaming() throws Exception {
         ListeningExecutorService pool = ParConfig.getSubmitterPool();
         String threadName = pool.submit(() -> Thread.currentThread().getName()).get(5, TimeUnit.SECONDS);
-        assertTrue(threadName.startsWith("Par-Submitter-"),
-                "Expected thread name starting with 'Par-Submitter-', got: " + threadName);
+        assertThat(threadName).startsWith("Par-Submitter-");
     }
 
     @Test
     public void testGetSubmitterPool_daemonThreads() throws Exception {
         ListeningExecutorService pool = ParConfig.getSubmitterPool();
         Boolean isDaemon = pool.submit(() -> Thread.currentThread().isDaemon()).get(5, TimeUnit.SECONDS);
-        assertTrue(isDaemon, "Submitter pool threads should be daemon threads");
+        assertThat(isDaemon).isTrue();
     }
 
     @Test
@@ -73,8 +72,9 @@ public class SubmitterPoolTest {
         }
 
         for (int i = 1; i < threadCount; i++) {
-            assertSame(results[0], results[i],
-                    "All threads should get the same submitter pool instance");
+            assertThat(results[i])
+                    .as("All threads should get the same submitter pool instance")
+                    .isSameAs(results[0]);
         }
     }
 }
