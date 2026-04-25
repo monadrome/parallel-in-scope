@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for ThreadRelay cross-thread context propagation via TTL.
@@ -48,15 +48,17 @@ public class ThreadRelayTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<CancellationToken> tokenInChild = new AtomicReference<>();
 
+        // Priority 10: cancellation context must survive executor thread hops.
+        // TTL wraps the runnable so child work can observe the same token as the caller.
         Runnable task = TtlRunnable.get(() -> {
             tokenInChild.set(ThreadRelay.getParentCancellationToken());
             latch.countDown();
         });
 
         executor.submit(task);
-        assertTrue(latch.await(2, TimeUnit.SECONDS));
+        assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
 
-        assertSame(token, tokenInChild.get());
+        assertThat(tokenInChild.get()).isSameAs(token);
     }
 
 }

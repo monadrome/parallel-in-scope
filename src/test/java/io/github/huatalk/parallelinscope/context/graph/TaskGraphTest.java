@@ -19,7 +19,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for TaskGraph cycle/self-loop detection.
@@ -50,7 +50,7 @@ public class TaskGraphTest {
         TaskGraph.logTaskPair("A", "B", edge("NA", "pool"));
         TaskGraph.logTaskPair("B", "A", edge("pool", "pool"));
 
-        assertTrue(TaskGraph.hasTaskCycle());
+        assertThat(TaskGraph.hasTaskCycle()).isTrue();
     }
 
     @Test
@@ -58,7 +58,7 @@ public class TaskGraphTest {
         TaskGraph.logTaskPair("A", "B", edge("NA", "pool"));
         TaskGraph.logTaskPair("B", "C", edge("pool", "pool"));
 
-        assertFalse(TaskGraph.hasTaskCycle());
+        assertThat(TaskGraph.hasTaskCycle()).isFalse();
     }
 
     // ==================== 5.2 Task-level self-loop ====================
@@ -67,14 +67,14 @@ public class TaskGraphTest {
     public void testTaskSelfLoop() {
         TaskGraph.logTaskPair("A", "A", edge("pool", "pool"));
 
-        assertTrue(TaskGraph.hasSelfLoop());
+        assertThat(TaskGraph.hasSelfLoop()).isTrue();
     }
 
     @Test
     public void testNoSelfLoop() {
         TaskGraph.logTaskPair("A", "B", edge("NA", "pool"));
 
-        assertFalse(TaskGraph.hasSelfLoop());
+        assertThat(TaskGraph.hasSelfLoop()).isFalse();
     }
 
     // ==================== 5.3 Multi-edge preservation ====================
@@ -90,14 +90,21 @@ public class TaskGraphTest {
         ValueGraph<String, List<TaskEdge>> graph = data.getGraph();
 
         List<TaskEdge> edges = graph.edgeValueOrDefault("A", "B", null);
-        assertNotNull(edges);
-        assertEquals(2, edges.size());
-        assertEquals(4, edges.get(0).getParallelism());
-        assertEquals(2, edges.get(1).getParallelism());
+        assertThat(edges)
+                .isNotNull()
+                .extracting(TaskEdge::getParallelism)
+                .containsExactly(4, 2);
     }
 
     // ==================== 5.4 Executor-level cycle (FixedThreadPool) ====================
 
+    /**
+     * Priority 1: detects the classic bounded-pool deadlock shape.
+     *
+     * <p>Two fixed executors wait on each other through nested tasks. In real services this can
+     * exhaust all worker threads and leave both sides blocked forever, so executor-level cycle
+     * detection is the main livelock-safety guard of the library.
+     */
     @Test
     public void testExecutorCycle_fixedPools() {
         ExecutorService fixedA = Executors.newFixedThreadPool(4);
@@ -110,7 +117,7 @@ public class TaskGraphTest {
             TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-B"));
             TaskGraph.logTaskPair("taskB", "taskA", edge("fixed-pool-B", "fixed-pool-A"));
 
-            assertTrue(TaskGraph.hasExecutorCycle(localConfig));
+            assertThat(TaskGraph.hasExecutorCycle(localConfig)).isTrue();
         } finally {
             fixedA.shutdownNow();
             fixedB.shutdownNow();
@@ -119,6 +126,13 @@ public class TaskGraphTest {
 
     // ==================== 5.5 Executor-level self-loop (FixedThreadPool) ====================
 
+    /**
+     * Priority 2: catches self-submission into the same bounded executor.
+     *
+     * <p>A task that schedules more blocking work back to its own fixed-size pool can starve the
+     * pool without needing a second executor. This is the smallest deadlock-prone graph the
+     * detector must flag.
+     */
     @Test
     public void testExecutorSelfLoop_fixedPool() {
         ExecutorService fixed = Executors.newFixedThreadPool(4);
@@ -128,7 +142,7 @@ public class TaskGraphTest {
         try {
             TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-A"));
 
-            assertTrue(TaskGraph.hasExecutorSelfLoop(localConfig));
+            assertThat(TaskGraph.hasExecutorSelfLoop(localConfig)).isTrue();
         } finally {
             fixed.shutdownNow();
         }
@@ -145,7 +159,7 @@ public class TaskGraphTest {
         try {
             TaskGraph.logTaskPair("taskA", "taskB", edge("cached-pool", "cached-pool"));
 
-            assertFalse(TaskGraph.hasExecutorSelfLoop(localConfig));
+            assertThat(TaskGraph.hasExecutorSelfLoop(localConfig)).isFalse();
         } finally {
             cached.shutdownNow();
         }
@@ -168,7 +182,7 @@ public class TaskGraphTest {
             TaskGraph.logTaskPair("taskB", "taskA", edge("cached-pool", "fixed-pool-A"));
 
             // The edge targeting cached-pool is filtered out, breaking the cycle
-            assertFalse(TaskGraph.hasExecutorCycle(localConfig));
+            assertThat(TaskGraph.hasExecutorCycle(localConfig)).isFalse();
         } finally {
             cached.shutdownNow();
             fixed.shutdownNow();
@@ -195,9 +209,11 @@ public class TaskGraphTest {
             TaskGraph.destroyAfterRequest(localConfig);
 
             LivelockEvent event = capturedEvent.get();
-            assertNotNull(event, "LivelockListener should have been called");
-            assertTrue(event.hasSelfLoop());
-            assertTrue(event.hasAnyIssue());
+            assertThat(event)
+                    .as("LivelockListener should have been called")
+                    .isNotNull();
+            assertThat(event.hasSelfLoop()).isTrue();
+            assertThat(event.hasAnyIssue()).isTrue();
         } finally {
             fixed.shutdownNow();
             // Re-init so tearDown's destroyAfterRequest doesn't NPE
@@ -213,7 +229,7 @@ public class TaskGraphTest {
         TaskGraph.logTaskPair("taskA", "taskB", edge("unknown-pool", "unknown-pool"));
 
         // Unknown executor should be treated as deadlock-prone
-        assertTrue(TaskGraph.hasExecutorSelfLoop(config));
+        assertThat(TaskGraph.hasExecutorSelfLoop(config)).isTrue();
     }
 
     @Test
@@ -225,7 +241,7 @@ public class TaskGraphTest {
                 .executor("fixed-pool-A", bounded)
                 .build();
         try {
-            assertTrue(TaskGraph.canDeadlock("fixed-pool-A", localConfig));
+            assertThat(TaskGraph.canDeadlock("fixed-pool-A", localConfig)).isTrue();
         } finally {
             bounded.shutdownNow();
         }
@@ -240,7 +256,7 @@ public class TaskGraphTest {
                 .executor("cached-pool", syncPool)
                 .build();
         try {
-            assertFalse(TaskGraph.canDeadlock("cached-pool", localConfig));
+            assertThat(TaskGraph.canDeadlock("cached-pool", localConfig)).isFalse();
         } finally {
             syncPool.shutdownNow();
         }

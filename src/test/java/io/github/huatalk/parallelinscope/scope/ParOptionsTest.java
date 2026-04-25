@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for ParOptions.
@@ -16,24 +16,24 @@ public class ParOptionsTest {
     @Test
     public void testBuilder_defaults() {
         ParOptions options = ParOptions.of("myTask").build();
-        assertEquals("myTask", options.getTaskName());
-        assertEquals(-1, options.getParallelism());
-        assertEquals(0, options.getTimeout());
-        assertEquals(TaskType.CPU_BOUND, options.getTaskType());
-        assertTrue(options.isRejectEnqueue());
+        assertThat(options.getTaskName()).isEqualTo("myTask");
+        assertThat(options.getParallelism()).isEqualTo(-1);
+        assertThat(options.getTimeout()).isZero();
+        assertThat(options.getTaskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(options.isRejectEnqueue()).isTrue();
     }
 
     @Test
     public void testIoTask() {
         ParOptions options = ParOptions.ioTask("ioTask").build();
-        assertEquals(TaskType.IO_BOUND, options.getTaskType());
+        assertThat(options.getTaskType()).isEqualTo(TaskType.IO_BOUND);
     }
 
     @Test
     public void testCriticalIoTask() {
         ParOptions options = ParOptions.criticalIoTask("critical", 3000).build();
-        assertEquals(TaskType.IO_BOUND, options.getTaskType());
-        assertEquals(3000, options.timeoutMillis());
+        assertThat(options.getTaskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.timeoutMillis()).isEqualTo(3000);
     }
 
     @Test
@@ -42,7 +42,7 @@ public class ParOptionsTest {
                 .timeout(5)
                 .timeUnit(TimeUnit.SECONDS)
                 .build();
-        assertEquals(5000, options.timeoutMillis());
+        assertThat(options.timeoutMillis()).isEqualTo(5000);
     }
 
     @Test
@@ -53,9 +53,9 @@ public class ParOptionsTest {
         ParOptions formalized = ParOptions.formalized(original, 10, 60_000L);
 
         // Parallelism should be constrained to taskSize
-        assertEquals(10, formalized.getParallelism());
+        assertThat(formalized.getParallelism()).isEqualTo(10);
         // Timeout should use default
-        assertTrue(formalized.timeoutMillis() > 0);
+        assertThat(formalized.timeoutMillis()).isPositive();
     }
 
     @Test
@@ -64,14 +64,14 @@ public class ParOptionsTest {
                 .parallelism(-1)
                 .build();
         ParOptions formalized = ParOptions.formalized(original, 5, 60_000L);
-        assertEquals(5, formalized.getParallelism());
+        assertThat(formalized.getParallelism()).isEqualTo(5);
     }
 
     @Test
     public void testWithTimeout() {
         ParOptions options = ParOptions.of("test").timeout(1000).build();
         ParOptions updated = options.withTimeout(5000);
-        assertEquals(5000, updated.getTimeout());
-        assertEquals("test", updated.getTaskName());
+        assertThat(updated.getTimeout()).isEqualTo(5000);
+        assertThat(updated.getTaskName()).isEqualTo("test");
     }
 }
