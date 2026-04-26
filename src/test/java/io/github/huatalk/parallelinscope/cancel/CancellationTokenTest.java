@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -110,6 +111,25 @@ public class CancellationTokenTest {
         // Allow callback propagation
         Thread.sleep(50);
         assertThat(token.getState()).isEqualTo(CancellationTokenState.FAIL_FAST_CANCELED);
+    }
+
+    @Test
+    public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
+        CancellationToken token = CancellationToken.create();
+
+        SettableFuture<String> failed = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
+        SettableFuture<Void> submitCanceller = SettableFuture.create();
+
+        token.lateBind(Arrays.asList(failed, sibling), Duration.ofSeconds(5), submitCanceller);
+
+        failed.setException(new RuntimeException("boom"));
+
+        await().untilAsserted(() -> {
+            assertThat(token.getState()).isEqualTo(CancellationTokenState.FAIL_FAST_CANCELED);
+            assertThat(sibling).isCancelled();
+            assertThat(submitCanceller).isCancelled();
+        });
     }
 
     @Test

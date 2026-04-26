@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'mkdocs/**'
+      - 'docs/**'
       - '.github/workflows/gh-pages.yml'
   workflow_dispatch:
 

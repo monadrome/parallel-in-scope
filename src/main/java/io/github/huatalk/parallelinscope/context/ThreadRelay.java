@@ -29,10 +29,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ThreadRelay {
 
+    /** Keys stored in the parent and current relay maps. */
     public enum RelayItem {
+        /** Cooperative cancellation token. */
         CANCELLATION_TOKEN,
+        /** Parallel execution options. */
         PARALLEL_OPTIONS,
+        /** Logical task name. */
         TASK_NAME,
+        /** Logical executor name. */
         EXECUTOR_NAME
     }
 
@@ -44,6 +49,11 @@ public class ThreadRelay {
                 THREAD_RELAY_TL, tr -> new ThreadRelay(tr.curMap));
     }
 
+    /**
+     * Returns the relay associated with the current thread.
+     *
+     * @return the current thread's relay
+     */
     public static ThreadRelay getThreadRelay() {
         return THREAD_RELAY_TL.get();
     }
@@ -51,9 +61,15 @@ public class ThreadRelay {
     private final Map<RelayItem, Object> parentMap = new ConcurrentHashMap<>();
     private final Map<RelayItem, Object> curMap = new ConcurrentHashMap<>();
 
+    /** Creates an empty relay for a root thread. */
     public ThreadRelay() {
     }
 
+    /**
+     * Creates a relay with an inherited parent context.
+     *
+     * @param parentContext values inherited from the parent thread
+     */
     public ThreadRelay(Map<RelayItem, Object> parentContext) {
         if (parentContext != null) {
             this.parentMap.putAll(parentContext);
@@ -62,6 +78,11 @@ public class ThreadRelay {
 
     // ==================== CancellationToken relay ====================
 
+    /**
+     * Returns the cancellation token inherited from the parent task.
+     *
+     * @return the parent token, or {@code null} when none was propagated
+     */
     public static @Nullable CancellationToken getParentCancellationToken() {
         ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay == null) {
@@ -71,6 +92,11 @@ public class ThreadRelay {
         return token instanceof CancellationToken ? (CancellationToken) token : null;
     }
 
+    /**
+     * Stores the current task's cancellation token for child propagation.
+     *
+     * @param token the current cancellation token
+     */
     public static void setCurrentCancellationToken(CancellationToken token) {
         if (token == null) {
             return;
@@ -83,6 +109,11 @@ public class ThreadRelay {
 
     // ==================== ParOptions relay ====================
 
+    /**
+     * Stores the current task's execution options for child propagation.
+     *
+     * @param options the current execution options
+     */
     public static void setCurrentParallelOptions(ParOptions options) {
         ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
@@ -92,6 +123,11 @@ public class ThreadRelay {
 
     // ==================== TaskName relay ====================
 
+    /**
+     * Returns the current logical task name.
+     *
+     * @return the task name, or {@code "NA"} when unavailable
+     */
     @SuppressWarnings("unchecked")
     public static String getCurrentTaskName() {
         ThreadRelay relay = THREAD_RELAY_TL.get();
@@ -105,6 +141,11 @@ public class ThreadRelay {
         return "NA";
     }
 
+    /**
+     * Stores the current logical task name for child propagation.
+     *
+     * @param taskName the current task name
+     */
     public static void setCurrentTaskName(String taskName) {
         ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {
@@ -114,6 +155,11 @@ public class ThreadRelay {
 
     // ==================== ExecutorName relay ====================
 
+    /**
+     * Returns the current logical executor name.
+     *
+     * @return the executor name, or {@code "NA"} when unavailable
+     */
     @SuppressWarnings("unchecked")
     public static String getCurrentExecutorName() {
         ThreadRelay relay = THREAD_RELAY_TL.get();
@@ -127,6 +173,11 @@ public class ThreadRelay {
         return "NA";
     }
 
+    /**
+     * Stores the current logical executor name for child propagation.
+     *
+     * @param executorName the current executor name
+     */
     public static void setCurrentExecutorName(String executorName) {
         ThreadRelay relay = THREAD_RELAY_TL.get();
         if (relay != null) {

@@ -1,10 +1,7 @@
 package io.github.huatalk.parallelinscope.cancel;
 
 /**
- * Heavy-weight cancellation exception that preserves the full stack trace.
- * <p>
- * Used for debugging purposes where stack trace information is needed
- * to track where cancellation originated.
+ * Cancellation exception that retains its stack trace for diagnostics.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @see LeanCancellationException
@@ -13,6 +10,11 @@ public class FatCancellationException extends java.util.concurrent.CancellationE
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates a cancellation exception that retains its stack trace.
+     *
+     * @param message the detail message
+     */
     public FatCancellationException(String message) {
         super(message);
     }

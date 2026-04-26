@@ -1,27 +1,14 @@
-**中文** | [**English**](README_EN.md)
+**中文** | [**English**](README.en.md)
 
-# 🪿 parallel-in-scope
+# parallel-in-scope
 
-> **📖 在线文档：https://huatalk.github.io/parallel-in-scope/** （由 `mkdocs/` 自动构建发布）
-
-> **⚠️ 项目状态：开发中（Pre-release）**
+> 在线文档：[huatalk.github.io/parallel-in-scope](https://huatalk.github.io/parallel-in-scope/)
 >
-> 本项目仍在积极开发中，API 可能会发生变化。欢迎通过 Issue 提交反馈和建议。
+> 项目状态：开发中（Pre-release），API 仍可能调整。
 
-## 项目介绍
-
-**parallel-in-scope** 是一个面向 Java 8+ 的结构化并发工具包，核心能力包括协作式取消、快速失败、上下文传播、死锁检测和滑动窗口调度。
-它聚焦解决 Java 8 并行编程中的典型痛点：取消信号难传播、`ThreadLocal` 上下文丢失、嵌套并行死锁难诊断。
-相比 CompletableFuture 链式编排与 `ExecutorService + invokeAll` 传统模型，parallel-in-scope 更强调结构化语义与工程可控性。
-目标很直接：在不升级 JDK 的前提下，让并发代码从“能跑”走向“失败即止、取消级联、死锁可见”。
-
----
+面向 Java 8+ 的结构化并发工具包，为批量任务提供协作式取消、快速失败、上下文传播、滑动窗口调度和线程池死锁诊断。
 
 ## 快速开始
-
-大多数场景下，你只需要用 **`Par.map`** 一个方法：
-
-### 1. 添加 Maven 依赖
 
 ```xml
 <dependency>
@@ -31,272 +18,52 @@
 </dependency>
 ```
 
-### 2. 初始化（应用启动时执行一次）
-
 ```java
 ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-Par par = new Par(config);
+        .executor("io-pool", Executors.newFixedThreadPool(8))
+        .build();
+
+ParOptions options = ParOptions.ioTask("fetch-user")
+        .parallelism(4)
+        .timeout(3_000)
+        .build();
+
+AsyncBatchResult<User> result = new Par(config)
+        .map("io-pool", userIds, userService::findById, options);
 ```
 
-### 3. 使用 `Par.map` 并行处理
-
-```java
-ParOptions options = ParOptions.ioTask("fetchData")
-    .parallelism(5)
-    .timeout(3000)
-    .build();
-
-List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.map(
-    "io-pool",
-    urls,
-    url -> httpClient.fetch(url),
-    options
-);
-
-List<ListenableFuture<String>> futures = result.getResults();
-```
-
-以上就是全部。`Par.map` 内部自动处理滑动窗口调度、超时控制、快速失败取消和上下文传播，无需额外配置。
-
----
-
-## 核心特性
-
-### ⚡ 快速失败（Fail-Fast）
-
-**问题：** 传统并行处理中，某个子任务失败后其余任务仍继续执行，白白消耗线程和 IO 资源，调用方还得等所有任务结束才能拿到错误。
-
-**方案：** 任一子任务抛出异常，框架立即取消同批所有剩余任务。这是刻意的设计选择——只提供 fail-fast 语义，不提供"忽略失败继续执行"模式。如需容错，在任务函数内部自行 catch。
-
-### 🛡️ 协作式取消（Cooperative Cancellation）
-
-**问题：** `Thread.interrupt()` 对不检查中断标志的代码无效，强制 kill 线程可能导致资源泄漏。嵌套并行调用时，取消信号无法自动向下传播。
-
-**方案：** 父子令牌自动级联，取消父任务即级联取消所有子任务。Late-Binding 机制在所有任务提交后才绑定超时和 fail-fast，避免竞态。双异常策略——`LeanCancellationException`（无堆栈，零开销）用于高频场景，`FatCancellationException`（完整堆栈）用于调试。
-
-### 🔗 上下文传播（Context Propagation）
-
-**问题：** `ThreadLocal` 值在任务提交到线程池后丢失，请求级上下文（链路追踪 ID、用户身份、取消令牌）无法自动传递到子线程，开发者被迫在每个任务中手动传参。
-
-**方案：** 基于 Alibaba TTL 的两级 Map 接力——父线程的 `curMap` 自动成为子线程的 `parentMap`，取消令牌、任务配置、任务名称透明传播，零侵入业务代码。
-
-### 🚀 滑动窗口调度（Sliding-Window Scheduling）
-
-**问题：** 一次性提交所有任务到线程池，任务量大时造成内存压力和线程饥饿；`invokeAll()` 阻塞到全部完成，无法逐个获取结果。
-
-**方案：** "完成一个补一个"的滑动窗口——初始提交 parallelism 个任务，每完成一个立即补充一个，既保持线程池满载又避免溢出。
-
-### 🔌 可插拔扩展（Pluggable SPI）
-
-**问题：** 硬编码的监控和扩展点难以适配不同技术栈，框架与业务监控系统耦合。
-
-**方案：** 三个 SPI 扩展点注册在 `ParConfig` 上，零硬编码依赖：
-- **TaskListener** — 任务生命周期回调（耗时、排队时间、异常），对接任意监控系统
-- **ExecutorResolver** — 线程池名称解析，支持 purge 清理和死锁检测
-- **LivelockListener** — 死锁检测事件回调
-
-### 🔍 死锁检测（Deadlock Detection）
-
-**问题：** 嵌套并行调用共享同一线程池时，外层任务占住线程等待内层完成，内层排队等外层释放线程——死锁。此类问题在生产环境极难复现和定位。
-
-**方案：** 请求级 DAG 图自动记录任务依赖关系，请求结束时执行环路检测，覆盖任务级循环依赖和执行器级自环，通过 SPI 回调通知诊断结果。
-
-### 🎯 任务类型感知调度（Task-Type-Aware Dispatch）
-
-**问题：** CPU 密集型和 IO 密集型任务混用同一队列，大量 IO 任务排队会饿死 CPU 任务，计算延迟飙升。
-
-**方案：** CPU 密集型任务的 `offer()` 返回 `false`，触发拒绝策略（通常 `CallerRunsPolicy`），宁可调用方线程同步执行也不阻塞工作线程；IO 密集型正常排队。
-
----
-
-## 适用场景与设计边界
-
-**推荐使用：** 需要在 Java 8 上做并行批处理，希望获得失败即止、取消级联、上下文传播和可观测性保障的服务端业务。
-
-**暂不适合：** 需要链式响应式编排、内置重试/容错策略或 Spring Boot Starter 的场景（这些能力当前刻意不内置）。
-
-为了保持 API 简洁和语义一致，项目维护了 [Idea Graveyard](IdeaGraveyard.md)（参考 Guava 同名实践）：集中记录那些我们认真评估过、但最终决定不实现的特性（例如可配置失败策略、内置重试、链式编排、Spring Boot Starter 等），并给出明确的拒绝理由和替代方案。提交 Feature Request 前建议先阅读，能更快对齐项目设计方向。
-
----
-
-## 进阶功能
-
-以下功能按需启用，不影响 `Par.map` 的基本使用。
-
-### 协作式取消
-
-```java
-// 父任务中
-CancellationToken parentToken = CancellationToken.create();
-CancellationToken childToken = new CancellationToken(parentToken);
-
-// 取消父任务 → 自动级联到子任务
-parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELED
-
-// 在子任务代码中设置检查点
-Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
-```
-
-### 注册监控回调
-
-```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .taskListener(event -> {
-        System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
-            event.getTaskName(),
-            event.executionTimeMillis(),
-            event.waitTimeMillis());
-
-        if (event.getException() != null) {
-            System.err.println("Task failed: " + event.getException().getMessage());
-        }
-    })
-    .build();
-```
-
-### 死锁检测
-
-```java
-// 通过 Builder 构建包含死锁检测的配置
-ParConfig config = ParConfig.builder()
-    .executor("shared-pool", pool)
-    .livelockDetectionEnabled(true)
-    .livelockListener(event -> {
-        if (event.hasExecutorSelfLoop()) {
-            log.warn("Potential deadlock: executor self-loop detected! {}",
-                event.getExecutorEdges());
-        }
-    })
-    .executorResolver(new ExecutorResolver() {
-        @Override
-        public ThreadPoolExecutor resolveThreadPool(String name) {
-            return executorMap.get(name);
-        }
-
-        @Override
-        public Map<String, String> getTaskToExecutorMapping() {
-            return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
-        }
-    })
-    .build();
-
-// 在请求入口初始化
-TaskGraph.initOnRequest();
-try {
-    // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
-} finally {
-    // 请求结束时自动检测并通知
-    TaskGraph.destroyAfterRequest(config);
-}
-```
-
-### CPU-Bound 任务调度
-
-```java
-// CPU 密集型任务：拒绝入队，宁可同步执行也不阻塞工作线程
-ParOptions cpuOptions = ParOptions.cpuTask("compute")
-    .parallelism(Runtime.getRuntime().availableProcessors())
-    .build();
-
-// IO 密集型任务：允许入队等待
-ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
-    .parallelism(20)
-    .timeout(5000)
-    .build();
-```
-
----
-
-## 执行时序
-
-```mermaid
-sequenceDiagram
-    participant U as 用户代码
-    participant P as Par
-    participant O as ParOptions
-    participant G as TaskGraph
-    participant T as CancellationToken
-    participant S as ScopedCallable
-    participant E as ConcurrentLimitExecutor
-    participant R as AsyncBatchResult
-
-    U ->> P: map(pool, items, fn, options)
-
-    rect rgb(230, 240, 255)
-        Note over P, T: ① 初始化
-        P ->> O: formalized()
-        Note right of O: 规范化配置<br/>封顶并行度 / 填充默认超时
-        P ->> G: logTaskPair()
-        Note right of G: 记录父→子任务依赖<br/>用于活锁检测
-        P ->> T: create & chain
-        Note right of T: 创建子令牌<br/>链接父令牌（via ThreadRelay）
-    end
-
-    rect rgb(230, 255, 230)
-        Note over S, E: ② 包装 & 提交
-        P ->> S: wrap(task)
-        Note right of S: 上下文设置 + 检查点<br/>+ SPI 回调 + 清理
-        P ->> E: submitAll(wrappedTasks)
-        Note right of E: 滑动窗口提交<br/>先提交 parallelism 个<br/>后续完成一个补一个
-    end
-
-    rect rgb(255, 235, 230)
-        Note over T, R: ③ 后绑定（Late Binding）
-        P ->> T: lateBind(futures, timeout)
-        Note right of T: 绑定超时（withTimeout）<br/>绑定快速失败（allAsList）<br/>绑定父级取消传播
-        E -->> R: return futures
-        Note right of R: futures + report()
-    end
-
-    P -->> U: AsyncBatchResult
-```
-
----
-
-## 核心依赖
-
-| 依赖 | 版本 | 用途 |
-|------|------|------|
-| Guava | 33.6.0-jre | ListenableFuture, FluentFuture, Graph API |
-| TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
-
----
-
-## 兼容性（Compatibility）
-
-| 项目 | 说明 |
-|------|------|
-| JDK | Java 8+（`maven.compiler.source/target = 1.8`） |
-| 构建工具 | Maven 3.x（推荐） |
-| 发布产物 | `parallel-in-scope`（核心库） |
-| 示例工程 | `demo/`（不参与发布） |
-
----
-
-## 构建
+## 核心能力
+
+- 任一任务失败时取消同批任务（Fail-Fast）
+- 超时、手动取消和父子任务取消传播
+- 有界并发的滑动窗口提交
+- `ThreadLocal` 上下文跨线程传播
+- CPU / IO 任务类型感知调度
+- 任务耗时、排队和异常监控 SPI
+- 任务图与执行器图的循环依赖检测
+
+## 文档
+
+| 入口 | 内容 |
+|---|---|
+| [中文文档中心](docs/zh-CN/README.md) | 使用指南、概念、内部原理、设计与测试文档 |
+| [完整使用指南](docs/zh-CN/user-guide.md) | 配置、API、执行时序和进阶功能 |
+| [Demo 工程](demo/README.md) | 可运行示例和问题导向文章 |
+| [协作式取消](docs/zh-CN/reference/cooperative-cancellation.md) | Checkpoint 与取消传播的 API/契约参考 |
+
+## 兼容性与构建
+
+- 运行时：Java 8+
+- 构建工具：Maven 3.x
+- 发布产物：根项目 `parallel-in-scope`
+- 示例工程：`demo/`，不参与发布
 
 ```bash
-# 编译
-mvn clean compile
-
-# 运行测试
-mvn test
-
-# 打包
-mvn clean package
-
-# 运行默认示例（需先把核心库安装到本地 Maven 仓库）
+mvn clean verify
 mvn install -DskipTests -Dmaven.javadoc.skip=true
-mvn -f demo/pom.xml exec:java
+mvn -f demo/pom.xml test
 ```
-
----
 
 ## License
 
-Apache License 2.0
+[Apache License 2.0](LICENSE)

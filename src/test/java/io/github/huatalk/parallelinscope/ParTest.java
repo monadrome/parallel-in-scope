@@ -179,8 +179,8 @@ public class ParTest {
                 .hasSize(3)
                 .allSatisfy(event -> {
                     assertThat(event.getTaskName()).isEqualTo("testListener");
-                    assertThat(event.executionTimeNanos()).isNotNegative();
-                    assertThat(event.totalTimeNanos()).isNotNegative();
+                    assertThat(event.executionTime().toNanos()).isNotNegative();
+                    assertThat(event.totalTime().toNanos()).isNotNegative();
                 });
     }
 

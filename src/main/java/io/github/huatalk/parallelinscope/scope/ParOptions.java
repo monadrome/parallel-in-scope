@@ -42,25 +42,61 @@ public final class ParOptions {
 
     // ========== Getters ==========
 
+    /**
+     * Gets the task name used for context and monitoring.
+     *
+     * @return the logical task name
+     */
     public String getTaskName() { return taskName; }
+    /**
+     * Gets the maximum number of concurrent tasks.
+     *
+     * @return the configured parallelism
+     */
     public int getParallelism() { return parallelism; }
+    /**
+     * Gets the timeout value.
+     *
+     * @return the timeout value in {@link #getTimeUnit()}
+     */
     public long getTimeout() { return timeout; }
+    /**
+     * Gets the timeout unit.
+     *
+     * @return the timeout unit, or {@code null} when none is configured
+     */
     @Nullable
     public TimeUnit getTimeUnit() { return timeUnit; }
+    /**
+     * Gets the workload classification.
+     *
+     * @return the task type
+     */
     public TaskType getTaskType() { return taskType; }
+    /**
+     * Checks whether queue offers should be rejected for this task.
+     *
+     * @return {@code true} when queue offers should be rejected
+     */
     public boolean isRejectEnqueue() { return rejectEnqueue; }
 
     // ========== Static factory methods ==========
 
     /**
-     * Creates a builder with the given task name.
+     * Starts options for a named task.
+     *
+     * @param taskName the logical task name
+     * @return a new options builder
      */
     public static Builder of(String taskName) {
         return new Builder().taskName(taskName);
     }
 
     /**
-     * Creates a builder for an IO-bound task.
+     * Starts options for an IO-bound task.
+     *
+     * @param taskName the logical task name
+     * @return a new IO-bound options builder
      */
     public static Builder ioTask(String taskName) {
         return new Builder()
@@ -69,7 +105,10 @@ public final class ParOptions {
     }
 
     /**
-     * Creates a builder for a CPU-bound task.
+     * Starts options for a CPU-bound task.
+     *
+     * @param taskName the logical task name
+     * @return a new CPU-bound options builder
      */
     public static Builder cpuTask(String taskName) {
         return new Builder()
@@ -78,7 +117,11 @@ public final class ParOptions {
     }
 
     /**
-     * Creates a builder for a critical IO task with explicit timeout.
+     * Starts options for an IO-bound task with a millisecond timeout.
+     *
+     * @param taskName     the logical task name
+     * @param timeoutMillis the timeout in milliseconds
+     * @return a new IO-bound options builder
      */
     public static Builder criticalIoTask(String taskName, long timeoutMillis) {
         return new Builder()
@@ -102,6 +145,8 @@ public final class ParOptions {
 
     /**
      * Gets timeout as a {@link Duration}.
+     *
+     * @return the normalized timeout duration
      */
     Duration forTimeout() {
         return Duration.ofMillis(timeoutMillis());
@@ -138,7 +183,10 @@ public final class ParOptions {
     }
 
     /**
-     * Creates a copy with a different timeout.
+     * Copies these options with a different timeout value.
+     *
+     * @param timeout the replacement timeout in the current time unit
+     * @return a copy with the replacement timeout
      */
     public ParOptions withTimeout(long timeout) {
         return new Builder()
@@ -164,6 +212,7 @@ public final class ParOptions {
 
     // ========== Builder ==========
 
+    /** Builder for {@link ParOptions}. */
     public static final class Builder {
         private String taskName = "task";
         private int parallelism = -1;
@@ -172,13 +221,58 @@ public final class ParOptions {
         private TaskType taskType = TaskType.CPU_BOUND;
         private boolean rejectEnqueue = true;
 
+        /** Creates a builder with the default options. */
+        public Builder() {
+        }
+
+        /**
+         * Sets the logical task name.
+         *
+         * @param taskName the logical task name
+         * @return this builder
+         */
         public Builder taskName(String taskName) { this.taskName = taskName; return this; }
+        /**
+         * Sets the maximum concurrent task count.
+         *
+         * @param parallelism the maximum concurrent task count
+         * @return this builder
+         */
         public Builder parallelism(int parallelism) { this.parallelism = parallelism; return this; }
+        /**
+         * Sets the timeout value.
+         *
+         * @param timeout the timeout value
+         * @return this builder
+         */
         public Builder timeout(long timeout) { this.timeout = timeout; return this; }
+        /**
+         * Sets the timeout unit.
+         *
+         * @param timeUnit the timeout unit
+         * @return this builder
+         */
         public Builder timeUnit(TimeUnit timeUnit) { this.timeUnit = timeUnit; return this; }
+        /**
+         * Sets the workload classification.
+         *
+         * @param taskType the workload classification
+         * @return this builder
+         */
         public Builder taskType(TaskType taskType) { this.taskType = taskType; return this; }
+        /**
+         * Sets whether queue offers should be rejected.
+         *
+         * @param rejectEnqueue whether queue offers should be rejected
+         * @return this builder
+         */
         public Builder rejectEnqueue(boolean rejectEnqueue) { this.rejectEnqueue = rejectEnqueue; return this; }
 
+        /**
+         * Builds the configured options.
+         *
+         * @return an immutable options instance
+         */
         public ParOptions build() {
             return new ParOptions(this);
         }

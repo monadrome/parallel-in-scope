@@ -49,6 +49,8 @@ public class ScopedCallable<V> implements Callable<V> {
     /**
      * Returns the ScopedCallable currently executing on the calling thread,
      * or {@code null} if no task is running.
+     *
+     * @return the current scoped callable, or {@code null}
      */
     public static @Nullable ScopedCallable<?> current() {
         return CURRENT.get();
@@ -67,6 +69,17 @@ public class ScopedCallable<V> implements Callable<V> {
     private volatile long startTime;
     private volatile long endTime;
 
+    /**
+     * Creates a scoped task wrapper with an explicit ticker.
+     *
+     * @param taskName          the logical task name
+     * @param delegate          the task body
+     * @param config            the framework configuration
+     * @param ticker            the monotonic time source
+     * @param parallelOptions   the execution options
+     * @param cancellationToken the task cancellation token
+     * @param executorName      the logical executor name
+     */
     public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config, Ticker ticker,
                           ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
@@ -79,35 +92,78 @@ public class ScopedCallable<V> implements Callable<V> {
         this.submitTime = ticker.read();
     }
 
+    /**
+     * Creates a scoped task wrapper using the system ticker.
+     *
+     * @param taskName          the logical task name
+     * @param delegate          the task body
+     * @param config            the framework configuration
+     * @param parallelOptions   the execution options
+     * @param cancellationToken the task cancellation token
+     * @param executorName      the logical executor name
+     */
     public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
                           ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
         this(taskName, delegate, config, Ticker.systemTicker(), parallelOptions, cancellationToken, executorName);
     }
 
+    /**
+     * Creates a scoped task wrapper without a named executor.
+     *
+     * @param taskName          the logical task name
+     * @param delegate          the task body
+     * @param config            the framework configuration
+     * @param parallelOptions   the execution options
+     * @param cancellationToken the task cancellation token
+     */
     public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
                           ParOptions parallelOptions, CancellationToken cancellationToken) {
         this(taskName, delegate, config, parallelOptions, cancellationToken, "NA");
     }
 
-    /** Actual execution duration (nanoseconds) */
+    /**
+     * Returns task execution time.
+     * @return the execution duration in nanoseconds
+     */
     public long executionTime() { return endTime - startTime; }
 
-    /** Queue wait duration (nanoseconds) */
+    /**
+     * Returns queue wait time.
+     * @return the queue wait duration in nanoseconds
+     */
     public long waitTime() { return startTime - submitTime; }
 
-    /** Total duration from submission to completion (nanoseconds) */
+    /**
+     * Returns total time from submission to completion.
+     * @return the total time in nanoseconds
+     */
     public long totalTime() { return endTime - submitTime; }
 
     // ==================== Context Fields ====================
 
+    /**
+     * Returns this task's execution options.
+     *
+     * @return the task execution options
+     */
     public ParOptions getParallelOptions() {
         return parallelOptions;
     }
 
+    /**
+     * Returns this task's cancellation token.
+     *
+     * @return the task cancellation token
+     */
     public CancellationToken getCancellationToken() {
         return cancellationToken;
     }
 
+    /**
+     * Returns the logical executor name.
+     *
+     * @return the executor name
+     */
     public String getExecutorName() {
         return executorName;
     }
@@ -160,7 +216,7 @@ public class ScopedCallable<V> implements Callable<V> {
         for (TaskListener listener : listeners) {
             try {
                 listener.onTaskComplete(event);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.log(Level.WARNING, "TaskListener callback failed: " + listener.getClass().getName(), e);
             }
         }

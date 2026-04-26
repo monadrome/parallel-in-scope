@@ -20,6 +20,16 @@ public final class TaskEdge {
     private final int taskCount;
     private final long timeoutMillis;
 
+    /**
+     * Creates task dependency metadata.
+     *
+     * @param parallelism       the configured parallelism
+     * @param taskType          the workload classification
+     * @param executorName      the child executor name
+     * @param sourceExecutorName the parent executor name
+     * @param taskCount         the number of child tasks
+     * @param timeoutMillis     the child timeout in milliseconds
+     */
     public TaskEdge(int parallelism, TaskType taskType, String executorName,
              String sourceExecutorName, int taskCount, long timeoutMillis) {
         this.parallelism = parallelism;
@@ -30,11 +40,35 @@ public final class TaskEdge {
         this.timeoutMillis = timeoutMillis;
     }
 
+    /**
+     * Returns the configured parallelism.
+     * @return the parallelism
+     */
     public int getParallelism() { return parallelism; }
+    /**
+     * Returns the workload classification.
+     * @return the task type
+     */
     public TaskType getTaskType() { return taskType; }
+    /**
+     * Returns the child executor name.
+     * @return the executor name
+     */
     public String getExecutorName() { return executorName; }
+    /**
+     * Returns the parent executor name.
+     * @return the source executor name
+     */
     public String getSourceExecutorName() { return sourceExecutorName; }
+    /**
+     * Returns the child task count.
+     * @return the task count
+     */
     public int getTaskCount() { return taskCount; }
+    /**
+     * Returns the child timeout.
+     * @return the timeout in milliseconds
+     */
     public long getTimeoutMillis() { return timeoutMillis; }
 
     @Override

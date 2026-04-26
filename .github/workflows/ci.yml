@@ -10,6 +10,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check English documentation language
+        run: python3 scripts/check-english-docs.py
+
   build:
     runs-on: ubuntu-latest
     permissions:

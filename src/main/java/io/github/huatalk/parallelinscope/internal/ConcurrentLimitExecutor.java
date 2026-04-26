@@ -41,6 +41,13 @@ public class ConcurrentLimitExecutor<V> {
     private final ParOptions options;
     private final ListeningExecutorService submitterPool;
 
+    /**
+     * Creates a sliding-window task submitter.
+     *
+     * @param pool          the executor that runs task bodies
+     * @param options       the execution options
+     * @param submitterPool the executor that runs the submission loop
+     */
     @SuppressWarnings("unchecked")
     public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         this.options = options;
@@ -50,6 +57,12 @@ public class ConcurrentLimitExecutor<V> {
 
     /**
      * Creates a new executor with the given pool and options.
+     *
+     * @param <V>           the task result type
+     * @param pool          the executor that runs task bodies
+     * @param options       the execution options
+     * @param submitterPool the executor that runs the submission loop
+     * @return a new concurrency-limited executor
      */
     public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
