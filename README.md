@@ -2,6 +2,8 @@
 
 # 🪿 parallel-in-scope
 
+> **📖 在线文档：https://huatalk.github.io/parallel-in-scope/** （由 `mkdocs/` 自动构建发布）
+
 > **⚠️ 项目状态：开发中（Pre-release）**
 >
 > 本项目仍在积极开发中，API 可能会发生变化。欢迎通过 Issue 提交反馈和建议。
