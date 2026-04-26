@@ -6,7 +6,7 @@
 
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope-demo</artifactId>
-    <version>0.0.1</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>parallel-in-scope-demo</name>
@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>8</maven.compiler.release>
-        <parallel-in-scope.version>0.0.1</parallel-in-scope.version>
+        <parallel-in-scope.version>0.1.0</parallel-in-scope.version>
         <junit-jupiter.version>5.10.2</junit-jupiter.version>
         <assertj.version>3.25.3</assertj.version>
     </properties>
