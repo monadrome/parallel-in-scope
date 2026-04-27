@@ -1,7 +1,7 @@
 # Idea Graveyard
 
 
-> 参考 [Guava IdeaGraveyard](https://github.com/google/guava/wiki/IdeaGraveyard)，本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
+> 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
 >
 > 如果你打算为 parallel-in-scope 提一个 feature request，建议先看看这里——你的想法可能已经被讨论过了。
 

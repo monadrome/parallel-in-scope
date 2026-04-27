@@ -38,4 +38,4 @@ Examples use the `demo.*` namespace and access public APIs from `scope`, `spi`, 
 - [English documentation map](docs/en/README.md)
 - [Chinese article catalog](docs/zh-CN/README.md)
 - [Architecture constraints](architecture-constraints.md) (Chinese)
-- [Project documentation](../docs/en/README.md)
+- [Project documentation](../docs/en/index.md)

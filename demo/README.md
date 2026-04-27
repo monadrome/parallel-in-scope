@@ -105,7 +105,7 @@ mvn test -Dtest=ArchitectureConstraintsTest
 ## 相关文档
 
 - [Demo 文章索引](docs/zh-CN/README.md)
-- [项目中文文档中心](../docs/zh-CN/README.md)
+- [项目中文文档中心](../docs/zh/index.md)
 - [parallel-in-scope 主项目](../README.md)
 - [架构约束详细说明](architecture-constraints.md)
 - [CLAUDE.md](CLAUDE.md)

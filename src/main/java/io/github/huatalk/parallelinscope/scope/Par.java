@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
+import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
@@ -139,7 +140,10 @@ public final class Par {
         logForking(taskName, edge);
 
         // Build parent-child CancellationToken chain
-        CancellationToken parentToken = ThreadRelay.getParentCancellationToken();
+        CancellationToken parentToken = TaskScopeTl.getCancellationToken();
+        if (parentToken == null) {
+            parentToken = ThreadRelay.getParentCancellationToken();
+        }
         CancellationToken cancellationToken = new CancellationToken(parentToken);
 
         // Create ScopedCallable list with context fields

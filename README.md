@@ -4,7 +4,7 @@
 
 > 在线文档：[huatalk.github.io/parallel-in-scope](https://huatalk.github.io/parallel-in-scope/)
 >
-> 项目状态：开发中（Pre-release），API 仍可能调整。
+> 当前版本：`v0.1.0`。`0.x` API 仍可能在后续版本中调整。
 
 面向 Java 8+ 的结构化并发工具包，为批量任务提供协作式取消、快速失败、上下文传播、滑动窗口调度和线程池死锁诊断。
 
@@ -46,10 +46,10 @@ AsyncBatchResult<User> result = new Par(config)
 
 | 入口 | 内容 |
 |---|---|
-| [中文文档中心](docs/zh-CN/README.md) | 使用指南、概念、内部原理、设计与测试文档 |
-| [完整使用指南](docs/zh-CN/user-guide.md) | 配置、API、执行时序和进阶功能 |
+| [中文文档中心](docs/zh/index.md) | 使用指南、概念、内部原理、设计与测试文档 |
+| [完整使用指南](docs/zh/user-guide.md) | 配置、API、执行时序和进阶功能 |
 | [Demo 工程](demo/README.md) | 可运行示例和问题导向文章 |
-| [协作式取消](docs/zh-CN/reference/cooperative-cancellation.md) | Checkpoint 与取消传播的 API/契约参考 |
+| [协作式取消](docs/zh/reference/cooperative-cancellation.md) | Checkpoint 与取消传播的 API/契约参考 |
 
 ## 兼容性与构建
 

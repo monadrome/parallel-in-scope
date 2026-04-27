@@ -1,11 +1,11 @@
-[项目首页](https://github.com/HuaTalk/parallel-in-scope) | [**English guide**](../en/user-guide.md)
+[项目首页](https://github.com/HuaTalk/parallel-in-scope)
 
 # 🪿 parallel-in-scope
 
 
-> **⚠️ 项目状态：开发中（Pre-release）**
+> **当前版本：`v0.1.0`**
 >
-> 本项目仍在积极开发中，API 可能会发生变化。欢迎通过 Issue 提交反馈和建议。
+> 项目仍在积极开发中，`0.x` API 可能在后续版本中调整。欢迎通过 Issue 提交反馈和建议。
 
 ## 项目介绍
 
@@ -270,7 +270,7 @@ sequenceDiagram
 
 | 项目 | 说明 |
 |------|------|
-| JDK | Java 8+（`maven.compiler.source/target = 1.8`） |
+| JDK | Java 8+（生产代码使用 `maven.compiler.release = 8`） |
 | 构建工具 | Maven 3.x（推荐） |
 | 发布产物 | `parallel-in-scope`（核心库） |
 | 示例工程 | `demo/`（不参与发布） |
