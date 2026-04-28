@@ -1,6 +1,11 @@
-[**Chinese**](README.md) | **English**
+[**English**](README.md) | [**Chinese**](README.zh-CN.md)
 
 # parallel-in-scope
+
+[![CI](https://github.com/HuaTalk/parallel-in-scope/actions/workflows/ci.yml/badge.svg)](https://github.com/HuaTalk/parallel-in-scope/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.huatalk/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.huatalk/parallel-in-scope)
+[![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/HuaTalk/parallel-in-scope#compatibility-and-build)
+[![License](https://img.shields.io/github/license/HuaTalk/parallel-in-scope)](LICENSE)
 
 > Current version: `v0.1.0` (initial public release). APIs may still change in future `0.x` releases.
 
