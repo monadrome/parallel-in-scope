@@ -8,13 +8,10 @@
 
 ## 项目介绍
 
-如果说 Java 21 的虚拟线程（Virtual Threads）拉开了 Java 并发模型变革的序幕，那么 Java 26 即将发布的结构化并发（Structured Concurrency）无疑标志着 Java 并发编程进入了"结构化时代"。然而，现实是残酷的——绝大多数企业生产系统仍然运行在 Java 8 上，这些系统距离享受结构化并发的红利还有漫长的升级之路。与此同时，开发者在 Java 8 上编写并行代码时，依然面临着取消信号丢失、上下文无法传播、线程池死锁难以诊断等棘手问题，却缺少一个系统性的解决方案。为此，我们发起了 **VFormation（雁阵）** 项目，希望将结构化并发的核心思想——协作式取消、快速失败、上下文传播——带回 Java 8 生态。
-
-正如大雁以 V 字阵型协作飞行、分担阻力，VFormation 通过**协作式取消、快速失败、死锁检测、上下文传播和滑动窗口调度**来编排你的并行任务。如今 Java 并发框架主要分为两派：一派是 CompletableFuture 链式编排，本质是响应式流水线，擅长异步编排但缺少结构化语义；另一派则是 ExecutorService + invokeAll 的传统模型，简单直接但缺乏取消传播和失败隔离能力。VFormation 旨在走出第三条路——**以结构化并发为内核，以 Guava ListenableFuture 为基石**，在不升级 JDK 的前提下，让你的并行代码具备**失败即止、取消级联、死锁可见**的工程级保障。我们相信，好的并发框架不应该只是一组 API，而应该是一套安全网——让开发者专注于业务逻辑，把并发的复杂性交给框架去兜底。希望 VFormation 能成为你在 Java 8 并发世界中的可靠伙伴，从"能跑就行"走向"结构化、可观测、可诊断"的并发编程实践。
-
-## 设计边界（Idea Graveyard）
-
-为了保持 API 简洁和语义一致，项目维护了 [Idea Graveyard](IdeaGraveyard.md)（参考 Guava 同名实践）：集中记录那些我们认真评估过、但最终决定不实现的特性（例如可配置失败策略、内置重试、链式编排、Spring Boot Starter 等），并给出明确的拒绝理由和替代方案。提交 Feature Request 前建议先阅读，能更快对齐项目设计方向。
+**VFormation（雁阵）** 是一个面向 Java 8+ 的结构化并发工具包，核心能力包括协作式取消、快速失败、上下文传播、死锁检测和滑动窗口调度。  
+它聚焦解决 Java 8 并行编程中的典型痛点：取消信号难传播、`ThreadLocal` 上下文丢失、嵌套并行死锁难诊断。  
+相比 CompletableFuture 链式编排与 `ExecutorService + invokeAll` 传统模型，VFormation 更强调结构化语义与工程可控性。  
+目标很直接：在不升级 JDK 的前提下，让并发代码从“能跑”走向“失败即止、取消级联、死锁可见”。
 
 ---
 
@@ -110,6 +107,16 @@ List<ListenableFuture<String>> futures = result.getResults();
 **问题：** CPU 密集型和 IO 密集型任务混用同一队列，大量 IO 任务排队会饿死 CPU 任务，计算延迟飙升。
 
 **方案：** CPU 密集型任务的 `offer()` 返回 `false`，触发拒绝策略（通常 `CallerRunsPolicy`），宁可调用方线程同步执行也不阻塞工作线程；IO 密集型正常排队。
+
+---
+
+## 适用场景与设计边界
+
+**推荐使用：** 需要在 Java 8 上做并行批处理，希望获得失败即止、取消级联、上下文传播和可观测性保障的服务端业务。
+
+**暂不适合：** 需要链式响应式编排、内置重试/容错策略或 Spring Boot Starter 的场景（这些能力当前刻意不内置）。
+
+为了保持 API 简洁和语义一致，项目维护了 [Idea Graveyard](IdeaGraveyard.md)（参考 Guava 同名实践）：集中记录那些我们认真评估过、但最终决定不实现的特性（例如可配置失败策略、内置重试、链式编排、Spring Boot Starter 等），并给出明确的拒绝理由和替代方案。提交 Feature Request 前建议先阅读，能更快对齐项目设计方向。
 
 ---
 
@@ -255,6 +262,16 @@ sequenceDiagram
 |------|------|------|
 | Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
+
+---
+
+## 兼容性（Compatibility）
+
+| 项目 | 说明 |
+|------|------|
+| JDK | Java 8+（`maven.compiler.source/target = 1.8`） |
+| 构建工具 | Maven 3.x（推荐） |
+| 核心模块 | `vformation`（核心库）、`vformation-demo`（示例工程） |
 
 ---
 
