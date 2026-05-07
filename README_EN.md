@@ -10,6 +10,10 @@
 
 Just as geese share aerodynamic drag in a V-formation, VFormation orchestrates your parallel tasks through cooperative cancellation, fail-fast, deadlock detection, context propagation, and sliding-window scheduling — **fail immediately, cancel cascadingly, deadlocks visible**.
 
+## Design Boundaries (Idea Graveyard)
+
+To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](IdeaGraveyard.md) (inspired by Guava's same practice): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
+
 ---
 
 ## Quick Start
