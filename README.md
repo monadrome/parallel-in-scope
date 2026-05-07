@@ -260,7 +260,7 @@ sequenceDiagram
 
 | 依赖 | 版本 | 用途 |
 |------|------|------|
-| Guava | 33.2.1-jre | ListenableFuture, FluentFuture, Graph API |
+| Guava | 33.6.0-jre | ListenableFuture, FluentFuture, Graph API |
 | TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
 
 ---

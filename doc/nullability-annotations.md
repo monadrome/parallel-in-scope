@@ -93,7 +93,7 @@ public ExecutorResolver getExecutorResolver() { ... }
 <dependency>
     <groupId>org.checkerframework</groupId>
     <artifactId>checker-qual</artifactId>
-    <version>3.42.0</version>
+    <version>3.55.1</version>
     <scope>provided</scope>
 </dependency>
 ```
