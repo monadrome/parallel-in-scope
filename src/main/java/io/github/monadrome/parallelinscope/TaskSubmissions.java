@@ -51,7 +51,8 @@ final class TaskSubmissions {
             Callable<V> callable,
             List<TaskListener> taskListeners,
             Consumer<? super ExecutionPhase> phaseObserver) {
-        return ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable, taskListeners), phaseObserver);
+        return ExecutionPhaseHintFuture.create(
+                wrapScoped(taskContext, callable, taskListeners), phaseObserver, taskContext.bodyState());
     }
 
     /**

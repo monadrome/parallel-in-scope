@@ -193,3 +193,15 @@ try {
 
 `SubmissionException` 本身是内部类型：它只会出现在 `getCause()` 链和堆栈里，无法在 `catch`
 子句中指名。请通过 `TaskOutcome.SUBMISSION_FAILURE` 区分这类终态。
+
+## `TaskGroup.close()` 在剩余 deadline 预算内等待（0.2.0 之后的变更）
+
+`0.2.0` 的 `TaskGroup.close()` 只取消未完成成员并立即返回。现在它先取消，再使用组的剩余
+deadline 预算等待成员与终端 combine 的任务体退出：取消传播消耗同一段预算，预算耗尽（或没有
+有限 deadline）时取消后立即返回；等待被中断时恢复中断标志并返回。只需要发出取消请求的调用方
+必须改用 `cancel()`，不能再假设 `close()` 不等待。
+
+`close()` 正常返回不证明任务体已经退出。`TaskGroup` 与 `TaskBatchResult` 现在都提供
+`awaitBodyCompletion(Duration)`：返回 `true` 表示所有任务体已退出（或被确定为永远不会进入），
+并对任务体的写入建立 happens-before——释放任务体使用的资源前应以它确认。在本作用域任务体内
+（含同线程嵌套 inline 调用）调用这两个等待入口会被拒绝并抛 `IllegalStateException`。

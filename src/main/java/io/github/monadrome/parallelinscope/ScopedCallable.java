@@ -65,6 +65,13 @@ final class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             taskContext.markEnded(ticker.read());
+            // Publish body exit after the user body's finally and before listeners: listeners are
+            // not part of body completion. The outer future finally retries this as a fallback;
+            // the shared atomic state releases the slot exactly once.
+            TaskBodyState bodyState = taskContext.bodyState();
+            if (bodyState != null) {
+                bodyState.exited();
+            }
             // Listeners receive the completed task explicitly and never inherit an implicit
             // current-task identity, even when this callable ran inline inside another task.
             TaskExecutionContext.restore(null);

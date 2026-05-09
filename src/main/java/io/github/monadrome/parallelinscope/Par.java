@@ -216,15 +216,16 @@ public final class Par {
             logForking(unit, edge);
         }
         com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
+        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
         List<ExecutionPhaseHintFuture<R>> tasks = java.util.stream.IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, ticker.read()),
+                        new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
                         globalPar.taskListenersFor(name),
                         runtime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
-                        runtime.submissionExecutor(), unit, globalPar.submitterPool())
+                        runtime.submissionExecutor(), unit, globalPar.submitterPool(), bodyCompletion)
                 .submitAll(tasks);
         ListenableFuture<?> completion =
                 unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
