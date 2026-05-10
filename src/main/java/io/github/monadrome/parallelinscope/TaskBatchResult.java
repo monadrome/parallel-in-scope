@@ -1,17 +1,17 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.collect.Maps.toImmutableEnumMap;
+
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -258,9 +258,8 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * @return a BatchReport containing outcome counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<TaskOutcome, Integer> outcomeMap = results.stream()
-                .collect(Collectors.toMap(
-                        FutureInspector::outcome, x -> 1, Integer::sum, () -> new EnumMap<>(TaskOutcome.class)));
+        Map<TaskOutcome, Integer> outcomeMap =
+                results.stream().collect(toImmutableEnumMap(FutureInspector::outcome, x -> 1, Integer::sum));
         Throwable firstException = results.stream()
                 .map(TaskFuture::failure)
                 .filter(Objects::nonNull)
@@ -304,7 +303,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
          * @param firstException the first observed failure, or {@code null}
          */
         BatchReport(Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
-            this.stateCounts = immutableStateCounts(Objects.requireNonNull(stateCounts, "stateCounts cannot be null"));
+            this.stateCounts = Maps.immutableEnumMap(Objects.requireNonNull(stateCounts, "stateCounts cannot be null"));
             this.firstException = firstException;
         }
 
@@ -330,12 +329,6 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         @Override
         public String toString() {
             return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
-        }
-
-        private static Map<TaskOutcome, Integer> immutableStateCounts(Map<TaskOutcome, Integer> stateCounts) {
-            EnumMap<TaskOutcome, Integer> copy = new EnumMap<>(TaskOutcome.class);
-            copy.putAll(stateCounts);
-            return Collections.unmodifiableMap(copy);
         }
     }
 }

@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -157,8 +158,8 @@ public final class Par {
                     runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
             logForking(unit, edge);
         }
-        TaskExecutionContext taskContext = new TaskExecutionContext(
-                unit, 0, com.google.common.base.Ticker.systemTicker().read(), bodyCompletion.register(unit));
+        TaskExecutionContext taskContext =
+                new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
         ExecutionPhaseHintFuture<T> future =
                 TaskSubmissions.prepare(taskContext, task, globalPar.taskListenersFor(name), runtime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
@@ -224,7 +225,7 @@ public final class Par {
                     runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
             logForking(unit, edge);
         }
-        com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
+        Ticker ticker = Ticker.systemTicker();
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
         List<ExecutionPhaseHintFuture<R>> tasks = java.util.stream.IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(

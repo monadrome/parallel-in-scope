@@ -1,8 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
-import java.util.Collections;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -38,7 +38,7 @@ public final class TaskGroupResult {
         this.deadlineNanos = deadlineNanos;
         this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
         this.failedTaskName = failedTaskName;
-        this.members = Collections.unmodifiableMap(new LinkedHashMap<>(members));
+        this.members = ImmutableMap.copyOf(members);
         this.terminal = terminal;
     }
 
@@ -135,7 +135,7 @@ public final class TaskGroupResult {
         if (terminal != null) {
             counts.merge(terminal.outcome(), 1, Integer::sum);
         }
-        return Collections.unmodifiableMap(counts);
+        return Maps.immutableEnumMap(counts);
     }
 
     /**

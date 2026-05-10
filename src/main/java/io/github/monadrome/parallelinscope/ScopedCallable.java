@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Ticker;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -31,7 +33,7 @@ final class ScopedCallable<V> implements Callable<V> {
     private static final Logger logger = Logger.getLogger(ScopedCallable.class.getName());
 
     private final Callable<V> delegate;
-    private final com.google.common.base.Ticker ticker;
+    private final Ticker ticker;
     private final TaskExecutionContext taskContext;
     private final List<TaskListener> taskListeners;
 
@@ -39,8 +41,8 @@ final class ScopedCallable<V> implements Callable<V> {
     ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
         this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
-        this.ticker = com.google.common.base.Ticker.systemTicker();
-        this.taskListeners = taskListeners == null ? java.util.Collections.emptyList() : taskListeners;
+        this.ticker = Ticker.systemTicker();
+        this.taskListeners = taskListeners == null ? ImmutableList.of() : taskListeners;
     }
 
     @Override

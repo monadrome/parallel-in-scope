@@ -1,7 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 
@@ -17,7 +17,7 @@ public final class GlobalParDeadlockPolicy {
         for (DeadlockDetectionListener listener : builder.listeners) {
             if (seen.put(listener, Boolean.TRUE) == null) unique.add(listener);
         }
-        this.listeners = Collections.unmodifiableList(unique);
+        this.listeners = ImmutableList.copyOf(unique);
     }
 
     public static Builder builder() {
