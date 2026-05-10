@@ -147,17 +147,20 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 
 ### 8.5 close 与任务体退出
 
-`close()` 采用「取消 + 有界等待」语义（设计依据见
-[scope-close-and-termination-proposal](scope-close-and-termination-proposal.md)）：
+`close()` 采用「取消 + 独立 close grace 等待」语义：
 
 - 先校验自等待条件：当前线程正在执行本组成员（含 terminal combine）任务体——含当前线程上
   尚未返回的嵌套 inline 调用——时抛 `IllegalStateException`；守卫沿 `structuralParent` 链判定，
   不只看最内层 current context；任务体需要取消自身所在组时应使用取消入口；
 - 存在未完成成员：等同 `cancel()`（幂等）取消组 token；取消处理同步竞争任务入口，尚未取得
   执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
-- 取消传播返回后，以组有效 deadline（提交时确定，不从关闭时重算）的剩余预算等待全部成员
-  （含 terminal combine）任务体退出：取消传播消耗同一段预算；预算耗尽（执行超时引发关闭的
-  常见情形）或没有有限 deadline 时只取消不等待，预算耗尽正常返回；
+- 取消传播返回后，以 **close grace**（`TaskGroupOptions.closeGrace(Duration)`，默认
+  `BatchOptions.DEFAULT_CLOSE_GRACE` = 5 秒）为预算等待全部成员（含 terminal combine）任务体
+  退出。close grace 是清理预算，独立于执行 deadline，从 `close()` 调用时起算：它不随 deadline
+  耗尽而消失，也不会因 deadline 尚远而拉长——忽略中断的任务体最多把 `close()` 挂住一个 grace
+  的时长。grace 为零时 `close()` 只取消不等待，等价于 `cancel()`；
+- grace 耗尽而任务体仍在运行：以 WARN 级别记录未退出任务的名称——泄漏必须是可见数据，不是
+  沉默；这是正常返回，不是错误；
 - 等待被中断：取消效果保留，恢复调用线程中断标志并返回；进入方法时已中断则先完成取消、
   跳过等待、保留标志；`close()` 不新增 checked exception；
 - 空组或所有冻结成员已终态：取消无副作用，等待立即返回；
@@ -165,12 +168,19 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
   或正在运行的任务状态提前丢失；
 - 不关闭 `GlobalPar` 或任何注册 executor。
 
+Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次 token 取消全部未完成
+元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，同一默认值）等待
+任务体退出；Batch 没有独立的 cancel-only 公共入口，零 grace 即等价语义。
+
 任务体退出由每个任务在提交前预登记的原子状态机跟踪
-（`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`，共享 `CountDownLatch` 初值为全部任务
-数，空提交为零）：`RUNNING` 只表示取得执行资格；正常路径在用户任务体 finally 完成后、
-listener 调用前发布 `EXITED`，外层 future finally 兜底；取消获胜、提交拒绝、占位取消、窗口
-放弃和 combine 不执行都接入真实 prepared task 的状态，各恰好释放一次名额。listener、TTL 恢复
-和用户另行启动的线程不属于任务体退出范围。
+（`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）：`RUNNING` 只表示取得执行资格；正常
+路径在用户任务体 finally 完成后、listener 调用前发布 `EXITED`，外层 future finally 兜底；取消
+获胜、提交拒绝、占位取消、窗口放弃和 combine 不执行都接入真实 prepared task 的状态，各恰好释放
+一次名额。等待信号是 `AtomicInteger` 计数加 `SettableFuture`（最后一个释放名额的线程直接完成
+它），而不是阻塞原语：定时等待因此能区分「全部退出」与「预算耗尽」，信号也能被
+`GlobalPar.awaitQuiescence` 按提交聚合——quiescence 覆盖任务体退出，而不只是 future 终态（运行
+中被取消的任务会立即完成 future，但用户代码可能仍在执行）。listener、TTL 恢复和用户另行启动的
+线程不属于任务体退出范围。
 
 调用方可用 `TaskGroup.awaitBodyCompletion(Duration)` 或 `TaskBatchResult.awaitBodyCompletion(Duration)`
 以独立预算显式等待（不自动取消、不要求先 close；Batch 无新增 close 入口，先经既有取消入口取消

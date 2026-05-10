@@ -37,26 +37,29 @@ final class SlidingWindowSubmitter<V> {
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
     private final BodyCompletionTracker bodyCompletion;
+    private final java.time.Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
-        this(pool, unit, submitterPool, BodyCompletionTracker.empty());
+        this(pool, unit, submitterPool, BodyCompletionTracker.empty(), BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /**
      * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
-     * body-completion signal. The tracker must have registered one slot per prepared task before
-     * {@link #submitAll(List)} runs.
+     * body-completion signal and close grace. The tracker must have registered one slot per
+     * prepared task before {@link #submitAll(List)} runs.
      */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool,
             MultiTaskContext unit,
             ListeningExecutorService submitterPool,
-            BodyCompletionTracker bodyCompletion) {
+            BodyCompletionTracker bodyCompletion,
+            java.time.Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
+        this.closeGrace = Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
         this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 
@@ -73,7 +76,12 @@ final class SlidingWindowSubmitter<V> {
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(bodyCompletion, ImmutableList.of());
+            return TaskBatchResult.of(
+                    bodyCompletion,
+                    Futures.immediateVoidFuture(),
+                    ImmutableList.of(),
+                    unit.cancellationToken(),
+                    closeGrace);
         }
 
         ImmutableList.Builder<Task<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -98,13 +106,23 @@ final class SlidingWindowSubmitter<V> {
                 for (int pending = i; pending < tasks.size(); pending++) {
                     tasks.get(pending).markBodySkipped();
                 }
-                return TaskBatchResult.of(bodyCompletion, resultBuilder.build());
+                return TaskBatchResult.of(
+                        bodyCompletion,
+                        Futures.immediateVoidFuture(),
+                        resultBuilder.build(),
+                        unit.cancellationToken(),
+                        closeGrace);
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            return TaskBatchResult.of(bodyCompletion, resultBuilder.build());
+            return TaskBatchResult.of(
+                    bodyCompletion,
+                    Futures.immediateVoidFuture(),
+                    resultBuilder.build(),
+                    unit.cancellationToken(),
+                    closeGrace);
         }
 
         // Async submit remaining tasks
@@ -130,7 +148,7 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(bodyCompletion, submittingFuture, results);
+        return TaskBatchResult.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
     }
 
     private Task<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {

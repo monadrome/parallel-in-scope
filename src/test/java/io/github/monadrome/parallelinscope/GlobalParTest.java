@@ -366,6 +366,95 @@ class GlobalParTest {
     }
 
     @Test
+    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskBatchResult<String> batch = global.par(ParName.of("io"))
+                    .map(
+                            Collections.singletonList("a"),
+                            x -> {
+                                entered.countDown();
+                                // Ignore interruption: the future is cancelled immediately, but
+                                // the body stays inside user code until released.
+                                boolean interrupted = false;
+                                while (true) {
+                                    try {
+                                        release.await();
+                                        break;
+                                    } catch (InterruptedException ignored) {
+                                        interrupted = true;
+                                    }
+                                }
+                                if (interrupted) Thread.currentThread().interrupt();
+                                return x;
+                            },
+                            BatchOptions.timeout("body-quiesce", Duration.ofSeconds(30)));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            batch.results().get(0).cancel(true);
+            assertThat(batch.results().get(0).isDone()).isTrue();
+            global.close();
+
+            // Services have drained and the future is terminal, but the body is still running:
+            // quiescence must not be reported.
+            assertThat(global.awaitQuiescence(Duration.ofMillis(200))).isFalse();
+
+            release.countDown();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitQuiescenceCoversSingleSubmittedTaskBodies() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskFuture<String> task = global.par(ParName.of("io"))
+                    .submit(
+                            "parked",
+                            () -> {
+                                entered.countDown();
+                                boolean interrupted = false;
+                                while (true) {
+                                    try {
+                                        release.await();
+                                        break;
+                                    } catch (InterruptedException ignored) {
+                                        interrupted = true;
+                                    }
+                                }
+                                if (interrupted) Thread.currentThread().interrupt();
+                                return "done";
+                            },
+                            TaskOptions.timeout(Duration.ofSeconds(30)));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            task.cancel(true);
+            global.close();
+
+            assertThat(global.awaitQuiescence(Duration.ofMillis(200))).isFalse();
+
+            release.countDown();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =

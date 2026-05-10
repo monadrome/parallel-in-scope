@@ -64,6 +64,7 @@ public final class TaskGroup implements AutoCloseable {
     private final Task<TaskGroupResult> completionTask;
     private final CancellationToken groupToken;
     private final BodyCompletionTracker bodyCompletion;
+    private final long closeGraceNanos;
 
     private int terminalCount;
     private int successCount;
@@ -80,13 +81,15 @@ public final class TaskGroup implements AutoCloseable {
             CancellationToken groupToken,
             Map<String, MemberState> memberStates,
             @Nullable MemberState terminal,
-            BodyCompletionTracker bodyCompletion) {
+            BodyCompletionTracker bodyCompletion,
+            Duration closeGrace) {
         this.groupName = groupName;
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.listeners = listeners;
         this.groupToken = groupToken;
         this.bodyCompletion = bodyCompletion;
+        this.closeGraceNanos = saturatedNanos(closeGrace);
         this.memberStates = new LinkedHashMap<>(memberStates);
         this.terminal = terminal;
         // The group's own terminal future is a task like any other: it carries the group name and
@@ -148,8 +151,8 @@ public final class TaskGroup implements AutoCloseable {
      * Cancels every unfinished member without waiting for user code to stop.
      *
      * <p>This is the cancel-only entry: it issues the cancellation request and returns. Use {@link
-     * #close()} when the calling thread should also wait, within the group's remaining deadline
-     * budget, for task bodies to exit, and {@link #awaitBodyCompletion(Duration)} to wait with an
+     * #close()} when the calling thread should also wait, within the group's close grace, for task
+     * bodies to exit, and {@link #awaitBodyCompletion(Duration)} to wait with an
      * independently chosen budget.
      */
     public void cancel() {
@@ -157,15 +160,21 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Cancels every unfinished member, then waits for task bodies to exit within the group's
-     * remaining deadline budget, and returns.
+     * Cancels every unfinished member, then waits for task bodies to exit within the group's close
+     * grace, and returns.
+     *
+     * <p>The close grace is a cleanup budget configured on {@link
+     * TaskGroupOptions#closeGrace(Duration)} (default {@link BatchOptions#DEFAULT_CLOSE_GRACE}),
+     * independent of the group's execution deadline: it starts when this method is called, after
+     * cancellation has already been requested, so a member that ignores interruption can hold this
+     * method for at most the grace — never for the remaining deadline. A zero grace makes this
+     * method cancel-only, equivalent to {@link #cancel()}.
      *
      * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
-     * the deadline is never reset. Cancellation propagation consumes the same budget: when the
-     * deadline is already exhausted — the common case when a timeout triggered this close — or the
-     * group has no finite deadline, this method cancels without waiting. An exhausted budget is a
-     * normal return, not an error. The group's executors are never shut down, and user code that
-     * ignores interruption may keep running after this method returns.
+     * the grace never extends the group's execution deadline and does not revive cancelled tasks.
+     * When the grace elapses with bodies still running, the outstanding member names are logged at
+     * WARN level: a leaked body is visible data, not silence. The group's executors are never shut
+     * down, and user code that ignores interruption may keep running after this method returns.
      *
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
      * is skipped with the interrupt flag preserved; an interruption during the wait likewise
@@ -179,23 +188,21 @@ public final class TaskGroup implements AutoCloseable {
      */
     @Override
     public void close() {
-        bodyCompletion.checkNotSelfAwait();
-        if (!completion.isDone()) cancel();
-        long deadline = groupToken.deadlineNanos();
-        if (deadline == Long.MAX_VALUE) {
-            return;
-        }
-        long remainingNanos = deadline - System.nanoTime();
-        if (remainingNanos <= 0) {
-            return;
-        }
-        if (Thread.currentThread().isInterrupted()) {
-            return;
-        }
+        BodyCompletionTracker.cancelAndAwaitBodyExit(
+                () -> {
+                    if (!completion.isDone()) cancel();
+                },
+                bodyCompletion,
+                closeGraceNanos,
+                "TaskGroup '" + groupName + "'",
+                LOGGER);
+    }
+
+    private static long saturatedNanos(Duration duration) {
         try {
-            bodyCompletion.awaitBounded(remainingNanos);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
         }
     }
 
@@ -668,12 +675,14 @@ public final class TaskGroup implements AutoCloseable {
                 groupToken,
                 states,
                 terminal,
-                bodyCompletion);
+                bodyCompletion,
+                options.closeGrace());
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
         if (terminal != null) {
             retained.add(terminal.future);
         }
         env.retainUntilComplete(retained);
+        env.trackBodies(bodyCompletion);
         return group;
     }
 

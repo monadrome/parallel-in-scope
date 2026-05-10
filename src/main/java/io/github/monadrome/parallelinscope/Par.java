@@ -143,6 +143,7 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(taskName), 1, parent, observation, runtime.identity(), name.value());
+        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
                     1,
@@ -157,7 +158,7 @@ public final class Par {
             logForking(unit, edge);
         }
         TaskExecutionContext taskContext = new TaskExecutionContext(
-                unit, 0, com.google.common.base.Ticker.systemTicker().read());
+                unit, 0, com.google.common.base.Ticker.systemTicker().read(), bodyCompletion.register(unit));
         ExecutionPhaseHintFuture<T> future =
                 TaskSubmissions.prepare(taskContext, task, globalPar.taskListenersFor(name), runtime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
@@ -166,6 +167,7 @@ public final class Par {
         ListenableFuture<?> completion = unit.cancellationToken()
                 .bind(Collections.singletonList(future), NO_SUBMISSION, globalPar.timeoutScheduler());
         globalPar.retainUntilComplete(completion);
+        globalPar.trackBodies(bodyCompletion);
         TaskSubmissions.submitScoped(future, unit, runtime.submissionExecutor(), unit.taskType() == TaskType.CPU_BOUND);
         return view;
     }
@@ -188,12 +190,15 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(), taskCount, parent, observation, runtime.identity(), name.value());
-        return executeGlobal(elements, item -> () -> function.apply(item), unit);
+        return executeGlobal(elements, item -> () -> function.apply(item), unit, options.closeGrace());
     }
 
     @SuppressWarnings("unchecked")
     private <T, R> TaskBatchResult<R> executeGlobal(
-            @Nullable Collection<T> elements, Function<T, Callable<R>> callableMapper, MultiTaskContext unit) {
+            @Nullable Collection<T> elements,
+            Function<T, Callable<R>> callableMapper,
+            MultiTaskContext unit,
+            java.time.Duration closeGrace) {
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;
@@ -225,11 +230,12 @@ public final class Par {
                         runtime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
-                        runtime.submissionExecutor(), unit, globalPar.submitterPool(), bodyCompletion)
+                        runtime.submissionExecutor(), unit, globalPar.submitterPool(), bodyCompletion, closeGrace)
                 .submitAll(tasks);
         ListenableFuture<?> completion =
                 unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
         globalPar.retainUntilComplete(completion);
+        globalPar.trackBodies(bodyCompletion);
         return result;
     }
 

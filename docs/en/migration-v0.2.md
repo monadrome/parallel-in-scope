@@ -262,17 +262,27 @@ try {
 stack traces and cannot be named in a `catch` clause. Classify the outcome through
 `TaskOutcome.SUBMISSION_FAILURE` instead.
 
-## `TaskGroup.close()` waits within the remaining deadline budget (post-0.2.0)
+## `TaskGroup.close()` and `TaskBatchResult.close()` wait within an independent close grace (post-0.2.0)
 
 `0.2.0`'s `TaskGroup.close()` only cancelled unfinished members and returned immediately. It now
 cancels and then waits for member and terminal-combine task bodies to exit within the group's
-remaining deadline budget: cancellation propagation consumes the same budget, an exhausted budget
-(or no finite deadline) returns right after cancelling, and an interrupted wait restores the
-interrupt flag and returns. Callers that only want to issue the cancellation request must use
-`cancel()` instead of relying on `close()` being non-blocking.
+**close grace**: a cleanup budget configured with `TaskGroupOptions.closeGrace(Duration)` (default
+`BatchOptions.DEFAULT_CLOSE_GRACE`, five seconds), independent of the execution deadline and
+starting when `close()` is called, so a body that ignores interruption can hold `close()` for at
+most the grace — never for the remaining deadline. `closeGrace(Duration.ZERO)` makes `close()`
+cancel-only; an interrupted wait restores the interrupt flag and returns; a grace elapsed with
+bodies still running is logged at WARN level with the outstanding task names. Callers that only
+want to issue the cancellation request must use `cancel()` instead of relying on `close()` being
+non-blocking.
+
+`TaskBatchResult` is now `AutoCloseable` with the same semantics: `close()` cancels every
+unfinished element through the batch token, then waits within the batch's close grace
+(`BatchOptions.closeGrace(Duration)`).
 
 A normal `close()` return does not prove task bodies have exited. Both `TaskGroup` and
 `TaskBatchResult` now offer `awaitBodyCompletion(Duration)`: a `true` result means every task body
 has exited (or will never be entered) and happens-before the bodies' writes — check it before
 releasing resources the bodies used. Both wait entries reject a call made from within a task body
-of the same scope with `IllegalStateException`.
+of the same scope with `IllegalStateException`. `GlobalPar.awaitQuiescence(Duration)` now also
+covers task-body exit: a task cancelled while running completes its future immediately but may
+still be executing user code, and quiescence waits for both.
