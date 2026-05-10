@@ -34,19 +34,19 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     private final List<TaskFuture<T>> results;
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable CancellationToken token;
-    private final long closeGraceNanos;
+    private final @Nullable Duration closeGrace;
 
     private TaskBatchResult(
             ListenableFuture<?> submitCanceller,
             List<? extends TaskFuture<T>> results,
             BodyCompletionTracker bodyCompletion,
             @Nullable CancellationToken token,
-            Duration closeGrace) {
+            @Nullable Duration closeGrace) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.token = token;
-        this.closeGraceNanos = saturatedNanos(closeGrace);
+        this.closeGrace = closeGrace;
     }
 
     private static long saturatedNanos(Duration duration) {
@@ -114,12 +114,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(
-                Futures.immediateVoidFuture(),
-                results,
-                BodyCompletionTracker.empty(),
-                null,
-                BatchOptions.DEFAULT_CLOSE_GRACE);
+        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, BodyCompletionTracker.empty(), null, null);
     }
 
     /**
@@ -131,8 +126,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(BodyCompletionTracker bodyCompletion, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(
-                Futures.immediateVoidFuture(), results, bodyCompletion, null, BatchOptions.DEFAULT_CLOSE_GRACE);
+        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, bodyCompletion, null, null);
     }
 
     /**
@@ -144,8 +138,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(
-                submitCanceller, results, BodyCompletionTracker.empty(), null, BatchOptions.DEFAULT_CLOSE_GRACE);
+        return new TaskBatchResult<>(submitCanceller, results, BodyCompletionTracker.empty(), null, null);
     }
 
     /**
@@ -165,7 +158,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
             ListenableFuture<?> submitCanceller,
             List<? extends TaskFuture<T>> results,
             CancellationToken token,
-            Duration closeGrace) {
+            @Nullable Duration closeGrace) {
         return new TaskBatchResult<>(submitCanceller, results, bodyCompletion, token, closeGrace);
     }
 
@@ -202,9 +195,26 @@ public final class TaskBatchResult<T> implements AutoCloseable {
                     }
                 },
                 bodyCompletion,
-                closeGraceNanos,
+                closeGraceBudgetNanos(),
                 "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
                 LOGGER);
+    }
+
+    /**
+     * The close wait budget: the configured close grace when present, otherwise the remaining
+     * execution deadline carried by the batch token. A non-positive result — or no derivable
+     * budget — means cancel-only.
+     */
+    private long closeGraceBudgetNanos() {
+        Duration configured = closeGrace;
+        if (configured != null) {
+            return saturatedNanos(configured);
+        }
+        CancellationToken batchToken = token;
+        if (batchToken == null || batchToken.deadlineNanos() == Long.MAX_VALUE) {
+            return 0;
+        }
+        return batchToken.deadlineNanos() - System.nanoTime();
     }
 
     /**

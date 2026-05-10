@@ -64,7 +64,7 @@ public final class TaskGroup implements AutoCloseable {
     private final Task<TaskGroupResult> completionTask;
     private final CancellationToken groupToken;
     private final BodyCompletionTracker bodyCompletion;
-    private final long closeGraceNanos;
+    private final @Nullable Duration closeGrace;
 
     private int terminalCount;
     private int successCount;
@@ -82,14 +82,14 @@ public final class TaskGroup implements AutoCloseable {
             Map<String, MemberState> memberStates,
             @Nullable MemberState terminal,
             BodyCompletionTracker bodyCompletion,
-            Duration closeGrace) {
+            @Nullable Duration closeGrace) {
         this.groupName = groupName;
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.listeners = listeners;
         this.groupToken = groupToken;
         this.bodyCompletion = bodyCompletion;
-        this.closeGraceNanos = saturatedNanos(closeGrace);
+        this.closeGrace = closeGrace;
         this.memberStates = new LinkedHashMap<>(memberStates);
         this.terminal = terminal;
         // The group's own terminal future is a task like any other: it carries the group name and
@@ -160,15 +160,15 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Cancels every unfinished member, then waits for task bodies to exit within the group's close
-     * grace, and returns.
+     * Cancels every unfinished member, then waits for task bodies to exit within the close grace,
+     * and returns.
      *
      * <p>The close grace is a cleanup budget configured on {@link
-     * TaskGroupOptions#closeGrace(Duration)} (default {@link BatchOptions#DEFAULT_CLOSE_GRACE}),
-     * independent of the group's execution deadline: it starts when this method is called, after
-     * cancellation has already been requested, so a member that ignores interruption can hold this
-     * method for at most the grace — never for the remaining deadline. A zero grace makes this
-     * method cancel-only, equivalent to {@link #cancel()}.
+     * TaskGroupOptions#closeGrace(Duration)}. When never configured, the wait budget is derived
+     * from the group's remaining execution deadline at close time: a close triggered by an expired
+     * deadline returns right after cancelling, and a body that ignores interruption can hold this
+     * method at most until the deadline. An explicit grace overrides the derivation; {@link
+     * Duration#ZERO} makes this method cancel-only, equivalent to {@link #cancel()}.
      *
      * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
      * the grace never extends the group's execution deadline and does not revive cancelled tasks.
@@ -193,9 +193,25 @@ public final class TaskGroup implements AutoCloseable {
                     if (!completion.isDone()) cancel();
                 },
                 bodyCompletion,
-                closeGraceNanos,
+                closeGraceBudgetNanos(),
                 "TaskGroup '" + groupName + "'",
                 LOGGER);
+    }
+
+    /**
+     * The close wait budget: the configured close grace when present, otherwise the remaining
+     * execution deadline. A non-positive result means cancel-only; {@code Long.MAX_VALUE} means no
+     * finite budget was derivable (no explicit grace and no finite deadline), also cancel-only.
+     */
+    private long closeGraceBudgetNanos() {
+        Duration configured = closeGrace;
+        if (configured != null) {
+            return saturatedNanos(configured);
+        }
+        if (deadlineNanos == Long.MAX_VALUE) {
+            return 0;
+        }
+        return deadlineNanos - System.nanoTime();
     }
 
     private static long saturatedNanos(Duration duration) {
@@ -676,7 +692,7 @@ public final class TaskGroup implements AutoCloseable {
                 states,
                 terminal,
                 bodyCompletion,
-                options.closeGrace());
+                options.closeGrace().orElse(null));
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
         if (terminal != null) {
             retained.add(terminal.future);

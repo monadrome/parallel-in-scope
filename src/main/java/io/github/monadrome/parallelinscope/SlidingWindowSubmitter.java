@@ -37,12 +37,12 @@ final class SlidingWindowSubmitter<V> {
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
     private final BodyCompletionTracker bodyCompletion;
-    private final java.time.Duration closeGrace;
+    private final java.time.@Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
-        this(pool, unit, submitterPool, BodyCompletionTracker.empty(), BatchOptions.DEFAULT_CLOSE_GRACE);
+        this(pool, unit, submitterPool, BodyCompletionTracker.empty(), null);
     }
 
     /**
@@ -55,11 +55,11 @@ final class SlidingWindowSubmitter<V> {
             MultiTaskContext unit,
             ListeningExecutorService submitterPool,
             BodyCompletionTracker bodyCompletion,
-            java.time.Duration closeGrace) {
+            java.time.@Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
-        this.closeGrace = Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
+        this.closeGrace = closeGrace;
         this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 

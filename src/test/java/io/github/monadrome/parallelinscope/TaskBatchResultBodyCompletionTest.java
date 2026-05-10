@@ -443,6 +443,43 @@ class TaskBatchResultBodyCompletionTest {
     }
 
     @Test
+    void batchCloseWithDefaultGraceDerivesTheBudgetFromTheRemainingDeadline() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            // No closeGrace configured: the wait budget is the batch's remaining deadline at close
+            // time, so a close after the deadline lapsed returns right after cancelling.
+            TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
+                    .map(
+                            Collections.singletonList(1),
+                            value -> {
+                                entered.countDown();
+                                awaitIgnoringInterrupt(release);
+                                return value;
+                            },
+                            BatchOptions.timeout("batch-derived", Duration.ofMillis(300)));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            Thread.sleep(400);
+            long closeStart = System.nanoTime();
+            batch.close();
+            long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
+            assertThat(closeElapsedMillis).isLessThan(1000);
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void batchCloseWithZeroGraceIsCancelOnly() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =

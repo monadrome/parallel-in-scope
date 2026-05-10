@@ -257,8 +257,8 @@ null --all success-----------> SUCCESS
    或 `SKIPPED` 各恰好释放一次名额；
 3. **监听器完成**：`TaskListener` 回调执行完毕，不属于任务体退出范围。
 
-`close()` 保证第一层，并在独立的 close grace（`TaskGroupOptions.closeGrace(Duration)`，默认
-`BatchOptions.DEFAULT_CLOSE_GRACE`）内等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。
+`close()` 保证第一层，并在 close grace（`TaskGroupOptions.closeGrace(Duration)`，未配置时派生
+自关闭时剩余的有效 deadline）内等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。
 第三层不在关闭保证内。嵌套
 作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
 「future 完成」与「任务体退出」，禁止混用「工作终态」。

@@ -91,6 +91,53 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
+    void closeWithDefaultGraceDerivesTheBudgetFromTheRemainingDeadline() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch bodyExited = new CountDownLatch(1);
+        try {
+            // No closeGrace configured: the wait budget is the remaining deadline at close time.
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("derived", Duration.ofMillis(300)));
+            definition.task(
+                    new TaskKey<>("ignoring") {},
+                    ParName.of("worker"),
+                    () -> {
+                        entered.countDown();
+                        try {
+                            awaitIgnoringInterrupt(release);
+                        } finally {
+                            bodyExited.countDown();
+                        }
+                        return 1;
+                    },
+                    TaskOptions.timeout(Duration.ofMillis(300)));
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            // The deadline lapses before close: the derived budget is exhausted, so close returns
+            // right after cancelling, with the body still parked.
+            Thread.sleep(400);
+            long closeStart = System.nanoTime();
+            group.close();
+            long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
+            assertThat(closeElapsedMillis).isLessThan(1000);
+            assertThat(bodyExited.getCount()).isEqualTo(1);
+            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void closeWaitsTheCloseGraceEvenAfterTheDeadlineIsExhausted() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =

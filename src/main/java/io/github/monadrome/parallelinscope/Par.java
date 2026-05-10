@@ -190,7 +190,11 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(), taskCount, parent, observation, runtime.identity(), name.value());
-        return executeGlobal(elements, item -> () -> function.apply(item), unit, options.closeGrace());
+        return executeGlobal(
+                elements,
+                item -> () -> function.apply(item),
+                unit,
+                options.closeGrace().orElse(null));
     }
 
     @SuppressWarnings("unchecked")
@@ -198,7 +202,7 @@ public final class Par {
             @Nullable Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            java.time.Duration closeGrace) {
+            @Nullable java.time.Duration closeGrace) {
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;

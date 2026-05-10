@@ -63,7 +63,7 @@ The returned futures remain in input order. If failure, timeout, cancellation, s
 
 A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and returns `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
 
-`TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)` (default `BatchOptions.DEFAULT_CLOSE_GRACE`, five seconds), independent of the execution timeout and starting when `close()` is called, so a body that ignores interruption can hold `close()` for at most the grace. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
+`TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after cancelling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
 
 ## Execute a heterogeneous task group
 
@@ -119,9 +119,10 @@ direct cancellation of any member future or member token, the group deadline, or
 deadline cancels every unfinished member. `group.cancel()` only issues the cancellation request.
 `close()` cancels unfinished members and then waits for their task bodies to exit within the
 group's close grace — a cleanup budget configured with
-`TaskGroupOptions.closeGrace(Duration)` (default `BatchOptions.DEFAULT_CLOSE_GRACE`, five
-seconds), independent of the execution deadline and starting when `close()` is called, so a member
-that ignores interruption can hold `close()` for at most the grace. `closeGrace(Duration.ZERO)`
+`TaskGroupOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from
+the group's remaining execution deadline at close time, so a close triggered by an expired
+deadline returns right after cancelling and an interrupt-ignoring member can hold `close()` at
+most until the deadline. `closeGrace(Duration.ZERO)`
 makes `close()` cancel-only, equivalent to `cancel()`. When the grace elapses with bodies still
 running, the outstanding member names are logged at WARN level rather than leaking silently.
 `close()` never shuts down executors, and a task body that ignores interruption may
