@@ -127,7 +127,7 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void cpuBoundRejectionFallsBackToInlineExecution(Entry entry) throws Exception {
+    void rejectionFallsBackToInlineExecutionWhenOptionsRequestIt(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
@@ -136,7 +136,7 @@ class ScopedTaskContractTest {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, true, () -> {
                 executions.incrementAndGet();
                 return "inline";
             });
@@ -151,9 +151,14 @@ class ScopedTaskContractTest {
         }
     }
 
+    /**
+     * The default for every task type, {@code CPU_BOUND} included: a rejected task fails without
+     * entering user code. The type is no longer what selects this — {@code runOnCallerThread} is,
+     * and it defaults to off.
+     */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void ioBoundRejectionNeverRunsUserCode(Entry entry) throws Exception {
+    void rejectionNeverRunsUserCodeByDefault(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
@@ -162,7 +167,7 @@ class ScopedTaskContractTest {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.IO_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
                 executions.incrementAndGet();
                 return "never";
             });
@@ -275,24 +280,31 @@ class ScopedTaskContractTest {
         return "blocked";
     }
 
-    private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
-    }
-
     /**
      * Submits one task through the batch or the group path. The two entry points declare their own
      * option types — a batch its {@link BatchOptions}, a group member its {@link TaskOptions} — so
-     * the shared task type is the only parameter they can share.
+     * the shared execution policy is mirrored on both rather than passed as one option object.
      */
     private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
+            GlobalPar global, Entry entry, String name, Callable<Object> task) {
+        return submitSingle(global, entry, name, TaskType.CPU_BOUND, false, task);
+    }
+
+    private static ListenableFuture<Object> submitSingle(
+            GlobalPar global,
+            Entry entry,
+            String name,
+            TaskType taskType,
+            boolean runOnCallerThread,
+            Callable<Object> task) {
         if (entry == Entry.BATCH) {
             return global.par(ParName.of("worker"))
                     .map(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
-                            BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
+                            BatchOptions.timeout(name, Duration.ofSeconds(30))
+                                    .taskType(taskType)
+                                    .runOnCallerThread(runOnCallerThread))
                     .results()
                     .get(0);
         }
@@ -302,7 +314,7 @@ class ScopedTaskContractTest {
                 new TaskKey<>(name) {},
                 ParName.of("worker"),
                 task,
-                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType));
+                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType).runOnCallerThread(runOnCallerThread));
         TaskGroup group = TaskGroup.submit(global, definition.build());
         LAST_GROUP.set(group);
         return group.future(key);

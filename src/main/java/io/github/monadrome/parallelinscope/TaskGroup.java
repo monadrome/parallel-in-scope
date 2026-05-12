@@ -628,7 +628,7 @@ public final class TaskGroup implements AutoCloseable {
                                 taskContext,
                                 future,
                                 par.submissionExecutor(),
-                                unit.taskType() == TaskType.CPU_BOUND,
+                                unit.runOnCallerThread(),
                                 member.key().resultType()));
             }
             int index = 0;
@@ -645,10 +645,11 @@ public final class TaskGroup implements AutoCloseable {
                 // The combine is prepared exactly like a member — token, context, TTL snapshot,
                 // structural parent — so its context capture happens on the submitting thread at
                 // submit time; only the executor submission is deferred to the join. The values
-                // view captures the frozen member states created above. cpuBound is fixed false:
-                // at join time there is no caller thread to borrow, so a rejected combine must
-                // fail as SUBMISSION_FAILURE instead of running inline on the convergence
-                // callback thread.
+                // view captures the frozen member states created above. The caller-thread fallback
+                // is fixed false because the combine has no caller thread: it is submitted by the
+                // convergence callback at join time, not by the caller of submit(). A rejected
+                // combine therefore fails as SUBMISSION_FAILURE instead of running user code on
+                // the convergence callback thread, whatever runOnCallerThread the options declare.
                 Par par = env.par(combineDefinition.parName());
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         combineDefinition.options().spec(combineDefinition.name()),
@@ -716,7 +717,7 @@ public final class TaskGroup implements AutoCloseable {
         final TypeToken<?> resultType;
         private final TaskExecutionContext context;
         private final Executor executor;
-        private final boolean cpuBound;
+        private final boolean runOnCallerThread;
         private @Nullable TaskOutcome reason;
         private @Nullable Throwable failure;
         private boolean counted;
@@ -726,20 +727,23 @@ public final class TaskGroup implements AutoCloseable {
                 TaskExecutionContext context,
                 ExecutionPhaseHintFuture<Object> future,
                 Executor executor,
-                boolean cpuBound,
+                boolean runOnCallerThread,
                 TypeToken<?> resultType) {
             this.name = name;
             this.context = context;
             this.future = future;
             this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
             this.executor = executor;
-            this.cpuBound = cpuBound;
+            this.runOnCallerThread = runOnCallerThread;
             this.resultType = resultType;
         }
 
-        /** Submits once with the member's batch scope installed; CPU-bound work runs inline on rejection. */
+        /**
+         * Submits once with the member's batch scope installed; a member whose options request the
+         * caller-thread fallback runs inline on rejection.
+         */
         private void submit() {
-            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, cpuBound);
+            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, runOnCallerThread);
         }
     }
 

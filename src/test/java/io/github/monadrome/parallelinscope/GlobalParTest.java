@@ -269,7 +269,7 @@ class GlobalParTest {
     }
 
     @Test
-    void closeFromCpuFallbackTaskDoesNotDeadlockBatchAdmission() throws Exception {
+    void closeFromCallerThreadFallbackTaskDoesNotDeadlockBatchAdmission() throws Exception {
         ExecutorService rejectedExecutor = Executors.newSingleThreadExecutor();
         rejectedExecutor.shutdown();
         GlobalPar global = GlobalPar.builder()
@@ -283,7 +283,9 @@ class GlobalParTest {
                                 global.close();
                                 return value + 1;
                             },
-                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
+                            BatchOptions.timeout("cpu", Duration.ofSeconds(30))
+                                    .taskType(TaskType.CPU_BOUND)
+                                    .runOnCallerThread(true));
 
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(global.closed()).isTrue();

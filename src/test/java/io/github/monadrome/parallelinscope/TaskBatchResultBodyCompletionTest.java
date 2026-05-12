@@ -340,20 +340,24 @@ class TaskBatchResultBodyCompletionTest {
     }
 
     @Test
-    void cpuBoundInlineFallbackDoesNotLeakSlots() throws Exception {
+    void callerThreadFallbackDoesNotLeakSlots() throws Exception {
         RejectingExecutor rejecting = new RejectingExecutor();
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            // CPU-bound elements rejected by the executor run inline; the window-external one runs
-            // inline on the submitter thread. All slots must still be released exactly once.
-            // The wait uses a real budget because the submitter thread runs concurrently.
+            // Elements whose options request the caller-thread fallback run inline when rejected;
+            // the window-external one runs inline on the submitter thread. All slots must still be
+            // released exactly once. The wait uses a real budget because the submitter thread runs
+            // concurrently.
             TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("inline").parallelism(1).taskType(TaskType.CPU_BOUND));
+                            options("inline")
+                                    .parallelism(1)
+                                    .taskType(TaskType.CPU_BOUND)
+                                    .runOnCallerThread(true));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);

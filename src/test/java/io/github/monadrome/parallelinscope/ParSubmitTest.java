@@ -47,6 +47,58 @@ class ParSubmitTest {
     }
 
     @Test
+    void submitRunsOnTheCallerThreadWhenOptionsRequestIt() throws Exception {
+        ExecutorService rejected = Executors.newSingleThreadExecutor();
+        rejected.shutdownNow();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), rejected).build();
+        Thread caller = Thread.currentThread();
+        try {
+            TaskFuture<Thread> task = global.par(ParName.of("worker"))
+                    .submit(
+                            "inline",
+                            Thread::currentThread,
+                            TaskOptions.timeout(Duration.ofSeconds(30)).runOnCallerThread(true));
+
+            assertThat(task.get(2, TimeUnit.SECONDS)).isSameAs(caller);
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        } finally {
+            global.close();
+        }
+    }
+
+    /**
+     * The default: a rejected task fails without entering user code, for every task type.
+     * {@code CPU_BOUND} is the default type, so this is what an unconfigured task does.
+     */
+    @Test
+    void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
+        ExecutorService rejected = Executors.newSingleThreadExecutor();
+        rejected.shutdownNow();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), rejected).build();
+        AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
+        try {
+            TaskFuture<String> task = global.par(ParName.of("worker"))
+                    .submit(
+                            "rejected",
+                            () -> {
+                                bodyRan.set(true);
+                                return "ran";
+                            },
+                            TaskOptions.timeout(Duration.ofSeconds(30)));
+
+            assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(bodyRan.get()).isFalse();
+        } finally {
+            global.close();
+        }
+    }
+
+    @Test
     void submitRequiresAnExplicitTimeoutWithoutAnEnclosingScope() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =

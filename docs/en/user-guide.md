@@ -57,7 +57,9 @@ TaskBatchResult<Account> result = httpPar.map(
 List<TaskFuture<Account>> futures = result.results();
 ```
 
-`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
+`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point.
+
+`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread you may not own the caller's expectations for. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. `TaskType` does not affect either: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
@@ -164,7 +166,8 @@ try (TaskGroup group = TaskGroup.submit(global, built)) {
 The `CompletedTaskValues` view is non-blocking and exposes only successful member values through
 the registered `TaskKey` keys — no futures, no name-keyed map. The combine function runs exactly
 once on a worker of the named `Par` (never on a member's completion thread; a rejected combine
-fails as `SUBMISSION_FAILURE` instead of running inline), and it must be a pure function of member
+fails as `SUBMISSION_FAILURE`, because it has no caller thread to borrow — `runOnCallerThread` is
+inapplicable to it), and it must be a pure function of member
 values and configuration-time captures: it is scheduled the moment the last member succeeds, so
 state created by the submitting thread after `submit` returns is not visible to it — read the
 member futures directly for that. A group accepts at most one combine, declared with its own
