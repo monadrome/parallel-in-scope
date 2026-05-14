@@ -176,8 +176,9 @@ public interface TaskDecorator {
 
 **为什么不是 `TaskDecorator<T>`**：注册面异构（同一 `Par` 下 batch 元素、group 成员、combine 结果类型各不相同），只能存 `List<TaskDecorator<?>>`，应用时需一次 unchecked cast。用户可注册 `TaskDecorator<String>` 到 `Callable<Integer>` 的成员上 → 堆污染、运行期 `ClassCastException`。泛型方法没有这个洞（公理 3：安全优先于表达力）。
 
-**为什么是接口不是抽象类**：既有回调（`TaskListener`/`TaskGroupListener`/`DeadlockDetectionListener`）
-都是接口；`TaskKey` 用抽象类是因为需要匿名子类捕获类型参数，这里没有该需求。
+**为什么是接口不是抽象类**：既有回调（`TaskListener`/`DeadlockDetectionListener`）
+都是接口；v0.3 起 group 侧回调统一为 `completionFuture()` + Guava callback，不再有
+`TaskGroupListener`。这里需要的就是普通接口，没有捕获类型参数的需求。
 
 ### 5.2 唯一构造点
 
@@ -219,8 +220,8 @@ batch 的 `Function` 在 `Par.mapWhileOpen` 已转成每元素 `Callable`，因�
 ```java
 GlobalPar.Builder
     .taskDecorator(TaskDecorator)              // 全局默认，按注册序追加
-    .parTaskDecorator(ParName, TaskDecorator)  // 按 Par 追加，位于全局之后
-GlobalPar.taskDecoratorsFor(ParName)           // 与 taskListenersFor 对称
+    .parTaskDecorator(String, TaskDecorator)   // 按 Par 追加，位于全局之后（ParName 已删，收 String）
+GlobalPar.taskDecoratorsFor(String)            // 与 taskListenersFor(String) 对称
 ```
 
 **组合语义是追加，不是 listener 的覆盖替换**：静默丢弃一个传播型装饰器属于"忘记"类错误。要少用就不全局注册；这个差异 MUST 写进用户文档。

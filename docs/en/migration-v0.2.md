@@ -1,5 +1,10 @@
 # Migrating to v0.2
 
+> **Note (v0.3).** The `0.2.x` API described in this guide has itself been replaced in `0.3.0`:
+> `ParName`, `TaskKey`, `TaskGroupOptions`, and the rest of the task-group surface were removed
+> or redesigned around `defineGroup*` / `submitGroup` / `Bindings`. Applications on `0.2.x`
+> should continue on to [Migrating to v0.3](migration-v0.3.md).
+
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.
 
 The publishing identity also moves because the GitHub account was renamed `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` becomes `io.github.monadrome:parallel-in-scope`, and the root Java package `io.github.huatalk.parallelinscope` becomes `io.github.monadrome.parallelinscope`. Update dependency coordinates, imports, `package` declarations, and service-loading names. `0.1.0` stays published under the old coordinates on Maven Central.

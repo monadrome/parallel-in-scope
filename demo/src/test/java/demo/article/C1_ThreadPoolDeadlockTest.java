@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
@@ -72,12 +71,12 @@ class C1_ThreadPoolDeadlockTest {
 
         try {
             GlobalPar config = GlobalPar.builder()
-                    .register(ParName.of("outer-pool"), outerPool)
-                    .register(ParName.of("inner-pool"), innerPool)
-                    .defaultPar(ParName.of("outer-pool"))
+                    .register("outer-pool", outerPool)
+                    .register("inner-pool", innerPool)
+                    .defaultPar("outer-pool")
                     .build();
-            Par par = config.par(ParName.of("outer-pool"));
-            Par innerPar = config.par(ParName.of("inner-pool"));
+            Par par = config.par("outer-pool");
+            Par innerPar = config.par("inner-pool");
 
             // 外层：4 个任务，滑动窗口并行度 2
             BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(2).taskType(TaskType.IO_BOUND);

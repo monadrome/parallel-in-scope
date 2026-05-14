@@ -15,29 +15,36 @@
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
 - 完成时刻直接观测的 `outcome()`（`SUCCESS`/`USER_FAILURE` 或从 token 读出的取消态）；组收敛后的快照可能携带更丰富的事后归因（如 `FAIL_FAST`）。
 
-执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskCompletion 事件。它们必须在 `TaskGroupResult` 和 Group listener 中可见。
+执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskCompletion 事件。它们必须在 `TaskGroupResult` 中可见；组完成观测经 `completionFuture()` 表达（见 §10.2）。
 
 Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 
-### 10.2 TaskGroupListener
+### 10.2 组级完成回调（原 `TaskGroupListener`，已删除转交）
+
+> **状态：删除/转交。** `TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除
+> （[group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) §13.1）。组完成
+> 观测改由调用方在拿到 `TaskGroup` 后显式注册，并自行选择 callback executor：
 
 ```java
-@FunctionalInterface
-public interface TaskGroupListener {
-    void onTaskGroupComplete(TaskGroupEvent event);
-}
+Futures.addCallback(group.completionFuture(), callback, callbackExecutor);
 ```
 
-`TaskGroupEvent` 可以直接包装不可变 `TaskGroupResult`，或暴露等价字段。它只在 CLOSED 后调用一次。
+即使 direct executor 使 Group 在 `submitGroup` 返回前完成，Guava future 也保证之后添加的
+callback 得到已完成结果。
 
-要求：
+原 §10.2 对组级 listener 的保证逐条归属（与决策增补裁定 §19.8 一一对应）：
 
-- listener 异常隔离并通过 JUL 记录；
-- 不改变 completion result；
-- listener 回调期间不得安装任何 member current task 或 group current context；
-- 回调不在 Group lock 内执行；
-- 顺序固定为先固定 result/completion future，再调用 listener，避免 listener 阻塞调用方观察终态；
-- 文档要求 listener 非阻塞并容忍并发，但框架仍必须保护自身状态。
+| 原保证 | 归属 |
+|---|---|
+| listener 异常隔离并通过 JUL 记录 | **转交**：callback 抛出的异常由调用方 callback executor/Guava 记录，不影响已完成的 future |
+| 不改变 completion result | **Guava 语义接管**：future 完成后 callback 无法改变结果 |
+| 顺序固定为先固定 result/completion future，再调用 listener | **Guava 语义接管**：callback 在 future 完成时触发，direct executor 下可能在 `submitGroup` 返回前执行；框架不再保证固定顺序，需要"先观察终态再回调"语义的调用方直接读取 `completionFuture()` |
+| 回调不在 Group lock 内执行 | **消亡**：框架不再持有或调用 listener，不存在框架在锁内调 listener 的路径；callback 线程由调用方 executor 决定 |
+| listener 只调用一次 | **Guava 语义接管**：future 恰好完成一次，每次注册的 callback 恰好触发一次 |
+| listener 回调期间不得安装任何 member current task 或 group current context | **消亡**：框架在 callback 期间不安装任何上下文 |
+
+文档要求 callback 非阻塞并容忍并发，但框架不再为组级 callback 提供额外保护——保护与
+排队由调用方选择的 callback executor 与 Guava future 语义负责。
 
 ## 11. TaskGraph 规则
 
@@ -77,7 +84,9 @@ fake-group-batch -> A/B/C
 5. executor rejection 不能留下 pending future；
 6. `terminalCount` 对每个成员最多增加一次；
 7. Group completion reason 只固定一次；
-8. Group listener 只调用一次；
+8. ~~Group listener 只调用一次~~ **删除转交**：`TaskGroupListener` 已删除，组完成回调经
+   `completionFuture()` + Guava `Futures.addCallback` 注册，"只调一次"由 Guava future 语义
+   接管（决策增补裁定 §19.8），对应决策 §16 矩阵的 completionFuture 收敛项；
 9. completion future 只在全部冻结成员终态后完成；
 10. 取消赢得 execution claim 时用户 callable 不执行；
 11. 任一 inline 执行前，全部成员已经出现在 registry；
@@ -92,14 +101,14 @@ fake-group-batch -> A/B/C
 1. 三个异构成员分别返回不同类型且各执行一次；
 2. 成员使用不同 `Par`/executor 时并行运行；
 3. 同一 `Par` 上多个成员均独立提交，不经过滑动窗口；
-4. 重复 memberName 与 null 参数在 `task()` 配置期拒绝，空白/null 名称在 `TaskKey` 构造期拒绝；未知 executorName 在 submit 时拒绝且没有 callable 执行；`future(key)` 拒绝 raw 结果类型不覆盖注册类型的键；
-5. `task()` 不创建执行上下文、不启动 timer、不提交或执行 callable；
-6. 空 definition submit 返回立即 SUCCESS 的 Group，未创建 timer；`TaskKey` 在 submit 后即可经 `group.future(key)` 稳定解析。
+4. 重复/空白/null 名称与 null 参数、foreign `Par` 在 `Builder.task()`/`combine()` 配置期拒绝（第二个 `combine()` 抛 `IllegalStateException`）；foreign/wrong-kind member handle 在 `Bindings` 绑定与 `future(member)` 处拒绝且没有 callable 执行；
+5. `task()`/`combine()` 不创建执行上下文、不启动 timer、不提交或执行 callable；
+6. 空 definition `submitGroup` 返回立即 SUCCESS 的 Group，未创建 timer；`Member` handle 在 submit 后即可经 `group.future(member)` 稳定解析。
 
 ### 14.2 submit 与关闭竞态
 
-7. 同一个 definition 可重复 submit，每次产生独立 Group（不同 groupId）；
-8. `TaskGroup.submit()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
+7. 同一个 definition 可重复 `submitGroup`，每次产生独立 Group（不同 groupId）；
+8. `GlobalPar.submitGroup()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
 9. direct executor/inline fallback 中，任一 callable 执行前完整成员集合已可查询；
 10. executor rejection 产生 SUBMISSION_FAILURE、触发 fail-fast、所有 future 终态；
 11. 已注册但尚未 `executor.execute()` 的成员被 fail-fast/cancel 后不得运行 callable；
@@ -129,8 +138,8 @@ fake-group-batch -> A/B/C
 26. `SubmissionScope` 仅覆盖 executor submission，并在 rejection/inline/异常后恢复；
 27. TaskListener 中 current task 为 null，TaskCompletion 的 taskName/unitId/taskIndex 指向正确成员；
 28. 执行前取消和 submission failure 不产生虚假 TaskCompletion 事件；
-29. Group listener 只调用一次，异常不改变结果；
-30. TTL 值以 `submit()` 的 prepare 阶段为捕获时点传播并恢复；`task()` 时的值不构成快照，普通 ThreadLocal 不承诺传播。
+29. ~~Group listener 只调用一次，异常不改变结果~~ **删除转交**：经 `Futures.addCallback` 注册的 callback 恰好触发一次、异常不改变结果，由 Guava future 语义保证（决策增补裁定 §19.8）；
+30. TTL 值以 `submitGroup()` 的 prepare 阶段为捕获时点传播并恢复；`task()`/`Bindings` 登记时的值不构成快照，普通 ThreadLocal 不承诺传播。
 
 ### 14.6 TaskGraph 与关闭
 
@@ -153,4 +162,4 @@ fake-group-batch -> A/B/C
 - 所有冻结 public future 必然终态；
 - TaskGraph 只记录真实结构化依赖；
 - 全量 Maven 测试通过且 Java 8 main source 兼容；
-- 用户文档说明 definition/submit、`TaskKey`、close、cancel、deadline、成员取消和 observation 生命周期。
+- 用户文档说明 definition/`submitGroup`/`Bindings`、`Member` handle、close、cancel、deadline、成员取消和 observation 生命周期。

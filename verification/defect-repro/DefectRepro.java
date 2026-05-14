@@ -1,13 +1,10 @@
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskGroup;
 import io.github.monadrome.parallelinscope.TaskGroupDefinition;
-import io.github.monadrome.parallelinscope.TaskGroupOptions;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
-import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -236,10 +233,10 @@ public final class DefectRepro {
             }
         };
         GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("worker"), blocking)
+                .register("worker", blocking)
                 .build();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
+            TaskBatchResult<Integer> batch = global.par("worker")
                     .map(
                             Arrays.asList(1, 2, 3),
                             value -> {
@@ -301,22 +298,19 @@ public final class DefectRepro {
         for (int round = 0; round < rounds; round++) {
             ExecutorService direct = MoreExecutors.newDirectExecutorService();
             GlobalPar global = GlobalPar.builder()
-                    .register(ParName.of("worker"), direct)
+                    .register("worker", direct)
                     .build();
             try {
                 AtomicBoolean memberRan = new AtomicBoolean();
-                TaskGroupDefinition.Builder definition =
-                        TaskGroupDefinition.builder(TaskGroupOptions.timeout("group", Duration.ofNanos(1)));
-                definition.task(
-                        new TaskKey<Integer>("member") {},
-                        ParName.of("worker"),
-                        () -> {
+                TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofNanos(1));
+                TaskGroupDefinition.Member<Integer> member = builder.task("member", global.par("worker"));
+                TaskGroupDefinition definition = builder.build();
+
+                TaskGroupResult result = global
+                        .submitGroup(definition, bindings -> bindings.task(member, () -> {
                             memberRan.set(true);
                             return 1;
-                        },
-                        TaskOptions.inheritTimeout());
-
-                TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                        }))
                         .completionFuture()
                         .get(3, TimeUnit.SECONDS);
                 if (memberRan.get()) {
@@ -363,54 +357,56 @@ public final class DefectRepro {
     private static String failingGroupShape(String shape) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("worker"), executor)
+                .register("worker", executor)
                 .build();
         try {
-            TaskGroupDefinition.Builder definition =
-                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("group", Duration.ofSeconds(5)));
+            Par worker = global.par("worker");
+            TaskGroupResult result;
             if (shape.equals("single")) {
-                definition.task(
-                        new TaskKey<Integer>("boom") {},
-                        ParName.of("worker"),
-                        () -> {
+                TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
+                TaskGroupDefinition.Member<Integer> boom = builder.task(
+                        "boom", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+                result = global
+                        .submitGroup(builder.build(), bindings -> bindings.task(boom, () -> {
                             throw new IllegalStateException("boom");
-                        },
-                        TaskOptions.timeout(Duration.ofSeconds(5)));
+                        }))
+                        .completionFuture()
+                        .get(4, TimeUnit.SECONDS);
             } else if (shape.equals("first")) {
-                definition.task(
-                        new TaskKey<Integer>("boom") {},
-                        ParName.of("worker"),
-                        () -> {
-                            throw new IllegalStateException("boom");
-                        },
-                        TaskOptions.timeout(Duration.ofSeconds(5)));
-                definition.task(
-                        new TaskKey<Integer>("slow") {},
-                        ParName.of("worker"),
-                        () -> {
-                            Thread.sleep(400);
-                            return 1;
-                        },
-                        TaskOptions.timeout(Duration.ofSeconds(5)));
+                TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
+                TaskGroupDefinition.Member<Integer> boom = builder.task(
+                        "boom", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+                TaskGroupDefinition.Member<Integer> slow = builder.task(
+                        "slow", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+                result = global
+                        .submitGroup(builder.build(), bindings -> {
+                            bindings.task(boom, () -> {
+                                throw new IllegalStateException("boom");
+                            });
+                            bindings.task(slow, () -> {
+                                Thread.sleep(400);
+                                return 1;
+                            });
+                        })
+                        .completionFuture()
+                        .get(4, TimeUnit.SECONDS);
             } else {
-                definition.task(
-                        new TaskKey<Integer>("fast") {},
-                        ParName.of("worker"),
-                        () -> 1,
-                        TaskOptions.timeout(Duration.ofSeconds(5)));
-                definition.task(
-                        new TaskKey<Integer>("boom-late") {},
-                        ParName.of("worker"),
-                        () -> {
-                            Thread.sleep(200);
-                            throw new IllegalStateException("boom");
-                        },
-                        TaskOptions.timeout(Duration.ofSeconds(5)));
+                TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
+                TaskGroupDefinition.Member<Integer> fast = builder.task(
+                        "fast", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+                TaskGroupDefinition.Member<Integer> boomLate = builder.task(
+                        "boom-late", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+                result = global
+                        .submitGroup(builder.build(), bindings -> {
+                            bindings.task(fast, () -> 1);
+                            bindings.task(boomLate, () -> {
+                                Thread.sleep(200);
+                                throw new IllegalStateException("boom");
+                            });
+                        })
+                        .completionFuture()
+                        .get(4, TimeUnit.SECONDS);
             }
-
-            TaskGroupResult result = TaskGroup.submit(global, definition.build())
-                    .completionFuture()
-                    .get(4, TimeUnit.SECONDS);
             String member = shape.equals("single")
                     ? result.members().get("boom").outcome().toString()
                     : shape.equals("first")
@@ -430,27 +426,24 @@ public final class DefectRepro {
         System.out.println("=== CONTROL: healthy group with a terminal combine still succeeds ===");
         ExecutorService executor = Executors.newFixedThreadPool(2);
         GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("worker"), executor)
+                .register("worker", executor)
                 .build();
         try {
-            TaskGroupDefinition.Builder definition =
-                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("group", Duration.ofSeconds(5)));
-            TaskKey<Integer> left = definition.task(
-                    new TaskKey<Integer>("left") {},
-                    ParName.of("worker"),
-                    () -> 20,
-                    TaskOptions.timeout(Duration.ofSeconds(5)));
-            TaskKey<Integer> right = definition.task(
-                    new TaskKey<Integer>("right") {},
-                    ParName.of("worker"),
-                    () -> 22,
-                    TaskOptions.timeout(Duration.ofSeconds(5)));
-            TaskGroupDefinition built = definition.buildWithCombiner(
-                    new TaskKey<Integer>("sum") {},
-                    ParName.of("worker"),
-                    values -> values.value(left) + values.value(right));
+            TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
+            Par worker = global.par("worker");
+            TaskGroupDefinition.Member<Integer> left = builder.task(
+                    "left", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+            TaskGroupDefinition.Member<Integer> right = builder.task(
+                    "right", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
+            TaskGroupDefinition.Member<Integer> sum = builder.combine("sum", worker);
+            TaskGroupDefinition built = builder.build();
 
-            TaskGroupResult result = TaskGroup.submit(global, built)
+            TaskGroupResult result = global
+                    .submitGroup(built, bindings -> {
+                        bindings.task(left, () -> 20);
+                        bindings.task(right, () -> 22);
+                        bindings.combine(sum, values -> values.value(left) + values.value(right));
+                    })
                     .completionFuture()
                     .get(4, TimeUnit.SECONDS);
             System.out.println("outcome=" + result.outcome() + " combine=" + result.terminal().outcome());

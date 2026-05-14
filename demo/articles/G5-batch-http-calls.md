@@ -42,7 +42,7 @@ try {
 
 ```java
 GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("http-pool"), pool)
+        .register("http-pool", pool)
         .build();
 Par par = config.defaultPar();
 

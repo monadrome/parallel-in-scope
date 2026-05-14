@@ -198,7 +198,7 @@ class ScopedTaskContractTest {
         try {
             observePhases(global, phases);
             if (entry == Entry.BATCH) {
-                ListenableFuture<Object> queued = global.par(ParName.of("worker"))
+                ListenableFuture<Object> queued = global.par("worker")
                         .map(
                                 java.util.Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
@@ -208,19 +208,15 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroupDefinition.Builder definition =
-                        TaskGroupDefinition.builder(TaskGroupOptions.timeout("cancel", Duration.ofSeconds(30)));
-                definition.task(
-                        new TaskKey<>("blocker") {},
-                        ParName.of("worker"),
-                        () -> runUnlessQueued("blocker", release, queuedRuns),
-                        TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskKey<Object> queued = definition.task(
-                        new TaskKey<>("queued") {},
-                        ParName.of("worker"),
-                        () -> runUnlessQueued("queued", release, queuedRuns),
-                        TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskGroup group = TaskGroup.submit(global, definition.build());
+                TaskGroupDefinition.Builder definition = global.defineGroup("cancel", Duration.ofSeconds(30));
+                TaskGroupDefinition.Member<Object> blocker =
+                        definition.task("blocker", global.par("worker"), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroupDefinition.Member<Object> queued =
+                        definition.task("queued", global.par("worker"), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroup group = global.submitGroup(definition.build(), bindings -> {
+                    bindings.task(blocker, () -> runUnlessQueued("blocker", release, queuedRuns));
+                    bindings.task(queued, () -> runUnlessQueued("queued", release, queuedRuns));
+                });
                 assertThat(group.future(queued).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(result.members().get("queued").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
@@ -241,7 +237,7 @@ class ScopedTaskContractTest {
         GlobalPar global = globalWithListener(executor, synchronizedEvents());
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-                Object value = global.par(ParName.of("worker"))
+                Object value = global.par("worker")
                         .map(
                                 Collections.singletonList("outer"),
                                 item -> {
@@ -298,7 +294,7 @@ class ScopedTaskContractTest {
             boolean runOnCallerThread,
             Callable<Object> task) {
         if (entry == Entry.BATCH) {
-            return global.par(ParName.of("worker"))
+            return global.par("worker")
                     .map(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
@@ -308,14 +304,12 @@ class ScopedTaskContractTest {
                     .results()
                     .get(0);
         }
-        TaskGroupDefinition.Builder definition =
-                TaskGroupDefinition.builder(TaskGroupOptions.timeout("contract", Duration.ofSeconds(30)));
-        TaskKey<Object> key = definition.task(
-                new TaskKey<>(name) {},
-                ParName.of("worker"),
-                task,
+        TaskGroupDefinition.Builder definition = global.defineGroup("contract", Duration.ofSeconds(30));
+        TaskGroupDefinition.Member<Object> key = definition.task(
+                name,
+                global.par("worker"),
                 TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType).runOnCallerThread(runOnCallerThread));
-        TaskGroup group = TaskGroup.submit(global, definition.build());
+        TaskGroup group = global.submitGroup(definition.build(), bindings -> bindings.task(key, task));
         LAST_GROUP.set(group);
         return group.future(key);
     }
@@ -351,14 +345,14 @@ class ScopedTaskContractTest {
     private static GlobalPar globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
         return GlobalPar.builder()
                 .taskListener(events::add)
-                .register(ParName.of("worker"), executor)
+                .register("worker", executor)
                 .build();
     }
 
     private static void observePhases(GlobalPar global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
         // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
         // installed and the phase observer slot is free to claim.
-        global.par(ParName.of("worker")).runtime().setPhaseObserver(phases::add);
+        global.par("worker").runtime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

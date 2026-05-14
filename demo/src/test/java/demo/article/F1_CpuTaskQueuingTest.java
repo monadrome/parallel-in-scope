@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
@@ -119,8 +118,8 @@ class F1_CpuTaskQueuingTest {
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
         GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("cpu-pool"), pool)
-                .defaultPar(ParName.of("cpu-pool"))
+                .register("cpu-pool", pool)
+                .defaultPar("cpu-pool")
                 .build();
         Par par = config.defaultPar();
 

@@ -26,7 +26,7 @@ outer task token（可空）
 - Group 取消语义与 batch 完全一致（结构化并发）：成员被直接取消即级联取消整个 Group；
 - 该成员原因记录为 `MEMBER_CANCELED`；
 - 未完成 siblings 通过各自 member token 级联取消，记录 `GROUP_CANCELED`；
-- Group completion reason 固定为 `CANCELED`；
+- Group completion reason 固定为 `GROUP_CANCELED`；
 - 取消在线程取得执行权前获胜时，用户 callable 不得执行；
 - 取消在 RUNNING 后获胜时发出中断请求，但不保证用户代码立即停止。
 
@@ -46,7 +46,7 @@ publish CLOSED/result/event
 
 ### 8.4 Deadline
 
-逻辑 deadline 在 `submit()` 时计算；definition 配置耗时不计入 Group timeout：
+逻辑 deadline 在 `submitGroup()` 的统一 start 计算；definition 配置与 Bindings 阶段耗时不计入 Group timeout：
 
 ```text
 requestedGroupDeadline = submitStartNanos + resolvedGroupTimeout
@@ -155,7 +155,7 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 - 存在未完成成员：等同 `cancel()`（幂等）取消组 token；取消处理同步竞争任务入口，尚未取得
   执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
 - 取消传播返回后，以 **close grace** 为预算等待全部成员（含 terminal combine）任务体退出。
-  close grace 是清理预算：显式配置时（`TaskGroupOptions.closeGrace(Duration)`）从 `close()`
+  close grace 是清理预算：显式配置时（`TaskGroupDefinition.Builder.closeGrace(Duration)`）从 `close()`
   调用时起算，与执行 deadline 无关；未配置时派生自关闭时剩余的有效 deadline——超时引发的
   关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。grace 为零时
   `close()` 只取消不等待，等价于 `cancel()`；

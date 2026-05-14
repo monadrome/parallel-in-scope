@@ -572,6 +572,7 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 | missing/duplicate/foreign/wrong-kind binding | binder 冻结校验 | 否 | 否 |
 | binder 抛异常 | binder 同步调用 | 否 | 否 |
 | GlobalPar 已关闭或竞争中关闭获胜 | admission | 否 | 否 |
+| inherit 组且无外层 scoped task | 运行准备期 | 整体拒绝 | 否 |
 | runtime 准备失败 | admission 清理 | 整体回滚 | 否 |
 | executor rejection | runtime submission | 是 | 是，记录结果 |
 | callable/combine 抛异常 | runtime execution | 是 | 是，fail-fast/result |
@@ -700,16 +701,21 @@ Bindings 和 TaskGroup。
 19. outer/group/member/combine token 拓扑、origin attribution 与 fail-fast 保持现行契约；
 20. TTL 和 observation 每次按 submit 线程捕获，不在 definition 构建时捕获；
 21. GlobalPar close 与 submit 竞争只有整体接纳或整体拒绝；
-22. 所有正常、异常、拒绝、inline、取消路径恢复线程上下文。
+22. 所有正常、异常、拒绝、inline、取消路径恢复线程上下文；
+23. inherit 组（`defineGroupInheriting`）在无外层 scoped task 的线程提交时，
+    `submitGroup` 在运行准备期整体失败（`IllegalArgumentException`），无 TaskGroup/Future
+    产生，不执行任何 body。
 
 ### Combine 与公开面
 
-23. 全 member 成功时 combine 恰好执行一次，并可类型安全读取全部值；
-24. 任一 member 非成功时 combine 不执行且 body 引用被释放；
-25. combine 使用目标 Par；直接执行只来自 executor 自身，拒绝时无框架 fallback；
-26. group deadline 覆盖 join 等待与 combine，不重置预算；
-27. public API whitelist 删除 §13.1 六个顶层类型，并拒绝旧签名残留；
-28. `GlobalPar.Builder.register(String, ...)` 仍返回 Builder，构建后 `par(String)` 返回 Par。
+24. 全 member 成功时 combine 恰好执行一次，并可类型安全读取全部值；
+25. 任一 member 非成功时 combine 不执行且 body 引用被释放；
+26. combine 使用目标 Par；直接执行只来自 executor 自身，拒绝时无框架 fallback；
+27. group deadline 覆盖 join 等待与 combine，不重置预算；
+28. public API whitelist 删除 §13.1 六个顶层类型，并拒绝旧签名残留；
+29. `GlobalPar.Builder.register(String, ...)` 仍返回 Builder，构建后 `par(String)` 返回 Par；
+30. 第二个 `Builder.combine()` 在配置期抛 `IllegalStateException`；`task()`/`combine()`
+    声明顺序任意，执行顺序由 definition 内部 kind + 声明顺序决定。
 
 不建议用依赖 GC 时机的 `WeakReference` 测试作为唯一证明。引用释放应通过内部 holder 状态的
 确定性测试验证，必要时再用 GC 测试做补充诊断。
@@ -739,3 +745,99 @@ Bindings 和 TaskGroup。
 因此，“Callable 的捕获无法避免”不等于“GroupDefinition 只能一次性使用”。准确结论是：
 **Callable carrier 必须一次性，Definition 必须不含 Callable。** 公开类型的减少发生在这个边界
 之上，不能穿透它。
+
+## 19. 增补裁定
+
+以下裁定在实施准备与评审中确定，补充正文未尽细节；与正文表述冲突时以本节为准。
+
+### 19.1 inherit 组无外层 scoped task：`submitGroup` 整体失败
+
+组 timeout 为 inherit（`defineGroupInheriting`）且提交现场没有外层 scoped task（结构
+parent 为 null）时，`submitGroup` 在**运行准备期整体拒绝**，抛
+`IllegalArgumentException`；不产生 `TaskGroup`、future、token，也不执行任何 body。
+行为与现行实现一致（`TaskGroup.java:586`，`no enclosing deadline to inherit`）。
+§12 错误表与 §16 矩阵已按此补充（§12 新增"运行准备期/整体拒绝"一行，§16 新增第 23 项）。
+
+### 19.2 §13.2 端点补全与校验下沉
+
+`ParName` 删除后，公开端点以 `String` 为准，并补全既有签名中未列出的端点：
+
+```java
+GlobalPar.Builder register(String name, ExecutorService executor); // 仍返回 Builder
+GlobalPar.Builder defaultPar(String name);
+GlobalPar.Builder parTaskListener(String name, TaskListener listener);
+
+Par GlobalPar.par(String name);
+Optional<Par> GlobalPar.find(String name);
+String Par.name();
+List<TaskListener> GlobalPar.taskListenersFor(String name); // 原 taskListenersFor(ParName)
+Map<String, Par> GlobalPar.pars();                          // 原 Map<ParName, Par>
+Par GlobalPar.defaultPar();
+```
+
+- null/空白名校验**下沉**到 `register(String)`/`defaultPar(String)`/
+  `parTaskListener(String, ...)`/`par(String)`/`find(String)`/`taskListenersFor(String)`
+  等端点：null 抛 `NullPointerException`，空白名抛 `IllegalArgumentException`，均在
+  配置期/调用点抛出，不再依赖 `ParName` 类型的构造器校验；
+- `GlobalPar.Builder.build()` 的注册一致性校验**保留**：default Par 已注册、listener
+  override 已注册，否则 build 期抛 `IllegalArgumentException`；
+- `register()` 不能返回 `Par`（`GlobalPar` 完成构建前，owner 与 runtime 尚不存在），
+  这一点不变。
+
+### 19.3 `groupId()`/`groupName()` 保留
+
+§5.2 草图未列出 `TaskGroup.groupId()`/`groupName()`，视为草图省略而非删除：两者继续
+作为运行期诊断身份保留（`TaskGroupResult` 暴露同名字段，`TaskGroup` 访问器与之对称）。
+
+### 19.4 combine 声明规则
+
+- `Builder.combine()` 是普通声明方法（不再存在 `buildWithCombiner` 终止方法）；第二
+  个 `combine()` 调用在配置期抛 `IllegalStateException`；
+- `task()`/`combine()` 声明顺序任意；执行顺序由 definition 内部 kind（普通 member
+  先于 terminal combine）加声明顺序决定，terminal combine 在语义上永远位于所有普通
+  member 之后。
+
+### 19.5 foreign member handle 一律拒绝
+
+foreign member handle（来自其他 definition 的 handle、kind 与端点不匹配的 handle）在
+以下三处一律抛 `IllegalArgumentException`：
+
+1. `Bindings.task/combine` 绑定（admission 前的冻结校验）；
+2. `TaskGroup.future(member)`；
+3. `CombineContext.value(member)`。
+
+### 19.6 §13.1 补充：公共嵌套类型一并删除
+
+除六个顶层类型外，公共嵌套类型 `TaskGroupDefinition.TaskDefinition`、
+`TaskGroupDefinition.CombineDefinition` 及其访问器 `tasks()`/`combine()` 一并删除。
+definition 的公共访问面以 §5.2 草图为准（另见 §19.3）。
+
+### 19.7 §8 措辞更正
+
+§8"不在 `whileOpen` 内执行用户 binder，避免用户回调阻塞 shutdown admission 临界区"
+的表述不准确：`GlobalPar.close()` 不持有准入锁，`whileOpen` 是计数器式准入。更正为：
+**避免慢 binder 占用 admission 计数、延迟 close 后服务关停。**
+
+### 19.8 §5.3 观测保证的归属
+
+`TaskGroupListener` 删除后，原观测契约对组级 listener 的保证逐条归属如下：
+
+| 原保证 | 归属 |
+|---|---|
+| listener 异常隔离并通过 JUL 记录 | **转交**调用方 callback executor 与 Guava future 语义：callback 抛出的异常不影响已完成的 future，由执行 callback 的 executor/Guava 记录 |
+| 不改变 completion result | **Guava 语义接管**：future 完成后 callback 无法改变结果 |
+| 顺序固定为先固定 result/completion future，再调用 listener | **Guava 语义接管**：callback 在 future 完成时触发；direct executor 下可能在 `submitGroup` 返回前执行，框架不再保证"调用方先观察到终态"的固定顺序（需要该保证的调用方读取 `completionFuture()` 终态） |
+| 回调不在 Group lock 内执行 | **消亡**：框架不再持有或调用 listener，不存在"框架在锁内调 listener"的路径；callback 的线程与锁环境由调用方选择的 executor 决定 |
+| listener 只调用一次 | **Guava 语义接管**：future 恰好完成一次，每次注册的 callback 恰好触发一次 |
+| 回调期间不得安装 member current task / group current context | **消亡**：框架在 callback 期间不安装任何上下文；callback 线程上没有框架安装的 current task |
+
+
+### 19.9 §16 第 26 项在 caller-thread fallback 显式化后的理解
+
+011830a 把 rejection 后的 caller-thread fallback 改为显式选项
+`TaskOptions.runOnCallerThread(boolean)` / `BatchOptions.runOnCallerThread(boolean)`
+（默认 `false`：拒绝记 `SUBMISSION_FAILURE`，不进入用户代码）。§16 第 26 项"直接执行只来自
+executor 自身，拒绝时无框架 fallback"按此理解：成员仅在选项声明 `runOnCallerThread(true)`
+时才在提交线程 inline 执行，未声明即无 fallback。combine 忽略该选项的裁定不变——join 时
+无可借用的 caller thread，被拒绝的 combine 一律记 `SUBMISSION_FAILURE`（空组 + combine
+由 submitGroup 线程在 submit flow 内提交，该路径同样保持禁用）。

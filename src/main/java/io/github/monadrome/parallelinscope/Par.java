@@ -42,15 +42,15 @@ public final class Par {
 
     private final GlobalPar globalPar;
     private final ExecutorRuntime runtime;
-    private final ParName name;
+    private final String name;
 
-    private Par(GlobalPar globalPar, ParName name, ExecutorRuntime runtime) {
+    private Par(GlobalPar globalPar, String name, ExecutorRuntime runtime) {
         this.globalPar = Objects.requireNonNull(globalPar, "globalPar cannot be null");
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
         this.name = Objects.requireNonNull(name, "name cannot be null");
     }
 
-    static Par forGlobal(GlobalPar globalPar, ParName name, ExecutorRuntime runtime) {
+    static Par forGlobal(GlobalPar globalPar, String name, ExecutorRuntime runtime) {
         return new Par(globalPar, name, runtime);
     }
 
@@ -60,7 +60,7 @@ public final class Par {
     }
 
     /** Returns the logical name this entry is registered under. */
-    public ParName name() {
+    public String name() {
         return name;
     }
 
@@ -142,8 +142,8 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(taskName), 1, parent, observation, runtime.identity(), name.value());
+        MultiTaskContext unit =
+                MultiTaskContext.resolve(options.spec(taskName), 1, parent, observation, runtime.identity(), name);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -189,8 +189,8 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(), taskCount, parent, observation, runtime.identity(), name.value());
+        MultiTaskContext unit =
+                MultiTaskContext.resolve(options.spec(), taskCount, parent, observation, runtime.identity(), name);
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),

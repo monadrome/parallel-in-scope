@@ -9,7 +9,7 @@
 
 > Online documentation: [monadrome.github.io/parallel-in-scope](https://monadrome.github.io/parallel-in-scope/)
 >
-> Current version: `v0.2.0`. APIs may still change in future `0.x` releases.
+> Latest published release: `v0.2.0`. This tree documents the upcoming `0.3.0` API — migrating from `0.2.x`? See the [v0.3 migration guide](docs/en/migration-v0.3.md). APIs may still change in future `0.x` releases.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, sliding-window scheduling, and thread-pool deadlock diagnostics.
 
@@ -19,20 +19,18 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
 ```java
-ParName IO = ParName.of("io");
-
 GlobalPar execution = GlobalPar.builder()
-        .register(IO, Executors.newFixedThreadPool(8))
+        .register("io", Executors.newFixedThreadPool(8))
         .build();
 
 BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3)).parallelism(4);
 
-TaskBatchResult<User> result = execution.par(IO)
+TaskBatchResult<User> result = execution.par("io")
         .map(userIds, userService::findById, options);
 ```
 
@@ -51,6 +49,7 @@ TaskBatchResult<User> result = execution.par(IO)
 | Entry | Contents |
 |---|---|
 | [English documentation](docs/en/index.md) | User guides, API references, design notes, and case studies |
+| [v0.3 migration guide](docs/en/migration-v0.3.md) | Breaking changes from the `0.2.x` task-group API |
 | [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |
 | [Demo project](demo/README.en.md) | Runnable examples and the article catalog |

@@ -51,7 +51,7 @@ import io.github.monadrome.parallelinscope.TaskType;
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
 GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("cpu-pool"), pool)
+        .register("cpu-pool", pool)
         .build();
 Par par = config.defaultPar();
 

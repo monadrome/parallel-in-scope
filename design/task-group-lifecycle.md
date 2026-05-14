@@ -10,17 +10,19 @@
 ```text
 应用生命周期
 GlobalPar ────────────────────────────────────────────────────────────
+    │
+    └─ defineGroup* ── 配置生命周期（owner 内，仅结构）
+        TaskGroupDefinition.Builder ── task*/combine* ── build
+            ── TaskGroupDefinition（不可变、可并发复用、owner 绑定）
 
-配置生命周期
-TaskGroupDefinition.Builder ── task* ── build ── TaskGroupDefinition（不可变、可复用）
-
-请求/显式协调生命周期
-TaskGroup ── created/running ── all terminal ── closed
+请求/显式协调生命周期（一次提交）
+GlobalPar.submitGroup ── Bindings（本次 Callable）── freeze/校验
+    ── TaskGroup ── created/running ── all terminal ── closed
 
 每个成员对象生命周期
-TaskDefinition ── added ── frozen ─┐
-MemberState ──────────────────────── prepared/submitted/running ── terminal
-MultiTaskContext ────────────────────────────────────────────────
+Member<T> handle ── 声明（kind/顺序）── frozen 进 definition ─┐
+MemberState ────────────────────────────────────────────────── prepared/submitted/running ── terminal
+MultiTaskContext ─────────────────────────────────────────────────
 TaskExecutionContext ─ created ─ queued ─ run ─ completed/event ─────
 
 动态线程绑定
@@ -33,13 +35,17 @@ TaskGraphObservationScope ──────────────────
 
 ### 4.2 TaskGroup
 
-`TaskGroupDefinition` 只保存组级 options 和有序成员定义，是纯数据、可复用对象；外层上下文、
-observation 和 deadline 归属在每次 `TaskGroup.submit()` 时按提交线程解析。成员定义
-（`TaskDefinition`）是 definition 的不可变组成部分，不新增公共 Context。definition 不属于任何物理线程。
+`TaskGroupDefinition` 只保存组结构：组名、timeout/closeGrace、成员的声明顺序、内部 kind、
+名称、已解析的 owner-bound `Par` 和不可变 `TaskOptions`；它是仅结构、可并发复用的不可变对象，
+由 owner `GlobalPar` 创建并绑定（决策 D3），owner 关闭后不能再提交。外层上下文、observation
+和 deadline 归属在每次 `GlobalPar.submitGroup()` 时按提交线程解析；本次运行的 `Callable`、
+combine body 与完成回调由一次性 `TaskGroup.Bindings` 承载，不进入 definition。成员
+（`Member<T>` handle）是 definition 的不可变组成部分，不新增公共 Context。definition 不属于
+任何物理线程。
 
 `TaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
 
-它在 `TaskGroup.submit()` 的运行期创建阶段产生，至少持有：
+它在 `GlobalPar.submitGroup()` 的运行期创建阶段产生，至少持有：
 
 ```text
 groupId / groupName
@@ -52,7 +58,6 @@ group CancellationToken（内部，不作为公共控制入口）
 completion SettableFuture
 failedTaskName
 TaskGraphObservationScope snapshot（可空）
-listener snapshot
 ```
 
 其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation、成员被直接取消。单个成员被调用方直接取消会级联取消整个 Group（见 [取消与归因 §8.2](cancellation.md#82-成员主动取消)）。Group 对象在调用方、成员完成 listener 或 completion future 仍引用它时继续存活；它不属于任何物理线程。
@@ -79,13 +84,14 @@ failure（可空）
 ```text
 taskCount = 1
 effectiveParallelism = 1
-name = member TaskKey.name
+name = member name（String）
 executorIdentity / executorLabel = member Par 的绑定
 ```
 
-`TaskKey.name` 是成员身份的单一事实来源：它同时作为 Group 内唯一键、组级结果键，以及
-`MultiTaskContext.name` 所承载的任务执行、checkpoint、TaskListener 和 graph label 诊断名称。
-成员选项 `TaskOptions` 不含 name，成员身份只能来自 key。
+成员名（`Member.name()`，`String`）是成员身份的单一事实来源：它同时作为 Group 内唯一键、
+组级结果键，以及 `MultiTaskContext.name` 所承载的任务执行、checkpoint、TaskListener 和
+graph label 诊断名称。成员选项 `TaskOptions` 不含 name，成员身份只能来自 definition 声明时
+分配的 `Member` handle。
 
 成员是单任务，没有扇出：`TaskOptions` 不含 `parallelism`，内核按 `requestedParallelism = 1`
 解析，因此不存在"配置了并发上限却无人读取"的字段（见
@@ -131,7 +137,7 @@ try {
 
 ### 4.7 TaskGraphObservationScope
 
-`submit()` 解析提交线程上同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
+`GlobalPar.submitGroup()` 解析提交线程上同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
 
 调用方必须让 observation 生命周期覆盖 Group 的所有成员执行。若 observation 已提前关闭，成员不得复活它，后续图记录可以安全忽略。
 
@@ -184,7 +190,7 @@ member deadline           = min(member requested deadline, group deadline)
 
 ### 5.2 Group 在一个正在执行的 scoped task 中创建
 
-`TaskGroup.submit()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 definition 无论之后从哪个线程提交，归属都由该次提交现场决定：
+`GlobalPar.submitGroup()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 definition 无论之后从哪个线程提交，归属都由该次提交现场决定：
 
 ```text
 outerBatch = currentTask.multiTaskContext()
@@ -206,15 +212,15 @@ Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每�
 
 ## 6. 状态机与完成条件
 
-`TaskGroupDefinition` 是不可变纯数据，不存在配置/消费状态机；只有运行 Group 有生命周期：
+`TaskGroupDefinition` 是不可变纯结构，不存在配置/消费状态机；只有运行 Group 有生命周期：
 
 ```text
 Group:   RUNNING -----all members terminal--> CLOSED
 ```
 
-- `TaskGroupDefinition.Builder` 非线程安全，调用方必须在一个配置流程中完成定义后 `build()`；build 出的
-  definition 可安全共享并重复提交；
-- 每次 `TaskGroup.submit()` 独立创建运行对象；definition 没有"已消费"状态；
+- `TaskGroupDefinition.Builder` 非线程安全，只能由 owner `GlobalPar.defineGroup*()` 创建，
+  调用方必须在一个配置流程中完成定义后 `build()`；build 出的 definition 可安全共享并重复提交；
+- 每次 `GlobalPar.submitGroup()` 独立创建运行对象；definition 没有"已消费"状态；
 - 返回的 Group 从一开始就持有完整、不可扩展的成员集合；
 - `CLOSED` 只表示全部公开成员 future 已终态且不可变结果已经发布。
 
@@ -257,7 +263,7 @@ null --all success-----------> SUCCESS
    或 `SKIPPED` 各恰好释放一次名额；
 3. **监听器完成**：`TaskListener` 回调执行完毕，不属于任务体退出范围。
 
-`close()` 保证第一层，并在 close grace（`TaskGroupOptions.closeGrace(Duration)`，未配置时派生
+`close()` 保证第一层，并在 close grace（`TaskGroupDefinition.Builder.closeGrace(Duration)`，未配置时派生
 自关闭时剩余的有效 deadline）内等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。
 第三层不在关闭保证内。嵌套
 作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
@@ -267,8 +273,10 @@ null --all success-----------> SUCCESS
 
 ## 12. GlobalPar 关闭与资源所有权
 
-- `TaskGroupDefinition` 是纯配置对象，创建它不验证 GlobalPar 状态，也不长期 retain；
-- `TaskGroup.submit()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
+- `TaskGroupDefinition` 由 owner `GlobalPar.defineGroup*()` 创建并绑定到该实例（决策 D3）：
+  配置期即校验成员 `Par` 属于同一 owner，创建时不验证 GlobalPar 开关状态，也不长期
+  retain；owner 关闭后 definition 仍是普通不可变对象，但新的 `submitGroup` 会失败；
+- `GlobalPar.submitGroup()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
 - submit 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
 - 每个冻结成员通过 `retainUntilComplete()` 计入活动运行；可以增加 group-aware retain helper，但不得提前关闭 timer/submitter/maintenance 服务；
 - Group 不创建或关闭业务 executor；

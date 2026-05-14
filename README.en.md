@@ -7,7 +7,7 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 
-> Current development version: `0.2.0`. The `0.2.0` line is a breaking API migration from `0.1.x`.
+> Latest published release: `v0.2.0`. This tree documents the upcoming `0.3.0` API, a breaking redesign of the task-group surface; migrating from `0.2.x`? See the [v0.3 migration guide](docs/en/migration-v0.3.md).
 
 A structured-concurrency toolkit for Java 8+ with bounded batch submission, cooperative cancellation, context propagation, and task-graph diagnostics.
 
@@ -17,33 +17,35 @@ A structured-concurrency toolkit for Java 8+ with bounded batch submission, coop
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
 Create the application execution topology once. A named `Par` is bound to its executor at build time; choose it before calling `map`, not per invocation.
 
 ```java
-ParName IO = ParName.of("io");
-
 GlobalPar global = GlobalPar.builder()
-        .register(IO, Executors.newFixedThreadPool(8))
-        .defaultPar(IO)
+        .register("io", Executors.newFixedThreadPool(8))
+        .defaultPar("io")
         .build();
 
 BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
         .parallelism(4)
         .taskType(TaskType.IO_BOUND);
 
-TaskBatchResult<User> result = global.par(IO)
+TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 
 `GlobalPar.close()` releases framework-owned timer and submitter resources. It deliberately does not shut down the executor services supplied to `register`; their owner must do that.
 
+## v0.3 Migration
+
+`ParName`, `TaskKey`, `TaskGroupOptions`, `CombineFunction`, `CompletedTaskValues`, and `TaskGroupListener` are removed, and `TaskGroupDefinition` no longer stores callables. Build a structure-only definition with `global.defineGroup(name, timeout)`, declare typed members with `Builder.task(name, par)`, and submit one run's bodies through `global.submitGroup(definition, bindings)`; observe completion with `Futures.addCallback(group.completionFuture(), callback, executor)`. See the [v0.3 migration guide](docs/en/migration-v0.3.md) before upgrading an existing application.
+
 ## v0.2 Migration
 
-`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `BatchOptions` (`TaskGroupOptions` and `TaskOptions` for groups), and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md) before upgrading an existing application.
+`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `BatchOptions` (`TaskOptions` for group members and combines), and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md).
 
 ## Core Capabilities
 
@@ -61,7 +63,7 @@ TaskBatchResult<User> result = global.par(IO)
 |---|---|
 | [English documentation](docs/en/index.md) | Current user guide, migration, API contracts, and internals |
 | [Chinese documentation](docs/zh/index.md) | Chinese-language documentation set |
-| [Demo project](demo/README.en.md) | Runnable `0.1.x` compatibility examples; not a v0.2 API reference |
+| [Demo project](demo/README.en.md) | Runnable examples for the current API |
 
 ## Compatibility and Build
 

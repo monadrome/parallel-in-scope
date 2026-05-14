@@ -29,6 +29,15 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private static final Consumer<ExecutionPhase> NOOP = phase -> {};
 
     /**
+     * The wrapped task body, held in a one-way releasable slot: once {@link #releaseCallable()}
+     * clears it — after run() returns or once the body is determined to never run — nothing may
+     * restore it, so a completed, rejected, cancelled, or abandoned future never pins the user
+     * callable and its captures. Accessed from the worker thread (run) and from cancelling or
+     * rejecting threads (afterDone/skipBody), hence the atomic slot.
+     */
+    private final AtomicReference<Callable<V>> callable;
+
+    /**
      * Tracks whether the worker or cancellation claimed the task first. The resulting phase is a hint
      * for consumers such as queue maintenance; it is not an exact queue-membership probe. This is
      * separate from the future state maintained by {@link AbstractFuture}.
@@ -57,8 +66,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      *                         TERMINAL
      * </pre>
      */
-    private final Callable<V> callable;
-
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
 
     /**
@@ -101,9 +108,24 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /** Wraps Guava's future semantics with task-local execution-phase hints. */
     private ExecutionPhaseHintFuture(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
-        this.callable = Objects.requireNonNull(callable, "callable cannot be null");
+        this.callable = new AtomicReference<>(Objects.requireNonNull(callable, "callable cannot be null"));
         this.phaseObserver = Objects.requireNonNull(phaseObserver);
         this.bodyState = bodyState;
+    }
+
+    /**
+     * Permanently releases the body reference; one-way and idempotent. The release covers every
+     * path that ends the body's lifetime (decision §9): run()'s finally, after the user body's
+     * finally has exited, and {@link #skipBody()}, for rejection, cancel-before-run, and
+     * sliding-window abandonment.
+     */
+    private void releaseCallable() {
+        callable.set(null);
+    }
+
+    /** Package-private probe for tests: whether {@link #releaseCallable()} has released the body. */
+    boolean callableReleased() {
+        return callable.get() == null;
     }
 
     /**
@@ -166,7 +188,15 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
     }
 
+    /**
+     * Marks the task body as never entered and releases its reference, for prepared futures that
+     * were never submitted and never cancelled — the sliding-window abandonment and
+     * initial-rejection paths, where only the caller-facing placeholder is completed. Idempotent
+     * against the cancel-before-run path, which reaches the same transition through {@link
+     * #afterDone()}. A body that can never be entered must not stay reachable through this future.
+     */
     private void skipBody() {
+        releaseCallable();
         TaskBodyState body = bodyState;
         if (body != null) {
             body.skipped();
@@ -184,14 +214,24 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         // A task skipped by cancellation or abandonment before this claim must never enter the
         // user body, even though the executor invoked it.
         boolean skipped = !claimBody();
+        // The cancel or abandonment path may release the body holder between the phase claim above
+        // and the dereference below (a sliding-window cancellation callback reading a stale
+        // nextIndex is one such path): read once into a local and treat a cleared holder as
+        // already terminated — no NPE, no user code; the finally's body-exit publish still
+        // releases the slot through the existing fallback.
+        Callable<V> body = callable.get();
         boolean canceled = isCancelled();
         try {
-            if (!skipped && !canceled) {
-                set(callable.call());
+            if (!skipped && !canceled && body != null) {
+                set(body.call());
             }
         } catch (Throwable failure) {
             setException(failure);
         } finally {
+            // The user body's finally has exited by now (or the body never ran), so the one-way
+            // release clears the wrapper chain before the fallback body-exit publish: a waiter that
+            // observes EXITED never sees this future still referencing the user closure.
+            releaseCallable();
             // Fallback body-exit publish: covers the paths where ScopedCallable never ran (TTL
             // replay failure, or the body skipped by a cancel that won mid-claim). The normal
             // publish happens inside ScopedCallable before its listeners; both are guarded by the
