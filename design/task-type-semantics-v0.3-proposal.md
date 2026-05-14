@@ -10,7 +10,7 @@
 
 1. **拒绝处置移出枚举**：新增 `TaskOptions.runOnCallerThread(boolean)` 与
    `BatchOptions.runOnCallerThread(boolean)`，与既有 `rejectEnqueue(boolean)` 同构
-   （布尔 wither + 同名 getter）。语义：executor 拒绝该任务时，是否在**提交线程**
+   （布尔 wither + 同名访问器）。语义：executor 拒绝该任务时，是否在**提交线程**
    内联执行它。
 2. **默认 `false`**：默认拒绝——future 以 `SubmissionException` 失败，用户代码不执行。
    inline 必须由调用方显式打开。
@@ -130,12 +130,12 @@ public enum TaskType {
 
 1. `TaskOptions.java`：新增 `private final boolean runOnCallerThread`；两个工厂
    （`TaskOptions.java:24,52`）默认 `false`；新增 wither `runOnCallerThread(boolean)`
-   与 getter `runOnCallerThread()`；`spec(String)`（`TaskOptions.java:88`）传入。
+   与访问器 `runOnCallerThread()`；`spec(String)`（`TaskOptions.java:88`）传入。
    javadoc 按 §3 写明与 `TaskType` 正交、以及它是拒绝路径的唯一开关。
 2. `BatchOptions.java`：同上。构造器（`BatchOptions.java:31`）与两个工厂
    （`:46,56`）、`spec()`（`:135`）同步。
-3. `UnitSpec.java`：新增字段与 getter。
-4. `MultiTaskContext.java`：新增字段与 getter，构造器（`:46`）与 resolve 组装点
+3. `UnitSpec.java`：新增字段与访问器。
+4. `MultiTaskContext.java`：新增字段与访问器，构造器（`:46`）与 resolve 组装点
    （`:139-140`）传入。
 5. 三处判定改读新参数：
    - `Par.java:172` 的 `unit.taskType() == TaskType.CPU_BOUND` → `unit.runOnCallerThread()`；
