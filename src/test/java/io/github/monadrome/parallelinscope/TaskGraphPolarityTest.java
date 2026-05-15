@@ -29,7 +29,7 @@ class TaskGraphPolarityTest {
 
     @Test
     void acyclicEdgesEvaluateEveryDetectionPredicateFalse() {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("root", "root-label", "a", "task-a", plainEdge());
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
@@ -64,7 +64,7 @@ class TaskGraphPolarityTest {
 
     @Test
     void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair(null, null, "child", null, plainEdge());
 
@@ -88,8 +88,8 @@ class TaskGraphPolarityTest {
     @Test
     void benignGraphPublishesNoDetectionEventOnObservationClose() {
         AtomicInteger detections = new AtomicInteger();
-        GlobalPar global = GlobalPar.builder()
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+        ParRuntime global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
@@ -107,8 +107,8 @@ class TaskGraphPolarityTest {
         java.util.concurrent.atomic.AtomicReference<
                         io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent>
                 captured = new java.util.concurrent.atomic.AtomicReference<>();
-        GlobalPar global = GlobalPar.builder()
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+        ParRuntime global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(captured::set)
                         .build())
@@ -138,7 +138,7 @@ class TaskGraphPolarityTest {
         try {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);
-            GlobalPar global = GlobalPar.builder().build();
+            ParRuntime global = ParRuntime.builder().build();
             try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
                 TaskEdge forward = new TaskEdge(
                         1,

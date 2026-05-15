@@ -62,7 +62,7 @@ timer 触发时：
 - first-wins 固定 `TIMEOUT`；
 - 未完成成员取消并记录 `TIMEOUT`；
 - timer 必须在 Group 先完成时取消或成为无害 no-op；
-- timeout action 使用 `GlobalPar.timeoutScheduler()`，Group 不创建 scheduler。
+- timeout action 使用 `ParRuntime.timeoutScheduler()`，Group 不创建 scheduler。
 
 成员 deadline：
 
@@ -166,7 +166,7 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 - 空组或所有冻结成员已终态：取消无副作用，等待立即返回；
 - 已 `CLOSED`：幂等；future 层的 `CLOSED` 与任务体退出相互独立，future 完成不导致等待信号
   或正在运行的任务状态提前丢失；
-- 不关闭 `GlobalPar` 或任何注册 executor。
+- 不关闭 `ParRuntime` 或任何注册 executor。
 
 Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次 token 取消全部未完成
 元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生
@@ -179,7 +179,7 @@ Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次
 获胜、提交拒绝、占位取消、窗口放弃和 combine 不执行都接入真实 prepared task 的状态，各恰好释放
 一次名额。等待信号是 `AtomicInteger` 计数加 `SettableFuture`（最后一个释放名额的线程直接完成
 它），而不是阻塞原语：定时等待因此能区分「全部退出」与「预算耗尽」，信号也能被
-`GlobalPar.awaitQuiescence` 按提交聚合——quiescence 覆盖任务体退出，而不只是 future 终态（运行
+`ParRuntime.awaitQuiescence` 按提交聚合——quiescence 覆盖任务体退出，而不只是 future 终态（运行
 中被取消的任务会立即完成 future，但用户代码可能仍在执行）。listener、TTL 恢复和用户另行启动的
 线程不属于任务体退出范围。
 

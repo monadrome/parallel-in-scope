@@ -49,13 +49,13 @@ for (int i = 0; i < 1_000_000; i++) {
 ```java
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.BatchOptions;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();

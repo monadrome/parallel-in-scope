@@ -1,8 +1,8 @@
 package demo.basic;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -30,8 +30,8 @@ public class BasicParDemo {
         // 1. 创建线程池
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
-        // 2. 创建 GlobalPar 并注册执行器
-        GlobalPar global = GlobalPar.builder()
+        // 2. 创建 ParRuntime 并注册执行器
+        ParRuntime global = ParRuntime.builder()
                 .register("demo-pool", pool)
                 .defaultPar("demo-pool")
                 .build();
@@ -45,7 +45,8 @@ public class BasicParDemo {
             System.out.println("输入数据: " + numbers);
 
             // 5. 配置并行选项
-            BatchOptions options = BatchOptions.timeout("basic-demo", java.time.Duration.ofSeconds(30)).parallelism(3);
+            BatchOptions options = BatchOptions.timeout("basic-demo", java.time.Duration.ofSeconds(30))
+                    .parallelism(3);
 
             System.out.println("并行度: " + options.parallelism());
 

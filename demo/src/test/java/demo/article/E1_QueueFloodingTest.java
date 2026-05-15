@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
@@ -87,7 +87,7 @@ class E1_QueueFloodingTest {
         int parallelism = 2;
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
-        GlobalPar config = GlobalPar.builder()
+        ParRuntime config = ParRuntime.builder()
                 .register("test-pool", pool)
                 .defaultPar("test-pool")
                 .build();
@@ -102,7 +102,9 @@ class E1_QueueFloodingTest {
 
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
+            BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofMillis(30000))
+                    .parallelism(parallelism)
+                    .taskType(TaskType.IO_BOUND);
 
             TaskBatchResult<Void> result = par.map(
                     input,

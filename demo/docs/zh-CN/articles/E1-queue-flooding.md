@@ -54,7 +54,7 @@ for (int i = 0; i < taskCount; i++) {
 
 // 餐厅只有 4 张桌（4 线程）
 ExecutorService pool = Executors.newFixedThreadPool(4);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();

@@ -1,6 +1,6 @@
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.BatchOptions;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskGroupDefinition;
@@ -232,7 +232,7 @@ public final class DefectRepro {
                 command.run();
             }
         };
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", blocking)
                 .build();
         try {
@@ -297,7 +297,7 @@ public final class DefectRepro {
         String firstRound = "";
         for (int round = 0; round < rounds; round++) {
             ExecutorService direct = MoreExecutors.newDirectExecutorService();
-            GlobalPar global = GlobalPar.builder()
+            ParRuntime global = ParRuntime.builder()
                     .register("worker", direct)
                     .build();
             try {
@@ -356,7 +356,7 @@ public final class DefectRepro {
 
     private static String failingGroupShape(String shape) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(3);
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .build();
         try {
@@ -425,7 +425,7 @@ public final class DefectRepro {
         System.out.println();
         System.out.println("=== CONTROL: healthy group with a terminal combine still succeeds ===");
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .build();
         try {

@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,13 +74,14 @@ public class E2_SubmitterPoolOffloadingTest {
         // 同样使用 1 个线程的业务线程池
         ExecutorService pool = Executors.newFixedThreadPool(1);
         try {
-            GlobalPar config = GlobalPar.builder()
+            ParRuntime config = ParRuntime.builder()
                     .register("test-pool", pool)
                     .defaultPar("test-pool")
                     .build();
             Par par = config.defaultPar();
 
-            BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000)).parallelism(1);
+            BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000))
+                    .parallelism(1);
 
             List<Integer> input = Arrays.asList(1, 2, 3);
 

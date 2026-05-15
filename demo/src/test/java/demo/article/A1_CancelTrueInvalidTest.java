@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.Checkpoints;
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ public class A1_CancelTrueInvalidTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
+        ParRuntime config = ParRuntime.builder()
                 .register("test-pool", pool)
                 .defaultPar("test-pool")
                 .build();
@@ -83,7 +83,9 @@ public class A1_CancelTrueInvalidTest {
     @Test
     void parMap_withTimeout_cancelsTasks() throws Exception {
         // 解决方案：Par.map() 配合超时自动取消
-        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
+                .parallelism(3)
+                .taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();

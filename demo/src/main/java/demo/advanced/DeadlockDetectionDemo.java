@@ -1,9 +1,9 @@
 package demo.advanced;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
@@ -42,7 +42,7 @@ public class DeadlockDetectionDemo {
         // 故意使用小线程池（4 线程），嵌套调用时会死锁
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("shared-pool", pool)
                 .defaultPar("shared-pool")
                 .build();
@@ -54,7 +54,9 @@ public class DeadlockDetectionDemo {
             System.out.println("每个 task-A 子任务内部调用 task-B，需要同一个池分配线程");
             System.out.println("→ 循环等待，死锁！\n");
 
-            BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5)).parallelism(4).taskType(TaskType.IO_BOUND);
+            BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5))
+                    .parallelism(4)
+                    .taskType(TaskType.IO_BOUND);
 
             long start = System.currentTimeMillis();
 
@@ -98,7 +100,9 @@ public class DeadlockDetectionDemo {
 
     /** task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁 */
     private static void callTaskB(Par par, int parentItem) {
-        BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5)).parallelism(2).taskType(TaskType.IO_BOUND);
+        BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5))
+                .parallelism(2)
+                .taskType(TaskType.IO_BOUND);
 
         List<String> items = Arrays.asList("x", "y");
         TaskBatchResult<String> resultB = par.map(

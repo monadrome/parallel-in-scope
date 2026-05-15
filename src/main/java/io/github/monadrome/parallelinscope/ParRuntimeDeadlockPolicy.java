@@ -5,12 +5,12 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 
-/** Immutable deadlock policy owned by one GlobalPar. */
-public final class GlobalParDeadlockPolicy {
+/** Immutable deadlock policy owned by one ParRuntime. */
+public final class ParRuntimeDeadlockPolicy {
     private final boolean enabled;
     private final List<DeadlockDetectionListener> listeners;
 
-    private GlobalParDeadlockPolicy(Builder builder) {
+    private ParRuntimeDeadlockPolicy(Builder builder) {
         this.enabled = builder.enabled;
         IdentityHashMap<DeadlockDetectionListener, Boolean> seen = new IdentityHashMap<>();
         List<DeadlockDetectionListener> unique = new ArrayList<>();
@@ -46,8 +46,8 @@ public final class GlobalParDeadlockPolicy {
             return this;
         }
 
-        public GlobalParDeadlockPolicy build() {
-            return new GlobalParDeadlockPolicy(this);
+        public ParRuntimeDeadlockPolicy build() {
+            return new ParRuntimeDeadlockPolicy(this);
         }
     }
 }

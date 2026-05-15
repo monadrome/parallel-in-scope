@@ -42,7 +42,7 @@ for (int i = 0; i < taskCount; i++) {
 
 ```java
 ExecutorService pool = Executors.newFixedThreadPool(4);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 

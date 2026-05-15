@@ -47,7 +47,7 @@ class ScopedTaskContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(executor, events);
+        ParRuntime global = globalWithListener(executor, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -78,7 +78,7 @@ class ScopedTaskContractTest {
     void userExceptionIsReportedAsUserFailure(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
-        GlobalPar global = globalWithListener(executor, events);
+        ParRuntime global = globalWithListener(executor, events);
         try {
             IllegalStateException boom = new IllegalStateException("boom");
             ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
@@ -111,7 +111,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void ttlSnapshotIsVisibleToTheTask(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         TransmittableThreadLocal<String> ttl = new TransmittableThreadLocal<>();
         try {
             ttl.set("snapshot");
@@ -131,7 +131,7 @@ class ScopedTaskContractTest {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(rejecting, events);
+        ParRuntime global = globalWithListener(rejecting, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -162,7 +162,7 @@ class ScopedTaskContractTest {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(rejecting, events);
+        ParRuntime global = globalWithListener(rejecting, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -192,7 +192,7 @@ class ScopedTaskContractTest {
     void cancelBeforeRunSkipsUserCodeAndHintsThePhase(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queuedRuns = new AtomicInteger();
         try {
@@ -234,7 +234,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void nestedSubmissionRecordsTaskGraphEdge(Entry entry) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
                 Object value = global.par("worker")
@@ -282,12 +282,12 @@ class ScopedTaskContractTest {
      * the shared execution policy is mirrored on both rather than passed as one option object.
      */
     private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, Callable<Object> task) {
+            ParRuntime global, Entry entry, String name, Callable<Object> task) {
         return submitSingle(global, entry, name, TaskType.CPU_BOUND, false, task);
     }
 
     private static ListenableFuture<Object> submitSingle(
-            GlobalPar global,
+            ParRuntime global,
             Entry entry,
             String name,
             TaskType taskType,
@@ -329,7 +329,7 @@ class ScopedTaskContractTest {
 
     private static final ThreadLocal<TaskGroup> LAST_GROUP = new ThreadLocal<>();
 
-    private static TaskGroupResult lastGroupResult(GlobalPar global) throws Exception {
+    private static TaskGroupResult lastGroupResult(ParRuntime global) throws Exception {
         TaskGroup group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");
@@ -342,17 +342,17 @@ class ScopedTaskContractTest {
         return Collections.synchronizedList(new ArrayList<>());
     }
 
-    private static GlobalPar globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
-        return GlobalPar.builder()
+    private static ParRuntime globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
+        return ParRuntime.builder()
                 .taskListener(events::add)
                 .register("worker", executor)
                 .build();
     }
 
-    private static void observePhases(GlobalPar global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
+    private static void observePhases(ParRuntime global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
         // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
         // installed and the phase observer slot is free to claim.
-        global.par("worker").runtime().setPhaseObserver(phases::add);
+        global.par("worker").executorRuntime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

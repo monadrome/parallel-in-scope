@@ -14,7 +14,7 @@
 
 ```text
 应用/拓扑生命周期
-GlobalPar -------------------------------------------------------------- close
+ParRuntime -------------------------------------------------------------- close
     |
     +-- Definition.Builder -- build --> TaskGroupDefinition
                                       (只含结构，可并发复用)
@@ -35,7 +35,7 @@ submitGroup(definition, binder)
    凑类型而存在的中间层。
 2. definition 只描述组结构，**禁止保存任何本次运行的用户可执行对象**，包括
    `Callable`、combine body 和完成回调。
-3. 每次调用 `GlobalPar.submitGroup(...)` 时，通过一个同步、一次性的
+3. 每次调用 `ParRuntime.submitGroup(...)` 时，通过一个同步、一次性的
    `TaskGroup.Bindings` 提供本次 `Callable`。closure 捕获不可避免，但只进入本次运行对象，
    不进入可长期复用的 definition。
 4. `TaskFuture` 只在提交成功建立运行对象后产生。definition 阶段不创建 future、token、
@@ -55,16 +55,16 @@ lambda 的对象一次性使用；没有必要连结构定义也降级成一次�
 1. **生命周期正确**：长期对象不得无意持有单次运行对象；运行资源必须有唯一所有者。
 2. **结构化并发不变量不变**：统一 admission、取消树、deadline 上限、上下文恢复、
    fail-fast 和任务体退出跟踪全部保留。
-3. **definition 真正不可变且可复用**：可以在同一 `GlobalPar` 生命周期内跨线程并发提交。
+3. **definition 真正不可变且可复用**：可以在同一 `ParRuntime` 生命周期内跨线程并发提交。
 4. **运行数据隔离**：不同提交的输入、closure、future、结果和上下文绝不共享。
 5. **保持类型安全**：异构成员不依赖 `Map<String, Object>` 或调用方强转。
 6. **减少公开概念**：删除只承担间接转发、名字包装或重复回调机制的顶层类型。
-7. **使用方式接近 `Par`**：创建和提交入口归属 `GlobalPar`，执行器使用已经解析的 `Par`。
+7. **使用方式接近 `Par`**：创建和提交入口归属 `ParRuntime`，执行器使用已经解析的 `Par`。
 
 非目标：
 
 - 自动分析 lambda 捕获图或自动关闭任意被捕获资源；
-- 让 definition 跨不同 `GlobalPar` 或跨应用重启复用；
+- 让 definition 跨不同 `ParRuntime` 或跨应用重启复用；
 - 动态增减成员、按输入改变组结构；
 - 多阶段 DAG、部分 join、fallback 或 future 链式编排；
 - 为 Group 复制一套提交、取消、TTL 或 phase 内核。
@@ -85,7 +85,7 @@ Definition（结构） -> Bindings（本次可执行负载） -> TaskGroup（运
 
 definition 及其成员允许保存：
 
-- owner `GlobalPar` 的身份和已注册 `Par` 句柄；
+- owner `ParRuntime` 的身份和已注册 `Par` 句柄；
 - group/member 名称、声明顺序和内部 kind；
 - timeout 的显式值或 inherit 标记；
 - `TaskOptions`、`closeGrace` 等不可变执行策略；
@@ -104,9 +104,9 @@ definition。
 
 ### D3. owner 生命周期显式
 
-definition 由 `GlobalPar` 创建，并绑定到该实例：
+definition 由 `ParRuntime` 创建，并绑定到该实例：
 
-- 只接受属于同一个 `GlobalPar` 的 `Par`；错配在 definition 配置期立即失败；
+- 只接受属于同一个 `ParRuntime` 的 `Par`；错配在 definition 配置期立即失败；
 - 只允许由 owner 调用 `submitGroup`；跨 owner 提交立即失败；
 - owner 关闭后 definition 仍是普通不可变对象，但不能再提交；
 - definition 的合理生命周期是 owner 生命周期以内，与 `Par` 相同，不承诺跨容器重启复用。
@@ -134,7 +134,7 @@ definition API 不返回 `TaskFuture`，也不提供声明期 placeholder。`Tas
 
 ### D6. admission 仍是全量边界
 
-所有绑定必须先完整、唯一且合法，随后才能进入一次 `GlobalPar.whileOpen()` admission。全部
+所有绑定必须先完整、唯一且合法，随后才能进入一次 `ParRuntime.whileOpen()` admission。全部
 成员的 prepared future 和 registry 建立完成前，不得调用任何业务 executor。物理
 `execute()` 必然有顺序，但它们属于同一个已冻结的逻辑提交。
 
@@ -261,7 +261,7 @@ final class AccountPageGroup {
     final TaskGroupDefinition.Member<List<Order>> orders;
     final TaskGroupDefinition.Member<Page> page;
 
-    AccountPageGroup(GlobalPar global) {
+    AccountPageGroup(ParRuntime global) {
         TaskGroupDefinition.Builder builder =
                 global.defineGroup("account-page", Duration.ofSeconds(3));
         user = builder.task("get-user", global.par("user"));
@@ -275,7 +275,7 @@ final class AccountPageGroup {
 ### 5.2 公共签名草图
 
 ```java
-public final class GlobalPar implements AutoCloseable {
+public final class ParRuntime implements AutoCloseable {
     public TaskGroupDefinition.Builder defineGroup(
             String groupName, Duration timeout);
 
@@ -375,7 +375,7 @@ executor 与 Guava future 语义负责。
 
 ### 6.1 Builder
 
-- 只能由 owner `GlobalPar.defineGroup*()` 创建，不保留公共静态 `builder(...)` 入口；
+- 只能由 owner `ParRuntime.defineGroup*()` 创建，不保留公共静态 `builder(...)` 入口；
 - 非线程安全，只用于一个同步配置流程；
 - `task()`/`combine()` 立即检查 null、空白名、重名和 `Par` owner；
 - 最多一个 terminal combine；它在语义上永远位于所有普通 member 之后；
@@ -453,13 +453,13 @@ Bindings 被 GC 才释放捕获对象。
 
 ## 8. 提交与运行期契约
 
-`GlobalPar.submitGroup(definition, binder)` 的线性流程：
+`ParRuntime.submitGroup(definition, binder)` 的线性流程：
 
 1. 校验参数、definition owner，并在 owner 已明确关闭时直接拒绝；
 2. 创建 Bindings，在调用线程同步执行 binder；
 3. 冻结、全量校验并把 payload 转移成内部 RunBindings；
 4. 以此刻为本次 group 的统一 submit start，解析 outer task、deadline ceiling 和 observation；
-5. 在一次 `GlobalPar.whileOpen()` 中创建完整 token/context/body tracker/future/registry，并 retain；
+5. 在一次 `ParRuntime.whileOpen()` 中创建完整 token/context/body tracker/future/registry，并 retain；
 6. 若准备失败，终结所有已准备对象、释放 payload 和 retain，且不运行用户代码；
 7. 完整 registry 发布后，严格按现有 submission/cancellation 契约安排 observer、token bind 与
    executor submission；已经过期的 deadline 必须在任何 body 取得执行权前同步取消；
@@ -470,11 +470,11 @@ Bindings 是同步配置，不计入显式 group timeout；deadline 从步骤 4 
 Bindings 阶段外层 deadline 已耗尽，步骤 4 必须解析出已过期上限，随后同步得到 `TIMEOUT`，任何
 body 都不得进入。binder 不应该执行 IO 或业务计算；库只保证不在该阶段调用登记的 body。
 
-与 `GlobalPar.close()` 竞争时：
+与 `ParRuntime.close()` 竞争时：
 
 - 已经关闭时不接纳；
 - binder 执行期间发生 close，最终 admission 可以整体失败，但不能部分提交；
-- 成功越过 `whileOpen` 线性化点的组由 GlobalPar 内部服务保留到完整收敛；
+- 成功越过 `whileOpen` 线性化点的组由 ParRuntime 内部服务保留到完整收敛；
 - 不在 `whileOpen` 内执行用户 binder，避免用户回调阻塞 shutdown admission 临界区。
 
 因此 binder 必须只登记本次 body，不承担不可回滚的业务副作用。shutdown 竞争中允许出现
@@ -555,7 +555,7 @@ member C --/
 - TTL、`TaskExecutionContext`、`SubmissionScope` 全部按现有栈式 install/restore；
 - membership 不伪造 member-to-member TaskGraph edge；terminal join 仍按现行观测契约；
 - `completionFuture()` 等待所有冻结的公开 future 终态后，以不可变 `TaskGroupResult` 正常完成；
-- `close()`、`awaitBodyCompletion()` 与 `GlobalPar.awaitQuiescence()` 继续区分 future terminal 和
+- `close()`、`awaitBodyCompletion()` 与 `ParRuntime.awaitQuiescence()` 继续区分 future terminal 和
   body exit；
 - Group 不创建业务 executor，不复制 scheduler，不使用 `SlidingWindowSubmitter`。
 
@@ -571,7 +571,7 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 | foreign definition owner | `submitGroup` 入口 | 否 | 否 |
 | missing/duplicate/foreign/wrong-kind binding | binder 冻结校验 | 否 | 否 |
 | binder 抛异常 | binder 同步调用 | 否 | 否 |
-| GlobalPar 已关闭或竞争中关闭获胜 | admission | 否 | 否 |
+| ParRuntime 已关闭或竞争中关闭获胜 | admission | 否 | 否 |
 | inherit 组且无外层 scoped task | 运行准备期 | 整体拒绝 | 否 |
 | runtime 准备失败 | admission 清理 | 整体回滚 | 否 |
 | executor rejection | runtime submission | 是 | 是，记录结果 |
@@ -591,7 +591,7 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 | `CombineFunction<R>` | `TaskGroup.CombineBody<R>`，只在本次 Bindings 出现 |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `completionFuture()` + Guava callback/listener |
-| `TaskGroupOptions` | `GlobalPar.defineGroup*` + Builder 的 `closeGrace` |
+| `TaskGroupOptions` | `ParRuntime.defineGroup*` + Builder 的 `closeGrace` |
 
 保留：
 
@@ -607,16 +607,16 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 ### 13.2 ParName 收缩的端点
 
 ```java
-GlobalPar.Builder register(String name, ExecutorService executor); // 仍返回 Builder
-GlobalPar.Builder defaultPar(String name);
-GlobalPar.Builder parTaskListener(String name, TaskListener listener);
+ParRuntime.Builder register(String name, ExecutorService executor); // 仍返回 Builder
+ParRuntime.Builder defaultPar(String name);
+ParRuntime.Builder parTaskListener(String name, TaskListener listener);
 
-Par GlobalPar.par(String name);
-Optional<Par> GlobalPar.find(String name);
+Par ParRuntime.par(String name);
+Optional<Par> ParRuntime.find(String name);
 String Par.name();
 ```
 
-`GlobalPar.Builder.register()` 不能返回 `Par`：在 `GlobalPar` 完成构建前，`Par` 所需的 owner 与
+`ParRuntime.Builder.register()` 不能返回 `Par`：在 `ParRuntime` 完成构建前，`Par` 所需的 owner 与
 runtime 尚不存在。注册仍是 composition-root builder 操作；构建后再由 `global.par(name)` 取得
 句柄。
 
@@ -645,10 +645,10 @@ handoff、abandon、未 submit 诊断和额外状态机。它既破坏“future 
 也重新引入“builder 是否已提交/关闭”的状态机。本方案已经把不可避免的一次性部分隔离为
 Bindings 和 TaskGroup。
 
-### 14.5 definition 只保存 executor 名，任意 GlobalPar 都可提交
+### 14.5 definition 只保存 executor 名，任意 ParRuntime 都可提交
 
 不选。跨 topology 复用不是目标；延迟解析会把配置错误推到请求执行期。保存 owner-bound `Par`
-与 `GlobalPar` 作为统一起点更符合现有生命周期。
+与 `ParRuntime` 作为统一起点更符合现有生命周期。
 
 ### 14.6 弱引用、自动 close 捕获对象或强杀线程
 
@@ -673,7 +673,7 @@ Bindings 和 TaskGroup。
 
 1. build 后不可修改；重复 build 返回同一实例；
 2. 同一 definition 可顺序和并发提交，运行状态完全隔离；
-3. foreign `Par` 在配置期失败，foreign `GlobalPar` 在 submit 入口失败；
+3. foreign `Par` 在配置期失败，foreign `ParRuntime` 在 submit 入口失败；
 4. owner close 后拒绝新提交；已 admission 的组继续收敛；
 5. 反射/API 审查确认 definition/member 不含用户 executable 字段。
 
@@ -700,7 +700,7 @@ Bindings 和 TaskGroup。
 18. 同一 definition 每次提交从新 start 计算 deadline，并受当次 outer deadline 截断；
 19. outer/group/member/combine token 拓扑、origin attribution 与 fail-fast 保持现行契约；
 20. TTL 和 observation 每次按 submit 线程捕获，不在 definition 构建时捕获；
-21. GlobalPar close 与 submit 竞争只有整体接纳或整体拒绝；
+21. ParRuntime close 与 submit 竞争只有整体接纳或整体拒绝；
 22. 所有正常、异常、拒绝、inline、取消路径恢复线程上下文；
 23. inherit 组（`defineGroupInheriting`）在无外层 scoped task 的线程提交时，
     `submitGroup` 在运行准备期整体失败（`IllegalArgumentException`），无 TaskGroup/Future
@@ -713,7 +713,7 @@ Bindings 和 TaskGroup。
 26. combine 使用目标 Par；直接执行只来自 executor 自身，拒绝时无框架 fallback；
 27. group deadline 覆盖 join 等待与 combine，不重置预算；
 28. public API whitelist 删除 §13.1 六个顶层类型，并拒绝旧签名残留；
-29. `GlobalPar.Builder.register(String, ...)` 仍返回 Builder，构建后 `par(String)` 返回 Par；
+29. `ParRuntime.Builder.register(String, ...)` 仍返回 Builder，构建后 `par(String)` 返回 Par；
 30. 第二个 `Builder.combine()` 在配置期抛 `IllegalStateException`；`task()`/`combine()`
     声明顺序任意，执行顺序由 definition 内部 kind + 声明顺序决定。
 
@@ -726,7 +726,7 @@ Bindings 和 TaskGroup。
    terminal-combine 和 observability 契约，消除“definition 保存 callable”的旧表述；
 2. 引入 owner-bound、structure-only Definition/Member 与一次性 Bindings，不先暴露兼容壳；
 3. 调整 Group 准备适配层，实现 payload transfer/clear，并继续走唯一 TaskSubmissions 内核；
-4. 将创建与提交入口移动到 `GlobalPar`，补齐 `String`/`Par` 端点；
+4. 将创建与提交入口移动到 `ParRuntime`，补齐 `String`/`Par` 端点；
 5. 迁移实现与测试后删除旧顶层类型，不保留双轨 API；
 6. 更新中英文 user guide、v0.3 migration、示例、javadoc 和 public surface tests；
 7. 先跑针对生命周期/取消/close/rejection 的测试，最后运行 `mvn spotless:apply` 与完整
@@ -763,25 +763,25 @@ parent 为 null）时，`submitGroup` 在**运行准备期整体拒绝**，抛
 `ParName` 删除后，公开端点以 `String` 为准，并补全既有签名中未列出的端点：
 
 ```java
-GlobalPar.Builder register(String name, ExecutorService executor); // 仍返回 Builder
-GlobalPar.Builder defaultPar(String name);
-GlobalPar.Builder parTaskListener(String name, TaskListener listener);
+ParRuntime.Builder register(String name, ExecutorService executor); // 仍返回 Builder
+ParRuntime.Builder defaultPar(String name);
+ParRuntime.Builder parTaskListener(String name, TaskListener listener);
 
-Par GlobalPar.par(String name);
-Optional<Par> GlobalPar.find(String name);
+Par ParRuntime.par(String name);
+Optional<Par> ParRuntime.find(String name);
 String Par.name();
-List<TaskListener> GlobalPar.taskListenersFor(String name); // 原 taskListenersFor(ParName)
-Map<String, Par> GlobalPar.pars();                          // 原 Map<ParName, Par>
-Par GlobalPar.defaultPar();
+List<TaskListener> ParRuntime.taskListenersFor(String name); // 原 taskListenersFor(ParName)
+Map<String, Par> ParRuntime.pars();                          // 原 Map<ParName, Par>
+Par ParRuntime.defaultPar();
 ```
 
 - null/空白名校验**下沉**到 `register(String)`/`defaultPar(String)`/
   `parTaskListener(String, ...)`/`par(String)`/`find(String)`/`taskListenersFor(String)`
   等端点：null 抛 `NullPointerException`，空白名抛 `IllegalArgumentException`，均在
   配置期/调用点抛出，不再依赖 `ParName` 类型的构造器校验；
-- `GlobalPar.Builder.build()` 的注册一致性校验**保留**：default Par 已注册、listener
+- `ParRuntime.Builder.build()` 的注册一致性校验**保留**：default Par 已注册、listener
   override 已注册，否则 build 期抛 `IllegalArgumentException`；
-- `register()` 不能返回 `Par`（`GlobalPar` 完成构建前，owner 与 runtime 尚不存在），
+- `register()` 不能返回 `Par`（`ParRuntime` 完成构建前，owner 与 runtime 尚不存在），
   这一点不变。
 
 ### 19.3 `groupId()`/`groupName()` 保留
@@ -815,7 +815,7 @@ definition 的公共访问面以 §5.2 草图为准（另见 §19.3）。
 ### 19.7 §8 措辞更正
 
 §8"不在 `whileOpen` 内执行用户 binder，避免用户回调阻塞 shutdown admission 临界区"
-的表述不准确：`GlobalPar.close()` 不持有准入锁，`whileOpen` 是计数器式准入。更正为：
+的表述不准确：`ParRuntime.close()` 不持有准入锁，`whileOpen` 是计数器式准入。更正为：
 **避免慢 binder 占用 admission 计数、延迟 close 后服务关停。**
 
 ### 19.8 §5.3 观测保证的归属

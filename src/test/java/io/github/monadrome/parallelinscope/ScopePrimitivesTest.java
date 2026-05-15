@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Behavior pins for small scope primitives: {@link ExecutorIdentity} identity semantics,
- * {@link GlobalPar} Par-name validation and lookup semantics, {@link GlobalPar} task-listener
- * defaults, {@link MultiTaskContext#resolve} boundary matrix, {@link GlobalPar} topology shutdown
+ * {@link ParRuntime} Par-name validation and lookup semantics, {@link ParRuntime} task-listener
+ * defaults, {@link MultiTaskContext#resolve} boundary matrix, {@link ParRuntime} topology shutdown
  * states with its scheduler adapter, and {@link ScopedCallable} timing bookkeeping.
  */
 class ScopePrimitivesTest {
@@ -52,7 +52,7 @@ class ScopePrimitivesTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskListener listener = event -> {};
         try {
-            GlobalPar.Builder builder = GlobalPar.builder();
+            ParRuntime.Builder builder = ParRuntime.builder();
             assertThatThrownBy(() -> builder.register(null, executor)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> builder.register("", executor)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> builder.register("   ", executor)).isInstanceOf(IllegalArgumentException.class);
@@ -67,8 +67,8 @@ class ScopePrimitivesTest {
 
         // The value is used verbatim: no trimming, lower-casing, or other normalization.
         ExecutorService io = Executors.newSingleThreadExecutor();
-        GlobalPar global =
-                GlobalPar.builder().register(" db ", io).register("db", io).build();
+        ParRuntime global =
+                ParRuntime.builder().register(" db ", io).register("db", io).build();
         try {
             assertThat(global.pars()).containsOnlyKeys(" db ", "db");
             assertThat(global.par(" db ")).isNotSameAs(global.par("db"));
@@ -86,7 +86,7 @@ class ScopePrimitivesTest {
     @Test
     void parLookupResolvesByNameValue() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        ParRuntime global = ParRuntime.builder().register("io", executor).build();
         try {
             assertThat(global.par("io")).isSameAs(global.par("io"));
             assertThat(global.find("io")).contains(global.par("io"));
@@ -101,12 +101,12 @@ class ScopePrimitivesTest {
         }
     }
 
-    // ==================== GlobalPar task listeners ====================
+    // ==================== ParRuntime task listeners ====================
 
     @Test
     void taskListenersExposeImmutableSnapshotSemantics() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar empty = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime empty = ParRuntime.builder().register("worker", executor).build();
         try {
             assertThat(empty.taskListeners()).isEmpty();
             assertThat(empty.taskListenersFor("worker")).isEmpty();
@@ -115,12 +115,12 @@ class ScopePrimitivesTest {
             executor.shutdownNow();
         }
 
-        GlobalPar.Builder builder = GlobalPar.builder();
+        ParRuntime.Builder builder = ParRuntime.builder();
         assertThatThrownBy(() -> builder.taskListener(null)).isInstanceOf(NullPointerException.class);
 
         TaskListener listener = event -> {};
         ExecutorService snapshottedExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar snapshotted = GlobalPar.builder()
+        ParRuntime snapshotted = ParRuntime.builder()
                 .taskListener(listener)
                 .register("worker", snapshottedExecutor)
                 .build();
@@ -228,17 +228,17 @@ class ScopePrimitivesTest {
                 context, index, com.google.common.base.Ticker.systemTicker().read());
     }
 
-    // ==================== GlobalPar lifecycle & scheduler adapter ====================
+    // ==================== ParRuntime lifecycle & scheduler adapter ====================
 
     @Test
     void runtimeBindingsExposeTheExactRegisteredExecutorAndStayDistinct() {
         ExecutorService poolA = Executors.newSingleThreadExecutor();
         ExecutorService poolB = Executors.newSingleThreadExecutor();
-        GlobalPar global =
-                GlobalPar.builder().register("a", poolA).register("b", poolB).build();
+        ParRuntime global =
+                ParRuntime.builder().register("a", poolA).register("b", poolB).build();
         try {
-            ExecutorRuntime runtimeA = global.par("a").runtime();
-            ExecutorRuntime runtimeB = global.par("b").runtime();
+            ExecutorRuntime runtimeA = global.par("a").executorRuntime();
+            ExecutorRuntime runtimeB = global.par("b").executorRuntime();
             assertThat(runtimeA).isNotNull();
             assertThat(runtimeB).isNotNull();
             assertThat(runtimeA).isNotSameAs(runtimeB);
@@ -254,8 +254,8 @@ class ScopePrimitivesTest {
     }
 
     @Test
-    void globalParReportsClosedOnlyAfterCloseAndIsIdempotent() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+    void runtimeReportsClosedOnlyAfterCloseAndIsIdempotent() throws Exception {
+        ParRuntime global = ParRuntime.builder().build();
         assertThat(global.closed()).isFalse();
         global.close();
         assertThat(global.closed()).isTrue();
@@ -266,7 +266,7 @@ class ScopePrimitivesTest {
 
     @Test
     void timeoutSchedulerDelegatesRunnablesAndLifecycleStates() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         java.util.concurrent.ScheduledExecutorService scheduler = global.timeoutScheduler();
 
         java.util.concurrent.CountDownLatch ran = new java.util.concurrent.CountDownLatch(1);

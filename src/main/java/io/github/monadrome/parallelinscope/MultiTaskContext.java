@@ -8,7 +8,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group
- * member; never cached by a {@code Par} or {@code GlobalPar}.
+ * member; never cached by a {@code Par} or {@code ParRuntime}.
  *
  * <p>Resolution is the only place where a {@link UnitSpec} becomes executable values: requested
  * parallelism is capped by task count, an explicit timeout uses the earlier of its own and any

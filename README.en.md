@@ -24,7 +24,7 @@ A structured-concurrency toolkit for Java 8+ with bounded batch submission, coop
 Create the application execution topology once. A named `Par` is bound to its executor at build time; choose it before calling `map`, not per invocation.
 
 ```java
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register("io", Executors.newFixedThreadPool(8))
         .defaultPar("io")
         .build();
@@ -37,7 +37,7 @@ TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 
-`GlobalPar.close()` releases framework-owned timer and submitter resources. It deliberately does not shut down the executor services supplied to `register`; their owner must do that.
+`ParRuntime.close()` releases framework-owned timer and submitter resources. It deliberately does not shut down the executor services supplied to `register`; their owner must do that.
 
 ## v0.3 Migration
 
@@ -45,7 +45,7 @@ TaskBatchResult<User> result = global.par("io")
 
 ## v0.2 Migration
 
-`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `BatchOptions` (`TaskOptions` for group members and combines), and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md).
+`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `ParRuntime`, `BatchOptions` (`TaskOptions` for group members and combines), and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md).
 
 ## Core Capabilities
 

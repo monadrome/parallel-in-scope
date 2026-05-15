@@ -47,7 +47,7 @@ for (Future<List<User>> f : futures) {
 
 // 1. 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(8);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("db-pool", pool)
         .build();
 Par par = config.defaultPar();

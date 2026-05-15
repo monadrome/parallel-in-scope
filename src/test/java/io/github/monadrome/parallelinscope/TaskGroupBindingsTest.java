@@ -29,7 +29,7 @@ class TaskGroupBindingsTest {
     @Test
     void missingBindingRejectsTheSubmissionBeforeAdmission() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -49,7 +49,7 @@ class TaskGroupBindingsTest {
     @Test
     void duplicateBindingRejectsTheSubmissionBeforeAdmission() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -71,7 +71,7 @@ class TaskGroupBindingsTest {
     @Test
     void foreignAndWrongKindHandlesRejectTheSubmissionBeforeAdmission() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -113,7 +113,7 @@ class TaskGroupBindingsTest {
     @Test
     void missingCombineBodyRejectsTheSubmissionBeforeAdmission() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -132,7 +132,7 @@ class TaskGroupBindingsTest {
     @Test
     void nullBodiesAreRejectedAtTheBindingCall() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -200,7 +200,7 @@ class TaskGroupBindingsTest {
                 delegate.execute(command);
             }
         };
-        GlobalPar global = GlobalPar.builder().register("worker", wrapped).build();
+        ParRuntime global = ParRuntime.builder().register("worker", wrapped).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -265,7 +265,7 @@ class TaskGroupBindingsTest {
                 delegate.execute(command);
             }
         };
-        GlobalPar global = GlobalPar.builder().register("worker", wrapped).build();
+        ParRuntime global = ParRuntime.builder().register("worker", wrapped).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -302,7 +302,7 @@ class TaskGroupBindingsTest {
     @Test
     void escapedBindingsAreUnusableAfterTheBinderReturns() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -329,7 +329,7 @@ class TaskGroupBindingsTest {
     @Test
     void bindingsAreUsableOnlyOnTheCreatingThread() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -368,7 +368,7 @@ class TaskGroupBindingsTest {
     @Test
     void freezeTransfersPayloadsAndClearsTheBindingsSourceSlots() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> one = builder.task("one", global.par("worker"));
@@ -413,7 +413,7 @@ class TaskGroupBindingsTest {
     void rejectedCancelledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
         ExecutorService worker = Executors.newSingleThreadExecutor();
         ExecutorService direct = com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", worker)
                 .register("direct", direct)
                 .build();
@@ -472,7 +472,7 @@ class TaskGroupBindingsTest {
     @Test
     void timeoutBeforeRunReleasesTheMemberBodyHolders() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             // The deadline expires before the submission loop: the bind cancels every member
             // before any of them is submitted, and the holders are released without running.
@@ -499,7 +499,7 @@ class TaskGroupBindingsTest {
     @Test
     void bindingOrderDoesNotChangeDeclarationOrderExecution() throws Exception {
         ExecutorService direct = com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        ParRuntime global = ParRuntime.builder().register("direct", direct).build();
         try {
             List<String> executionOrder = new ArrayList<>();
             TaskGroupDefinition.Builder builder = global.defineGroup("order", TIMEOUT);
@@ -533,7 +533,7 @@ class TaskGroupBindingsTest {
     @Test
     void twoSubmissionsOfOneDefinitionCaptureDifferentRequestsWithoutCrossTalk() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> load = builder.task("load", global.par("worker"));
@@ -555,7 +555,7 @@ class TaskGroupBindingsTest {
     @Test
     void concurrentSubmissionsOfOneDefinitionAreFullyIsolated() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(4);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<Integer> load = builder.task("load", global.par("worker"));

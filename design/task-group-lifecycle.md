@@ -9,14 +9,14 @@
 
 ```text
 应用生命周期
-GlobalPar ────────────────────────────────────────────────────────────
+ParRuntime ────────────────────────────────────────────────────────────
     │
     └─ defineGroup* ── 配置生命周期（owner 内，仅结构）
         TaskGroupDefinition.Builder ── task*/combine* ── build
             ── TaskGroupDefinition（不可变、可并发复用、owner 绑定）
 
 请求/显式协调生命周期（一次提交）
-GlobalPar.submitGroup ── Bindings（本次 Callable）── freeze/校验
+ParRuntime.submitGroup ── Bindings（本次 Callable）── freeze/校验
     ── TaskGroup ── created/running ── all terminal ── closed
 
 每个成员对象生命周期
@@ -37,15 +37,15 @@ TaskGraphObservationScope ──────────────────
 
 `TaskGroupDefinition` 只保存组结构：组名、timeout/closeGrace、成员的声明顺序、内部 kind、
 名称、已解析的 owner-bound `Par` 和不可变 `TaskOptions`；它是仅结构、可并发复用的不可变对象，
-由 owner `GlobalPar` 创建并绑定（决策 D3），owner 关闭后不能再提交。外层上下文、observation
-和 deadline 归属在每次 `GlobalPar.submitGroup()` 时按提交线程解析；本次运行的 `Callable`、
+由 owner `ParRuntime` 创建并绑定（决策 D3），owner 关闭后不能再提交。外层上下文、observation
+和 deadline 归属在每次 `ParRuntime.submitGroup()` 时按提交线程解析；本次运行的 `Callable`、
 combine body 与完成回调由一次性 `TaskGroup.Bindings` 承载，不进入 definition。成员
 （`Member<T>` handle）是 definition 的不可变组成部分，不新增公共 Context。definition 不属于
 任何物理线程。
 
 `TaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
 
-它在 `GlobalPar.submitGroup()` 的运行期创建阶段产生，至少持有：
+它在 `ParRuntime.submitGroup()` 的运行期创建阶段产生，至少持有：
 
 ```text
 groupId / groupName
@@ -137,7 +137,7 @@ try {
 
 ### 4.7 TaskGraphObservationScope
 
-`GlobalPar.submitGroup()` 解析提交线程上同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
+`ParRuntime.submitGroup()` 解析提交线程上同一个 `ParRuntime` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
 
 调用方必须让 observation 生命周期覆盖 Group 的所有成员执行。若 observation 已提前关闭，成员不得复活它，后续图记录可以安全忽略。
 
@@ -190,7 +190,7 @@ member deadline           = min(member requested deadline, group deadline)
 
 ### 5.2 Group 在一个正在执行的 scoped task 中创建
 
-`GlobalPar.submitGroup()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 definition 无论之后从哪个线程提交，归属都由该次提交现场决定：
+`ParRuntime.submitGroup()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 definition 无论之后从哪个线程提交，归属都由该次提交现场决定：
 
 ```text
 outerBatch = currentTask.multiTaskContext()
@@ -218,9 +218,9 @@ Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每�
 Group:   RUNNING -----all members terminal--> CLOSED
 ```
 
-- `TaskGroupDefinition.Builder` 非线程安全，只能由 owner `GlobalPar.defineGroup*()` 创建，
+- `TaskGroupDefinition.Builder` 非线程安全，只能由 owner `ParRuntime.defineGroup*()` 创建，
   调用方必须在一个配置流程中完成定义后 `build()`；build 出的 definition 可安全共享并重复提交；
-- 每次 `GlobalPar.submitGroup()` 独立创建运行对象；definition 没有"已消费"状态；
+- 每次 `ParRuntime.submitGroup()` 独立创建运行对象；definition 没有"已消费"状态；
 - 返回的 Group 从一开始就持有完整、不可扩展的成员集合；
 - `CLOSED` 只表示全部公开成员 future 已终态且不可变结果已经发布。
 
@@ -271,17 +271,17 @@ null --all success-----------> SUCCESS
 
 建议 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作或一把私有 lock。成员 future 的完成 callback 在 lock 内只更新小型状态和决定后续动作，取消 future、触发 listener 等外部调用必须在 lock 外执行，防止重入和长时间占锁。
 
-## 12. GlobalPar 关闭与资源所有权
+## 12. ParRuntime 关闭与资源所有权
 
-- `TaskGroupDefinition` 由 owner `GlobalPar.defineGroup*()` 创建并绑定到该实例（决策 D3）：
-  配置期即校验成员 `Par` 属于同一 owner，创建时不验证 GlobalPar 开关状态，也不长期
+- `TaskGroupDefinition` 由 owner `ParRuntime.defineGroup*()` 创建并绑定到该实例（决策 D3）：
+  配置期即校验成员 `Par` 属于同一 owner，创建时不验证 ParRuntime 开关状态，也不长期
   retain；owner 关闭后 definition 仍是普通不可变对象，但新的 `submitGroup` 会失败；
-- `GlobalPar.submitGroup()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
-- submit 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
+- `ParRuntime.submitGroup()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `ParRuntime.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
+- submit 完成 admission 后，即使 ParRuntime 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
 - 每个冻结成员通过 `retainUntilComplete()` 计入活动运行；可以增加 group-aware retain helper，但不得提前关闭 timer/submitter/maintenance 服务；
 - Group 不创建或关闭业务 executor；
-- `GlobalPar.close()` 不阻塞，不关闭注册 executor；`awaitQuiescence(Duration)` 等待拓扑完全
+- `ParRuntime.close()` 不阻塞，不关闭注册 executor；`awaitQuiescence(Duration)` 等待拓扑完全
   排空——无进行中的 admission、无未完成 future、所有已接纳任务体已退出、框架服务已关闭，
   其中任务体退出独立于 future 终态单独跟踪（见
   [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）；
-- Group deadline 使用 GlobalPar 拥有的 scheduler。
+- Group deadline 使用 ParRuntime 拥有的 scheduler。

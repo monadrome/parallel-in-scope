@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
 /**
- * Runtime capability record for one supplied executor. Internal to the {@code GlobalPar} package.
+ * Runtime capability record for one supplied executor. Internal to the {@code ParRuntime} package.
  *
  * <p>The supplied executor is the resource identity used for queue inspection, purge, and blocking
  * risk. The submission executor is either that same object or a Guava listening adapter used only

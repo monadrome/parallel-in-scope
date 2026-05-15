@@ -1,19 +1,23 @@
 # Migrating to v0.3
 
-Version `0.3.0` makes two kinds of changes. It redesigns the task-group API around a strict
-three-phase lifecycle — immutable structure definition, one-shot per-submission bindings, and the
-running group — and deletes the name-wrapper and indirection types that the `0.2.x` surface had
-accumulated. That part is a source-breaking migration for any code that builds or submits a
-`TaskGroup`. The release also changes several runtime contracts so the library stops doing things
-on your behalf without saying so: scope close waits instead of only cancelling, quiescence means
-body exit rather than future completion, checkpoint guards fail instead of skipping, and executor
-rejection no longer runs your code on a thread you did not choose. Batch (`Par.map`) code is
-unaffected by the group redesign except for the `ParName` removal.
+Version `0.3.0` makes three kinds of changes. It renames the application-level execution owner from
+`GlobalPar` to `ParRuntime`. It redesigns the task-group API around a strict three-phase lifecycle —
+immutable structure definition, one-shot per-submission bindings, and the running group — and
+deletes the name-wrapper and indirection types that the `0.2.x` surface had accumulated. That part
+is a source-breaking migration for any code that builds or submits a `TaskGroup`. The release also
+changes several runtime contracts so the library stops doing things on your behalf without saying
+so: scope close waits instead of only cancelling, quiescence means body exit rather than future
+completion, checkpoint guards fail instead of skipping, and executor rejection no longer runs your
+code on a thread you did not choose. Batch (`Par.map`) code is unaffected by the group redesign
+except for the `ParName` removal.
 
 ## At a glance
 
 | `0.2.x` | `0.3.0` |
 |---|---|
+| `GlobalPar` / `GlobalPar.Builder` | `ParRuntime` / `ParRuntime.Builder` |
+| `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
+| `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>` (anonymous subclass) | `TaskGroupDefinition.Member<T>` returned by `Builder.task` / `Builder.combine` |
 | `ParName` / `ParName.of(name)` | `String` name at every endpoint |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
@@ -30,16 +34,43 @@ The six deleted top-level types have no compatibility aliases: `TaskKey`, `ParNa
 `CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, and `TaskGroupOptions`. The
 `0.x` phase keeps no shims; update imports, declarations, and call sites together.
 
+## `GlobalPar` is now `ParRuntime`
+
+`ParRuntime` is the application-level execution owner: it registers named `Par` entries, owns the
+framework's timer and submitter services, tracks in-flight work, and is closed during application
+shutdown. The name now describes the object — not inherently global, but an active, closeable
+runtime. Explicit instances are the norm, short-lived ones are legitimate in tests, and
+`installGlobal(...)` / `global()` describe the optional installation mode rather than the type.
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register("io", executor)
+        .build();
+
+Par io = runtime.par("io");
+```
+
+| `0.2.x` | `0.3.0` |
+|---|---|
+| `GlobalPar` | `ParRuntime` |
+| `GlobalPar.Builder` | `ParRuntime.Builder` |
+| `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
+| `Par.globalPar()` | `Par.runtime()` |
+
+`Par.runtime()` was already taken by the package-private accessor that exposes the executor
+binding, which becomes `Par.executorRuntime()`; it is not public API. `ParRuntime.installGlobal`
+and `ParRuntime.global()` keep their names. There are no compatibility aliases.
+
 ## `ParName` is gone: every name is a `String`
 
 Executor lookup and registration revert to bare `String` names. The endpoints that used to take
 or return a `ParName` now take or return `String`:
 
-- `GlobalPar.Builder.register(String, ExecutorService)` still returns `Builder` — it cannot
-  return a `Par`, because a `Par`'s owner and runtime do not exist until `GlobalPar` is built.
-- `GlobalPar.Builder.defaultPar(String)` and `parTaskListener(String, TaskListener)`.
-- `GlobalPar.par(String)`, `GlobalPar.find(String)`, `GlobalPar.taskListenersFor(String)`,
-  and `GlobalPar.pars()`, which is now a `Map<String, Par>`.
+- `ParRuntime.Builder.register(String, ExecutorService)` still returns `Builder` — it cannot
+  return a `Par`, because a `Par`'s owner and runtime do not exist until `ParRuntime` is built.
+- `ParRuntime.Builder.defaultPar(String)` and `parTaskListener(String, TaskListener)`.
+- `ParRuntime.par(String)`, `ParRuntime.find(String)`, `ParRuntime.taskListenersFor(String)`,
+  and `ParRuntime.pars()`, which is now a `Map<String, Par>`.
 - `Par.name()` now returns `String`; drop every `.value()` call.
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` and
   `combine(String, Par[, TaskOptions])` name the member directly.
@@ -47,13 +78,13 @@ or return a `ParName` now take or return `String`:
 Validation moved into the endpoints themselves: a `null` name throws `NullPointerException` and
 a blank name throws `IllegalArgumentException` at the call site, in both builder and runtime
 methods. The values are still used verbatim — no trimming or case folding — and the
-`GlobalPar.Builder.build()` consistency checks (default `Par` registered, listener overrides
+`ParRuntime.Builder.build()` consistency checks (default `Par` registered, listener overrides
 registered) are unchanged. A well-formed name still says nothing about registration; unknown
 names fail at `build()` or at `par(name)` exactly as before.
 
 ```java
 // 0.2.x
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register(ParName.of("io"), ioPool)
         .defaultPar(ParName.of("io"))
         .build();
@@ -61,7 +92,7 @@ Par io = global.par(ParName.of("io"));
 String name = io.name().value();
 
 // 0.3.0
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register("io", ioPool)
         .defaultPar("io")
         .build();
@@ -84,11 +115,11 @@ A definition holds only names, declared order, the resolved owner-bound `Par` ha
 options, and the group timeout choice. It never holds a `Callable`, combine body, listener,
 request object, future, token, or deadline. Because Java lambdas always capture something, the
 objects that carry them — `Bindings` and `TaskGroup` — are per-submission and single-use, while
-the definition can be shared across threads for the life of its owner `GlobalPar`.
+the definition can be shared across threads for the life of its owner `ParRuntime`.
 
 ### 1. Define the group on its owner
 
-Only the owning `GlobalPar` creates a builder; there is no public static `builder(...)` entry.
+Only the owning `ParRuntime` creates a builder; there is no public static `builder(...)` entry.
 The group timeout stays a forced explicit choice: `defineGroup(name, timeout)` for an explicit
 budget, `defineGroupInheriting(name)` for a nested group that inherits an enclosing scoped
 task's deadline. There is no implicit unbounded default.
@@ -224,9 +255,9 @@ thread — member current task and group current context do not exist during the
 
 ## Behavior changes to plan for
 
-- **Owner binding is explicit.** A definition only accepts `Par` handles of the `GlobalPar`
+- **Owner binding is explicit.** A definition only accepts `Par` handles of the `ParRuntime`
   that created it; a foreign `Par` fails at definition configuration, and submitting a foreign
-  owner's definition fails at the `submitGroup` entry. After `GlobalPar.close()` the definition
+  owner's definition fails at the `submitGroup` entry. After `ParRuntime.close()` the definition
   remains a plain immutable object, but new submissions fail.
 - **Inherit without an enclosing task fails the whole submission.** A group built with
   `defineGroupInheriting(name)` submitted from a thread with no enclosing scoped task throws
@@ -253,7 +284,7 @@ thread — member current task and group current context do not exist during the
 | foreign definition owner | `submitGroup` entry | no |
 | missing/duplicate/foreign/wrong-kind binding | binder freeze validation | no |
 | binder throws | synchronous binder call | no |
-| `GlobalPar` closed (or loses the close race) | admission | no |
+| `ParRuntime` closed (or loses the close race) | admission | no |
 | inherit group with no enclosing scoped task | run preparation | no |
 | runtime preparation failure | admission rollback | no |
 | executor rejection | runtime submission | yes, recorded in the result |
@@ -326,7 +357,7 @@ exited or is atomically known never to start.
 
 ## Quiescence means body exit
 
-`GlobalPar.awaitQuiescence(Duration)` now waits for task-body exit, not only for future drain. A
+`ParRuntime.awaitQuiescence(Duration)` now waits for task-body exit, not only for future drain. A
 task cancelled while running completes its future immediately but may still be executing user
 code, and quiescence means both.
 
@@ -346,7 +377,7 @@ information.
 | `Task` is package-private; `TaskFuture` is the public contract | Declare `TaskFuture` where `Task` was used. |
 | `Par.map` takes any `Collection` instead of only `List` | Source compatible; non-`List` inputs are snapshotted on entry. |
 | `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable`; the `BatchReport` constructor is package-private | Remove null checks on `stateCounts()`; obtain reports from the library. |
-| `GlobalPar.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
+| `ParRuntime.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
 
 ## Unchanged
 

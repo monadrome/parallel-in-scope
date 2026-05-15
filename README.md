@@ -24,7 +24,7 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 ```
 
 ```java
-GlobalPar execution = GlobalPar.builder()
+ParRuntime execution = ParRuntime.builder()
         .register("io", Executors.newFixedThreadPool(8))
         .build();
 

@@ -26,7 +26,7 @@ class TaskGroupDefinitionContractTest {
     @Test
     void buildSealsTheBuilderAndRepeatedBuildReturnsTheSameInstance() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
@@ -49,7 +49,7 @@ class TaskGroupDefinitionContractTest {
     @Test
     void defineGroupValidatesNameAndTimeoutAtTheEntryPoint() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             assertThatThrownBy(() -> global.defineGroup(null, TIMEOUT)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> global.defineGroup(" ", TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
@@ -70,9 +70,10 @@ class TaskGroupDefinitionContractTest {
     void foreignParsAreRejectedAtConfigurationTime() {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar first = GlobalPar.builder().register("worker", firstExecutor).build();
-        GlobalPar second =
-                GlobalPar.builder().register("worker", secondExecutor).build();
+        ParRuntime first =
+                ParRuntime.builder().register("worker", firstExecutor).build();
+        ParRuntime second =
+                ParRuntime.builder().register("worker", secondExecutor).build();
         try {
             TaskGroupDefinition.Builder builder = first.defineGroup("page", TIMEOUT);
             assertThatThrownBy(() -> builder.task("user", second.par("worker")))
@@ -91,9 +92,10 @@ class TaskGroupDefinitionContractTest {
     void aForeignDefinitionIsRejectedAtTheSubmitEntryPoint() {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar first = GlobalPar.builder().register("worker", firstExecutor).build();
-        GlobalPar second =
-                GlobalPar.builder().register("worker", secondExecutor).build();
+        ParRuntime first =
+                ParRuntime.builder().register("worker", firstExecutor).build();
+        ParRuntime second =
+                ParRuntime.builder().register("worker", secondExecutor).build();
         try {
             TaskGroupDefinition foreign = second.defineGroup("page", TIMEOUT).build();
             assertThatThrownBy(() -> first.submitGroup(foreign, bindings -> {}))
@@ -109,7 +111,7 @@ class TaskGroupDefinitionContractTest {
     @Test
     void submitGroupValidatesItsArguments() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition definition = global.defineGroup("page", TIMEOUT).build();
             assertThatThrownBy(() -> global.submitGroup(null, bindings -> {})).isInstanceOf(NullPointerException.class);
@@ -124,11 +126,12 @@ class TaskGroupDefinitionContractTest {
     void ownerCloseRejectsNewSubmissionsButLeavesTheDefinitionUsableData() {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar closing =
-                GlobalPar.builder().register("worker", firstExecutor).build();
-        GlobalPar open = GlobalPar.builder().register("worker", secondExecutor).build();
+        ParRuntime closing =
+                ParRuntime.builder().register("worker", firstExecutor).build();
+        ParRuntime open =
+                ParRuntime.builder().register("worker", secondExecutor).build();
         try {
-            // Same shape, same name, different owner: each definition is bound to its GlobalPar.
+            // Same shape, same name, different owner: each definition is bound to its ParRuntime.
             TaskGroupDefinition.Builder closingBuilder = closing.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> user = closingBuilder.task("user", closing.par("worker"));
             TaskGroupDefinition built = closingBuilder.build();
@@ -151,7 +154,7 @@ class TaskGroupDefinitionContractTest {
     @Test
     void definitionAndMemberHoldNoUserExecutableFields() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.task(

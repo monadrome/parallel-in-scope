@@ -28,7 +28,7 @@ load-stock ─┘
 
 combine 不是 completion listener，不是新调度原语，而是一个**全部运行期准备都在 `submitGroup` 完成、仅 executor 提交被推迟到 join 条件满足时**的特殊任务：
 
-- submitGroup 准备阶段（与 member 同步、在提交线程上、在同一个 `GlobalPar.whileOpen()` 内）完成：combine token（group token 的 child）、`TaskExecutionContext`、TTL 快照、结构 parent、observation、terminal future 的创建与注册；
+- submitGroup 准备阶段（与 member 同步、在提交线程上、在同一个 `ParRuntime.whileOpen()` 内）完成：combine token（group token 的 child）、`TaskExecutionContext`、TTL 快照、结构 parent、observation、terminal future 的创建与注册；
 - join 时（全部 member 成功收敛之后）只做一件事：对已 prepared 的 terminal future 调用目标 executor 的 `execute()`（包 `SubmissionScope`、在 Group lock 外）；
 - 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、TaskListener 事件、`retainUntilComplete()`。
 
@@ -36,7 +36,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 - combine 的用户 body 只在 join 后、在目标 executor 线程上**执行**；准备阶段创建的是执行管道，不触碰用户 body。它不得在 builder、`build()`、`Bindings` 登记、submitGroup 准备阶段或 member 完成回调中运行；
 - TTL 快照时点与 member 一致（submitGroup 的 prepare 阶段），不捕获 join 回调线程的上下文；
-- combine 在 submitGroup 时已完成 GlobalPar admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"submitGroup 后 `GlobalPar.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
+- combine 在 submitGroup 时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"submitGroup 后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
 - combine 禁用拒绝后的 caller-thread fallback（`runOnCallerThread` 对 combine 不生效）：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`；
 - combine 的结构 parent 与 member 相同（submitGroup 现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
@@ -45,7 +45,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 ## 4. API
 
 combine 声明在 definition 上（`Builder.combine()`，仅结构：name、`Par`、`TaskOptions`、
-kind 与 `Member` handle），与 member 一样经 `GlobalPar.submitGroup(definition, binder)`
+kind 与 `Member` handle），与 member 一样经 `ParRuntime.submitGroup(definition, binder)`
 冻结并统一提交；definition 保持不可变、可重复提交。本次 combine body 由
 `TaskGroup.Bindings.combine()` 提供。`Member<T>` 继续是名称和类型的单一事实来源，
 combine 同样持有自己的 `Member` handle：
@@ -148,7 +148,7 @@ combine 不是用户编写的 future 编排器，而是框架确认 join 条件�
 
 `submitGroup` 分为三步：
 
-1. 在一次 `GlobalPar.whileOpen()` 内冻结 definition 的 member registry 与 combine 声明，经
+1. 在一次 `ParRuntime.whileOpen()` 内冻结 definition 的 member registry 与 combine 声明，经
    binder 取得本次 combine body，创建 group token、全部 member futures、terminal future
    及 combine 的全部运行期管道（token/context/TTL 快照/结构 parent），全量注册并发布
    registry，安排 group deadline timer；
@@ -196,7 +196,7 @@ terminal future 保持普通 Guava 语义，与 member future 一致：成功返
 - group deadline 从 submitGroup 起计算，涵盖 fan-out 等待和 combine 运行，combine 不重新获得一整段 group timeout；
 - 归因走 `internal/TokenOutcomes` 同一张映射表，不新增映射；combine 的失败、直消或超时将 Group 固定为相应 outcome，members 已终态，无 sibling 可回撤；
 - combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛：同步提交保证级联取消观察到已提交的组状态，也使失败记录在收敛时确定可见；member 失败保持既有归因规则不变（组级 outcome 优先沿用已记录失败任务的 outcome，见生命周期契约 §6）；
-- combine 复用 Group 的 token 体系、`GlobalPar.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
+- combine 复用 Group 的 token 体系、`ParRuntime.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
 
 ## 9. 观测与 TaskGraph
 
@@ -242,7 +242,7 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
 2. 任一 member 非成功时 combine callable 不执行，terminal future 按 token 归因终态，不留下 pending public future；
 3. combine 的 `Member` handle、`TaskExecutionContext`、TTL 快照和结构 parent 都在 submitGroup 准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
-4. combine 在 submitGroup 时完成 admission/retain：submitGroup 返回后 `GlobalPar.close()` 与 join 竞争时，combine 仍正常提交并终态；
+4. combine 在 submitGroup 时完成 admission/retain：submitGroup 返回后 `ParRuntime.close()` 与 join 竞争时，combine 仍正常提交并终态；
 5. combine 能通过 `Member` handle 无阻塞取得正确值；foreign handle、combine 自身 handle、名称冲突和 null 成功结果符合契约；
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
