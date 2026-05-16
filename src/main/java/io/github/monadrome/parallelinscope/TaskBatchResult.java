@@ -169,11 +169,12 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * <p>This is the batch's structured-close entry, symmetric with {@link TaskGroup#close()}:
      * cancellation goes through the batch token, so every element and the submission loop are
      * cancelled with the usual attribution. The close grace is a cleanup budget configured on
-     * {@link BatchOptions#closeGrace(Duration)} (default {@link BatchOptions#DEFAULT_CLOSE_GRACE}),
-     * independent of the batch's execution timeout; {@link Duration#ZERO} makes this method
-     * cancel-only. When the grace elapses with bodies still running, the outstanding task names
-     * are logged at WARN level. The executor is never shut down, and user code that ignores
-     * interruption may keep running after this method returns.
+     * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout.
+     * When never configured, the wait budget is derived from the batch's remaining deadline at
+     * close time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with
+     * bodies still running, the outstanding task names are logged at WARN level. The executor is
+     * never shut down, and user code that ignores interruption may keep running after this method
+     * returns.
      *
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
      * is skipped with the interrupt flag preserved. A normal return does not by itself make
