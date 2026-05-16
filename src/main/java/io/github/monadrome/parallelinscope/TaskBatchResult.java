@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.collect.Maps.toImmutableEnumMap;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
@@ -278,14 +279,8 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      */
     public String reportString() {
         BatchReport r = report();
-        Map<TaskOutcome, Integer> stateCounts = r.stateCounts();
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
-        for (Map.Entry<TaskOutcome, Integer> e : stateCounts.entrySet()) {
-            if (!first) sb.append(',');
-            sb.append(e.getKey()).append(':').append(e.getValue());
-            first = false;
-        }
+        StringBuilder sb =
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(r.stateCounts()));
         if (r.firstException() != null) {
             sb.append(" | firstException=").append(r.firstException().getMessage());
         }

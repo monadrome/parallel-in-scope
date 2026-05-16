@@ -1,11 +1,15 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -35,13 +39,8 @@ public final class TaskGroupDefinition {
         this.timeout = builder.timeout;
         this.closeGrace = builder.closeGrace;
         this.slots = ImmutableList.copyOf(builder.slots);
-        List<Slot> plain = new ArrayList<>();
-        for (Slot slot : builder.slots) {
-            if (slot.kind == Kind.MEMBER) {
-                plain.add(slot);
-            }
-        }
-        this.members = ImmutableList.copyOf(plain);
+        this.members =
+                builder.slots.stream().filter(slot -> slot.kind == Kind.MEMBER).collect(toImmutableList());
         this.combine = builder.combine;
     }
 
@@ -152,6 +151,8 @@ public final class TaskGroupDefinition {
         private final String name;
         private final @Nullable Duration timeout;
         private final List<Slot> slots = new ArrayList<>();
+        private final Set<String> seenNames = new HashSet<>();
+        private int memberCount;
         private @Nullable Slot combine;
         private @Nullable Duration closeGrace;
         private @Nullable TaskGroupDefinition built;
@@ -267,27 +268,15 @@ public final class TaskGroupDefinition {
                 throw new IllegalArgumentException(
                         "Par '" + par.name() + "' does not belong to the ParRuntime that created this builder");
             }
-            for (Slot slot : slots) {
-                if (slot.name.equals(memberName)) {
-                    throw new IllegalArgumentException("Duplicate name '" + memberName + "'");
-                }
+            if (!seenNames.add(memberName)) {
+                throw new IllegalArgumentException("Duplicate name '" + memberName + "'");
             }
-            int memberIndex = kind == Kind.MEMBER ? countMembers() : -1;
+            int memberIndex = kind == Kind.MEMBER ? memberCount++ : -1;
             Slot slot = new Slot(memberName, par, options, kind, memberIndex);
             slots.add(slot);
             @SuppressWarnings("unchecked")
             Member<T> handle = (Member<T>) slot.handle;
             return handle;
-        }
-
-        private int countMembers() {
-            int count = 0;
-            for (Slot slot : slots) {
-                if (slot.kind == Kind.MEMBER) {
-                    count++;
-                }
-            }
-            return count;
         }
 
         private void checkMutable() {

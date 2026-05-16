@@ -1,9 +1,10 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 /** Immutable deadlock policy owned by one ParRuntime. */
 public final class ParRuntimeDeadlockPolicy {
@@ -12,10 +13,10 @@ public final class ParRuntimeDeadlockPolicy {
 
     private ParRuntimeDeadlockPolicy(Builder builder) {
         this.enabled = builder.enabled;
-        IdentityHashMap<DeadlockDetectionListener, Boolean> seen = new IdentityHashMap<>();
+        Set<DeadlockDetectionListener> seen = Sets.newIdentityHashSet();
         List<DeadlockDetectionListener> unique = new ArrayList<>();
         for (DeadlockDetectionListener listener : builder.listeners) {
-            if (seen.put(listener, Boolean.TRUE) == null) unique.add(listener);
+            if (seen.add(listener)) unique.add(listener);
         }
         this.listeners = ImmutableList.copyOf(unique);
     }

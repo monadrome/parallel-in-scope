@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Throwables;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -569,12 +570,7 @@ public final class Checkpoints {
 
     /** Preserves unchecked failures while making an impossible checked failure explicit. */
     private static <T> T rethrowUnchecked(Throwable throwable) {
-        if (throwable instanceof RuntimeException) {
-            throw (RuntimeException) throwable;
-        }
-        if (throwable instanceof Error) {
-            throw (Error) throwable;
-        }
+        Throwables.throwIfUnchecked(throwable);
         throw new AssertionError("Runnable/Supplier threw a checked Throwable", throwable);
     }
 }
