@@ -51,7 +51,7 @@ import io.github.monadrome.parallelinscope.ParRuntime;
 // 1. 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(8);
 ParRuntime config = ParRuntime.builder()
-        .register("db-pool", pool)
+        .register(ParId.of("db-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

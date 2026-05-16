@@ -2,6 +2,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskGroupDefinition;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
@@ -233,10 +234,10 @@ public final class DefectRepro {
             }
         };
         ParRuntime global = ParRuntime.builder()
-                .register("worker", blocking)
+                .register(ParId.of("worker"), blocking)
                 .build();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2, 3),
                             value -> {
@@ -298,12 +299,12 @@ public final class DefectRepro {
         for (int round = 0; round < rounds; round++) {
             ExecutorService direct = MoreExecutors.newDirectExecutorService();
             ParRuntime global = ParRuntime.builder()
-                    .register("worker", direct)
+                    .register(ParId.of("worker"), direct)
                     .build();
             try {
                 AtomicBoolean memberRan = new AtomicBoolean();
                 TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofNanos(1));
-                TaskGroupDefinition.Member<Integer> member = builder.task("member", global.par("worker"));
+                TaskGroupDefinition.Member<Integer> member = builder.task("member", global.par(ParId.of("worker")));
                 TaskGroupDefinition definition = builder.build();
 
                 TaskGroupResult result = global
@@ -357,10 +358,10 @@ public final class DefectRepro {
     private static String failingGroupShape(String shape) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         ParRuntime global = ParRuntime.builder()
-                .register("worker", executor)
+                .register(ParId.of("worker"), executor)
                 .build();
         try {
-            Par worker = global.par("worker");
+            Par worker = global.par(ParId.of("worker"));
             TaskGroupResult result;
             if (shape.equals("single")) {
                 TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
@@ -426,11 +427,11 @@ public final class DefectRepro {
         System.out.println("=== CONTROL: healthy group with a terminal combine still succeeds ===");
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global = ParRuntime.builder()
-                .register("worker", executor)
+                .register(ParId.of("worker"), executor)
                 .build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("group", Duration.ofSeconds(5));
-            Par worker = global.par("worker");
+            Par worker = global.par(ParId.of("worker"));
             TaskGroupDefinition.Member<Integer> left = builder.task(
                     "left", worker, TaskOptions.timeout(Duration.ofSeconds(5)));
             TaskGroupDefinition.Member<Integer> right = builder.task(

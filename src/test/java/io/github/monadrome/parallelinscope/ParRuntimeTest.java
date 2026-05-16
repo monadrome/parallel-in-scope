@@ -21,12 +21,13 @@ class ParRuntimeTest {
     void propagatesAndRestoresTransmittableThreadLocalForEveryTask() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TransmittableThreadLocal<String> context = new TransmittableThreadLocal<>();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             executor.submit(() -> {}).get(2, TimeUnit.SECONDS);
             context.set("request-42");
 
-            TaskBatchResult<String> result = global.par("worker")
+            TaskBatchResult<String> result = global.par(ParId.of("worker"))
                     .map(
                             java.util.Arrays.asList(1, 2),
                             ignored -> context.get(),
@@ -56,15 +57,16 @@ class ParRuntimeTest {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
             ParRuntime global = ParRuntime.builder()
-                    .register("one", executor)
-                    .register("same", executor)
-                    .defaultPar("one")
+                    .register(ParId.of("one"), executor)
+                    .register(ParId.of("same"), executor)
+                    .defaultPar(ParId.of("one"))
                     .build();
 
-            assertThat(global.defaultPar()).isSameAs(global.par("one"));
-            assertThat(global.par("one").name()).isEqualTo("one");
-            assertThat(global.par("one").runtime()).isSameAs(global);
-            assertThat(global.par("one").runtime()).isSameAs(global.par("same").runtime());
+            assertThat(global.defaultPar()).isSameAs(global.par(ParId.of("one")));
+            assertThat(global.par(ParId.of("one")).id()).isEqualTo(ParId.of("one"));
+            assertThat(global.par(ParId.of("one")).runtime()).isSameAs(global);
+            assertThat(global.par(ParId.of("one")).runtime())
+                    .isSameAs(global.par(ParId.of("same")).runtime());
         } finally {
             executor.shutdownNow();
         }
@@ -74,10 +76,12 @@ class ParRuntimeTest {
     void rejectsUnknownDefaultAndDuplicateNames() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            assertThatThrownBy(() -> ParRuntime.builder().defaultPar("missing").build())
+            assertThatThrownBy(() ->
+                            ParRuntime.builder().defaultPar(ParId.of("missing")).build())
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(
-                            () -> ParRuntime.builder().register("x", executor).register("x", executor))
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("x"), executor)
+                            .register(ParId.of("x"), executor))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             executor.shutdownNow();
@@ -88,9 +92,10 @@ class ParRuntimeTest {
     void executesUsingTheExecutorBoundAtBuildTime() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ParRuntime global = ParRuntime.builder().register("io", executor).build();
+            ParRuntime global =
+                    ParRuntime.builder().register(ParId.of("io"), executor).build();
 
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
                     .map(
                             Collections.singletonList(2),
                             value -> value + 1,
@@ -106,9 +111,10 @@ class ParRuntimeTest {
     void topLevelBatchWithInheritedTimeoutIsRejectedWithoutAnEnclosingTask() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ParRuntime global = ParRuntime.builder().register("io", executor).build();
+            ParRuntime global =
+                    ParRuntime.builder().register(ParId.of("io"), executor).build();
             try {
-                assertThatThrownBy(() -> global.par("io")
+                assertThatThrownBy(() -> global.par(ParId.of("io"))
                                 .map(
                                         Collections.singletonList(1),
                                         value -> value + 1,
@@ -127,13 +133,14 @@ class ParRuntimeTest {
     void nullAndEmptyInputsProduceUsableEmptyBatchResults() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ParRuntime global = ParRuntime.builder().register("io", executor).build();
+            ParRuntime global =
+                    ParRuntime.builder().register(ParId.of("io"), executor).build();
 
-            assertThat(global.par("io")
+            assertThat(global.par(ParId.of("io"))
                             .map(null, value -> value, BatchOptions.timeout("empty", Duration.ofSeconds(30)))
                             .results())
                     .isEmpty();
-            assertThat(global.par("io")
+            assertThat(global.par(ParId.of("io"))
                             .map(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
@@ -151,16 +158,16 @@ class ParRuntimeTest {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParId.of("outer"), outerExecutor)
+                .register(ParId.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -189,19 +196,19 @@ class ParRuntimeTest {
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         outerExecutor.submit(() -> {}).get(2, TimeUnit.SECONDS);
         ParRuntime global = ParRuntime.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParId.of("outer"), outerExecutor)
+                .register(ParId.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
             java.util.concurrent.atomic.AtomicReference<TaskGraphData> graphOnOuterWorker =
                     new java.util.concurrent.atomic.AtomicReference<>();
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
                                 graphOnOuterWorker.set(TaskGraphObservationScope.data());
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -229,15 +236,15 @@ class ParRuntimeTest {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParId.of("outer"), outerExecutor)
+                .register(ParId.of("inner"), innerExecutor)
                 .build();
         try {
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             java.util.Arrays.asList(1, 99),
                             ignored -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
                                                 java.util.Arrays.asList(1, 2),
                                                 value -> value + 1,
@@ -265,9 +272,9 @@ class ParRuntimeTest {
         ExecutorService rejectedExecutor = Executors.newSingleThreadExecutor();
         rejectedExecutor.shutdown();
         ParRuntime global =
-                ParRuntime.builder().register("cpu", rejectedExecutor).build();
+                ParRuntime.builder().register(ParId.of("cpu"), rejectedExecutor).build();
         try {
-            TaskBatchResult<Integer> result = global.par("cpu")
+            TaskBatchResult<Integer> result = global.par(ParId.of("cpu"))
                     .map(
                             Collections.singletonList(1),
                             value -> {
@@ -292,13 +299,13 @@ class ParRuntimeTest {
         try {
             TaskListener listener = event -> {};
             ParRuntime.Builder builder =
-                    ParRuntime.builder().taskListener(listener).register("io", executor);
-            assertThatThrownBy(
-                            () -> builder.parTaskListener("missing", listener).build())
+                    ParRuntime.builder().taskListener(listener).register(ParId.of("io"), executor);
+            assertThatThrownBy(() -> builder.parTaskListener(ParId.of("missing"), listener)
+                            .build())
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> ParRuntime.builder().register("", executor))
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of(""), executor))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> ParRuntime.builder().register("null", null))
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("null"), null))
                     .isInstanceOf(NullPointerException.class);
         } finally {
             executor.shutdownNow();
@@ -338,11 +345,12 @@ class ParRuntimeTest {
     @Test
     void awaitQuiescenceWaitsForCloseAndDrain() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
             assertThat(global.awaitQuiescence(Duration.ofMillis(20))).isFalse();
 
-            TaskBatchResult<String> batch = global.par("io")
+            TaskBatchResult<String> batch = global.par(ParId.of("io"))
                     .map(
                             java.util.Arrays.asList("a", "b"),
                             x -> x,
@@ -361,11 +369,12 @@ class ParRuntimeTest {
     @Test
     void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("io")
+            TaskBatchResult<String> batch = global.par(ParId.of("io"))
                     .map(
                             Collections.singletonList("a"),
                             x -> {
@@ -407,11 +416,12 @@ class ParRuntimeTest {
     @Test
     void awaitQuiescenceCoversSingleSubmittedTaskBodies() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskFuture<String> task = global.par("io")
+            TaskFuture<String> task = global.par(ParId.of("io"))
                     .submit(
                             "parked",
                             () -> {
@@ -448,7 +458,8 @@ class ParRuntimeTest {
     @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
             io.github.monadrome.parallelinscope.TaskGraphObservationScope observation =
                     global.openTaskGraphObservation();
@@ -468,14 +479,15 @@ class ParRuntimeTest {
     @Test
     void rejectsNewBatchesAndObservationsAfterCloseWithoutClosingBorrowedExecutor() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
             global.close();
 
             assertThat(global.closed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
             assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> global.par("io")
+            assertThatThrownBy(() -> global.par(ParId.of("io"))
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
@@ -492,7 +504,8 @@ class ParRuntimeTest {
     void closeRejectsNewWorkWhileAnAdmittedBatchCompletesSetup() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService callers = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch setupEntered = new CountDownLatch(1);
         CountDownLatch releaseSetup = new CountDownLatch(1);
         CountDownLatch closeReturned = new CountDownLatch(1);
@@ -515,7 +528,7 @@ class ParRuntimeTest {
             setup.get(5, TimeUnit.SECONDS);
             close.get(5, TimeUnit.SECONDS);
             assertThat(global.closed()).isTrue();
-            assertThatThrownBy(() -> global.par("io")
+            assertThatThrownBy(() -> global.par(ParId.of("io"))
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
@@ -532,11 +545,12 @@ class ParRuntimeTest {
     @Test
     void closeLetsAnAdmittedBatchDrainWithoutClosingItsBorrowedExecutor() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch firstTaskStarted = new CountDownLatch(1);
         CountDownLatch releaseFirstTask = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
                     .map(
                             java.util.Arrays.asList(1, 2, 3),
                             value -> {
@@ -611,17 +625,17 @@ class ParRuntimeTest {
                     .taskListener(listener)
                     .deadlockPolicy(deadlock)
                     .purgePolicy(purge)
-                    .register("one", executor)
+                    .register(ParId.of("one"), executor)
                     .build();
 
             assertThat(global.taskListeners()).containsExactly(listener);
-            assertThat(global.taskListenersFor("one")).containsExactly(listener);
+            assertThat(global.taskListenersFor(ParId.of("one"))).containsExactly(listener);
             assertThat(global.deadlockPolicy()).isSameAs(deadlock);
             assertThat(global.purgePolicy()).isSameAs(purge);
-            assertThat(global.find("one")).contains(global.par("one"));
-            assertThat(global.find("missing")).isEmpty();
-            assertThat(global.pars()).containsOnlyKeys("one");
-            assertThat(global.runtimes()).containsOnlyKeys("one");
+            assertThat(global.find(ParId.of("one"))).contains(global.par(ParId.of("one")));
+            assertThat(global.find(ParId.of("missing"))).isEmpty();
+            assertThat(global.pars()).containsOnlyKeys(ParId.of("one"));
+            assertThat(global.runtimes()).containsOnlyKeys(ParId.of("one"));
             assertThat(global.runtimesByIdentity()).hasSize(1);
             assertThat(global.purger()).isNotNull();
             assertThatThrownBy(() -> global.pars().clear()).isInstanceOf(UnsupportedOperationException.class);
@@ -659,9 +673,10 @@ class ParRuntimeTest {
     @Test
     void batchReportAttributesDeadlineCancellationAsTimeout() {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
                     .map(
                             java.util.Arrays.asList(1, 2),
                             ignored -> {

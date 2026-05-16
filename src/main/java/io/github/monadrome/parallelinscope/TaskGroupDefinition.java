@@ -266,7 +266,7 @@ public final class TaskGroupDefinition {
             }
             if (par.runtime() != owner) {
                 throw new IllegalArgumentException(
-                        "Par '" + par.name() + "' does not belong to the ParRuntime that created this builder");
+                        "Par '" + par.id() + "' does not belong to the ParRuntime that created this builder");
             }
             if (!seenNames.add(memberName)) {
                 throw new IllegalArgumentException("Duplicate name '" + memberName + "'");

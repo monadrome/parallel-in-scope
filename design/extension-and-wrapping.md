@@ -220,8 +220,8 @@ batch 的 `Function` 在 `Par.mapWhileOpen` 已转成每元素 `Callable`，因�
 ```java
 ParRuntime.Builder
     .taskDecorator(TaskDecorator)              // 全局默认，按注册序追加
-    .parTaskDecorator(String, TaskDecorator)   // 按 Par 追加，位于全局之后（ParName 已删，收 String）
-ParRuntime.taskDecoratorsFor(String)            // 与 taskListenersFor(String) 对称
+    .parTaskDecorator(ParId, TaskDecorator)   // 按 Par 追加，位于全局之后
+ParRuntime.taskDecoratorsFor(ParId)            // 与 taskListenersFor(ParId) 对称
 ```
 
 **组合语义是追加，不是 listener 的覆盖替换**：静默丢弃一个传播型装饰器属于"忘记"类错误。要少用就不全局注册；这个差异 MUST 写进用户文档。

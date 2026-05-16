@@ -14,7 +14,7 @@
 
 ```java
 ParRuntime config = ParRuntime.builder()
-        .register("http-pool", Executors.newFixedThreadPool(8))
+        .register(ParId.of("http-pool"), Executors.newFixedThreadPool(8))
         .build();
 Par par = config.defaultPar();
 

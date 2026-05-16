@@ -52,12 +52,12 @@ import java.util.logging.Logger;
 public final class ParRuntime implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
     private static final AtomicReference<ParRuntime> INSTALLED = new AtomicReference<>();
-    private final Map<String, Par> pars;
-    private final Map<String, ExecutorRuntime> runtimes;
+    private final Map<ParId, Par> pars;
+    private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
-    private final String defaultName;
+    private final ParId defaultId;
     private final List<TaskListener> taskListeners;
-    private final Map<String, List<TaskListener>> taskListenerOverrides;
+    private final Map<ParId, List<TaskListener>> taskListenerOverrides;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
     private final ParRuntimePurgePolicy purgePolicy;
     private final HeuristicPurger purger;
@@ -73,8 +73,8 @@ public final class ParRuntime implements AutoCloseable {
 
     private ParRuntime(Builder builder) {
         this.taskListeners = ImmutableList.copyOf(builder.taskListeners);
-        Map<String, List<TaskListener>> overrides = new LinkedHashMap<>();
-        for (Map.Entry<String, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
+        Map<ParId, List<TaskListener>> overrides = new LinkedHashMap<>();
+        for (Map.Entry<ParId, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
             overrides.put(entry.getKey(), ImmutableList.copyOf(entry.getValue()));
         }
         this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
@@ -91,11 +91,11 @@ public final class ParRuntime implements AutoCloseable {
         this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
-        this.defaultName = builder.defaultName;
-        Map<String, Par> builtPars = new LinkedHashMap<>();
-        Map<String, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
+        this.defaultId = builder.defaultId;
+        Map<ParId, Par> builtPars = new LinkedHashMap<>();
+        Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
-        for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
+        for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
@@ -148,37 +148,26 @@ public final class ParRuntime implements AutoCloseable {
         return value;
     }
 
-    /**
-     * Validates one logical {@link Par} name at a public endpoint: non-null and non-blank, matching
-     * the boundary the removed {@code ParName.of} provided. The value is used verbatim — no
-     * trimming, lower-casing, or other normalization.
-     */
-    static String requireValidParName(String name) {
-        Objects.requireNonNull(name, "name cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("Par name cannot be blank");
-        return name;
-    }
-
     public Par defaultPar() {
-        if (defaultName == null) throw new IllegalStateException("ParRuntime has no default Par");
-        return par(defaultName);
+        if (defaultId == null) throw new IllegalStateException("ParRuntime has no default Par");
+        return par(defaultId);
     }
 
     /**
-     * Returns the {@link Par} registered under the given name.
+     * Returns the {@link Par} registered under the given id.
      *
-     * @throws NullPointerException if {@code name} is null
-     * @throws IllegalArgumentException if {@code name} is blank or no entry is registered under it
+     * @throws NullPointerException if {@code id} is null
+     * @throws IllegalArgumentException if no entry is registered under {@code id}
      */
-    public Par par(String name) {
-        Par value = pars.get(requireValidParName(name));
-        if (value == null) throw new IllegalArgumentException("No Par registered with name '" + name + "'");
+    public Par par(ParId id) {
+        Par value = pars.get(Objects.requireNonNull(id, "id cannot be null"));
+        if (value == null) throw new IllegalArgumentException("No Par registered with id '" + id + "'");
         return value;
     }
 
-    /** Returns the {@link Par} registered under the given name, or empty when none is. */
-    public Optional<Par> find(String name) {
-        return Optional.ofNullable(pars.get(requireValidParName(name)));
+    /** Returns the {@link Par} registered under the given id, or empty when none is. */
+    public Optional<Par> find(ParId id) {
+        return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
     }
 
     /**
@@ -191,11 +180,11 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the immutable listener list for the named {@link Par}: its override when one was
+     * Returns the immutable listener list for the identified {@link Par}: its override when one was
      * configured, otherwise the default {@link #taskListeners()}.
      */
-    public List<TaskListener> taskListenersFor(String name) {
-        List<TaskListener> override = taskListenerOverrides.get(requireValidParName(name));
+    public List<TaskListener> taskListenersFor(ParId id) {
+        List<TaskListener> override = taskListenerOverrides.get(Objects.requireNonNull(id, "id cannot be null"));
         return override == null ? taskListeners : override;
     }
 
@@ -207,13 +196,13 @@ public final class ParRuntime implements AutoCloseable {
         return purgePolicy;
     }
 
-    /** Returns the immutable name-to-entry topology; names are the registration keys. */
-    public Map<String, Par> pars() {
+    /** Returns the immutable id-to-entry topology; ids are the registration keys. */
+    public Map<ParId, Par> pars() {
         return pars;
     }
 
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
-    Map<String, ExecutorRuntime> runtimes() {
+    Map<ParId, ExecutorRuntime> runtimes() {
         return runtimes;
     }
 
@@ -585,14 +574,14 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     public static final class Builder {
-        private final Map<String, ExecutorService> executors = new LinkedHashMap<>();
+        private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
         private final List<TaskListener> taskListeners = new ArrayList<>();
-        private final Map<String, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
+        private final Map<ParId, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
         private ParRuntimePurgePolicy purgePolicy =
                 ParRuntimePurgePolicy.builder().build();
-        private String defaultName;
+        private ParId defaultId;
 
         /**
          * Appends a task listener to the default list shared by every {@link Par} without an
@@ -604,14 +593,14 @@ public final class ParRuntime implements AutoCloseable {
         }
 
         /**
-         * Appends a task listener to the override list of the named {@link Par}, replacing the
-         * default list for that entry. May be called repeatedly with the same name to register
-         * several listeners; the name must be {@link #register(String, ExecutorService)
+         * Appends a task listener to the override list of the identified {@link Par}, replacing the
+         * default list for that entry. May be called repeatedly with the same id to register
+         * several listeners; the id must be {@link #register(ParId, ExecutorService)
          * registered} before {@link #build()}.
          */
-        public Builder parTaskListener(String name, TaskListener listener) {
+        public Builder parTaskListener(ParId id, TaskListener listener) {
             taskListenerOverrides
-                    .computeIfAbsent(requireValidParName(name), key -> new ArrayList<>())
+                    .computeIfAbsent(Objects.requireNonNull(id, "id cannot be null"), key -> new ArrayList<>())
                     .add(Objects.requireNonNull(listener));
             return this;
         }
@@ -629,32 +618,31 @@ public final class ParRuntime implements AutoCloseable {
         /**
          * Registers a logical entry with one exact executor object.
          *
-         * <p>The name is only a build-time lookup and diagnostic label; it is validated here
-         * (non-null, non-blank) rather than by a name object. Executor sharing is instead detected
-         * by object identity, so two names may intentionally use the same physical pool.
+         * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
+         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
+         * two ids may intentionally use the same physical pool.
          */
-        public Builder register(String name, ExecutorService executor) {
-            String validName = requireValidParName(name);
-            if (executors.containsKey(validName))
-                throw new IllegalArgumentException("Duplicate Par name '" + name + "'");
-            executors.put(validName, Objects.requireNonNull(executor));
+        public Builder register(ParId id, ExecutorService executor) {
+            Objects.requireNonNull(id, "id cannot be null");
+            if (executors.containsKey(id)) throw new IllegalArgumentException("Duplicate Par id '" + id + "'");
+            executors.put(id, Objects.requireNonNull(executor));
             return this;
         }
 
-        public Builder defaultPar(String name) {
-            String validName = requireValidParName(name);
-            if (defaultName != null) throw new IllegalStateException("default Par already configured");
-            defaultName = validName;
+        public Builder defaultPar(ParId id) {
+            Objects.requireNonNull(id, "id cannot be null");
+            if (defaultId != null) throw new IllegalStateException("default Par already configured");
+            defaultId = id;
             return this;
         }
 
         public ParRuntime build() {
-            if (defaultName != null && !executors.containsKey(defaultName)) {
-                throw new IllegalArgumentException("default Par is not registered: " + defaultName);
+            if (defaultId != null && !executors.containsKey(defaultId)) {
+                throw new IllegalArgumentException("default Par is not registered: " + defaultId);
             }
-            for (String name : taskListenerOverrides.keySet()) {
-                if (!executors.containsKey(name)) {
-                    throw new IllegalArgumentException("task listener override is not registered: " + name);
+            for (ParId id : taskListenerOverrides.keySet()) {
+                if (!executors.containsKey(id)) {
+                    throw new IllegalArgumentException("task listener override is not registered: " + id);
                 }
             }
             return new ParRuntime(this);

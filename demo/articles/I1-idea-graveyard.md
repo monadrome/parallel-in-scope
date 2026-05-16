@@ -47,7 +47,7 @@ public CommandLineRunner registerExecutors(
     return args -> {
         // ParRuntime 构建时注册，运行时不可变
         ParRuntime config = ParRuntime.builder()
-                .register("io-pool", ioPool)
+                .register(ParId.of("io-pool"), ioPool)
                 .build();
         // 注入到 Spring 容器供全局使用
     };

@@ -28,7 +28,7 @@ Tasks that have not started are skipped, blocked I/O tasks are interrupted, and 
 ```java
 BatchOptions options = BatchOptions.timeout("my-task", Duration.ofSeconds(5)).parallelism(4);
 
-global.par("myExecutor").map(dataList, item -> {
+global.par(ParId.of("myExecutor")).map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
         if (i % 1000 == 0) {
             Checkpoints.checkpoint();
@@ -56,7 +56,7 @@ Add checkpoints at a reasonable granularity: every N iterations of a long loop, 
 ## Do not swallow cancellation
 
 ```java
-global.par("myExecutor").map(items, item -> {
+global.par(ParId.of("myExecutor")).map(items, item -> {
     try {
         riskyOperation(item);
     } catch (Exception ex) {

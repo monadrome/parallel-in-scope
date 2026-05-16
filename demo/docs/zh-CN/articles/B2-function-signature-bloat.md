@@ -46,7 +46,7 @@ List<String> results = urls.parallelStream()
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
-        .register("http-pool", pool)
+        .register(ParId.of("http-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

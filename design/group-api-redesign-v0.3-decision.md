@@ -217,9 +217,9 @@ definition。`SlidingWindowSubmitter` 仍是 Batch 内部的一次性提交器�
 ### 5.1 完整使用示例
 
 ```java
-Par userPar = global.par("user");
-Par orderPar = global.par("order");
-Par cpuPar = global.par("cpu");
+Par userPar = global.par(ParId.of("user"));
+Par orderPar = global.par(ParId.of("order"));
+Par cpuPar = global.par(ParId.of("cpu"));
 
 TaskGroupDefinition.Builder builder =
         global.defineGroup("account-page", Duration.ofSeconds(3))
@@ -264,9 +264,9 @@ final class AccountPageGroup {
     AccountPageGroup(ParRuntime global) {
         TaskGroupDefinition.Builder builder =
                 global.defineGroup("account-page", Duration.ofSeconds(3));
-        user = builder.task("get-user", global.par("user"));
-        orders = builder.task("get-orders", global.par("order"));
-        page = builder.combine("build-page", global.par("cpu"));
+        user = builder.task("get-user", global.par(ParId.of("user")));
+        orders = builder.task("get-orders", global.par(ParId.of("order")));
+        page = builder.combine("build-page", global.par(ParId.of("cpu")));
         definition = builder.build();
     }
 }
@@ -286,8 +286,8 @@ public final class ParRuntime implements AutoCloseable {
             TaskGroupDefinition definition,
             Consumer<? super TaskGroup.Bindings> binder);
 
-    public Par par(String name);
-    public Optional<Par> find(String name);
+    public Par par(ParId id);
+    public Optional<Par> find(ParId id);
 }
 
 public final class TaskGroupDefinition {
@@ -587,11 +587,12 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 | 类型 | 替代 |
 |---|---|
 | `TaskKey<T>` | `TaskGroupDefinition.Member<T>` identity handle |
-| `ParName` | composition root 使用 `String`；definition 保存已解析 `Par` |
 | `CombineFunction<R>` | `TaskGroup.CombineBody<R>`，只在本次 Bindings 出现 |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `completionFuture()` + Guava callback/listener |
 | `TaskGroupOptions` | `ParRuntime.defineGroup*` + Builder 的 `closeGrace` |
+
+`ParName` 不删除，更名为 `ParId` 保留（见 §19.10）。
 
 保留：
 
@@ -600,25 +601,26 @@ API 适配层需要实质修改以传递和释放每次 payload，因此不得�
 - `TaskOptions`：它只包含一次 task 会消费的执行策略；
 - `TaskFuture`、`TaskGroupResult`、`TaskCompletion`、`TaskOutcome`：它们表达真实运行结果。
 
-目标是顶层公开类型净减少 6 个。`Member`、`Bindings`、`CombineBody`、`CombineContext` 虽然是
+目标是顶层公开类型净减少 5 个（`ParName` 更名为 `ParId`，不计删除）。`Member`、`Bindings`、`CombineBody`、`CombineContext` 虽然是
 嵌套公开类型，仍然是需要维护的概念；不能用“不是顶层”假装复杂度不存在。把它们嵌套的理由是
 所有权和使用范围明确，而不只是 API 计数好看。
 
-### 13.2 ParName 收缩的端点
+### 13.2 ParId 端点
 
 ```java
-ParRuntime.Builder register(String name, ExecutorService executor); // 仍返回 Builder
-ParRuntime.Builder defaultPar(String name);
-ParRuntime.Builder parTaskListener(String name, TaskListener listener);
+ParRuntime.Builder register(ParId id, ExecutorService executor); // 仍返回 Builder
+ParRuntime.Builder defaultPar(ParId id);
+ParRuntime.Builder parTaskListener(ParId id, TaskListener listener);
 
-Par ParRuntime.par(String name);
-Optional<Par> ParRuntime.find(String name);
-String Par.name();
+Par ParRuntime.par(ParId id);
+Optional<Par> ParRuntime.find(ParId id);
+ParId Par.id();
 ```
 
 `ParRuntime.Builder.register()` 不能返回 `Par`：在 `ParRuntime` 完成构建前，`Par` 所需的 owner 与
-runtime 尚不存在。注册仍是 composition-root builder 操作；构建后再由 `global.par(name)` 取得
-句柄。
+runtime 尚不存在。注册仍是 composition-root builder 操作；构建后再由 `global.par(id)` 取得
+句柄。执行器查找边界保留 `ParId` 值类型：构造即校验（非 null、非空白、按原样使用），
+definition 保存的仍是已解析 `Par`。
 
 ## 14. 明确否决的旧设计
 
@@ -713,7 +715,7 @@ Bindings 和 TaskGroup。
 26. combine 使用目标 Par；直接执行只来自 executor 自身，拒绝时无框架 fallback；
 27. group deadline 覆盖 join 等待与 combine，不重置预算；
 28. public API whitelist 删除 §13.1 六个顶层类型，并拒绝旧签名残留；
-29. `ParRuntime.Builder.register(String, ...)` 仍返回 Builder，构建后 `par(String)` 返回 Par；
+29. `ParRuntime.Builder.register(ParId, ...)` 仍返回 Builder，构建后 `par(ParId)` 返回 Par；
 30. 第二个 `Builder.combine()` 在配置期抛 `IllegalStateException`；`task()`/`combine()`
     声明顺序任意，执行顺序由 definition 内部 kind + 声明顺序决定。
 
@@ -759,6 +761,9 @@ parent 为 null）时，`submitGroup` 在**运行准备期整体拒绝**，抛
 §12 错误表与 §16 矩阵已按此补充（§12 新增"运行准备期/整体拒绝"一行，§16 新增第 23 项）。
 
 ### 19.2 §13.2 端点补全与校验下沉
+
+> **已被 §19.10 取代**：执行器查找边界保留值类型并更名为 `ParId`，端点不再收裸
+> `String`。本节保留为历史记录。
 
 `ParName` 删除后，公开端点以 `String` 为准，并补全既有签名中未列出的端点：
 
@@ -841,3 +846,21 @@ executor 自身，拒绝时无框架 fallback"按此理解：成员仅在选项�
 时才在提交线程 inline 执行，未声明即无 fallback。combine 忽略该选项的裁定不变——join 时
 无可借用的 caller thread，被拒绝的 combine 一律记 `SUBMISSION_FAILURE`（空组 + combine
 由 submitGroup 线程在 submit flow 内提交，该路径同样保持禁用）。
+
+### 19.10 `ParName` 不删除，更名为 `ParId` 保留（取代 §13.2/§19.2 的 String 端点）
+
+评审认定 §13.1/§19.2 的"删 `ParName`、端点收裸 `String`"不构成有效简化：简化的目标应是
+合并执行相同功能的类型、提升内聚或明确区分对象生命周期，而 `ParName` 作为值类型本身
+自圆其说——它是执行器查找边界唯一的校验点与查找键。因此回退该部分：
+
+- 新增 `ParId`（不可变值类型，`of(String)` 构造时校验非 null/非空白、值按原样使用），
+  它既是一个 `Par` 条目的身份，也是取得 `Par` 的唯一方式；
+- 端点恢复为值类型签名：`register(ParId, ExecutorService)`、`defaultPar(ParId)`、
+  `parTaskListener(ParId, TaskListener)`、`par(ParId)`、`find(ParId)`、
+  `taskListenersFor(ParId)`、`pars()` 返回 `Map<ParId, Par>`；
+- `Par.id()` 返回 `ParId`，取代 String 版 `Par.name()`；
+- 校验回到 `ParId.of` 构造边界（不再下沉到各端点）；`Builder.build()` 的注册一致性
+  校验保留；`register()` 仍返回 `Builder`；
+- 组名与成员名仍是普通 `String`——它们从来不是查找键，不在本次回退范围。
+
+净删顶层类型数从 6 改为 5；§13.1 表与 §13.2 已按此更新。

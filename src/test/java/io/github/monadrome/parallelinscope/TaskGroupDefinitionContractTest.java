@@ -26,16 +26,17 @@ class TaskGroupDefinitionContractTest {
     @Test
     void buildSealsTheBuilderAndRepeatedBuildReturnsTheSameInstance() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
             TaskGroupDefinition first = builder.build();
 
             assertThat(builder.build()).isSameAs(first);
-            assertThatThrownBy(() -> builder.task("late", global.par("worker")))
+            assertThatThrownBy(() -> builder.task("late", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> builder.combine("late", global.par("worker")))
+            assertThatThrownBy(() -> builder.combine("late", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> builder.closeGrace(Duration.ZERO)).isInstanceOf(IllegalStateException.class);
             assertThat(builder.build()).isSameAs(first);
@@ -49,7 +50,8 @@ class TaskGroupDefinitionContractTest {
     @Test
     void defineGroupValidatesNameAndTimeoutAtTheEntryPoint() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             assertThatThrownBy(() -> global.defineGroup(null, TIMEOUT)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> global.defineGroup(" ", TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
@@ -71,14 +73,15 @@ class TaskGroupDefinitionContractTest {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
         ParRuntime first =
-                ParRuntime.builder().register("worker", firstExecutor).build();
-        ParRuntime second =
-                ParRuntime.builder().register("worker", secondExecutor).build();
+                ParRuntime.builder().register(ParId.of("worker"), firstExecutor).build();
+        ParRuntime second = ParRuntime.builder()
+                .register(ParId.of("worker"), secondExecutor)
+                .build();
         try {
             TaskGroupDefinition.Builder builder = first.defineGroup("page", TIMEOUT);
-            assertThatThrownBy(() -> builder.task("user", second.par("worker")))
+            assertThatThrownBy(() -> builder.task("user", second.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> builder.combine("assemble", second.par("worker")))
+            assertThatThrownBy(() -> builder.combine("assemble", second.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             first.close();
@@ -93,9 +96,10 @@ class TaskGroupDefinitionContractTest {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
         ParRuntime first =
-                ParRuntime.builder().register("worker", firstExecutor).build();
-        ParRuntime second =
-                ParRuntime.builder().register("worker", secondExecutor).build();
+                ParRuntime.builder().register(ParId.of("worker"), firstExecutor).build();
+        ParRuntime second = ParRuntime.builder()
+                .register(ParId.of("worker"), secondExecutor)
+                .build();
         try {
             TaskGroupDefinition foreign = second.defineGroup("page", TIMEOUT).build();
             assertThatThrownBy(() -> first.submitGroup(foreign, bindings -> {}))
@@ -111,7 +115,8 @@ class TaskGroupDefinitionContractTest {
     @Test
     void submitGroupValidatesItsArguments() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition definition = global.defineGroup("page", TIMEOUT).build();
             assertThatThrownBy(() -> global.submitGroup(null, bindings -> {})).isInstanceOf(NullPointerException.class);
@@ -127,13 +132,14 @@ class TaskGroupDefinitionContractTest {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
         ExecutorService secondExecutor = Executors.newSingleThreadExecutor();
         ParRuntime closing =
-                ParRuntime.builder().register("worker", firstExecutor).build();
-        ParRuntime open =
-                ParRuntime.builder().register("worker", secondExecutor).build();
+                ParRuntime.builder().register(ParId.of("worker"), firstExecutor).build();
+        ParRuntime open = ParRuntime.builder()
+                .register(ParId.of("worker"), secondExecutor)
+                .build();
         try {
             // Same shape, same name, different owner: each definition is bound to its ParRuntime.
             TaskGroupDefinition.Builder closingBuilder = closing.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = closingBuilder.task("user", closing.par("worker"));
+            TaskGroupDefinition.Member<String> user = closingBuilder.task("user", closing.par(ParId.of("worker")));
             TaskGroupDefinition built = closingBuilder.build();
 
             closing.close();
@@ -154,12 +160,15 @@ class TaskGroupDefinitionContractTest {
     @Test
     void definitionAndMemberHoldNoUserExecutableFields() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.task(
-                    "user", global.par("worker"), TaskOptions.timeout(TIMEOUT).taskType(TaskType.IO_BOUND));
-            builder.combine("assemble", global.par("worker"));
+                    "user",
+                    global.par(ParId.of("worker")),
+                    TaskOptions.timeout(TIMEOUT).taskType(TaskType.IO_BOUND));
+            builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             assertNoExecutableFields(TaskGroupDefinition.class);

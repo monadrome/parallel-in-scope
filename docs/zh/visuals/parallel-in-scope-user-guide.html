@@ -14,14 +14,14 @@
 </head>
 <body>
   <h1>v0.3 使用入口</h1>
-  <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>ParRuntime</code>，用 <code>String</code> 名注册执行器，再从其中取得已绑定执行器的 <code>Par</code>。</p>
+  <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>ParRuntime</code>，用 <code>ParId</code> 注册执行器，再从其中取得已绑定执行器的 <code>Par</code>。</p>
   <pre>ParRuntime global = ParRuntime.builder()
-    .register("io", executor)
+    .register(ParId.of("io"), executor)
     .build();
 
 BatchOptions options = BatchOptions.timeout("fetch", Duration.ofSeconds(3)).parallelism(8);
 
-global.par("io").map(items, client::fetch, options);</pre>
+global.par(ParId.of("io")).map(items, client::fetch, options);</pre>
   <p>请以 <a href="../user-guide.md">完整使用指南</a> 为准；从 <code>0.2.x</code> 升级请查看 <a href="../migration-v0.3.md">v0.3 迁移指南</a>，更早版本请查看 <a href="../migration-v0.2.md">v0.2 迁移指南</a>。</p>
 </body>
 </html>
