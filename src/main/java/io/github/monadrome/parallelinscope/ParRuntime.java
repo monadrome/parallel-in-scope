@@ -371,7 +371,11 @@ public final class ParRuntime implements AutoCloseable {
             // Symmetric with installGlobal: closing the installed instance releases the slot so a
             // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
-            purger.close();
+            // The purger's maintenance service is deliberately NOT closed here: admitted batches
+            // keep draining after close(), and cancelling their queued tasks is what feeds the
+            // purger. Closing it now would reject every post-close signal and silently drop purge
+            // coverage exactly during the cancellation storm it exists for. It shuts down with the
+            // other framework services once the topology drains.
             shutdownServicesWhenAdmissionsComplete();
         }
     }
@@ -446,6 +450,9 @@ public final class ParRuntime implements AutoCloseable {
             timerService.shutdown();
             timeoutActionPool.shutdown();
             submitterPool.shutdown();
+            // Closed before the quiescence publication so that observing quiescence implies the
+            // purger's maintenance service is already down.
+            purger.close();
             synchronized (quiescenceMonitor) {
                 quiescenceMonitor.notifyAll();
             }

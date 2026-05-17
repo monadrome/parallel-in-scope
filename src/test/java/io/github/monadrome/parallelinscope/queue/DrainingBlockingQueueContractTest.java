@@ -84,13 +84,16 @@ class DrainingBlockingQueueContractTest {
         assertEquals(2, copyAfterSnapshot.length);
         assertEquals("a", copyAfterSnapshot[0]);
 
-        String[] oversized = new String[5];
         String[] returned = queue.toArray(new String[0]);
         assertEquals(1, returned.length);
         assertEquals("b", returned[0]);
 
-        String[] exactFilled = queue.toArray(new String[queue.size()]);
-        assertEquals(1, exactFilled.length);
+        // Exact-size array: {@code toArray(T[])} must reuse and return the caller's array whenever
+        // it fits. Only an identity assertion pins that boundary -- length/content checks pass even
+        // when the implementation allocates a fresh array.
+        String[] exactFilled = new String[queue.size()];
+        assertSame(exactFilled, queue.toArray(exactFilled));
+        assertEquals("b", exactFilled[0]);
 
         String[] terminated = queue.toArray(new String[4]);
         assertSame(terminated, queue.toArray(terminated));

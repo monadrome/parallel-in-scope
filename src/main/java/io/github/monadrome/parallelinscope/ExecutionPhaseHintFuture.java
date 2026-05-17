@@ -33,9 +33,10 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * clears it — after run() returns or once the body is determined to never run — nothing may
      * restore it, so a completed, rejected, cancelled, or abandoned future never pins the user
      * callable and its captures. Accessed from the worker thread (run) and from cancelling or
-     * rejecting threads (afterDone/skipBody), hence the atomic slot.
+     * rejecting threads (afterDone/skipBody), hence the volatile slot. Plain volatile reads and
+     * writes are enough: the slot only ever moves from set to cleared, so it needs no CAS.
      */
-    private final AtomicReference<Callable<V>> callable;
+    private volatile @Nullable Callable<V> callable;
 
     /**
      * Tracks whether the worker or cancellation claimed the task first. The resulting phase is a hint
@@ -108,7 +109,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /** Wraps Guava's future semantics with task-local execution-phase hints. */
     private ExecutionPhaseHintFuture(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
-        this.callable = new AtomicReference<>(Objects.requireNonNull(callable, "callable cannot be null"));
+        this.callable = Objects.requireNonNull(callable, "callable cannot be null");
         this.phaseObserver = Objects.requireNonNull(phaseObserver);
         this.bodyState = bodyState;
     }
@@ -120,12 +121,12 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * sliding-window abandonment.
      */
     private void releaseCallable() {
-        callable.set(null);
+        callable = null;
     }
 
     /** Package-private probe for tests: whether {@link #releaseCallable()} has released the body. */
     boolean callableReleased() {
-        return callable.get() == null;
+        return callable == null;
     }
 
     /**
@@ -164,16 +165,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
     }
 
-    /**
-     * Marks the task body as never entered, for prepared futures that were never submitted and
-     * never cancelled — the sliding-window abandonment and initial-rejection paths, where only the
-     * caller-facing placeholder is completed. Idempotent against the cancel-before-run path, which
-     * reaches the same transition through {@link #afterDone()}.
-     */
-    void markBodySkipped() {
-        skipBody();
-    }
-
     /** Claims body execution eligibility; a lost claim means the body must not be entered. */
     private boolean claimBody() {
         TaskBodyState body = bodyState;
@@ -195,7 +186,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * against the cancel-before-run path, which reaches the same transition through {@link
      * #afterDone()}. A body that can never be entered must not stay reachable through this future.
      */
-    private void skipBody() {
+    void skipBody() {
         releaseCallable();
         TaskBodyState body = bodyState;
         if (body != null) {
@@ -219,7 +210,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         // nextIndex is one such path): read once into a local and treat a cleared holder as
         // already terminated — no NPE, no user code; the finally's body-exit publish still
         // releases the slot through the existing fallback.
-        Callable<V> body = callable.get();
+        @Nullable Callable<V> body = callable;
         boolean canceled = isCancelled();
         try {
             if (!skipped && !canceled && body != null) {
