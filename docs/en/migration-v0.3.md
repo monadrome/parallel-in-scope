@@ -22,13 +22,13 @@ except for the `ParName` rename to `ParId`.
 | `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`; `Par.name()` → `Par.id()` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
 | `TaskGroupOptions` (name/timeout/listeners) | the `defineGroup*` argument list plus `Builder.closeGrace`; listeners move to `Futures.addCallback` |
-| `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)` (structure only) + `Bindings.task(member, callable)` |
+| `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)` (structure only) + `TaskGroup.Bindings.task(member, callable)` |
 | `Builder.buildWithCombiner(key, parName, function[, options])` | `Builder.combine(name, par[, options])` followed by `build()` |
 | `TaskGroup.submit(global, definition)` | `global.submitGroup(definition, binder)` |
-| `CombineFunction<R>` | `TaskGroup.CombineBody<R>` registered on `Bindings` |
+| `CombineFunction<R>` | `TaskGroup.CombineBody<R>` registered on `TaskGroup.Bindings` |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
-| `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `tasks()` / `combine()` | removed; `Member<T>` is the only handle |
+| `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `TaskGroupDefinition.tasks()` / `combine()` | removed; `TaskGroupDefinition.Member<T>` is the only handle |
 
 The five deleted top-level types have no compatibility aliases: `TaskKey`,
 `CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, and `TaskGroupOptions`. `ParName`
@@ -104,20 +104,52 @@ ParId id = io.id();
 
 ## The three phases
 
-`0.2.x` stored the member callables inside the definition, which made a "reusable" definition
-silently capture the first request's data. v0.3 splits configuration from execution:
+In `0.2.x`, `TaskGroupDefinition` stored member `Callable`s inside the definition. Even with every
+field `final`, lambdas still capture short-lived objects — the request, a transaction, a
+connection — causing three problems:
+
+- **Wrong retention**: a long-lived definition silently extends the lifetime of per-request data;
+- **Wrong reuse**: resubmitting the definition replays the first request's captured data;
+- **Concurrent crosstalk**: a seemingly reusable definition is actually bound to one run's mutable
+  objects.
+
+Java 8 offers no type constraint that proves a lambda captures nothing, and runtime checks depend
+on compiler details and can be bypassed. The rule was therefore tightened to a stronger form:
+**a definition never receives a callable at all; the objects that carry callables must be
+single-use.** v0.3 splits configuration from execution into three phases:
 
 ```text
-Definition (structure only, immutable, reusable)
-    -> Bindings (this submission's Callables, one-shot)
-    -> TaskGroup (running state, one-shot, closeable)
+Application / topology lifetime
+ParRuntime ------------------------------------------------- close
+    |
+    +-- defineGroup*(...) -- build --> TaskGroupDefinition
+                                      structure only, reusable concurrently
+
+One submission
+submitGroup(definition, binder)
+    |
+    +-- Bindings                 one-shot, collects this run's Callables
+    |     |
+    |     +-- frozen when the binder returns --> internal one-shot carrier,
+    |                                            cleared hop by hop
+    |
+    +-- TaskGroup                one-run lifetime, closeable
+          future / token / deadline / context / timer
 ```
 
-A definition holds only names, declared order, the resolved owner-bound `Par` handles, member
-options, and the group timeout choice. It never holds a `Callable`, combine body, listener,
-request object, future, token, or deadline. Because Java lambdas always capture something, the
-objects that carry them — `Bindings` and `TaskGroup` — are per-submission and single-use, while
-the definition can be shared across threads for the life of its owner `ParRuntime`.
+Three phases, three lifetimes, never flowing backward:
+
+- **Definition (structure, application lifetime)**: immutable and thread-safe; holds only names,
+  declaration order, kinds, owner-bound `Par` handles, member `TaskOptions`, and the timeout and
+  close-grace choices. It never holds a `Callable`, combine body, listener, request object,
+  future, token, deadline, or TTL snapshot, and can be shared across threads for the life of its
+  owner `ParRuntime`.
+- **Bindings (this run's payload, one-call lifetime)**: created inside `submitGroup`, valid only
+  within the synchronous dynamic extent of the binder. Because Java lambdas always capture
+  something, the object that carries them is per-submission and single-use.
+- **TaskGroup (run state, one-run lifetime)**: a closeable scope holding this run's futures,
+  tokens, deadline, and body tracker. Futures exist only after a successful submission — there is
+  no declaration-time placeholder.
 
 ### 1. Define the group on its owner
 
@@ -275,9 +307,20 @@ thread — member current task and group current context do not exist during the
   checkpoints, task-listener `taskName()`, and task-graph labels use the name passed to
   `task(name, par)`.
 - **No futures exist before submission.** There is no declaration-time placeholder; a
-  `TaskFuture` appears only on the `TaskGroup` returned by `submitGroup`.
+  `TaskFuture` appears only on the `TaskGroup` returned by `submitGroup`, so forgetting to submit
+  can no longer leave a permanently pending future.
+- **Body references are handed on and cleared at every hop.** The payload moves from `Bindings` to
+  an internal one-shot carrier and is then adopted by each prepared task, clearing the previous hop
+  every time; preparation failure, executor rejection, cancel-before-run, fail-fast, timeout, and
+  normal completion all release body references without waiting for GC. A body holding an external
+  resource still has to release it itself — the framework releases the reference to the body, not
+  the resources the body captured.
 
 ## Error timing
+
+Admission is still an all-or-nothing boundary: missing, duplicate, foreign, and wrong-kind bindings
+are rejected wholesale at freeze validation, and a race with `close()` ends in full acceptance or
+full rejection — never "some bodies already ran".
 
 | Error | When it fails | TaskGroup/Future created? |
 |---|---|---:|
@@ -384,8 +427,17 @@ information.
 ## Unchanged
 
 `TaskFuture`, `TaskGroupResult`, `TaskOutcome`, and `TaskCompletion` keep their `0.2.x` shapes.
-Cancellation attribution, deadline capping, fail-fast, and
-TTL/context propagation are unchanged; the group close grace moved from
-`TaskGroupOptions.closeGrace(Duration)` to `TaskGroupDefinition.Builder.closeGrace(Duration)`,
-and the close semantics themselves are described above. The batch (`Par.map`) API shape is
-unchanged — the rejection default above applies to batches too.
+
+Every structured-concurrency invariant is preserved: unified admission, the cancellation tree
+(outer → group → members/combine), deadline capping to the parent minimum, fail-fast, stack-based
+TTL and `TaskExecutionContext` restoration, and `awaitBodyCompletion` distinguishing
+future-terminal from body-exit. The group redesign added no second submission pipeline; there is
+still exactly one execution kernel.
+
+The group close grace moved from `TaskGroupOptions.closeGrace(Duration)` to
+`TaskGroupDefinition.Builder.closeGrace(Duration)`, and the close semantics themselves are
+described above. The batch (`Par.map`) API shape is unchanged — the rejection default above applies
+to batches too.
+
+For the full design rationale, the rejected alternatives, and the verification matrix, see
+`design/group-api-redesign-v0.3-decision.md` in the repository.
