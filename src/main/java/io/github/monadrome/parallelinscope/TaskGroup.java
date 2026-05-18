@@ -222,7 +222,8 @@ public final class TaskGroup implements AutoCloseable {
         if (deadlineNanos == Long.MAX_VALUE) {
             return 0;
         }
-        return deadlineNanos - System.nanoTime();
+        long now = System.nanoTime();
+        return now >= deadlineNanos ? 0 : deadlineNanos - now;
     }
 
     private static long saturatedNanos(Duration duration) {

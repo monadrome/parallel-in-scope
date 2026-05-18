@@ -412,7 +412,12 @@ public final class ParRuntime implements AutoCloseable {
      */
     public boolean awaitQuiescence(java.time.Duration timeout) throws InterruptedException {
         Objects.requireNonNull(timeout, "timeout cannot be null");
-        long remainingNanos = timeout.toNanos();
+        long remainingNanos;
+        try {
+            remainingNanos = timeout.toNanos();
+        } catch (ArithmeticException overflow) {
+            remainingNanos = Long.MAX_VALUE;
+        }
         long deadline = System.nanoTime() + remainingNanos;
         // Saturate instead of overflowing when the requested wait is astronomical.
         if (remainingNanos > 0 && deadline < 0) deadline = Long.MAX_VALUE;

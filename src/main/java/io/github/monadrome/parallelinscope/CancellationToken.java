@@ -107,7 +107,11 @@ public final class CancellationToken {
 
     /** Returns a non-negative remaining duration until this token's deadline. */
     public Duration remaining() {
-        return Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime()));
+        long now = System.nanoTime();
+        if (deadlineNanos == Long.MAX_VALUE) {
+            return Duration.ofNanos(Long.MAX_VALUE);
+        }
+        return Duration.ofNanos(now >= deadlineNanos ? 0L : deadlineNanos - now);
     }
 
     /**

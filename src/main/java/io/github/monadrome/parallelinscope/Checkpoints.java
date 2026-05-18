@@ -128,7 +128,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwait(CountDownLatch latch, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwait(latch, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkAwait(latch, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -157,7 +157,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwait(Condition condition, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwait(condition, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkAwait(condition, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -199,7 +199,7 @@ public final class Checkpoints {
      */
     public static void checkJoin(Thread thread, Duration timeout) {
         checkCancellationToken(true);
-        checkJoin(thread, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        checkJoin(thread, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -247,7 +247,7 @@ public final class Checkpoints {
      */
     public static <V> V checkGet(Future<V> future, Duration timeout) throws ExecutionException, TimeoutException {
         checkCancellationToken(true);
-        return checkGet(future, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkGet(future, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -310,7 +310,7 @@ public final class Checkpoints {
      */
     public static void checkSleep(Duration duration) {
         checkCancellationToken(true);
-        checkSleep(duration.toNanos(), TimeUnit.NANOSECONDS);
+        checkSleep(saturatedNanos(duration), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -337,7 +337,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryAcquire(Semaphore semaphore, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryAcquire(semaphore, 1, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkTryAcquire(semaphore, 1, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -363,7 +363,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryAcquire(Semaphore semaphore, int permits, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryAcquire(semaphore, permits, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkTryAcquire(semaphore, permits, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -393,7 +393,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryLock(Lock lock, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryLock(lock, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkTryLock(lock, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -432,7 +432,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwaitTermination(ExecutorService executor, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwaitTermination(executor, timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return checkAwaitTermination(executor, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -551,6 +551,14 @@ public final class Checkpoints {
     private static MultiTaskContext currentContext() {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         return currentTask == null ? null : currentTask.multiTaskContext();
+    }
+
+    private static long saturatedNanos(Duration timeout) {
+        try {
+            return timeout.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
     }
 
     private static LeanCancellationException cancellation(String message) {
