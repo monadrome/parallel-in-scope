@@ -424,6 +424,79 @@ class SlidingWindowSubmitterTest {
         }
     }
 
+    /**
+     * The claim-before-completion-check ordering is what keeps the cancellation callback from
+     * abandoning an index the submission loop already accepted: once {@code take()} hands over a
+     * slot, {@code nextIndex} is bumped before any check, so the callback abandons only strictly
+     * later placeholders and the loop itself disposes of the claimed index. The vulnerable window
+     * is nanoseconds wide and cannot be gated deterministically, so this test hammers it: many
+     * rounds of submit + cancel at staggered moments, asserting the one observable corruption the
+     * race produced — a task body that ran while its placeholder was already abandoned (user code
+     * ran, the caller reads "never submitted"). On the fixed code the invariant holds by
+     * construction; if the claim ever moves back below the completion check, staggered rounds
+     * make the corruption possible again.
+     */
+    @Test
+    void repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            for (int round = 0; round < 100; round++) {
+                AtomicInteger ran0 = new AtomicInteger();
+                AtomicInteger ran1 = new AtomicInteger();
+                SlidingWindowSubmitter<Integer> executor =
+                        new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+                TaskBatchResult<Integer> batch = executor.submitAll(futures(
+                        () -> {
+                            ran0.incrementAndGet();
+                            return 1;
+                        },
+                        () -> {
+                            ran1.incrementAndGet();
+                            return 2;
+                        }));
+
+                // Stagger the cancellation across the phases of the submission loop: before the
+                // submitter thread parks in take(), while it is parked, right around the moment
+                // take() hands over the freed slot, and after the handoff completed.
+                switch (round % 5) {
+                    case 1:
+                        Thread.sleep(1L);
+                        break;
+                    case 2:
+                        Thread.sleep(2L);
+                        break;
+                    case 3:
+                        Thread.sleep(5L);
+                        break;
+                    case 4:
+                        Thread.sleep(10L);
+                        break;
+                    default:
+                        Thread.yield();
+                }
+                batch.submitCanceller().cancel(true);
+
+                await().atMost(5, TimeUnit.SECONDS)
+                        .until(() -> batch.results().get(0).isDone()
+                                && batch.results().get(1).isDone());
+
+                // The invariant: a body that entered user code is reported as a real success,
+                // never as an abandoned placeholder; an abandoned placeholder never entered user
+                // code.
+                assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
+                        .as("round %s element 0", round)
+                        .isEqualTo(ran0.get() == 1);
+                assertThat(batch.results().get(1).outcome() == TaskOutcome.SUCCESS)
+                        .as("round %s element 1", round)
+                        .isEqualTo(ran1.get() == 1);
+            }
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
