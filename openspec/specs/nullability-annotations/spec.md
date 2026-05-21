@@ -6,7 +6,7 @@ The project SHALL use a hybrid nullability annotation strategy:
 - Internal implementation classes SHALL use `org.checkerframework.checker.nullness.qual.Nullable` and `org.checkerframework.checker.nullness.qual.NonNull` from Checker Framework
 
 Public API classes: `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState`
-SPI interfaces: `TaskListener`, `ExecutorResolver`, `LivelockListener`, `PurgeStrategy`
+SPI interfaces: `TaskListener`, `ExecutorResolver`, `LivelockListener`
 Internal classes: all other classes not listed above
 
 #### Scenario: Public API class uses JSR-305 annotation
@@ -24,16 +24,16 @@ Internal classes: all other classes not listed above
 ### Requirement: Package-level default NonNull via ParametersAreNonnullByDefault
 Every package SHALL have a `package-info.java` file annotated with `@javax.annotation.ParametersAreNonnullByDefault`, establishing that all method parameters are non-null by default.
 
-#### Scenario: Root package has default NonNull
-- **WHEN** `package-info.java` in `io.github.huatalk.vformation` is read
+#### Scenario: Scope package has default NonNull
+- **WHEN** `package-info.java` in `io.github.huatalk.parallelinscope.scope` is read
 - **THEN** it SHALL contain `@ParametersAreNonnullByDefault` annotation
 
-#### Scenario: Queue sub-package has default NonNull
-- **WHEN** `package-info.java` in `io.github.huatalk.vformation.queue` is read
+#### Scenario: Cancel package has default NonNull
+- **WHEN** `package-info.java` in `io.github.huatalk.parallelinscope.cancel` is read
 - **THEN** it SHALL contain `@ParametersAreNonnullByDefault` annotation
 
-#### Scenario: SPI sub-package has default NonNull
-- **WHEN** `package-info.java` in `io.github.huatalk.vformation.spi` is read
+#### Scenario: SPI package has default NonNull
+- **WHEN** `package-info.java` in `io.github.huatalk.parallelinscope.spi` is read
 - **THEN** it SHALL contain `@ParametersAreNonnullByDefault` annotation
 
 ### Requirement: Explicit dependency declaration
@@ -71,7 +71,7 @@ Every method parameter that explicitly accepts `null` (handled gracefully, not t
 
 #### Scenario: CancellationToken parent parameter accepts null
 - **WHEN** `CancellationToken(CancellationToken parent)` constructor is inspected
-- **THEN** the `parent` parameter SHALL be annotated with `@org.checkerframework.checker.nullness.qual.Nullable`
+- **THEN** the `parent` parameter SHALL be annotated with `@javax.annotation.Nullable`
 
 ### Requirement: No annotation on non-null parameters
 Method parameters that are non-null by contract (enforced by `Objects.requireNonNull()` or implicit) SHALL NOT have explicit `@Nonnull` or `@NonNull` annotations, relying on the package-level `@ParametersAreNonnullByDefault` instead.
