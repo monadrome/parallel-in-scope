@@ -15,8 +15,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Unit tests for {@link ConcurrentLimitExecutor} with explicit submitterPool.
@@ -63,7 +61,7 @@ public class ConcurrentLimitExecutorTest {
 
         AsyncBatchResult<String> result = executor.submitAll(Collections.emptyList());
 
-        assertTrue(result.getResults().isEmpty());
+        assertThat(result.getResults()).isEmpty();
     }
 
     @Test
@@ -84,9 +82,8 @@ public class ConcurrentLimitExecutorTest {
         for (ListenableFuture<Integer> f : result.getResults()) {
             values.add(f.get(5, TimeUnit.SECONDS));
         }
-        assertEquals(3, values.size());
         Collections.sort(values);
-        assertEquals(ImmutableList.of(0, 10, 20), values);
+        assertThat(values).containsExactly(0, 10, 20);
     }
 
     @Test
@@ -120,9 +117,11 @@ public class ConcurrentLimitExecutorTest {
 
         AsyncBatchResult<Integer> result = executor.submitAll(tasks);
 
-        // Wait for the sliding window to fill up
+        // Priority 4: the scheduler must keep throughput bounded even when all tasks are blocked.
+        // The gate holds tasks in-flight long enough to observe the maximum live concurrency.
         await().atMost(5, TimeUnit.SECONDS).until(() -> maxConcurrency.get() >= 1);
-        // Release all tasks
+
+        // Releasing the gate lets the sliding window drain and submit the remaining work.
         gate.countDown();
 
         List<Integer> values = new ArrayList<>();
@@ -130,12 +129,13 @@ public class ConcurrentLimitExecutorTest {
             values.add(f.get(30, TimeUnit.SECONDS));
         }
 
-        assertEquals(taskCount, values.size());
         Collections.sort(values);
-        assertEquals(IntStream.range(0, taskCount).boxed().collect(Collectors.toList()), values);
+        assertThat(values).containsExactlyElementsOf(
+                IntStream.range(0, taskCount).boxed().collect(Collectors.toList()));
         // Concurrency should be bounded by parallelism (initial batch size)
-        assertTrue(maxConcurrency.get() <= parallelism + 1,
-                "Max concurrency was " + maxConcurrency.get() + ", expected <= " + (parallelism + 1));
+        assertThat(maxConcurrency.get())
+                .as("Max concurrency for parallelism=%s", parallelism)
+                .isLessThanOrEqualTo(parallelism + 1);
     }
 
     @Test
@@ -156,15 +156,16 @@ public class ConcurrentLimitExecutorTest {
 
         // Results should be in order: result[i] corresponds to task[i]
         List<ListenableFuture<Integer>> futures = result.getResults();
-        assertEquals(8, futures.size());
+        assertThat(futures).hasSize(8);
         for (int i = 0; i < 8; i++) {
-            assertEquals(i, futures.get(i).get(5, TimeUnit.SECONDS));
+            assertThat(futures.get(i).get(5, TimeUnit.SECONDS)).isEqualTo(i);
         }
     }
 
     @Test
     public void testSubmitAll_submitterPoolUsedForRemaining() throws Exception {
-        // Use a single-thread submitter pool to verify the submitter loop runs on it
+        // Overflow submission must not occupy business worker threads.
+        // A single named submitter makes it observable that the sliding-window loop runs off-pool.
         ExecutorService singleSubmitter = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "TestSubmitter");
             t.setDaemon(true);
@@ -183,7 +184,7 @@ public class ConcurrentLimitExecutorTest {
                 .build();
         ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(pool, options, singleSubmitterPool);
 
-        // 3 tasks: 1 in initial batch, 2 via submitter pool
+        // 3 tasks: 1 in the initial window, 2 scheduled later by the submitter loop.
         List<Callable<Integer>> tasks = IntStream.range(0, 3)
                 .mapToObj(i -> (Callable<Integer>) () -> i)
                 .collect(Collectors.toList());
@@ -201,7 +202,7 @@ public class ConcurrentLimitExecutorTest {
         }
         result.getSubmitCanceller().get(5, TimeUnit.SECONDS);
 
-        assertTrue(allDone.await(5, TimeUnit.SECONDS));
+        assertThat(allDone.await(5, TimeUnit.SECONDS)).isTrue();
 
         singleSubmitterPool.shutdownNow();
     }
@@ -222,7 +223,7 @@ public class ConcurrentLimitExecutorTest {
         AsyncBatchResult<Integer> result = executor.submitAll(tasks);
 
         // When tasks <= parallelism, submitCanceller should already be done (immediate void future)
-        assertTrue(result.getSubmitCanceller().isDone());
+        assertThat(result.getSubmitCanceller()).isDone();
     }
 
     @Test
@@ -244,11 +245,12 @@ public class ConcurrentLimitExecutorTest {
         AsyncBatchResult<Integer> result = executor.submitAll(tasks);
 
         // Task 0 succeeds
-        assertEquals(1, result.getResults().get(0).get(5, TimeUnit.SECONDS));
+        assertThat(result.getResults().get(0).get(5, TimeUnit.SECONDS)).isEqualTo(1);
         // Task 1 fails
-        assertThrows(Exception.class, () -> result.getResults().get(1).get(5, TimeUnit.SECONDS));
+        assertThatThrownBy(() -> result.getResults().get(1).get(5, TimeUnit.SECONDS))
+                .isInstanceOf(Exception.class);
         // Tasks 2 and 3 should still complete (sliding window continues past failures)
-        assertEquals(3, result.getResults().get(2).get(5, TimeUnit.SECONDS));
-        assertEquals(4, result.getResults().get(3).get(5, TimeUnit.SECONDS));
+        assertThat(result.getResults().get(2).get(5, TimeUnit.SECONDS)).isEqualTo(3);
+        assertThat(result.getResults().get(3).get(5, TimeUnit.SECONDS)).isEqualTo(4);
     }
 }

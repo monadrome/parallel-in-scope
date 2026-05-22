@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for the executor registry and name-based Par API.
@@ -60,33 +60,33 @@ public class ExecutorRegistryTest {
                 .build();
 
         ListeningExecutorService retrieved = config.getExecutor(POOL_NAME);
-        assertNotNull(retrieved);
+        assertThat(retrieved).isNotNull();
     }
 
     @Test
     public void testGetUnregistered_returnsNull() {
         ParConfig config = ParConfig.builder().build();
-        assertNull(config.getExecutor(POOL_NAME));
+        assertThat(config.getExecutor(POOL_NAME)).isNull();
     }
 
     // ==================== 5.2: Null Validation ====================
 
     @Test
     public void testRegisterWithNullNameThrows() {
-        assertThrows(IllegalArgumentException.class,
-                () -> ParConfig.builder().executor(null, executor));
+        assertThatThrownBy(() -> ParConfig.builder().executor(null, executor))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testRegisterWithEmptyNameThrows() {
-        assertThrows(IllegalArgumentException.class,
-                () -> ParConfig.builder().executor("", executor));
+        assertThatThrownBy(() -> ParConfig.builder().executor("", executor))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testRegisterWithNullExecutorThrows() {
-        assertThrows(IllegalArgumentException.class,
-                () -> ParConfig.builder().executor(POOL_NAME, null));
+        assertThatThrownBy(() -> ParConfig.builder().executor(POOL_NAME, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ==================== 5.3: map and forEach with executor name ====================
@@ -112,7 +112,7 @@ public class ExecutorRegistryTest {
         }
 
         Collections.sort(results);
-        assertEquals(Arrays.asList(10, 20, 30), results);
+        assertThat(results).containsExactly(10, 20, 30);
     }
 
     @Test
@@ -139,7 +139,7 @@ public class ExecutorRegistryTest {
         }
 
         Collections.sort(results);
-        assertEquals(Arrays.asList("a", "b", "c"), results);
+        assertThat(results).containsExactly("a", "b", "c");
     }
 
     // ==================== 5.4: Unregistered name throws ====================
@@ -149,8 +149,8 @@ public class ExecutorRegistryTest {
         ParConfig config = ParConfig.builder().build();
         Par par = new Par(config);
         ParOptions options = ParOptions.of("test").build();
-        assertThrows(IllegalArgumentException.class,
-                () -> par.map("nonexistent", Arrays.asList(1), x -> x, options));
+        assertThatThrownBy(() -> par.map("nonexistent", Arrays.asList(1), x -> x, options))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -158,8 +158,8 @@ public class ExecutorRegistryTest {
         ParConfig config = ParConfig.builder().build();
         Par par = new Par(config);
         ParOptions options = ParOptions.of("test").build();
-        assertThrows(IllegalArgumentException.class,
-                () -> par.map("nonexistent", Arrays.asList(1), x -> null, options));
+        assertThatThrownBy(() -> par.map("nonexistent", Arrays.asList(1), x -> null, options))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ==================== 5.5: Auto-bridge to purge subsystem ====================
@@ -175,8 +175,7 @@ public class ExecutorRegistryTest {
 
             // No explicit ExecutorResolver set
             ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-            assertNotNull(resolved);
-            assertSame(tpe, resolved);
+            assertThat(resolved).isSameAs(tpe);
         } finally {
             tpe.shutdownNow();
         }
@@ -191,7 +190,7 @@ public class ExecutorRegistryTest {
                 .build();
         // executor from Executors.newFixedThreadPool IS a ThreadPoolExecutor, so it should resolve
         ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-        assertNotNull(resolved);
+        assertThat(resolved).isNotNull();
     }
 
     // ==================== 5.6: Explicit ExecutorResolver takes priority ====================
@@ -223,7 +222,9 @@ public class ExecutorRegistryTest {
                     .build();
 
             ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-            assertSame(resolverTpe, resolved, "Explicit ExecutorResolver should take priority over registry");
+            assertThat(resolved)
+                    .as("Explicit ExecutorResolver should take priority over registry")
+                    .isSameAs(resolverTpe);
         } finally {
             registryTpe.shutdownNow();
             resolverTpe.shutdownNow();
