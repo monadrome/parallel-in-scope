@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for the core Par functionality.
@@ -82,9 +82,8 @@ public class ParTest {
             f.get(5, TimeUnit.SECONDS);
         }
 
-        assertEquals(5, results.size());
         Collections.sort(results);
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), results);
+        assertThat(results).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
@@ -105,7 +104,7 @@ public class ParTest {
         }
 
         Collections.sort(results);
-        assertEquals(Arrays.asList(2, 4, 6, 8, 10), results);
+        assertThat(results).containsExactly(2, 4, 6, 8, 10);
     }
 
     @Test
@@ -113,7 +112,7 @@ public class ParTest {
         ParOptions options = ParOptions.of("testEmpty").build();
         AsyncBatchResult<Void> batch = par.map(
                 EXECUTOR_NAME, Collections.emptyList(), x -> null, options);
-        assertTrue(batch.getResults().isEmpty());
+        assertThat(batch.getResults()).isEmpty();
     }
 
     @Test
@@ -130,6 +129,8 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
+        // Priority 3: the public Par API must honor the caller's parallelism limit.
+        // Blocking every task at the gate makes peak concurrency observable instead of timing-based.
         AsyncBatchResult<Void> batch = par.map(EXECUTOR_NAME, input, x -> {
             int cur = concurrency.incrementAndGet();
             maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
@@ -152,8 +153,9 @@ public class ParTest {
         }
 
         // Sliding-window parallelism=2: max concurrency should be at most parallelism (2) + 1 scheduling overlap
-        assertTrue(maxConcurrency.get() <= 3,
-                "Max concurrency was " + maxConcurrency.get() + ", expected <= 3 for parallelism=2");
+        assertThat(maxConcurrency.get())
+                .as("Max concurrency for parallelism=2")
+                .isLessThanOrEqualTo(3);
     }
 
     @Test
@@ -173,12 +175,13 @@ public class ParTest {
 
         // Wait for listener callbacks (async, may arrive after future completion)
         await().atMost(5, TimeUnit.SECONDS).until(() -> listener.events.size() == 3);
-        assertEquals(3, listener.events.size());
-        for (TaskEvent event : listener.events) {
-            assertEquals("testListener", event.getTaskName());
-            assertTrue(event.executionTimeNanos() >= 0);
-            assertTrue(event.totalTimeNanos() >= 0);
-        }
+        assertThat(listener.events)
+                .hasSize(3)
+                .allSatisfy(event -> {
+                    assertThat(event.getTaskName()).isEqualTo("testListener");
+                    assertThat(event.executionTimeNanos()).isNotNegative();
+                    assertThat(event.totalTimeNanos()).isNotNegative();
+                });
     }
 
     // ==================== End-to-end tests ====================
@@ -193,6 +196,8 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
+        // Priority 5: timeout must become cooperative cancellation, not just a caller-side error.
+        // The tasks sleep much longer than the timeout so the cancellation path is forced.
         AsyncBatchResult<Integer> batch = par.map(EXECUTOR_NAME, input, x -> {
             try {
                 Thread.sleep(5000);
@@ -202,11 +207,13 @@ public class ParTest {
             return x;
         }, options);
 
-        // Wait for timeout to fire, then check futures
+        // Wait for the timeout callback to cancel at least one running future.
         Thread.sleep(500);
         boolean anyCancelled = batch.getResults().stream()
                 .anyMatch(f -> f.isCancelled());
-        assertTrue(anyCancelled, "At least one future should be cancelled after timeout");
+        assertThat(anyCancelled)
+                .as("At least one future should be cancelled after timeout")
+                .isTrue();
     }
 
     @Test
@@ -220,12 +227,13 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
+        // Priority 6: fail-fast should stop sibling work after the first task fails.
+        // One task fails immediately while the others remain interruptible long-running work.
         AsyncBatchResult<Integer> batch = par.map(EXECUTOR_NAME, input, x -> {
             if (x == 1) {
                 failLatch.countDown();
                 throw new RuntimeException("task 1 failed");
             }
-            // Other tasks sleep
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -240,7 +248,7 @@ public class ParTest {
 
         // The first task should have failed
         com.google.common.util.concurrent.ListenableFuture<Integer> first = batch.getResults().get(0);
-        assertTrue(first.isDone());
+        assertThat(first).isDone();
     }
 
     @Test
@@ -253,6 +261,8 @@ public class ParTest {
                 .rejectEnqueue(false)
                 .build();
 
+        // Priority 8: nested parallel calls must preserve parent-child execution context.
+        // Each outer task starts its own inner batch, which exercises scoped context and graph logging.
         AsyncBatchResult<List<Integer>> batch = par.map(EXECUTOR_NAME, outerInput, outerItem -> {
             List<Integer> innerInput = Arrays.asList(outerItem * 10, outerItem * 10 + 1);
 
@@ -280,18 +290,16 @@ public class ParTest {
             allResults.add(f.get(10, TimeUnit.SECONDS));
         }
 
-        assertEquals(2, allResults.size());
+        assertThat(allResults).hasSize(2);
         // Each inner list should have 2 results
-        for (List<Integer> innerResult : allResults) {
-            assertEquals(2, innerResult.size());
-        }
+        assertThat(allResults).allSatisfy(innerResult -> assertThat(innerResult).hasSize(2));
     }
 
     @Test
     public void testParForEach_nullInput() {
         ParOptions options = ParOptions.of("testNull").timeout(5000).build();
         AsyncBatchResult<Void> batch = par.map(EXECUTOR_NAME, null, x -> null, options);
-        assertTrue(batch.getResults().isEmpty());
+        assertThat(batch.getResults()).isEmpty();
     }
 
     static class RecordingTaskListener implements TaskListener {

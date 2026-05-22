@@ -20,7 +20,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for HeuristicPurger (thread pool purge service).
@@ -51,7 +51,7 @@ public class HeuristicPurgerTest {
     public void testTryPurge_nullStateCounts_returnsCancelledFuture() {
         BatchReport report = new BatchReport(null, new RuntimeException("dummy"));
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
-        assertTrue(result.isCancelled());
+        assertThat(result).isCancelled();
     }
 
     @Test
@@ -62,7 +62,7 @@ public class HeuristicPurgerTest {
         BatchReport report = new BatchReport(stateMap, new RuntimeException("dummy"));
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
-        assertTrue(result.isCancelled());
+        assertThat(result).isCancelled();
     }
 
     @Test
@@ -73,8 +73,8 @@ public class HeuristicPurgerTest {
 
         ListenableFuture<?> result = HeuristicPurger.tryPurge(POOL_NAME, report, config);
         Object value = result.get(5, TimeUnit.SECONDS);
-        assertTrue(result.isDone());
-        assertFalse(result.isCancelled());
-        assertEquals(true, value);
+        assertThat(result).isDone();
+        assertThat(result.isCancelled()).isFalse();
+        assertThat(value).isEqualTo(true);
     }
 }

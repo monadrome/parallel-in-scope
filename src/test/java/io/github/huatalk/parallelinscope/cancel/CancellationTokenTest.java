@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for CancellationToken and cooperative cancellation.
@@ -23,15 +23,15 @@ public class CancellationTokenTest {
     @Test
     public void testInitialState() {
         CancellationToken token = CancellationToken.create();
-        assertEquals(CancellationTokenState.RUNNING, token.getState());
+        assertThat(token.getState()).isEqualTo(CancellationTokenState.RUNNING);
     }
 
     @Test
     public void testManualCancel() {
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
-        assertEquals(CancellationTokenState.MUTUAL_CANCELED, token.getState());
-        assertTrue(token.getState().shouldInterruptCurrentThread());
+        assertThat(token.getState()).isEqualTo(CancellationTokenState.MUTUAL_CANCELED);
+        assertThat(token.getState().shouldInterruptCurrentThread()).isTrue();
     }
 
     @Test
@@ -39,23 +39,23 @@ public class CancellationTokenTest {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
-        assertEquals(CancellationTokenState.RUNNING, parent.getState());
-        assertEquals(CancellationTokenState.RUNNING, child.getState());
+        assertThat(parent.getState()).isEqualTo(CancellationTokenState.RUNNING);
+        assertThat(child.getState()).isEqualTo(CancellationTokenState.RUNNING);
 
         parent.cancel(false);
-        assertEquals(CancellationTokenState.MUTUAL_CANCELED, parent.getState());
+        assertThat(parent.getState()).isEqualTo(CancellationTokenState.MUTUAL_CANCELED);
     }
 
     @Test
     public void testCancellationTokenState_codes() {
-        assertEquals(0, CancellationTokenState.RUNNING.getCode());
-        assertEquals(1, CancellationTokenState.SUCCESS.getCode());
-        assertFalse(CancellationTokenState.RUNNING.shouldInterruptCurrentThread());
-        assertFalse(CancellationTokenState.SUCCESS.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.FAIL_FAST_CANCELED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.TIMEOUT_CANCELED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.MUTUAL_CANCELED.shouldInterruptCurrentThread());
-        assertTrue(CancellationTokenState.PROPAGATING_CANCELED.shouldInterruptCurrentThread());
+        assertThat(CancellationTokenState.RUNNING.getCode()).isZero();
+        assertThat(CancellationTokenState.SUCCESS.getCode()).isEqualTo(1);
+        assertThat(CancellationTokenState.RUNNING.shouldInterruptCurrentThread()).isFalse();
+        assertThat(CancellationTokenState.SUCCESS.shouldInterruptCurrentThread()).isFalse();
+        assertThat(CancellationTokenState.FAIL_FAST_CANCELED.shouldInterruptCurrentThread()).isTrue();
+        assertThat(CancellationTokenState.TIMEOUT_CANCELED.shouldInterruptCurrentThread()).isTrue();
+        assertThat(CancellationTokenState.MUTUAL_CANCELED.shouldInterruptCurrentThread()).isTrue();
+        assertThat(CancellationTokenState.PROPAGATING_CANCELED.shouldInterruptCurrentThread()).isTrue();
     }
 
     // ==================== lateBind state transition tests ====================
@@ -77,7 +77,7 @@ public class CancellationTokenTest {
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertEquals(CancellationTokenState.SUCCESS, token.getState());
+        assertThat(token.getState()).isEqualTo(CancellationTokenState.SUCCESS);
     }
 
     @Test
@@ -90,7 +90,7 @@ public class CancellationTokenTest {
 
         // Wait for timeout to fire
         Thread.sleep(300);
-        assertEquals(CancellationTokenState.TIMEOUT_CANCELED, token.getState());
+        assertThat(token.getState()).isEqualTo(CancellationTokenState.TIMEOUT_CANCELED);
     }
 
     @Test
@@ -101,13 +101,15 @@ public class CancellationTokenTest {
         SettableFuture<String> f2 = SettableFuture.create();
         List<ListenableFuture<String>> futures = Arrays.asList(f1, f2);
 
+        // Priority 7: a failed future must transition the shared token into fail-fast cancellation.
+        // This is the low-level state change that lets higher-level map calls stop sibling tasks.
         token.lateBind(futures, Duration.ofSeconds(5), Futures.immediateVoidFuture());
 
         f1.setException(new RuntimeException("boom"));
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertEquals(CancellationTokenState.FAIL_FAST_CANCELED, token.getState());
+        assertThat(token.getState()).isEqualTo(CancellationTokenState.FAIL_FAST_CANCELED);
     }
 
     @Test
@@ -117,20 +119,23 @@ public class CancellationTokenTest {
 
         SettableFuture<String> f1 = SettableFuture.create();
 
+        // Priority 9: nested scopes inherit cancellation from their parent.
+        // Parent cancellation should mark the child as propagating cancellation even if its own
+        // future has not completed yet.
         child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
 
         parent.cancel(true);
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertEquals(CancellationTokenState.PROPAGATING_CANCELED, child.getState());
+        assertThat(child.getState()).isEqualTo(CancellationTokenState.PROPAGATING_CANCELED);
     }
 
     @Test
     public void testLateBind_parentAlreadyCanceled_childImmediatelyCanceled() {
         CancellationToken parent = CancellationToken.create();
         parent.cancel(true);
-        assertTrue(parent.getState().shouldInterruptCurrentThread());
+        assertThat(parent.getState().shouldInterruptCurrentThread()).isTrue();
 
         CancellationToken child = new CancellationToken(parent);
 
@@ -138,6 +143,6 @@ public class CancellationTokenTest {
         child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
 
         // The future should be cancelled immediately because parent is already canceled
-        assertTrue(f1.isCancelled());
+        assertThat(f1).isCancelled();
     }
 }

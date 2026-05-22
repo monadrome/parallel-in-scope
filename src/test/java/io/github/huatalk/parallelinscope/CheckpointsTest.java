@@ -11,7 +11,7 @@ import io.github.huatalk.parallelinscope.spi.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for cooperative cancellation checkpoints.
@@ -42,8 +42,8 @@ public class CheckpointsTest {
         token.cancel(false);
         TaskScopeTl.init(token, options);
 
-        assertThrows(LeanCancellationException.class, () ->
-                Checkpoints.checkpoint("myTask", true));
+        assertThatThrownBy(() -> Checkpoints.checkpoint("myTask", true))
+                .isInstanceOf(LeanCancellationException.class);
     }
 
     @Test
@@ -53,8 +53,8 @@ public class CheckpointsTest {
         token.cancel(false);
         TaskScopeTl.init(token, options);
 
-        assertThrows(FatCancellationException.class, () ->
-                Checkpoints.checkpoint("myTask", false));
+        assertThatThrownBy(() -> Checkpoints.checkpoint("myTask", false))
+                .isInstanceOf(FatCancellationException.class);
     }
 
     @Test
@@ -71,13 +71,13 @@ public class CheckpointsTest {
     @Test
     public void testLeanException_noStackTrace() {
         LeanCancellationException ex = new LeanCancellationException("test");
-        assertEquals(0, ex.getStackTrace().length);
+        assertThat(ex.getStackTrace()).isEmpty();
     }
 
     @Test
     public void testFatException_hasStackTrace() {
         FatCancellationException ex = new FatCancellationException("test");
-        assertTrue(ex.getStackTrace().length > 0);
+        assertThat(ex.getStackTrace()).isNotEmpty();
     }
 
     // ==================== rawCheckpoint / sleep / propagateCancellation tests ====================
@@ -85,9 +85,10 @@ public class CheckpointsTest {
     @Test
     public void testRawCheckpoint_interruptedThread_throwsFatCancellationException() {
         Thread.currentThread().interrupt();
-        assertThrows(FatCancellationException.class, Checkpoints::rawCheckpoint);
+        assertThatThrownBy(Checkpoints::rawCheckpoint)
+                .isInstanceOf(FatCancellationException.class);
         // interrupt flag should have been consumed by Thread.interrupted()
-        assertFalse(Thread.currentThread().isInterrupted());
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
     }
 
     @Test
@@ -109,19 +110,21 @@ public class CheckpointsTest {
         t.interrupt();
         t.join(2000);
 
-        assertInstanceOf(FatCancellationException.class, caught.get());
+        assertThat(caught.get()).isInstanceOf(FatCancellationException.class);
     }
 
     @Test
     public void testPropagateCancellation_rethrowsFatCancellationException() {
         FatCancellationException ex = new FatCancellationException("test");
-        assertThrows(FatCancellationException.class, () -> Checkpoints.propagateCancellation(ex));
+        assertThatThrownBy(() -> Checkpoints.propagateCancellation(ex))
+                .isInstanceOf(FatCancellationException.class);
     }
 
     @Test
     public void testPropagateCancellation_rethrowsLeanCancellationException() {
         LeanCancellationException ex = new LeanCancellationException("test");
-        assertThrows(LeanCancellationException.class, () -> Checkpoints.propagateCancellation(ex));
+        assertThatThrownBy(() -> Checkpoints.propagateCancellation(ex))
+                .isInstanceOf(LeanCancellationException.class);
     }
 
     @Test
