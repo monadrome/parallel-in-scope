@@ -1,6 +1,6 @@
 **中文** | [**English**](README_EN.md)
 
-# 🪿 parallel-in-scope（雁阵）
+# 🪿 parallel-in-scope
 
 > **⚠️ 项目状态：开发中（Pre-release）**
 >
@@ -8,7 +8,7 @@
 
 ## 项目介绍
 
-**parallel-in-scope（雁阵）** 是一个面向 Java 8+ 的结构化并发工具包，核心能力包括协作式取消、快速失败、上下文传播、死锁检测和滑动窗口调度。
+**parallel-in-scope** 是一个面向 Java 8+ 的结构化并发工具包，核心能力包括协作式取消、快速失败、上下文传播、死锁检测和滑动窗口调度。
 它聚焦解决 Java 8 并行编程中的典型痛点：取消信号难传播、`ThreadLocal` 上下文丢失、嵌套并行死锁难诊断。
 相比 CompletableFuture 链式编排与 `ExecutorService + invokeAll` 传统模型，parallel-in-scope 更强调结构化语义与工程可控性。
 目标很直接：在不升级 JDK 的前提下，让并发代码从“能跑”走向“失败即止、取消级联、死锁可见”。
@@ -25,7 +25,7 @@
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>1.0.0</version>
+    <version>0.0.1</version>
 </dependency>
 ```
 
@@ -271,7 +271,8 @@ sequenceDiagram
 |------|------|
 | JDK | Java 8+（`maven.compiler.source/target = 1.8`） |
 | 构建工具 | Maven 3.x（推荐） |
-| 核心模块 | `parallel-in-scope`（核心库）、`parallel-in-scope-demo`（示例工程） |
+| 发布产物 | `parallel-in-scope`（核心库） |
+| 示例工程 | `demo/`（不参与发布） |
 
 ---
 
@@ -286,6 +287,10 @@ mvn test
 
 # 打包
 mvn clean package
+
+# 运行默认示例（需先把核心库安装到本地 Maven 仓库）
+mvn install -DskipTests -Dmaven.javadoc.skip=true
+mvn -f demo/pom.xml exec:java
 ```
 
 ---

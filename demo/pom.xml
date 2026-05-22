@@ -4,42 +4,45 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>io.github.huatalk</groupId>
-        <artifactId>parallel-in-scope-parent</artifactId>
-        <version>1.0.0</version>
-    </parent>
-
+    <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope-demo</artifactId>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <name>parallel-in-scope Demo</name>
     <description>Demo and examples for parallel-in-scope.</description>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>8</maven.compiler.release>
+        <parallel-in-scope.version>${project.version}</parallel-in-scope.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.huatalk</groupId>
             <artifactId>parallel-in-scope</artifactId>
-            <version>${project.version}</version>
+            <version>${parallel-in-scope.version}</version>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Skip install so demo jar is not placed into local repo -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.15.0</version>
                 <configuration>
-                    <skip>true</skip>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
             </plugin>
-            <!-- Skip deploy so demo is never published -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
                 <configuration>
-                    <skip>true</skip>
+                    <mainClass>io.github.huatalk.parallelinscope.demo.BasicDemo</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
                 </configuration>
             </plugin>
         </plugins>
