@@ -16,7 +16,7 @@ mvn clean package        # Package JAR
 
 **parallel-in-scope** is a structured concurrency toolkit for Java 8+, built on Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`. It provides parallel collection processing with cooperative cancellation, sliding-window concurrency control, livelock detection, cross-thread context propagation, and pluggable monitoring via SPI.
 
-- **Maven coordinates:** `io.github.huatalk:parallel-in-scope:1.0.0`
+- **Maven coordinates:** `io.github.huatalk:parallel-in-scope:0.0.1`
 - **Java version:** source/target 1.8 (Java 8 compatible)
 - **Test framework:** JUnit 5, run via Maven Surefire Plugin
 

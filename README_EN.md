@@ -21,7 +21,7 @@ In most cases, all you need is a single method: **`Par.map`**.
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>1.0.0</version>
+    <version>0.0.1</version>
 </dependency>
 ```
 
@@ -267,7 +267,8 @@ sequenceDiagram
 |---|---|
 | JDK | Java 8+ (`maven.compiler.source/target = 1.8`) |
 | Build Tool | Maven 3.x (recommended) |
-| Core Modules | `parallel-in-scope` (library), `parallel-in-scope-demo` (sample project) |
+| Published Artifact | `parallel-in-scope` (library) |
+| Sample Project | `demo/` (not published) |
 
 ---
 
@@ -282,6 +283,10 @@ mvn test
 
 # Package
 mvn clean package
+
+# Run the default demo (install the library into the local Maven repository first)
+mvn install -DskipTests -Dmaven.javadoc.skip=true
+mvn -f demo/pom.xml exec:java
 ```
 
 ---
