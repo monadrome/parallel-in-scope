@@ -4,7 +4,10 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -13,18 +16,22 @@ jobs:
       contents: read
 
     strategy:
+      fail-fast: false
       matrix:
         java-version: [ 11, 17, 21 ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ matrix.java-version }}
           distribution: temurin
           cache: maven
 
-      - name: Build and Test
-        run: mvn -B clean verify
+      - name: Build and test library
+        run: mvn -B -ntp clean install
+
+      - name: Build demo
+        run: mvn -B -ntp -f demo/pom.xml package
