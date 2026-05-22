@@ -19,7 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for ScopedCallable lifecycle, timing, and SPI callbacks.
@@ -48,17 +48,17 @@ public class ScopedCallableTest {
 
         ScopedCallable<String> callable = new ScopedCallable<>("task", () -> {
             // During execution, TaskScopeTl should be initialized
-            assertNotNull(TaskScopeTl.getCancellationToken());
-            assertNotNull(TaskScopeTl.getParallelOptions());
+            assertThat(TaskScopeTl.getCancellationToken()).isNotNull();
+            assertThat(TaskScopeTl.getParallelOptions()).isNotNull();
             return "result";
         }, config, options, token, "test-pool");
 
         String result = callable.call();
-        assertEquals("result", result);
+        assertThat(result).isEqualTo("result");
 
         // After call, TaskScopeTl should be cleaned up
-        assertNull(TaskScopeTl.getCancellationToken());
-        assertNull(TaskScopeTl.getParallelOptions());
+        assertThat(TaskScopeTl.getCancellationToken()).isNull();
+        assertThat(TaskScopeTl.getParallelOptions()).isNull();
     }
 
     @Test
@@ -88,11 +88,11 @@ public class ScopedCallableTest {
         callable.call();
 
         // Verify timing through TaskEvent SPI (timing methods are package-private)
-        assertEquals(1, events.size());
+        assertThat(events).hasSize(1);
         TaskEvent event = events.get(0);
-        assertEquals(5_000_000, event.executionTimeNanos());
-        assertEquals(2_000_000, event.waitTimeNanos());
-        assertEquals(7_000_000, event.totalTimeNanos());
+        assertThat(event.executionTimeNanos()).isEqualTo(5_000_000);
+        assertThat(event.waitTimeNanos()).isEqualTo(2_000_000);
+        assertThat(event.totalTimeNanos()).isEqualTo(7_000_000);
     }
 
     @Test
@@ -107,11 +107,11 @@ public class ScopedCallableTest {
 
         callable.call();
 
-        assertEquals(1, events.size());
+        assertThat(events).hasSize(1);
         TaskEvent event = events.get(0);
-        assertEquals("myTask", event.getTaskName());
-        assertNull(event.getException());
-        assertTrue(event.executionTimeNanos() >= 0);
+        assertThat(event.getTaskName()).isEqualTo("myTask");
+        assertThat(event.getException()).isNull();
+        assertThat(event.executionTimeNanos()).isNotNegative();
     }
 
     @Test
@@ -126,10 +126,11 @@ public class ScopedCallableTest {
             throw error;
         }, listenerConfig, ParOptions.of("task").build(), CancellationToken.create());
 
-        assertThrows(RuntimeException.class, callable::call);
+        assertThatThrownBy(callable::call)
+                .isInstanceOf(RuntimeException.class);
 
-        assertEquals(1, events.size());
-        assertSame(error, events.get(0).getException());
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).getException()).isSameAs(error);
     }
 
     @Test
@@ -145,7 +146,7 @@ public class ScopedCallableTest {
 
         // Should not throw even though listener throws
         String result = callable.call();
-        assertEquals("ok", result);
+        assertThat(result).isEqualTo("ok");
     }
 
     @Test
@@ -159,12 +160,12 @@ public class ScopedCallableTest {
 
         callable.call();
 
-        assertSame(callable, captured.get());
+        assertThat(captured.get()).isSameAs(callable);
     }
 
     @Test
     public void testCurrent_nullOutsideExecution() {
-        assertNull(ScopedCallable.current());
+        assertThat(ScopedCallable.current()).isNull();
     }
 
     @Test
@@ -173,7 +174,8 @@ public class ScopedCallableTest {
             throw new RuntimeException("boom");
         }, config, ParOptions.of("task").build(), CancellationToken.create());
 
-        assertThrows(RuntimeException.class, callable::call);
-        assertNull(ScopedCallable.current());
+        assertThatThrownBy(callable::call)
+                .isInstanceOf(RuntimeException.class);
+        assertThat(ScopedCallable.current()).isNull();
     }
 }
