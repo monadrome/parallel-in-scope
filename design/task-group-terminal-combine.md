@@ -40,7 +40,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 - combine 禁用拒绝后的 caller-thread fallback（`runOnCallerThread` 对 combine 不生效）：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`；
 - combine 的结构 parent 与 member 相同（submitGroup 现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
-完成计数不变式调整为 `terminalCount == memberCount + (combine ? 1 : 0)`：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending public future。
+完成计数不变式调整为 `totalTasks == memberCount + (combine ? 1 : 0)`（收敛屏障的目标计数）：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending public future。
 
 ## 4. API
 
@@ -246,6 +246,6 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 5. combine 能通过 `Member` handle 无阻塞取得正确值；foreign handle、combine 自身 handle、名称冲突和 null 成功结果符合契约；
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
-8. `terminalCount` 目标含 terminal future；completion future 等 terminal future 终态后才完成；组完成 callback 恰好触发一次（Guava 语义，见观测契约 §10.2）；
+8. `totalTasks` 目标含 terminal future；completion future 等 terminal future 终态后才完成；组完成 callback 恰好触发一次（Guava 语义，见观测契约 §10.2）；
 9. TaskGraph 不写 membership 边、不伪造 join 边；join 关系出现在 Group telemetry；
 10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。
