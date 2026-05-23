@@ -316,6 +316,8 @@ ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
 
 An observation scope does not merge graphs from separate `ParRuntime` instances.
 
+Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the detection event published at `close()` reports its flags and rendered edges from one consistent snapshot of the request graph.
+
 ## Purge cancelled queue entries
 
 Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `ParRuntime` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.

@@ -42,7 +42,7 @@
 ### Performance
 
 - Share one completion aggregate between `CancellationToken.bind` and batch retention instead of building two, and skip task-graph bookkeeping entirely when no observation scope is active.
-- Make the task-group join test O(1) via a success counter, memoize the derived executor graphs, and replace per-unit `SecureRandom` UUID generation with process-local sequence ids.
+- Make the task-group join test O(1) via a success counter, derive the task, executor-name, and executor-identity graphs once per recorded-edge version instead of rebuilding them per read, and replace per-unit `SecureRandom` UUID generation with process-local sequence ids.
 
 ### Fixes
 
@@ -51,6 +51,7 @@
 - Fix a sliding-window race in which a batch element already handed to the executor could be reported as `SUBMISSION_FAILURE`: the index is now claimed before the executor handoff so it is never abandoned afterwards, and a placeholder terminated by a racing cancellation now cancels the real future it fails to bind.
 - Commit `TIMEOUT` synchronously in `CancellationToken.bind` when the deadline has already expired, instead of scheduling a zero-delay timer: members of such a group are canceled before the submission loop, so they no longer enter user code and the group no longer risks reporting `SUCCESS`.
 - Make a task group's outcome independent of completion order: a recorded member or terminal-combine failure now takes precedence over a still-`RUNNING`/`SUCCESS` group token, so a lone or last-completing failure reports `USER_FAILURE`/`SUBMISSION_FAILURE` instead of `MEMBER_CANCELED`.
+- Refresh the task-graph detection snapshot whenever an edge is recorded: `TaskGraphObservationScope.hasTaskCycle()`, `hasSelfLoop()`, `hasExecutorCycle()`, and `hasExecutorSelfLoop()` used to answer from graphs memoized on the first query, so edges recorded after an earlier negative answer stayed invisible and a close-time detection event could combine flags from one version of the graph with rendered edges from another. A query now covers every edge recorded before it, and one `close()` pass reports all flags and rendered edges from a single immutable snapshot.
 
 ## [0.2.0] - 2026-09-10
 

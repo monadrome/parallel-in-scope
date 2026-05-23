@@ -2,10 +2,8 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -53,32 +51,30 @@ class TaskGraphPolarityTest {
     }
 
     @Test
-    void displayNodeFormatsLabelledNodesAndPassesUnknownNodesThrough() throws Exception {
+    void displayNodeFormatsLabelledNodesAndPassesUnknownNodesThrough() {
         TaskGraphData data = new TaskGraphData();
-        Map<String, String> labels = labelsOf(data);
-        labels.put("t1", "OrderService");
-        assertThat(data.displayNode("t1")).isEqualTo("OrderService[t1]");
         assertThat(data.displayNode("unknown")).isEqualTo("unknown");
-        assertThat(labels.get("never-added")).isNull();
+
+        data.logTaskPair("t1", "OrderService", "t2", "OrderClient", plainEdge());
+        assertThat(data.displayNode("t1")).isEqualTo("OrderService[t1]");
+        assertThat(data.displayNode("t2")).isEqualTo("OrderClient[t2]");
+        assertThat(data.displayNode("never-added")).isEqualTo("never-added");
     }
 
     @Test
-    void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() throws Exception {
+    void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() {
         ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair(null, null, "child", null, plainEdge());
 
             TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data).isNotNull();
-            Map<String, String> labels = labelsOf(data);
-            assertThat(labels).containsEntry("root", "NA");
-            assertThat(labels).containsEntry("child", "NA");
-
-            List<TaskEdgeEntry> entries = new java.util.ArrayList<>();
-            data.subTaskList.drainTo(entries);
-            assertThat(entries).hasSize(1);
-            assertThat(entries.get(0).edge().source()).isEqualTo("root");
-            assertThat(entries.get(0).edge().target()).isEqualTo("child");
+            assertThat(data.displayNode("root")).isEqualTo("NA[root]");
+            assertThat(data.displayNode("child")).isEqualTo("NA[child]");
+            assertThat(data.graph().nodes()).containsExactlyInAnyOrder("root", "child");
+            assertThat(data.graph().edges()).hasSize(1);
+            assertThat(data.graph().edgeValueOrDefault("root", "child", Collections.emptyList()))
+                    .hasSize(1);
             TaskGraphObservationScope.restore(null);
         } finally {
             global.close();
@@ -175,17 +171,6 @@ class TaskGraphPolarityTest {
         } finally {
             firstPool.shutdownNow();
             secondPool.shutdownNow();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, String> labelsOf(TaskGraphData data) {
-        try {
-            Field field = TaskGraphData.class.getDeclaredField("nodeLabels");
-            field.setAccessible(true);
-            return (Map<String, String>) field.get(data);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
         }
     }
 }
