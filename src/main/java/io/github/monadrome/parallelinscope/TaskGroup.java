@@ -223,8 +223,10 @@ public final class TaskGroup implements AutoCloseable {
 
     /**
      * The close wait budget: the configured close grace when present, otherwise the remaining
-     * execution deadline. A non-positive result means cancel-only; {@code Long.MAX_VALUE} means no
-     * finite budget was derivable (no explicit grace and no finite deadline), also cancel-only.
+     * execution deadline. {@code 0} means cancel-only, which is what a group with no finite deadline
+     * gets: there is no deadline to derive a budget from, so the close is cancel-only by
+     * construction. A saturated {@code Long.MAX_VALUE} is not that case — it means the derived
+     * budget is astronomical.
      */
     private long closeGraceBudgetNanos() {
         Duration configured = closeGrace;
@@ -234,8 +236,7 @@ public final class TaskGroup implements AutoCloseable {
         if (deadlineNanos == Long.MAX_VALUE) {
             return 0;
         }
-        long now = System.nanoTime();
-        return now >= deadlineNanos ? 0 : deadlineNanos - now;
+        return Deadlines.remaining(deadlineNanos, System.nanoTime());
     }
 
     private static long saturatedNanos(Duration duration) {
