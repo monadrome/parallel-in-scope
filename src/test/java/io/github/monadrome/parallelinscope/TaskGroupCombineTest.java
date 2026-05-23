@@ -256,6 +256,89 @@ class TaskGroupCombineTest {
         };
     }
 
+    /**
+     * The Error-throwing sibling of {@link #alwaysRejectingExecutor()}: a broken {@code Executor}
+     * contract that fails the handoff instead of rejecting it.
+     */
+    private static ExecutorService alwaysThrowingExecutor() {
+        return new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return true;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("executor refuses the handoff");
+            }
+        };
+    }
+
+    @Test
+    void combineHandoffThrowsAnErrorStillTerminatesItsFutureAndTheGroup() throws Exception {
+        // The combine is submitted from inside a member's completion callback, so a throw there
+        // also aborts that member's own barrier increment. The prepare-then-submit kernel fails the
+        // combine's future instead of letting the throw escape, which keeps every counted task
+        // terminal: nothing is left pending for the group to wait for.
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ExecutorService throwing = alwaysThrowingExecutor();
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("worker"), executor)
+                .register(ParId.of("throwing"), throwing)
+                .build();
+        try {
+            AtomicInteger combineRuns = new AtomicInteger();
+            TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("throwing")));
+            TaskGroupDefinition definition = builder.build();
+
+            TaskGroup group = global.submitGroup(definition, bindings -> {
+                bindings.task(user, () -> "alice");
+                bindings.combine(page, values -> {
+                    combineRuns.incrementAndGet();
+                    return "unreachable";
+                });
+            });
+
+            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            assertThat(combineRuns).hasValue(0);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("assemble");
+            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThatThrownBy(() -> group.future(page).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+            throwing.shutdownNow();
+        }
+    }
+
     @Test
     void groupCancelSkipsUnstartedCombine() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);

@@ -523,60 +523,70 @@ public final class TaskGroup implements AutoCloseable {
         if (!member.counted.compareAndSet(false, true)) {
             return;
         }
-        if (member.future.isCancelled()) {
-            member.reason = classifyCancelled(member);
-        } else {
-            try {
-                // The listener fires only on a done future, so read the result with
-                // Futures.getDone: unlike get(), it never throws InterruptedException, and an
-                // interrupted completing thread can no longer turn a success into a phantom
-                // USER_FAILURE.
-                Futures.getDone(member.future);
-                member.reason = TaskOutcome.SUCCESS;
-            } catch (ExecutionException failure) {
-                member.failure = failure.getCause();
-                member.reason = classifyFailure(member, member.failure);
-            }
-        }
-        TaskOutcome observedReason = member.reason;
-
-        if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
-            memberSuccesses.incrementAndGet();
-        }
-        if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
-            failedTaskName.compareAndSet(null, member.name);
-        }
-        // The combine is not part of memberStates, so memberSuccesses covers members only: the
-        // join condition is every member counted and successful.
-        if (terminal != null && memberSuccesses.get() == memberStates.size()) {
-            submitTerminalOnce();
-        }
-
-        if (observedReason == TaskOutcome.MEMBER_CANCELED) {
-            // A directly canceled member cascades to the whole group; the group token is canceled
-            // first so members cancelled through their tokens read a terminal group state.
-            groupToken.cancel();
-            for (MemberState other : membersAndTerminal()) {
-                if (!other.future.isDone()) {
-                    other.context.multiTaskContext().cancellationToken().cancel();
+        try {
+            if (member.future.isCancelled()) {
+                member.reason = classifyCancelled(member);
+            } else {
+                try {
+                    // The listener fires only on a done future, so read the result with
+                    // Futures.getDone: unlike get(), it never throws InterruptedException, and an
+                    // interrupted completing thread can no longer turn a success into a phantom
+                    // USER_FAILURE.
+                    Futures.getDone(member.future);
+                    member.reason = TaskOutcome.SUCCESS;
+                } catch (ExecutionException failure) {
+                    member.failure = failure.getCause();
+                    member.reason = classifyFailure(member, member.failure);
                 }
             }
-        }
-        if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
-            // The combine is always the last task to complete, so its failure must commit
-            // FAIL_FAST synchronously: the cascade it triggers must observe a committed group
-            // state. Members keep the established rule and leave the commit to the group bind's
-            // asynchronous callback; convergence adopts the recorded failure either way.
-            if (member == terminal) {
-                groupToken.failFastCancel();
+            TaskOutcome observedReason = member.reason;
+
+            if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
+                memberSuccesses.incrementAndGet();
             }
-        }
-        // The barrier increment MUST stay last: everything ordered before it -- this member's
-        // classification, the cascade above, and fail-fast -- is then visible to the converging
-        // thread. Moving it back to the top (as the locked version had terminalCount++) lets one
-        // thread converge while another is still mid-cascade.
-        if (completedTasks.incrementAndGet() == totalTasks) {
-            converge();
+            if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
+                failedTaskName.compareAndSet(null, member.name);
+            }
+            // The combine is not part of memberStates, so memberSuccesses covers members only: the
+            // join condition is every member counted and successful.
+            if (terminal != null && memberSuccesses.get() == memberStates.size()) {
+                submitTerminalOnce();
+            }
+
+            if (observedReason == TaskOutcome.MEMBER_CANCELED) {
+                // A directly canceled member cascades to the whole group; the group token is
+                // canceled first so members cancelled through their tokens read a terminal group
+                // state.
+                groupToken.cancel();
+                for (MemberState other : membersAndTerminal()) {
+                    if (!other.future.isDone()) {
+                        other.context.multiTaskContext().cancellationToken().cancel();
+                    }
+                }
+            }
+            if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
+                // The combine is always the last task to complete, so its failure must commit
+                // FAIL_FAST synchronously: the cascade it triggers must observe a committed group
+                // state. Members keep the established rule and leave the commit to the group bind's
+                // asynchronous callback; convergence adopts the recorded failure either way.
+                if (member == terminal) {
+                    groupToken.failFastCancel();
+                }
+            }
+        } finally {
+            // The barrier increment MUST stay last: everything ordered before it -- this member's
+            // classification, the cascade above, and fail-fast -- is then visible to the converging
+            // thread. Moving it back to the top (as the locked version had terminalCount++) lets one
+            // thread converge while another is still mid-cascade.
+            //
+            // It MUST also run when a step above throws. The steps above reach out of this object
+            // (the combine's executor, member token listeners, and through them a nested group's
+            // own convergence), and an Error escaping one of them would otherwise skip the one
+            // increment this task owes the barrier. The total is compared for exact equality, so a
+            // lost count strands the completion future forever instead of surfacing the failure.
+            if (completedTasks.incrementAndGet() == totalTasks) {
+                converge();
+            }
         }
     }
 

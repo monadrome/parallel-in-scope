@@ -1,7 +1,11 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +29,12 @@ import org.junit.jupiter.api.Test;
  * <p>The visibility probe is meaningful on hardware with a weak memory model. On x86 (TSO) the
  * store buffer alone almost never reorders these writes, so a missing happens-before edge is
  * unlikely to reproduce there; Apple Silicon is where it shows.
+ *
+ * <p>Only the barrier probe below discriminates against the previous locked implementation — the
+ * locked version also fixed one failure name and published every classification, so the two
+ * rounds-based probes pass on both. They are regression coverage for the contract (and for a
+ * future rewrite of the mechanism), not a before/after pair; the defect they would catch is a
+ * convergence that reads a member mid-update.
  */
 class TaskGroupConvergenceTest {
 
@@ -123,6 +133,61 @@ class TaskGroupConvergenceTest {
                 }
             }
         } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * A user callback runs inside the completing task's own callback chain, and Guava deliberately
+     * lets an {@code Error} escape one (its listener executor catches {@code Exception} only). This
+     * probe makes that Error detonate between the cascade a member's completion triggers and the
+     * member's own barrier increment: the group still has to converge instead of waiting forever
+     * for an increment that was skipped on the way out.
+     */
+    @Test
+    void barrierCountsAMemberWhoseCancellationCascadeThrowsAnError() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch hold = new CountDownLatch(1);
+        try {
+            TaskGroupDefinition.Builder builder = global.defineGroup("callback-error", TIMEOUT);
+            TaskGroupDefinition.Member<Integer> canceled = builder.task("canceled", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<Integer> sibling = builder.task("sibling", global.par(ParId.of("worker")));
+            TaskGroup group = global.submitGroup(builder.build(), bindings -> {
+                bindings.task(canceled, () -> {
+                    hold.await();
+                    return 1;
+                });
+                bindings.task(sibling, () -> {
+                    hold.await(30, TimeUnit.SECONDS);
+                    return 2;
+                });
+            });
+            Futures.addCallback(
+                    group.future(sibling),
+                    new FutureCallback<Integer>() {
+                        @Override
+                        public void onSuccess(Integer result) {}
+
+                        @Override
+                        public void onFailure(Throwable failure) {
+                            throw new AssertionError("callback detonated");
+                        }
+                    },
+                    MoreExecutors.directExecutor());
+
+            // Cancelling one member directly cascades through the group token into the sibling's
+            // future, where the callback above throws before "canceled" is counted.
+            assertThatThrownBy(() -> group.future(canceled).cancel(true)).isInstanceOf(AssertionError.class);
+
+            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(result.members().get("canceled").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(result.members().get("sibling").outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+        } finally {
+            hold.countDown();
             global.close();
             executor.shutdownNow();
         }
