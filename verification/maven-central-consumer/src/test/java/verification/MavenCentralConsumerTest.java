@@ -1,9 +1,9 @@
 package verification;
 
 import io.github.monadrome.parallelinscope.BatchOptions;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskFuture;
 import io.github.monadrome.parallelinscope.TaskOutcome;
@@ -30,18 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Timeout(value = 15, unit = TimeUnit.SECONDS)
 class MavenCentralConsumerTest {
 
-    private static final ParName CONSUMER = ParName.of("consumer-pool");
+    private static final ParId CONSUMER = ParId.of("consumer-pool");
 
     @Test
     void publishedArtifactCanBeResolvedAndUsed() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
             BatchOptions options = BatchOptions.timeout("consumer-smoke", Duration.ofSeconds(5))
                     .parallelism(2)
                     .taskType(TaskType.IO_BOUND);
 
-            Par par = global.par(CONSUMER);
+            Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
 
             List<TaskFuture<Integer>> results = result.results();
@@ -55,10 +55,10 @@ class MavenCentralConsumerTest {
             assertEquals(2, options.parallelism());
             assertEquals(Optional.of(Duration.ofSeconds(5)), options.timeout());
             assertEquals(TaskType.IO_BOUND, options.taskType());
-            assertEquals(CONSUMER, par.name());
-            assertEquals(global, par.globalPar());
+            assertEquals(CONSUMER, par.id());
+            assertEquals(runtime, par.runtime());
         } finally {
-            global.close();
+            runtime.close();
             executor.shutdownNow();
         }
     }
@@ -68,9 +68,9 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch started = new CountDownLatch(2);
         CountDownLatch interrupted = new CountDownLatch(2);
-        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
-            Par par = global.par(CONSUMER);
+            Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(
                     Arrays.asList(1, 2),
                     value -> awaitInterruption(started, interrupted, value),
@@ -84,7 +84,7 @@ class MavenCentralConsumerTest {
             assertTrue(interrupted.await(5, TimeUnit.SECONDS), "timeout did not interrupt running tasks");
             assertTrue(result.results().stream().allMatch(future -> future.isCancelled()));
         } finally {
-            global.close();
+            runtime.close();
             executor.shutdownNow();
         }
     }
@@ -94,9 +94,9 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         CountDownLatch siblingsStarted = new CountDownLatch(2);
         CountDownLatch siblingsInterrupted = new CountDownLatch(2);
-        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
-            Par par = global.par(CONSUMER);
+            Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(
                     Arrays.asList(1, 2, 3),
                     value -> {
@@ -118,7 +118,7 @@ class MavenCentralConsumerTest {
             assertTrue(result.results().get(1).isCancelled());
             assertTrue(result.results().get(2).isCancelled());
         } finally {
-            global.close();
+            runtime.close();
             executor.shutdownNow();
         }
     }
@@ -130,9 +130,9 @@ class MavenCentralConsumerTest {
         CountDownLatch innerInterrupted = new CountDownLatch(2);
         CountDownLatch releaseOuter = new CountDownLatch(1);
         AtomicReference<TaskBatchResult<Integer>> innerResult = new AtomicReference<>();
-        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
-            Par par = global.par(CONSUMER);
+            Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> outerResult = par.map(
                     Arrays.asList(1),
                     outerValue -> {
@@ -160,7 +160,7 @@ class MavenCentralConsumerTest {
             assertTrue(innerResult.get().results().stream().allMatch(future -> future.isCancelled()));
         } finally {
             releaseOuter.countDown();
-            global.close();
+            runtime.close();
             executor.shutdownNow();
         }
     }
