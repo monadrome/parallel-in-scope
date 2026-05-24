@@ -11,8 +11,8 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 1. **不丢元素**。关闭只关生产端，关闭前已成功入队的元素必须继续可达。这是排干式关闭存在的唯一理由。
 2. **关闭 ≠ 中断**。关闭不 `interrupt()` 任何线程。等待者通过 guard 重估自行醒来，以明确结果退出——写端拒绝、消费端继续。
 3. **生产端单向关门，消费端自然排干**。`close()` 后 `put` / `offer(t)` / `add` 立即拒绝；`take` / `poll(t)` 有存量立即返回真实元素，直到排空。
-4. **排空线性化点明确**。取走最后一个元素的调用，在其临界区内同时发布终态；调用返回时 `isDrained()` 已为 true。
-5. **查询通道诚实**。`size()` / `isEmpty()` 全程反映真实存量；`isShutdown()` 与 `isDrained()` 分开表达"生产端已关"与"已排空"。
+4. **排空线性化点明确**。取走最后一个元素的调用，在其临界区内同时发布终态；调用返回时 `drained()` 已为 true。
+5. **查询通道诚实**。`size()` / `isEmpty()` 全程反映真实存量；`shutdown()` 与 `drained()` 分开表达"生产端已关"与"已排空"。
 6. **关闭不被用户代码阻塞**。用户回调（drain 目标集合的 add、元素 equals、removeIf 谓词）都在 monitor 之外执行，再慢也拖不住关闭。
 7. **关闭幂等、可等待**。并发 `close()` 只生效一次；`awaitDrained()` 阻塞到终态。
 
@@ -55,7 +55,7 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 ## 现有实现支持功能
 
 - **队列核心**：四种阻塞方法（put / take / offer(t) / poll(t)）、非阻塞 offer / poll / peek、`drainTo`（锁内摘除、锁外回调）、`clear`、`remove`、`removeIf` / `removeAll` / `retainAll`、弱一致迭代器（Java 8 LinkedBlockingQueue 形状，支持基于身份移除）。
-- **生命周期**：`close()`（幂等）、`isShutdown()` / `isDraining()` / `isDrained()`、`awaitDrained()`（带超时版本）。
+- **生命周期**：`close()`（幂等）、`shutdown()` / `draining()` / `drained()`、`awaitDrained()`（带超时版本）。
 - **关闭语义**：`DrainingBlockingQueue.ShutdownPolicy` 两个维度——毒丸（poison）与排空后的集合变更策略（NOOP / THROW）。
 - **双管程并行**：put 与 take 各自独立 Monitor，生产和消费并发不互斥。
 
@@ -104,7 +104,7 @@ public void close() {
 
 ### 排干线性化点
 
-`publishDrainedIfEmptyLocked()` 在"取走最后一个元素"的临界区内执行：任何把 DRAINING 状态下最后一个元素取走或清掉的操作（take / poll / remove / removeIf / clear / drainTo），都必须在同一临界区把 `DRAINING` 迁移到 `DRAINED`。拿到最后元素的调用返回时，`isDrained()` 已为 true。
+`publishDrainedIfEmptyLocked()` 在"取走最后一个元素"的临界区内执行：任何把 DRAINING 状态下最后一个元素取走或清掉的操作（take / poll / remove / removeIf / clear / drainTo），都必须在同一临界区把 `DRAINING` 迁移到 `DRAINED`。拿到最后元素的调用返回时，`drained()` 已为 true。
 
 ### 锁外回调：关闭不被用户代码阻塞
 
@@ -129,10 +129,10 @@ queue.put(1);
 queue.put(2);
 
 queue.close();          // 生产端关闭；消费端继续排干
-System.out.println(queue.isDraining());   // true
+System.out.println(queue.draining());   // true
 System.out.println(queue.take());         // 1（真实元素）
 System.out.println(queue.take());         // 2（真实元素）
-System.out.println(queue.isDrained());    // true，最后一个元素取走时已发布
+System.out.println(queue.drained());    // true，最后一个元素取走时已发布
 System.out.println(queue.take());         // -1（毒丸，终结信号）
 
 try {

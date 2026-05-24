@@ -273,7 +273,16 @@ null --all success-----------> SUCCESS
 作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
 「future 完成」与「任务体退出」，禁止混用「工作终态」。
 
-建议 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作或一把私有 lock。成员 future 的完成 callback 在 lock 内只更新小型状态和决定后续动作，取消 future、触发 listener 等外部调用必须在 lock 外执行，防止重入和长时间占锁。
+Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作，不持锁。成员
+future 的完成 callback 先更新小型状态（归类、成功计数、首失败名），再执行外部动作（级联取消、
+combine 提交、fail-fast），最后对收敛屏障 `completedTasks` 做一次原子递增：唯一观察到计数达到
+`totalTasks` 的线程固定完成原因并发布 `CLOSED`，该读-改-写同时把每个任务的归类与时间戳发布给
+收敛线程。计数递增 MUST 在该 callback 的 `finally` 中执行——屏障比较的是精确相等，一旦某个
+任务的递增因为外部动作抛出 `Error` 而被跳过，completion future 就再也无法完成。
+
+取消 future、提交 combine、触发 listener 等外部调用都在小型状态更新之后执行，防止重入和长
+时间占用；它们不依赖互斥，重入安全由原子状态的幂等性保证（见
+`task-group-observability-and-verification.md` §13 不变量 13）。
 
 ## 12. ParRuntime 关闭与资源所有权
 

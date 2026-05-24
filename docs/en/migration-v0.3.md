@@ -315,6 +315,17 @@ thread — member current task and group current context do not exist during the
   normal completion all release body references without waiting for GC. A body holding an external
   resource still has to release it itself — the framework releases the reference to the body, not
   the resources the body captured.
+- **Registering a discarding executor now fails the build.** A `ThreadPoolExecutor` whose
+  `RejectedExecutionHandler` is `DiscardPolicy` or `DiscardOldestPolicy` accepts a task and then
+  drops it: it neither runs it nor throws. The kernel only reads `RejectedExecutionException` as a
+  terminal signal, so the task's future would stay pending and `Par.map` (or a task group) would
+  wait forever with no exception at all. `ParRuntime.Builder.build()` now throws
+  `IllegalArgumentException` naming the `Par`, the pool class, and the policy. `AbortPolicy`
+  (rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are
+  unaffected. The check reads the handler of a directly registered `ThreadPoolExecutor` once, at
+  build time: a handler installed after `build()`, a custom discarding handler, and an executor the
+  library cannot see through are outside its reach and remain your `Executor` contract to keep
+  (`design/extension-and-wrapping.md` L8).
 
 ## Error timing
 
@@ -423,6 +434,7 @@ information.
 | `Par.map` takes any `Collection` instead of only `List` | Source compatible; non-`List` inputs are snapshotted on entry. |
 | `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable`; the `BatchReport` constructor is package-private | Remove null checks on `stateCounts()`; obtain reports from the library. |
 | `ParRuntime.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
+| `VariableLinkedBlockingQueue` is no longer `Serializable` | It relied on the JDK `LinkedBlockingQueue` shape, but its sentinel-linked node chain made a deserialized instance read as empty and then fail with `NullPointerException` on first use, so the declaration only promised something it could not deliver. `DrainingBlockingQueue` never declared it either. A queue is not a serialization format — rebuild it, or serialize the elements and refill. |
 
 ## Unchanged
 
