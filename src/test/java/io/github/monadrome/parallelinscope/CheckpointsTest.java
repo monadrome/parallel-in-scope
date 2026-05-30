@@ -15,6 +15,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -208,11 +209,13 @@ class CheckpointsTest {
         // sleep (the thread parks in TIMED_WAITING instead of dying on ArithmeticException), then
         // stop it with an interrupt and expect the usual translation.
         AtomicReference<Throwable> sleepOutcome = new AtomicReference<>();
+        AtomicBoolean flagRestored = new AtomicBoolean();
         Thread sleeper = new Thread(() -> {
             try {
                 Checkpoints.checkSleep(astronomic);
             } catch (Throwable failure) {
                 sleepOutcome.set(failure);
+                flagRestored.set(Thread.currentThread().isInterrupted());
             }
         });
         sleeper.start();
@@ -220,7 +223,9 @@ class CheckpointsTest {
         sleeper.interrupt();
         sleeper.join(2000L);
         assertThat(sleepOutcome.get()).isInstanceOf(LeanCancellationException.class);
-        assertThat(sleeper.isInterrupted()).isTrue();
+        // The flag is only portable while the thread is alive: JDK 14+ preserves it after
+        // termination (JDK-8229516), earlier JDKs discard it.
+        assertThat(flagRestored).isTrue();
     }
 
     @Test
