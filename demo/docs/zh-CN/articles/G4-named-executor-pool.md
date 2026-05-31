@@ -30,9 +30,9 @@ processReport(cpuPool);   // 错误：报表任务误用了计算池
 
 ## 解决方法
 
-`GlobalPar.builder().register(ParName.of("name"), pool)` 把每个线程池注册为一个命名实体。提交任务时用 `par.map( ...)` 按名字引用，不再直接传递 `ExecutorService` 实例。
+`ParRuntime.builder().register(ParId.of("name"), pool)` 把每个线程池注册为一个命名实体。提交任务时用 `par.map( ...)` 按名字引用，不再直接传递 `ExecutorService` 实例。
 
-一个 `GlobalPar` 可以注册多个池，统一管理生命周期。名字有业务语义——`"io-pool"`、`"cpu-pool"`、`"report-pool"`——代码自解释，不怕传错。
+一个 `ParRuntime` 可以注册多个池，统一管理生命周期。名字有业务语义——`"io-pool"`、`"cpu-pool"`、`"report-pool"`——代码自解释，不怕传错。
 
 ## 代码
 
@@ -41,11 +41,11 @@ ExecutorService ioPool = Executors.newFixedThreadPool(16);
 ExecutorService cpuPool = Executors.newFixedThreadPool(4);
 ExecutorService reportPool = Executors.newSingleThreadExecutor();
 
-// 命名注册：一个 GlobalPar 统一管理所有线程池
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("io-pool"), ioPool)
-        .register(ParName.of("cpu-pool"), cpuPool)
-        .register(ParName.of("report-pool"), reportPool)
+// 命名注册：一个 ParRuntime 统一管理所有线程池
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("io-pool"), ioPool)
+        .register(ParId.of("cpu-pool"), cpuPool)
+        .register(ParId.of("report-pool"), reportPool)
         .build();
 Par par = config.defaultPar();
 
@@ -68,12 +68,12 @@ TaskBatchResult<Report> reports = par.map( months, month -> {
 
 对比原生方式：
 
-| 维度 | 原生 ExecutorService 传递 | GlobalPar 命名注册 |
+| 维度 | 原生 ExecutorService 传递 | ParRuntime 命名注册 |
 |------|-------------------------|------------------|
 | 池引用 | 方法参数，类型相同易混 | 按名字引用，语义明确 |
 | 传错风险 | 编译通过，运行时才发现 | 名字不匹配直接报错 |
-| 生命周期管理 | 散落各处，容易漏关 | 集中在 GlobalPar，统一管理 |
-| 新增池 | 改方法签名，改调用方 | `.register(ParName.of("new-pool"), pool)` 一行注册 |
+| 生命周期管理 | 散落各处，容易漏关 | 集中在 ParRuntime，统一管理 |
+| 新增池 | 改方法签名，改调用方 | `.register(ParId.of("new-pool"), pool)` 一行注册 |
 
 ---
 

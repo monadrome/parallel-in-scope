@@ -1,11 +1,11 @@
 package demo.basic;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.Checkpoints;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -33,17 +33,18 @@ public class CancellationDemo {
         System.out.println("演示任务超时取消机制\n");
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("cancel-demo"), pool)
-                .defaultPar(ParName.of("cancel-demo"))
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("cancel-demo"), pool)
+                .defaultPar(ParId.of("cancel-demo"))
                 .build();
-        Par par = global.par(ParName.of("cancel-demo"));
+        Par par = global.par(ParId.of("cancel-demo"));
 
         try {
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
             // 1. 配置并行选项（设置超时）
-            BatchOptions options = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(2000)).parallelism(3);
+            BatchOptions options = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(2000))
+                    .parallelism(3);
 
             System.out.println("开始并行处理（2秒超时）...");
             System.out.println("并行度: " + options.parallelism());

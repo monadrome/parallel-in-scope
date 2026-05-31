@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
@@ -118,9 +118,9 @@ class F1_CpuTaskQueuingTest {
         int parallelism = 2;
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("cpu-pool"), pool)
-                .defaultPar(ParName.of("cpu-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("cpu-pool"), pool)
+                .defaultPar(ParId.of("cpu-pool"))
                 .build();
         Par par = config.defaultPar();
 
@@ -131,7 +131,9 @@ class F1_CpuTaskQueuingTest {
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
             // taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务
-            BatchOptions options = BatchOptions.timeout("cpu-compute", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.CPU_BOUND);
+            BatchOptions options = BatchOptions.timeout("cpu-compute", java.time.Duration.ofMillis(30000))
+                    .parallelism(parallelism)
+                    .taskType(TaskType.CPU_BOUND);
 
             TaskBatchResult<Long> result = par.map(
                     input,

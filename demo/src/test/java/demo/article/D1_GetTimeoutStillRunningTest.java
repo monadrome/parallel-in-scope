@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
@@ -33,9 +33,9 @@ public class D1_GetTimeoutStillRunningTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(2);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }
@@ -104,7 +104,9 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task1Completed = new AtomicBoolean(false);
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
+                .parallelism(2)
+                .taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2);
         TaskBatchResult<Integer> result = par.map(

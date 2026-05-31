@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:-0.2.0}"
-artifact_dir="$HOME/.m2/repository/io/github/monadrome/parallel-in-scope/$version"
+version="${1:-0.3.0-SNAPSHOT}"
+# The local repository is configurable, so ask Maven for it: a hardcoded ~/.m2 path makes the
+# removal below a silent no-op and lets the build pass against a locally installed copy.
+local_repo="$(mvn -q -DforceStdout help:evaluate -Dexpression=settings.localRepository)"
+artifact_dir="$local_repo/io/github/monadrome/parallel-in-scope/$version"
 
 # Remove the local copy so this check proves Maven Central can serve the artifact.
 rm -rf "$artifact_dir"

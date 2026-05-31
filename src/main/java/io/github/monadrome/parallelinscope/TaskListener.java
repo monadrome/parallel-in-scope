@@ -5,7 +5,7 @@ package io.github.monadrome.parallelinscope;
  *
  * <p>Implementations can record task execution times, queue wait times, etc. Register through
  * {@link
- * io.github.monadrome.parallelinscope.GlobalPar.Builder#taskListener(TaskListener)}.
+ * io.github.monadrome.parallelinscope.ParRuntime.Builder#taskListener(TaskListener)}.
  *
  * <p>Each callback delivers a {@link TaskCompletion}: the same immutable record a task group
  * embeds in its result snapshot, here carrying the task result as well.

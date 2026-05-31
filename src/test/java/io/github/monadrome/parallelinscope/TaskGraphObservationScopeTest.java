@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 /** Lifecycle semantics of {@link TaskGraphObservationScope}: ownership, polarity, idempotence. */
 class TaskGraphObservationScopeTest {
 
-    private GlobalPar global;
+    private ParRuntime global;
 
     @AfterEach
     void cleanUp() {
@@ -26,7 +26,7 @@ class TaskGraphObservationScopeTest {
 
     @Test
     void openTaskGraphObservationExposesOwnerDataAndCurrentPolarity() {
-        global = GlobalPar.builder().build();
+        global = ParRuntime.builder().build();
         TaskGraphObservationScope context = global.openTaskGraphObservation();
         try {
             assertThat(context.owner()).isSameAs(global);
@@ -46,8 +46,8 @@ class TaskGraphObservationScopeTest {
 
     @Test
     void nestedObservationsRestoreTheOuterGraphData() throws Exception {
-        global = GlobalPar.builder()
-                .register(ParName.of("io"), Executors.newSingleThreadExecutor())
+        global = ParRuntime.builder()
+                .register(ParId.of("io"), Executors.newSingleThreadExecutor())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             TaskGraphData outerData = TaskGraphObservationScope.data();
@@ -66,7 +66,7 @@ class TaskGraphObservationScopeTest {
 
     @Test
     void observationPropagatesAcrossTtlEnhancedSubmission() throws Exception {
-        global = GlobalPar.builder().build();
+        global = ParRuntime.builder().build();
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             TaskGraphData expectedData;
@@ -98,8 +98,8 @@ class TaskGraphObservationScopeTest {
     @Test
     void doubleCloseDestroysTheGraphOnlyOnce() throws Exception {
         java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
-        global = GlobalPar.builder()
-                .deadlockPolicy(io.github.monadrome.parallelinscope.GlobalParDeadlockPolicy.builder()
+        global = ParRuntime.builder()
+                .deadlockPolicy(io.github.monadrome.parallelinscope.ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())

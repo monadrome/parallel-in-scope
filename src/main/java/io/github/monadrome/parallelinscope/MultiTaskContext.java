@@ -3,12 +3,12 @@ package io.github.monadrome.parallelinscope;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group
- * member; never cached by a {@code Par} or {@code GlobalPar}.
+ * member; never cached by a {@code Par} or {@code ParRuntime}.
  *
  * <p>Resolution is the only place where a {@link UnitSpec} becomes executable values: requested
  * parallelism is capped by task count, an explicit timeout uses the earlier of its own and any
@@ -17,6 +17,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * without making child failure cancel its parent.
  */
 final class MultiTaskContext {
+    /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
+    private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
+
     private final String unitId;
     private final String name;
     private final int taskCount;
@@ -29,6 +32,7 @@ final class MultiTaskContext {
     private final @Nullable String executorLabel;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
+    private final boolean runOnCallerThread;
 
     private MultiTaskContext(
             String name,
@@ -41,8 +45,9 @@ final class MultiTaskContext {
             @Nullable ExecutorIdentity executorIdentity,
             @Nullable String executorLabel,
             TaskType taskType,
-            boolean rejectEnqueue) {
-        this.unitId = UUID.randomUUID().toString();
+            boolean rejectEnqueue,
+            boolean runOnCallerThread) {
+        this.unitId = "unit-" + UNIT_SEQUENCE.incrementAndGet();
         this.name = name;
         this.taskCount = taskCount;
         this.effectiveParallelism = effectiveParallelism;
@@ -54,6 +59,7 @@ final class MultiTaskContext {
         this.executorLabel = executorLabel;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
+        this.runOnCallerThread = runOnCallerThread;
     }
 
     /**
@@ -134,7 +140,8 @@ final class MultiTaskContext {
                 executorIdentity,
                 parLabel,
                 spec.taskType(),
-                spec.rejectEnqueue());
+                spec.rejectEnqueue(),
+                spec.runOnCallerThread());
     }
 
     /**
@@ -146,14 +153,21 @@ final class MultiTaskContext {
         if (!timeout.isPresent()) {
             return ceilingNanos;
         }
-        long timeoutNanos;
-        try {
-            timeoutNanos = timeout.get().toNanos();
-        } catch (ArithmeticException overflow) {
-            timeoutNanos = Long.MAX_VALUE;
-        }
-        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - nowNanos ? Long.MAX_VALUE : nowNanos + timeoutNanos;
+        long timeoutNanos = saturatedNanos(timeout.get());
+        // Saturated on both ends: an astronomical timeout and a clock reading that is far from zero
+        // (nanoTime() may legally be negative) used to overflow this sum into a negative deadline,
+        // which then read as "no deadline" and silently dropped the caller's timeout.
+        long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
         return Math.min(requestedDeadline, ceilingNanos);
+    }
+
+    /** Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} on overflow. */
+    private static long saturatedNanos(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
     }
 
     /** The logical unit name: batches use the options name; group members and combines use the key name. */
@@ -180,8 +194,7 @@ final class MultiTaskContext {
 
     /** Returns a non-negative remaining timeout derived from the monotonic clock. */
     public Duration remaining() {
-        long nanos = Math.max(0L, deadlineNanos - System.nanoTime());
-        return Duration.ofNanos(nanos);
+        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
     }
 
     public CancellationToken cancellationToken() {
@@ -216,5 +229,10 @@ final class MultiTaskContext {
 
     public boolean rejectEnqueue() {
         return rejectEnqueue;
+    }
+
+    /** Whether a rejected task of this unit runs on the submitting thread. */
+    public boolean runOnCallerThread() {
+        return runOnCallerThread;
     }
 }

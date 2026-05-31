@@ -47,7 +47,7 @@ class ScopedTaskContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(executor, events);
+        ParRuntime global = globalWithListener(executor, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -78,7 +78,7 @@ class ScopedTaskContractTest {
     void userExceptionIsReportedAsUserFailure(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
-        GlobalPar global = globalWithListener(executor, events);
+        ParRuntime global = globalWithListener(executor, events);
         try {
             IllegalStateException boom = new IllegalStateException("boom");
             ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
@@ -90,10 +90,10 @@ class ScopedTaskContractTest {
                     .hasCause(boom);
             if (entry == Entry.GROUP) {
                 TaskGroupResult result = lastGroupResult(global);
-                // The member observer is registered before the group token bind, so the group
-                // converges while its token is still RUNNING: a lone member failure reads as
-                // MEMBER_CANCELED, with the failure attributed to the member.
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+                // A recorded member failure takes precedence over the group token state: even
+                // though convergence runs while the group token is still RUNNING, the group
+                // adopts the failed member's own outcome.
+                assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.failedTaskName()).isEqualTo("task");
                 assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
@@ -111,7 +111,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void ttlSnapshotIsVisibleToTheTask(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         TransmittableThreadLocal<String> ttl = new TransmittableThreadLocal<>();
         try {
             ttl.set("snapshot");
@@ -127,16 +127,16 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void cpuBoundRejectionFallsBackToInlineExecution(Entry entry) throws Exception {
+    void rejectionFallsBackToInlineExecutionWhenOptionsRequestIt(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(rejecting, events);
+        ParRuntime global = globalWithListener(rejecting, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, true, () -> {
                 executions.incrementAndGet();
                 return "inline";
             });
@@ -151,18 +151,23 @@ class ScopedTaskContractTest {
         }
     }
 
+    /**
+     * The default for every task type, {@code CPU_BOUND} included: a rejected task fails without
+     * entering user code. The type is no longer what selects this — {@code runOnCallerThread} is,
+     * and it defaults to off.
+     */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void ioBoundRejectionNeverRunsUserCode(Entry entry) throws Exception {
+    void rejectionNeverRunsUserCodeByDefault(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(rejecting, events);
+        ParRuntime global = globalWithListener(rejecting, events);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.IO_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
                 executions.incrementAndGet();
                 return "never";
             });
@@ -187,13 +192,13 @@ class ScopedTaskContractTest {
     void cancelBeforeRunSkipsUserCodeAndHintsThePhase(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queuedRuns = new AtomicInteger();
         try {
             observePhases(global, phases);
             if (entry == Entry.BATCH) {
-                ListenableFuture<Object> queued = global.par(ParName.of("worker"))
+                ListenableFuture<Object> queued = global.par(ParId.of("worker"))
                         .map(
                                 java.util.Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
@@ -203,19 +208,15 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroupDefinition.Builder definition =
-                        TaskGroupDefinition.builder(TaskGroupOptions.timeout("cancel", Duration.ofSeconds(30)));
-                definition.task(
-                        new TaskKey<>("blocker") {},
-                        ParName.of("worker"),
-                        () -> runUnlessQueued("blocker", release, queuedRuns),
-                        TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskKey<Object> queued = definition.task(
-                        new TaskKey<>("queued") {},
-                        ParName.of("worker"),
-                        () -> runUnlessQueued("queued", release, queuedRuns),
-                        TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskGroup group = TaskGroup.submit(global, definition.build());
+                TaskGroupDefinition.Builder definition = global.defineGroup("cancel", Duration.ofSeconds(30));
+                TaskGroupDefinition.Member<Object> blocker = definition.task(
+                        "blocker", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroupDefinition.Member<Object> queued = definition.task(
+                        "queued", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroup group = global.submitGroup(definition.build(), bindings -> {
+                    bindings.task(blocker, () -> runUnlessQueued("blocker", release, queuedRuns));
+                    bindings.task(queued, () -> runUnlessQueued("queued", release, queuedRuns));
+                });
                 assertThat(group.future(queued).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(result.members().get("queued").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
@@ -233,10 +234,10 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void nestedSubmissionRecordsTaskGraphEdge(Entry entry) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = globalWithListener(executor, synchronizedEvents());
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-                Object value = global.par(ParName.of("worker"))
+                Object value = global.par(ParId.of("worker"))
                         .map(
                                 Collections.singletonList("outer"),
                                 item -> {
@@ -275,35 +276,40 @@ class ScopedTaskContractTest {
         return "blocked";
     }
 
-    private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
-    }
-
     /**
      * Submits one task through the batch or the group path. The two entry points declare their own
      * option types — a batch its {@link BatchOptions}, a group member its {@link TaskOptions} — so
-     * the shared task type is the only parameter they can share.
+     * the shared execution policy is mirrored on both rather than passed as one option object.
      */
     private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
+            ParRuntime global, Entry entry, String name, Callable<Object> task) {
+        return submitSingle(global, entry, name, TaskType.CPU_BOUND, false, task);
+    }
+
+    private static ListenableFuture<Object> submitSingle(
+            ParRuntime global,
+            Entry entry,
+            String name,
+            TaskType taskType,
+            boolean runOnCallerThread,
+            Callable<Object> task) {
         if (entry == Entry.BATCH) {
-            return global.par(ParName.of("worker"))
+            return global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
-                            BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
+                            BatchOptions.timeout(name, Duration.ofSeconds(30))
+                                    .taskType(taskType)
+                                    .runOnCallerThread(runOnCallerThread))
                     .results()
                     .get(0);
         }
-        TaskGroupDefinition.Builder definition =
-                TaskGroupDefinition.builder(TaskGroupOptions.timeout("contract", Duration.ofSeconds(30)));
-        TaskKey<Object> key = definition.task(
-                new TaskKey<>(name) {},
-                ParName.of("worker"),
-                task,
-                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType));
-        TaskGroup group = TaskGroup.submit(global, definition.build());
+        TaskGroupDefinition.Builder definition = global.defineGroup("contract", Duration.ofSeconds(30));
+        TaskGroupDefinition.Member<Object> key = definition.task(
+                name,
+                global.par(ParId.of("worker")),
+                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType).runOnCallerThread(runOnCallerThread));
+        TaskGroup group = global.submitGroup(definition.build(), bindings -> bindings.task(key, task));
         LAST_GROUP.set(group);
         return group.future(key);
     }
@@ -323,7 +329,7 @@ class ScopedTaskContractTest {
 
     private static final ThreadLocal<TaskGroup> LAST_GROUP = new ThreadLocal<>();
 
-    private static TaskGroupResult lastGroupResult(GlobalPar global) throws Exception {
+    private static TaskGroupResult lastGroupResult(ParRuntime global) throws Exception {
         TaskGroup group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");
@@ -336,17 +342,17 @@ class ScopedTaskContractTest {
         return Collections.synchronizedList(new ArrayList<>());
     }
 
-    private static GlobalPar globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
-        return GlobalPar.builder()
+    private static ParRuntime globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
+        return ParRuntime.builder()
                 .taskListener(events::add)
-                .register(ParName.of("worker"), executor)
+                .register(ParId.of("worker"), executor)
                 .build();
     }
 
-    private static void observePhases(GlobalPar global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
+    private static void observePhases(ParRuntime global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
         // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
         // installed and the phase observer slot is free to claim.
-        global.par(ParName.of("worker")).runtime().setPhaseObserver(phases::add);
+        global.par(ParId.of("worker")).executorRuntime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

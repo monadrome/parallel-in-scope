@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.base.Function;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
@@ -12,12 +11,12 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * The {@link TaskFuture} implementation the library delivers; instances are never constructed by
- * users.
+ * The {@link TaskFuture} implementation the library delivers; it is package-private because
+ * instances are never constructed by users and never appear in a public signature — callers only
+ * ever see the {@link TaskFuture} contract.
  *
  * <p>A task is a thin forwarding shell over the future that actually carries its outcome, plus the
  * name and {@link CancellationToken} that belong to the task rather than to that future. The shell
@@ -35,7 +34,7 @@ import javax.annotation.Nullable;
  * listeners and cancellations, and is later bound to the real future — or abandoned, when the task
  * will never run.
  */
-public final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
+final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
 
     private final ListenableFuture<T> delegate;
     private final String taskName;
@@ -88,7 +87,10 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
      * Binds this placeholder to the future that will actually run the task.
      *
      * <p>From here on the placeholder follows {@code real}: the caller's listeners fire with its
-     * outcome, and a placeholder cancelled beforehand cancels {@code real} in turn.
+     * outcome, and a placeholder cancelled beforehand cancels {@code real} in turn. If the
+     * placeholder was already terminated by an abandonment that raced the handoff, {@code real} is
+     * cancelled as well, so a caller told the task never ran never observes user code still
+     * executing underneath.
      *
      * @param real the submitted task future
      * @throws IllegalStateException if this task was not created as a placeholder
@@ -96,7 +98,9 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
     void bind(ListenableFuture<T> real) {
         SettableFuture<T> placeholder = placeholderOrThrow();
         handedOff = true;
-        placeholder.setFuture(real);
+        if (!placeholder.setFuture(real)) {
+            real.cancel(true);
+        }
     }
 
     /**
@@ -215,20 +219,9 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
     }
 
     /** See {@link #transform(Function, Executor)}. */
-    <R> Task<R> transformAsync(AsyncFunction<? super T, R> function, Executor executor) {
-        return derived(fluent().transformAsync(function, executor));
-    }
-
-    /** See {@link #transform(Function, Executor)}. */
     <X extends Throwable> Task<T> catching(
             Class<X> exceptionType, Function<? super X, ? extends T> fallback, Executor executor) {
         return derived(fluent().catching(exceptionType, fallback, executor));
-    }
-
-    /** See {@link #transform(Function, Executor)}. */
-    <X extends Throwable> Task<T> catchingAsync(
-            Class<X> exceptionType, AsyncFunction<? super X, ? extends T> fallback, Executor executor) {
-        return derived(fluent().catchingAsync(exceptionType, fallback, executor));
     }
 
     /**
@@ -237,11 +230,6 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
      */
     Task<T> withTimeout(Duration timeout, ScheduledExecutorService scheduledExecutor) {
         return derived(fluent().withTimeout(timeout, scheduledExecutor));
-    }
-
-    /** See {@link #withTimeout(Duration, ScheduledExecutorService)}. */
-    Task<T> withTimeout(long timeout, TimeUnit unit, ScheduledExecutorService scheduledExecutor) {
-        return derived(fluent().withTimeout(timeout, unit, scheduledExecutor));
     }
 
     /**

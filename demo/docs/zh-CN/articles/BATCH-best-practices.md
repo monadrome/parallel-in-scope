@@ -13,8 +13,8 @@
 - 一个挂了就取消其余（fail-fast）
 
 ```java
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("http-pool"), Executors.newFixedThreadPool(8))
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("http-pool"), Executors.newFixedThreadPool(8))
         .build();
 Par par = config.defaultPar();
 

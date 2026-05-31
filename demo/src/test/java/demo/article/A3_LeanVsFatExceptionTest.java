@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
@@ -32,9 +32,9 @@ public class A3_LeanVsFatExceptionTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }
@@ -100,7 +100,9 @@ public class A3_LeanVsFatExceptionTest {
     @Test
     void parMap_withShortTimeout_completesEfficiently() {
         // 解决方案：Par.map() 配合短超时，内部使用轻量级异常处理取消
-        BatchOptions opts = BatchOptions.timeout("lean-cancel-demo", java.time.Duration.ofMillis(200)).parallelism(4).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("lean-cancel-demo", java.time.Duration.ofMillis(200))
+                .parallelism(4)
+                .taskType(TaskType.IO_BOUND);
 
         // 提交 100 个任务，大部分会在 200ms 后被取消
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());

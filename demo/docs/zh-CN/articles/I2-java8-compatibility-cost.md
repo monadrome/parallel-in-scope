@@ -59,7 +59,7 @@ TTL 通过字节码增强，在任务提交时自动捕获上下文，在任务�
 
 ### 静态工厂 + 不可变 wither 替代 Records
 
-`BatchOptions`、`TaskGroupOptions`、`TaskOptions` 等选项类型用静态工厂加不可变 wither；只有需要多步装配的 `GlobalPar` 保留 Builder。虽然比 Record 多了不少代码，但带来了额外的好处：
+`BatchOptions`、`TaskOptions` 等选项类型用静态工厂加不可变 wither；只有需要多步装配的 `ParRuntime` 与 `TaskGroupDefinition` 保留 Builder。虽然比 Record 多了不少代码，但带来了额外的好处：
 
 - 默认值内置在工厂里，用户只写差异化的选项
 - 校验在工厂与 wither 中完成，非法配置在构造点就被拒绝
