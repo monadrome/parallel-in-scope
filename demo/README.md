@@ -2,7 +2,7 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.3.0` API，可作为外部消费者示例。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.3.0` API（以 `0.3.0-SNAPSHOT` 发布），可作为外部消费者示例。
 
 ## 快速开始
 
@@ -52,7 +52,7 @@ chmod +x scripts/run-demos.sh
 
 ## 架构约束
 
-这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 发布前，坐标仍解析为从代码树根目录 `mvn install` 安装的本地构建。
+这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 正式发布前，坐标解析为从代码树根目录 `mvn install` 安装的本地 `0.3.0-SNAPSHOT` 构建。
 
 ### 依赖方向
 
@@ -105,4 +105,4 @@ mvn test -Dtest=ArchitectureConstraintsTest
 - [项目中文文档中心](../docs/zh/index.md)
 - [parallel-in-scope 主项目](../README.md)
 - [架构约束详细说明](architecture-constraints.md)
-- [CLAUDE.md](CLAUDE.md)
+- [AGENTS.md](AGENTS.md)
