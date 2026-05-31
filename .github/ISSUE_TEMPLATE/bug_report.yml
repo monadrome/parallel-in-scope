@@ -1,0 +1,95 @@
+name: Bug report
+description: Something behaves differently from what the documentation promises
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. This is a concurrency library, so the report is
+        only actionable with a reproduction: a minimal batch or task group that shows the behaviour
+        is worth more than a long description.
+
+        If an AI tool drafted this report, please run the reproduction yourself before submitting —
+        reports that do not reproduce cost maintainer time.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and found nothing similar.
+          required: true
+        - label: This reproduces on `0.3.0-SNAPSHOT` (or the latest release), not only on an older version.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      placeholder: "0.3.0-SNAPSHOT"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: jdk
+    attributes:
+      label: JDK
+      description: The CI matrix covers 8 (library runtime), 11, 17, and 21; a version-specific finding is useful to know.
+      multiple: true
+      options:
+        - "8"
+        - "11"
+        - "17"
+        - "21"
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Symptom and impact
+      description: What did you observe, and what does it cost you? Include the outcome counts, logs, or state you saw.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: |
+        The smallest code that shows the behaviour, plus how to run it. If it only appears under
+        timing pressure, say how often it reproduces (for example "11 of 300 runs").
+      render: java
+      placeholder: |
+        ParRuntime runtime = ParRuntime.builder().register(ParId.of("pool"), executor).build();
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What the javadoc, the user guide, or your reading of the contract leads you to expect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead, including any exception message or stack trace.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Root-cause hypothesis (optional)
+      description: |
+        If you have read the code, name the class or method you suspect and why. Mark it as a
+        hypothesis rather than a finding — it helps the maintainer confirm or discard it quickly.
+    validations:
+      required: false
