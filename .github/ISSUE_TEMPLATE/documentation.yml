@@ -1,0 +1,40 @@
+name: Documentation issue
+description: A page, javadoc, or example that is wrong, missing, or misleading
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Documentation is treated as part of the contract here: if the guide and the javadoc disagree
+        with the code, that is a defect, not a nitpick. Point at the exact page or file if you can —
+        it saves a search.
+
+        The maintained documentation lives in `docs/en/` and `docs/zh/`; `demo/docs/` holds the
+        worked examples.
+
+  - type: input
+    id: location
+    attributes:
+      label: Where
+      description: File path, page URL, or the javadoc you were reading.
+      placeholder: "docs/en/user-guide.md, section \"Build the execution topology\""
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+      description: |
+        Quote the sentence if it is misleading, and say what it made you believe or do. If the
+        documentation contradicts the code, name the class or method that disagrees.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction (optional)
+      description: Wording you would like to see, or the question the page should have answered.
+    validations:
+      required: false
