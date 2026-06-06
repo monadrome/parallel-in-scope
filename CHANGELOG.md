@@ -26,6 +26,13 @@
 - `Task` is package-private; the public contract is `TaskFuture` only.
 - `Par.map` now takes any `Collection` of elements instead of only `List` (non-`List` inputs are snapshotted on entry).
 - `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable` (the `null` case was unreachable), and the `BatchReport` constructor is package-private.
+- Nullability annotations migrate to JSpecify: `javax.annotation.Nullable` (JSR-305) and
+  `org.checkerframework.checker.nullness.qual.Nullable` are replaced by a single
+  `org.jspecify.annotations.Nullable` (TYPE_USE), and package-level `@NullMarked` replaces
+  `@ParametersAreNonnullByDefault`. The `jspecify` artifact becomes a compile-scope dependency,
+  and the library build enforces the annotations with NullAway (Error Prone) at compile time.
+  `TaskGroup.CombineContext.value(member)` is now annotated `@Nullable`, matching its long-standing
+  contract that a member value may be null.
 - `ParRuntime.installGlobal` is symmetric with the instance lifecycle: `close()` on the installed instance releases the global slot so a restarted context may install again.
 - Registering a `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` now fails `ParRuntime.Builder.build()` with `IllegalArgumentException` naming the `Par`, the pool class, and the policy. Both policies accept a task and then drop it: `execute()` neither runs it nor throws, so the prepared future never reached a terminal state and a batch or group submitted to that pool waited forever without an exception. `AbortPolicy` (an ordinary rejection, reported as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are unaffected. The guard reads the handler of a directly registered `ThreadPoolExecutor` once, at build time, so a handler installed after `build()`, a custom discarding handler, and an executor the library cannot see through remain the caller's `Executor` contract (`design/extension-and-wrapping.md` L8).
 - `queue.VariableLinkedBlockingQueue` no longer implements `Serializable`. Its sentinel-linked node chain meant a deserialized instance read as an empty queue and then failed with `NullPointerException` on first use, so the declaration promised a capability the class could not deliver; `DrainingBlockingQueue` never declared it. Serialize the elements and refill a fresh queue instead of serializing the queue.

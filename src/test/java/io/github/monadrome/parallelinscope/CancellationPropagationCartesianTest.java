@@ -141,6 +141,8 @@ public class CancellationPropagationCartesianTest {
         }
 
         /** Creates pending work or running work parked at a controlled gate. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static ChildFixture create(ChildWork work) {
             if (work == ChildWork.PENDING) {
                 return new ChildFixture(

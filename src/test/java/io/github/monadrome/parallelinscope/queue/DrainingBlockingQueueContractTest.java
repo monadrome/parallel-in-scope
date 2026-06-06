@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -437,7 +438,7 @@ class DrainingBlockingQueueContractTest {
         Thread.sleep(50);
         assertTrue(queue.add(7));
         assertTrue(consumerDone.await(4, TimeUnit.SECONDS), "consumer was not released by add");
-        assertEquals(7, taken.get().intValue());
+        assertEquals(7, Objects.requireNonNull(taken.get()).intValue());
         consumer.join(TimeUnit.SECONDS.toMillis(2));
     }
 

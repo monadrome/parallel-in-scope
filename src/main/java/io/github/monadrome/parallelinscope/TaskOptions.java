@@ -3,7 +3,7 @@ package io.github.monadrome.parallelinscope;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable execution policy for exactly one task — a {@code Par.submit} task, a task-group

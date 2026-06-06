@@ -437,8 +437,23 @@ information.
 | `Task` is package-private; `TaskFuture` is the public contract | Declare `TaskFuture` where `Task` was used. |
 | `Par.map` takes any `Collection` instead of only `List` | Source compatible; non-`List` inputs are snapshotted on entry. |
 | `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable`; the `BatchReport` constructor is package-private | Remove null checks on `stateCounts()`; obtain reports from the library. |
+| `TaskGroup.CombineContext.value(member)` is now `@Nullable` | The member value could always be null; the annotation now says so. No call-site change is required unless your own null checker flags it. |
 | `ParRuntime.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
 | `VariableLinkedBlockingQueue` is no longer `Serializable` | It relied on the JDK `LinkedBlockingQueue` shape, but its sentinel-linked node chain made a deserialized instance read as empty and then fail with `NullPointerException` on first use, so the declaration only promised something it could not deliver. `DrainingBlockingQueue` never declared it either. A queue is not a serialization format — rebuild it, or serialize the elements and refill. |
+
+## Nullability annotations are now JSpecify
+
+`0.2.x` mixed JSR-305 (`javax.annotation.Nullable`) on public API with Checker Framework
+(`org.checkerframework.checker.nullness.qual.Nullable`) on internals, both `provided` scope and
+neither enforced at build time. `0.3.0` replaces both with JSpecify
+(`org.jspecify.annotations.Nullable`, TYPE_USE) and package-level `@NullMarked` in place of
+`@ParametersAreNonnullByDefault`. The library now also runs NullAway on its own build, so the
+annotations are checked rather than decorative.
+
+For source consumers this is a breaking change only if you reflectively read the old annotation
+types or import them from this library's signatures: switch to `org.jspecify.annotations`. The
+`jspecify` artifact is now a compile-scope dependency (as JSpecify recommends for annotations that
+appear in public signatures), so it arrives transitively — through Guava as well.
 
 ## Unchanged
 

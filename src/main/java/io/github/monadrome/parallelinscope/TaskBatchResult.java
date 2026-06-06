@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable result wrapper for a batch of parallel tasks.
@@ -266,7 +266,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     /** Immutable report of batch task execution state. */
     public static final class BatchReport {
         private final Map<TaskOutcome, Integer> stateCounts;
-        private final Throwable firstException;
+        private final @Nullable Throwable firstException;
 
         /**
          * Creates a batch report.
@@ -293,8 +293,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
          *
          * @return the first failure, or {@code null} if no task failed
          */
-        @Nullable
-        public Throwable firstException() {
+        public @Nullable Throwable firstException() {
             return firstException;
         }
 

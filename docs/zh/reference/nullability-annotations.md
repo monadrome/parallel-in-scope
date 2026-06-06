@@ -1,106 +1,61 @@
 # Nullability Annotations
 
-
-parallel-in-scope 使用混合空指针注解策略，在编译期和 IDE 中为开发者提供空值安全提示。
+parallel-in-scope 使用 JSpecify 注解，并通过 NullAway（Error Prone 插件）在编译期强制校验：
+库自身源码中的 null 误用会让 `mvn compile` 直接失败；下游构建则能从公开 API 签名中读到
+精确的空值信息。
 
 ## 设计理由
 
-### 为什么选择混合方案？
+注解来源统一为 JSpecify（`org.jspecify.annotations`）。JSpecify 的 `TYPE_USE` 语义同时覆盖
+泛型实参，因此公开 API、回调接口与内部实现共用一套注解，不再需要 JSR-305 与 Checker
+Framework 混合策略。
 
-| 关注点 | JSR-305 (`javax.annotation`) | Checker Framework (`org.checkerframework`) |
-|--------|------------------------------|---------------------------------------------|
-| IDE 识别度 | IntelliJ、Eclipse、SpotBugs 全支持 | IntelliJ、Eclipse 支持 |
-| 注解目标 | METHOD, PARAMETER, FIELD | TYPE_USE（可标注泛型参数） |
-| 下游用户熟悉度 | 最高（业界事实标准） | 中等 |
-| Guava 一致性 | Guava 老代码使用 | Guava 新代码方向 |
+每个包的 `package-info.java` 声明 `@NullMarked`：参数、返回值、字段与泛型实参默认全部
+非空，只有例外需要显式标注 `@Nullable`。
 
-**结论**：面向下游用户的 Public API 和回调使用 JSR-305（最大兼容性），内部实现使用 Checker Framework（`TYPE_USE` 更精确）。
+## 编译期强制
 
-### 为什么使用包级别默认 `@NonNull`？
+构建以 Error Prone 插件形式运行 NullAway，配置为 `-Xep:NullAway:ERROR` 且
+`OnlyNullMarked=true`（只检查 `@NullMarked` 包）。Error Prone 需要 JDK 21+ 运行；本仓库
+使用 JDK 25（LTS）构建，同时 `release=8` 保证产物字节码仍是 Java 8。Maven enforcer 插件
+会在过低的 JDK 上快速失败。
 
-通过在每个包的 `package-info.java` 中声明 `@ParametersAreNonnullByDefault`：
-- 所有方法参数默认为 `@NonNull`，无需逐一标注
-- 只需在少数可空的参数和返回值上标注 `@Nullable`
-- 大幅减少标注噪音，提高代码可读性
+下游使用 NullAway、Kotlin 或 IntelliJ 的用户能从编译产物签名中读到同样的注解——
+`jspecify` 构件按 JSpecify 官方建议以 compile scope 声明（Guava 也会传递引入它）。
 
-## 规则总结
-
-### 1. 包级别默认
-
-每个包都有 `package-info.java`：
-
-```java
-@ParametersAreNonnullByDefault
-package io.github.monadrome.parallelinscope;
-
-import javax.annotation.ParametersAreNonnullByDefault;
-```
-
-### 2. 注解来源选择
-
-| 类别 | 注解来源 | import 语句 |
-|------|---------|-------------|
-| Public API 类 | JSR-305 | `import javax.annotation.Nullable;` |
-| 回调接口 | JSR-305 | `import javax.annotation.Nullable;` |
-| Internal 类 | Checker Framework | `import org.checkerframework.checker.nullness.qual.Nullable;` |
-
-**Public API 类**：`ParRuntime`, `Par`, `BatchOptions`, `TaskOptions`, `TaskGroupDefinition`, `TaskGroup`, `TaskBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
-
-**回调接口**：`TaskListener`, `TaskGroup.CombineBody`, `DeadlockDetectionListener`
-
-**Internal 类**：其余所有类
-
-### 3. 什么时候需要标注 `@Nullable`
+## 什么时候需要标注 `@Nullable`
 
 - **返回值可能为 null**：仅在 API 明确允许缺省值时标注
 - **参数显式接受 null**：如 `CancellationToken` 的 parent 构造参数可传 `null`
-- **构造器参数可选**：如 `CancellationToken` 的 parent 参数可以传 null
+- **字段与泛型实参可空**：如链式队列节点的 `@Nullable E item`、`@Nullable Node<E> next`
 
-### 4. 什么时候不需要标注
+公开示例：`CancellationToken` 的可空 parent、`TaskBatchResult.BatchReport.firstException()`。
+包私有运行时类型对实现状态使用同样的规则。
 
-- **参数不可为 null**：由包级别 `@ParametersAreNonnullByDefault` 覆盖，不需要显式 `@Nonnull`
+## 什么时候不需要标注
+
+- **参数不可为 null**：由包级 `@NullMarked` 覆盖，不需要显式 `@NonNull`
 - **返回值不可为 null**：不需要标注（大多数方法的默认情况）
-- **字段**：不使用注解标注字段（由构造器保证）
 
-### 5. Checker Framework TYPE_USE 风格
+## 注解风格
 
-Internal 类使用 Checker Framework 注解时，`@Nullable` 放在类型前面（TYPE_USE 位置）：
+`@Nullable` 是 TYPE_USE 注解，紧跟在所修饰的类型之前：
 
 ```java
-// Checker Framework 风格（Internal 类）
 static @Nullable TaskExecutionContext current() { ... }
+
+public @Nullable Throwable firstException() { ... }
 ```
 
 这里只演示内部源码风格；`TaskExecutionContext` 不是公开 API。
 
-而 JSR-305 风格（Public API / 回调）放在方法声明前：
+带全限定名类型时，注解放在包前缀之后：
 
 ```java
-// JSR-305 风格（Public API / 回调）
-@Nullable
-public Throwable firstException() { ... }
+java.time.@Nullable Duration closeGrace
 ```
 
 ## 依赖配置
 
-两个注解库在 `pom.xml` 中显式声明为 `provided` scope：
-
-```xml
-<dependency>
-    <groupId>com.google.code.findbugs</groupId>
-    <artifactId>jsr305</artifactId>
-    <version>3.0.2</version>
-    <scope>provided</scope>
-</dependency>
-<dependency>
-    <groupId>org.checkerframework</groupId>
-    <artifactId>checker-qual</artifactId>
-    <version>3.55.1</version>
-    <scope>provided</scope>
-</dependency>
-```
-
-`provided` scope 意味着：
-- 编译时可用（IDE 提示正常工作）
-- 不传递给下游用户（避免依赖冲突）
-- Guava 已传递引入这两个库，`provided` 声明是防护性保障
+`jspecify` 构件为 compile scope 依赖：注解出现在公开 API 签名中，下游空值检查器必须能
+读到它们；jar 体积极小，不引入任何运行时行为。

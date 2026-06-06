@@ -3,7 +3,7 @@ package io.github.monadrome.parallelinscope;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable options of one {@link Par#map} batch: its name, its requested parallelism, and the

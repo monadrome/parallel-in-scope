@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -60,7 +61,7 @@ public class ExecutionPhaseCartesianTest {
         try {
             if (timing == Timing.BEFORE_RUN) {
                 assertThat(future.cancel(mayInterrupt)).isTrue();
-                submitted.get().run();
+                Objects.requireNonNull(submitted.get()).run();
             } else if (timing == Timing.RUNNING) {
                 runner = new Thread(submitted.get(), "phase-cartesian-runner");
                 runner.start();
@@ -68,7 +69,7 @@ public class ExecutionPhaseCartesianTest {
                 assertThat(future.cancel(mayInterrupt)).isTrue();
             } else {
                 release.countDown();
-                submitted.get().run();
+                Objects.requireNonNull(submitted.get()).run();
                 assertThat(future.cancel(mayInterrupt)).isFalse();
             }
 

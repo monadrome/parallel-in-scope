@@ -14,11 +14,13 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +47,7 @@ class TaskGraphExportTest {
             TaskGraphObservationScope.logTaskPair("b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
             TaskGraphObservationScope.logTaskPair("a", "task-a", "d", "task-d", legacyEdge("pool-a", "pool-d", true));
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.taskCycle()).isFalse();
             assertThat(data.selfLoop()).isFalse();
             assertThat(data.executorCycle()).isFalse();
@@ -73,7 +75,7 @@ class TaskGraphExportTest {
             // Parallel edge: same endpoint pair as the first entry, kept as a second TaskEdge.
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.taskCycle()).isTrue();
             assertThat(data.selfLoop()).isTrue();
             assertThat(data.executorCycle()).isTrue();
@@ -101,7 +103,7 @@ class TaskGraphExportTest {
             TaskGraphObservationScope.logTaskPair(
                     "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity, "pool-a", "pool-b"));
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.taskCycle()).isTrue();
             assertThat(data.executorCycle()).isTrue();
             assertThat(data.executorSelfLoop()).isFalse();
@@ -134,7 +136,7 @@ class TaskGraphExportTest {
             TaskGraphObservationScope.logTaskPair(
                     "b", "task-b", "c", "task-c", identityEdge(firstIdentity, secondIdentity, "pool", "pool"));
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.taskCycle()).isFalse();
             assertThat(data.executorCycle()).isFalse();
             assertThat(data.executorSelfLoop()).isFalse();
@@ -193,7 +195,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            captured = TaskGraphObservationScope.data();
+            captured = Objects.requireNonNull(TaskGraphObservationScope.data());
             // root -> outer batch, outer batch -> inner batch.
             assertThat(captured.graph().nodes()).hasSize(3);
             assertThat(captured.graph().edges()).hasSize(2);
@@ -248,7 +250,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             // Task graph is still recorded, but executor-level detection sees nothing.
             assertThat(data.graph().edges()).hasSize(2);
             assertThat(data.executorGraph().edges()).isEmpty();
@@ -281,7 +283,7 @@ class TaskGraphExportTest {
 
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             // Fork edge is recorded regardless of executor implementation.
             assertThat(data.graph().nodes()).hasSize(2);
             assertThat(data.graph().edges()).hasSize(1);
@@ -323,7 +325,8 @@ class TaskGraphExportTest {
         Files.write(EXPORT_DIR.resolve(scenario + ".json"), json.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static String graphJson(ValueGraph<String, List<TaskEdge>> graph, Map<String, String> labels, int level) {
+    private static String graphJson(
+            ValueGraph<String, List<TaskEdge>> graph, @Nullable Map<String, String> labels, int level) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         indent(json, level).append("\"nodes\": [");
@@ -344,7 +347,8 @@ class TaskGraphExportTest {
         for (EndpointPair<String> pair : graph.edges()) {
             if (!first) json.append(", ");
             first = false;
-            List<TaskEdge> edges = graph.edgeValueOrDefault(pair.source(), pair.target(), Collections.emptyList());
+            List<TaskEdge> edges = Objects.requireNonNull(
+                    graph.edgeValueOrDefault(pair.source(), pair.target(), Collections.emptyList()));
             json.append("{\"source\": ").append(quote(pair.source()));
             json.append(", \"target\": ").append(quote(pair.target()));
             json.append(", \"metadata\": ").append(metadataJson(edges));
@@ -372,7 +376,8 @@ class TaskGraphExportTest {
         for (EndpointPair<ExecutorIdentity> pair : graph.edges()) {
             if (!first) json.append(", ");
             first = false;
-            List<TaskEdge> edges = graph.edgeValueOrDefault(pair.source(), pair.target(), Collections.emptyList());
+            List<TaskEdge> edges = Objects.requireNonNull(
+                    graph.edgeValueOrDefault(pair.source(), pair.target(), Collections.emptyList()));
             json.append("{\"source\": ").append(quote(pair.source().toString()));
             json.append(", \"target\": ").append(quote(pair.target().toString()));
             json.append(", \"metadata\": ").append(metadataJson(edges));
@@ -423,7 +428,7 @@ class TaskGraphExportTest {
         indent(json, level).append(quote(name)).append(": ").append(value);
     }
 
-    private static String quote(String value) {
+    private static String quote(@Nullable String value) {
         if (value == null) return "null";
         StringBuilder out = new StringBuilder("\"");
         for (int i = 0; i < value.length(); i++) {

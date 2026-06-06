@@ -64,10 +64,11 @@ relevant contract through the document routes below.
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
   `Monitor.Guard.isSatisfied()`).
-- Every package has `package-info.java` with `@ParametersAreNonnullByDefault`;
-  annotate only exceptions with `@Nullable` — `javax.annotation.Nullable` for
-  public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for
-  internal code (both provided scope).
+- Every package has `package-info.java` with JSpecify `@NullMarked`;
+  annotate only exceptions with `org.jspecify.annotations.Nullable`
+  (TYPE_USE position, compile scope). NullAway enforces the annotations at
+  compile time via Error Prone; the build requires JDK 21+ (use JDK 25 LTS)
+  while the bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
 - The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be

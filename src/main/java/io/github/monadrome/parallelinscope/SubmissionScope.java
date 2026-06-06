@@ -1,6 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thread-local submission state used only while submitting work to an executor.

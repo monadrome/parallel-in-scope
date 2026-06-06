@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -63,7 +64,8 @@ final class FutureInspector {
             future.get();
             throw new IllegalStateException("Task completed with a result");
         } catch (ExecutionException e) {
-            return e.getCause();
+            // an ExecutionException raised by Future.get() always wraps the task's failure
+            return Objects.requireNonNull(e.getCause());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while inspecting future", e);

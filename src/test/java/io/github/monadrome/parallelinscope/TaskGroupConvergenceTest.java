@@ -9,12 +9,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -85,7 +87,8 @@ class TaskGroupConvergenceTest {
                 String named = result.failedTaskName();
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(named).isIn("m1", "m3");
-                assertThat(result.members().get(named).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+                assertThat(Objects.requireNonNull(result.members().get(named)).outcome())
+                        .isEqualTo(TaskOutcome.USER_FAILURE);
                 // Once fixed, the failing task name is never rewritten.
                 assertThat(result.failedTaskName()).isEqualTo(named);
             }
@@ -169,7 +172,7 @@ class TaskGroupConvergenceTest {
                     group.future(sibling),
                     new FutureCallback<Integer>() {
                         @Override
-                        public void onSuccess(Integer result) {}
+                        public void onSuccess(@Nullable Integer result) {}
 
                         @Override
                         public void onFailure(Throwable failure) {
@@ -184,8 +187,10 @@ class TaskGroupConvergenceTest {
 
             TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(result.members().get("canceled").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
-            assertThat(result.members().get("sibling").outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("canceled")).outcome())
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             hold.countDown();
             global.close();

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -133,6 +134,8 @@ class TaskGroupBindingsTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void nullBodiesAreRejectedAtTheBindingCall() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -227,7 +230,7 @@ class TaskGroupBindingsTest {
             assertThat(executeCalls).hasValue(0);
             assertThat(runs).hasValue(0);
             assertThat(global.inFlight()).isZero();
-            assertThat(escaped.get().isDiscarded()).isTrue();
+            assertThat(Objects.requireNonNull(escaped.get()).isDiscarded()).isTrue();
             assertThat(escaped.get().payloadsCleared()).isTrue();
         } finally {
             global.close();
@@ -297,7 +300,7 @@ class TaskGroupBindingsTest {
             assertThat(global.inFlight()).isZero();
             // Freeze already drained the bindings before admission rejected the run: the payloads
             // left this instance and the bindings are drained, not discarded.
-            assertThat(escaped.get().payloadsCleared()).isTrue();
+            assertThat(Objects.requireNonNull(escaped.get()).payloadsCleared()).isTrue();
             assertThat(escaped.get().isDrained()).isTrue();
             assertThat(escaped.get().isDiscarded()).isFalse();
         } finally {
@@ -321,7 +324,7 @@ class TaskGroupBindingsTest {
                 escaped.set(bindings);
                 bindings.task(one, () -> 1);
             });
-            TaskGroup.Bindings leaked = escaped.get();
+            TaskGroup.Bindings leaked = Objects.requireNonNull(escaped.get());
 
             assertThat(leaked.isDrained()).isTrue();
             assertThat(leaked.payloadsCleared()).isTrue();
@@ -374,6 +377,8 @@ class TaskGroupBindingsTest {
 
     // ==================== payload transfer and release ====================
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void freezeTransfersPayloadsAndClearsTheBindingsSourceSlots() {
         ExecutorService executor = Executors.newSingleThreadExecutor();

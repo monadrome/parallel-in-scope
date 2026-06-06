@@ -2,7 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link ListenableFuture} for one task execution that also reports the task's name, its

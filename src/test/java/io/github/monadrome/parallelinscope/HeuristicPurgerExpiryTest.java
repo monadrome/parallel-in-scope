@@ -18,6 +18,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Tests lazy expiry of historical cancellation estimates. */
+// NullAway: fields are assigned inside each test method, not in a constructor or setup
+@SuppressWarnings("NullAway.Init")
 public class HeuristicPurgerExpiryTest {
 
     private ThreadPoolExecutor executor;

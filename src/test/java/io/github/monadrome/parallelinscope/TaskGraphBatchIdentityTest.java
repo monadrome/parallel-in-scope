@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -18,7 +19,7 @@ class TaskGraphBatchIdentityTest {
             TaskGraphObservationScope.logTaskPair(null, "root", first.unitId(), first.name(), edge());
             TaskGraphObservationScope.logTaskPair(null, "root", second.unitId(), second.name(), edge());
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.graph().nodes()).contains(first.unitId(), second.unitId());
             assertThat(first.unitId()).isNotEqualTo(second.unitId());
             assertThat(data.graph().edges()).hasSize(2);
@@ -37,7 +38,7 @@ class TaskGraphBatchIdentityTest {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", edge());
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", edge());
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(TaskGraphObservationScope.hasTaskCycle()).isTrue();
             assertThat(TaskGraphObservationScope.hasSelfLoop()).isTrue();
             assertThat(data.graph().edgeValueOrDefault("a", "b", java.util.Collections.emptyList()))
@@ -120,7 +121,7 @@ class TaskGraphBatchIdentityTest {
                 TaskGraphObservationScope.logTaskPair("inner", "inner", "inner", "inner", edge());
             }
             assertThat(event.get()).isNotNull();
-            assertThat(event.get().hasSelfLoop()).isTrue();
+            assertThat(Objects.requireNonNull(event.get()).hasSelfLoop()).isTrue();
             assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
             assertThat(TaskGraphObservationScope.data()).isSameAs(outerData);
         } finally {
@@ -145,7 +146,8 @@ class TaskGraphBatchIdentityTest {
         }
 
         assertThat(event.get()).isNotNull();
-        assertThat(event.get().executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
+        assertThat(Objects.requireNonNull(event.get()).executorEdges())
+                .contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     private static MultiTaskContext context() {
