@@ -15,7 +15,8 @@ javadoc 明示，并以 `awaitQuiescence(Duration)`/`inFlight()` 提供 join 点
 A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9 月 10 日报告
 的五个缺陷。
 
-以下五条仍开放；其中**决策二已于 2026-09-14 拍板**（见 §3）。
+以下五条中，**决策二、决策四已于 2026-09-14 拍板**（见 §3、§5），
+**决策五已于 2026-09-25 关闭**（见 §6）。
 
 ## 2. 决策一：是否采纳 v0.3 TaskGroup 用户表面重做方案（含 C11）
 
@@ -140,27 +141,39 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 两条正交维度压进一个枚举，并让"拒绝时在提交线程执行用户代码"继续由隐式规则驱动。
 否决理由与该决策的完整落地清单见 SSOT。
 
-## 6. 决策五：batch 路径的受检异常（B3）
+## 6. 决策五：batch 路径的受检异常（B3）——**已关闭：保留标准 `Function`，不改签名**（2026-09-25）
+
+**用户决定：`Par.map` 继续使用标准 `java.util.function.Function`。** 不新增、不采用
+公开 `ThrowingFunction`，不改变 `Par.map` 签名，不新增受检异常便利重载。需要做会抛受检
+异常工作的调用方，自己在函数体内完成包装——捕获后改抛非受检异常，或返回一个领域结果
+类型。这是对当前 API 方向**最终**的决定，不是暂缓，也不随发布窗口重开。
+
+理由：标准 JDK `Function` 让 API 更小、更熟悉；受检异常的包装属于调用方策略，不足以
+成为新增一个公开函数式接口、或做破坏性签名变更的理由——两种签名下执行内核、取消、
+deadline 与失败归因（`USER_FAILURE`）完全相同，结构化并发本身不会因此多一分保证。
+完整决策记录：`design/par-map-throwing-function-v0.3-proposal.md`（已标为**已否决**）。
+
+> **不得重开**：后续编码 agent 不应再把 `ThrowingFunction` 当作优化或特性提出，除非
+> 用户明确重新开启该决策。
+
+**当时的分析（保留供追溯；其中"推荐"已被否决）**
 
 现状：`Par.map` 收 `Function<? super T, ? extends R>`（`Par.java:102-103`），
 元素体调用 IO 必须手工包受检异常；`TaskGroupDefinition.task` 收 `Callable<T>`
 则不必。公理 4（贴近 JDK 习语）下，"会抛的工作"的 JDK 习语是 `Callable`。
 
-分析：
-
 - **新增重载不可行**：`map(Collection, Function, BatchOptions)` 与
   `map(Collection, ThrowingFunction, BatchOptions)` 对 lambda 调用点产生二义性，
   两个函数式接口不能共存于同名重载。
-- **改签名（推荐方向）**：把 `map` 的函数参数换成库自定义的
+- **改签名（当时的推荐方向，已被否决）**：把 `map` 的函数参数换成库自定义的
   `ThrowingFunction<T, R>`（`apply` 声明 `throws Exception`）。对 lambda/方法引用
-  调用点源码兼容，对持有 `Function` 变量的调用点是源码级破坏——0.x 破坏性变更
-  窗口内现在做最便宜，0.3 冻结后代价陡增。
-- **备选**：`map` 收 `Function<T, Callable<R>>`——调用方多包一层，只是把手工包装
-  换了个位置，不解决问题，不推荐。
+  调用点源码兼容，对持有 `Function` 变量的调用点是源码级破坏。
+- **备选（同样未被采纳）**：`map` 收 `Function<T, Callable<R>>`——调用方多包一层，
+  只是把手工包装换了个位置。
 
-**推荐：改签名为 `ThrowingFunction<T, R>`**，与决策一同一发布窗口落地（v0.3 本就
-在动公开面），同步更新 user-guide 与新增 `migration-v0.3.md`。若决策一落地，
-`Par.submit` 已收 `Callable`，三个入口的"会抛"语义即全部对齐。
+当时据此推荐"改签名为 `ThrowingFunction<T, R>`"并绑定决策一的发布窗口。**该推荐已由
+用户否决**：`Par.map` 签名、user-guide 批路径章节与 `migration-v0.3.md` 均无需改动，
+本决策不产生任何落地项。
 
 ## 7. 无需决策的剩余重构（附录）
 
@@ -188,5 +201,6 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
    宜一并实施以少动一次提交路径。
 4. **决策三（executor 看透性 A3/A4/B2）**——`register`/`ExecutorRuntime`/提交路径，
    与决策四同区，见上。
-5. **决策五（B3 改签名）**——独立但宜早，绑定决策一的窗口。
+5. ~~**决策五（B3 改签名）**~~——**已关闭 2026-09-25：保留标准 `Function`**（见 §6），
+   不再需要发布窗口，也不再有迁移文档工作。
 6. 附录三项 opportunistic 随上述改动顺带完成。
