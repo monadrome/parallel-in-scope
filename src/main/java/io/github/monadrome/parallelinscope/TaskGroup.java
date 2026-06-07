@@ -338,6 +338,7 @@ public final class TaskGroup implements AutoCloseable {
                         observation,
                         par.executorIdentity(),
                         par.id().value());
+                par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 // The payload moves into the prepared future here; the RunBindings slot is cleared
@@ -354,7 +355,7 @@ public final class TaskGroup implements AutoCloseable {
                 if (observation != null) {
                     logForking(
                             state.context.multiTaskContext(),
-                            memberPars.get(index).executorRuntime().blockingRisk());
+                            memberPars.get(index).executorRuntime().starvationProne());
                 }
                 index++;
             }
@@ -382,6 +383,7 @@ public final class TaskGroup implements AutoCloseable {
                         observation,
                         par.executorIdentity(),
                         par.id().value());
+                par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineContext values = new CombineContext(combineSlot.handle, handles);
@@ -391,7 +393,7 @@ public final class TaskGroup implements AutoCloseable {
                 terminal = new MemberState(combineSlot.name, taskContext, future, par.submissionExecutor(), false);
                 handles.put(combineSlot.handle, terminal);
                 if (observation != null) {
-                    logForking(unit, par.executorRuntime().blockingRisk());
+                    logForking(unit, par.executorRuntime().starvationProne());
                 }
             }
         } catch (Throwable failure) {
@@ -718,7 +720,7 @@ public final class TaskGroup implements AutoCloseable {
                 member.context.endTimeNanos());
     }
 
-    private static void logForking(MultiTaskContext context, BlockingRisk blockingRisk) {
+    private static void logForking(MultiTaskContext context, boolean starvationProne) {
         MultiTaskContext parent = context.structuralParent();
         if (parent == null) return;
         TaskEdge edge = new TaskEdge(
@@ -730,7 +732,7 @@ public final class TaskGroup implements AutoCloseable {
                 parent.executorLabel(),
                 1,
                 context.remaining(),
-                blockingRisk == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                starvationProne);
         TaskGraphObservationScope.logTaskPair(parent.unitId(), parent.name(), context.unitId(), context.name(), edge);
     }
 
