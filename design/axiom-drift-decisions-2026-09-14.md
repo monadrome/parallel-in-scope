@@ -16,7 +16,7 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 的五个缺陷。
 
 以下五条中，**决策二、决策四已于 2026-09-14 拍板**（见 §3、§5），
-**决策五已于 2026-09-25 关闭**（见 §6）。
+**决策三、决策五已于 2026-09-25 落地/关闭**（见 §4、§6）。
 
 ## 2. 决策一：是否采纳 v0.3 TaskGroup 用户表面重做方案（含 C11）
 
@@ -86,7 +86,21 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 （它们在 root 包，queue 包内没有任何读取 `TaskType` 的代码），因此本决策不影响决策三、
 决策四的终态形态——决策四的 §8 "队列包移出 core" 分支随之作废。
 
-## 4. 决策三：executor 可看透性——A3/A4 的终态与 B2 的分类（一组合改）
+## 4. 决策三：executor 可看透性——A3/A4 的终态与 B2 的分类（一组合改）——**已落地：选项 C**（2026-09-25）
+
+**已按推荐落地**（提交 `f52a05b`；专项决策与取舍记录见 `design/executor-transparency.md` §6/§8）：
+
+1. **B2**：`detectRisk` 改为读取池的真实形状——队列容量与线程上界同为有界 →
+   `BOUNDED_PLATFORM_POOL`；无界队列（fixed pool 默认 LBQ）或无界线程上界（cached
+   pool）→ `UNBOUNDED`；非 TPE → `UNKNOWN`。`VIRTUAL_THREAD_PER_TASK` 按本文建议
+   留空，不做类名探测。
+2. **A3**：改为提交路径上每个 `Par` 警告一次，不抛异常。
+3. **A4**：维持"只认物理池"契约 + `build()` 警告为终态，未新增机制。
+4. **一处细化**：`executorDeadlockProne` 的判定事实从"队列有界"改为"线程上界有界"
+   ——fixed pool 线程有界、照样会饿死，仍应标记；`UNBOUNDED` 只承担资源分类，不再
+   兼任死锁过滤条件（见 `design/executor-transparency.md` §8 的 P1 落地记录）。
+
+以下为决策时的原文，保留供追溯。
 
 现状：`768437b` 只落地了报告三档方案里的最低档——文档说明 + `build()` 时对非
 `ThreadPoolExecutor` 的注册警告一次（`GlobalPar.java:102-111`）。遗留三个实质问题：
@@ -199,8 +213,8 @@ deadline 与失败归因（`USER_FAILURE`）完全相同，结构化并发本身
    其实现会与 **决策三**（executor 看透性）落在提交路径的相邻代码区
    （`TaskOptions`/`BatchOptions`/`UnitSpec`/`MultiTaskContext`/`Par`/`TaskGroup`），
    宜一并实施以少动一次提交路径。
-4. **决策三（executor 看透性 A3/A4/B2）**——`register`/`ExecutorRuntime`/提交路径，
-   与决策四同区，见上。
+4. ~~**决策三（executor 看透性 A3/A4/B2）**~~——**已落地 2026-09-25：选项 C**（见 §4），
+   `register`/`ExecutorRuntime`/提交路径，与决策四同区。
 5. ~~**决策五（B3 改签名）**~~——**已关闭 2026-09-25：保留标准 `Function`**（见 §6），
    不再需要发布窗口，也不再有迁移文档工作。
 6. 附录三项 opportunistic 随上述改动顺带完成。
