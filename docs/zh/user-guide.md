@@ -26,7 +26,9 @@ id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `pa
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
 
-注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。决定任务图边是否标记为死锁易感的事实只有线程上界：只有线程数被封顶的池，才可能出现全部 worker 都阻塞在子任务上、而再无线程可跑的局面；cached pool 总能新开线程，因此永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
+注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。
+
+任务图边是否标记为死锁易感，取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
 
 注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
 

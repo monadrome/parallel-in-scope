@@ -70,14 +70,16 @@ final class ExecutorRuntime {
      * Whether a task body on this executor can be starved of a thread while it blocks on a child
      * task's result.
      *
-     * <p>The deciding fact is the thread upper bound, not queue boundedness: a fixed pool with an
-     * unbounded queue is as deadlock-prone as a bounded one, because its worker count is capped by
-     * {@code maximumPoolSize} and every worker can block on a child that has no thread left to run
-     * on. An executor that can always add a thread is not starvation-prone, whatever its queue
-     * holds; that risk is unbounded growth rather than deadlock.
+     * <p>The deciding fact is where a submission goes when every worker is busy, which {@link
+     * ThreadPoolExecutor} decides by offering to the queue before it grows beyond {@code
+     * corePoolSize}. A buffering queue accepts the offer, so the child parks behind the blocked
+     * worker and the pool never gets the chance to add one — whatever {@code maximumPoolSize}
+     * says, and whether or not that bound is finite. A zero-capacity handoff queue is the
+     * opposite: it refuses, which forces a new worker or an explicit rejection, so the child
+     * either runs or fails visibly instead of stalling.
      *
-     * <p>{@code false} for executors whose thread bound cannot be read — the same structural
-     * honesty {@link #blockingRisk()} applies: no fact, no claim.
+     * <p>{@code false} for executors whose queue cannot be read — the same structural honesty
+     * {@link #blockingRisk()} applies: no fact, no claim.
      */
     boolean starvationProne() {
         return starvationProne;
@@ -106,19 +108,20 @@ final class ExecutorRuntime {
             return BlockingRisk.UNKNOWN;
         }
         ThreadPoolExecutor pool = (ThreadPoolExecutor) executor;
-        boolean boundedQueue = !hasUnboundedQueue(pool.getQueue());
+        boolean boundedQueue = queueCapacity(pool.getQueue()) < Integer.MAX_VALUE;
         boolean boundedThreads = pool.getMaximumPoolSize() != Integer.MAX_VALUE;
         return boundedQueue && boundedThreads ? BlockingRisk.BOUNDED_PLATFORM_POOL : BlockingRisk.UNBOUNDED;
     }
 
     /**
      * Reads the starvation fact behind {@link #starvationProne()}: a {@link ThreadPoolExecutor}
-     * whose thread count is capped cannot grow a worker for a child task when every worker is
-     * blocked on one.
+     * whose work queue buffers a submission while every worker is busy parks that submission
+     * behind a blocked worker. {@code execute} offers to the queue before it grows past {@code
+     * corePoolSize}, so the pool is only forced to add a worker — or to reject — when the offer
+     * fails, which is exactly what a zero-capacity handoff queue guarantees.
      */
     private static boolean detectStarvationProne(ExecutorService executor) {
-        return executor instanceof ThreadPoolExecutor
-                && ((ThreadPoolExecutor) executor).getMaximumPoolSize() != Integer.MAX_VALUE;
+        return executor instanceof ThreadPoolExecutor && queueCapacity(((ThreadPoolExecutor) executor).getQueue()) > 0;
     }
 
     /**
@@ -130,7 +133,7 @@ final class ExecutorRuntime {
      * concrete queue type; the {@code long} keeps a queue that reports {@link Integer#MAX_VALUE}
      * regardless of its size from overflowing.
      */
-    private static boolean hasUnboundedQueue(BlockingQueue<Runnable> queue) {
-        return (long) queue.size() + queue.remainingCapacity() >= Integer.MAX_VALUE;
+    private static long queueCapacity(BlockingQueue<Runnable> queue) {
+        return (long) queue.size() + queue.remainingCapacity();
     }
 }

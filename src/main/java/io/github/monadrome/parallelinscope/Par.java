@@ -262,11 +262,16 @@ public final class Par {
      * Reports once per Par that a requested enqueue rejection cannot take effect here.
      *
      * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
-     * tasks queue up and nothing tells the caller that the protection they selected — on by
-     * default, for {@link TaskOptions#timeout(java.time.Duration)} — is not running. The diagnostic
-     * belongs on the submission path rather than at registration because options are per task and
-     * per batch: registration cannot know whether the default will ever be used. It stays a
-     * warning: throwing would fail every caller that legitimately runs on a plain pool.
+     * nothing tells the caller that the protection they selected — on by default, for {@link
+     * TaskOptions#timeout(java.time.Duration)} — is not running. The diagnostic belongs on the
+     * submission path rather than at registration because options are per task and per batch:
+     * registration cannot know whether the default will ever be used. It stays a warning: throwing
+     * would fail every caller that legitimately runs on a plain pool.
+     *
+     * <p>The message claims only what the library knows. It cannot say what the executor will do
+     * with an element that cannot start immediately — an inline executor runs it, a bounded queue
+     * with an abort policy rejects it, a buffering queue holds it — so it reports the inert option
+     * and the fix, not the executor's behavior.
      */
     void warnIfRejectEnqueueInert(MultiTaskContext unit) {
         if (!unit.rejectEnqueue() || executorRuntime.rejectEnqueueEffective()) {
@@ -275,9 +280,10 @@ public final class Par {
         if (rejectEnqueueWarningIssued.compareAndSet(false, true)) {
             LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
                     + executorRuntime.suppliedExecutor().getClass().getName()
-                    + " does not use a SmartBlockingQueue, so the option is inert there and tasks"
-                    + " will queue instead of being rejected. Register a ThreadPoolExecutor whose"
-                    + " work queue is a SmartBlockingQueue to make the option effective.");
+                    + " does not use a SmartBlockingQueue, so the option is inert there: what"
+                    + " happens to an element that cannot start at once is left to the executor's"
+                    + " own queue and rejection policy. Register a ThreadPoolExecutor whose work"
+                    + " queue is a SmartBlockingQueue to make the option effective.");
         }
     }
 
