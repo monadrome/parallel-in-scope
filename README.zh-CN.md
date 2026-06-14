@@ -62,6 +62,15 @@ for (TaskFuture<User> future : result.results()) {
 
 `ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器。
 
+跨线程上下文传播基于 Alibaba `TransmittableThreadLocal`（TTL）：任务准备时捕获 TTL 的值，在
+worker 线程上恢复——普通 `ThreadLocal` 不会跨线程池边界：
+
+```java
+TransmittableThreadLocal<String> traceId = new TransmittableThreadLocal<>();
+traceId.set("req-42");
+// par.map(...) 的 mapper 在线程池线程上读得到 "req-42"
+```
+
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。
 
@@ -70,7 +79,7 @@ for (TaskFuture<User> future : result.results()) {
 - 批次内快速失败取消
 - 超时、显式取消与父子级联取消传播
 - 有界并发的滑动窗口提交
-- 跨线程 `ThreadLocal` 上下文传播
+- 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
 - CPU / IO 任务感知调度
 - 执行、排队与失败的监控 SPI
 - 任务图与执行器图的环路检测

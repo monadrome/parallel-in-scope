@@ -41,9 +41,11 @@ repository's to fix.
 
 Two invariants to respect:
 
-- `CancellationToken.bind()` wires deadline, fail-fast, and parent
-  propagation only after all futures are submitted; the deadline itself lives
-  in the token (min of the requested deadline and the parent's).
+- Parent propagation is wired in the `CancellationToken` constructor;
+  `CancellationToken.bind()` wires the deadline timer and fail-fast —
+  `Par.submit` binds before submitting, and only `Par.map` binds after all
+  futures are submitted; the deadline itself lives in the token (min of the
+  requested deadline and the parent's).
 - `SlidingWindowSubmitter.submitAll()` returns the exact prepared
   `ExecutionPhaseHintFuture` for tasks in the initial parallelism window;
   tasks beyond the window are returned as `SettableFuture` placeholders
