@@ -151,8 +151,8 @@ class TaskGraphBatchIdentityTest {
     }
 
     private static MultiTaskContext context() {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout("same-name", Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("same-name", Duration.ofSeconds(30)).spec(), 1));
     }
 
     private static TaskEdge edge() {
