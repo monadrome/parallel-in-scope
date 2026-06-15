@@ -9,6 +9,9 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -18,12 +21,35 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests the completion, cancellation, and queue-identity contracts of ListenableCompletionService.
+ * Tests the {@link ExecutionPhaseHintFuture} phase machine and the submission wiring {@link
+ * SlidingWindowSubmitter} uses: a completion-queue listener registered before the executor
+ * handoff, and a cancel-before-run observer bound the way {@code ParRuntime}'s purge binding does.
  */
-public class ListenableCompletionServiceTest {
+public class ExecutionPhaseHintFutureTest {
+
+    /**
+     * Submits a prepared future exactly the way {@link SlidingWindowSubmitter} does: the
+     * completion-queue listener is registered before the executor handoff, and the phase observer
+     * wires queued cancellations to the given observer the way the purge binding does.
+     */
+    private static <V> ListenableFuture<V> submit(
+            Executor executor,
+            BlockingQueue<ListenableFuture<V>> completions,
+            Runnable cancelObserver,
+            Callable<V> body) {
+        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(body, phase -> {
+            if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) {
+                cancelObserver.run();
+            }
+        });
+        future.addListener(() -> completions.add(future), MoreExecutors.directExecutor());
+        executor.execute(future);
+        return future;
+    }
 
     /** Verifies cancellation runs the observer once on the cancelling thread. */
     @Test
@@ -31,17 +57,18 @@ public class ListenableCompletionServiceTest {
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
         AtomicInteger observations = new AtomicInteger();
         AtomicReference<Thread> observerThread = new AtomicReference<>();
-        ListenableCompletionService<Integer> service =
-                new ListenableCompletionService<>(command -> {}, completions, () -> {
+        ListenableFuture<Integer> task = submit(
+                command -> {},
+                completions,
+                () -> {
                     observations.incrementAndGet();
                     observerThread.set(Thread.currentThread());
-                });
-
-        ListenableFuture<Integer> task = service.submit(() -> 1);
+                },
+                () -> 1);
         Thread cancellingThread = Thread.currentThread();
 
         assertThat(task.cancel(false)).isTrue();
-        assertThat(service.take()).isSameAs(task);
+        assertThat(completions.take()).isSameAs(task);
         assertThat(observations).hasValue(1);
         assertThat(observerThread).hasValue(cancellingThread);
         assertThat(task.cancel(false)).isFalse();
@@ -55,21 +82,20 @@ public class ListenableCompletionServiceTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-        ListenableCompletionService<Integer> service =
-                new ListenableCompletionService<>(pool, new LinkedBlockingQueue<>(), observations::incrementAndGet);
 
         try {
-            ListenableFuture<Integer> task = service.submit(() -> {
-                started.countDown();
-                while (true) {
-                    try {
-                        release.await();
-                        return 1;
-                    } catch (InterruptedException ignored) {
-                        // Keep the task running until the test releases it.
-                    }
-                }
-            });
+            ListenableFuture<Integer> task =
+                    submit(pool, new LinkedBlockingQueue<>(), observations::incrementAndGet, () -> {
+                        started.countDown();
+                        while (true) {
+                            try {
+                                release.await();
+                                return 1;
+                            } catch (InterruptedException ignored) {
+                                // Keep the task running until the test releases it.
+                            }
+                        }
+                    });
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(task.cancel(true)).isTrue();
@@ -88,9 +114,8 @@ public class ListenableCompletionServiceTest {
             AtomicInteger observations = new AtomicInteger();
             AtomicInteger calls = new AtomicInteger();
             AtomicBoolean cancelled = new AtomicBoolean();
-            ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
-                    submitted::set, new LinkedBlockingQueue<>(), observations::incrementAndGet);
-            ListenableFuture<Integer> future = service.submit(calls::incrementAndGet);
+            ListenableFuture<Integer> future = submit(
+                    submitted::set, new LinkedBlockingQueue<>(), observations::incrementAndGet, calls::incrementAndGet);
             CountDownLatch start = new CountDownLatch(1);
             CountDownLatch done = new CountDownLatch(2);
             Thread runner = new Thread(() -> {
@@ -121,36 +146,36 @@ public class ListenableCompletionServiceTest {
     /** Verifies futures release the callback once queue-residency classification is complete. */
     @Test
     public void terminalFutureReleasesQueuedCancellationObserver() throws Exception {
-        AtomicReference<Runnable> submitted = new AtomicReference<>();
-        Runnable observer = () -> {};
-        ListenableCompletionService<Integer> service =
-                new ListenableCompletionService<>(submitted::set, new LinkedBlockingQueue<>(), observer);
-        ListenableFuture<Integer> completed = service.submit(() -> 1);
-        Objects.requireNonNull(submitted.get()).run();
+        Consumer<ExecutionPhase> completedObserver = phase -> {};
+        ExecutionPhaseHintFuture<Integer> completed = ExecutionPhaseHintFuture.create(() -> 1, completedObserver);
+        completed.run();
 
-        assertThat(phaseObserver(completed)).isNotSameAs(observer);
+        assertThat(phaseObserver(completed)).isNotSameAs(completedObserver);
 
-        ListenableFuture<Integer> cancelled = service.submit(() -> 2);
+        Consumer<ExecutionPhase> cancelledObserver = phase -> {};
+        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledObserver);
         assertThat(cancelled.cancel(false)).isTrue();
 
-        assertThat(phaseObserver(cancelled)).isNotSameAs(observer);
+        assertThat(phaseObserver(cancelled)).isNotSameAs(cancelledObserver);
 
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        ListenableFuture<Integer> running = service.submit(() -> {
-            started.countDown();
-            release.await();
-            return 3;
-        });
-        Thread runner = new Thread(submitted.get());
+        Consumer<ExecutionPhase> runningObserver = phase -> {};
+        ExecutionPhaseHintFuture<Integer> running = ExecutionPhaseHintFuture.create(
+                () -> {
+                    started.countDown();
+                    release.await();
+                    return 3;
+                },
+                runningObserver);
+        Thread runner = new Thread(running);
         runner.start();
         assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-
-        assertThat(phaseObserver(running)).isNotSameAs(observer);
 
         release.countDown();
         runner.join(5000);
         assertThat(runner.isAlive()).isFalse();
+        assertThat(phaseObserver(running)).isNotSameAs(runningObserver);
     }
 
     /** Reads the phase observer field to verify reference release without relying on GC. */
@@ -163,20 +188,20 @@ public class ListenableCompletionServiceTest {
     /** Verifies that consumers can observe phases other than queued cancellation. */
     @Test
     public void phaseObserverReceivesExecutionHints() throws Exception {
-        List<ExecutionPhase> completedPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<ExecutionPhase> completedPhases = new CopyOnWriteArrayList<>();
         ExecutionPhaseHintFuture<Integer> completed = ExecutionPhaseHintFuture.create(() -> 1, completedPhases::add);
 
         completed.run();
 
         assertThat(completedPhases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
 
-        List<ExecutionPhase> cancelledPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<ExecutionPhase> cancelledPhases = new CopyOnWriteArrayList<>();
         ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledPhases::add);
 
         assertThat(cancelled.cancel(false)).isTrue();
         assertThat(cancelledPhases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
 
-        List<ExecutionPhase> runningCancellationPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
+        List<ExecutionPhase> runningCancellationPhases = new CopyOnWriteArrayList<>();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ExecutionPhaseHintFuture<Integer> running = ExecutionPhaseHintFuture.create(
@@ -227,7 +252,7 @@ public class ListenableCompletionServiceTest {
     @Test
     public void cancelWhileRunningAlwaysSurfacesCancelRequestedRunning() throws Exception {
         for (int attempt = 0; attempt < 200; attempt++) {
-            List<ExecutionPhase> phases = new java.util.concurrent.CopyOnWriteArrayList<>();
+            List<ExecutionPhase> phases = new CopyOnWriteArrayList<>();
             CountDownLatch bodyEntered = new CountDownLatch(1);
             CountDownLatch bodyRelease = new CountDownLatch(1);
             ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(
@@ -276,23 +301,23 @@ public class ListenableCompletionServiceTest {
     public void submittedFutureIsTheQueuedRunnableAndCanBePurged() throws Exception {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         ListeningExecutorService listeningPool = MoreExecutors.listeningDecorator(pool);
-        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(listeningPool);
+        LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
         CountDownLatch workerStarted = new CountDownLatch(1);
         CountDownLatch releaseWorker = new CountDownLatch(1);
 
         try {
-            service.submit(() -> {
+            submit(listeningPool, completions, () -> {}, () -> {
                 workerStarted.countDown();
                 releaseWorker.await();
                 return 0;
             });
             assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
 
-            ListenableFuture<Integer> queued = service.submit(() -> 1);
+            ListenableFuture<Integer> queued = submit(listeningPool, completions, () -> {}, () -> 1);
 
             assertThat(pool.getQueue()).containsExactly((Runnable) queued);
             assertThat(queued.cancel(false)).isTrue();
-            assertThat(service.take()).isSameAs(queued);
+            assertThat(completions.take()).isSameAs(queued);
 
             pool.purge();
             assertThat(pool.getQueue()).isEmpty();
@@ -302,23 +327,18 @@ public class ListenableCompletionServiceTest {
         }
     }
 
-    /** Verifies both submission forms and all completion-queue retrieval methods. */
+    /** Verifies completed futures enter the completion queue in finish order with their values. */
     @Test
-    public void callableAndRunnableResultsEnterTheSuppliedCompletionQueue() throws Exception {
+    public void submittedFuturesEnterTheCompletionQueue() throws Exception {
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
-        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(Runnable::run, completions);
+        ListenableFuture<Integer> first = submit(Runnable::run, completions, () -> {}, () -> 42);
+        ListenableFuture<Integer> second = submit(Runnable::run, completions, () -> {}, () -> 7);
 
-        ListenableFuture<Integer> callable = service.submit(() -> 42);
-        ListenableFuture<Integer> runnable = service.submit(() -> {}, 7);
-        ListenableFuture<Integer> nullResult = service.submit(() -> {}, null);
-
-        assertThat(service.take()).isSameAs(callable);
-        assertThat(service.poll()).isSameAs(runnable);
-        assertThat(service.poll(10, TimeUnit.MILLISECONDS)).isSameAs(nullResult);
-        assertThat(service.poll()).isNull();
-        assertThat(callable.get()).isEqualTo(42);
-        assertThat(runnable.get()).isEqualTo(7);
-        assertThat(nullResult.get()).isNull();
+        assertThat(completions.take()).isSameAs(first);
+        assertThat(completions.poll()).isSameAs(second);
+        assertThat(completions.poll(10, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(first.get()).isEqualTo(42);
+        assertThat(second.get()).isEqualTo(7);
         assertThat(completions).isEmpty();
     }
 
@@ -328,11 +348,11 @@ public class ListenableCompletionServiceTest {
         Executor rejectingExecutor = command -> {
             throw new RejectedExecutionException("rejected");
         };
-        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(rejectingExecutor);
+        LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
 
-        assertThatThrownBy(() -> service.submit(() -> 1))
+        assertThatThrownBy(() -> submit(rejectingExecutor, completions, () -> {}, () -> 1))
                 .isInstanceOf(RejectedExecutionException.class)
                 .hasMessage("rejected");
-        assertThat(service.poll()).isNull();
+        assertThat(completions.poll()).isNull();
     }
 }

@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -45,17 +46,19 @@ public class ExecutionPhaseCartesianTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch exited = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
-        ListenableCompletionService<Integer> service =
-                new ListenableCompletionService<>(submitted::set, completions, phases::add);
-        ListenableFuture<Integer> future = service.submit(() -> {
-            entered.countDown();
-            try {
-                awaitRelease(release, interrupted);
-                return 7;
-            } finally {
-                exited.countDown();
-            }
-        });
+        ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(
+                () -> {
+                    entered.countDown();
+                    try {
+                        awaitRelease(release, interrupted);
+                        return 7;
+                    } finally {
+                        exited.countDown();
+                    }
+                },
+                phases::add);
+        future.addListener(() -> completions.add(future), MoreExecutors.directExecutor());
+        submitted.set(future);
 
         Thread runner = null;
         try {

@@ -497,6 +497,42 @@ class SlidingWindowSubmitterTest {
         }
     }
 
+    @Test
+    void cancelledQueuedTaskIsTheSameObjectThePoolPurgeRemoves() throws Exception {
+        // Regression for the old completion-service wrapper: cancelling the future returned to the
+        // caller must be visible on the exact runnable held by the worker pool's queue, so
+        // ThreadPoolExecutor.purge can release it.
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(pool);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND), submitter);
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(
+                    () -> {
+                        workerStarted.countDown();
+                        releaseWorker.await();
+                        return 1;
+                    },
+                    () -> 2);
+            TaskBatchResult<Integer> batch = executor.submitAll(tasks);
+            assertThat(batch.results()).hasSize(2);
+            assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(pool.getQueue()).containsExactly((Runnable) tasks.get(1));
+            assertThat(tasks.get(1).cancel(false)).isTrue();
+
+            pool.purge();
+            assertThat(pool.getQueue()).isEmpty();
+        } finally {
+            releaseWorker.countDown();
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
