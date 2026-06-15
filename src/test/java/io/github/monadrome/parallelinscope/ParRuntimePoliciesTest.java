@@ -113,6 +113,40 @@ class ParRuntimePoliciesTest {
     }
 
     @Test
+    void purgeThresholdsAndEnablementAreAdjustableAtRuntime() {
+        ParRuntime runtime = ParRuntime.builder()
+                .purgePolicy(ParRuntimePurgePolicy.builder().enabled(true).build())
+                .build();
+        try {
+            assertThat(runtime.purgeEnabled()).isTrue();
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.80d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.05d);
+
+            runtime.adjustPurgeThresholds(0.5d, 0.25d);
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+
+            // The build-time policy is a snapshot; runtime adjustment does not rewrite it.
+            assertThat(runtime.purgePolicy().queuePressureThreshold()).isEqualTo(0.80d);
+
+            // Validation happens before either threshold changes.
+            assertThatThrownBy(() -> runtime.adjustPurgeThresholds(0.0d, 0.25d))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> runtime.adjustPurgeThresholds(0.5d, Double.NaN))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+
+            runtime.setPurgeEnabled(false);
+            assertThat(runtime.purgeEnabled()).isFalse();
+            runtime.setPurgeEnabled(true);
+            assertThat(runtime.purgeEnabled()).isTrue();
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void deadlockPolicyAndTaskListenerBuildersExposeFluentSelfReturns() {
         ParRuntimeDeadlockPolicy.Builder deadlock = ParRuntimeDeadlockPolicy.builder();
         assertThat(deadlock.enabled(true)).isSameAs(deadlock);

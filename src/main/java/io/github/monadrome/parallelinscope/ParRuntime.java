@@ -70,6 +70,9 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ParId, List<TaskListener>> taskListenerOverrides;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
     private final ParRuntimePurgePolicy purgePolicy;
+    private final AtomicBoolean purgeEnabled;
+    private final AtomicDouble purgeQueuePressureThreshold;
+    private final AtomicDouble purgeCanceledTaskRatioThreshold;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
@@ -90,10 +93,10 @@ public final class ParRuntime implements AutoCloseable {
         this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
-        this.purger = new HeuristicPurger(
-                new AtomicBoolean(purgePolicy.enabled()),
-                new AtomicDouble(purgePolicy.queuePressureThreshold()),
-                new AtomicDouble(purgePolicy.canceledTaskRatioThreshold()));
+        this.purgeEnabled = new AtomicBoolean(purgePolicy.enabled());
+        this.purgeQueuePressureThreshold = new AtomicDouble(purgePolicy.queuePressureThreshold());
+        this.purgeCanceledTaskRatioThreshold = new AtomicDouble(purgePolicy.canceledTaskRatioThreshold());
+        this.purger = new HeuristicPurger(purgeEnabled, purgeQueuePressureThreshold, purgeCanceledTaskRatioThreshold);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -248,8 +251,52 @@ public final class ParRuntime implements AutoCloseable {
         return deadlockPolicy;
     }
 
+    /**
+     * Returns the build-time purge policy. Runtime adjustments made through {@link
+     * #adjustPurgeThresholds(double, double)} and {@link #setPurgeEnabled(boolean)} are not
+     * reflected here; read the live values from {@link #queuePressureThreshold()}, {@link
+     * #canceledTaskRatioThreshold()}, and {@link #purgeEnabled()}.
+     */
     public ParRuntimePurgePolicy purgePolicy() {
         return purgePolicy;
+    }
+
+    /** Whether automatic purge is currently enabled, honoring {@link #setPurgeEnabled(boolean)}. */
+    public boolean purgeEnabled() {
+        return purgeEnabled.get();
+    }
+
+    /** The live queue-pressure threshold, honoring runtime adjustment. */
+    public double queuePressureThreshold() {
+        return purgeQueuePressureThreshold.get();
+    }
+
+    /** The live canceled-task-ratio threshold, honoring runtime adjustment. */
+    public double canceledTaskRatioThreshold() {
+        return purgeCanceledTaskRatioThreshold.get();
+    }
+
+    /**
+     * Adjusts both advisory purge thresholds for subsequent purge evaluations. Each value is held
+     * atomically and validated exactly as the builder validates it; invalid values are rejected
+     * before either threshold changes.
+     *
+     * @throws IllegalArgumentException if either threshold is not in {@code (0, 1]}
+     */
+    public void adjustPurgeThresholds(double queuePressureThreshold, double canceledTaskRatioThreshold) {
+        ParRuntimePurgePolicy.validateThreshold(queuePressureThreshold, "queuePressureThreshold");
+        ParRuntimePurgePolicy.validateThreshold(canceledTaskRatioThreshold, "canceledTaskRatioThreshold");
+        purgeQueuePressureThreshold.set(queuePressureThreshold);
+        purgeCanceledTaskRatioThreshold.set(canceledTaskRatioThreshold);
+    }
+
+    /**
+     * Enables or disables automatic purge at runtime. Disabling settles nothing: pending
+     * cancellation estimates stay advisory and are dropped only by generation expiry; re-enabling
+     * resumes evaluation from whatever estimates are still live.
+     */
+    public void setPurgeEnabled(boolean enabled) {
+        purgeEnabled.set(enabled);
     }
 
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
