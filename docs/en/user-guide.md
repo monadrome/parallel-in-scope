@@ -88,7 +88,17 @@ List<TaskFuture<Account>> futures = result.results();
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
-A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and returns `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and every element future has settled, returning `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+
+A `true` result also implies every element future is terminal, which makes it the supported recipe for terminal reporting: `result.report()` and `result.reportString()` count each element by its future's state at call time, so an element whose body has just exited but whose future has not settled yet still reads `RUNNING`. After `awaitBodyCompletion` returned `true` — or after `close()` returned, which cancels before it waits and therefore settles every element future — the report is terminal:
+
+```java
+try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccount, options)) {
+    if (batch.awaitBodyCompletion(Duration.ofSeconds(5))) {
+        System.out.println(batch.reportString());  // terminal: no RUNNING entries
+    }
+}
+```
 
 `TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after cancelling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
 

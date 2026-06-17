@@ -80,7 +80,17 @@ List<TaskFuture<Account>> futures = result.results();
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
-future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——预算耗尽时返回 `false`。它自身不取消任何任务。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
+future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——并且每个元素 future 都已落定，预算耗尽时返回 `false`。它自身不取消任何任务。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
+
+`true` 结果还蕴含每个元素 future 均已终态，这使它成为终态报告的标准配方：`result.report()` 与 `result.reportString()` 按调用时刻的 future 状态计数，任务体刚退出而 future 尚未落定的元素仍会计为 `RUNNING`。在 `awaitBodyCompletion` 返回 `true` 之后——或在 `close()` 返回之后（`close()` 先取消再等待，取消会把每个元素 future 同步落定）——报告即为终态：
+
+```java
+try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccount, options)) {
+    if (batch.awaitBodyCompletion(Duration.ofSeconds(5))) {
+        System.out.println(batch.reportString());  // 终态：不再有 RUNNING 项
+    }
+}
+```
 
 `TaskBatchResult` 实现了 `AutoCloseable`：`result.close()` 经批次 token 取消所有未完成元素，然后在批次的 close grace 内等待任务体退出。close grace 是清理预算，用 `BatchOptions.closeGrace(Duration)` 配置；未配置时派生自关闭时批次的剩余执行 deadline——超时引发的关闭在预算耗尽后直接返回，忽略中断的任务体最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待。grace 耗尽而任务体仍在运行时，未退出任务的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor；正常返回不证明任务体已经退出——先用 `awaitBodyCompletion(Duration)` 确认。
 
