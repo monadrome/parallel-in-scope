@@ -217,7 +217,7 @@ final class BodyCompletionTracker {
             return false;
         } catch (ExecutionException | CancellationException impossible) {
             // The signal is only ever set to null on completion; it cannot fail or be cancelled.
-            throw new IllegalStateException("body-exit signal cannot fail", impossible);
+            throw new AssertionError("body-exit signal cannot fail", impossible);
         }
     }
 
