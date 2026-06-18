@@ -72,6 +72,14 @@ relevant contract through the document routes below.
   compile time via Error Prone; the build requires JDK 21+ (use JDK 25 LTS)
   while the bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
+- Exception messages are lowercase sentence fragments without a trailing
+  period; they interpolate the offending value or id and name the actionable
+  alternative when one exists (`"no enclosing deadline to inherit; call
+  timeout(Duration)"`). A leading code identifier keeps its exact casing
+  (`"ParRuntime is closed"`). Use `IllegalArgumentException` for bad
+  arguments, `IllegalStateException` for bad state, and
+  `Objects.requireNonNull(x, "x cannot be null")` for null rejection — never
+  Guava `Preconditions`.
 - The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
   stack-installed implementation details. The `Context` suffix marks a data carrier

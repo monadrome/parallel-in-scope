@@ -103,7 +103,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LeanCancellationException cancellation =
-                    new LeanCancellationException("Interrupted while awaiting batch values");
+                    new LeanCancellationException("interrupted while awaiting batch values");
             cancellation.initCause(e);
             throw cancellation;
         }
