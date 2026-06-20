@@ -8,6 +8,7 @@ import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -171,6 +172,63 @@ class ParRuntimeTest {
             }
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Pre-admission validation stays synchronous even when the batch executor is broken at
+     * handoff: the missing-deadline failure is a caller-contract violation detected before any
+     * submission, so it throws directly instead of surfacing as an element submission failure.
+     */
+    @Test
+    void batchPreAdmissionValidationStaysSynchronousWithBrokenHandoffExecutor() {
+        ExecutorService broken = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("handoff broken");
+            }
+        };
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("broken"), broken).build();
+        try {
+            assertThatThrownBy(() -> global.par(ParId.of("broken"))
+                            .map(
+                                    Collections.singletonList(1),
+                                    value -> value + 1,
+                                    BatchOptions.inheritTimeout("orphan")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("no enclosing deadline to inherit");
+        } finally {
+            global.close();
+            broken.shutdownNow();
         }
     }
 

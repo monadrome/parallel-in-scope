@@ -316,6 +316,74 @@ class TaskGroupTest {
     }
 
     /**
+     * A member executor whose handoff throws an {@code Error} terminates the member as a submission
+     * failure: {@code submitGroup} still returns the group, the convergence barrier reaches its
+     * count with every member terminal, and the completion future completes normally with the
+     * group snapshot. The original {@code Error} stays reachable through the {@code
+     * SubmissionException} cause.
+     */
+    @Test
+    void memberHandoffErrorTerminatesMemberAndCompletesGroupNormally() throws Exception {
+        ExecutorService broken = brokenAtHandoff();
+        ExecutorService healthy = Executors.newSingleThreadExecutor();
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("broken"), broken)
+                .register(ParId.of("healthy"), healthy)
+                .build();
+        try {
+            TaskGroupDefinition.Builder builder = global.defineGroup("handoff-error", TIMEOUT);
+            TaskGroupDefinition.Member<Integer> failed = builder.task("failed", global.par(ParId.of("broken")));
+            TaskGroupDefinition.Member<Integer> fine = builder.task("fine", global.par(ParId.of("healthy")));
+
+            TaskGroup group = global.submitGroup(builder.build(), bindings -> {
+                bindings.task(failed, () -> 1);
+                bindings.task(fine, () -> 2);
+            });
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("failed");
+            assertThat(group.future(failed).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(group.future(failed).failure())
+                    .isInstanceOf(SubmissionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+            assertThat(group.callableReleased(failed)).isTrue();
+            // Every member is terminal: the barrier counted the failure instead of waiting forever.
+            assertThat(group.future(failed).isDone()).isTrue();
+            assertThat(group.future(fine).isDone()).isTrue();
+            assertThat(result.members().keySet()).containsExactlyInAnyOrder("failed", "fine");
+        } finally {
+            global.close();
+            broken.shutdownNow();
+            healthy.shutdownNow();
+        }
+    }
+
+    /**
+     * Pre-admission validation stays synchronous even when a member executor is broken at handoff:
+     * a binder that binds nothing fails {@code submitGroup} directly, before any member
+     * submission, and nothing is retained.
+     */
+    @Test
+    void preAdmissionValidationThrowsSynchronouslyWithBrokenHandoffExecutor() {
+        ExecutorService broken = brokenAtHandoff();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("broken"), broken).build();
+        try {
+            TaskGroupDefinition.Builder builder = global.defineGroup("pre-admission", TIMEOUT);
+            builder.task("member", global.par(ParId.of("broken")));
+
+            assertThatThrownBy(() -> global.submitGroup(builder.build(), bindings -> {}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("no Callable bound for member 'member'");
+            assertThat(global.inFlight()).isZero();
+        } finally {
+            global.close();
+            broken.shutdownNow();
+        }
+    }
+
+    /**
      * A group deadline that already expired before submission commits TIMEOUT synchronously during
      * bind: members are cancelled before their submission loop runs, so no member enters user
      * code and the group reports TIMEOUT rather than SUCCESS.
@@ -1363,5 +1431,43 @@ class TaskGroupTest {
         public void execute(Runnable command) {
             throw new RejectedExecutionException("rejected");
         }
+    }
+
+    /** An executor service whose handoff throws an {@code AssertionError} from {@code execute()}. */
+    private static ExecutorService brokenAtHandoff() {
+        return new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("handoff broken");
+            }
+        };
     }
 }

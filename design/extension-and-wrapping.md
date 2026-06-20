@@ -272,7 +272,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 | L4 | **不可配置**：不提供关闭或替换上下文包装的配置项 |
 | L5 | **归因不变**：用户 body（含自助包装）抛出的异常归因 `USER_FAILURE`，不新增 `TaskOutcome` 词汇 |
 | L6 | **快照独立**：每次 `prepare` 独立捕获上下文快照，不跨任务复用（P6） |
-| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P8）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象。提交调用抛出的**任何**失败——含违反契约直接抛出的 `Error`——同样 MUST 以 `SubmissionException` 终结该 prepared future：它没有 worker 持有，抛出后没有任何其他路径能完成它 |
+| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P8）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象。提交调用抛出的**任何**失败——含违反契约直接抛出的 `Error`——同样 MUST 以 `SubmissionException` 终结该 prepared future：它没有 worker 持有，抛出后没有任何其他路径能完成它。「任何失败」按字面覆盖 `Throwable`：`execute(Runnable)` 不声明受检异常，但执行器可以借泛型擦除偷渡受检异常，因此各 catch 点统一捕获 `Throwable`（初始窗口与滑动窗口 refill 在 `SlidingWindowSubmitter`，单次提交与 group 成员在共享内核 `ExecutionPhaseHintFuture.submitPrepared`，原 throwable 始终保留为 cause）。handoff `Error` 在记录它的那个 catch 点以 SEVERE 诊断一次，消息携带批次/成员身份与阶段；批次路径不经过 `submitPrepared`，因此同一失败不会被记录两次。普通 rejection 属于控制流，不打日志 |
 | L8 | **注册期拒绝丢弃型拒绝策略**：注册的 `ThreadPoolExecutor` 使用 `DiscardPolicy` / `DiscardOldestPolicy` 时，`ParRuntime.Builder.build()` MUST 以 `IllegalArgumentException` 失败，并在消息中点名 Par id、池类与策略类。这两种策略"接受后丢弃"：既不执行也不抛 `RejectedExecutionException`，而提交内核只把后者当作终态信号，因此 `Par.map` 与 TaskGroup 会永久等待（P10/L7）。`AbortPolicy`（拒绝成为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。守卫只在注册期读取一次 supplied 对象：`build()` 之后安装的 handler、自定义丢弃 handler、以及库看不透的包装器都不在覆盖范围内，这些形态仍只能由 U2 约束 |
 
 ### 7.2 用户侧约束

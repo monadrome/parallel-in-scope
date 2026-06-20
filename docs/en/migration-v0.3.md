@@ -347,12 +347,48 @@ full rejection — never "some bodies already ran".
 | `ParRuntime` closed (or loses the close race) | admission | no |
 | inherit group with no enclosing scoped task | run preparation | no |
 | runtime preparation failure | admission rollback | no |
-| executor rejection | runtime submission | yes, recorded in the result |
+| executor rejection or a handoff `Error` from `execute()` | runtime submission | yes, recorded in the result |
 | callable/combine body throws | runtime execution | yes, fail-fast/result |
 
 Business failures after a successful submission are expressed through the futures and
 `TaskGroupResult`, never thrown from `submitGroup`, so direct and asynchronous executors expose
 the same API behavior.
+
+## Executor handoff failures are recorded in the futures, not thrown
+
+The submission contract is now uniform for every failure of the executor handoff — a rejection,
+a contract-violating `Error` from `execute()`, or a failure while enqueuing such as
+`OutOfMemoryError`. The affected element or member future terminates as `SUBMISSION_FAILURE` with
+a `SubmissionException` whose cause is the original throwable, and neither `Par.map` nor
+`submitGroup` rethrows the failure once admission has crossed its public boundary. The completion
+shape no longer depends on whether the failure happened in the synchronous initial window or the
+asynchronous sliding-window refill — the same executor defect used to have two observable shapes.
+
+Code written against an earlier snapshot that expected `Par.map` itself to throw a handoff
+`Error` must move the escalation point to the result handle:
+
+```java
+// Old, timing-dependent expectation
+try {
+    TaskBatchResult<Result> batch = par.map(inputs, mapper, options);
+    // use batch
+} catch (Error failure) {
+    // no longer the batch submission contract
+}
+
+// New stable contract
+try {
+    List<Result> values = par.map(inputs, mapper, options).valuesOrThrow();
+} catch (ExecutionException failure) {
+    Throwable cause = failure.getCause();
+    // SubmissionException.getCause() is the executor's original throwable
+}
+```
+
+Code that already consumes `results()`, `report()`, or member futures needs no behavioral
+migration; note only that `SUBMISSION_FAILURE` may now wrap an `Error` from the handoff. A
+handoff `Error` is additionally logged once at `SEVERE` with the batch or member identity,
+because it signals a broken executor or a failing VM rather than an ordinary rejection.
 
 ## Executor rejection no longer runs user code by default
 
