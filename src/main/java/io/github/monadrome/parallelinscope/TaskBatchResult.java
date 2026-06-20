@@ -3,11 +3,16 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.collect.Maps.toImmutableEnumMap;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +43,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable CancellationToken token;
     private final @Nullable Duration closeGrace;
+    private final ListenableFuture<List<TaskCompletion<T>>> completionView;
 
     private TaskBatchResult(
             ListenableFuture<?> submitCanceller,
@@ -50,6 +56,40 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.token = token;
         this.closeGrace = closeGrace;
+        this.completionView = aggregateObservations(this.results);
+    }
+
+    /**
+     * Aggregates the element observation futures into the batch observation sink: once every
+     * element observation is published — which already waits out both future settle and body exit
+     * per element — the sink is set with the input-ordered immutable list. Element observations
+     * never fail, so a failure here is an implementation defect and fails the sink loudly instead
+     * of leaving it pending.
+     */
+    private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(List<TaskFuture<T>> results) {
+        SettableFuture<List<TaskCompletion<T>>> sink = SettableFuture.create();
+        List<ListenableFuture<TaskCompletion<T>>> observations = new ArrayList<>(results.size());
+        for (TaskFuture<T> element : results) {
+            // Every element handed to this constructor is the library's own Task view; the
+            // constructor is package-private, so no foreign TaskFuture can reach this cast.
+            observations.add(((Task<T>) element).observationView());
+        }
+        Futures.addCallback(
+                Futures.allAsList(observations),
+                new FutureCallback<List<TaskCompletion<T>>>() {
+                    @Override
+                    public void onSuccess(@Nullable List<TaskCompletion<T>> completions) {
+                        // allAsList of a fixed list never yields null.
+                        sink.set(ImmutableList.copyOf(Verify.verifyNotNull(completions)));
+                    }
+
+                    @Override
+                    public void onFailure(Throwable failure) {
+                        sink.setException(failure);
+                    }
+                },
+                MoreExecutors.directExecutor());
+        return TaskObservation.readOnly(sink);
     }
 
     private static long saturatedNanos(Duration duration) {
@@ -81,6 +121,34 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      */
     public List<TaskFuture<T>> results() {
         return results;
+    }
+
+    /**
+     * Returns the batch observation future: the input-ordered, immutable list of every element's
+     * final {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
+     * outcome, failure, and on success the result.
+     *
+     * <p>Each element snapshot is published only after its future is terminal <em>and</em> its
+     * task body has exited (or was determined to never run), so the recorded end times are always
+     * final; the aggregate completes only once every element snapshot is published. Elements that
+     * never started — rejected, cancelled, or abandoned by the sliding window — are included with
+     * zero start/end times and their real outcome. Once the batch scope has completed this future
+     * is guaranteed to be done: {@link #awaitBodyCompletion(Duration)} returning {@code true}
+     * implies the data is already available, with no extra wait. A {@link #close()} that exhausts
+     * its close grace while bodies ignore interruption may leave this future pending; it then
+     * completes as the remaining bodies exit.
+     *
+     * <p>Element failure and cancellation complete this future successfully with the real outcome
+     * data; it never returns {@code null}, never requires polling, and ignores cancellation
+     * ({@code cancel(...)} returns {@code false}). This is the full-fidelity observation entry —
+     * timing, failures, and queue wait — while {@link #report()} stays the lightweight outcome
+     * summary. Register immediate reactions with {@code Futures.addCallback} on an executor of
+     * the caller's choice.
+     *
+     * @return the batch observation future
+     */
+    public ListenableFuture<List<TaskCompletion<T>>> completionFuture() {
+        return completionView;
     }
 
     /**
@@ -203,13 +271,15 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * Waits until every task body of this batch has exited and every element future has settled,
      * or the budget elapses.
      *
-     * <p>Body exit means the user function returned or threw and its {@code finally} completed;
-     * listener callbacks are not covered. A body publishes its exit before its future settles, so
-     * body exit alone does not imply a terminal future; this method waits out that window as well.
-     * A {@code true} result therefore implies every future in {@link #results()} is terminal —
+     * <p>Body exit means the user function returned or threw and its {@code finally} completed. A
+     * body publishes its exit before its future settles, so body exit alone does not imply a
+     * terminal future; this method waits out that window as well. A {@code true} result therefore
+     * implies every future in {@link #results()} is terminal —
      * {@link #report()} and {@link #reportString()} called after it read a terminal snapshot — and
      * also covers tasks that will never be entered (cancelled, rejected, or abandoned before
-     * execution). It establishes a happens-before edge from every task body's writes to this
+     * execution). It additionally waits out the observation publication barrier, so a {@code true}
+     * result also implies {@link #completionFuture()} is already done with the final snapshots.
+     * It establishes a happens-before edge from every task body's writes to this
      * thread; once {@code true}, the result cannot be invalidated by a task starting late. {@code
      * false} means the budget elapsed while at least one body had not exited or one future had not
      * settled, which may include tasks that have not started yet.
@@ -251,7 +321,23 @@ public final class TaskBatchResult<T> implements AutoCloseable {
                 return false;
             }
         }
-        return true;
+        // Bodies exited and futures settled, so every element observation is published or about to
+        // be: the publication barrier fires on the same signals this method just waited out, but a
+        // future's get() waiters can wake before its listeners run. Wait out that window too, so a
+        // true result guarantees completionFuture() already carries the final snapshots.
+        long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
+        if (remainingNanos <= 0) {
+            return completionView.isDone();
+        }
+        try {
+            completionView.get(remainingNanos, TimeUnit.NANOSECONDS);
+            return true;
+        } catch (ExecutionException | CancellationException defect) {
+            // Element observations never fail; a failed aggregate is an implementation defect.
+            throw new AssertionError("batch observation signal cannot fail", defect);
+        } catch (TimeoutException elapsed) {
+            return false;
+        }
     }
 
     /**

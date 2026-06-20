@@ -96,7 +96,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 | `ParRuntime.timeoutScheduler()` | Group/member deadline |
 | `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
 | `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk、phase observer |
-| `ScopedCallable` | current task、checkpoint、计时、TaskListener、恢复 |
+| `ScopedCallable` | current task、checkpoint、计时、body exit 发布、恢复 |
 | `TaskExecutionContext` | 单成员任务执行身份与 timing |
 | `SubmissionScope` | 一次 executor submission 的队列策略 |
 | `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与 purge phase |

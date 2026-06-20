@@ -29,11 +29,8 @@ class ParSubmitTest {
     @Test
     void submitRunsOneScopedTaskWithNameAndDeadline() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("worker"), executor)
-                .taskListener(listenerCompletion::set)
-                .build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
@@ -49,8 +46,9 @@ class ParSubmitTest {
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(Objects.requireNonNull(listenerCompletion.get()).taskName())
-                    .isEqualTo("single");
+            TaskCompletion<String> completion = task.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(completion.taskName()).isEqualTo("single");
+            assertThat(completion.result()).isEqualTo("done");
         } finally {
             global.close();
             executor.shutdownNow();

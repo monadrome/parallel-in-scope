@@ -89,7 +89,7 @@ executorIdentity / executorLabel = member Par 的绑定
 ```
 
 成员名（`Member.name()`，`String`）是成员身份的单一事实来源：它同时作为 Group 内唯一键、
-组级结果键，以及 `MultiTaskContext.name` 所承载的任务执行、checkpoint、TaskListener 和
+组级结果键，以及 `MultiTaskContext.name` 所承载的任务执行、checkpoint、观测快照和
 graph label 诊断名称。成员选项 `TaskOptions` 不含 name，成员身份只能来自 definition 声明时
 分配的 `Member` handle。
 
@@ -108,7 +108,6 @@ install member task
   user callable
   markEnded
 clear current task
-  TaskListener callback（显式读取 TaskCompletion）
 restore previous task
 ```
 
@@ -118,7 +117,9 @@ restore previous task
 outer current -> member current -> outer current
 ```
 
-TaskListener 回调期间 `TaskExecutionContext.current()` MUST 为 null，避免 listener 提交的新任务被误判为已完成成员的结构化子任务。
+观测快照的发布不依赖当前线程上下文：成员的 observation future 由 future 终态与任务体
+`EXITED`/`SKIPPED` 两个信号汇合发布，快照显式读取 `TaskExecutionContext` 与 token，因此
+不存在"读取上下文时被误判为已完成成员结构化子任务"的窗口。
 
 ### 4.6 SubmissionScope
 
@@ -263,9 +264,11 @@ null --all success-----------> SUCCESS
 2. **任务体退出**：用户 Callable 已返回或抛出并完成其 finally；由每任务预登记的原子状态机
    （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享的 body-exit future 信号跟踪，
    名额在任何任务提交之前预登记（含窗口外任务与 terminal combine），正常路径在用户任务体
-   finally 完成后、TaskListener 调用前发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
+   finally 完成后发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
    或 `SKIPPED` 各恰好释放一次名额；
-3. **监听器完成**：`TaskListener` 回调执行完毕，不属于任务体退出范围。
+3. **观测快照发布**：成员 observation future 由 future 终态与任务体退出两个信号汇合后
+   以终态 `TaskCompletion` 快照完成；它不运行在任务体 finally 内，也不属于任务体退出范围，
+   但 `awaitBodyCompletion(...) == true` 保证快照已经可得。
 
 `close()` 保证第一层，并在 close grace（`TaskGroupDefinition.Builder.closeGrace(Duration)`，未配置时派生
 自关闭时剩余的有效 deadline）内等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。

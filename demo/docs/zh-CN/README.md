@@ -35,7 +35,7 @@
 
 ## 监控与集成
 
-- [G1. TaskListener 监控](articles/G1-task-listener-monitoring.md)
+- [G1. 完成快照监控](articles/G1-completion-future-monitoring.md)
 - [G2. 批量结果报告](articles/G2-batch-result-report.md)
 - [G4. 命名线程池](articles/G4-named-executor-pool.md)
 - [G5. 批量 HTTP 调用](articles/G5-batch-http-calls.md)

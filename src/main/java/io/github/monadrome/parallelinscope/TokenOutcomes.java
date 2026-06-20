@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Maps a {@link CancellationToken}'s committed state onto the {@link TaskOutcome} of the work it
  * canceled. This is the single implementation of the token-to-outcome attribution table shared by
- * {@code TaskGroup} member classification, {@code ScopedCallable} listener events, and {@code
- * TaskBatchResult} reports.
+ * {@code TaskGroup} member classification, {@code TaskFuture} outcome attribution and observation
+ * snapshots, and {@code TaskBatchResult} reports.
  *
  * <p>The mapping reads the token as the single authority, because a token commits its state before
  * canceling the futures bound to it:
@@ -16,9 +16,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@code TIMEOUT} → {@link TaskOutcome#TIMEOUT}
  *   <li>{@code FAIL_FAST} → {@link TaskOutcome#FAIL_FAST}
  *   <li>{@code CANCELED} → {@link TaskOutcome#GROUP_CANCELED}: the token-as-a-whole was canceled,
- *       which is the post-hoc view of the owning unit. A caller doing direct observation of one
- *       task's own cancellation (see {@code ScopedCallable}) intercepts {@code CANCELED} first and
- *       reports {@link TaskOutcome#MEMBER_CANCELED} instead
+ *       which is the post-hoc view of the owning unit
  *   <li>{@code PROPAGATED_CANCELED} → the token carries no reason of its own, so {@link
  *       CancellationToken#originState()} walks the parent chain: an originating {@code TIMEOUT}
  *       stays {@link TaskOutcome#TIMEOUT}, anything else is {@link TaskOutcome#GROUP_CANCELED}

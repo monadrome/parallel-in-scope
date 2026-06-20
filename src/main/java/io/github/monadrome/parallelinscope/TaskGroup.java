@@ -18,8 +18,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -108,8 +111,11 @@ public final class TaskGroup implements AutoCloseable {
         this.totalTasks = this.memberStates.size() + (terminal == null ? 0 : 1);
         // The group's own terminal future is a task like any other: it carries the group name and
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
-        // as on a member future.
-        this.completionTask = Task.of(groupName, groupToken, completion);
+        // as on a member future. Its observation is the single group-level summary — the result is
+        // the TaskGroupResult itself and the timings are the group's own — which describes no
+        // additional task body and is counted neither among the members nor in the TaskGraph.
+        this.completionTask = Task.of(
+                groupName, groupToken, completion, TaskObservation.of(() -> groupSummary(completion), completion));
         Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) publicMembers.put(member.name, member.view);
         this.members = ImmutableMap.copyOf(publicMembers);
@@ -252,11 +258,13 @@ public final class TaskGroup implements AutoCloseable {
      * exited, or the budget elapses.
      *
      * <p>Body exit means the user {@code Callable} returned or threw and its {@code finally}
-     * completed; listener callbacks are not covered. A {@code true} result also covers tasks that
+     * completed. A {@code true} result also covers tasks that
      * will never be entered (cancelled, rejected, or never submitted) and establishes a
      * happens-before edge from every task body's writes to this thread; once {@code true}, the
      * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
      * while at least one body had not exited, which may include tasks that have not started yet.
+     * A {@code true} result additionally waits out the member observation publication barrier, so
+     * every member's {@link TaskFuture#completionFuture()} is already done with its final snapshot.
      *
      * <p>This method never cancels tasks and does not require a prior {@link #close()}; the budget
      * is an independent cleanup wait that neither extends the group's execution deadline nor
@@ -271,7 +279,34 @@ public final class TaskGroup implements AutoCloseable {
      * @throws InterruptedException if the calling thread is interrupted before or during the wait
      */
     public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
-        return bodyCompletion.awaitBodyCompletion(timeout);
+        long startNanos = System.nanoTime();
+        if (!bodyCompletion.awaitBodyCompletion(timeout)) {
+            return false;
+        }
+        // Bodies exited, so every member observation is published or about to be: the publication
+        // barrier fires on the same signals, but a member future's get() waiters can wake before
+        // its observation listener runs. Wait out that window too, so a true result guarantees
+        // every member's completionFuture() already carries its final snapshot.
+        long budgetNanos = saturatedNanos(timeout);
+        for (MemberState member : membersAndTerminal()) {
+            ListenableFuture<?> observation = member.view.observationView();
+            if (observation.isDone()) {
+                continue;
+            }
+            long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                return false;
+            }
+            try {
+                observation.get(remainingNanos, TimeUnit.NANOSECONDS);
+            } catch (ExecutionException | CancellationException defect) {
+                // Member observations never fail; a failed observation is an implementation defect.
+                throw new AssertionError("member observation signal cannot fail", defect);
+            } catch (TimeoutException elapsed) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -690,6 +725,20 @@ public final class TaskGroup implements AutoCloseable {
         completion.set(snapshot(TaskOutcome.SUCCESS, null));
     }
 
+    /**
+     * The group-level observation summary of the settled completion future. The completion future
+     * is only ever set with a result — convergence never fails or cancels it — so a failure here
+     * is an implementation defect.
+     */
+    private static TaskCompletion<TaskGroupResult> groupSummary(SettableFuture<TaskGroupResult> completion) {
+        try {
+            return TaskCompletion.groupSummary(Objects.requireNonNull(
+                    Futures.getDone(completion), "group result is committed before observation"));
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("group completion future cannot fail", impossible);
+        }
+    }
+
     private TaskGroupResult snapshot(TaskOutcome outcome, @Nullable String failedName) {
         Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) {
@@ -1021,7 +1070,7 @@ public final class TaskGroup implements AutoCloseable {
      * never futures — so it cannot re-await, cancel, or orchestrate the underlying tasks. It runs
      * exactly once, on a worker thread of the {@code Par} named at declaration, inside the same
      * scoped-task machinery as a member (execution context, TTL replay, deadline, cooperative
-     * cancellation, listener events).
+     * cancellation, observation snapshot).
      *
      * <p>The body is supplied per submission through {@link Bindings#combine} and may capture this
      * run's request; it must still be a pure function of member values and its configuration-time

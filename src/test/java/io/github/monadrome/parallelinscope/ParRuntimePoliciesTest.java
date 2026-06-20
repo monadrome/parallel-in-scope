@@ -17,52 +17,11 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
-/** Builder validation matrix for {@link ParRuntime} policies and its task-listener overrides. */
+/** Builder validation matrix for {@link ParRuntime} policies. */
 class ParRuntimePoliciesTest {
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
-    @SuppressWarnings("NullAway")
     @Test
-    void parTaskListenerRejectsBlankNamesAndNullListenersAndAppendsPerPar() {
-        ParRuntime.Builder builder = ParRuntime.builder();
-        TaskListener first = event -> {};
-        TaskListener second = event -> {};
-
-        assertThat(builder.parTaskListener(ParId.of("orders"), first)).isSameAs(builder);
-
-        assertThatThrownBy(() -> builder.parTaskListener(null, first)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> builder.parTaskListener(ParId.of(""), first))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ParRuntime.builder().parTaskListener(ParId.of("fresh"), null))
-                .isInstanceOf(NullPointerException.class);
-
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("billing"), executor)
-                .taskListener(first)
-                .parTaskListener(ParId.of("billing"), first)
-                .parTaskListener(ParId.of("billing"), second)
-                .build();
-        try {
-            assertThat(global.closed()).isFalse();
-            assertThat(global.taskListeners()).containsExactly(first);
-            assertThat(global.taskListenersFor(ParId.of("billing"))).containsExactly(first, second);
-            assertThatThrownBy(
-                            () -> global.taskListenersFor(ParId.of("billing")).clear())
-                    .isInstanceOf(UnsupportedOperationException.class);
-        } finally {
-            global.close();
-            executor.shutdownNow();
-        }
-    }
-
-    @Test
-    void taskListenerOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
-        assertThatThrownBy(() -> ParRuntime.builder()
-                        .parTaskListener(ParId.of("ghost"), event -> {})
-                        .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not registered");
+    void registerRejectsDuplicatesAndDefaultParMustBeRegistered() {
         assertThatThrownBy(() -> ParRuntime.builder()
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor())
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor()))
@@ -148,20 +107,10 @@ class ParRuntimePoliciesTest {
     }
 
     @Test
-    void deadlockPolicyAndTaskListenerBuildersExposeFluentSelfReturns() {
+    void deadlockPolicyBuilderExposesFluentSelfReturns() {
         ParRuntimeDeadlockPolicy.Builder deadlock = ParRuntimeDeadlockPolicy.builder();
         assertThat(deadlock.enabled(true)).isSameAs(deadlock);
         assertThat(deadlock.build().enabled()).isTrue();
-
-        ParRuntime.Builder listeners = ParRuntime.builder();
-        TaskListener listener = event -> {};
-        assertThat(listeners.taskListener(listener)).isSameAs(listeners);
-        ParRuntime global = listeners.build();
-        try {
-            assertThat(global.taskListeners()).containsExactly(listener);
-        } finally {
-            global.close();
-        }
     }
 
     @Test

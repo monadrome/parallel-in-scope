@@ -54,7 +54,6 @@ class ScopePrimitivesTest {
     @Test
     void parIdsAreValidatedByTheValueTypeAndNeverNormalized() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        TaskListener listener = event -> {};
         try {
             ParRuntime.Builder builder = ParRuntime.builder();
             assertThatThrownBy(() -> ParId.of(null)).isInstanceOf(NullPointerException.class);
@@ -62,7 +61,6 @@ class ScopePrimitivesTest {
             assertThatThrownBy(() -> ParId.of("   ")).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> builder.register(null, executor)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> builder.defaultPar(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> builder.parTaskListener(null, listener)).isInstanceOf(NullPointerException.class);
         } finally {
             executor.shutdownNow();
         }
@@ -79,7 +77,6 @@ class ScopePrimitivesTest {
             assertThat(global.par(ParId.of(" db ")).id()).isEqualTo(ParId.of(" db "));
             assertThatThrownBy(() -> global.par(null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> global.find(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.taskListenersFor(null)).isInstanceOf(NullPointerException.class);
         } finally {
             global.close();
             io.shutdownNow();
@@ -102,46 +99,6 @@ class ScopePrimitivesTest {
         } finally {
             global.close();
             executor.shutdownNow();
-        }
-    }
-
-    // ==================== ParRuntime task listeners ====================
-
-    // NullAway: deliberate null arguments — probes the null-rejection contract
-    @SuppressWarnings("NullAway")
-    @Test
-    void taskListenersExposeImmutableSnapshotSemantics() {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime empty =
-                ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try {
-            assertThat(empty.taskListeners()).isEmpty();
-            assertThat(empty.taskListenersFor(ParId.of("worker"))).isEmpty();
-        } finally {
-            empty.close();
-            executor.shutdownNow();
-        }
-
-        ParRuntime.Builder builder = ParRuntime.builder();
-        assertThatThrownBy(() -> builder.taskListener(null)).isInstanceOf(NullPointerException.class);
-
-        TaskListener listener = event -> {};
-        ExecutorService snapshottedExecutor = Executors.newSingleThreadExecutor();
-        ParRuntime snapshotted = ParRuntime.builder()
-                .taskListener(listener)
-                .register(ParId.of("worker"), snapshottedExecutor)
-                .build();
-        try {
-            assertThat(snapshotted.taskListeners()).containsExactly(listener);
-            assertThat(snapshotted.taskListenersFor(ParId.of("worker"))).containsExactly(listener);
-            assertThatThrownBy(() -> snapshotted.taskListeners().add(listener))
-                    .isInstanceOf(UnsupportedOperationException.class);
-            assertThatThrownBy(() ->
-                            snapshotted.taskListenersFor(ParId.of("worker")).add(listener))
-                    .isInstanceOf(UnsupportedOperationException.class);
-        } finally {
-            snapshotted.close();
-            snapshottedExecutor.shutdownNow();
         }
     }
 
@@ -216,13 +173,10 @@ class ScopePrimitivesTest {
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
         MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
         TaskExecutionContext taskContext = task(context, 0);
-        ScopedCallable<Integer> callable = new ScopedCallable<>(
-                taskContext,
-                () -> {
-                    Thread.sleep(4);
-                    return 42;
-                },
-                java.util.Collections.emptyList());
+        ScopedCallable<Integer> callable = new ScopedCallable<>(taskContext, () -> {
+            Thread.sleep(4);
+            return 42;
+        });
 
         Thread.sleep(6); // Simulate queue wait between construction and start.
         assertThat(callable.call()).isEqualTo(42);
@@ -238,10 +192,8 @@ class ScopePrimitivesTest {
     @Test
     void scopedCallableRejectsNullConstructionArguments() {
         MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
-        assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ScopedCallable<>(task(context, 0), null, java.util.Collections.emptyList()))
-                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ScopedCallable<>(task(context, 0), null)).isInstanceOf(NullPointerException.class);
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {

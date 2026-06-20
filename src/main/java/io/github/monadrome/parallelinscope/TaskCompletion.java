@@ -5,23 +5,25 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable record of one completed task — a {@code Par.map} batch element or a task-group
- * member.
+ * Immutable terminal snapshot of one completed task — a {@code Par.submit} task, a {@code
+ * Par.map} batch element, a task-group member, or the group-level summary.
  *
- * <p>The same record serves two delivery points: a {@code TaskListener} receives it at task
- * completion (carrying the task result), and a {@link TaskGroupResult} embeds one per member — plus
- * one for the optional terminal combine — as its terminal snapshot. Two fields are
- * delivery-specific: {@link #result()} is only non-null on
- * listener delivery of a successful task (a group member's result stays in its future), and
- * {@link #taskIndex()} is always zero for group members.
+ * <p>The same record serves every observation point: {@link TaskFuture#completionFuture()} and
+ * {@link TaskBatchResult#completionFuture()} publish one per task (carrying the task result on
+ * success), and a {@link TaskGroupResult} embeds one per member — plus one for the optional
+ * terminal combine — as its terminal snapshot. Two fields are delivery-specific: {@link #result()}
+ * is only non-null on a successful unary or batch snapshot (a group member's result stays in its
+ * future), and {@link #taskIndex()} is always zero for group members.
  *
- * <p>Listener events attribute the outcome observed at completion time — {@link
- * TaskOutcome#SUCCESS}, {@link TaskOutcome#USER_FAILURE}, or a cancellation state read from the
- * task token. A group snapshot may carry richer post-hoc attribution (for example {@link
- * TaskOutcome#FAIL_FAST}) derived after the group converges.
+ * <p>A per-task snapshot attributes the outcome observed directly from the task's own future and
+ * token — {@link TaskOutcome#SUCCESS}, {@link TaskOutcome#USER_FAILURE}, or a cancellation state
+ * read from the task token. A group snapshot may carry richer post-hoc attribution (for example
+ * {@link TaskOutcome#FAIL_FAST}) derived after the group converges, and remains the authority for
+ * group-level attribution.
  *
- * <p>A member cancelled before running never marks a start or end time; its {@code
- * startTimeNanos} and {@code endTimeNanos} stay zero and the derived durations report zero.
+ * <p>A task cancelled or rejected before running never marks a start or end time; its {@code
+ * startTimeNanos} and {@code endTimeNanos} stay zero and the derived durations report zero, while
+ * its real {@link TaskOutcome} and failure are still recorded.
  */
 public final class TaskCompletion<T> {
 
@@ -123,8 +125,47 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the logical task name: the unit name on listener delivery, the registered member
-     * name in a group snapshot.
+     * Creates the terminal snapshot published by {@link TaskFuture#completionFuture()} and
+     * aggregated by {@link TaskBatchResult#completionFuture()}: the full per-task record with its
+     * real identity, timings, outcome, and — on success — result.
+     */
+    static <T> TaskCompletion<T> snapshot(
+            String taskName,
+            String unitId,
+            int taskIndex,
+            long submitTimeNanos,
+            long startTimeNanos,
+            long endTimeNanos,
+            TaskOutcome outcome,
+            @Nullable T result,
+            @Nullable Throwable failure) {
+        return new TaskCompletion<>(
+                taskName, unitId, taskIndex, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, result, failure);
+    }
+
+    /**
+     * Creates the single group-level summary carried by the observation of {@link
+     * TaskGroup#completionFuture()}: the group name and id stand in for the task identity, the
+     * index is zero, submit/start/end are the group-level times, and the result is the {@link
+     * TaskGroupResult} itself. The summary describes no additional task body, so it is not counted
+     * among the members or in the TaskGraph.
+     */
+    static TaskCompletion<TaskGroupResult> groupSummary(TaskGroupResult result) {
+        return new TaskCompletion<>(
+                result.groupName(),
+                result.groupId(),
+                0,
+                result.startTimeNanos(),
+                result.startTimeNanos(),
+                result.endTimeNanos(),
+                result.outcome(),
+                result,
+                result.recordedFailure());
+    }
+
+    /**
+     * Returns the logical task name: the unit name on a unary or batch snapshot, the registered
+     * member name in a group snapshot.
      */
     public String taskName() {
         return taskName;
@@ -166,8 +207,9 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the task result on listener delivery of a successful task; null for a failed task, a
-     * successful null result, or any group snapshot.
+     * Returns the task result of a successful unary or batch snapshot (or the {@link
+     * TaskGroupResult} of a group completion summary); null for a failed task, a successful null
+     * result, or any group member snapshot.
      */
     public @Nullable T result() {
         return result;

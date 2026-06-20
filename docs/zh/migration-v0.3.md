@@ -29,6 +29,7 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `CombineFunction<R>` | 在 `TaskGroup.Bindings` 上登记的 `TaskGroup.CombineBody<R>` |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
+| `TaskListener`、`ParRuntime.Builder.taskListener(...)` / `parTaskListener(...)`、`ParRuntime.taskListeners()` / `taskListenersFor(...)` | `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` + `Futures.addCallback` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` 及 `TaskGroupDefinition.tasks()` / `combine()` | 已删除；`TaskGroupDefinition.Member<T>` 是唯一句柄 |
 
 五个被删除的顶层类型都不保留兼容别名：`TaskKey`、`CombineFunction`、
@@ -70,15 +71,15 @@ Par io = runtime.par(ParId.of("io"));
 
 - `ParRuntime.Builder.register(ParId, ExecutorService)` 仍返回 `Builder`——在
   `ParRuntime` 完成构建前，`Par` 所需的 owner 与 runtime 尚不存在，因此不能返回 `Par`。
-- `ParRuntime.Builder.defaultPar(ParId)` 与 `parTaskListener(ParId, TaskListener)`。
-- `ParRuntime.par(ParId)`、`ParRuntime.find(ParId)`、`ParRuntime.taskListenersFor(ParId)`；
-  `ParRuntime.pars()` 现在返回 `Map<ParId, Par>`。
+- `ParRuntime.Builder.defaultPar(ParId)`。
+- `ParRuntime.par(ParId)`、`ParRuntime.find(ParId)`；`ParRuntime.pars()` 现在返回
+  `Map<ParId, Par>`。
 - `Par.id()` 返回 `ParId`，取代 `Par.name()`；只有需要原始字符串时才调 `.value()`。
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` 与
   `combine(String, Par[, TaskOptions])` 仍以普通字符串命名成员——成员名从来不是 `ParName`。
 
-`ParRuntime.Builder.build()` 的一致性校验（默认 `Par` 已注册、listener override 已注册）
-不变。格式合法的 id 仍不代表已注册；未知 id 仍在 `build()` 或 `par(id)` 处失败，与此前一致。
+`ParRuntime.Builder.build()` 的一致性校验（默认 `Par` 已注册）不变。格式合法的 id 仍
+不代表已注册；未知 id 仍在 `build()` 或 `par(id)` 处失败，与此前一致。
 
 ```java
 // 0.2.x
@@ -97,6 +98,51 @@ ParRuntime global = ParRuntime.builder()
 Par io = global.par(ParId.of("io"));
 ParId id = io.id();
 ```
+
+## `TaskListener` 已删除；观测归宿为作用域结果
+
+全局推送 SPI 不复存在：`TaskListener`、`ParRuntime.Builder.taskListener(...)` /
+`parTaskListener(...)` 注册面，以及 `ParRuntime.taskListeners()` / `taskListenersFor(...)`
+访问器全部删除。计时与归因数据并没有删——它们从运行时级隐式汇流点迁移到提交作用域的
+结果上，成为拉取模型加显式 callback：
+
+- **单任务**：保留 `TaskFuture`，在 `task.completionFuture()` 上登记；它以任务的终态
+  `TaskCompletion<T>` 完成——身份、submit/start/end 时刻、queue wait、outcome、failure，
+  以及成功时的结果。
+- **批次**：保留 `TaskBatchResult`，在 `batch.completionFuture()` 上登记；它按输入顺序
+  以不可变的 `List<TaskCompletion<T>>` 完成，包含从未开始的元素（被拒绝、被取消、被滑窗
+  放弃）——start/end 时刻为零，outcome 是真实的。
+- **任务组**：删除成员 listener 注册，照旧在 `group.completionFuture()` 的 callback 中
+  读取 `TaskGroupResult.members()` / `terminal()`。
+
+```java
+// 0.2.x
+ParRuntime global = ParRuntime.builder()
+        .register(ParName.of("io"), pool)
+        .taskListener(events::add)
+        .build();
+// ……然后等待或轮询共享的 events 列表
+
+// 0.3.0
+TaskBatchResult<String> batch = io.map(items, this::work, options);
+Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<String>>>() {
+    @Override public void onSuccess(List<TaskCompletion<String>> completions) {
+        for (TaskCompletion<String> completion : completions) {
+            metrics.record(completion.unitId(), completion.outcome(),
+                    completion.waitTime(), completion.executionTime());
+        }
+    }
+    @Override public void onFailure(Throwable failure) { /* 实现缺陷；上报 */ }
+}, callbackExecutor);
+```
+
+两条完成保证取代了 listener 投递语义：快照只在任务 future 终态**且**任务体退出后发布，
+end 时刻一定是最终值；作用域完成后——`awaitBodyCompletion(...)` 返回 `true`——观测
+future 必然已经终态，无需轮询。原来依赖事件**顺序**的代码必须改为显式排序（批次输入
+顺序、组成员名或时间字段）；原来依赖 listener **线程**的代码必须显式提供 callback
+executor。彻底失去的能力：跨所有 `Par` 的零配置全局事件流、库统一的 listener 异常日志
+（Guava callback 的异常隔离改由你的基础设施负责），以及"执行前取消/拒绝不可见"——它们
+现在以零计时出现在快照里。
 
 ## 三阶段模型
 

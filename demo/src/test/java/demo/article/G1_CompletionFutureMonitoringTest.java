@@ -2,9 +2,11 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskCompletion;
@@ -13,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -27,20 +28,24 @@ import org.junit.jupiter.api.Test;
  *
  * <p>演示问题：标准 ExecutorService 没有任务监控钩子，只能在 lambda 里手动埋点。
  *
- * <p>演示解决：Par.map() 配合 TaskListener SPI，零侵入地捕获每个任务的执行事件。
+ * <p>演示解决：Par.map() 返回的 TaskBatchResult.completionFuture() 携带每个任务的终态快照，
+ * 配合 Futures.addCallback 零侵入地消费执行数据。
  */
-public class G1_TaskListenerMonitoringTest {
+public class G1_CompletionFutureMonitoringTest {
 
     private ExecutorService pool;
+    private ExecutorService callbackExecutor;
 
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
+        callbackExecutor = Executors.newSingleThreadExecutor();
     }
 
     @AfterEach
     void tearDown() {
         pool.shutdownNow();
+        callbackExecutor.shutdownNow();
     }
 
     /**
@@ -88,19 +93,19 @@ public class G1_TaskListenerMonitoringTest {
     }
 
     /**
-     * 解决方法：Par.map() 配合 TaskListener，零侵入监控。
+     * 解决方法：batch.completionFuture() 配合 Futures.addCallback，零侵入监控。
      *
-     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskCompletion)， 包含
-     * taskName、executionTime()、totalTime()、failure 等完整信息。 业务 lambda 无需任何监控代码。
+     * <p>批次观测 future 以输入顺序交付每个任务的终态快照 TaskCompletion，包含 taskName、
+     * executionTime()、waitTime()、totalTime()、failure 等完整信息。业务 lambda 无需任何监控代码；
+     * callback 运行在你自己选择的 executor 上。
      */
     @Test
-    void parMap_withTaskListener_capturesSuccessfulTaskEvents() throws Exception {
-        // 注册 TaskListener，收集所有事件
-        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
+    void parMap_withCompletionFuture_capturesSuccessfulTaskSnapshots() throws Exception {
+        List<TaskCompletion<String>> snapshots = Collections.synchronizedList(new ArrayList<>());
+        java.util.concurrent.CountDownLatch callbackDone = new java.util.concurrent.CountDownLatch(1);
 
         ParRuntime config = ParRuntime.builder()
                 .register(ParId.of("test-pool"), pool)
-                .taskListener(events::add)
                 .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
@@ -124,33 +129,56 @@ public class G1_TaskListenerMonitoringTest {
                 },
                 opts);
 
-        // 等待所有任务完成
-        Thread.sleep(2000);
+        // 在批次观测 future 上登记 callback：快照在任务 future 终态且任务体退出后发布
+        Futures.addCallback(
+                result.completionFuture(),
+                new FutureCallback<List<TaskCompletion<String>>>() {
+                    @Override
+                    public void onSuccess(List<TaskCompletion<String>> completions) {
+                        snapshots.addAll(completions);
+                        callbackDone.countDown();
+                    }
 
-        // 验证：TaskListener 捕获了所有 5 个任务的事件
-        assertThat(events).hasSize(5);
+                    @Override
+                    public void onFailure(Throwable failure) {
+                        throw new AssertionError("observation future never fails", failure);
+                    }
+                },
+                callbackExecutor);
 
-        // 验证：每个事件都有正确的 taskName
-        for (TaskCompletion<?> event : events) {
+        // 等待观测数据发布（callback 在另一个 executor 上运行）
+        List<TaskCompletion<String>> completions =
+                result.completionFuture().get(5, TimeUnit.SECONDS);
+        assertThat(callbackDone.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(snapshots).hasSize(5);
+
+        // 验证：捕获了所有 5 个任务的快照，按输入顺序
+        assertThat(completions).hasSize(5);
+        assertThat(completions)
+                .extracting(TaskCompletion::taskIndex)
+                .containsExactly(0, 1, 2, 3, 4);
+
+        // 验证：每个快照都有正确的 taskName
+        for (TaskCompletion<String> event : completions) {
             assertThat(event.taskName()).isEqualTo("monitor-demo");
         }
 
         // 验证：执行耗时 >= 40ms（因为我们忙等了 50ms）
-        for (TaskCompletion<?> event : events) {
+        for (TaskCompletion<String> event : completions) {
             assertThat(event.executionTime().toMillis())
                     .as("Task %s execution time", event.taskName())
                     .isGreaterThanOrEqualTo(40);
         }
 
         // 验证：总耗时 >= 执行耗时（total = wait + execution）
-        for (TaskCompletion<?> event : events) {
+        for (TaskCompletion<String> event : completions) {
             assertThat(event.totalTime().toNanos())
                     .as("Task %s total time >= execution time", event.taskName())
                     .isGreaterThanOrEqualTo(event.executionTime().toNanos());
         }
 
         // 验证：所有任务成功，没有异常
-        for (TaskCompletion<?> event : events) {
+        for (TaskCompletion<String> event : completions) {
             assertThat(event.failure())
                     .as("Task %s should not have exception", event.taskName())
                     .isNull();
@@ -159,20 +187,19 @@ public class G1_TaskListenerMonitoringTest {
         // 验证：report 确认全部成功
         String report = result.reportString();
         assertThat(report).contains("SUCCESS:5");
+        config.close();
     }
 
     /**
-     * TaskListener 同样能捕获失败任务的异常信息。
+     * completionFuture() 的快照同样携带失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskEvent.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
+     * <p>当任务抛出异常时，TaskCompletion.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch；
+     * 任务失败不会让观测 future 失败——它以成功完成携带真实 outcome。
      */
     @Test
-    void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
-        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
-
+    void parMap_withCompletionFuture_capturesFailedTaskException() throws Exception {
         ParRuntime config = ParRuntime.builder()
                 .register(ParId.of("test-pool"), pool)
-                .taskListener(events::add)
                 .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
@@ -197,28 +224,29 @@ public class G1_TaskListenerMonitoringTest {
                 },
                 opts);
 
-        Thread.sleep(2000);
-
-        // 验证：TaskListener 捕获了 2 个事件
-        assertThat(events).hasSize(2);
+        // 观测 future 不因元素失败而失败：列表里带着每个元素的真实 outcome
+        List<TaskCompletion<String>> completions =
+                result.completionFuture().get(5, TimeUnit.SECONDS);
+        assertThat(completions).hasSize(2);
 
         // 验证：捕获到了失败任务的异常
-        TaskCompletion<?> failedEvent = events.stream()
+        TaskCompletion<String> failedEvent = completions.stream()
                 .filter(e -> e.failure() != null)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
         assertThat(failedEvent.failure().getMessage()).contains("item 2 failed");
 
-        // 验证：失败事件也有 taskName
+        // 验证：失败快照也有 taskName
         assertThat(failedEvent.taskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
-        long successCount = events.stream().filter(e -> e.failure() == null).count();
+        long successCount = completions.stream().filter(e -> e.failure() == null).count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果
         String report = result.reportString();
         assertThat(report).contains("SUCCESS:1");
         assertThat(report).contains("USER_FAILURE:1");
+        config.close();
     }
 }

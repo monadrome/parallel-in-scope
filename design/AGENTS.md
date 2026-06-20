@@ -16,7 +16,7 @@
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | `ParRuntime.submitGroup` 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
-| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员 TaskListener 与组级完成回调（`completionFuture()` + Guava callback）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
+| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（`completionFuture()` 终态 `TaskCompletion`）与组级完成回调（Guava callback）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务（`Builder.combine()` 声明 + `Bindings.combine()` 绑定、`CombineBody`/`CombineContext`）：全量 join、结果、取消、观测、缺点与非目标 |
 
 ## 取消与队列
@@ -45,6 +45,9 @@
 | [batch-submission-failure-semantics.md](batch-submission-failure-semantics.md) | executor handoff failure 统一语义（已落地）：`execute()` 抛出的任何失败（含 `Error` 与偷渡受检异常）以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future，`Par.map`/`submitGroup` 跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径；handoff `Error` 单点 SEVERE 诊断 |
 | [queue-artifact-boundary-decision.md](queue-artifact-boundary-decision.md) | queue 包产物边界（已拍板归档）：与 core 同产物发布，权威依据 [adr/0006](../adr/0006-queues-ship-with-core.md)；边界已关闭，不要在评审、缺陷分诊或重构提案中重提 |
 | `close-and-quiescence-proposal.md`（本地草案，未进版本库，无链接） | A1 关闭语义与静默等待方案草案；其核心机制已被 `BodyCompletionTracker` / `ParRuntime.awaitQuiescence` 取代，处置方式（加抬头保留或归档）待拍板 |
+| `api-surface-reduction-2026-09-27.md`（本地草案，未进版本库，无链接） | 公开 API 面盘点与缩减提案：38 个公开类型全量盘点，3 个缩减候选（`SmartBlockingQueue.create`、`TaskGroupResult.memberCount`、`CancellationToken` 包私有化）与保留项登记，待拍板 |
+| [task-listener-removal-proposal-codex.md](task-listener-removal-proposal-codex.md) | 删除 `TaskListener` SPI（已落地）：观测归宿为 `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` 终态快照（`SettableFuture` 支撑、future 终态 + body exit 双信号屏障），组级保持 `TaskGroupResult.members()`/`terminal()`；含迁移路径与验证矩阵 |
+| `task-listener-removal-proposal.md`（本地草案，未进版本库，无链接） | 删除 `TaskListener` SPI 提案：观测数据归宿到 `TaskGroupResult`（已有）、`TaskBatchResult.completions()`（新增）与 `TaskFuture` 计时访问器，即时观测转交 `Futures.addCallback`（§10.2 组级回调同款裁定），待拍板 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
 | [adr/](../adr/) | 架构决策记录（不可变；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准 |
