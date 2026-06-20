@@ -30,7 +30,7 @@
 
 | 文档 | 摘要 |
 |---|---|
-| [extension-and-wrapping.md](extension-and-wrapping.md) | 用户扩展接缝的唯一位置（任务体 `Callable` 层、上下文层之内）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、三个包装轴（线程池/Callable/FutureTask）、必须避免的 19 类问题、契约与验证矩阵 |
+| [extension-and-wrapping.md](extension-and-wrapping.md) | 扩展边界契约：唯一用户扩展点是任务体本身（自助包装，不提供装饰器 SPI——含暂缓理由与重开条件）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、用户能包装的三个对象（线程池/Callable/FutureTask）、必须避免的 14 类问题、自助包装守则（MDC/追踪/指标/重试）、契约与验证矩阵 |
 
 ## 设计哲学与决策记录
 
