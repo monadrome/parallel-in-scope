@@ -33,10 +33,12 @@ except for the `ParName` rename to `ParId`.
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
 | `TaskListener`, `ParRuntime.Builder.taskListener(...)` / `parTaskListener(...)`, `ParRuntime.taskListeners()` / `taskListenersFor(...)` | `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` + `Futures.addCallback` |
+| `DeadlockDetectionListener`, `ParRuntimeDeadlockPolicy.Builder.listener(...)` / `listeners()` | `TaskGraphObservationScope.reportFuture()` carrying a `TaskGraphReport` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `TaskGroupDefinition.tasks()` / `combine()` | removed; `TaskGroupDefinition.Member<T>` is the only handle |
 
-The five deleted top-level types have no compatibility aliases: `TaskKey`,
-`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, and `TaskGroupOptions`. `ParName`
+The six deleted top-level types have no compatibility aliases: `TaskKey`,
+`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, `TaskGroupOptions`, and
+`DeadlockDetectionListener`. `ParName`
 is renamed to `ParId` rather than deleted — the executor-lookup boundary keeps a validated value
 type. The `0.x` phase keeps no shims; update imports, declarations, and call sites together.
 
@@ -155,6 +157,49 @@ listener *thread* must now pick a callback executor. What is gone for good: the 
 global event stream across all `Par` entries, the library's unified listener exception logging
 (Guava callback isolation is now your infrastructure's affair), and pre-execution cancellations
 or rejections being invisible — they now appear in the snapshots with zero timings.
+
+## `DeadlockDetectionListener` is removed; the report rides the scope
+
+The graph-diagnostic push SPI follows the same pull model: `DeadlockDetectionListener` (with its
+nested `DeadlockDetectionEvent`), `ParRuntimeDeadlockPolicy.Builder.listener(...)`, and
+`ParRuntimeDeadlockPolicy.listeners()` are deleted. The policy itself stays — `enabled()` and
+`Builder.enabled(boolean)` still decide whether closing an observation scope runs the detection
+pass — but the result now belongs to the request scope instead of a runtime-wide listener list.
+
+```java
+// 0.2.x
+AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
+ParRuntime global = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
+                .enabled(true).listener(event::set).build())
+        .build();
+try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+    handleRequest();
+}
+// event == null could mean no issue, detection disabled, or a swallowed detection failure
+
+// 0.3.0
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.status() == TaskGraphReport.Status.ISSUE) {
+    alert(report.taskEdges(), report.executorEdges());
+}
+```
+
+Every normally returning `close()` guarantees `reportFuture().isDone()`, and a callback registered
+after close still receives the result. `status()` separates the three outcomes the listener could
+not distinguish: `DISABLED`, `NO_ISSUE`, and `ISSUE`; a detection failure ends the future in
+failure (with a JUL warning) instead of being silently swallowed. The future is read-only —
+`cancel(...)` returns `false` — and the JUL `WARNING` on a positive report is unchanged. Accessor
+renames: `hasTaskCycle()` → `taskCycle()`, `hasSelfLoop()` → `selfLoop()`, `hasExecutorCycle()` →
+`executorCycle()`, `hasExecutorSelfLoop()` → `executorSelfLoop()`, `hasAnyIssue()` → `anyIssue()`;
+the edge-text accessors keep their names. What is gone for good: one registration covering every
+request of the runtime — each scope must now be asked for its own report — and the library's
+listener-exception isolation, which moves to your callback executor.
 
 ## The three phases
 

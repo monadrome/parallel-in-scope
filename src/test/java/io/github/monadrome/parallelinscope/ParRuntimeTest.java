@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -711,16 +710,10 @@ class ParRuntimeTest {
     }
 
     @Test
-    void purgePolicyAndDeadlockDetectionListenersAreImmutableAndIdentityDeduplicated() {
-        AtomicInteger calls = new AtomicInteger();
-        io.github.monadrome.parallelinscope.DeadlockDetectionListener listener = event -> calls.incrementAndGet();
-        ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
-                .enabled(true)
-                .listener(listener)
-                .listener(listener)
-                .build();
-        assertThat(deadlock.listeners()).hasSize(1);
-        assertThatThrownBy(() -> deadlock.listeners().clear()).isInstanceOf(UnsupportedOperationException.class);
+    void policiesExposeConfiguredValuesAndDisabledDefaults() {
+        ParRuntimeDeadlockPolicy deadlock =
+                ParRuntimeDeadlockPolicy.builder().enabled(true).build();
+        assertThat(deadlock.enabled()).isTrue();
         ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(1.0)

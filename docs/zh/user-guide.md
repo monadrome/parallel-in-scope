@@ -254,27 +254,27 @@ databasePar.map(ids, id -> {
 
 ## 观测嵌套工作 {#nested-observation}
 
-任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
+任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）对 `close()` 冻结的图运行一次潜在死锁检测，把结果发布到 `reportFuture()`。检测到循环只表示结构风险，不证明线程当前已经死锁。
 
 ```java
+ParRuntime global = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
+    reportFuture = observation.reportFuture();
     service.handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("Potential deadlock: {}", report);
 }
 ```
 
-在构建拓扑时配置策略：
+报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
 
-```java
-ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
-        .enabled(true)
-        .listener(event -> log.warn("Potential deadlock: {}", event))
-        .build();
-```
-
-不同 `ParRuntime` 的观测作用域不会合并任务图。
-
-`TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的检测事件中，各标志与渲染文本来自同一份一致的请求图快照。
+`TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
 
 ## 清理已取消的排队任务
 
