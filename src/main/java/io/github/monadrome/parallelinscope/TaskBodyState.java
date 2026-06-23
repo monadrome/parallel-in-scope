@@ -79,7 +79,7 @@ final class TaskBodyState {
      */
     void exited() {
         if (state.compareAndSet(State.RUNNING, State.EXITED)) {
-            terminal.set(null);
+            BodyCompletionTracker.complete(terminal);
             tracker.release();
         }
     }
@@ -87,7 +87,7 @@ final class TaskBodyState {
     /** Marks the task as never entering its body, releasing the slot once. */
     void skipped() {
         if (state.compareAndSet(State.PENDING, State.SKIPPED)) {
-            terminal.set(null);
+            BodyCompletionTracker.complete(terminal);
             tracker.release();
         }
     }

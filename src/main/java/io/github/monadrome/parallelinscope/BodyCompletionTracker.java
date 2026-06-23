@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
@@ -56,7 +57,7 @@ final class BodyCompletionTracker {
         this.outstanding = new AtomicInteger(taskCount);
         this.slots = new ArrayList<>(taskCount);
         if (taskCount == 0) {
-            bodyExit.set(null);
+            complete(bodyExit);
         }
     }
 
@@ -90,8 +91,18 @@ final class BodyCompletionTracker {
     /** Releases one slot; called by {@link TaskBodyState} on the winning terminal transition. */
     void release() {
         if (outstanding.decrementAndGet() == 0) {
-            bodyExit.set(null);
+            complete(bodyExit);
         }
+    }
+
+    /**
+     * Completes a {@code Void} signal by delegating to the already-completed void future rather
+     * than {@code set(null)}: passing the null literal trips Error Prone's
+     * NullArgumentForNonNullParameter when javac runs on JDK 21. The completion is equivalent —
+     * the signal carries no value and completes synchronously.
+     */
+    static void complete(SettableFuture<Void> signal) {
+        signal.setFuture(Futures.immediateVoidFuture());
     }
 
     /** The completion signal itself, for composition by the owning topology. */
