@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -377,14 +378,22 @@ class TaskBatchResultBodyCompletionTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        // Element 2 must throw only after element 1's body has run: the fail-fast cancellation
+        // it triggers cancels the sibling future, and an unordered throw wins that race on a
+        // slow runner, cancelling element 1 instead of observing its SUCCESS.
+        CountDownLatch firstBodyRan = new CountDownLatch(1);
         try {
             TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> {
                                 if (value == 2) {
+                                    if (!Uninterruptibles.awaitUninterruptibly(firstBodyRan, 10, TimeUnit.SECONDS)) {
+                                        throw new IllegalStateException("element 1 never ran");
+                                    }
                                     throw new IllegalStateException("boom");
                                 }
+                                firstBodyRan.countDown();
                                 return value;
                             },
                             options("mixed"));
