@@ -11,10 +11,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>This type carries only what one task execution reads: its deadline policy, its task type, its
  * enqueue-rejection policy, and its caller-thread fallback policy. Identity is not an option — a
- * task's name is its {@link TaskGroupDefinition.Member} handle, or the explicit name passed to
- * {@code Par.submit} — and fan-out is not an option either — a single task has no parallelism to
- * limit. A batch declares {@link BatchOptions}; group-level configuration is declared by {@code
- * ParRuntime.defineGroup*} and {@link TaskGroupDefinition.Builder}.
+ * task's name is the member name declared to {@link GroupStart#par} or {@link GroupStep#combine},
+ * or the explicit name passed to {@code Par.submit} — and fan-out is not an option either — a
+ * single task has no parallelism to limit. A batch declares {@link BatchOptions}; group-level
+ * configuration is declared by {@link ParRuntime#group} and {@link GroupStart#closeGrace}.
  *
  * <p>The timeout is a forced explicit choice between two factories: {@link #inheritTimeout()}
  * declares that the enclosing scope's deadline is inherited, while {@link #timeout(Duration)} sets

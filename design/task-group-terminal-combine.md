@@ -1,5 +1,10 @@
 # TaskGroup 终端汇合设计
 
+> ⚠️ **声明/绑定入口已被取代**：`Builder.combine()` 声明 + `Bindings.combine()` 绑定已由
+> [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 链尾的
+> `combine(name, par, type, body)` 取代，combine body 现在直接接收成员值的元组而非 `CombineContext`。
+> §3 的 join 模型、准备阶段结论、取消与观测机制仍然有效。
+>
 > 状态：提案。本文定义 `TaskGroup` 的可选终端汇合能力，不以既有实现作为约束。
 > 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
 

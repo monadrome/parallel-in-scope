@@ -1,5 +1,10 @@
 # TaskGroup 设计契约：API 与选项
 
+> ⚠️ **公共 API 清单章节已被取代**：`ParRuntime.defineGroup*`/`TaskGroupDefinition`/`Member<T>`/
+> `TaskGroup.Bindings` 的签名与声明-绑定两阶段流程已由
+> [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 的一次性链式 API 取代。
+> 本文的 Group/Batch 语义边界、选项类型与结果类型结论仍然有效。
+>
 > 本系列是 `TaskGroup` 的独立实施规范（由原《独立并行任务组最终设计契约》按章节拆分）。
 > 实现者只依赖本系列和当前代码库即可完成开发，不需要再参考早期草稿。文中的 MUST、
 > MUST NOT、SHOULD 分别表示必须、禁止和推荐。

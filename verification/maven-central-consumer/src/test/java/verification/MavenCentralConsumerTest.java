@@ -1,13 +1,17 @@
 package verification;
 
+import com.google.common.reflect.TypeToken;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.GroupValues;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskFuture;
+import io.github.monadrome.parallelinscope.TaskGroup;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
+import io.github.monadrome.parallelinscope.Tuple2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -57,6 +61,57 @@ class MavenCentralConsumerTest {
             assertEquals(TaskType.IO_BOUND, options.taskType());
             assertEquals(CONSUMER, par.id());
             assertEquals(runtime, par.runtime());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Exercises the deepest generic inference the public API asks of a consumer: a three-member
+     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose body
+     * destructures that nest inside a lambda, and typed lookups. This runs under a real JDK 8
+     * compiler in CI, which is where the nesting is most likely to break.
+     */
+    @Test
+    void publishedArtifactExposesTheOneShotGroupChain() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        TypeToken<List<String>> namesType = new TypeToken<List<String>>() {};
+        try {
+            Par par = runtime.par(CONSUMER);
+            try (TaskGroup<Tuple2<Tuple2<String, List<String>>, Integer>, String> group = runtime
+                    .group("consumer-group", Duration.ofSeconds(5))
+                    .par("user", par, String.class, () -> "alice")
+                    .par("names", par, namesType, () -> Arrays.asList("a", "b"))
+                    .par("count", par, Integer.class, () -> 2)
+                    .combine(
+                            "summary",
+                            par,
+                            String.class,
+                            values -> values.first().first() + ":"
+                                    + values.first().second().size() + ":"
+                                    + values.second())
+                    .submitAll()) {
+
+                GroupValues<Tuple2<Tuple2<String, List<String>>, Integer>> values =
+                        group.valuesFuture().get(5, TimeUnit.SECONDS);
+                Tuple2<Tuple2<String, List<String>>, Integer> typed = values.typedValues();
+                assertEquals("alice", typed.first().first());
+                assertEquals(Arrays.asList("a", "b"), typed.first().second());
+                assertEquals(Integer.valueOf(2), typed.second());
+
+                assertEquals(3, values.size());
+                assertEquals("alice", values.valueOf("user", TypeToken.of(String.class)));
+                assertEquals(Arrays.asList("a", "b"), values.valueAt(1, namesType));
+                assertEquals("alice", group.futureOf("user", TypeToken.of(String.class)).get(5, TimeUnit.SECONDS));
+                assertEquals(
+                        "alice:2:2",
+                        group.terminalFuture()
+                                .orElseThrow(() -> new AssertionError("combine not declared"))
+                                .get(5, TimeUnit.SECONDS));
+                assertEquals(TaskOutcome.SUCCESS, group.completionFuture().get(5, TimeUnit.SECONDS).outcome());
+            }
         } finally {
             runtime.close();
             executor.shutdownNow();
