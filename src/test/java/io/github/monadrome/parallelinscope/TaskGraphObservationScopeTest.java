@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TtlRunnable;
+import com.google.common.util.concurrent.Futures;
+import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -100,45 +103,21 @@ class TaskGraphObservationScopeTest {
     @Test
     void doubleClosePublishesTheReportOnlyOnce() throws Exception {
         global = ParRuntime.builder()
-                .deadlockPolicy(io.github.monadrome.parallelinscope.ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
 
         TaskGraphObservationScope context = global.openTaskGraphObservation();
         TaskGraphObservationScope.logTaskPair(
-                "a",
-                "a",
-                "b",
-                "b",
-                new io.github.monadrome.parallelinscope.TaskEdge(
-                        1,
-                        io.github.monadrome.parallelinscope.TaskType.IO_BOUND,
-                        "e1",
-                        "e2",
-                        1,
-                        java.time.Duration.ofMillis(10)));
+                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
         TaskGraphObservationScope.logTaskPair(
-                "b",
-                "b",
-                "a",
-                "a",
-                new io.github.monadrome.parallelinscope.TaskEdge(
-                        1,
-                        io.github.monadrome.parallelinscope.TaskType.IO_BOUND,
-                        "e2",
-                        "e1",
-                        1,
-                        java.time.Duration.ofMillis(10)));
+                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
 
         context.close();
         assertThat(context.reportFuture().isDone()).isTrue();
-        TaskGraphReport first = java.util.Objects.requireNonNull(
-                com.google.common.util.concurrent.Futures.getDone(context.reportFuture()));
+        TaskGraphReport first = Objects.requireNonNull(Futures.getDone(context.reportFuture()));
         assertThat(first.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
         context.close(); // Idempotent: no second detection pass.
-        assertThat(com.google.common.util.concurrent.Futures.getDone(context.reportFuture()))
-                .isSameAs(first);
+        assertThat(Futures.getDone(context.reportFuture())).isSameAs(first);
     }
 
     @Test

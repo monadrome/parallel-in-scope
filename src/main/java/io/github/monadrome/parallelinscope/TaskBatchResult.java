@@ -20,6 +20,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,8 +36,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class TaskBatchResult<T> implements AutoCloseable {
 
-    private static final java.util.logging.Logger LOGGER =
-            java.util.logging.Logger.getLogger(TaskBatchResult.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(TaskBatchResult.class.getName());
 
     private final ListenableFuture<?> submitCanceller;
     private final List<TaskFuture<T>> results;

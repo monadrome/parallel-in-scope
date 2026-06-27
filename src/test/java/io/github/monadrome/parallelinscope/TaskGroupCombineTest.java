@@ -3,7 +3,9 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
@@ -42,7 +44,7 @@ class TaskGroupCombineTest {
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
                 bindings.task(user, () -> "alice");
-                bindings.task(orders, () -> java.util.Collections.singletonList("order-1"));
+                bindings.task(orders, () -> Collections.singletonList("order-1"));
                 bindings.combine(page, values -> {
                     combineRuns.incrementAndGet();
                     combineThread.set(Thread.currentThread().getName());
@@ -124,7 +126,7 @@ class TaskGroupCombineTest {
             TaskGroup group = global.submitGroup(definition, bindings -> {
                 bindings.task(user, () -> "alice");
                 bindings.combine(page, values -> {
-                    throw new java.io.IOException("assemble failed");
+                    throw new IOException("assemble failed");
                 });
             });
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -134,11 +136,11 @@ class TaskGroupCombineTest {
             assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(Objects.requireNonNull(result.terminal()).failure()).isInstanceOf(java.io.IOException.class);
+            assertThat(Objects.requireNonNull(result.terminal()).failure()).isInstanceOf(IOException.class);
             assertThatThrownBy(() -> group.future(page).get())
                     .isInstanceOf(ExecutionException.class)
                     .cause()
-                    .isInstanceOf(java.io.IOException.class);
+                    .isInstanceOf(IOException.class);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -237,7 +239,7 @@ class TaskGroupCombineTest {
             @Override
             public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -278,7 +280,7 @@ class TaskGroupCombineTest {
             @Override
             public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override

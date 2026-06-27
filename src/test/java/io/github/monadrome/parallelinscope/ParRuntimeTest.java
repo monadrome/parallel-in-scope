@@ -4,11 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,7 +35,7 @@ class ParRuntimeTest {
 
             TaskBatchResult<String> result = global.par(ParId.of("worker"))
                     .map(
-                            java.util.Arrays.asList(1, 2),
+                            Arrays.asList(1, 2),
                             ignored -> context.get(),
                             BatchOptions.timeout("ttl", Duration.ofSeconds(30)).parallelism(1));
 
@@ -190,7 +195,7 @@ class ParRuntimeTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
                 return Collections.emptyList();
             }
@@ -303,8 +308,7 @@ class ParRuntimeTest {
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
-            java.util.concurrent.atomic.AtomicReference<TaskGraphData> graphOnOuterWorker =
-                    new java.util.concurrent.atomic.AtomicReference<>();
+            AtomicReference<TaskGraphData> graphOnOuterWorker = new AtomicReference<>();
             TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList(2),
@@ -344,11 +348,11 @@ class ParRuntimeTest {
         try {
             TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
-                            java.util.Arrays.asList(1, 99),
+                            Arrays.asList(1, 99),
                             ignored -> {
                                 TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
-                                                java.util.Arrays.asList(1, 2),
+                                                Arrays.asList(1, 2),
                                                 value -> value + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30))
                                                         .parallelism(1));
@@ -451,10 +455,7 @@ class ParRuntimeTest {
             assertThat(global.awaitQuiescence(Duration.ofMillis(20))).isFalse();
 
             TaskBatchResult<String> batch = global.par(ParId.of("io"))
-                    .map(
-                            java.util.Arrays.asList("a", "b"),
-                            x -> x,
-                            BatchOptions.timeout("quiesce", Duration.ofSeconds(30)));
+                    .map(Arrays.asList("a", "b"), x -> x, BatchOptions.timeout("quiesce", Duration.ofSeconds(30)));
             batch.valuesOrThrow();
             global.close();
 
@@ -581,8 +582,7 @@ class ParRuntimeTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
-            io.github.monadrome.parallelinscope.TaskGraphObservationScope observation =
-                    global.openTaskGraphObservation();
+            TaskGraphObservationScope observation = global.openTaskGraphObservation();
             assertThat(observation.owner()).isSameAs(global);
             assertThat(observation.closed()).isFalse();
             assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
@@ -672,7 +672,7 @@ class ParRuntimeTest {
         try {
             TaskBatchResult<Integer> result = global.par(ParId.of("io"))
                     .map(
-                            java.util.Arrays.asList(1, 2, 3),
+                            Arrays.asList(1, 2, 3),
                             value -> {
                                 if (value == 1) {
                                     firstTaskStarted.countDown();
@@ -757,8 +757,7 @@ class ParRuntimeTest {
     @Test
     void executorRuntimeKeepsSuppliedIdentityAndCreatesOnlyNeededAdapter() {
         ExecutorService plain = Executors.newSingleThreadExecutor();
-        com.google.common.util.concurrent.ListeningExecutorService listening =
-                com.google.common.util.concurrent.MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService listening = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             ExecutorRuntime plainRuntime = new ExecutorRuntime(plain);
             ExecutorRuntime listeningRuntime = new ExecutorRuntime(listening);
@@ -788,7 +787,7 @@ class ParRuntimeTest {
         try {
             TaskBatchResult<Integer> result = global.par(ParId.of("io"))
                     .map(
-                            java.util.Arrays.asList(1, 2),
+                            Arrays.asList(1, 2),
                             ignored -> {
                                 try {
                                     Thread.sleep(10_000);
@@ -800,8 +799,7 @@ class ParRuntimeTest {
                             BatchOptions.timeout("timeout-batch", Duration.ofMillis(100)));
 
             for (Future<Integer> future : result.results()) {
-                assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS))
-                        .isInstanceOf(java.util.concurrent.CancellationException.class);
+                assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
             }
             // The token commits TIMEOUT before cancelling the element futures, so once every
             // future is cancelled the attribution is already stable.

@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * submission nor abandonment changes them.
  *
  * <p>Forwarding is literal: {@link #get()}, {@link #cancel(boolean)}, {@link #isDone()}, and
- * {@link #addListener(Runnable, java.util.concurrent.Executor)} behave exactly as they do on the
+ * {@link #addListener(Runnable, Executor)} behave exactly as they do on the
  * delegate, including the interruption and cancellation-cascade semantics. Only read-only
  * information is added.
  *

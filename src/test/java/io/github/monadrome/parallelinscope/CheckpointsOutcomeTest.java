@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -158,11 +161,11 @@ class CheckpointsOutcomeTest {
 
     @Test
     void latchAwaitDurationOverloadReportsBothOutcomes() throws Exception {
-        java.util.concurrent.CountDownLatch openLatch = new java.util.concurrent.CountDownLatch(1);
+        CountDownLatch openLatch = new CountDownLatch(1);
         openLatch.countDown();
         assertThat(Checkpoints.checkAwait(openLatch, Duration.ofMillis(10))).isTrue();
 
-        java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1);
+        CountDownLatch held = new CountDownLatch(1);
         long start = System.nanoTime();
         assertThat(Checkpoints.checkAwait(held, Duration.ofMillis(20))).isFalse();
         assertThat(System.nanoTime() - start).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(5));
@@ -170,12 +173,12 @@ class CheckpointsOutcomeTest {
 
     @Test
     void latchAwaitTimeoutUnitOverloadReportsBothOutcomes() throws Exception {
-        java.util.concurrent.CountDownLatch openLatch = new java.util.concurrent.CountDownLatch(2);
+        CountDownLatch openLatch = new CountDownLatch(2);
         openLatch.countDown();
         openLatch.countDown();
         assertThat(Checkpoints.checkAwait(openLatch, 10, TimeUnit.MILLISECONDS)).isTrue();
 
-        java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1);
+        CountDownLatch held = new CountDownLatch(1);
         assertThat(Checkpoints.checkAwait(held, 15, TimeUnit.MILLISECONDS)).isFalse();
         held.countDown();
         assertThat(Checkpoints.checkAwait(held, 15, TimeUnit.MILLISECONDS)).isTrue();
@@ -184,8 +187,8 @@ class CheckpointsOutcomeTest {
     @Test
     void conditionAwaitSignalledOverloadReturnsTrueOnceReleased() throws Exception {
         ReentrantLock lock = new ReentrantLock();
-        java.util.concurrent.locks.Condition condition = lock.newCondition();
-        java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean(false);
+        Condition condition = lock.newCondition();
+        AtomicBoolean done = new AtomicBoolean(false);
         Thread signaller = new Thread(() -> {
             while (!done.get()) {
                 lock.lock();

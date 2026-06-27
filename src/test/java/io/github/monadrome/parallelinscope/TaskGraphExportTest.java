@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -172,7 +173,7 @@ class TaskGraphExportTest {
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         TaskGraphData captured;
-        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
             TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(

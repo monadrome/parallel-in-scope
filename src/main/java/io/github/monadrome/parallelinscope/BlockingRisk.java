@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import java.util.concurrent.ThreadPoolExecutor;
+
 /**
  * Resource shape of a supplied executor, read once at registration from the executor's own
  * structure — never from its class name and never from runtime statistics.
@@ -14,12 +16,12 @@ package io.github.monadrome.parallelinscope;
  *   <caption>Registration shape to classification</caption>
  *   <tr><th>Supplied executor</th><th>Classification</th></tr>
  *   <tr>
- *     <td>{@link java.util.concurrent.ThreadPoolExecutor} with finite queue capacity and finite
+ *     <td>{@link ThreadPoolExecutor} with finite queue capacity and finite
  *         {@code maximumPoolSize}</td>
  *     <td>{@link #BOUNDED_PLATFORM_POOL}</td>
  *   </tr>
  *   <tr>
- *     <td>{@link java.util.concurrent.ThreadPoolExecutor} with an unbounded queue (for example a
+ *     <td>{@link ThreadPoolExecutor} with an unbounded queue (for example a
  *         fixed pool's default {@code LinkedBlockingQueue}) or an unbounded thread upper bound
  *         (for example a cached pool's {@code SynchronousQueue} + {@code Integer.MAX_VALUE})</td>
  *     <td>{@link #UNBOUNDED}</td>

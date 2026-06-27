@@ -3,7 +3,9 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +43,7 @@ class TaskGraphBatchIdentityTest {
             TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(TaskGraphObservationScope.hasTaskCycle()).isTrue();
             assertThat(TaskGraphObservationScope.hasSelfLoop()).isTrue();
-            assertThat(data.graph().edgeValueOrDefault("a", "b", java.util.Collections.emptyList()))
+            assertThat(data.graph().edgeValueOrDefault("a", "b", Collections.emptyList()))
                     .hasSize(2);
             assertThat(data.graph()).isSameAs(data.graph());
         } finally {
@@ -131,7 +133,7 @@ class TaskGraphBatchIdentityTest {
         ParRuntime global = ParRuntime.builder()
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
             TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
@@ -150,39 +152,14 @@ class TaskGraphBatchIdentityTest {
     }
 
     private static TaskEdge edge() {
-        return new TaskEdge(
-                1,
-                io.github.monadrome.parallelinscope.TaskType.CPU_BOUND,
-                null,
-                null,
-                "executor",
-                "parent",
-                1,
-                Duration.ZERO,
-                false);
+        return new TaskEdge(1, TaskType.CPU_BOUND, null, null, "executor", "parent", 1, Duration.ZERO, false);
     }
 
     private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
-        return new TaskEdge(
-                1,
-                io.github.monadrome.parallelinscope.TaskType.CPU_BOUND,
-                target,
-                source,
-                1,
-                Duration.ZERO,
-                deadlockProne);
+        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);
     }
 
     private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
-        return new TaskEdge(
-                1,
-                io.github.monadrome.parallelinscope.TaskType.CPU_BOUND,
-                target,
-                source,
-                "target",
-                "source",
-                1,
-                Duration.ZERO,
-                true);
+        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, "target", "source", 1, Duration.ZERO, true);
     }
 }

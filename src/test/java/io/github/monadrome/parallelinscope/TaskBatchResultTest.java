@@ -6,9 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.junit.jupiter.api.Test;
@@ -79,8 +84,8 @@ public class TaskBatchResultTest {
     @Test
     public void results_areSnapshotIntoAnImmutableList() {
         CancellationToken token = new CancellationToken();
-        java.util.List<TaskFuture<String>> mutable =
-                new java.util.ArrayList<>(Collections.singletonList(task(token, Futures.immediateFuture("ok"))));
+        List<TaskFuture<String>> mutable =
+                new ArrayList<>(Collections.singletonList(task(token, Futures.immediateFuture("ok"))));
         TaskBatchResult<String> batch = TaskBatchResult.of(mutable);
 
         mutable.clear();
@@ -92,7 +97,7 @@ public class TaskBatchResultTest {
 
     @Test
     public void batchReport_defensivelyCopiesAndExposesUnmodifiableStateCounts() {
-        Map<TaskOutcome, Integer> source = new java.util.EnumMap<>(TaskOutcome.class);
+        Map<TaskOutcome, Integer> source = new EnumMap<>(TaskOutcome.class);
         source.put(TaskOutcome.SUCCESS, 1);
         TaskBatchResult.BatchReport report = new TaskBatchResult.BatchReport(source, null);
 
@@ -129,12 +134,12 @@ public class TaskBatchResultTest {
         TaskBatchResult<String> failed = TaskBatchResult.of(Arrays.asList(
                 task(token, Futures.immediateFuture("ok")), task(token, Futures.immediateFailedFuture(failure))));
         assertThatThrownBy(failed::valuesOrThrow)
-                .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                .isInstanceOf(ExecutionException.class)
                 .hasCause(failure);
 
         TaskBatchResult<String> cancelled =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.immediateCancelledFuture())));
-        assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(java.util.concurrent.CancellationException.class);
+        assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(CancellationException.class);
     }
 
     // ==================== token-based cancellation attribution ====================

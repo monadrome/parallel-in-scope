@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,8 +11,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -23,7 +26,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
-/** Contract tests for {@link Par#submit(String, java.util.concurrent.Callable, TaskOptions)}. */
+/** Contract tests for {@link Par#submit(String, Callable, TaskOptions)}. */
 class ParSubmitTest {
 
     @Test
@@ -98,7 +101,7 @@ class ParSubmitTest {
                             TaskOptions.timeout(Duration.ofSeconds(30)));
 
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(bodyRan.get()).isFalse();
@@ -161,9 +164,8 @@ class ParSubmitTest {
             TaskBatchResult<String> batch = global.par(ParId.of("outer"))
                     .map(
                             Arrays.asList("a"),
-                            ignored ->
-                                    com.google.common.util.concurrent.Futures.getUnchecked(global.par(ParId.of("inner"))
-                                            .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
+                            ignored -> Futures.getUnchecked(global.par(ParId.of("inner"))
+                                    .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
                             BatchOptions.timeout("outer-batch", Duration.ofSeconds(30)));
 
             assertThat(batch.valuesOrThrow()).containsExactly("nested-value");
@@ -306,7 +308,7 @@ class ParSubmitTest {
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(task.failure()).isInstanceOf(SubmissionException.class).hasCauseInstanceOf(AssertionError.class);
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
         } finally {
             global.close();

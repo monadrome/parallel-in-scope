@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
@@ -714,12 +716,11 @@ class TaskBatchResultBodyCompletionTest {
                 MultiTaskContext.resolution(options("settlement-window").spec(), 1));
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         TaskBodyState slot = tracker.register(unit);
-        com.google.common.util.concurrent.SettableFuture<Integer> settle =
-                com.google.common.util.concurrent.SettableFuture.create();
+        SettableFuture<Integer> settle = SettableFuture.create();
         Task<Integer> element = Task.of("settlement-window", unit.cancellationToken(), settle);
         TaskBatchResult<Integer> batch = TaskBatchResult.of(
                 tracker,
-                com.google.common.util.concurrent.Futures.immediateVoidFuture(),
+                Futures.immediateVoidFuture(),
                 Collections.singletonList(element),
                 unit.cancellationToken(),
                 null);
