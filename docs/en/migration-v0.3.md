@@ -1,9 +1,10 @@
 # Migrating to v0.3
 
 Version `0.3.0` makes three kinds of changes. It renames the application-level execution owner from
-`GlobalPar` to `ParRuntime`. It redesigns the task-group API around a strict three-phase lifecycle —
-immutable structure definition, one-shot per-submission bindings, and the running group — and
-deletes the name-wrapper and indirection types that the `0.2.x` surface had accumulated. That part
+`GlobalPar` to `ParRuntime`. It redesigns the task-group API around a one-shot chain —
+`runtime.group(...).par(...)[.combine(...)].submitAll()` states one run's names, `Par`s, declared
+types, and bodies exactly once — and deletes the name-wrapper and indirection types that the
+`0.2.x` surface had accumulated. That part
 is a source-breaking migration for any code that builds or submits a `TaskGroup`. The release also
 changes several runtime contracts so the library stops doing things on your behalf without saying
 so: scope close waits instead of only cancelling, quiescence means body exit rather than future
@@ -22,23 +23,28 @@ except for the `ParName` rename to `ParId`.
 | `GlobalPar` / `GlobalPar.Builder` | `ParRuntime` / `ParRuntime.Builder` |
 | `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
 | `Par.globalPar()` | `Par.runtime()` |
-| `TaskKey<T>` (anonymous subclass) | `TaskGroupDefinition.Member<T>` returned by `Builder.task` / `Builder.combine` |
+| `TaskKey<T>` (anonymous subclass) | removed; members are addressed by the name given to `par(...)` (`futureOf`/`valueOf`) or by zero-based declaration position (`futureAt`/`valueAt`) |
 | `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`; `Par.name()` → `Par.id()` |
-| `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
-| `TaskGroupOptions` (name/timeout/listeners) | the `defineGroup*` argument list plus `Builder.closeGrace`; listeners move to `Futures.addCallback` |
-| `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)` (structure only) + `TaskGroup.Bindings.task(member, callable)` |
-| `Builder.buildWithCombiner(key, parName, function[, options])` | `Builder.combine(name, par[, options])` followed by `build()` |
-| `TaskGroup.submit(global, definition)` | `global.submitGroup(definition, binder)` |
-| `CombineFunction<R>` | `TaskGroup.CombineBody<R>` registered on `TaskGroup.Bindings` |
-| `CompletedTaskValues` | `TaskGroup.CombineContext` |
+| `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.group(name, timeout)` / `global.groupInheriting(name)` |
+| `TaskGroupOptions` (name/timeout/listeners) | the `group*` argument list plus `GroupStart.closeGrace` at the head of the chain; listeners move to `Futures.addCallback` |
+| `TaskGroupDefinition.Builder.task(key, parName, callable[, options])` | a `par(name, par, type, body)` link in the chain; with custom options, `par(name, par, options, type, body)` |
+| `TaskGroupDefinition.Builder.buildWithCombiner(key, parName, function[, options])` | the chain's terminal `combine(name, par, type, body)` |
+| `TaskGroupDefinition` (with `Builder` / `TaskDefinition` / `CombineDefinition`) and its `tasks()` / `combine()` accessors | removed; each run declares its own chain, and there is no structure object to inspect or reuse |
+| `TaskGroup.submit(global, definition)` | `global.group(...).par(...)[.combine(...)].submitAll()` |
+| `TaskGroup` (no type parameters) | `TaskGroup<V, R>`: `V` is the member-value tuple type, `R` the terminal combine's result type |
+| `TaskGroup.future(TaskKey<T>)` | `group.futureOf(name, TypeToken)` / `group.futureAt(index, TypeToken)`; the terminal through `group.terminalFuture()` |
+| `CombineFunction<R>` | the top-level `CombineBody<V, R>`, whose argument is the assembled member values (a `Tuple2` nest), not a `CompletedTaskValues` |
+| `CompletedTaskValues` | `GroupValues<V>` (`group.valuesFuture()`); dynamic reads through `valueOf` / `valueAt` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
 | `TaskListener`, `ParRuntime.Builder.taskListener(...)` / `parTaskListener(...)`, `ParRuntime.taskListeners()` / `taskListenersFor(...)` | `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` + `Futures.addCallback` |
 | `DeadlockDetectionListener`, `ParRuntimeDeadlockPolicy.Builder.listener(...)` / `listeners()` | `TaskGraphObservationScope.reportFuture()` carrying a `TaskGraphReport` |
-| `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `TaskGroupDefinition.tasks()` / `combine()` | removed; `TaskGroupDefinition.Member<T>` is the only handle |
 
-The six deleted top-level types have no compatibility aliases: `TaskKey`,
-`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, `TaskGroupOptions`, and
-`DeadlockDetectionListener`. `ParName`
+The deleted top-level types have no compatibility aliases: `TaskKey`,
+`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, `TaskGroupOptions`,
+`DeadlockDetectionListener`, and `TaskGroupDefinition` (with its nested
+`Builder`/`TaskDefinition`/`CombineDefinition`). The chain introduces six new public types:
+`GroupStart`, `GroupStep`, `CombinedGroupStep`, `CombineBody`, `GroupValues`, and `Tuple2`.
+`ParName`
 is renamed to `ParId` rather than deleted — the executor-lookup boundary keeps a validated value
 type. The `0.x` phase keeps no shims; update imports, declarations, and call sites together.
 
@@ -83,9 +89,8 @@ way to register or obtain a `Par`:
   `Map<ParId, Par>`.
 - `Par.id()` returns `ParId`, replacing `Par.name()`; call `.value()` only where a raw string
   is needed.
-- `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` and
-  `combine(String, Par[, TaskOptions])` still name members with plain strings — member names
-  were never `ParName`s.
+- The chain's `par(String, Par, ...)` and `combine(String, Par, ...)` still name members with plain
+  strings — member names were never `ParName`s.
 
 The `ParRuntime.Builder.build()` consistency check (default `Par` registered) is unchanged. A
 well-formed id still says nothing about registration; unknown ids fail at `build()` or at
@@ -201,7 +206,7 @@ the edge-text accessors keep their names. What is gone for good: one registratio
 request of the runtime — each scope must now be asked for its own report — and the library's
 listener-exception isolation, which moves to your callback executor.
 
-## The three phases
+## The task group: from a reusable definition to a one-shot chain
 
 In `0.2.x`, `TaskGroupDefinition` stored member `Callable`s inside the definition. Even with every
 field `final`, lambdas still capture short-lived objects — the request, a transaction, a
@@ -213,130 +218,221 @@ connection — causing three problems:
   objects.
 
 Java 8 offers no type constraint that proves a lambda captures nothing, and runtime checks depend
-on compiler details and can be bypassed. The rule was therefore tightened to a stronger form:
-**a definition never receives a callable at all; the objects that carry callables must be
-single-use.** v0.3 splits configuration from execution into three phases:
+on compiler details and can be bypassed. The `0.3.0` answer is not to move callables into another
+one-shot container but to remove the reusable structure itself: **one run is one chain, and the
+structure, the declared type, and the body are registered in the same `par` call — a chain that
+`submitAll()` consumes.** The moment a structure exists it is tied to this run's bodies, with no
+object in between that the two could drift out of sync with.
 
 ```text
 Application / topology lifetime
-ParRuntime ------------------------------------------------- close
-    |
-    +-- defineGroup*(...) -- build --> TaskGroupDefinition
-                                      structure only, reusable concurrently
+ParRuntime --------------------------------------------------------------- close
 
-One submission
-submitGroup(definition, binder)
-    |
-    +-- Bindings                 one-shot, collects this run's Callables
-    |     |
-    |     +-- frozen when the binder returns --> internal one-shot carrier,
-    |                                            cleared hop by hop
-    |
-    +-- TaskGroup                one-run lifetime, closeable
-          future / token / deadline / context / timer
+One run: one chain, declared with its bodies, submitted once
+    runtime.group(name, timeout) / groupInheriting(name)                 GroupStart
+        |-- closeGrace(Duration)           optional, only before the first par
+        |-- par(name, par, type, body)     member: name / Par / declared type / this run's body
+        |-- combine(name, par, type, body)                                 optional, at most once
+        |
+        `-- submitAll()                    the only admission and submission boundary
+              |
+              `-- TaskGroup<V, R>          one-run lifetime, closeable, usable across threads
+                    member futures / values / terminal / token / deadline / context / timer
 ```
 
-Three phases, three lifetimes, never flowing backward:
+The three stages are step-builder *interfaces* on that chain; their implementations stay
+package-private, and only the `TaskGroup<V, R>` handed back by submission is a run scope:
 
-- **Definition (structure, application lifetime)**: immutable and thread-safe; holds only names,
-  declaration order, kinds, owner-bound `Par` handles, member `TaskOptions`, and the timeout and
-  close-grace choices. It never holds a `Callable`, combine body, listener, request object,
-  future, token, deadline, or TTL snapshot, and can be shared across threads for the life of its
-  owner `ParRuntime`.
-- **Bindings (this run's payload, one-call lifetime)**: created inside `submitGroup`, valid only
-  within the synchronous dynamic extent of the binder. Because Java lambdas always capture
-  something, the object that carries them is per-submission and single-use.
-- **TaskGroup (run state, one-run lifetime)**: a closeable scope holding this run's futures,
-  tokens, deadline, and body tracker. Futures exist only after a successful submission — there is
-  no declaration-time placeholder.
+- **`GroupStart` (no member declared yet)**: carries the whole-group setting `closeGrace` and the
+  first `par`, and can submit an empty group directly. Declaring a member leaves this stage behind
+  for good, so a `closeGrace` written after one does not compile.
+- **`GroupStep<V>` (at least one member declared)**: add members with `par`, declare the single
+  terminal `combine`, or `submitAll()` directly. `V` is the assembled member-value type so far.
+- **`CombinedGroupStep<V, R>` (combine declared)**: only `submitAll()` remains; adding a member or
+  a second combine after the combine does not compile.
 
-### 1. Define the group on its owner
+The three interfaces do not extend each other, so a chain tail of `combine(...).par(...)`,
+`combine(...).combine(...)`, or `par(...).closeGrace(...)` simply does not compile in normal
+chained code; behind that compile-time limit sits a runtime stale-stage check (see below).
 
-Only the owning `ParRuntime` creates a builder; there is no public static `builder(...)` entry.
-The group timeout stays a forced explicit choice: `defineGroup(name, timeout)` for an explicit
-budget, `defineGroupInheriting(name)` for a nested group that inherits an enclosing scoped
-task's deadline. There is no implicit unbounded default.
+**Cost and benefit.** The structure is no longer reusable: a caller that runs the same topology
+repeatedly must build the chain every time, re-declaring, re-validating, and re-allocating the
+draft per request, and member types must be written out one by one. What that buys is the absence
+of separate state to keep in sync — no definition, `TaskKey` handle, and per-run bindings as three
+objects; no `build()` to forget; no way to bind this run's body to another definition; and no
+permanently pending placeholder left behind by a forgotten submission, because no future exists
+before submission.
 
-`Builder.task(name, par[, options])` declares a plain member and returns its typed
-`Member<T>` handle; `Builder.combine(name, par[, options])` declares the single terminal
-combine and returns `Member<R>`. The builder validates immediately — null, blank, duplicate, or
-foreign-`Par` names fail at configuration time — and a second `combine()` call throws
-`IllegalStateException`. `closeGrace(Duration)` configures the group's cleanup budget, replacing
-`TaskGroupOptions.closeGrace`. `build()` seals the builder: later mutating calls throw
-`IllegalStateException`, and repeated `build()` calls return the same instance.
+### 1. Declare and submit one chain
 
+Only the instance methods `ParRuntime.group(...)` / `groupInheriting(...)` open a chain; there is
+no public static `builder(...)` entry. The group timeout stays a forced explicit choice:
+`group(name, timeout)` for an explicit positive budget, `groupInheriting(name)` for a nested group
+that inherits an enclosing scoped task's deadline. There is no implicit unbounded default.
+
+Each `par` on the chain registers one plain member's name, executor, declared type, and this run's
+body in a single call; `combine(name, par, type, body)` declares the single terminal combine. The
+declaration validates immediately — null, a blank name, a duplicate name, a foreign `Par`, a
+primitive or unresolved token all fail on that call. `closeGrace(Duration)` before the first `par`
+configures the cleanup budget `close()` uses, replacing `TaskGroupOptions.closeGrace`.
+
+A declared type has exactly two spellings: `Foo.class` for a non-generic result, and
+`new TypeToken<List<Order>>() {}` (or an already-declared `TypeToken` variable) for a
+parameterized one. Both take the same code path — the `Class` form is `TypeToken.of(type)`
+internally, with identical runtime type checking and error timing. Custom `TaskOptions` are
+available only in the `TypeToken` form: `par(name, par, options, TypeToken.of(Foo.class), body)`.
 Omitting a member's `TaskOptions` is exactly `TaskOptions.inheritTimeout()`; pass options only
 for a tighter budget, a different task type, a different enqueue policy, or an explicit
 caller-thread fallback on rejection (`runOnCallerThread(true)`).
 
+Declaration creates no cancellation token, future, absolute deadline, timer, or TTL snapshot, and
+calls no executor; the group timeout starts at the `submitAll()` submission boundary, so
+declaration time consumes none of the execution budget. `submitAll()` is the only admission
+boundary: plain members run in the order the `par` calls were written, with the terminal combine
+always last.
+
 ```java
-// 0.2.x
-TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
+// 0.2.x: the structure, the callables, and the handles lived in three places
+TaskGroupDefinition.Builder builder = TaskGroupDefinition.builder(
         TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
-TaskKey<User> user = definition.task(
+TaskKey<User> user = builder.task(
         new TaskKey<User>("user") {},
-        ParName.of("database"), userRepository::load);
+        ParName.of("database"), () -> userRepository.load(request.userId()));
+TaskKey<List<Order>> orders = builder.task(
+        new TaskKey<List<Order>>("orders") {},
+        ParName.of("http"), () -> orderClient.load(request.userId()));
+TaskGroupDefinition accountPage = builder.buildWithCombiner(
+        new TaskKey<AccountPage>("assemble-page") {},
+        ParName.of("cpu"),
+        values -> new AccountPage(values.value(user), values.value(orders)));
 
-// 0.3.0
-TaskGroupDefinition.Builder builder =
-        global.defineGroup("account-page", Duration.ofSeconds(3));
-TaskGroupDefinition.Member<User> user =
-        builder.task("user", databasePar);
-```
+try (TaskGroup group = TaskGroup.submit(global, accountPage)) {
+    User userValue = group.future(user).get();
+    TaskGroupResult result = group.completionFuture().get();
+}
 
-### 2. Bind one submission
+// 0.3.0: one run's names, Pars, declared types, and bodies are registered exactly once
+TypeToken<List<Order>> ordersType = new TypeToken<List<Order>>() {};
 
-`global.submitGroup(definition, binder)` invokes the binder exactly once, synchronously, on the
-calling thread. Inside the binder, `Bindings.task(member, callable)` and
-`Bindings.combine(member, combineBody)` register this run's bodies against the `Member` handles.
-When the binder returns, the bindings freeze: every plain member must have exactly one
-`Callable`, a declared combine exactly one `CombineBody` — a missing, duplicate, foreign, or
-wrong-kind binding, a null body, or a binder that throws rejects the whole submission before any
-admission, runs no user code, and releases every registered body.
-
-The binder is a one-shot, single-thread collector, not a scope and not storable: calling a
-`Bindings` method after the binder returns, or from any thread other than the one that ran the
-binder, throws `IllegalStateException`. It must only register bodies — no I/O or business work —
-and carries no deadline cost: the group deadline starts when the binder returns.
-
-```java
-// 0.2.x: callables lived in the definition and were replayed on every submit
-TaskGroupDefinition built = definition.build();
-try (TaskGroup group = TaskGroup.submit(global, built)) { ... }
-
-// 0.3.0: callables enter through the one-shot Bindings
-TaskGroupDefinition accountPage = builder.build();
-try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
-    bindings.task(user, () -> userService.load(request.userId()));
-    bindings.task(orders, () -> orderService.load(request.userId()));
-})) {
-    User u = group.future(user).get();
-    List<Order> o = group.future(orders).get();
+try (TaskGroup<Tuple2<User, List<Order>>, AccountPage> group = global
+        .group("account-page", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> userRepository.load(request.userId()))
+        .par("orders", httpPar, ordersType, () -> orderClient.load(request.userId()))
+        .combine("assemble-page", cpuPar, AccountPage.class,
+                values -> new AccountPage(values.first(), values.second()))
+        .submitAll()) {
+    GroupValues<Tuple2<User, List<Order>>> values = group.valuesFuture().get();
+    User userValue = values.valueOf("user", TypeToken.of(User.class));
+    List<Order> orderValues = values.valueOf("orders", ordersType);
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-The same definition — and the same `Member` handles — can be submitted concurrently with
-different bindings; each submission gets independent callables, futures, tokens, deadlines,
-TTL/observation snapshots, and results.
+The chain is one-shot and single-threaded. Only the creating thread may call it: `submitAll()`
+consumes the draft, and it cannot be retried whether the submission succeeds or fails; adding to a
+saved stage object, forking from an earlier stage, or a second `submitAll()` throws
+`IllegalStateException`. An empty group submits straight from `GroupStart.submitAll()` as a
+`TaskGroup<Void, Void>`; a one-member group's `V` is that member's type, and only two or more
+members give a `Tuple2` nest. The "zero plain members but a combine" shape no longer exists — use
+`Par.submit` for a single task.
 
-### 3. Read futures from the running group
+### 2. Read futures from the running group
 
-`group.future(member)` resolves a `TaskFuture<T>` typed by the handle; `members()`,
+Member handles are gone, replaced by two ways of addressing a slot: `futureOf(name, TypeToken)`
+and `futureAt(index, TypeToken)` return a typed `TaskFuture<T>` by name or by zero-based
+declaration position, and the overloads without a token return `TaskFuture<?>` for callers that
+genuinely address slots dynamically. The position is the order the `par` calls were written, not
+the order tasks completed in, and the terminal combine occupies no position. `members()`,
 `findMember(name)`, `completionFuture()`, `cancel()`, `awaitBodyCompletion(Duration)`,
 `groupId()`, and `groupName()` keep their `0.2.x` semantics.
-A foreign `Member` handle — one from another definition, or the wrong kind — throws
-`IllegalArgumentException` at `Bindings.task/combine`, at `group.future(member)`, and at
-`CombineContext.value(member)`.
+
+The typed overloads require the query token to be exactly equal to the declared token — no
+widening to a supertype — so a wrong token is rejected on the lookup call
+(`IllegalArgumentException`) instead of surfacing as a `ClassCastException` at the `get()` site.
+The check is independent of whether the member has completed and of whether its value is null:
+null is a legitimate successful value, not a channel that skips type checking. An unknown name
+throws `IllegalArgumentException`, an out-of-range position throws `IndexOutOfBoundsException`,
+and both messages carry the name or position.
+
+The terminal combine's future comes from `terminalFuture()`, which returns
+`Optional<TaskFuture<R>>`: **empty means no combine was declared**, rather than being inferred from
+whether `R` is `Void` — a combine declared with a `Void` result still has a present future, and it
+succeeds with null.
+
+```java
+// 0.2.x
+TaskFuture<User> userFuture = group.future(user);
+
+// 0.3.0
+TaskFuture<User> userFuture = group.futureOf("user", TypeToken.of(User.class));
+TaskFuture<?> second = group.futureAt(1);
+TaskFuture<AccountPage> terminal =
+        group.terminalFuture().orElseThrow(() -> new IllegalStateException("no combine declared"));
+```
+
+### 3. Read member values: `GroupValues`
+
+In `0.2.x` you read one member at a time with `group.future(key).get()`; now you can either wait
+per member with `futureOf(name, token).get()`, or wait once on `valuesFuture()` for every
+successful value.
+
+`group.valuesFuture()` is an aggregate `ListenableFuture<GroupValues<V>>` that completes normally,
+with this run's ordered member values, when the whole group succeeds. It is not a `TaskFuture` —
+it has no execution context, attribution, or observation snapshot of its own; per-member outcomes
+stay in `completionFuture()`'s `TaskGroupResult`. It **never** stays pending: a recorded failure (a
+member's or the combine's `USER_FAILURE` / `SUBMISSION_FAILURE`) completes it exceptionally with
+that failure as the cause, so `get()` throws `ExecutionException`; a group cancellation, a direct
+member cancellation, or a timeout with no recorded failure completes it as cancelled, so `get()`
+throws `CancellationException`. The publication order is an invariant: it is always terminal
+before `completionFuture()` is, so a done completion future implies a done values future. On a
+failed group it carries no partial values.
+
+`GroupValues<V>` has two addressing views over the same slots: zero-based declaration position
+(`valueAt` / `typeAt`) and the name declared in the `par` call (`valueOf` / `typeOf`); `size()` is
+the plain member count, and the terminal combine occupies neither a name nor a position.
+`typedValues()` hands the same values back at compile-time type `V` — the single member's type for
+a one-member group, left-nested `Tuple2` for larger groups (two members give `Tuple2<T1,T2>`, three
+give `Tuple2<Tuple2<T1,T2>,T3>`), so reading by name or position needs no cast. Components may be
+null.
+
+The typed `valueAt` / `valueOf` locate the slot, then require the query token to be exactly equal
+to the declared token before returning the (possibly null) value as `@Nullable T`; `typeAt` /
+`typeOf` expose the slot's declared token for callers that genuinely address slots dynamically and
+want to inspect the schema first. A token is not deep validation: it proves which parameterized
+type the caller asked for, not that every element inside a `List<Order>` is an `Order` — that
+information is erased. The snapshot is shallowly immutable; it neither copies nor freezes your
+objects.
+
+```java
+GroupValues<Tuple2<User, List<Order>>> values = group.valuesFuture().get();
+Tuple2<User, List<Order>> typed = values.typedValues();
+User user = values.valueOf("user", TypeToken.of(User.class));
+List<Order> orders = values.valueAt(1, ordersType);
+Object dynamic = values.valueOf("user");   // untyped: cast it yourself
+```
 
 ## Terminal combine
 
-`buildWithCombiner(key, parName, function)` is replaced by an ordinary `combine(name, par)`
-declaration plus `build()`. Declaration order is free — `task()` and `combine()` may be
-interleaved — but execution order is always definition order with the terminal combine last:
-the combine runs after every member succeeds. The combine body, registered per submission via
-`Bindings.combine`, receives a `TaskGroup.CombineContext` and reads typed member values through
-`value(member)`; `CombineBody.apply` may throw `Exception`.
+`buildWithCombiner(key, parName, function)` is replaced by the chain's terminal
+`combine(name, par, type, body)`. The combine depends on every plain member, is submitted to its
+own `Par` only after all of them succeed, and is the group's last task: the group completes only
+when its future is terminal. Execution order is the order the `par` calls were written, with the
+terminal always last; a group accepts at most one combine, and `CombinedGroupStep` exposes only
+`submitAll()`, so a second combine or a member after the combine does not compile.
+
+The combine body no longer receives a `CompletedTaskValues`; it receives the assembled member
+values themselves — the same `V` as `GroupValues.typedValues()` — destructured by position: with
+two members, `values.first()` / `values.second()`; with three, `values.first().first()`,
+`values.first().second()`, `values.second()`. Components may be null (a member that succeeds with
+null is legitimate), so express any non-null requirement yourself with
+`Objects.requireNonNull`. `CombineBody.apply` may throw `Exception`.
+
+Like a member, the combine enforces its declared `TypeToken<R>` at runtime: a non-null result whose
+class does not match the token's raw type is recorded as `USER_FAILURE` with a
+`ClassCastException`, and a rejected handoff to its executor is recorded as `SUBMISSION_FAILURE`
+with the body never running. Its value is reached through `terminalFuture()`, and it occupies
+**neither a name nor a position** in `GroupValues` — the values view always holds plain members
+only.
 
 ```java
 // 0.2.x
@@ -346,12 +442,17 @@ TaskGroupDefinition built = definition.buildWithCombiner(
         values -> new AccountPage(values.value(user), values.value(orders)));
 
 // 0.3.0
-TaskGroupDefinition.Member<AccountPage> page =
-        builder.combine("assemble-page", cpuPar);
-TaskGroupDefinition built = builder.build();
-// per submission:
-//   bindings.combine(page, values ->
-//           new AccountPage(values.value(user), values.value(orders)));
+try (TaskGroup<Tuple2<User, List<Order>>, AccountPage> group = global
+        .group("account-page", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> userRepository.load(request.userId()))
+        .par("orders", httpPar, ordersType, () -> orderClient.load(request.userId()))
+        .combine("assemble-page", cpuPar, AccountPage.class,
+                values -> new AccountPage(values.first(), values.second()))
+        .submitAll()) {
+    AccountPage page = group.terminalFuture()
+            .orElseThrow(() -> new IllegalStateException("no combine declared"))
+            .get();
+}
 ```
 
 ## Group completion callbacks
@@ -379,41 +480,43 @@ Futures.addCallback(
 
 Guava future semantics take over the old listener guarantees. A callback added after the future
 completed still runs with the completed result, so even a direct executor that finishes the
-group before `submitGroup` returns cannot lose the notification. The framework no longer
+group before `submitAll` returns cannot lose the notification. The framework no longer
 guarantees a fixed "result before listener" order: under a direct executor the callback may run
-inside `submitGroup` before it returns; code that needs the terminal state first should read
+inside `submitAll` before it returns; code that needs the terminal state first should read
 `completionFuture()`'s value. Callback exceptions never affect the completed future; they are
 handled by Guava and the chosen executor. And the framework installs no context on the callback
 thread — member current task and group current context do not exist during the callback.
 
 ## Behavior changes to plan for
 
-- **Owner binding is explicit.** A definition only accepts `Par` handles of the `ParRuntime`
-  that created it; a foreign `Par` fails at definition configuration, and submitting a foreign
-  owner's definition fails at the `submitGroup` entry. After `ParRuntime.close()` the definition
-  remains a plain immutable object, but new submissions fail.
-- **Inherit without an enclosing task fails the whole submission.** A group built with
-  `defineGroupInheriting(name)` submitted from a thread with no enclosing scoped task throws
-  `IllegalArgumentException` at run preparation: no `TaskGroup`, no futures, no tokens, and no
-  body runs. (In `0.2.x` this was described as a `submit`-time rejection; the new API surfaces
-  the same rule at the same boundary, now on `submitGroup`.)
-- **The deadline starts after the binder.** Bindings are synchronous configuration and consume
+- **Owner binding is explicit.** A chain only accepts `Par` handles of the `ParRuntime` that
+  created it; a foreign `Par` fails on the `par` / `combine` call itself. After
+  `ParRuntime.close()` a submitted group still converges normally, but a new `submitAll()` fails.
+- **Inherit without an enclosing task fails the whole submission.** A chain opened with
+  `groupInheriting(name)` and submitted from a thread with no enclosing scoped task throws
+  `IllegalArgumentException` at `submitAll`'s run preparation: no `TaskGroup`, no futures, no
+  tokens, and no body runs. (In `0.2.x` this was described as a `submit`-time rejection; the new
+  API surfaces the same rule at the same boundary, now on `submitAll`.)
+- **The deadline starts at `submitAll`.** A declaration is synchronous configuration and consumes
   none of the group budget; if the outer deadline is already exhausted, the group resolves to
   `TIMEOUT` synchronously and no body enters.
-- **Execution order is fixed by the definition**, not by binding order: plain members in
-  declaration order, terminal combine always last.
-- **Member diagnostic names come from the declared name string**, not from a `TaskKey` —
-  checkpoints, task-listener `taskName()`, and task-graph labels use the name passed to
-  `task(name, par)`.
-- **No futures exist before submission.** There is no declaration-time placeholder; a
-  `TaskFuture` appears only on the `TaskGroup` returned by `submitGroup`, so forgetting to submit
-  can no longer leave a permanently pending future.
-- **Body references are handed on and cleared at every hop.** The payload moves from `Bindings` to
-  an internal one-shot carrier and is then adopted by each prepared task, clearing the previous hop
-  every time; preparation failure, executor rejection, cancel-before-run, fail-fast, timeout, and
-  normal completion all release body references without waiting for GC. A body holding an external
-  resource still has to release it itself — the framework releases the reference to the body, not
-  the resources the body captured.
+- **Execution order is fixed by the order the chain was written**: plain members in `par` order,
+  terminal combine always last. There is no separate binding order that could diverge from it.
+- **Member diagnostic names come from the `par(...)` name string**, not from a `TaskKey` —
+  checkpoints, task-listener `taskName()`, and task-graph labels use that name.
+- **No futures exist before submission.** There is no declaration-time placeholder, and no
+  structure object to inspect before or after submitting; a `TaskFuture` appears only on the
+  `TaskGroup` returned by `submitAll()`, so forgetting to submit can no longer leave a permanently
+  pending future.
+- **Body references are handed over by the submission and cleared.** Bodies move from the draft
+  into the prepared tasks, which then adopt them; a declaration-time exception or a synchronous
+  `submitAll` failure clears the references the framework holds. The reverse cost is real too: a
+  draft saved for a long time **without** being submitted still holds the request objects it
+  captured — drop it as soon as you decide not to submit. On the execution path (executor
+  rejection, cancel-before-run, fail-fast, timeout, and normal completion) body references are
+  released as before, without waiting for GC. A body holding an external resource still has to
+  release it itself — the framework releases the reference to the body, not the resources the body
+  captured.
 - **Registering a discarding executor now fails the build.** A `ThreadPoolExecutor` whose
   `RejectedExecutionHandler` is `DiscardPolicy` or `DiscardOldestPolicy` accepts a task and then
   drops it: it neither runs it nor throws. The kernel only reads `RejectedExecutionException` as a
@@ -428,25 +531,24 @@ thread — member current task and group current context do not exist during the
 
 ## Error timing
 
-Admission is still an all-or-nothing boundary: missing, duplicate, foreign, and wrong-kind bindings
-are rejected wholesale at freeze validation, and a race with `close()` ends in full acceptance or
-full rejection — never "some bodies already ran".
+Admission is still an all-or-nothing boundary: the member registry is built in declaration order
+and published complete before any executor is submitted to, and a race with `close()` ends in full
+acceptance or full rejection — never "some bodies already ran".
 
 | Error | When it fails | TaskGroup/Future created? |
 |---|---|---:|
-| blank/duplicate name, null, foreign `Par` | definition configuration | no |
-| mutating a sealed builder | definition configuration | no |
-| foreign definition owner | `submitGroup` entry | no |
-| missing/duplicate/foreign/wrong-kind binding | binder freeze validation | no |
-| binder throws | synchronous binder call | no |
-| `ParRuntime` closed (or loses the close race) | admission | no |
-| inherit group with no enclosing scoped task | run preparation | no |
-| runtime preparation failure | admission rollback | no |
+| blank/duplicate name, null, foreign `Par`, primitive or unresolved token | the `group` / `par` / `combine` call | no |
+| fork from an old stage, second `submitAll`, cross-thread draft use, `closeGrace` after the first member | that call | no |
+| `ParRuntime` closed (or loses the close race) | `submitAll` admission | no |
+| inherit group with no enclosing scoped task | `submitAll` run preparation | no |
+| runtime preparation failure | `submitAll` admission rollback | no |
 | executor rejection or a handoff `Error` from `execute()` | runtime submission | yes, recorded in the result |
 | callable/combine body throws | runtime execution | yes, fail-fast/result |
+| body returns a non-null value whose class contradicts its declared token | before the member completes | yes, `USER_FAILURE` |
+| query out of range, unknown name, token not equal to the declared one | the query call | no; the submitted group is unaffected |
 
 Business failures after a successful submission are expressed through the futures and
-`TaskGroupResult`, never thrown from `submitGroup`, so direct and asynchronous executors expose
+`TaskGroupResult`, never thrown from `submitAll`, so direct and asynchronous executors expose
 the same API behavior.
 
 ## Executor handoff failures are recorded in the futures, not thrown
@@ -455,7 +557,7 @@ The submission contract is now uniform for every failure of the executor handoff
 a contract-violating `Error` from `execute()`, or a failure while enqueuing such as
 `OutOfMemoryError`. The affected element or member future terminates as `SUBMISSION_FAILURE` with
 a `SubmissionException` whose cause is the original throwable, and neither `Par.map` nor
-`submitGroup` rethrows the failure once admission has crossed its public boundary. The completion
+`submitAll` rethrows the failure once admission has crossed its public boundary. The completion
 shape no longer depends on whether the failure happened in the synchronous initial window or the
 asynchronous sliding-window refill — the same executor defect used to have two observable shapes.
 
@@ -538,7 +640,7 @@ close time.
 |---|---|---|
 | `TaskGroup.close()` | cancelled unfinished members | cancels, then waits within the close grace |
 | `TaskBatchResult` | not `AutoCloseable` | `AutoCloseable` with the same semantics |
-| Grace configuration | — | `TaskGroupDefinition.Builder.closeGrace(Duration)` / `BatchOptions.closeGrace(Duration)` |
+| Grace configuration | — | `GroupStart.closeGrace(Duration)` at the head of the chain / `BatchOptions.closeGrace(Duration)` |
 | Cancel-only request | `close()` | `cancel()` (group) — `closeGrace(Duration.ZERO)` also makes `close()` cancel-only |
 
 A `close()` that returns normally still does not prove the task bodies exited: an
@@ -568,7 +670,9 @@ information.
 | `Task` is package-private; `TaskFuture` is the public contract | Declare `TaskFuture` where `Task` was used. |
 | `Par.map` takes any `Collection` instead of only `List` | Source compatible; non-`List` inputs are snapshotted on entry. |
 | `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable`; the `BatchReport` constructor is package-private | Remove null checks on `stateCounts()`; obtain reports from the library. |
-| `TaskGroup.CombineContext.value(member)` is now `@Nullable` | The member value could always be null; the annotation now says so. No call-site change is required unless your own null checker flags it. |
+| `TaskGroup` now takes two type parameters, `TaskGroup<V, R>` | Spell them out wherever the type is named: a group without a combine is `TaskGroup<V, Void>`, an empty group is `TaskGroup<Void, Void>`. |
+| `TaskGroup.future(TaskKey<T>)` and `CompletedTaskValues` are deleted | Read futures with `futureOf(name, TypeToken)` / `futureAt(index, TypeToken)` and the terminal with `terminalFuture()`; read values from `GroupValues` via `valuesFuture()`. |
+| The combine body's input changed from `CompletedTaskValues` (`value(TaskKey)` returning an unannotated `T`) to the assembled tuple of member values | Components are `@Nullable` — a member value could always be null and now needs an explicit null check; position destructuring is described above. |
 | `ParRuntime.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
 | `VariableLinkedBlockingQueue` is no longer `Serializable` | It relied on the JDK `LinkedBlockingQueue` shape, but its sentinel-linked node chain made a deserialized instance read as empty and then fail with `NullPointerException` on first use, so the declaration only promised something it could not deliver. `DrainingBlockingQueue` never declared it either. A queue is not a serialization format — rebuild it, or serialize the elements and refill. |
 
@@ -597,9 +701,9 @@ future-terminal from body-exit. The group redesign added no second submission pi
 still exactly one execution kernel.
 
 The group close grace moved from `TaskGroupOptions.closeGrace(Duration)` to
-`TaskGroupDefinition.Builder.closeGrace(Duration)`, and the close semantics themselves are
+`GroupStart.closeGrace(Duration)` at the head of the chain, and the close semantics themselves are
 described above. The batch (`Par.map`) API shape is unchanged — the rejection default above applies
 to batches too.
 
 For the full design rationale, the rejected alternatives, and the verification matrix, see
-`design/group-api-redesign-v0.3-decision.md` in the repository.
+`design/group-one-shot-api-refactor-codex.md` in the repository.
