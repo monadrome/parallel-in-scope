@@ -248,6 +248,7 @@ Java 没有 move 语义。包私有实现让每个阶段持有同一份内部状
 已按 §3 的签名落地。落地形态与本文一致的要点，以及实施中定下、值得记录的细节：
 
 - 新增 `GroupStart`/`GroupStep`/`CombinedGroupStep`/`CombineBody`/`GroupValues`/`Tuple2`；`GroupDraft`（包私有）持有唯一一份草稿状态与阶段序号，三个阶段的实现类都由它返回；`TaskGroupDefinition` 降为包私有纯结构，`Member<T>`/`Bindings`/`CombineContext` 删除。
+- 落地后按公开面复查做的一轮纯减法（全部落在包私有类型上，公开面与 §3 签名不变）：`TaskGroupDefinition` 去掉无人读取的 `owner` 字段与 `owner()`、无人调用的 `slots()`，`GroupValues.empty()` 删除；成员与 terminal combine 从"打 `Kind` 标签的单一 slot 平表"改为构造器上的两个独立参数，使"至多一个 combine"成为结构属性而非构造器要执行的规则。原先的 `freeze()` 把本来就分开持有的两者拍平打标、构造器再按标签拆回，而那条不变量此前只在三步之外的 stage 链（`Step.combine` → `CombinedGroupStep`）上成立，类型本身对违约是**静默容忍**的：分拣循环里每个 `COMBINE` 都覆盖前一个，传入两个 combine 会后者胜出、前者不报错地被丢弃。
 - 类型检查落在 prepared callable 的包装层（`TaskGroup.typeChecked`），裸类重载与 `TypeToken` 形式共用同一条路径，因此两者在运行期行为完全一致。
 - `valuesFuture()` 由 `converge()` 在写入 `completionFuture()` **之前**发布，§5 的三态契约由 `publishValues` 的三个分支实现；空组走 `completeEmpty()`，同样先发布值。
 - combine body 收到的是按声明顺序左折叠出的元组，由 `assembleTerminal` 在 join 时从已完成的成员 future 组装；它不再有 `CombineContext`。
