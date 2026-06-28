@@ -95,8 +95,9 @@ relevant contract through the document routes below.
 - The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
   stack-installed implementation details. The `Context` suffix marks a data carrier
-  (a view or resolved parameters); the `Member` handle marks an identity-typed
-  structural slot of a `TaskGroupDefinition`; the `Id` suffix marks an immutable
+  (a view or resolved parameters); `Step` marks a stage of a one-shot builder chain
+  (`GroupStart` is the opening stage, `GroupStep` and `CombinedGroupStep` the later ones);
+  the `Id` suffix marks an immutable
   value object identifying a logical entry (`ParId`).
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
   compatibility shims. During the `0.x` phase, a breaking change is acceptable
@@ -122,6 +123,57 @@ relevant contract through the document routes below.
   below. Fix failures caused by the change and rerun affected checks without
   pausing for review of the first implementation. Report unrelated failures or
   blockers explicitly; do not claim completion while required checks are blocked.
+
+## Adversarial Review
+
+A change to a public API, a documented contract, or a concurrency-sensitive path
+gets an independent adversarial review before it is committed. That is a separate
+pass with its own budget, not a reread of your own diff.
+
+- **Dispatch an independent seat.** Use a different model or harness than the one
+  that wrote the change — the `cmux codexyolo` workspace runs Codex with this
+  repository as its working directory. Give the prompt explicit attack surfaces
+  (kernel correctness under named interleavings, contract versus implementation,
+  test quality, Java 8 and generics), not "review this". Tell the seat to review
+  only: it must not edit files.
+- **Review the fixes, not the design, in later rounds.** A fix is new code with
+  its own defects. Round two onward targets the previous round's changes —
+  round two of the change below found two defects introduced by round one's
+  fixes, including one that assumed an ordering it was written to stop assuming.
+  Use a fresh seat when the previous one is near its context limit or has started
+  agreeing with itself.
+- **Seed the baseline, then ask for what is outside it.** Record findings and
+  dispositions in the change's `design/` document as they settle, and have later
+  rounds read that list first and treat it as known. Otherwise every round
+  re-reports the same items and the reviewer's attention goes to the oldest code
+  instead of the newest.
+- **Verify every finding before accepting it.** A reported severity is a claim,
+  not a fact. Reproduce it against the working tree, then keep, downgrade, or
+  reject it and say which. Of the twelve findings recorded in
+  `design/group-one-shot-api-refactor-codex.md` §10, two were documentation
+  overclaims and one a consistency defect rather than the defects they were
+  reported as — real, but not what the report said.
+- **Reverse-verify every regression test.** Temporarily revert the fix, watch the
+  new test fail, restore the fix. A test that has never failed against the broken
+  code proves nothing about it: two of the tests written alongside that change
+  would have passed against a broken implementation, and only this step found
+  them. This is what makes the rest of the protocol worth running.
+- **Record the outcome, rejections included.** Findings, dispositions, and what
+  each fix actually changed go in the `design/` document beside the decision they
+  belong to. Leave the review seat's workspace open; its reasoning is the audit
+  trail.
+- **Mutation testing is the systematic form of the same question.** The review
+  rounds ask "is there a defect"; `mvn -Ppitest` asks "do the tests bite" — and it
+  finds gaps no hand-written reverse-verification reaches, because you only
+  reverse-verify the lines you already changed. Scope `targetClasses` and
+  `targetTests` to what the change touched; the profile defaults to the whole
+  library and takes far longer than the review is worth. Then **classify every
+  survivor before reporting it**: an equivalent mutant (a bounds check the
+  collection repeats anyway, a guard whose only effect is avoiding work, a log
+  nothing asserts on) is not a gap, and reporting it as one wastes the reader's
+  trust. On the change below, 13 survivors out of 215 mutants came down to three
+  real gaps once each was checked — among them a public method whose success path
+  no test had ever executed.
 
 ## Issue Tracking
 
