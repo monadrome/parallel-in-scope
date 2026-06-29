@@ -2,6 +2,11 @@
 
 Status: implemented
 
+> Naming note: this document predates the group one-shot refactor. Its group-side
+> statements say `ParRuntime.submitGroup(definition, binder)`, which is now
+> `runtime.group(name, timeout).par(...).submitAll()`; the batch-side semantics
+> (`Par.map`, `SubmissionException`, `SUBMISSION_FAILURE`) are unchanged.
+
 ## Decision
 
 `Par.map` always returns a `TaskBatchResult` when the batch admission call itself

@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> 本文部分示例保留 v0.2 前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskGroupOptions`/`TaskOptions`，请以 [v0.2 迁移指南](../migration-v0.2.md) 为准。
+> 本文部分示例保留 0.2 之前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskOptions`，请以 [v0.3 迁移指南](../migration-v0.3.md) 为准。
 
 
 > 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
@@ -68,7 +68,7 @@ ListenableFuture<Report> report = Futures.transform(allPrices, this::buildReport
 
 ## 重试（Retry）
 
-**请求：** 内置重试机制，如 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**请求：** 内置重试机制（示意：`retry(3).backoff(100, MILLISECONDS)`）。
 
 **为什么不做：**
 
@@ -150,7 +150,7 @@ public class ParallelInScopeConfig {
 
 **为什么不做：**
 
-parallel-in-scope 只提供批次级超时（`ParOptions.timeout()`），不提供单任务超时。原因是两者在 fail-fast 语义下几乎等价，但实现复杂度差异巨大：
+parallel-in-scope 只提供批次级超时（`BatchOptions.timeout(name, Duration)`），不提供单任务超时。原因是两者在 fail-fast 语义下几乎等价，但实现复杂度差异巨大：
 
 - **批次超时：** 一个 `FluentFuture.withTimeout()` 搞定，语义清晰——"整批任务最多跑 N 秒"。
 - **单任务超时：** 每个任务需要独立的 `ScheduledFuture` 来触发取消。在一个 1000 元素的批次中，这意味着 1000 个定时器。而且在 fail-fast 模式下，第一个任务超时就会取消整批——效果和批次超时一样。
@@ -187,7 +187,7 @@ par.map("io-pool", urls, url -> {
 
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
-1. **总量必须提前已知。** `ParOptions.formalized()` 会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
+1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
 2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交任务，`SettableFuture` 按索引占位。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 
@@ -242,7 +242,7 @@ ListenableFuture<UserProfile> profile = Futures.whenAllSucceed(userF, orderF, in
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
+BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parallelism(concurrency);
 ```
 
 ---

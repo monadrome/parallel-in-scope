@@ -80,8 +80,8 @@ traceId.set("req-42");
 - 超时、显式取消与父子级联取消传播
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
-- CPU / IO 任务感知调度
-- 执行、排队与失败的监控 SPI
+- 任务类型感知的入队判定（`TaskType` 只驱动 `SmartBlockingQueue` 的拒绝，不影响调度）
+- 拉取式任务观测：`completionFuture` 终态快照 + `Futures.addCallback`
 - 任务图与执行器图的环路检测
 
 ## 文档

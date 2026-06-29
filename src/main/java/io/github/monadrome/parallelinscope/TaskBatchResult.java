@@ -405,7 +405,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         }
 
         /**
-         * Provides counts by future state, for example {@code SUCCESS=3, FAILED=1}.
+         * Provides counts by outcome, for example {@code SUCCESS=3, USER_FAILURE=1}.
          *
          * @return the immutable state count map, empty when the batch had no elements
          */

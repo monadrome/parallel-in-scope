@@ -2,7 +2,8 @@
 
 > **Note (v0.3).** The `0.2.x` API described in this guide has itself been replaced in `0.3.0`:
 > `ParName`, `TaskKey`, `TaskGroupOptions`, and the rest of the task-group surface were removed
-> or redesigned around `defineGroup*` / `submitGroup` / `Bindings`. Applications on `0.2.x`
+> or redesigned around the one-shot chain `runtime.group(name, timeout).par(...).submitAll()`.
+> Applications on `0.2.x`
 > should continue on to [Migrating to v0.3](migration-v0.3.md).
 
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.

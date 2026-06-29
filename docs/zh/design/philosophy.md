@@ -246,15 +246,14 @@ parallel-in-scope 的做法：CPU 密集型任务，宁可同步执行也不排�
 
 ```java
 // CPU 密集型
-ParOptions cpuOpts = ParOptions.cpuTask("compute")
+BatchOptions cpuOpts = BatchOptions.timeout("compute", Duration.ofSeconds(30))
     .parallelism(Runtime.getRuntime().availableProcessors())
-    .build();
+    .taskType(TaskType.CPU_BOUND);
 
 // IO 密集型
-ParOptions ioOpts = ParOptions.ioTask("fetchRemote")
+BatchOptions ioOpts = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
     .parallelism(20)
-    .timeout(5000)
-    .build();
+    .taskType(TaskType.IO_BOUND);
 ```
 
 `SmartBlockingQueue` 继承 Guava 的 `ForwardingBlockingQueue`，覆写 `offer()` 方法。核心逻辑：
@@ -386,7 +385,7 @@ par.map("io-pool", urls, url -> {
 
 ### 内置重试（Retry）
 
-**请求：** 内置重试机制，如 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**请求：** 内置重试机制（示意：`retry(3).backoff(100, MILLISECONDS)`）。
 
 **为什么拒绝：** 重试是一个**策略密集型**问题——重试哪些异常？退避策略？幂等性？重试时是否占用并发窗口？每个决策点都是业务相关的。
 
