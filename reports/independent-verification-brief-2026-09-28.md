@@ -5,12 +5,12 @@
 
 ## 硬性约束
 
-1. **只读仓库**：不得修改 `/Users/qinghualin/Documents/projects/parallel-in-scope` 下的任何文件。
+1. **只读仓库**：不得修改本仓库（`parallel-in-scope`）下的任何文件。
 2. 需要写验证程序时，只能写在 `/tmp` 下（例如 `/tmp/pis-verify/`），编译运行随你。
    仓库已经编译过，`target/classes` 可用于类路径；依赖 jar 在 `~/.m2/repository`
    （guava 33.6.0-jre、transmittable-thread-local 2.14.5、jspecify 1.0.1，另需
    `com.google.guava:failureaccess`）。本机 JDK 8 在
-   `/Users/qinghualin/Library/Java/JavaVirtualMachines/corretto-1.8.0_412/Contents/Home`。
+   `~/Library/Java/JavaVirtualMachines/corretto-1.8.0_412/Contents/Home`。
 3. **你的价值在于证伪**。逐条主动尝试推翻它；如果某条其实是误读、过度断言或措辞不准确，
    明确说出来，并给出正确的表述。不要因为"听起来合理"就投赞成票——**没有证据的赞成票是废票**。
 4. 每条结论都必须给出**证据**：文件:行号，或你自己跑出来的命令与输出。不要只给判断。
