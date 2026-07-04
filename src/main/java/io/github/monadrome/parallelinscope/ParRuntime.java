@@ -2,10 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSetMultimap;
-import com.google.common.collect.LinkedHashMultimap;
-import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
@@ -60,9 +56,6 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
-    private final ImmutableSetMultimap<ExecutorIdentity, String> executorTagsByIdentity;
-    private final ImmutableSetMultimap<ParId, String> executorTagsByPar;
-    private final ImmutableSetMultimap<String, ParId> parsByExecutorTag;
     private final @Nullable ParId defaultId;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
     private final ParRuntimePurgePolicy purgePolicy;
@@ -98,12 +91,8 @@ public final class ParRuntime implements AutoCloseable {
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
-        ImmutableSetMultimap.Builder<ExecutorIdentity, String> tagsByIdentityBuilder = ImmutableSetMultimap.builder();
-        Map<ParId, ExecutorIdentity> identitiesByPar = new LinkedHashMap<>();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
-            identitiesByPar.put(entry.getKey(), identity);
-            tagsByIdentityBuilder.putAll(identity, builder.executorTags.get(entry.getKey()));
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
                 // A TTL wrapper hides the physical pool, so every structural fact below is read
@@ -155,18 +144,6 @@ public final class ParRuntime implements AutoCloseable {
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
-        this.executorTagsByIdentity = tagsByIdentityBuilder.build();
-        ImmutableSetMultimap.Builder<ParId, String> tagsByParBuilder = ImmutableSetMultimap.builder();
-        ImmutableSetMultimap.Builder<String, ParId> parsByTagBuilder = ImmutableSetMultimap.builder();
-        for (Map.Entry<ParId, ExecutorIdentity> entry : identitiesByPar.entrySet()) {
-            ImmutableSet<String> tags = this.executorTagsByIdentity.get(entry.getValue());
-            tagsByParBuilder.putAll(entry.getKey(), tags);
-            for (String tag : tags) {
-                parsByTagBuilder.put(tag, entry.getKey());
-            }
-        }
-        this.executorTagsByPar = tagsByParBuilder.build();
-        this.parsByExecutorTag = parsByTagBuilder.build();
         this.pars = ImmutableMap.copyOf(builtPars);
     }
 
@@ -276,35 +253,6 @@ public final class ParRuntime implements AutoCloseable {
         return pars;
     }
 
-    /**
-     * Returns the immutable executor-tag snapshot keyed by logical {@link ParId}.
-     *
-     * <p>Tags are attached to the physical executor identity at registration time. If several ids
-     * share one executor, each id exposes the union of tags registered for those aliases. The
-     * returned multimap is a set multimap: registering a tag more than once has no effect.
-     */
-    public ImmutableSetMultimap<ParId, String> executorTags() {
-        return executorTagsByPar;
-    }
-
-    /** Returns the tags of the executor bound to {@code id}, or an empty set for an unknown id. */
-    public ImmutableSet<String> executorTags(ParId id) {
-        return executorTagsByPar.get(Objects.requireNonNull(id, "id cannot be null"));
-    }
-
-    /**
-     * Returns the tags of the exact supplied executor object, or an empty set when it was not
-     * registered with this runtime.
-     */
-    public ImmutableSet<String> executorTags(ExecutorService executor) {
-        return executorTagsByIdentity.get(new ExecutorIdentity(Objects.requireNonNull(executor)));
-    }
-
-    /** Returns the ids whose physical executors carry {@code tag}. */
-    public ImmutableSet<ParId> parsWithExecutorTag(String tag) {
-        return parsByExecutorTag.get(validateExecutorTag(tag));
-    }
-
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
     Map<ParId, ExecutorRuntime> runtimes() {
         return runtimes;
@@ -313,11 +261,6 @@ public final class ParRuntime implements AutoCloseable {
     /** Package-private identity index; runtime binding is not a public application API. */
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
-    }
-
-    /** Package-private identity-keyed view used by diagnostics without exposing the identity type. */
-    ImmutableSetMultimap<ExecutorIdentity, String> executorTagsByIdentity() {
-        return executorTagsByIdentity;
     }
 
     HeuristicPurger purger() {
@@ -666,7 +609,6 @@ public final class ParRuntime implements AutoCloseable {
 
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
-        private final SetMultimap<ParId, String> executorTags = LinkedHashMultimap.create();
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
         private ParRuntimePurgePolicy purgePolicy =
@@ -691,23 +633,9 @@ public final class ParRuntime implements AutoCloseable {
          * two ids may intentionally use the same physical pool.
          */
         public Builder register(ParId id, ExecutorService executor) {
-            return register(id, executor, new String[0]);
-        }
-
-        /**
-         * Registers a logical entry and attaches diagnostic tags to its physical executor.
-         *
-         * <p>Tags are immutable strings validated for non-blank content. They are deduplicated and
-         * unioned when another {@code ParId} registers the same executor object.
-         */
-        public Builder register(ParId id, ExecutorService executor, String... tags) {
             Objects.requireNonNull(id, "id cannot be null");
             if (executors.containsKey(id)) throw new IllegalArgumentException("duplicate Par id '" + id + "'");
             Objects.requireNonNull(executor, "executor cannot be null");
-            Objects.requireNonNull(tags, "tags cannot be null");
-            for (String tag : tags) {
-                executorTags.put(id, validateExecutorTag(tag));
-            }
             executors.put(id, executor);
             return this;
         }
@@ -725,11 +653,5 @@ public final class ParRuntime implements AutoCloseable {
             }
             return new ParRuntime(this);
         }
-    }
-
-    private static String validateExecutorTag(String tag) {
-        Objects.requireNonNull(tag, "executor tag cannot be null");
-        if (tag.trim().isEmpty()) throw new IllegalArgumentException("executor tag cannot be blank");
-        return tag;
     }
 }
