@@ -70,6 +70,33 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
+     * Resolves the scope one new unit of {@code owner} joins: the structural parent's scope when the
+     * parent has one, otherwise the calling thread's scope — and in both cases only when that scope
+     * belongs to {@code owner}.
+     *
+     * <p>This is the single implementation of that rule, shared by {@code Par.submit},
+     * {@code Par.map}, and {@code TaskGroup.prepare}. Ownership is the whole point: a scope opened by
+     * another {@code ParRuntime} is visible on this thread — the binding is a
+     * {@link TransmittableThreadLocal}, so it also reaches worker threads — but crossing topologies
+     * deliberately starts no shared graph, so work admitted by {@code owner} must neither join a
+     * foreign scope nor record an edge into it. Callers use the returned value for both decisions;
+     * reading {@link #current()} again at the recording site reintroduces exactly the leak this
+     * method exists to prevent.
+     *
+     * @param parent the new unit's structural parent, or null at the top level
+     * @param owner the runtime admitting the new unit
+     * @return the scope to join and record into, or null when there is none owned by {@code owner}
+     */
+    static @Nullable TaskGraphObservationScope resolveFor(@Nullable MultiTaskContext parent, ParRuntime owner) {
+        if (parent != null) {
+            TaskGraphObservationScope inherited = parent.taskGraphObservationScope();
+            return inherited != null && inherited.owner() == owner ? inherited : null;
+        }
+        TaskGraphObservationScope ambient = current();
+        return ambient != null && ambient.owner() == owner ? ambient : null;
+    }
+
+    /**
      * Gets the current scope's graph data.
      *
      * @return the current request data, or {@code null} outside an observation scope
@@ -90,16 +117,36 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         else CURRENT.set(scope);
     }
 
-    /** Records a new-model edge using unique batch identities and display labels. */
+    /**
+     * Records one parent-to-child edge into <em>this</em> scope's graph.
+     *
+     * <p>Submission paths call this with the scope {@link #resolveFor} returned. The distinction from
+     * {@link #logTaskPair} is ownership: that form records into whatever scope the calling thread
+     * carries, and a {@link TransmittableThreadLocal} binding may belong to another
+     * {@code ParRuntime}. A closed scope records nothing.
+     */
+    void recordEdge(
+            @Nullable String parentId,
+            @Nullable String parentLabel,
+            String childId,
+            @Nullable String childLabel,
+            TaskEdge edge) {
+        if (closed()) {
+            return;
+        }
+        data.logTaskPair(parentId, parentLabel, childId, childLabel, edge);
+    }
+
+    /** Records an edge into the calling thread's scope, if any; ownership-agnostic. */
     static void logTaskPair(
             @Nullable String parentId,
             @Nullable String parentLabel,
             String childId,
             @Nullable String childLabel,
             TaskEdge edge) {
-        TaskGraphData data = data();
-        if (data == null) return;
-        data.logTaskPair(parentId, parentLabel, childId, childLabel, edge);
+        TaskGraphObservationScope scope = current();
+        if (scope == null) return;
+        scope.recordEdge(parentId, parentLabel, childId, childLabel, edge);
     }
 
     /**
