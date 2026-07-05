@@ -180,7 +180,7 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
 
 > **落地记录（2026-09-25）**：§6.1 分类与 §6.2 警告已实现。P1 取候选 (b) 的**分离精神**
 > 但换掉了它的事实：`executorDeadlockProne` 由 `ExecutorRuntime.starvationProne()` 单独
-> 判定，`BlockingRisk` 只承担资源分类；而判定的结构事实不是"线程上界有界"，是**提交去向**
+> 判定，`BlockingRisk` 只承担资源分类（**该分类已于 2026-09-29 删除，见下方补记**）；而判定的结构事实不是"线程上界有界"，是**提交去向**
 > ——`ThreadPoolExecutor.execute` 在超过 `corePoolSize` 前先 `offer` 给队列，有缓冲能力的
 > 队列会收下子任务、把它排在阻塞的 worker 之后，池子不会开新线程，`maximumPoolSize` 因此
 > 从不参与；零容量交接队列拒绝入队，才迫使开新线程或显式拒绝。按"线程上界"判定会漏掉
@@ -208,3 +208,22 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
   分类（有界/无界/装饰器）与警告一次性用例。
 - 文档：user-guide 的 executor 注册与 options 章节（`rejectEnqueue` 的生效条件与警
   告含义）；CHANGELOG。本次不动公开 API，无需 migration 文档。
+
+## 10. 补记（2026-09-29）：`BlockingRisk` 分类已删除
+
+§8 的落地记录把死锁易感性判定从 `BlockingRisk` 迁到 `ExecutorRuntime.starvationProne()`
+之后，`BlockingRisk` 的定位是"只承担资源分类"——但那次拆分没有为这个分类指定读者。复查
+`dev/v0.3.0` 的结果是：`detectRisk` 在注册时算出的值存进 `ExecutorRuntime.blockingRisk`，
+而 `src/main` 里**没有任何代码读取它**，唯一的消费者是 `ExecutorRuntimeTest` 与
+`ParRuntimeTest` 的断言。§6.1 的分类表描述的是"如果分类，按什么事实分类";§7 行为矩阵里
+真正生效的两列（purge 观测、死锁检测边覆盖）分别由 `bindPurgeObserver` 的 TPE 判断和
+`starvationProne()` 决定，都不经过 `BlockingRisk`。
+
+因此删除 `BlockingRisk` 枚举、`ExecutorRuntime.blockingRisk` 字段与访问器、`detectRisk`，
+以及只为注入分类而存在的 `ExecutorRuntime(ExecutorService, BlockingRisk)` 构造器（连测试
+都只用单参形式）。这不改变任何运行期行为：G2"说事实"的要求由 `starvationProne()` 继续承担
+（它同样是结构读取、读不出就报 false），I4"不按类名探测"随枚举一并消失而非被违反，P2
+（`VIRTUAL_THREAD_PER_TASK` 留空）随之关闭——没有分类，就没有留空的槽位。
+
+§6.1 表中的"分类"列自此只有历史意义；其"executorDeadlockProne"列仍然准确，且仍由
+`starvationProne()` 实现。若将来要恢复资源分类，必须同时给出它的读者。
