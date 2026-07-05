@@ -87,11 +87,6 @@ public final class TaskGroupResult {
         return terminal;
     }
 
-    /** Returns the number of members admitted into this group. */
-    public int memberCount() {
-        return members.size();
-    }
-
     /**
      * Returns this result when the group succeeded; otherwise throws so a caller cannot forget the
      * failure. The outcome stays available as data through {@link #outcome()}; this is the loud
