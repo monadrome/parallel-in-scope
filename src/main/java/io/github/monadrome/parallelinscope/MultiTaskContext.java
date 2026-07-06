@@ -192,21 +192,12 @@ final class MultiTaskContext {
         if (!timeout.isPresent()) {
             return ceilingNanos;
         }
-        long timeoutNanos = saturatedNanos(timeout.get());
+        long timeoutNanos = Deadlines.saturatedNanos(timeout.get());
         // Saturated on both ends: an astronomical timeout and a clock reading that is far from zero
         // (nanoTime() may legally be negative) used to overflow this sum into a negative deadline,
         // which then read as "no deadline" and silently dropped the caller's timeout.
         long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
         return Math.min(requestedDeadline, ceilingNanos);
-    }
-
-    /** Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} on overflow. */
-    private static long saturatedNanos(Duration duration) {
-        try {
-            return duration.toNanos();
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
     }
 
     /** The logical unit name: batches use the options name; group members and combines use the key name. */

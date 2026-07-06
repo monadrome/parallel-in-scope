@@ -2,6 +2,8 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -73,5 +75,28 @@ class DeadlinesTest {
         // Callers validate timeouts before they get here; this pins that the helper does not turn
         // an already-elapsed deadline into the "no deadline" sentinel.
         assertThat(Deadlines.after(1_000L, -2_000L)).isEqualTo(-1_000L);
+    }
+
+    @Test
+    void saturatedNanosConvertsExactlyUntilTheRangeRunsOut() {
+        assertThat(Deadlines.saturatedNanos(Duration.ZERO)).isZero();
+        assertThat(Deadlines.saturatedNanos(Duration.ofNanos(1))).isEqualTo(1L);
+        assertThat(Deadlines.saturatedNanos(Duration.ofSeconds(3))).isEqualTo(3_000_000_000L);
+        assertThat(Deadlines.saturatedNanos(Duration.ofNanos(Long.MAX_VALUE))).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void saturatedNanosReportsAnUnrepresentableDurationAsTheSentinel() {
+        // Duration.toNanos() throws past roughly 292 years. Every caller turns a budget that large
+        // into "no limit" anyway, which is what the sentinel already means.
+        assertThat(Deadlines.saturatedNanos(Duration.ofSeconds(Long.MAX_VALUE))).isEqualTo(Long.MAX_VALUE);
+        assertThat(Deadlines.saturatedNanos(ChronoUnit.FOREVER.getDuration())).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void saturatedNanosKeepsANegativeDurationNegative() {
+        // A negative budget means "already elapsed" to every caller; it must not read as the
+        // no-limit sentinel.
+        assertThat(Deadlines.saturatedNanos(Duration.ofSeconds(-1))).isEqualTo(-1_000_000_000L);
     }
 }
