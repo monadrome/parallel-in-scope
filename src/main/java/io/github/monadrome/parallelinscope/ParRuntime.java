@@ -304,8 +304,8 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
     public GroupStart group(String groupName, Duration timeout) {
-        return new GroupDraft.Start(
-                new GroupDraft(this, requireValidGroupName(groupName), requirePositiveTimeout(timeout)));
+        return new GroupDraft.Start(new GroupDraft(
+                this, Validation.requireName(groupName, "group name"), Validation.requirePositive(timeout, "timeout")));
     }
 
     /**
@@ -321,7 +321,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if the name is blank
      */
     public GroupStart groupInheriting(String groupName) {
-        return new GroupDraft.Start(new GroupDraft(this, requireValidGroupName(groupName), null));
+        return new GroupDraft.Start(new GroupDraft(this, Validation.requireName(groupName, "group name"), null));
     }
 
     /**
@@ -351,20 +351,6 @@ public final class ParRuntime implements AutoCloseable {
         group.start(this);
         group.submitPrepared();
         return group;
-    }
-
-    private static String requireValidGroupName(String name) {
-        Objects.requireNonNull(name, "groupName cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("group name cannot be blank");
-        return name;
-    }
-
-    private static Duration requirePositiveTimeout(Duration timeout) {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        if (timeout.isNegative() || timeout.isZero()) {
-            throw new IllegalArgumentException("timeout must be positive when configured");
-        }
-        return timeout;
     }
 
     /**

@@ -146,7 +146,7 @@ final class MultiTaskContext {
      */
     static MultiTaskContext resolve(Resolution resolution) {
         UnitSpec spec = resolution.spec;
-        if (resolution.taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
+        Validation.requireNonNegative(resolution.taskCount, "taskCount");
         MultiTaskContext parent = resolution.structuralParent;
         // Inheriting a deadline requires something to inherit from: a structural parent or an
         // explicitly supplied ceiling (a task-group member takes the group deadline even at the

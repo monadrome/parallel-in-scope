@@ -28,7 +28,7 @@ final class TaskExecutionContext {
     public TaskExecutionContext(
             MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
-        if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+        Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
         this.bodyState = bodyState;
