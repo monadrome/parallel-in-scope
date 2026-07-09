@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -180,10 +181,16 @@ class TaskGraphData {
         static Snapshot create(List<TaskEdgeEntry> taskEdges, Map<String, String> nodeLabels) {
             List<TaskEdgeEntry> edges = ImmutableList.copyOf(taskEdges);
             ValueGraph<String, List<TaskEdge>> taskGraph = buildTaskGraph(edges);
+            ImmutableList.Builder<TaskEdge> recorded = ImmutableList.builder();
+            for (TaskEdgeEntry entry : edges) {
+                recorded.add(entry.value());
+            }
             return new Snapshot(
                     taskGraph,
-                    buildExecutorGraph(taskGraph),
-                    buildExecutorIdentityGraph(edges),
+                    projectOntoExecutors(
+                            edgesInTaskGraphOrder(taskGraph), TaskEdge::sourceExecutorName, TaskEdge::executorName),
+                    projectOntoExecutors(
+                            recorded.build(), TaskEdge::sourceExecutorIdentity, TaskEdge::executorIdentity),
                     ImmutableMap.copyOf(nodeLabels));
         }
 
@@ -242,62 +249,58 @@ class TaskGraphData {
         }
 
         /**
-         * Builds the label-keyed executor graph. Edges without both endpoint names cannot be keyed
-         * by name and are skipped, matching how the identity graph skips edges without identities.
+         * Projects the recorded edges onto executor nodes under one keying.
+         *
+         * <p>The two keyings answer the same question about different node identities. The identity
+         * graph is the one detection uses, because reference identity is what makes two references
+         * the same pool; the label graph is the fallback for edges recorded without identities, and
+         * what {@code TaskGraphObservationScope} renders. Both drop the same two classes of edge: one
+         * whose child executor cannot deadlock on nested work, and one missing either endpoint key,
+         * which cannot be placed under that keying at all.
+         *
+         * @param edges the recorded edges, in the iteration order the caller wants preserved within
+         *     each node pair
+         * @param sourceKey the parent endpoint's key under this keying, or null when absent
+         * @param targetKey the child endpoint's key under this keying, or null when absent
          */
-        private static ValueGraph<String, List<TaskEdge>> buildExecutorGraph(
-                ValueGraph<String, List<TaskEdge>> taskGraph) {
-            ListMultimap<EndpointPair<String>, TaskEdge> executorEdges = LinkedListMultimap.create();
-            for (EndpointPair<String> taskEdgePair : taskGraph.edges()) {
-                List<TaskEdge> edges = Objects.requireNonNull(
-                        taskGraph.edgeValueOrDefault(taskEdgePair.source(), taskEdgePair.target(), ImmutableList.of()));
-                for (TaskEdge taskEdge : edges) {
-                    if (!taskEdge.executorDeadlockProne()
-                            || taskEdge.executorName() == null
-                            || taskEdge.sourceExecutorName() == null) {
-                        continue;
-                    }
-                    EndpointPair<String> executorPair =
-                            EndpointPair.ordered(taskEdge.sourceExecutorName(), taskEdge.executorName());
-                    executorEdges.put(executorPair, taskEdge);
-                }
-            }
-
-            ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder = ValueGraphBuilder.directed()
-                    .allowsSelfLoops(true)
-                    .incidentEdgeOrder(ElementOrder.stable())
-                    .immutable();
-            for (Map.Entry<EndpointPair<String>, Collection<TaskEdge>> entry :
-                    executorEdges.asMap().entrySet()) {
-                graphBuilder.putEdgeValue(
-                        entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
-            }
-            return graphBuilder.build();
-        }
-
-        private static ValueGraph<ExecutorIdentity, List<TaskEdge>> buildExecutorIdentityGraph(
-                List<TaskEdgeEntry> edges) {
-            ListMultimap<EndpointPair<ExecutorIdentity>, TaskEdge> executorEdges = LinkedListMultimap.create();
-            for (TaskEdgeEntry entry : edges) {
-                TaskEdge edge = entry.value();
-                if (!edge.executorDeadlockProne()
-                        || edge.executorIdentity() == null
-                        || edge.sourceExecutorIdentity() == null) {
+        private static <N> ValueGraph<N, List<TaskEdge>> projectOntoExecutors(
+                Iterable<TaskEdge> edges,
+                Function<TaskEdge, @Nullable N> sourceKey,
+                Function<TaskEdge, @Nullable N> targetKey) {
+            ListMultimap<EndpointPair<N>, TaskEdge> executorEdges = LinkedListMultimap.create();
+            for (TaskEdge edge : edges) {
+                N source = sourceKey.apply(edge);
+                N target = targetKey.apply(edge);
+                if (!edge.executorDeadlockProne() || source == null || target == null) {
                     continue;
                 }
-                executorEdges.put(EndpointPair.ordered(edge.sourceExecutorIdentity(), edge.executorIdentity()), edge);
+                executorEdges.put(EndpointPair.ordered(source, target), edge);
             }
 
-            ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder = ValueGraphBuilder.directed()
+            ImmutableValueGraph.Builder<N, List<TaskEdge>> builder = ValueGraphBuilder.directed()
                     .allowsSelfLoops(true)
                     .incidentEdgeOrder(ElementOrder.stable())
                     .immutable();
-            for (Map.Entry<EndpointPair<ExecutorIdentity>, Collection<TaskEdge>> entry :
+            for (Map.Entry<EndpointPair<N>, Collection<TaskEdge>> entry :
                     executorEdges.asMap().entrySet()) {
                 builder.putEdgeValue(
                         entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
             }
             return builder.build();
+        }
+
+        /**
+         * The recorded edges in task-graph order: grouped by task node pair, as the label-keyed
+         * projection has always read them. The identity projection reads the recording order instead,
+         * and the two orders differ only within one executor pair's edge list.
+         */
+        private static List<TaskEdge> edgesInTaskGraphOrder(ValueGraph<String, List<TaskEdge>> taskGraph) {
+            ImmutableList.Builder<TaskEdge> ordered = ImmutableList.builder();
+            for (EndpointPair<String> pair : taskGraph.edges()) {
+                ordered.addAll(Objects.requireNonNull(
+                        taskGraph.edgeValueOrDefault(pair.source(), pair.target(), ImmutableList.of())));
+            }
+            return ordered.build();
         }
 
         private static <N> boolean hasSelfLoop(ValueGraph<N, List<TaskEdge>> graph) {
