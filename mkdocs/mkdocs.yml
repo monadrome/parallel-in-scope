@@ -1,0 +1,101 @@
+site_name: parallel-in-scope
+site_description: 面向 Java 8+ 的结构化并发工具包——协作式取消、快速失败、上下文传播、死锁检测、滑动窗口调度
+site_url: https://huatalk.github.io/parallel-in-scope/
+
+repo_name: HuaTalk/parallel-in-scope
+repo_url: https://github.com/HuaTalk/parallel-in-scope
+edit_uri: edit/main/mkdocs/docs/
+
+copyright: © parallel-in-scope — Apache License 2.0
+
+nav:
+  - 首页: index.md
+  - 快速上手: getting-started.md
+  - 用户指南:
+      - 协作式取消: guide/cooperative-cancellation.md
+      - 空指针注解策略: guide/nullability-annotations.md
+  - 更多:
+      - README (中文): https://github.com/HuaTalk/parallel-in-scope/blob/main/README.md
+      - Idea Graveyard: https://github.com/HuaTalk/parallel-in-scope/blob/main/IdeaGraveyard.md
+      - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/HuaTalk/parallel-in-scope
+      name: GitHub
+
+theme:
+  name: material
+  language: zh
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换到暗色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换到亮色模式
+  features:
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.tracking
+    - navigation.path
+    - toc.follow
+    - announce.dismiss
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - sane_lists
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      pygments_lang_class: true
+  - pymdownx.extra:
+      pymdownx.superfences:
+        custom_fences:
+          - name: mermaid
+            class: mermaid
+            format: pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+  - git-revision-date-localized
+
+extra_css:
+  - stylesheets/extra.css
