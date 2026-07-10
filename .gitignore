@@ -13,3 +13,6 @@ target/
 
 # Local worktrees
 .worktrees/
+
+# MkDocs build output
+mkdocs/site/
