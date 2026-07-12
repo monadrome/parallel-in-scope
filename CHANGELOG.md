@@ -58,6 +58,7 @@
 
 - Share one completion aggregate between `CancellationToken.bind` and batch retention instead of building two, and skip task-graph bookkeeping entirely when no observation scope is active.
 - Make the task-group join test O(1) via a success counter, derive the task, executor-name, and executor-identity graphs once per recorded-edge version instead of rebuilding them per read, and replace per-unit `SecureRandom` UUID generation with process-local sequence ids.
+- Hold one deadline scheduler on `ParRuntime` instead of constructing one per `CancellationToken.bind`: the wrapper is immutable over the two services it dispatches to, so a ten-member group no longer builds eleven identical instances. Precompute the task group's member-and-combine list, which the cancel cascade rebuilt once per completing task.
 
 ### Fixes
 
@@ -80,7 +81,7 @@
 ### Packaging and documentation
 
 - Build every workflow on a JDK the build actually supports. The CI matrix, the CodeQL analysis, and the release job now all use a build JDK of 21 or newer, matching the `requireJavaVersion [21,)` enforcer that Error Prone and NullAway need: the matrix previously included 11 and 17, and CodeQL and release built on 17, so each of those runs failed the enforcer before compiling anything. The `java8-runtime` job keeps its two-JDK shape and now builds the artifact with JDK 21 while still running the public-API consumer on Java 8. Bytecode targets are unchanged — release 8 for the library, release 11 for tests.
-- Document the executor classification (bounded, unbounded, unknown), the thread-upper-bound rule behind `executorDeadlockProne`, and the once-per-`Par` inert-`rejectEnqueue` warning in the user guide, in both English and Chinese.
+- Document the two facts registration reads from an executor's structure — whether queue purge can observe it, and whether a body on it can be starved of a thread — the submission-direction rule behind `executorDeadlockProne`, and the once-per-`Par` inert-`rejectEnqueue` warning in the user guide, in both English and Chinese.
 - Set the development version to `0.3.0-SNAPSHOT` and publish it to the Central snapshot repository; `0.2.0` stays the latest stable release. The root project, `demo/`, and `verification/maven-central-consumer/` now agree on that version, so a local `mvn install` no longer writes a differently-versioned artifact over the released `0.2.0` coordinates.
 - Rewrite the README quick start for the `0.3.0` line: exact snapshot coordinates including the Central snapshot repository, a `ParId`-based sample that compiles against this tree, and the two contracts a first caller needs — the forced timeout choice and batch fail-fast. The duplicate English `README.en.md` is gone; `README.md` (English) and `README.zh-CN.md` (Chinese) are the entry points, and the link checker now covers the Chinese README as well.
 - Point the `verification/maven-central-consumer` public-API test at the current API line, so the Java 8 runtime job exercises the artifact this tree builds; use `scripts/verify-maven-central.sh` to resolve a published version from Central instead.
