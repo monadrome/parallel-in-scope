@@ -44,14 +44,14 @@ class TaskGraphData {
     private @Nullable Snapshot cachedSnapshot;
 
     /** Creates an empty request-scoped graph. */
-    public TaskGraphData() {}
+    TaskGraphData() {}
 
     /**
      * Returns the task dependency graph over the edges recorded so far.
      *
      * @return the task dependency graph
      */
-    public ValueGraph<String, List<TaskEdge>> graph() {
+    ValueGraph<String, List<TaskEdge>> graph() {
         return snapshot().graph();
     }
 
@@ -60,7 +60,7 @@ class TaskGraphData {
      *
      * @return {@code true} when a task cycle exists
      */
-    public boolean taskCycle() {
+    boolean taskCycle() {
         return snapshot().taskCycle();
     }
 
@@ -69,7 +69,7 @@ class TaskGraphData {
      *
      * @return {@code true} when a task self-loop exists
      */
-    public boolean selfLoop() {
+    boolean selfLoop() {
         return snapshot().taskSelfLoop();
     }
 
@@ -79,7 +79,7 @@ class TaskGraphData {
      *
      * @return executor dependency graph
      */
-    public ValueGraph<String, List<TaskEdge>> executorGraph() {
+    ValueGraph<String, List<TaskEdge>> executorGraph() {
         return snapshot().executorGraph();
     }
 
@@ -88,7 +88,7 @@ class TaskGraphData {
      *
      * @return {@code true} when an executor cycle exists
      */
-    public boolean executorCycle() {
+    boolean executorCycle() {
         return snapshot().executorCycle();
     }
 
@@ -97,7 +97,7 @@ class TaskGraphData {
      *
      * @return {@code true} when an executor self-loop exists
      */
-    public boolean executorSelfLoop() {
+    boolean executorSelfLoop() {
         return snapshot().executorSelfLoop();
     }
 
@@ -119,12 +119,12 @@ class TaskGraphData {
     }
 
     /** Returns the node prefixed with its display label, or the bare node when unlabelled. */
-    public String displayNode(String node) {
+    String displayNode(String node) {
         return snapshot().displayNode(node);
     }
 
     /** Records one parent-to-child edge. Batch IDs, not reusable task names, keep nodes distinct. */
-    public void logTaskPair(
+    void logTaskPair(
             @Nullable String parentId,
             @Nullable String parentLabel,
             String childId,

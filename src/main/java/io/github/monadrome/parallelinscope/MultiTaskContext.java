@@ -201,33 +201,33 @@ final class MultiTaskContext {
     }
 
     /** The logical unit name: batches use the options name; group members and combines use the key name. */
-    public String name() {
+    String name() {
         return name;
     }
 
     /** Stable identity for this one unit instance; never use name as graph identity. */
-    public String unitId() {
+    String unitId() {
         return unitId;
     }
 
-    public int taskCount() {
+    int taskCount() {
         return taskCount;
     }
 
-    public int effectiveParallelism() {
+    int effectiveParallelism() {
         return effectiveParallelism;
     }
 
-    public long deadlineNanos() {
+    long deadlineNanos() {
         return deadlineNanos;
     }
 
     /** Returns a non-negative remaining timeout derived from the monotonic clock. */
-    public Duration remaining() {
+    Duration remaining() {
         return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
     }
 
-    public CancellationToken cancellationToken() {
+    CancellationToken cancellationToken() {
         return cancellationToken;
     }
 
@@ -236,33 +236,37 @@ final class MultiTaskContext {
      * a task-group member's cancellation parent is the group token, carried inside {@link
      * #cancellationToken()}, not by this field.
      */
-    public @Nullable MultiTaskContext structuralParent() {
+    @Nullable
+    MultiTaskContext structuralParent() {
         return structuralParent;
     }
 
-    public @Nullable TaskGraphObservationScope taskGraphObservationScope() {
+    @Nullable
+    TaskGraphObservationScope taskGraphObservationScope() {
         return taskGraphObservationScope;
     }
 
-    public @Nullable ExecutorIdentity executorIdentity() {
+    @Nullable
+    ExecutorIdentity executorIdentity() {
         return executorIdentity;
     }
 
     /** Diagnostic label of the owning executor, or null when resolved without one. */
-    public @Nullable String executorLabel() {
+    @Nullable
+    String executorLabel() {
         return executorLabel;
     }
 
-    public TaskType taskType() {
+    TaskType taskType() {
         return taskType;
     }
 
-    public boolean rejectEnqueue() {
+    boolean rejectEnqueue() {
         return rejectEnqueue;
     }
 
     /** Whether a rejected task of this unit runs on the submitting thread. */
-    public boolean runOnCallerThread() {
+    boolean runOnCallerThread() {
         return runOnCallerThread;
     }
 }

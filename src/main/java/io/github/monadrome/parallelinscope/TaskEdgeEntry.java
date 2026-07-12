@@ -13,7 +13,7 @@ final class TaskEdgeEntry {
     private final EndpointPair<String> edge;
     private final TaskEdge value;
 
-    public TaskEdgeEntry(EndpointPair<String> edge, TaskEdge value) {
+    TaskEdgeEntry(EndpointPair<String> edge, TaskEdge value) {
         this.edge = edge;
         this.value = value;
     }

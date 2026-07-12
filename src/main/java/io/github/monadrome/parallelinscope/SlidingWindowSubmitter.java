@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -46,7 +47,7 @@ final class SlidingWindowSubmitter<V> {
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
     private final BodyCompletionTracker bodyCompletion;
-    private final java.time.@Nullable Duration closeGrace;
+    private final @Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
@@ -64,7 +65,7 @@ final class SlidingWindowSubmitter<V> {
             MultiTaskContext unit,
             ListeningExecutorService submitterPool,
             BodyCompletionTracker bodyCompletion,
-            java.time.@Nullable Duration closeGrace) {
+            @Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
@@ -97,7 +98,6 @@ final class SlidingWindowSubmitter<V> {
 
         int start = Math.min(tasks.size(), parallelism());
 
-        // Submit initial batch
         for (int i = 0; i < start; i++) {
             try {
                 resultBuilder.add(fallbackSubmit(tasks, i));
@@ -139,7 +139,6 @@ final class SlidingWindowSubmitter<V> {
                     closeGrace);
         }
 
-        // Async submit remaining tasks
         List<Task<V>> others = IntStream.range(0, remaining)
                 .mapToObj(j -> placeholderFor(tasks.get(start + j)))
                 .collect(toImmutableList());
