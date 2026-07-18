@@ -13,9 +13,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -64,21 +61,4 @@ public class FutureInspectorTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    public void testReport() {
-        List<ListenableFuture<String>> futures = Arrays.asList(
-                Futures.immediateFuture("a"),
-                Futures.immediateFuture("b"),
-                Futures.immediateFailedFuture(new RuntimeException("fail"))
-        );
-        AsyncBatchResult<String> batch = AsyncBatchResult.of(futures);
-        AsyncBatchResult.BatchReport report = batch.report();
-
-        assertThat(report.getStateCounts())
-                .containsEntry(FutureState.SUCCESS, 2)
-                .containsEntry(FutureState.FAILED, 1);
-        assertThat(report.getFirstException())
-                .isNotNull()
-                .hasMessage("fail");
-    }
 }

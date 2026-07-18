@@ -23,6 +23,11 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 
     private final VariableLinkedBlockingQueue<E> delegate;
 
+    /**
+     * Creates a queue with the supplied positive capacity.
+     *
+     * @param capacity the initial queue capacity
+     */
     public SmartBlockingQueue(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be positive");
@@ -35,7 +40,11 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
         return delegate;
     }
 
-    /** Dynamically adjust queue capacity */
+    /**
+     * Dynamically adjusts queue capacity.
+     *
+     * @param capacity the new positive capacity
+     */
     public void setCapacity(int capacity) {
         delegate.setCapacity(capacity);
     }
@@ -59,6 +68,10 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
     /**
      * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0},
      * otherwise returns {@link SmartBlockingQueue}.
+     *
+     * @param <T>      the queue element type
+     * @param capacity the requested queue capacity
+     * @return a synchronous or capacity-adjustable blocking queue
      */
     public static <T> BlockingQueue<T> create(int capacity) {
         if (capacity <= 0) {

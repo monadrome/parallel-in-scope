@@ -76,6 +76,15 @@ public final class TaskGraph {
         private volatile Boolean taskCycle;
         private volatile Boolean selfLoop;
 
+        /** Creates an empty request-scoped graph. */
+        public Data() {
+        }
+
+        /**
+         * Returns the task dependency graph.
+         *
+         * @return the task dependency graph
+         */
         public ValueGraph<String, List<TaskEdge>> getGraph() {
             if (graph == null) {
                 synchronized (this) {
@@ -87,6 +96,11 @@ public final class TaskGraph {
             return graph;
         }
 
+        /**
+         * Checks whether the task graph contains a cycle.
+         *
+         * @return {@code true} when a task cycle exists
+         */
         public boolean isTaskCycle() {
             if (taskCycle == null) {
                 taskCycle = checkTaskCycle();
@@ -94,6 +108,11 @@ public final class TaskGraph {
             return taskCycle;
         }
 
+        /**
+         * Checks whether the task graph contains a self-loop.
+         *
+         * @return {@code true} when a task self-loop exists
+         */
         public boolean isSelfLoop() {
             if (selfLoop == null) {
                 selfLoop = checkSelfLoop();
@@ -103,6 +122,9 @@ public final class TaskGraph {
 
         /**
          * Gets the executor-level graph, using the provided config for thread pool resolution.
+         *
+         * @param config the configuration used to resolve executors
+         * @return the executor dependency graph
          */
         public ValueGraph<String, List<TaskEdge>> getExecutorGraph(ParConfig config) {
             return generateExecutorGraph(config);
@@ -110,6 +132,9 @@ public final class TaskGraph {
 
         /**
          * Checks if any executor cycle exists, using the provided config.
+         *
+         * @param config the configuration used to resolve executors
+         * @return {@code true} when an executor cycle exists
          */
         public boolean isExecutorCycle(ParConfig config) {
             ValueGraph<String, List<TaskEdge>> g = getExecutorGraph(config);
@@ -118,6 +143,9 @@ public final class TaskGraph {
 
         /**
          * Checks if any executor self-loop exists, using the provided config.
+         *
+         * @param config the configuration used to resolve executors
+         * @return {@code true} when an executor self-loop exists
          */
         public boolean isExecutorSelfLoop(ParConfig config) {
             return getExecutorGraph(config).edges().stream()
@@ -291,6 +319,8 @@ public final class TaskGraph {
 
     /**
      * Gets the current request's Data.
+     *
+     * @return the current request data, or {@code null} outside a graph lifecycle
      */
     public static @Nullable Data data() {
         return TTL.get();
@@ -314,6 +344,8 @@ public final class TaskGraph {
 
     /**
      * Checks if any task cycle exists.
+     *
+     * @return {@code true} when the current request graph contains a task cycle
      */
     public static boolean hasTaskCycle() {
         Data data = data();
@@ -322,6 +354,8 @@ public final class TaskGraph {
 
     /**
      * Checks if any task self-loop exists.
+     *
+     * @return {@code true} when the current request graph contains a task self-loop
      */
     public static boolean hasSelfLoop() {
         Data data = data();
@@ -330,6 +364,9 @@ public final class TaskGraph {
 
     /**
      * Checks if any executor cycle exists, using the provided config.
+     *
+     * @param config the configuration used to resolve executors
+     * @return {@code true} when the current request graph contains an executor cycle
      */
     public static boolean hasExecutorCycle(ParConfig config) {
         Data data = data();
@@ -338,6 +375,9 @@ public final class TaskGraph {
 
     /**
      * Checks if any executor self-loop exists, using the provided config.
+     *
+     * @param config the configuration used to resolve executors
+     * @return {@code true} when the current request graph contains an executor self-loop
      */
     public static boolean hasExecutorSelfLoop(ParConfig config) {
         Data data = data();

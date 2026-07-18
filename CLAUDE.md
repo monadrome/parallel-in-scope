@@ -5,11 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
+# 主项目
 mvn clean compile        # Compile
 mvn test                 # Run all tests
 mvn test -Dtest=ParTest              # Run a single test class
 mvn test -Dtest=ParTest#testParMap    # Run a single test method
 mvn clean package        # Package JAR
+
+# Demo 子项目（独立模块）
+cd demo
+mvn clean compile        # Compile demo
+mvn test                 # Run tests
+mvn exec:java -Dexec.mainClass=demo.basic.BasicParDemo
 ```
 
 ## Project Overview
@@ -54,6 +61,12 @@ Base package: `io.github.huatalk.parallelinscope` with 7 sub-packages:
 - **Dual Cancellation Exceptions**: `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios; `FatCancellationException` (full stack trace) for debugging
 - **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener` registered on `ParConfig` — no hard-coded business dependencies
 - **JUL Logging**: Framework uses `java.util.logging.Logger` directly; users bridge to SLF4J/Log4j2 via standard JUL handlers
+
+### API Stability
+
+The project is currently pre-stable. Public APIs, including SPI types, may change
+without backward-compatibility shims between revisions. API reviews should focus
+on the intended current contract rather than preserving prior method signatures.
 
 ### Key Dependencies
 

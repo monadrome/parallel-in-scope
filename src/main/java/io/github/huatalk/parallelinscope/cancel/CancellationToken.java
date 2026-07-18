@@ -25,10 +25,9 @@ import static io.github.huatalk.parallelinscope.cancel.CancellationTokenState.TI
 /**
  * Cooperative cancellation token for parallel task groups.
  * <p>
- * Tracks task state via {@link CancellationTokenState} using {@link AtomicReference}.
- * Supports parent-child token chains for cascading cancellation.
- * Uses Guava's {@link SettableFuture} for late binding -- after all sub-futures are submitted,
- * {@link #lateBind} wires up timeout, fail-fast, and parent cancellation propagation.
+ * A token may be linked to a parent so that cancellation propagates to child task groups.
+ * After task submission, {@link #lateBind(List, Duration, ListenableFuture)} connects the token
+ * to the submitted futures and enables timeout and fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -38,25 +37,37 @@ public class CancellationToken {
     private final AtomicReference<CancellationTokenState> state = new AtomicReference<>(RUNNING);
     private final CancellationToken parent;
 
+    /**
+     * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
+     *
+     * @param parent the parent token, or {@code null} for a root token
+     */
     public CancellationToken(@Nullable CancellationToken parent) {
         this.parent = parent;
     }
 
+    /** Creates an unlinked root token. */
     public CancellationToken() {
         this.parent = null;
     }
 
+    /**
+     * Creates an unlinked root token.
+     *
+     * @return a new cancellation token
+     */
     public static CancellationToken create() {
         return new CancellationToken();
     }
 
     /**
-     * Late binds the token to actual futures after submission is complete.
-     * Wires up: parent cancellation propagation, fail-fast (allAsList), and timeout.
+     * Connects this token to a completed set of task submissions.
+     * Parent cancellation, task failure, and timeout cancel the linked work.
      *
-     * @param futures         the list of task futures
-     * @param timeout         timeout duration
-     * @param submitCanceller future that cancels remaining submissions
+     * @param <T>             the task result type
+     * @param futures         the submitted task futures
+     * @param timeout         the maximum execution time
+     * @param submitCanceller the submission future to cancel with the tasks
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> void lateBind(List<ListenableFuture<T>> futures, Duration timeout, ListenableFuture<?> submitCanceller) {
@@ -99,7 +110,7 @@ public class CancellationToken {
     }
 
     /**
-     * Manually cancels this token and all linked futures.
+     * Cancels this token and its linked work.
      *
      * @param useInterrupt whether to interrupt running threads
      */
@@ -109,7 +120,9 @@ public class CancellationToken {
     }
 
     /**
-     * Gets the current cancellation state.
+     * Returns the current state.
+     *
+     * @return the current state
      */
     public CancellationTokenState getState() {
         return state.get();
