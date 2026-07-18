@@ -90,9 +90,9 @@ public class ScopedCallableTest {
         // Verify timing through TaskEvent SPI (timing methods are package-private)
         assertThat(events).hasSize(1);
         TaskEvent event = events.get(0);
-        assertThat(event.executionTimeNanos()).isEqualTo(5_000_000);
-        assertThat(event.waitTimeNanos()).isEqualTo(2_000_000);
-        assertThat(event.totalTimeNanos()).isEqualTo(7_000_000);
+        assertThat(event.executionTime().toNanos()).isEqualTo(5_000_000);
+        assertThat(event.waitTime().toNanos()).isEqualTo(2_000_000);
+        assertThat(event.totalTime().toNanos()).isEqualTo(7_000_000);
     }
 
     @Test
@@ -111,7 +111,7 @@ public class ScopedCallableTest {
         TaskEvent event = events.get(0);
         assertThat(event.getTaskName()).isEqualTo("myTask");
         assertThat(event.getException()).isNull();
-        assertThat(event.executionTimeNanos()).isNotNegative();
+        assertThat(event.executionTime().toNanos()).isNotNegative();
     }
 
     @Test

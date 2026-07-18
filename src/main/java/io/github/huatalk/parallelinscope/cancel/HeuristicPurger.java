@@ -15,14 +15,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Heuristic thread pool purger for cleaning stale canceled task references from work queues.
+ * Removes canceled task references from thread-pool work queues.
  * <p>
- * When tasks are canceled, {@link ThreadPoolExecutor}'s work queue may retain Future references
- * of canceled tasks, occupying memory until GC. This service proactively cleans these
- * references by calling {@link ThreadPoolExecutor#purge()}.
- * <p>
- * Purge calls are unconditionally triggered whenever canceled tasks are detected,
- * gated only by the {@link ParConfig#getPurgeRateLimiter() rate limiter} to bound frequency.
+ * Purging runs only when a batch reports canceled tasks and the
+ * {@link ParConfig#getPurgeRateLimiter() rate limiter} grants permission.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -48,12 +44,12 @@ public class HeuristicPurger {
     }
 
     /**
-     * Attempts to purge stale canceled task references from the named thread pool.
+     * Schedules a purge when the report contains canceled tasks.
      *
-     * @param executorName thread pool name
-     * @param report       batch task execution report
-     * @param config       the ParConfig instance for thread pool resolution and rate limiting
-     * @return future of the purge task
+     * @param executorName the configured executor name
+     * @param report       the batch execution report
+     * @param config       the executor configuration
+     * @return the purge result, or a canceled future if no purge is needed
      */
     public static ListenableFuture<?> tryPurge(String executorName, BatchReport report, ParConfig config) {
         if (report.getStateCounts() == null) {

@@ -35,25 +35,44 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E>
         Node(E x) { item = x; }
     }
 
+    /** Configured queue capacity. */
     private volatile int capacity;
+    /** Element count shared by the put and take locks. */
     private final AtomicInteger count = new AtomicInteger();
+    /** Sentinel node at the head of the linked queue. */
     transient Node<E> head;
+    /** Last node in the linked queue. */
     private transient Node<E> last;
+    /** Lock protecting dequeue operations. */
     private final ReentrantLock takeLock = new ReentrantLock();
+    /** Condition signalled when the queue becomes non-empty. */
     private final Condition notEmpty = takeLock.newCondition();
+    /** Lock protecting enqueue operations. */
     private final ReentrantLock putLock = new ReentrantLock();
+    /** Condition signalled when the queue has available capacity. */
     private final Condition notFull = putLock.newCondition();
 
+    /** Creates an effectively unbounded queue. */
     public VariableLinkedBlockingQueue() {
         this(Integer.MAX_VALUE);
     }
 
+    /**
+     * Creates an empty queue with the supplied capacity.
+     *
+     * @param capacity the positive queue capacity
+     */
     public VariableLinkedBlockingQueue(int capacity) {
         if (capacity <= 0) throw new IllegalArgumentException();
         this.capacity = capacity;
         last = head = new Node<>(null);
     }
 
+    /**
+     * Creates an effectively unbounded queue containing the supplied elements.
+     *
+     * @param c the initial elements
+     */
     public VariableLinkedBlockingQueue(Collection<? extends E> c) {
         this(Integer.MAX_VALUE);
         final ReentrantLock lock = this.putLock;
@@ -86,6 +105,11 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E>
         }
     }
 
+    /**
+     * Returns the configured capacity.
+     *
+     * @return the configured capacity
+     */
     public int getCapacity() {
         return capacity;
     }

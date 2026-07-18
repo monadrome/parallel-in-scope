@@ -7,6 +7,7 @@ import io.github.huatalk.parallelinscope.internal.FutureState;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -31,18 +32,44 @@ public final class AsyncBatchResult<T> {
         this.results = results;
     }
 
+    /**
+     * Provides the future running the sliding-window submission loop.
+     * Cancelling it stops further submissions.
+     *
+     * @return the submission-loop future
+     */
     public ListenableFuture<?> getSubmitCanceller() {
         return submitCanceller;
     }
 
+    /**
+     * Returns the futures for individual batch elements in input order.
+     *
+     * @return the individual result futures
+     */
     public List<ListenableFuture<T>> getResults() {
         return results;
     }
 
+    /**
+     * Creates a result for a batch whose submissions may still be running.
+     *
+     * @param <T>             the element result type
+     * @param submitCanceller the future running the remaining submissions
+     * @param results         the individual result futures
+     * @return a new batch result
+     */
     public static <T> AsyncBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
         return new AsyncBatchResult<>(submitCanceller, results);
     }
 
+    /**
+     * Creates a result for a fully submitted batch.
+     *
+     * @param <T>     the element result type
+     * @param results the individual result futures
+     * @return a new batch result
+     */
     public static <T> AsyncBatchResult<T> of(List<ListenableFuture<T>> results) {
         return new AsyncBatchResult<>(Futures.immediateVoidFuture(), results);
     }
@@ -92,24 +119,49 @@ public final class AsyncBatchResult<T> {
      * Immutable report of batch task execution state.
      */
     public static final class BatchReport {
-        private final Map<FutureState, Integer> stateCounts;
+        private final @Nullable Map<FutureState, Integer> stateCounts;
         private final Throwable firstException;
 
-        public BatchReport(Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
-            this.stateCounts = stateCounts;
+        /**
+         * Creates a batch report.
+         *
+         * @param stateCounts    counts keyed by terminal or current future state
+         * @param firstException the first observed failure, or {@code null}
+         */
+        public BatchReport(@Nullable Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
+            this.stateCounts = immutableStateCounts(stateCounts);
             this.firstException = firstException;
         }
 
-        /** State count map (e.g. SUCCESS=3, FAILED=1). */
+        /**
+         * Provides counts by future state, for example {@code SUCCESS=3, FAILED=1}.
+         *
+         * @return the immutable state count map, or {@code null} when unavailable
+         */
+        @Nullable
         public Map<FutureState, Integer> getStateCounts() { return stateCounts; }
 
-        /** First exception from failed tasks, or null if none failed. */
+        /**
+         * Returns the first exception from failed tasks.
+         *
+         * @return the first failure, or {@code null} if no task failed
+         */
         @Nullable
         public Throwable getFirstException() { return firstException; }
 
         @Override
         public String toString() {
             return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
+        }
+
+        private static @Nullable Map<FutureState, Integer> immutableStateCounts(
+                @Nullable Map<FutureState, Integer> stateCounts) {
+            if (stateCounts == null) {
+                return null;
+            }
+            EnumMap<FutureState, Integer> copy = new EnumMap<>(FutureState.class);
+            copy.putAll(stateCounts);
+            return Collections.unmodifiableMap(copy);
         }
     }
 }

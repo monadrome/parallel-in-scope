@@ -86,6 +86,8 @@ public final class Par {
      * Executes a function in parallel for each element, returning mapped results.
      * The executor is resolved from the registry by name.
      *
+     * @param <T>          the input element type
+     * @param <R>          the mapped result type
      * @param executorName registered executor name
      * @param list         collection to process
      * @param function     mapping function

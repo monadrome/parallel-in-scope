@@ -21,24 +21,47 @@ public final class TaskScopeTl {
     private TaskScopeTl() {
     }
 
+    /**
+     * Returns the current task's cancellation token.
+     *
+     * @return the current token, or {@code null} outside a scoped task
+     */
     public static @Nullable CancellationToken getCancellationToken() {
         return CANCELLATION_TOKEN_TL.get();
     }
 
+    /**
+     * Stores the current task's cancellation token.
+     *
+     * @param token the token to store
+     */
     public static void setCancellationToken(CancellationToken token) {
         CANCELLATION_TOKEN_TL.set(token);
     }
 
+    /**
+     * Returns the current task's parallel options.
+     *
+     * @return the current options, or {@code null} outside a scoped task
+     */
     public static @Nullable ParOptions getParallelOptions() {
         return PARALLEL_OPTIONS_TL.get();
     }
 
+    /**
+     * Stores the current task's parallel options.
+     *
+     * @param options the options to store
+     */
     public static void setParallelOptions(ParOptions options) {
         PARALLEL_OPTIONS_TL.set(options);
     }
 
     /**
      * Initializes both cancellation token and parallel options for the current task.
+     *
+     * @param token   the current cancellation token
+     * @param options the current parallel options
      */
     public static void init(CancellationToken token, ParOptions options) {
         CANCELLATION_TOKEN_TL.set(token);

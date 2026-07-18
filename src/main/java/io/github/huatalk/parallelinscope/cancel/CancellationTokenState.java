@@ -1,7 +1,7 @@
 package io.github.huatalk.parallelinscope.cancel;
 
 /**
- * State enum for {@link CancellationToken}.
+ * Lifecycle state of a {@link CancellationToken}.
  * <p>
  * Negative values indicate cancellation states where the task should be interrupted.
  *
@@ -9,19 +9,19 @@ package io.github.huatalk.parallelinscope.cancel;
  */
 public enum CancellationTokenState {
 
-    /** Task is executing normally */
+    /** The task is running. */
     RUNNING(0),
-    /** Task completed successfully */
+    /** The task completed successfully. */
     SUCCESS(1),
-    /** No operation performed */
+    /** No task was run. */
     NO_OP(2),
-    /** Canceled because a sibling task failed (fail-fast) */
+    /** A sibling task failed, triggering fail-fast cancellation. */
     FAIL_FAST_CANCELED(-1),
-    /** Canceled due to timeout */
+    /** The task timed out. */
     TIMEOUT_CANCELED(-2),
-    /** Externally canceled via manual cancel() call */
+    /** The token was explicitly canceled. */
     MUTUAL_CANCELED(-3),
-    /** Canceled because parent token was canceled */
+    /** The parent token was canceled. */
     PROPAGATING_CANCELED(-4);
 
     private final int code;
@@ -30,13 +30,17 @@ public enum CancellationTokenState {
         this.code = code;
     }
 
+    /**
+     * Returns the state code.
+     *
+     * @return zero while running, a positive completion code, or a negative cancellation code
+     */
     public int getCode() {
         return code;
     }
 
     /**
-     * Returns true if the current state indicates the task should be canceled/interrupted.
-     * All negative code values indicate cancellation.
+     * Returns whether this state requires interruption.
      */
     boolean shouldInterruptCurrentThread() {
         return code < 0;

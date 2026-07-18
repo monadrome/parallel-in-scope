@@ -338,9 +338,11 @@ public final class ParConfig {
     }
 
     /**
-     * Resolves a thread pool by name. Checks the explicit {@link ExecutorResolver} first,
-     * then falls back to the executor registry (if the raw executor is a {@link ThreadPoolExecutor}).
-     * Returns null if not found.
+     * Resolves a thread pool by name. Uses the {@link ExecutorResolver} when configured,
+     * otherwise checks whether the registered executor is a {@link ThreadPoolExecutor}.
+     *
+     * @param executorName the registered executor name
+     * @return the resolved thread pool, or {@code null} if unavailable
      */
     @Nullable
     public ThreadPoolExecutor resolveThreadPool(String executorName) {
@@ -357,7 +359,9 @@ public final class ParConfig {
     }
 
     /**
-     * Returns task-to-executor mapping from the registered resolver.
+     * Gets the task-to-executor mapping from the registered resolver.
+     *
+     * @return the configured mapping, or an empty map when no resolver is registered
      */
     public Map<String, String> getTaskToExecutorMapping() {
         ExecutorResolver resolver = executorResolver;
@@ -366,20 +370,27 @@ public final class ParConfig {
 
     /**
      * Gets the default timeout in milliseconds.
+     *
+     * @return the default timeout in milliseconds
      */
     public long getDefaultTimeoutMillis() {
         return defaultTimeoutMillis;
     }
 
     /**
-     * Returns whether livelock detection is enabled.
+     * Checks whether livelock detection is enabled.
+     *
+     * @return {@code true} when detection is enabled
      */
     public boolean isLivelockDetectionEnabled() {
         return livelockDetectionEnabled;
     }
 
     /**
-     * Returns the rate limiter for {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger} purge operations.
+     * Gets the shared rate limiter for
+     * {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger} purge operations.
+     *
+     * @return the shared purge rate limiter
      */
     public RateLimiter getPurgeRateLimiter() {
         return purgeRateLimiter;
