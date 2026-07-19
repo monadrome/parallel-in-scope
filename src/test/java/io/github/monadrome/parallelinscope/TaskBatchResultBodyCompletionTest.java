@@ -207,6 +207,69 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    /**
+     * {@code awaitBodyCompletion} returning {@code true} promises that {@code completionFuture()}
+     * already carries the final snapshots — the third wait inside it exists only for the window
+     * where every element future is settled but the observation listener has not published yet.
+     *
+     * <p>No test used to reach that window: every {@code false} assertion in this class is answered
+     * by the body-exit phase or the element-future phase, so deleting the observation wait entirely
+     * changed no result. This pins it by handing the batch an element whose observation settles on a
+     * future of its own, which is exactly the state the window describes.
+     */
+    @Test
+    void theWaitIsNotDoneUntilTheBatchObservationItselfHasPublished() throws Exception {
+        SettableFuture<String> element = SettableFuture.create();
+        SettableFuture<String> observationSignal = SettableFuture.create();
+        CancellationToken token = new CancellationToken();
+        TaskObservation<String> observation = TaskObservation.of(
+                () -> TaskCompletion.snapshot("element", "batch", 0, 0, 0, 0, TaskOutcome.SUCCESS, "done", null),
+                observationSignal);
+        TaskBatchResult<String> batch =
+                TaskBatchResult.of(Collections.singletonList(Task.of("element", token, element, observation)));
+
+        // The element itself is settled, so the body-exit and element-future phases both pass.
+        element.set("done");
+        assertThat(batch.results().get(0).isDone()).isTrue();
+
+        // Only the observation is outstanding, and that alone must keep the answer false.
+        assertThat(batch.awaitBodyCompletion(Duration.ofMillis(50))).isFalse();
+        assertThat(batch.completionFuture().isDone()).isFalse();
+
+        observationSignal.set("published");
+
+        assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        // The promise the true answer carries: the snapshots are readable now, not merely imminent.
+        assertThat(batch.completionFuture().isDone()).isTrue();
+        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
+                .extracting(TaskCompletion::taskName)
+                .containsExactly("element");
+    }
+
+    /**
+     * The tracker's own body-exit wait, in isolation: an outstanding body means {@code false}, and
+     * the public batch method's later phases must not be what produces that answer. Pinning it here
+     * keeps the tracker honest even when a caller's later phase would have masked it.
+     */
+    @Test
+    void theTrackerReportsAnOutstandingBodyAsFalseOnItsOwn() throws Exception {
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("outstanding").spec(), 1));
+        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        TaskBodyState body = tracker.register(unit);
+
+        // Zero budget takes the single-check path; a real budget takes the timed wait. Both have to
+        // answer false while the body slot is still held.
+        assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isFalse();
+        assertThat(tracker.awaitBodyCompletion(Duration.ofMillis(50))).isFalse();
+
+        // The real release path: a body claims eligibility, runs, then publishes its exit.
+        assertThat(body.claimRunning()).isTrue();
+        body.exited();
+
+        assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isTrue();
+    }
+
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
