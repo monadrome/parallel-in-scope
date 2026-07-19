@@ -79,7 +79,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 
 - 公开 future 是对外返回、参与执行权竞争和 phase 观测的同一个逻辑 future；
 - 区分用户直消与 Group 传播取消、fail-fast、timeout 不靠 `isCancelled()` 事后猜测；归因在
-  收敛时读取 member/group token 状态（见 [取消与归因 §8.4](cancellation.md#84-deadline)）；
+  收敛时读取 member/group token 状态（见 [取消与归因 §8.4](task-group-cancellation.md#84-deadline)）；
 - `cancel()` 在线程取得执行权前成功后，之后的 prepared submission 不得进入用户 callable；
 - prepared submission 被 executor 拒绝或 handoff 抛出 `Error` 时，必须把 future 完成为 submission failure，不能遗留 pending future；
 - 用户 callable 最多执行一次；

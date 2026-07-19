@@ -8,6 +8,10 @@
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
 
+**本表只收录已提交的文档。** 未定稿的在途提案按上述政策留在工作树里，因此不在表内——
+接手一项正在进行的工作前，用 `git status --short design/` 看一遍未跟踪文件，它们通常比本表
+里的任何一篇都更贴近当前状态。
+
 对抗性评审的发现与处置也记在这里：每轮评审的条目、复核结论（保留／降级／驳回）与修复实际改了什么，
 写在它所归属的那篇提案文档末尾（如
 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) §10）。后续轮次先读该清单
@@ -51,8 +55,17 @@
 | [par-map-throwing-function-v0.3-proposal.md](par-map-throwing-function-v0.3-proposal.md) | `Par.map` 受检异常签名决策（**已否决并关闭**）：保留标准 `java.util.function.Function`；§5–§7 选项与落地清单全部作废，仅作决策历史保留 |
 | [batch-submission-failure-semantics.md](batch-submission-failure-semantics.md) | executor handoff failure 统一语义（已落地）：`execute()` 抛出的任何失败（含 `Error` 与偷渡受检异常）以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future，`Par.map`/组提交（`submitAll()`）跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径；handoff `Error` 单点 SEVERE 诊断 |
 | [queue-artifact-boundary-decision.md](queue-artifact-boundary-decision.md) | queue 包产物边界（已拍板归档）：与 core 同产物发布，权威依据 [adr/0006](../adr/0006-queues-ship-with-core.md)；边界已关闭，不要在评审、缺陷分诊或重构提案中重提 |
+| [jspecify-null-safety-v0.3-proposal.md](jspecify-null-safety-v0.3-proposal.md) | JSpecify + NullAway null 安全迁移（已实施，§9 实施记录）：从 JSR-305/Checker 混合注解迁到编译期强制。现行约定以根 [AGENTS.md](../AGENTS.md) 与 [nullability-annotations](../docs/en/reference/nullability-annotations.md) 为准，本文是决策依据 |
+| [scope-close-and-termination-proposal.md](scope-close-and-termination-proposal.md) | Scope 关闭与任务体终止（已实施，§9 实施记录）：「取消 + 有界等待」语义与 body-exit 状态机（`TaskGroup`/`TaskBatchResult`/`BodyCompletionTracker`）。注意三处沿革：§3 的「不为 Batch 新增 close 入口」在实施中被反转、§2 依赖的 `TaskListener` SPI 已删除、§6 的 `GlobalPar` 已更名 `ParRuntime` |
 | [task-listener-removal-proposal-codex.md](task-listener-removal-proposal-codex.md) | 删除 `TaskListener` SPI（已落地）：观测归宿为 `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` 终态快照（`SettableFuture` 支撑、future 终态 + body exit 双信号屏障），组级保持 `TaskGroupResult.members()`/`terminal()`；含迁移路径与验证矩阵 |
 | [deadlock-listener-removal-proposal-codex.md](deadlock-listener-removal-proposal-codex.md) | 删除 `DeadlockDetectionListener` SPI（已落地）：图检测结果归宿为 `TaskGraphObservationScope.reportFuture()` 发布的 `TaskGraphReport`（`Status` 三态 DISABLED/NO_ISSUE/ISSUE、单快照、`SettableFuture` 支撑只读视图、close 屏障）；保留 policy `enabled` 开关；含迁移路径与验证矩阵 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
-| [adr/](../adr/) | 架构决策记录（不可变；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准 |
+| [adr/](../adr/) | 架构决策记录（不可变；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准；例外是已在 ADR 里关闭的边界问题（如 [adr/0006](../adr/0006-queues-ship-with-core.md) 的 queue 产物边界），那类结论由 ADR 持有，`design/` 侧的同题文档只作归档 |
+
+## 非契约文档（不描述本库行为）
+
+| 文档 | 摘要 |
+|---|---|
+| [adversarial-review-handoff-2026-09-29.md](adversarial-review-handoff-2026-09-29.md) | **评审进行中**：`353d418..8796036` 冗余清理 16 commits 的对抗性评审基线与 findings 记录（席位为独立上下文的 Kimi，只读）。接手该轮评审前先读本文的已知条目清单 |
+| [senate.md](senate.md) | **设计草案，非本库契约**：多模型议会决策 + 廉价模型执行的跨项目工具设计，借 `design/` 暂存。定稿后应迁出本仓库；不要把它当作本库的 API 或行为依据 |
