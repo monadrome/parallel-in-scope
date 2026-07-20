@@ -111,7 +111,10 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 
 ### 9.2 不得复用
 
-- `SlidingWindowSubmitter`：Group 不使用滑动窗口、placeholder 或 completion queue 驱动提交；
+- `SlidingWindowSubmitter`：Group 不使用滑动窗口，也不靠 completion queue 驱动提交；
+  （Batch 的窗口外 placeholder 已随
+  [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 删除，
+  两边现在都是"视图从创建起就包住 prepared future"，这一条不再构成差异）
 - `TaskBatchResult`：Group 是异构成员和固定的具名集合；
 - `Par.map(singletonList, ...)`：会引入错误抽象和不必要包装；
 - 虚构的 Group `MultiTaskContext`：membership 不是 Batch；

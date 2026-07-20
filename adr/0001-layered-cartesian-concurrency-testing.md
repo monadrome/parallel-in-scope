@@ -88,6 +88,14 @@ Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 
 #### L3. Admission phase
 
+> Vocabulary note: `PLACEHOLDER` and `ABANDONED_PLACEHOLDER` are legacy names.
+> The states they model are unchanged and still required — an element outside the
+> initial window while earlier work is gated, and an element cancelled or
+> abandoned before admission — but no placeholder future backs them any more; the
+> element's handle wraps its prepared future from creation on
+> ([ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)). The
+> sliding window itself is unchanged.
+
 | Value | Deterministic setup |
 |---|---|
 | `INITIAL_SUBMITTED` | index is below `min(taskCount, parallelism)` |

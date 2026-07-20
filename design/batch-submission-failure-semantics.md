@@ -6,6 +6,17 @@ Status: implemented
 > statements say `ParRuntime.submitGroup(definition, binder)`, which is now
 > `runtime.group(name, timeout).par(...).submitAll()`; the batch-side semantics
 > (`Par.map`, `SubmissionException`, `SUBMISSION_FAILURE`) are unchanged.
+>
+> Mechanism note: "sliding-window placeholder" below means an element beyond the
+> initial parallelism window. Such elements no longer have a placeholder future —
+> every element's handle wraps its prepared future from creation on
+> ([ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)) —
+> and a handoff failure now claims every affected element before settling any of
+> them, because the batch token is bound while submission runs and settling one
+> element would otherwise let the fail-fast cascade overwrite its siblings'
+> attribution. **Every externally visible rule in this document is unchanged**,
+> including that each affected element reports `SUBMISSION_FAILURE` with the
+> original throwable retained as cause; only the mechanism differs.
 
 ## Decision
 

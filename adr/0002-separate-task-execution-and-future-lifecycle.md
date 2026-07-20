@@ -4,6 +4,22 @@
 - Date: 2026-07-26
 - Decision scope: Callable, Runnable, and Future execution architecture
 - Supersedes: None
+- Partially superseded by: [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md), placeholder admission and late binding only
+
+> Two rules in this record no longer hold: that elements beyond the initial
+> parallelism window are represented by `SettableFuture` placeholders, and that a
+> placeholder delegates to its real Future through `setFuture` on admission. Each
+> element's handle now wraps its prepared Future from creation on, and the
+> cancellation token is bound before submission rather than after it — see
+> [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md) for why.
+> The cost this record lists under Negative — "late binding introduces a short
+> period in which submitted work exists before timeout and fail-fast wiring is
+> complete" — was the defect that forced the change, and is kept here as the
+> historical assessment it was.
+>
+> Everything else stands: the separation of the three JDK abstractions, the
+> `ListenableFuture` capability requirements, the sliding-window admission model
+> itself, and `RUNNING` as a caller-side Future state.
 
 ## Context
 
