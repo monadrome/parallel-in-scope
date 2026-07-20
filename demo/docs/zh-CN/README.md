@@ -2,7 +2,7 @@
 
 # Demo 文章索引
 
-这些文章是问题导向的示例说明；公共契约以[完整使用指南](../../../docs/zh-CN/user-guide.md)和[协作式取消说明](../../../docs/zh-CN/reference/cooperative-cancellation.md)为准。
+这些文章是问题导向的示例说明；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
 
 ## 推荐起点
 

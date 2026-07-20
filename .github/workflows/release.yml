@@ -47,6 +47,9 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -ntp -Prelease -DskipTests deploy
 
+      - name: Verify the published artifact from Maven Central
+        run: ./scripts/verify-maven-central.sh "${GITHUB_REF_NAME#v}"
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,12 +1,12 @@
-[**Chinese guide**](../zh-CN/user-guide.md) | [Project home](https://github.com/HuaTalk/parallel-in-scope/blob/main/README.en.md)
+[Project home](https://github.com/HuaTalk/parallel-in-scope/blob/main/README.en.md)
 
 # 🪿 parallel-in-scope
 
 > **Document role: User guide.** This is the primary guide to configuration, public APIs, runtime behavior, and advanced features.
 
-> **⚠️ Status: In Development (Pre-release)**
+> **Current version: `v0.1.0` (initial public release)**
 >
-> This project is under active development. APIs may change. Feedback and suggestions are welcome via Issues.
+> The project remains under active development. APIs may change in future `0.x` releases. Feedback and suggestions are welcome via Issues.
 
 🪿 **parallel-in-scope** is a structured concurrency toolkit for Java 8+, built around cooperative cancellation, fail-fast behavior, context propagation, deadlock detection, and sliding-window scheduling.
 It targets practical Java 8 pain points: lost cancellation signals, missing `ThreadLocal` context across thread pools, and hard-to-debug deadlocks in nested parallel calls.
@@ -114,7 +114,7 @@ That's it. `Par.map` internally handles sliding-window scheduling, timeout contr
 
 **Not ideal for:** workflows that require reactive chain orchestration, built-in retry/fault-tolerance policies, or a Spring Boot Starter (intentionally out of scope for now).
 
-To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](../zh-CN/design/idea-graveyard.md) (currently in Chinese and inspired by Guava's same practice): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
+To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](design/idea-graveyard.md): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
 
 ---
 
@@ -267,7 +267,7 @@ sequenceDiagram
 
 | Item | Notes |
 |---|---|
-| JDK | Java 8+ (`maven.compiler.source/target = 1.8`) |
+| JDK | Java 8+ (production code uses `maven.compiler.release = 8`) |
 | Build Tool | Maven 3.x (recommended) |
 | Published Artifact | `parallel-in-scope` (library) |
 | Sample Project | `demo/` (not published) |

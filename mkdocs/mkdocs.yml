@@ -1,5 +1,5 @@
 site_name: parallel-in-scope
-site_description: 面向 Java 8+ 的结构化并发工具包——协作式取消、快速失败、上下文传播、死锁检测、滑动窗口调度
+site_description: A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, deadlock detection, and sliding-window scheduling
 site_url: https://huatalk.github.io/parallel-in-scope/
 docs_dir: ../docs
 
@@ -10,23 +10,18 @@ edit_uri: edit/main/docs/
 copyright: © parallel-in-scope — Apache License 2.0
 
 nav:
-  - 文档首页: index.md
-  - 中文:
-      - 文档中心: zh-CN/README.md
-      - 完整使用指南: zh-CN/user-guide.md
-      - API 与契约:
-          - 协作式取消: zh-CN/reference/cooperative-cancellation.md
-          - 空值注解: zh-CN/reference/nullability-annotations.md
-      - 实现与设计:
-          - ThreadRelay 内部机制: zh-CN/internals/thread-relay.md
-          - 设计哲学: zh-CN/design/philosophy.md
-          - Idea Graveyard: zh-CN/design/idea-graveyard.md
-      - 测试与案例:
-          - AsyncBatchResult 测试设计: zh-CN/testing/async-batch-result-report-test-design.md
-          - AI 并发审查误报复盘: zh-CN/case-studies/ai-concurrency-review-false-positive.md
-  - English:
-      - Documentation: en/README.md
-      - Full user guide: en/user-guide.md
+  - Documentation: index.md
+  - Full user guide: user-guide.md
+  - API & Contracts:
+      - Cooperative cancellation: reference/cooperative-cancellation.md
+      - Nullability annotations: reference/nullability-annotations.md
+  - Implementation & Design:
+      - ThreadRelay internals: internals/thread-relay.md
+      - Design philosophy: design/philosophy.md
+      - Idea Graveyard: design/idea-graveyard.md
+  - Tests & Cases:
+      - AsyncBatchResult test design: testing/async-batch-result-report-test-design.md
+      - AI concurrency review case study: case-studies/ai-concurrency-review-false-positive.md
   - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
 
 extra:
@@ -38,7 +33,7 @@ extra:
 
 theme:
   name: material
-  language: zh
+  language: en
   icon:
     repo: fontawesome/brands/github
   palette:
@@ -105,6 +100,46 @@ markdown_extensions:
 
 plugins:
   - search
+  - redirects:
+      redirect_maps:
+        zh-CN/README.md: https://huatalk.github.io/parallel-in-scope/zh/
+        zh-CN/user-guide.md: https://huatalk.github.io/parallel-in-scope/zh/user-guide/
+        zh-CN/reference/cooperative-cancellation.md: https://huatalk.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/
+        zh-CN/reference/nullability-annotations.md: https://huatalk.github.io/parallel-in-scope/zh/reference/nullability-annotations/
+        zh-CN/reference/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/reference/testing/async-batch-result-report-test-design/
+        zh-CN/internals/thread-relay.md: https://huatalk.github.io/parallel-in-scope/zh/internals/thread-relay/
+        zh-CN/design/philosophy.md: https://huatalk.github.io/parallel-in-scope/zh/design/philosophy/
+        zh-CN/design/idea-graveyard.md: https://huatalk.github.io/parallel-in-scope/zh/design/idea-graveyard/
+        zh-CN/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
+        zh-CN/case-studies/ai-concurrency-review-false-positive.md: https://huatalk.github.io/parallel-in-scope/zh/case-studies/ai-concurrency-review-false-positive/
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: false
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 简体中文
+          build: true
+          site_description: 面向 Java 8+ 的结构化并发工具包——协作式取消、快速失败、上下文传播、死锁检测、滑动窗口调度
+          theme:
+            language: zh
+          nav:
+            - 文档首页: index.md
+            - 完整使用指南: user-guide.md
+            - API 与契约:
+                - 协作式取消: reference/cooperative-cancellation.md
+                - 空值注解: reference/nullability-annotations.md
+            - 实现与设计:
+                - ThreadRelay 内部机制: internals/thread-relay.md
+                - 设计哲学: design/philosophy.md
+                - Idea Graveyard: design/idea-graveyard.md
+            - 测试与案例:
+                - AsyncBatchResult 测试设计: testing/async-batch-result-report-test-design.md
+                - AI 并发审查误报复盘: case-studies/ai-concurrency-review-false-positive.md
+            - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
   - git-revision-date-localized
 
 extra_css:
