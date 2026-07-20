@@ -91,6 +91,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     private volatile @Nullable TaskObservation<V> observation;
 
+    /**
+     * Set by {@link #claimSubmissionFailure} before this future can be settled, so the verdict
+     * survives a fail-fast cascade that cancels the future in between. Volatile because the claim
+     * and the reads happen on different threads: a batch claims on the submitting thread while the
+     * cascade and the caller's {@code outcome()} read from theirs.
+     */
+    private volatile @Nullable SubmissionException submissionFailure;
+
     /** Creates a future with a phase observer. */
     public static <V> ExecutionPhaseHintFuture<V> create(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
@@ -140,6 +148,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             executor.execute(this);
         } catch (RejectedExecutionException rejected) {
             if (runOnCallerThread) {
+                // The borrowed thread's interrupt flag is isolated inside run() itself, which also
+                // covers the submitter thread and any thread a user's RejectedExecutionHandler
+                // borrows.
                 run();
             } else {
                 reject(rejected);
@@ -187,12 +198,59 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * that already claimed {@code RUNNING} or is otherwise terminal is left untouched.
      */
     private void reject(Throwable failure) {
-        if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.TERMINAL)) {
-            skipBody();
-            setException(new SubmissionException(failure));
-            notifyPhase(ExecutionPhase.TERMINAL);
-            phaseObserver = NOOP;
+        if (claimSubmissionFailure(failure)) {
+            settleSubmissionFailure();
         }
+    }
+
+    /**
+     * Claims this future for a submission failure without settling it, and records the attribution
+     * so it survives a cancellation that arrives afterwards.
+     *
+     * <p>Split from {@link #settleSubmissionFailure()} for the batch paths, which must fail several
+     * elements on one handoff failure while the batch's {@link CancellationToken} is already bound.
+     * Settling the first element would fire the token's fail-fast cascade synchronously, on this
+     * thread, and cancel the siblings before they could be settled — turning their verdict from
+     * {@code SUBMISSION_FAILURE} into a cancellation and losing the reason the batch actually
+     * failed. Claiming every element first, then settling, keeps each one's own attribution: the
+     * recorded failure is what {@link Task} reports, whether or not the cascade cancels the future
+     * in between.
+     *
+     * @param failure the raw handoff failure; the {@link SubmissionException} wrap is applied here
+     * @return whether this call claimed the future, and so must settle it
+     */
+    boolean claimSubmissionFailure(Throwable failure) {
+        if (!phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.TERMINAL)) {
+            return false;
+        }
+        skipBody();
+        SubmissionException wrapped = new SubmissionException(failure);
+        submissionFailure = wrapped;
+        TaskObservation<V> published = observation;
+        if (published != null) {
+            // Published before this future becomes settleable, so the observation carries the
+            // submission failure even when the cascade cancels the future first: the snapshot is
+            // first-writer-wins, and the barrier would otherwise publish a cancellation.
+            published.publishSkipped(TaskOutcome.SUBMISSION_FAILURE, wrapped);
+        }
+        return true;
+    }
+
+    /** Settles a future already claimed by {@link #claimSubmissionFailure}. */
+    void settleSubmissionFailure() {
+        setException(Objects.requireNonNull(submissionFailure, "submission failure was not claimed"));
+        notifyPhase(ExecutionPhase.TERMINAL);
+        phaseObserver = NOOP;
+    }
+
+    /**
+     * The submission failure recorded for this future, or null when it never had one. Read by
+     * {@link Task} so a claimed element keeps reporting {@code SUBMISSION_FAILURE} even if a
+     * fail-fast cascade cancels the future between the claim and the settle.
+     */
+    @Nullable
+    SubmissionException submissionFailure() {
+        return submissionFailure;
     }
 
     /** Claims body execution eligibility; a lost claim means the body must not be entered. */
@@ -230,6 +288,23 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (!phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.RUNNING)) {
             return;
         }
+        // Thread-borrowing isolation. This future may run on a thread it does not own: the caller's
+        // thread (a batch's initial window), the library's submitter thread (the sliding-window
+        // refill), or any thread a user's RejectedExecutionHandler runs it on. Clear the interrupt
+        // flag on entry and restore that entry state on exit, exactly as
+        // ThreadPoolExecutor.runWorker does for a pooled worker, so the body neither inherits a
+        // flag set for the borrowed thread's own purposes nor leaves one behind.
+        //
+        // A pooled worker is already immune: runWorker clears the flag before each task, so the
+        // entry state read here is false and the restore is a no-op. The isolation is therefore
+        // placed here, the one point that covers all three borrowed threads, rather than at the
+        // submission sites.
+        //
+        // The restore runs in the finally below, after the body has exited — never mid-body. That
+        // ordering matters: a deadline or fail-fast cancellation interrupts the runner through
+        // interruptTask(), and on a borrowed thread that interrupt is the only mechanism that can
+        // free it. Clearing the flag early would swallow the rescue signal.
+        boolean interruptedOnEntry = Thread.interrupted();
         runner = Thread.currentThread();
         notifyPhase(ExecutionPhase.RUNNING);
         // A task skipped by cancellation or abandonment before this claim must never enter the
@@ -279,6 +354,19 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 }
                 notifyPhase(ExecutionPhase.TERMINAL);
                 phaseObserver = NOOP;
+            }
+            // Restore the borrowed thread's entry state, last of all, so nothing above can observe
+            // a flag that belongs to this task rather than to the thread. Three sources are
+            // indistinguishable in a single bit — the body's own textbook restore, the library's
+            // own cancellation interrupt, and a genuine interrupt aimed at the borrowed thread —
+            // so this discards all three. The chosen error case is documented: an interrupt
+            // delivered to a caller thread while it is running a body inline is dropped. It is the
+            // rarer case, and dropping keeps the inline path consistent with the pooled path, where
+            // a body's restored flag is cleared by runWorker before the next task.
+            if (interruptedOnEntry) {
+                Thread.currentThread().interrupt();
+            } else {
+                Thread.interrupted();
             }
         }
     }

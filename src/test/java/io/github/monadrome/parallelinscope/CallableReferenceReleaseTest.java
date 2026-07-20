@@ -32,6 +32,12 @@ import org.junit.jupiter.api.Test;
  */
 class CallableReferenceReleaseTest {
 
+    /** Submits through the production two-step shape; see the note in SlidingWindowSubmitterTest. */
+    private static <V> TaskBatchResult<V> submitAllWithViews(
+            SlidingWindowSubmitter<V> submitter, List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+        return submitter.submitAll(tasks, submitter.viewsFor(tasks));
+    }
+
     @Test
     void runFinallyReleasesFutureAndDelegateReferences() throws Exception {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
@@ -215,8 +221,8 @@ class CallableReferenceReleaseTest {
         try {
             SlidingWindowSubmitter<String> submit =
                     new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
-            TaskBatchResult<String> result =
-                    submit.submitAll(fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
+            TaskBatchResult<String> result = submitAllWithViews(
+                    submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
 
             for (int i = 0; i < fixtures.size(); i++) {
                 assertThat(result.results().get(i).get(5, TimeUnit.SECONDS)).isEqualTo("element-" + i);
@@ -257,8 +263,8 @@ class CallableReferenceReleaseTest {
         try {
             SlidingWindowSubmitter<String> submit =
                     new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
-            TaskBatchResult<String> result =
-                    submit.submitAll(fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
+            TaskBatchResult<String> result = submitAllWithViews(
+                    submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(result.submitCanceller().cancel(true)).isTrue();
