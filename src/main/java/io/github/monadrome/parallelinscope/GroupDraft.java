@@ -239,7 +239,7 @@ final class GroupDraft {
         try {
             return cast(owner.submitPreparedGroup(definition, payloads));
         } catch (RuntimeException | Error failure) {
-            // Admission or preparation failed: prepare cancelled the futures it built and released
+            // Admission or preparation failed: prepare canceled the futures it built and released
             // the bodies it took; clear whatever was never taken.
             payloads.discard();
             throw failure;

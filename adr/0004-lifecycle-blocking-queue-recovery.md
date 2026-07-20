@@ -55,7 +55,7 @@ draft and JDK-difference exploration.
    contract. In particular, use the Java 8 `LinkedBlockingQueue` weakly consistent FIFO iterator
    model rather than a stable iterator snapshot.
 3. Support two constructor-selected shutdown behaviors: exception rejection and poison-object
-   signalling. Producer and collection mutations never succeed after shutdown, except that standard
+   signaling. Producer and collection mutations never succeed after shutdown, except that standard
    `BlockingQueue.drainTo` remains available for recovery transfer.
 4. Make the reverse view behave as a normal backed mutable `List`. On Java 21+, the returned `List`
    is a real `SequencedCollection`, including its endpoint defaults and `reversed()` behavior.

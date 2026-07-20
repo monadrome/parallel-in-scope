@@ -2,7 +2,7 @@
 
 > This guide documents the `0.3.0` API, published as `0.3.0-SNAPSHOT` (the latest stable release is `0.2.0`). `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [v0.2 migration guide](migration-v0.2.md). Applications coming from `0.2.x` migrate through the [v0.3 migration guide](migration-v0.3.md).
 
-`parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
+`parallel-in-scope` executes a finite list as a cancelable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
 It also coordinates a fixed heterogeneous set of named operations through `TaskGroup`. A group is
 declared and submitted as one one-shot fluent chain —
@@ -32,7 +32,7 @@ one executor. `Par.id()` returns the entry's id.
 
 Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. Automatic purge is the one runtime-adjustable knob: `setPurgeEnabled(boolean)` and `adjustPurgeThresholds(double, double)` re-tune it after build. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
-Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
+Registered executors must honor the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
 
 Registration reads a supplied executor's own structure and claims nothing it cannot read. Two facts come from that read: whether queue purge can observe the pool at all, which needs a `ThreadPoolExecutor` with a finite positive queue capacity, and whether a task body on it can be starved of a thread while blocking on a child task. Anything the library cannot see through — a pool you decorated before registering, a `ForkJoinPool`, a framework-managed executor — yields the conservative answer for both, and says so once at the composition root.
 
@@ -74,9 +74,9 @@ List<TaskFuture<Account>> futures = result.results();
 
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point.
 
-`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. Two consequences are worth knowing before you turn it on. First, a borrowed thread is returned in the state it arrived in: the library clears the interrupt flag when the body starts and restores the entry state when it stops, so a body that restores the flag after catching `InterruptedException` does not leave it set on your caller's thread. The cost is that an interrupt genuinely aimed at that thread is dropped while it runs a body inline — a single flag cannot say who it was meant for. Second, an inline body occupies the very thread that submits the rest of the batch, so a body that waits for a later element of its own batch can only be freed by the deadline; on this path the deadline is the sole bound on that wait, and declaring no meaningful timeout gives up that protection. The same applies to a `ThreadPoolExecutor` you configure with `CallerRunsPolicy`, which reaches the same behaviour without this option. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. An inert option is not left silent: the first submission through a `Par` whose executor cannot honour it logs one `WARNING` naming that `Par` and the fix — register a `ThreadPoolExecutor` whose work queue is a `SmartBlockingQueue` — and it is reported once per `Par`, never once per task, because the option is chosen per submission while the executor is bound at registration. The warning never fails the submission and never changes what runs. `TaskType` does not affect either decision: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
+`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. Two consequences are worth knowing before you turn it on. First, a borrowed thread is returned in the state it arrived in: the library clears the interrupt flag when the body starts and restores the entry state when it stops, so a body that restores the flag after catching `InterruptedException` does not leave it set on your caller's thread. The cost is that an interrupt genuinely aimed at that thread is dropped while it runs a body inline — a single flag cannot say who it was meant for. Second, an inline body occupies the very thread that submits the rest of the batch, so a body that waits for a later element of its own batch can only be freed by the deadline; on this path the deadline is the sole bound on that wait, and declaring no meaningful timeout gives up that protection. The same applies to a `ThreadPoolExecutor` you configure with `CallerRunsPolicy`, which reaches the same behavior without this option. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. An inert option is not left silent: the first submission through a `Par` whose executor cannot honor it logs one `WARNING` naming that `Par` and the fix — register a `ThreadPoolExecutor` whose work queue is a `SmartBlockingQueue` — and it is reported once per `Par`, never once per task, because the option is chosen per submission while the executor is bound at registration. The warning never fails the submission and never changes what runs. `TaskType` does not affect either decision: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
 
-The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
+The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or canceled so aggregate futures do not remain live indefinitely.
 
 A handoff failure follows the same rule at every timing. If the bound executor's `execute()` throws — a rejection, a contract-violating `Error`, or a failure while enqueuing such as `OutOfMemoryError` — every affected element terminates as `SUBMISSION_FAILURE` with a `SubmissionException` that keeps the original throwable as its cause. `Par.map` never rethrows such a failure, whether it happens in the synchronous initial window or in the asynchronous sliding-window refill: the completion shape does not depend on parallelism or scheduling. A handoff `Error` is also logged once at `SEVERE` with the batch name and element index, because it signals a broken executor or a failing VM rather than an ordinary rejection.
 
@@ -98,7 +98,7 @@ try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccou
 }
 ```
 
-`TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after cancelling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
+`TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after canceling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
 
 ## Execute a heterogeneous task group
 
@@ -170,7 +170,7 @@ empty.
 |---|---|
 | Every member and the declared combine succeeded | Completes normally with the ordered `GroupValues` |
 | A member or the combine recorded a failure (`USER_FAILURE` / `SUBMISSION_FAILURE`) | Fails with that failure as the cause; `get()` throws `ExecutionException` |
-| Cancellation with no recorded failure — a direct member cancellation, a group or parent cancellation, or a timeout | Is cancelled; `get()` throws `CancellationException` |
+| Cancellation with no recorded failure — a direct member cancellation, a group or parent cancellation, or a timeout | Is canceled; `get()` throws `CancellationException` |
 
 So `valuesFuture().get()` never blocks forever on a failed group: the failure or the cancellation is
 reported by the future itself. It is an aggregate and not a task — it has no execution context, no
@@ -221,7 +221,7 @@ deadline cancels every unfinished member. `group.cancel()` only issues the cance
 `close()` cancels unfinished members and then waits for their task bodies to exit within the
 group's close grace — the cleanup budget configured with `closeGrace(Duration)` at the head of the
 chain; when never configured, the wait budget is derived from the group's remaining execution
-deadline at close time, so a close triggered by an expired deadline returns right after cancelling
+deadline at close time, so a close triggered by an expired deadline returns right after canceling
 and an interrupt-ignoring member can hold `close()` at most until the deadline.
 `closeGrace(Duration.ZERO)` makes `close()` cancel-only, equivalent to `cancel()`. When the grace elapses with bodies still
 running, the outstanding member names are logged at WARN level rather than leaking silently.
@@ -229,7 +229,7 @@ running, the outstanding member names are logged at WARN level rather than leaki
 still be running when it returns; call `group.awaitBodyCompletion(Duration)` with an independent
 budget to confirm body exit before releasing resources the bodies used. Calling either wait from
 inside a task body of the same group is rejected with `IllegalStateException`. Member outcomes are
-attributed from the cancellation tokens, so a cancelled
+attributed from the cancellation tokens, so a canceled
 member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
 cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
 member deadlines start at the submission boundary, and member deadlines are capped by the group
@@ -292,7 +292,7 @@ to a final stage that exposes only `submitAll()`, so appending a member, a secon
 is reached through `terminalFuture()`, which returns the typed `TaskFuture<R>`, or `Optional.empty()`
 when the chain declared no combine — emptiness reports the declaration, not the result type, so a
 combine declared with a `Void` result still yields a present future that succeeds with null. If any
-member fails, the combine never runs and its future is cancelled with the group's attributed outcome.
+member fails, the combine never runs and its future is canceled with the group's attributed outcome.
 The combine's snapshot appears as `TaskGroupResult.terminal()` (`members()` stays member-only), and
 when the combine itself fails or is rejected, `failedTaskName()` carries the combine's name. The
 combine never occupies a slot in `GroupValues`, and the group completes only when the combine's
@@ -333,11 +333,11 @@ if (future instanceof TaskFuture) {
 }
 ```
 
-`outcome()` is why the interface exists: it removes the "the future is cancelled, so guess why"
-step. A cancelled task is attributed from its cancellation token — `TIMEOUT` for a deadline,
+`outcome()` is why the interface exists: it removes the "the future is canceled, so guess why"
+step. A canceled task is attributed from its cancellation token — `TIMEOUT` for a deadline,
 `FAIL_FAST` for the cascade after a sibling failed, `GROUP_CANCELED` for its group's or an enclosing
-scope's cancellation, and `MEMBER_CANCELED` when no framework path cancelled it (the caller
-cancelled that future directly). A failure that only reports observed cancellation — a
+scope's cancellation, and `MEMBER_CANCELED` when no framework path canceled it (the caller
+canceled that future directly). A failure that only reports observed cancellation — a
 `Checkpoints.checkpoint` interruption that won the race against the cascade — is attributed the same
 way instead of reading as a user failure. A failed task separates `SUBMISSION_FAILURE` (rejected, or
 failed before user code ran) from `USER_FAILURE`, and `failure()` hands back the cause without
@@ -346,10 +346,10 @@ unwrapping an `ExecutionException`.
 Attribution is per future, read from that task's own token chain, so it is available while the
 enclosing group is still converging. The group's terminal classification — `TaskGroupResult.outcome()`
 and each member's `TaskCompletion` — is derived after convergence and remains the authority on
-group-level reasons: the snapshot keeps a member cancelled directly distinct from one cancelled as
+group-level reasons: the snapshot keeps a member canceled directly distinct from one canceled as
 fallout, while a future can only report that its token chain ends in the group's cancellation.
 
-One handle stays a plain future on purpose: `TaskBatchResult.submitCanceller()` stops submission, it
+One handle stays a plain future on purpose: `TaskBatchResult.submitCanceler()` stops submission, it
 does not represent a task execution, so it is not a `TaskFuture`.
 
 Need fluent chaining? `FluentFuture.from(task)` gives the full `FluentFuture` API. The futures on
@@ -363,7 +363,7 @@ Attribution answers how a task ended; the observation futures answer with the fu
 completes with the task's final immutable snapshot: identity, submit/start/end times, queue wait,
 outcome, failure, and on success the result. `TaskBatchResult` aggregates the same data as a
 `ListenableFuture<List<TaskCompletion<T>>>` in input order, including elements that never started
-(rejected, cancelled, or abandoned by the sliding window), which report zero start/end times with
+(rejected, canceled, or abandoned by the sliding window), which report zero start/end times with
 their real outcome.
 
 A snapshot is published only after the task future is terminal *and* the task body has exited, so
@@ -399,7 +399,7 @@ completion future's own `completionFuture()` carries a single group-level summar
 
 ## Cancellation and nested batches
 
-Any task failure triggers fail-fast cancellation for its batch. A timeout, an explicit cancel (`TaskBatchResult.close()`, `TaskGroup.cancel()`, or cancelling a member future), or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
+Any task failure triggers fail-fast cancellation for its batch. A timeout, an explicit cancel (`TaskBatchResult.close()`, `TaskGroup.cancel()`, or canceling a member future), or cancellation of a parent batch has the same cooperative boundary: queued work is canceled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
 
 ```java
 httpPar.map(accountIds, id -> {
@@ -413,7 +413,7 @@ httpPar.map(accountIds, id -> {
 
 Note the asymmetry: `Checkpoints.checkpoint()` is a silent no-op outside any scoped task, while the
 named `checkpoint(taskName, lean)` throws `IllegalStateException` there; `rawCheckpoint()` works
-without a scope and also honours the thread's interrupt flag.
+without a scope and also honors the thread's interrupt flag.
 
 Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 
@@ -452,7 +452,7 @@ The report future stays pending until the scope closes; every normally returning
 
 Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
 
-## Purge cancelled queue entries
+## Purge canceled queue entries
 
 Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `ParRuntime` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
 
@@ -469,7 +469,7 @@ ParRuntime global = ParRuntime.builder()
         .build();
 ```
 
-Both thresholds must be reached before `ThreadPoolExecutor.purge()` is requested. Purge only removes cancelled work still retained in the queue; it cannot stop a task body that ignores interruption.
+Both thresholds must be reached before `ThreadPoolExecutor.purge()` is requested. Purge only removes canceled work still retained in the queue; it cannot stop a task body that ignores interruption.
 
 ## Lifecycle-aware queues
 

@@ -81,7 +81,7 @@ public final class BatchOptions {
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
-     * <p>The policy is honoured only when the registered executor's queue is a {@link
+     * <p>The policy is honored only when the registered executor's queue is a {@link
      * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
      * flag is inert.
      */
@@ -96,7 +96,7 @@ public final class BatchOptions {
      * <p>{@code true} borrows the submitting thread for the element body, which is back-pressure
      * rather than queueing — but it also means user code runs on a thread the caller may not
      * expect. {@code false} (the default) fails the element with a {@link SubmissionException}
-     * without entering user code. The policy is honoured by any executor and is independent of
+     * without entering user code. The policy is honored by any executor and is independent of
      * {@link #taskType()}: no task type implies a caller-thread fallback.
      */
     public BatchOptions runOnCallerThread(boolean runOnCallerThread) {

@@ -32,15 +32,15 @@ Java 8 exposes three related but distinct abstractions:
 
 The library needs to add task context, cooperative cancellation, lifecycle
 metrics, bounded admission, completion-driven submission, timeout, fail-fast,
-parent-child cancellation, batch reporting, and cancelled-task cleanup. These
+parent-child cancellation, batch reporting, and canceled-task cleanup. These
 capabilities cannot be represented accurately by enhancing only one of the
 three JDK abstractions.
 
 In particular:
 
-- a cancelled Future does not prove that its task body stopped;
+- a canceled Future does not prove that its task body stopped;
 - a Future that is not done may be queued, claimed by a worker, or running;
-- cancelling the Future returned by JDK `ExecutorCompletionService` does not
+- canceling the Future returned by JDK `ExecutorCompletionService` does not
   cancel its distinct queued `QueueingFuture` wrapper;
 - later tasks in a sliding window may have result placeholders before their
   actual task is submitted;
@@ -120,7 +120,7 @@ Future state:
 |---|---|
 | `SUBMITTED` | No worker has claimed `run()`; the object may still be queued |
 | `RUNNING` | A worker won the claim race and removed the runnable from the queue |
-| `CANCELLED_BEFORE_RUN` | Cancellation won before worker claim |
+| `CANCELED_BEFORE_RUN` | Cancellation won before worker claim |
 | `CANCEL_REQUESTED_RUNNING` | The Future accepted cancellation after worker claim |
 | `TERMINAL` | `run()` returned |
 
@@ -177,11 +177,11 @@ order and makes the complete result shape available before every task is
 physically submitted.
 
 The Future running the remaining-submission loop SHALL be returned separately
-as `submitCanceller`. Cancelling a batch must be able to stop both task Futures
+as `submitCanceller`. Canceling a batch must be able to stop both task Futures
 and future admissions.
 
 When admission stops, every placeholder that will never be submitted SHALL reach
-a terminal state. Direct placeholder cancellation produces `CANCELLED`; cancelling
+a terminal state. Direct placeholder cancellation produces `CANCELED`; canceling
 the submitter Future interrupts its submission loop and records `InterruptedException`
 on abandoned placeholders; a later submission rejection records the rejection cause.
 No abandoned placeholder may remain `LIVE` indefinitely, and `Futures.allAsList` over
@@ -234,9 +234,9 @@ The token states distinguish the reason observed by the framework:
 |---|---|
 | `RUNNING` | No terminal group outcome has won |
 | `SUCCESS` | The aggregate completed successfully |
-| `MUTUAL_CANCELED` | Application code cancelled the token |
+| `MUTUAL_CANCELED` | Application code canceled the token |
 | `PROPAGATING_CANCELED` | A parent cancellation propagated to this token |
-| `FAIL_FAST_CANCELED` | A task failure cancelled the group |
+| `FAIL_FAST_CANCELED` | A task failure canceled the group |
 | `TIMEOUT_CANCELED` | The group timeout elapsed |
 
 Fail-fast aggregation SHALL use `Futures.allAsList`. Completion and cleanup
@@ -248,7 +248,7 @@ Cancellation SHALL remain best effort:
 - Future cancellation may request interruption but cannot force user code to
   terminate;
 - a task that ignores interruption or blocks in non-interruptible IO may keep a
-  worker occupied after its Future becomes cancelled;
+  worker occupied after its Future becomes canceled;
 - `CompletableFuture.cancel(boolean)` does not use the flag to interrupt an
   underlying computation;
 - cooperative tasks should use `Checkpoints` or `ActionGate` at
@@ -284,14 +284,14 @@ view needed by reporting:
 - `RUNNING` for any Future that is not done;
 - `SUCCESS` for normal completion;
 - `FAILED` for exceptional completion;
-- `CANCELLED` for cancellation.
+- `CANCELED` for cancellation.
 
 `RUNNING` is deliberately a caller-side Future state. It does not distinguish
 not-yet-submitted placeholders, executor-queued tasks, worker-claimed tasks, or
 entered task bodies.
 
 `FutureInspector.exceptionNow` SHALL return the cause only for a completed,
-failed Future and reject pending, cancelled, and successful Futures.
+failed Future and reject pending, canceled, and successful Futures.
 
 `AsyncBatchResult<T>` SHALL contain:
 
@@ -305,7 +305,7 @@ failed Future and reject pending, cancelled, and successful Futures.
 The report is a snapshot. It SHALL NOT imply that pending tasks remain in the
 same state after the report returns.
 
-### Cancelled queue cleanup
+### Canceled queue cleanup
 
 Executor queue cleanup SHALL be driven by cancellation of the exact
 `FutureRunnable` submitted to the executor. The queued-cancellation observer
@@ -314,7 +314,7 @@ may notify `HeuristicPurger`, which can coalesce signals and invoke
 thresholds justify a scan.
 
 The cancellation count is an advisory estimate, not authoritative physical
-queue membership. Purge can remove cancelled tasks that have not started; it
+queue membership. Purge can remove canceled tasks that have not started; it
 cannot stop a task already claimed by a worker.
 
 ### Enforceable semantic boundaries
@@ -330,7 +330,7 @@ documentation, and tests:
 | `FutureRunnable.RUNNING` phase | The user delegate received a CPU time slice |
 | Queued-cancellation signal | The object is still physically in the queue |
 | Completion queue publication | Task results are in input order |
-| Cancelled submission-loop Future | Already-submitted tasks stopped |
+| Canceled submission-loop Future | Already-submitted tasks stopped |
 | Placeholder cancellation | An actual executor task existed |
 
 Tests of cross-layer behavior SHALL collect separate evidence for Future
@@ -354,14 +354,14 @@ worker ThreadLocals.
 ### Use JDK ExecutorCompletionService directly
 
 Rejected because JDK `ExecutorCompletionService` executes a distinct
-`QueueingFuture` while returning the task Future. Cancelling the returned
-Future does not make the queued wrapper cancelled, preventing ordinary
+`QueueingFuture` while returning the task Future. Canceling the returned
+Future does not make the queued wrapper canceled, preventing ordinary
 `ThreadPoolExecutor.purge()` from identifying it through the returned object.
 
 ### Use CompletableFuture as the primary abstraction
 
 Rejected because the project targets Java 8 executor interoperability and
-needs the exact queued object to remain a cancellable Future. In addition,
+needs the exact queued object to remain a cancelable Future. In addition,
 `CompletableFuture.cancel(boolean)` does not interrupt an underlying running
 task based on `mayInterruptIfRunning`.
 
@@ -443,7 +443,7 @@ concurrency framework.
 | Java 8 Future state view | `internal/FutureInspector.java`, `internal/FutureState.java` |
 | Current-task local context | `context/TaskScopeTl.java` |
 | Parent-child context relay | `context/ThreadRelay.java` |
-| Cancelled queue maintenance | `cancel/HeuristicPurger.java` |
+| Canceled queue maintenance | `cancel/HeuristicPurger.java` |
 | Timer and submitter services | `scope/ParConfig.java` |
 
 The observation-plane and Cartesian-test rules that verify these distinctions

@@ -137,7 +137,7 @@ ListenableFuture<List<TaskCompletion<T>>> completionFuture();
 提交 rejection、取消或滑动窗口中止的成员。
 
 `report()`/`reportString()` 继续用于轻量 outcome 汇总；`completionFuture()` 是需要 timing、
-失败异常和 queue wait 的完整结果入口。它不改变 `close()`、`submitCanceller()` 或
+失败异常和 queue wait 的完整结果入口。它不改变 `close()`、`submitCanceler()` 或
 `awaitBodyCompletion()` 的语义。
 
 ### 4.4 Scope 完成、取消与发布顺序

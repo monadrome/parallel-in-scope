@@ -444,7 +444,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
+    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCanceledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -456,7 +456,7 @@ class ParRuntimeTest {
                             Collections.singletonList("a"),
                             x -> {
                                 entered.countDown();
-                                // Ignore interruption: the future is cancelled immediately, but
+                                // Ignore interruption: the future is canceled immediately, but
                                 // the body stays inside user code until released.
                                 boolean interrupted = false;
                                 while (true) {
@@ -756,8 +756,8 @@ class ParRuntimeTest {
             for (Future<Integer> future : result.results()) {
                 assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
             }
-            // The token commits TIMEOUT before cancelling the element futures, so once every
-            // future is cancelled the attribution is already stable.
+            // The token commits TIMEOUT before canceling the element futures, so once every
+            // future is canceled the attribution is already stable.
             assertThat(result.report().stateCounts())
                     .containsOnlyKeys(TaskOutcome.TIMEOUT)
                     .containsEntry(TaskOutcome.TIMEOUT, 2);

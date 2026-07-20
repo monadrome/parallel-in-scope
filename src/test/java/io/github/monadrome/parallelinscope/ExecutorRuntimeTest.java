@@ -59,7 +59,7 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void poolWithSmartBlockingQueueHonoursRejectEnqueue() {
+    void poolWithSmartBlockingQueueHonorsRejectEnqueue() {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(8));
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);

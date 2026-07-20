@@ -107,7 +107,7 @@ public class HeuristicPurgerExpiryTest {
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
-        // The clock pauses this callback inside onTaskCancelled, after it claimed its sequence and
+        // The clock pauses this callback inside onTaskCanceled, after it claimed its sequence and
         // before it re-reads the switch. Disabling here is the race the re-read exists to cover.
         Thread paused = new Thread(observer::run);
         paused.start();

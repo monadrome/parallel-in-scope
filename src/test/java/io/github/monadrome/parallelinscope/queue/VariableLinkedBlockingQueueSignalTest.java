@@ -101,7 +101,7 @@ class VariableLinkedBlockingQueueSignalTest {
         assertTrue(stored.get());
         // Only inspect the queue once the producer has exited. Asserting emptiness directly after
         // clear() would race with the released producer re-enqueueing -- which is the very
-        // behaviour under test. After the join the state is stable, and the assertions below are
+        // behavior under test. After the join the state is stable, and the assertions below are
         // strictly stronger: clear() dropped the pre-existing element and the producer's value is
         // what remains.
         assertEquals(1, queue.size());

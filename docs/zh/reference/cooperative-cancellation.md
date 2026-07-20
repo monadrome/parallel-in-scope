@@ -24,12 +24,12 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 滑动窗口会先为尚未提交的任务创建 placeholder，保证结果列表保持输入顺序。停止 admission
 后，框架不会让这些 placeholder 永久保持 `LIVE`：
 
-- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELLED`；
-- 取消 `TaskBatchResult.submitCanceller()`：submitter 收到 interrupt，剩余 placeholder
+- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELED`；
+- 取消 `TaskBatchResult.submitCanceler()`：submitter 收到 interrupt，剩余 placeholder
   以 `InterruptedException` 失败；
 - 后续提交被执行器拒绝：剩余 placeholder 以拒绝异常失败。
 
-因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceller()` 表示
+因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceler()` 表示
 “停止后续提交”，不保证已提交任务立即停止；任务本身仍遵循协作式取消规则。
 
 这意味着：

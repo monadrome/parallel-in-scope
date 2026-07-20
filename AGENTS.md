@@ -59,7 +59,7 @@ Two invariants to respect:
   reached a free parallelism slot. There are no placeholders and no later
   bind step: `SlidingWindowSubmitter.viewsFor()` builds the views, the caller
   binds them, and `submitAll()` only decides when each prepared future enters
-  the pool. Cancelling a view therefore reaches the thread running its body.
+  the pool. Canceling a view therefore reaches the thread running its body.
 
 ## Design Decisions
 
@@ -72,6 +72,14 @@ relevant contract through the document routes below.
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
+- American English spelling everywhere — code, comments, Javadoc, and documentation
+  (`canceled`, `canceling`, `canceler`, `behavior`, `honored`), never the British
+  variants. Third-party names keep the spelling their owners gave them
+  (`Future.isCancelled()`, `Futures.immediateCancelledFuture()`), on the same
+  principle as the accessor rule below. `cancel`, `cancellation`, and
+  `CancellationException` are spelled identically in both variants, so they carry
+  no choice to make. Dated records that quote an artifact as it was — released
+  changelog entries, `migration-v0.2` tables, accepted ADRs — keep the original.
 - Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,

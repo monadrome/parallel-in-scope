@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The tracker also carries the identity units needed by the self-await guard: the units of the
  * group's members (and terminal combine) or of the batch. Registration happens on the single
- * submitting thread before submission; the slot list and identity set are never mutated afterwards,
+ * submitting thread before submission; the slot list and identity set are never mutated afterward,
  * and publication to other threads rides the task-submission handoff.
  */
 final class BodyCompletionTracker {
@@ -298,7 +298,7 @@ final class BodyCompletionTracker {
         } catch (TimeoutException elapsed) {
             return false;
         } catch (ExecutionException | CancellationException impossible) {
-            // The signal is only ever set to null on completion; it cannot fail or be cancelled.
+            // The signal is only ever set to null on completion; it cannot fail or be canceled.
             throw new AssertionError("body-exit signal cannot fail", impossible);
         }
     }

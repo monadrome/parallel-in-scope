@@ -132,7 +132,7 @@ final class HeuristicPurger {
             return NOOP;
         }
         PoolState state = states.computeIfAbsent(executor, ignored -> new PoolState(executor, queue));
-        return state::onTaskCancelled;
+        return state::onTaskCanceled;
     }
 
     /** Reports whether a queue has a finite positive capacity worth monitoring. */
@@ -170,7 +170,7 @@ final class HeuristicPurger {
         }
 
         /** Records one possible queued cancellation and evaluates maintenance only while idle. */
-        private void onTaskCancelled() {
+        private void onTaskCanceled() {
             if (!enabled.get()) {
                 return;
             }
@@ -214,22 +214,22 @@ final class HeuristicPurger {
 
         /** Evaluates both advisory thresholds and submits one fixed-delay maintenance task. */
         private void evaluateAndSubmit(long delayMillis) {
-            long estimatedCancelled = estimatedCancelled();
-            if (estimatedCancelled <= 0L || !meetsThresholds(estimatedCancelled, true)) {
+            long estimatedCanceled = estimatedCanceled();
+            if (estimatedCanceled <= 0L || !meetsThresholds(estimatedCanceled, true)) {
                 return;
             }
-            submitMaintenance(delayMillis, estimatedCancelled);
+            submitMaintenance(delayMillis, estimatedCanceled);
         }
 
         /** Claims the idle state and submits one maintenance task after a fixed delay. */
-        private void submitMaintenance(long delayMillis, long estimatedCancelled) {
+        private void submitMaintenance(long delayMillis, long estimatedCanceled) {
             if (maintenanceState.compareAndSet(MaintenanceState.IDLE, MaintenanceState.BUSY)) {
-                logCurrentDecision("submitted", estimatedCancelled);
+                logCurrentDecision("submitted", estimatedCanceled);
                 try {
                     maintenanceExecutor.schedule(this::runMaintenance, delayMillis, TimeUnit.MILLISECONDS);
                 } catch (RuntimeException e) {
                     maintenanceState.compareAndSet(MaintenanceState.BUSY, MaintenanceState.IDLE);
-                    logCurrentDecision("failed-submit", estimatedCancelled());
+                    logCurrentDecision("failed-submit", estimatedCanceled());
                     LOGGER.log(Level.WARNING, "Unable to schedule canceled-task purge", e);
                 }
             }
@@ -242,8 +242,8 @@ final class HeuristicPurger {
         private void runMaintenance() {
             long claimThrough = issuedSequence.get();
             try {
-                long estimatedCancelled = estimatedCancelled();
-                if (!enabled.get() || estimatedCancelled <= 0L || !meetsThresholds(estimatedCancelled, true)) {
+                long estimatedCanceled = estimatedCanceled();
+                if (!enabled.get() || estimatedCanceled <= 0L || !meetsThresholds(estimatedCanceled, true)) {
                     return;
                 }
                 int beforeSize = queue.size();
@@ -253,9 +253,9 @@ final class HeuristicPurger {
                 try {
                     executor.purge();
                     settleThrough(claimThrough);
-                    logPurge(estimatedCancelled, beforeSize, queue.size(), purgeTimer.elapsed(TimeUnit.NANOSECONDS));
+                    logPurge(estimatedCanceled, beforeSize, queue.size(), purgeTimer.elapsed(TimeUnit.NANOSECONDS));
                 } catch (RuntimeException e) {
-                    logCurrentDecision("failed", estimatedCancelled());
+                    logCurrentDecision("failed", estimatedCanceled());
                     LOGGER.log(Level.WARNING, "Unable to purge canceled tasks", e);
                 }
             } finally {
@@ -267,7 +267,7 @@ final class HeuristicPurger {
         }
 
         /** Returns the unsettled cancellation estimate without resetting concurrent signals. */
-        private long estimatedCancelled() {
+        private long estimatedCanceled() {
             return Math.max(0L, issuedSequence.get() - settledThrough.get());
         }
 
@@ -371,7 +371,7 @@ final class HeuristicPurger {
                 LOGGER.log(
                         Level.FINEST,
                         "purge action={0} executor={1} queueSize={2} capacity={3} "
-                                + "pressure={4} pressureThreshold={5} estimatedCancelled={6} "
+                                + "pressure={4} pressureThreshold={5} estimatedCanceled={6} "
                                 + "canceledRatio={7} canceledRatioThreshold={8}",
                         new Object[] {
                             action,
@@ -392,7 +392,7 @@ final class HeuristicPurger {
             if (LOGGER.isLoggable(Level.FINEST)) {
                 LOGGER.log(
                         Level.FINEST,
-                        "purge action=purged executor={0} estimatedCancelled={1} beforeSize={2} "
+                        "purge action=purged executor={0} estimatedCanceled={1} beforeSize={2} "
                                 + "afterSize={3} approximateSizeChange={4} durationNanos={5}",
                         new Object[] {executorId, claimed, beforeSize, afterSize, beforeSize - afterSize, durationNanos
                         });

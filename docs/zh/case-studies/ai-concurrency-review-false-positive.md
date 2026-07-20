@@ -37,7 +37,7 @@ AI 的判断是：
 5. `addCallback` 调用 `onFailure`。
 6. `onFailure` 执行 `allFutures.cancel(true)`，并把状态设置为 `FAIL_FAST_CANCELED`。
 
-也就是说，AI 把 “捕获异常后返回 cancelled future” 误解成了 “捕获异常后恢复为成功 future”。
+也就是说，AI 把 “捕获异常后返回 canceled future” 误解成了 “捕获异常后恢复为成功 future”。
 这类错误在并发代码中很常见：控制流不是只由异常捕获决定，还受到 future 状态机语义影响。
 
 ## 开发者如何纠正
@@ -46,21 +46,21 @@ AI 的判断是：
 
 ```java
 @Test
-public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
+public void testLateBind_failFast_cancelsSiblingAndSubmitCanceler() {
     CancellationToken token = CancellationToken.create();
 
     SettableFuture<String> failed = SettableFuture.create();
     SettableFuture<String> sibling = SettableFuture.create();
-    SettableFuture<Void> submitCanceller = SettableFuture.create();
+    SettableFuture<Void> submitCanceler = SettableFuture.create();
 
-    token.lateBind(Arrays.asList(failed, sibling), Duration.ofSeconds(5), submitCanceller);
+    token.lateBind(Arrays.asList(failed, sibling), Duration.ofSeconds(5), submitCanceler);
 
     failed.setException(new RuntimeException("boom"));
 
     await().untilAsserted(() -> {
         assertEquals(CancellationToken.State.FAIL_FAST_CANCELED, token.getState());
-        assertTrue(sibling.isCancelled(), "sibling future should be cancelled by fail-fast");
-        assertTrue(submitCanceller.isCancelled(), "submit canceller should be cancelled by fail-fast");
+        assertTrue(sibling.isCancelled(), "sibling future should be canceled by fail-fast");
+        assertTrue(submitCanceler.isCancelled(), "submit canceler should be canceled by fail-fast");
     });
 }
 ```
@@ -71,7 +71,7 @@ public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
 |---|---|
 | 状态是 `FAIL_FAST_CANCELED` | 没有误入 `SUCCESS` |
 | 兄弟 future 被取消 | 快速失败确实传播到了同批任务 |
-| `submitCanceller` 被取消 | 剩余提交流程也被停止 |
+| `submitCanceler` 被取消 | 剩余提交流程也被停止 |
 
 测试结果：
 
@@ -89,11 +89,11 @@ Tests run: 101, Failures: 0, Errors: 0
 
 并发代码比普通业务代码更容易触发 AI 的幻觉，原因主要有四个。
 
-第一，状态语义通常藏在库 API 里。`catchingAsync`、`withTimeout`、`allAsList`、`successfulAsList`、`immediateCancelledFuture` 这些 API 的组合行为，不能只靠名字推断。AI 很容易把 “异常被捕获” 简化成 “链路恢复成功”，但 Guava future 的 cancelled 状态有独立语义。
+第一，状态语义通常藏在库 API 里。`catchingAsync`、`withTimeout`、`allAsList`、`successfulAsList`、`immediateCancelledFuture` 这些 API 的组合行为，不能只靠名字推断。AI 很容易把 “异常被捕获” 简化成 “链路恢复成功”，但 Guava future 的 canceled 状态有独立语义。
 
-第二，控制流是异步的。同步代码里，`try-catch-return` 的路径比较直观；异步 future 链里，结果可能是 success、failure、cancelled、timeout，回调触发时机也取决于 executor 和 future 状态。AI 如果没有逐步模拟状态机，很容易给出看似合理但实际错误的路径。
+第二，控制流是异步的。同步代码里，`try-catch-return` 的路径比较直观；异步 future 链里，结果可能是 success、failure、canceled、timeout，回调触发时机也取决于 executor 和 future 状态。AI 如果没有逐步模拟状态机，很容易给出看似合理但实际错误的路径。
 
-第三，并发取消有多层传播。这里同时涉及子任务 future、聚合 future、timeout future、submit canceller、token state。只看其中一层，会误判整个系统行为。
+第三，并发取消有多层传播。这里同时涉及子任务 future、聚合 future、timeout future、submit canceler、token state。只看其中一层，会误判整个系统行为。
 
 第四，AI 倾向于生成“完整故事”。一旦它在早期步骤做了错误假设，后续推理会继续补全成一条顺畅的因果链。这种回答读起来很像专业审查，但并不等于事实正确。
 

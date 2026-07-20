@@ -174,10 +174,10 @@ TaskBatchResult<?> result = SlidingWindowSubmitter
 // 阶段 2：绑定结果 Future、提交循环、超时和 fail-fast
 //（deadline 存在 token 内部，构造时已与 parent 取 min）
 cancellationToken.bind(
-    result.results(), result.submitCanceller(), timer);
+    result.results(), result.submitCanceler(), timer);
 ```
 
-> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
+> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceler` 用于在取消时终止后续任务提交。
 
 父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELED`）；`bind()` 再绑定两条链路：
 

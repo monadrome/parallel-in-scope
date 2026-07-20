@@ -191,7 +191,7 @@ class GroupDraftLifecycleTest {
     // ==================== payload release ====================
 
     @Test
-    void rejectedCancelledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
+    void rejectedCanceledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
         ExecutorService worker = Executors.newSingleThreadExecutor();
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = ParRuntime.builder()

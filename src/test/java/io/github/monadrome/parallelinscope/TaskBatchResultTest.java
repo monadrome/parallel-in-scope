@@ -137,9 +137,9 @@ public class TaskBatchResultTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCause(failure);
 
-        TaskBatchResult<String> cancelled =
+        TaskBatchResult<String> canceled =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.immediateCancelledFuture())));
-        assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(CancellationException.class);
+        assertThatThrownBy(canceled::valuesOrThrow).isInstanceOf(CancellationException.class);
     }
 
     // ==================== token-based cancellation attribution ====================
@@ -147,7 +147,7 @@ public class TaskBatchResultTest {
     private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();
 
     @Test
-    public void report_attributesCancelledElementsToBatchDeadlineTimeout() {
+    public void report_attributesCanceledElementsToBatchDeadlineTimeout() {
         CancellationToken token = new CancellationToken();
         token.timeoutCancel();
         TaskBatchResult<String> batch = TaskBatchResult.of(Arrays.asList(
@@ -160,7 +160,7 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void report_attributesCancelledSiblingsToFailFast() {
+    public void report_attributesCanceledSiblingsToFailFast() {
         CancellationToken token = new CancellationToken();
         Task<String> failed = task(token, Futures.immediateFailedFuture(new RuntimeException("boom")));
         Task<String> sibling = task(token, Futures.<String>immediateCancelledFuture());
