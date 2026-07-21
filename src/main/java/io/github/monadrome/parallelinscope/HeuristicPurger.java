@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Coalesces cleanup of canceled tasks retained by bounded {@link BlockingQueue} instances.
@@ -158,7 +159,7 @@ final class HeuristicPurger {
         private final AtomicReference<MaintenanceState> maintenanceState = new AtomicReference<>(MaintenanceState.IDLE);
         private final AtomicReference<CancellationMarker> lastCancellation =
                 new AtomicReference<>(new CancellationMarker(0L, 0L));
-        private final AtomicReference<String> lastLoggedDecision = new AtomicReference<>();
+        private final AtomicReference<@Nullable String> lastLoggedDecision = new AtomicReference<>();
         private final String executorId;
 
         /** Creates cancellation accounting state for one actual executor. */

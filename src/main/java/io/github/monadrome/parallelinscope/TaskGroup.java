@@ -58,8 +58,8 @@ import org.jspecify.annotations.Nullable;
 public final class TaskGroup<V, R> implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
 
-    /** Null-object submission canceller: group members carry no submission pipeline to stop. */
-    private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
+    /** Null-object submission canceler: group members carry no submission pipeline to stop. */
+    private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     /** Process-local group identities: diagnostics only, never persisted. */
     private static final AtomicLong GROUP_SEQUENCE = new AtomicLong();
@@ -121,7 +121,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     private final AtomicInteger memberSuccesses = new AtomicInteger();
 
     /** First writer wins: names the member or combine whose own outcome recorded a failure. */
-    private final AtomicReference<String> failedTaskName = new AtomicReference<>();
+    private final AtomicReference<@Nullable String> failedTaskName = new AtomicReference<>();
 
     /** One-shot guard that keeps the terminal combine from being submitted twice. */
     private final AtomicBoolean terminalSubmitted = new AtomicBoolean();
@@ -1116,10 +1116,10 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      * cleared wholesale on any failure path so a rejected submission retains no user closure.
      */
     static final class RunBindings {
-        private final Callable<?>[] taskBodies;
+        private final @Nullable Callable<?>[] taskBodies;
         private @Nullable CombineBody<?, ?> combineBody;
 
-        RunBindings(Callable<?>[] taskBodies, @Nullable CombineBody<?, ?> combineBody) {
+        RunBindings(@Nullable Callable<?>[] taskBodies, @Nullable CombineBody<?, ?> combineBody) {
             this.taskBodies = taskBodies;
             this.combineBody = combineBody;
         }
