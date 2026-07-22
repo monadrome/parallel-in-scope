@@ -122,6 +122,23 @@ To keep the API minimal and semantics consistent, the project maintains an [Idea
 
 The following features can be enabled on demand without affecting basic `Par.map` usage.
 
+### Supplying a timeout scheduler
+
+The default TimerHolder uses a `corePoolSize=2` scheduler to wait for deadlines and dispatches timeout/cancel actions to a framework-managed cached task pool. To isolate tenants, control thread names, or attach the scheduler to an application lifecycle, supply your own `ScheduledExecutorService` through `ParConfig`:
+
+```java
+ScheduledExecutorService timer = Executors.newScheduledThreadPool(1);
+ParConfig config = ParConfig.builder()
+    .timer(timer)
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
+
+// Par binds timeouts through config's timer
+Par par = new Par(config);
+```
+
+The supplied `timer` should only schedule deadlines, not run long-lived business work. Actual cancellation actions run on the cached `Par-Timer-Task-*` pool. The caller owns the custom scheduler and must call `shutdown()`; the framework does not close it. This keeps a slow cancellation callback away from the scheduler worker, but it does not provide unlimited task-pool capacity or force-stop code that ignores cooperative cancellation.
+
 ### Cooperative Cancellation
 
 ```java

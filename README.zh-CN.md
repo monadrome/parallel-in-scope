@@ -37,6 +37,8 @@ AsyncBatchResult<User> result = new Par(config)
         .map("io-pool", userIds, userService::findById, options);
 ```
 
+需要隔离 timeout 调度时，可使用 `.timer(yourScheduledExecutor)` 指定 scheduler。它只等待 deadline，实际 timeout/cancel action 由框架的 cached timer-task pool 执行；自定义 scheduler 由调用方负责关闭。
+
 ## 核心能力
 
 - 任一任务失败时取消同批任务（Fail-Fast）

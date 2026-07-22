@@ -11,6 +11,8 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -69,8 +71,26 @@ public class CancellationToken {
      * @param timeout         the maximum execution time
      * @param submitCanceller the submission future to cancel with the tasks
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> void lateBind(List<ListenableFuture<T>> futures, Duration timeout, ListenableFuture<?> submitCanceller) {
+        lateBind(futures, timeout, submitCanceller, ParConfig.getDefault().getTimerService());
+    }
+
+    /**
+     * Connects this token to submitted work using the supplied timeout scheduler.
+     *
+     * @param <T>             the task result type
+     * @param futures         the submitted task futures
+     * @param timeout         the maximum execution time
+     * @param submitCanceller the submission future to cancel with the tasks
+     * @param timer           scheduler used to detect the timeout
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public <T> void lateBind(
+            List<ListenableFuture<T>> futures,
+            Duration timeout,
+            ListenableFuture<?> submitCanceller,
+            ScheduledExecutorService timer) {
+        Objects.requireNonNull(timer);
         if (parent != null) {
             if (parent.getState().shouldInterruptCurrentThread()) {
                 futureToken.cancel(true);
@@ -85,7 +105,7 @@ public class CancellationToken {
 
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
                 .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-                .withTimeout(timeout, ParConfig.getTimer());
+                .withTimeout(timeout, timer);
 
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 

@@ -125,6 +125,23 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 以下功能按需启用，不影响 `Par.map` 的基本使用。
 
+### 指定 timeout scheduler
+
+默认 TimerHolder 使用 `corePoolSize=2` 的 scheduler 等待 deadline，并把 timeout/cancel action 投递到框架维护的 cached task pool。需要隔离租户、统一线程命名或接入应用生命周期时，可以给 `ParConfig` 指定自己的 `ScheduledExecutorService`：
+
+```java
+ScheduledExecutorService timer = Executors.newScheduledThreadPool(1);
+ParConfig config = ParConfig.builder()
+    .timer(timer)
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
+
+// Par 使用 config 的 timer 绑定 timeout
+Par par = new Par(config);
+```
+
+`timer` 只负责调度 deadline，不应提交长时间运行的业务任务；实际取消 action 在线程名 `Par-Timer-Task-*` 的 cached pool 执行。自定义 timer 由调用方持有并负责 `shutdown()`，框架不会替它关闭。该隔离避免 scheduler worker 被一个慢取消回调占满，但不能保证 cached pool 无限资源，也不能把协作式取消变成强制终止。
+
 ### 协作式取消
 
 ```java

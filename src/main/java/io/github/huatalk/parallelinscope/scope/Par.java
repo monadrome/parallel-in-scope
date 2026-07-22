@@ -141,7 +141,7 @@ public final class Par {
 
         ParOptions normalizedOptions = ParOptions.formalized(options, futures.size(), config.getDefaultTimeoutMillis());
         List<ListenableFuture<T>> adapted = futures.stream()
-                .map(future -> Par.<T>adaptFuture(future))
+                .map(Par::<T>adaptFuture)
                 .collect(toImmutableList());
 
         CancellationToken parentToken = TaskScopeTl.getCancellationToken();
@@ -151,7 +151,8 @@ public final class Par {
         CancellationToken cancellationToken = new CancellationToken(parentToken);
         ListenableFuture<?> submitCanceller = Futures.immediateVoidFuture();
         AsyncBatchResult<T> result = AsyncBatchResult.of(submitCanceller, adapted);
-        cancellationToken.lateBind(adapted, normalizedOptions.forTimeout(), submitCanceller);
+        cancellationToken.lateBind(
+                adapted, normalizedOptions.forTimeout(), submitCanceller, config.getTimerService());
         return result;
     }
 
@@ -217,7 +218,9 @@ public final class Par {
                 .submitAll(tasks);
 
         // Late bind: wire up cancellation, timeout, fail-fast
-        cancellationToken.lateBind(result.getResults(), normalizedOptions.forTimeout(), result.getSubmitCanceller());
+        cancellationToken.lateBind(
+                result.getResults(), normalizedOptions.forTimeout(), result.getSubmitCanceller(),
+                config.getTimerService());
 
         // Try purge on timeout
         if (executorName != null) {

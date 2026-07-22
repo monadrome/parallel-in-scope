@@ -37,6 +37,8 @@ AsyncBatchResult<User> result = new Par(config)
         .map("io-pool", userIds, userService::findById, options);
 ```
 
+For timeout isolation, configure a dedicated scheduler with `.timer(yourScheduledExecutor)`. It only tracks deadlines; timeout/cancel actions run on the framework's cached timer-task pool. The caller owns and shuts down the supplied scheduler.
+
 ## Core Capabilities
 
 - Fail-fast cancellation within a task batch

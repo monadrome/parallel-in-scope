@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.spi.ExecutorResolver;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
@@ -18,11 +19,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,7 +44,8 @@ import java.util.logging.Logger;
  * via the fluent {@link Builder} API, or {@link #getDefault()} for the
  * global default instance.
  * <p>
- * Timer and submitter pool are global infrastructure shared across all instances.
+ * The default timer and submitter pool are global infrastructure shared across all instances.
+ * A custom timer can be supplied per configuration.
  * <p>
  * Users configure the framework by registering SPI implementations at build time:
  * <ul>
@@ -88,6 +99,7 @@ public final class ParConfig {
     private final long defaultTimeoutMillis;
     private final boolean livelockDetectionEnabled;
     private final RateLimiter purgeRateLimiter;
+    private final @Nullable ListeningScheduledExecutorService timer;
 
     private ParConfig(Builder builder) {
         this.taskListeners = builder.taskListeners.build();
@@ -96,6 +108,7 @@ public final class ParConfig {
         this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
         this.purgeRateLimiter = RateLimiter.create(builder.maxPurgeRate);
+        this.timer = builder.timer == null ? null : createDispatchingTimer(builder.timer);
 
         // Build executor maps: adapt raw executors to ListeningExecutorService
         ImmutableMap.Builder<String, ListeningExecutorService> decoratedBuilder = ImmutableMap.builder();
@@ -131,6 +144,7 @@ public final class ParConfig {
         private long defaultTimeoutMillis = 60_000L;
         private boolean livelockDetectionEnabled = false;
         private double maxPurgeRate = 1.0;
+        private ScheduledExecutorService timer;
 
         Builder() {
         }
@@ -172,6 +186,22 @@ public final class ParConfig {
                 throw new IllegalArgumentException("maxPurgeRate must be positive");
             }
             this.maxPurgeRate = maxPurgeRate;
+            return this;
+        }
+
+        /**
+         * Sets the scheduler used to detect framework timeouts.
+         * <p>
+         * The framework schedules only a short dispatch operation on this service;
+         * timeout cancellation runs on the framework's timer-task executor. The caller
+         * retains ownership of the supplied service and is responsible for shutting it down.
+         *
+         * @param timer scheduler used for timeout deadlines (must not be null)
+         * @return this builder
+         * @throws NullPointerException if timer is null
+         */
+        public Builder timer(ScheduledExecutorService timer) {
+            this.timer = Objects.requireNonNull(timer);
             return this;
         }
 
@@ -257,8 +287,329 @@ public final class ParConfig {
             ScheduledThreadPoolExecutor timerImpl = new ScheduledThreadPoolExecutor(
                     CORE_POOL_SIZE, threadFactory);
             timerImpl.setRemoveOnCancelPolicy(true);
-            INSTANCE = MoreExecutors.listeningDecorator(timerImpl);
+            INSTANCE = createDispatchingTimer(timerImpl);
         }
+    }
+
+    private static final class TimerTaskExecutorHolder {
+        static final ExecutorService INSTANCE = Executors.newCachedThreadPool(
+                new ThreadFactoryBuilder()
+                        .setDaemon(true)
+                        .setNameFormat("Par-Timer-Task-%d")
+                        .build());
+    }
+
+    private static final class DispatchingScheduledExecutorService
+            extends AbstractExecutorService implements ScheduledExecutorService {
+        private final ScheduledExecutorService scheduler;
+
+        private DispatchingScheduledExecutorService(ScheduledExecutorService scheduler) {
+            this.scheduler = Objects.requireNonNull(scheduler);
+        }
+
+        @Override
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            Objects.requireNonNull(command);
+            Objects.requireNonNull(unit);
+            FutureTask<Void> action = new FutureTask<>(command, null);
+            ScheduledFuture<?> trigger = scheduleDispatch(action, delay, unit);
+            return new DispatchingScheduledFuture<>(trigger, action);
+        }
+
+        @Override
+        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+            Objects.requireNonNull(callable);
+            Objects.requireNonNull(unit);
+            FutureTask<V> action = new FutureTask<>(callable);
+            ScheduledFuture<?> trigger = scheduleDispatch(action, delay, unit);
+            return new DispatchingScheduledFuture<>(trigger, action);
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleAtFixedRate(
+                Runnable command, long initialDelay, long period, TimeUnit unit) {
+            Objects.requireNonNull(command);
+            Objects.requireNonNull(unit);
+            if (period <= 0) {
+                throw new IllegalArgumentException("period must be positive");
+            }
+            return new DispatchingPeriodicFuture(
+                    scheduler, command, initialDelay, period, unit, true);
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleWithFixedDelay(
+                Runnable command, long initialDelay, long delay, TimeUnit unit) {
+            Objects.requireNonNull(command);
+            Objects.requireNonNull(unit);
+            if (delay <= 0) {
+                throw new IllegalArgumentException("delay must be positive");
+            }
+            return new DispatchingPeriodicFuture(
+                    scheduler, command, initialDelay, delay, unit, false);
+        }
+
+        private ScheduledFuture<?> scheduleDispatch(Runnable command, long delay, TimeUnit unit) {
+            return scheduler.schedule(
+                    () -> TimerTaskExecutorHolder.INSTANCE.execute(command), delay, unit);
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            Objects.requireNonNull(command);
+            if (scheduler.isShutdown()) {
+                throw new RejectedExecutionException("Timer scheduler is shut down");
+            }
+            TimerTaskExecutorHolder.INSTANCE.execute(command);
+        }
+
+        @Override
+        public void shutdown() {
+            scheduler.shutdown();
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return scheduler.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return scheduler.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return scheduler.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return scheduler.awaitTermination(timeout, unit);
+        }
+    }
+
+    private static final class DispatchingScheduledFuture<V> implements ScheduledFuture<V> {
+        private final ScheduledFuture<?> trigger;
+        private final Future<V> action;
+
+        private DispatchingScheduledFuture(ScheduledFuture<?> trigger, Future<V> action) {
+            this.trigger = trigger;
+            this.action = action;
+        }
+
+        @Override
+        public long getDelay(TimeUnit unit) {
+            return trigger.getDelay(unit);
+        }
+
+        @Override
+        public int compareTo(java.util.concurrent.Delayed other) {
+            return trigger.compareTo(other);
+        }
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            boolean actionCancelled = action.cancel(mayInterruptIfRunning);
+            boolean triggerCancelled = trigger.cancel(mayInterruptIfRunning);
+            return actionCancelled || triggerCancelled;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return action.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return action.isDone();
+        }
+
+        @Override
+        public V get() throws InterruptedException, ExecutionException {
+            return action.get();
+        }
+
+        @Override
+        public V get(long timeout, TimeUnit unit)
+                throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+            return action.get(timeout, unit);
+        }
+    }
+
+    /**
+     * A periodic future whose scheduler thread only dispatches the action. The
+     * next trigger is installed after the previous action completes, preserving
+     * the non-overlap and fixed-delay guarantees of ScheduledExecutorService.
+     */
+    private static final class DispatchingPeriodicFuture implements ScheduledFuture<Object> {
+        private final ScheduledExecutorService scheduler;
+        private final Runnable command;
+        private final long intervalNanos;
+        private final boolean fixedRate;
+        private final Object lock = new Object();
+        private final SettableFuture<Void> completion = SettableFuture.create();
+        private ScheduledFuture<?> trigger;
+        private Future<?> running;
+        private boolean cancelled;
+        private boolean terminated;
+        private long nextDeadlineNanos;
+
+        private DispatchingPeriodicFuture(
+                ScheduledExecutorService scheduler,
+                Runnable command,
+                long initialDelay,
+                long interval,
+                TimeUnit unit,
+                boolean fixedRate) {
+            this.scheduler = scheduler;
+            this.command = command;
+            this.intervalNanos = unit.toNanos(interval);
+            this.fixedRate = fixedRate;
+            this.nextDeadlineNanos = saturatingAdd(System.nanoTime(), unit.toNanos(initialDelay));
+            scheduleTrigger(nextDeadlineNanos);
+        }
+
+        private void scheduleTrigger(long deadlineNanos) {
+            synchronized (lock) {
+                if (cancelled || terminated) {
+                    return;
+                }
+                long delayNanos = deadlineNanos - System.nanoTime();
+                if (delayNanos < 0) {
+                    delayNanos = 0;
+                }
+                trigger = scheduler.schedule(this::dispatch, delayNanos, TimeUnit.NANOSECONDS);
+            }
+        }
+
+        private void dispatch() {
+            synchronized (lock) {
+                if (cancelled || terminated) {
+                    return;
+                }
+                trigger = null;
+                try {
+                    running = TimerTaskExecutorHolder.INSTANCE.submit(this::runAction);
+                } catch (Throwable t) {
+                    fail(t);
+                }
+            }
+        }
+
+        private void runAction() {
+            try {
+                command.run();
+            } catch (Throwable t) {
+                fail(t);
+                return;
+            }
+
+            long nextDeadline;
+            synchronized (lock) {
+                if (cancelled || terminated) {
+                    return;
+                }
+                if (fixedRate) {
+                    nextDeadlineNanos = saturatingAdd(nextDeadlineNanos, intervalNanos);
+                } else {
+                    nextDeadlineNanos = saturatingAdd(System.nanoTime(), intervalNanos);
+                }
+                nextDeadline = nextDeadlineNanos;
+                running = null;
+            }
+            try {
+                scheduleTrigger(nextDeadline);
+            } catch (Throwable t) {
+                fail(t);
+            }
+        }
+
+        private void fail(Throwable failure) {
+            ScheduledFuture<?> triggerToCancel;
+            synchronized (lock) {
+                if (cancelled || terminated) {
+                    return;
+                }
+                terminated = true;
+                triggerToCancel = trigger;
+                trigger = null;
+            }
+            if (triggerToCancel != null) {
+                triggerToCancel.cancel(false);
+            }
+            completion.setException(failure);
+        }
+
+        @Override
+        public long getDelay(TimeUnit unit) {
+            long delayNanos = nextDeadlineNanos - System.nanoTime();
+            return unit.convert(delayNanos, TimeUnit.NANOSECONDS);
+        }
+
+        @Override
+        public int compareTo(java.util.concurrent.Delayed other) {
+            return Long.compare(getDelay(TimeUnit.NANOSECONDS), other.getDelay(TimeUnit.NANOSECONDS));
+        }
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            ScheduledFuture<?> triggerToCancel;
+            Future<?> runningToCancel;
+            synchronized (lock) {
+                if (completion.isDone()) {
+                    return false;
+                }
+                cancelled = true;
+                triggerToCancel = trigger;
+                runningToCancel = running;
+                trigger = null;
+                running = null;
+            }
+            if (triggerToCancel != null) {
+                triggerToCancel.cancel(false);
+            }
+            if (runningToCancel != null) {
+                runningToCancel.cancel(mayInterruptIfRunning);
+            }
+            completion.cancel(mayInterruptIfRunning);
+            return true;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return completion.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return completion.isDone();
+        }
+
+        @Override
+        public Object get() throws InterruptedException, ExecutionException {
+            return completion.get();
+        }
+
+        @Override
+        public Object get(long timeout, TimeUnit unit)
+                throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+            return completion.get(timeout, unit);
+        }
+
+        private static long saturatingAdd(long left, long right) {
+            long result = left + right;
+            if (((left ^ result) & (right ^ result)) < 0) {
+                return right < 0 ? Long.MIN_VALUE : Long.MAX_VALUE;
+            }
+            return result;
+        }
+    }
+
+    private static ListeningScheduledExecutorService createDispatchingTimer(
+            ScheduledExecutorService scheduler) {
+        return MoreExecutors.listeningDecorator(
+                new DispatchingScheduledExecutorService(scheduler));
     }
 
     // ==================== Submitter Pool (Global) ====================
@@ -281,6 +632,16 @@ public final class ParConfig {
      */
     public static ListeningScheduledExecutorService getTimer() {
         return TimerHolder.INSTANCE;
+    }
+
+    /**
+     * Gets the timer configured for this instance, or the global default timer
+     * when no custom scheduler was supplied.
+     *
+     * @return the configured timeout scheduler
+     */
+    public ListeningScheduledExecutorService getTimerService() {
+        return timer != null ? timer : TimerHolder.INSTANCE;
     }
 
     // ==================== Submitter Pool Access (Global) ====================
