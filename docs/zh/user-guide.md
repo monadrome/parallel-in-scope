@@ -60,6 +60,31 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 以上就是全部。`Par.map` 内部自动处理滑动窗口调度、超时控制、快速失败取消和上下文传播，无需额外配置。
 
+### 选择显式配置还是全局配置
+
+当应用自己管理配置时，优先使用显式构造和依赖注入：
+
+```java
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
+Par par = new Par(config);
+```
+
+如果代码需要使用共享的便利单例，应在启动阶段只初始化一次全局配置：
+
+```java
+GlobalParConfig.initializeDefault(config);
+Par par = Par.getInstance();
+```
+
+`GlobalParConfig` 遵循一次性初始化规则。如果没有显式配置，第一次调用
+`GlobalParConfig.get()`、`Par.getInstance()` 或旧入口
+`ParConfig.getDefault()` 会冻结内置默认值；之后再调用
+`initializeDefault` 会抛出 `IllegalStateException`。旧的
+`ParConfig.setDefault` 已标记为废弃，并且同样只允许初始化一次。这里刻意不使用
+ServiceLoader 自动发现这个持有线程池资源的配置，线程池及其生命周期应由应用显式管理。
+
 ---
 
 ## 核心特性

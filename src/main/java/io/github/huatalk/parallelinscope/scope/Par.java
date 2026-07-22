@@ -32,7 +32,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * <p>
  * Instance-based: each {@code Par} holds a reference to a {@link ParConfig}.
  * Use {@link #getInstance()} for the default shared singleton backed by
- * {@link ParConfig#getDefault()}, or create custom instances via
+ * {@link GlobalParConfig#get()}, or create custom instances via
  * {@link #Par(ParConfig)} for isolated configurations.
  * <p>
  * Provides the {@link #map} instance method that wires together

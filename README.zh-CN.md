@@ -39,6 +39,15 @@ AsyncBatchResult<User> result = new Par(config)
 
 需要隔离 timeout 调度时，可使用 `.timer(yourScheduledExecutor)` 指定 scheduler。它只等待 deadline，实际 timeout/cancel action 由框架的 cached timer-task pool 执行；自定义 scheduler 由调用方负责关闭。
 
+如果需要兼容式的全局入口，应在应用启动阶段、调用 `Par.getInstance()` 之前只初始化一次：
+
+```java
+GlobalParConfig.initializeDefault(config);
+Par par = Par.getInstance();
+```
+
+显式 `new Par(config)` 仍然是依赖注入的首选方式。若未初始化配置，第一次读取全局配置会冻结内置默认值；之后再次初始化会失败。
+
 ## 核心能力
 
 - 任一任务失败时取消同批任务（Fail-Fast）

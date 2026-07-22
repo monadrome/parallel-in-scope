@@ -57,6 +57,35 @@ List<ListenableFuture<String>> futures = result.getResults();
 
 That's it. `Par.map` internally handles sliding-window scheduling, timeout control, fail-fast cancellation, and context propagation — no extra configuration needed.
 
+### Choosing explicit or global configuration
+
+Prefer explicit construction and dependency injection when the application owns its
+configuration:
+
+```java
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", Executors.newFixedThreadPool(10))
+    .build();
+Par par = new Par(config);
+```
+
+For code that uses the shared convenience singleton, initialize the global
+configuration once during bootstrap:
+
+```java
+GlobalParConfig.initializeDefault(config);
+Par par = Par.getInstance();
+```
+
+`GlobalParConfig` follows a one-time initialization rule. The first call to
+`GlobalParConfig.get()`, `Par.getInstance()`, or the legacy
+`ParConfig.getDefault()` freezes the built-in default when no explicit
+configuration was installed. A later `initializeDefault` call throws
+`IllegalStateException`; the old `ParConfig.setDefault` method is deprecated and
+has the same one-time behavior. Service discovery is intentionally not used for
+this resource-owning configuration: applications should make thread pools and
+their lifecycle explicit.
+
 ---
 
 ## Core Features

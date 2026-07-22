@@ -33,7 +33,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,8 +40,8 @@ import java.util.logging.Logger;
  * Central configuration and service registry for the parallel-in-scope framework.
  * <p>
  * Immutable after construction. Use {@link #builder()} to create instances
- * via the fluent {@link Builder} API, or {@link #getDefault()} for the
- * global default instance.
+ * via the fluent {@link Builder} API, or {@link GlobalParConfig#get()} for
+ * the optional global default instance.
  * <p>
  * The default timer and submitter pool are global infrastructure shared across all instances.
  * A custom timer can be supplied per configuration.
@@ -66,27 +65,38 @@ public final class ParConfig {
 
     // ==================== Global Default ====================
 
-    private static final AtomicReference<ParConfig> DEFAULT =
-            new AtomicReference<>(new Builder().build());
-
     /**
-     * Returns the current global default instance.
+     * Returns the frozen global default instance.
      *
      * @return the global default ParConfig
      */
     public static ParConfig getDefault() {
-        return DEFAULT.get();
+        return GlobalParConfig.get();
     }
 
     /**
-     * Replaces the global default instance. Intended for application bootstrap
-     * or test setup.
+     * Initializes the global default instance during application bootstrap.
+     * The global value can only be initialized once. Prefer
+     * {@code new Par(config)} for explicit dependency injection.
      *
      * @param config the new global default (must not be null)
      * @throws NullPointerException if config is null
+     * @throws IllegalStateException if the global default is already initialized
      */
+    @Deprecated
     public static void setDefault(ParConfig config) {
-        DEFAULT.set(Objects.requireNonNull(config));
+        GlobalParConfig.initializeDefault(config);
+    }
+
+    /**
+     * Initializes the global default instance during application bootstrap.
+     *
+     * @param config the global default (must not be null)
+     * @throws NullPointerException if config is null
+     * @throws IllegalStateException if the global default is already initialized
+     */
+    public static void initializeDefault(ParConfig config) {
+        GlobalParConfig.initializeDefault(config);
     }
 
     // ==================== Immutable Fields ====================

@@ -39,6 +39,15 @@ AsyncBatchResult<User> result = new Par(config)
 
 For timeout isolation, configure a dedicated scheduler with `.timer(yourScheduledExecutor)`. It only tracks deadlines; timeout/cancel actions run on the framework's cached timer-task pool. The caller owns and shuts down the supplied scheduler.
 
+For a compatibility-style global entry point, initialize it once during application bootstrap, before calling `Par.getInstance()`:
+
+```java
+GlobalParConfig.initializeDefault(config);
+Par par = Par.getInstance();
+```
+
+Explicit `new Par(config)` remains the preferred dependency-injection form. The first global read freezes the built-in default when no configuration was initialized, and any later initialization attempt fails.
+
 ## Core Capabilities
 
 - Fail-fast cancellation within a task batch
