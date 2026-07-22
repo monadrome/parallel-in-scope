@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0] - 2026-07-22
+
+### Features
+
+- Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
+- Support custom schedulers and isolate timer callback dispatch from timer threads.
+- Add the public `CancellationChecker` API for count- and duration-based cooperative checks.
+
 ## [0.1.0] - 2026-07-18
 
 Initial public release.

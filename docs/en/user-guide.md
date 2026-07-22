@@ -4,7 +4,7 @@
 
 > **Document role: User guide.** This is the primary guide to configuration, public APIs, runtime behavior, and advanced features.
 
-> **Current version: `v0.1.0` (initial public release)**
+> **Current version: `v0.2.0`**
 >
 > The project remains under active development. APIs may change in future `0.x` releases. Feedback and suggestions are welcome via Issues.
 
@@ -23,7 +23,7 @@ In most cases, all you need is a single method: **`Par.map`**.
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 

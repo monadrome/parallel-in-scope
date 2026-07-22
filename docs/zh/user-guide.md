@@ -3,7 +3,7 @@
 # 🪿 parallel-in-scope
 
 
-> **当前版本：`v0.1.0`**
+> **当前版本：`v0.2.0`**
 >
 > 项目仍在积极开发中，`0.x` API 可能在后续版本中调整。欢迎通过 Issue 提交反馈和建议。
 
@@ -26,7 +26,7 @@
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 

@@ -7,7 +7,7 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/HuaTalk/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/HuaTalk/parallel-in-scope)](LICENSE)
 
-> Current version: `v0.1.0` (initial public release). APIs may still change in future `0.x` releases.
+> Current version: `v0.2.0`. APIs may still change in future `0.x` releases.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, sliding-window scheduling, and thread-pool deadlock diagnostics.
 
@@ -17,7 +17,7 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
