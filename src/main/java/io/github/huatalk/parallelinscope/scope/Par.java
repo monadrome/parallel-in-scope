@@ -2,9 +2,11 @@ package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.JdkFutureAdapters;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
@@ -19,6 +21,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -104,6 +107,61 @@ public final class Par {
 
         ListeningExecutorService executor = resolveExecutor(executorName);
         return executeParallel(list, item -> () -> function.apply(item), options, executor, executorName);
+    }
+
+    /**
+     * Binds already-submitted futures to this task scope.
+     * <p>
+     * The supplied futures are not submitted or otherwise scheduled by this method. Ordinary
+     * JDK futures are adapted to {@link ListenableFuture} values, while existing Guava
+     * {@code ListenableFuture} instances are reused directly. Parent cancellation, timeout, and
+     * fail-fast behavior are wired through the same cancellation token used by {@link #map}.
+     * Cancellation is best effort and depends on the supplied future implementation. In
+     * particular, {@link java.util.concurrent.CompletableFuture#cancel(boolean)} does not use the
+     * {@code mayInterruptIfRunning} argument to interrupt an underlying running task, so the
+     * future may be marked cancelled while its computation continues.
+     *
+     * @param <T>     the result type
+     * @param futures  already-submitted futures in the desired result order
+     * @param options  execution parameters, including timeout behavior
+     * @return batch result containing the bound futures
+     * @throws NullPointerException if an element in a non-null list is null
+     */
+    public <T> AsyncBatchResult<T> bind(
+            @Nullable List<? extends Future<? extends T>> futures,
+            ParOptions options) {
+
+        if (futures == null || futures.isEmpty()) {
+            return emptyBatchResult();
+        }
+
+        for (Future<? extends T> future : futures) {
+            Objects.requireNonNull(future, "future element cannot be null");
+        }
+
+        ParOptions normalizedOptions = ParOptions.formalized(options, futures.size(), config.getDefaultTimeoutMillis());
+        List<ListenableFuture<T>> adapted = futures.stream()
+                .map(future -> Par.<T>adaptFuture(future))
+                .collect(toImmutableList());
+
+        CancellationToken parentToken = TaskScopeTl.getCancellationToken();
+        if (parentToken == null) {
+            parentToken = ThreadRelay.getParentCancellationToken();
+        }
+        CancellationToken cancellationToken = new CancellationToken(parentToken);
+        ListenableFuture<?> submitCanceller = Futures.immediateVoidFuture();
+        AsyncBatchResult<T> result = AsyncBatchResult.of(submitCanceller, adapted);
+        cancellationToken.lateBind(adapted, normalizedOptions.forTimeout(), submitCanceller);
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> ListenableFuture<T> adaptFuture(Future<? extends T> future) {
+        Objects.requireNonNull(future, "future element cannot be null");
+        if (future instanceof ListenableFuture<?>) {
+            return (ListenableFuture<T>) future;
+        }
+        return JdkFutureAdapters.listenInPoolThread((Future<T>) future);
     }
 
     private ListeningExecutorService resolveExecutor(String executorName) {
