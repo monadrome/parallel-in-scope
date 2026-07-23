@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  * {@link TaskOutcome#FAIL_FAST}) derived after the group converges, and remains the authority for
  * group-level attribution.
  *
- * <p>A task canceled or rejected before running never marks a start or end time; its {@code
+ * <p>A task cancelled or rejected before running never marks a start or end time; its {@code
  * startTimeNanos} and {@code endTimeNanos} stay zero and the derived durations report zero, while
  * its real {@link TaskOutcome} and failure are still recorded.
  */

@@ -233,9 +233,9 @@ class ScopedTaskContractTest {
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
-                        .isEqualTo(TaskOutcome.MEMBER_CANCELED);
+                        .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
             }
-            assertThat(phases).contains(ExecutionPhase.CANCELED_BEFORE_RUN);
+            assertThat(phases).contains(ExecutionPhase.CANCELLED_BEFORE_RUN);
             assertThat(queuedRuns).hasValue(0);
         } finally {
             release.countDown();

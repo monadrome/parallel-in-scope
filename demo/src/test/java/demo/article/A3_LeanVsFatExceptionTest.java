@@ -54,7 +54,7 @@ public class A3_LeanVsFatExceptionTest {
         long start = System.nanoTime();
         for (int i = 0; i < count; i++) {
             // 标准异常构造时自动调用 fillInStackTrace()
-            CancellationException e = new CancellationException("task-" + i + " canceled");
+            CancellationException e = new CancellationException("task-" + i + " cancelled");
             // 确保异常未被 JIT 优化掉
             if (e.getMessage() == null) {
                 throw new RuntimeException("unreachable");
@@ -76,7 +76,7 @@ public class A3_LeanVsFatExceptionTest {
         // 模拟 LeanCancellationException 的行为：重写 fillInStackTrace() 为空操作
         long start = System.nanoTime();
         for (int i = 0; i < count; i++) {
-            CancellationException e = new CancellationException("task-" + i + " canceled") {
+            CancellationException e = new CancellationException("task-" + i + " cancelled") {
                 @Override
                 public synchronized Throwable fillInStackTrace() {
                     return this; // 跳过栈追踪采集

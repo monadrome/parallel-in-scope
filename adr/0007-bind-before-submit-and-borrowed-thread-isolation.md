@@ -63,7 +63,7 @@ is a constraint that the placeholder shape cannot satisfy: the token must observ
 the same objects the caller holds, because the caller cancels those, and the
 resulting fail-fast cascade is what releases the element's body slot. A handle
 that stands in for the real Future satisfies one half of that and not the other.
-Wrapping the prepared Future satisfies both — canceling the handle reaches the
+Wrapping the prepared Future satisfies both — cancelling the handle reaches the
 runner, and the handle is what the caller was given.
 
 **Shared-verdict settlement.** A handoff failure is the batch's verdict for the
@@ -102,7 +102,7 @@ implicit knowledge.
 ## Alternatives Considered
 
 **Keep placeholders and bind them before submission.** Rejected. A placeholder
-canceled before its delegation step cancels nothing, because the body running
+cancelled before its delegation step cancels nothing, because the body running
 inline belongs to a Future the placeholder has not yet been pointed at. It
 preserves the mechanism ADR 0002 chose while failing the requirement that
 motivated the change.

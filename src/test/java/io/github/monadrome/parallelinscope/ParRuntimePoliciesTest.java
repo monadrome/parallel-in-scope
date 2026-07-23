@@ -39,7 +39,7 @@ class ParRuntimePoliciesTest {
     void purgePolicyThresholdsAcceptBoundsOnly() {
         ParRuntimePurgePolicy policy = ParRuntimePurgePolicy.builder()
                 .queuePressureThreshold(1.0)
-                .canceledTaskRatioThreshold(1.0)
+                .cancelledTaskRatioThreshold(1.0)
                 .build();
         assertThat(policy).isNotNull();
 
@@ -50,9 +50,9 @@ class ParRuntimePoliciesTest {
         assertThatThrownBy(() -> builder.queuePressureThreshold(-0.5)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.queuePressureThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(1.5)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(0d)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(Double.NaN))
+        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(1.5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(0d)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -61,16 +61,16 @@ class ParRuntimePoliciesTest {
         ParRuntimePurgePolicy defaults = ParRuntimePurgePolicy.builder().build();
         assertThat(defaults.enabled()).isFalse();
         assertThat(defaults.queuePressureThreshold()).isEqualTo(0.80d);
-        assertThat(defaults.canceledTaskRatioThreshold()).isEqualTo(0.05d);
+        assertThat(defaults.cancelledTaskRatioThreshold()).isEqualTo(0.05d);
 
         ParRuntimePurgePolicy custom = ParRuntimePurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(0.5d)
-                .canceledTaskRatioThreshold(0.25d)
+                .cancelledTaskRatioThreshold(0.25d)
                 .build();
         assertThat(custom.enabled()).isTrue();
         assertThat(custom.queuePressureThreshold()).isEqualTo(0.5d);
-        assertThat(custom.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+        assertThat(custom.cancelledTaskRatioThreshold()).isEqualTo(0.25d);
     }
 
     @Test
@@ -81,11 +81,11 @@ class ParRuntimePoliciesTest {
         try {
             assertThat(runtime.purgeEnabled()).isTrue();
             assertThat(runtime.queuePressureThreshold()).isEqualTo(0.80d);
-            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.05d);
+            assertThat(runtime.cancelledTaskRatioThreshold()).isEqualTo(0.05d);
 
             runtime.adjustPurgeThresholds(0.5d, 0.25d);
             assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
-            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+            assertThat(runtime.cancelledTaskRatioThreshold()).isEqualTo(0.25d);
 
             // The build-time policy is a snapshot; runtime adjustment does not rewrite it.
             assertThat(runtime.purgePolicy().queuePressureThreshold()).isEqualTo(0.80d);
@@ -96,7 +96,7 @@ class ParRuntimePoliciesTest {
             assertThatThrownBy(() -> runtime.adjustPurgeThresholds(0.5d, Double.NaN))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
-            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+            assertThat(runtime.cancelledTaskRatioThreshold()).isEqualTo(0.25d);
 
             runtime.setPurgeEnabled(false);
             assertThat(runtime.purgeEnabled()).isFalse();

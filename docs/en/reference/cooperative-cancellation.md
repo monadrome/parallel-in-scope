@@ -16,7 +16,7 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 
 Unsubmitted tasks are represented by input-ordered placeholder Futures. When admission stops,
 placeholders never remain live indefinitely: direct placeholder cancellation produces
-`CANCELED`; canceling the public submitter Future interrupts the submitter and records
+`CANCELLED`; cancelling the public submitter Future interrupts the submitter and records
 `InterruptedException`; a later executor rejection records its rejection cause. This guarantees
 that `Futures.allAsList` over the batch results can reach a terminal state. The submitter Future
 stops future admission, but does not by itself guarantee that already-submitted task bodies stop.
@@ -43,7 +43,7 @@ Prefer the no-argument `Checkpoints.checkpoint()`: it checks the current scope u
 
 The three checkpoint forms differ in what they do **outside** any scoped task:
 
-| Checkpoint | Outside a scoped task | When canceled |
+| Checkpoint | Outside a scoped task | When cancelled |
 |---|---|---|
 | `Checkpoints.checkpoint()` | Silent no-op | Throws `LeanCancellationException` |
 | `Checkpoints.checkpoint(taskName, lean)` | Throws `IllegalStateException` | `lean=true`: `LeanCancellationException`; `lean=false`: `CancellationException` with a stack trace |
@@ -53,7 +53,7 @@ The three checkpoint forms differ in what they do **outside** any scoped task:
 
 | Method | Purpose |
 |---|---|
-| `Checkpoints.checkpoint()` | Check the current scope's cancellation token unconditionally and throw when canceled or past the deadline |
+| `Checkpoints.checkpoint()` | Check the current scope's cancellation token unconditionally and throw when cancelled or past the deadline |
 | `Checkpoints.checkpoint(taskName, lean)` | Same check, but requires the task name to match; a mismatch throws `IllegalStateException` |
 | `Checkpoints.sleep(millis)` | Sleep while converting interruption into a cancellation exception |
 | `Checkpoints.rawCheckpoint()` | Check only the thread interrupt flag |
@@ -75,16 +75,16 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`propagateCancellation` re-throws every `CancellationException`. Any other exception is passed through unchanged — unless the current scope is already canceled, in which case it throws `LeanCancellationException` instead of returning.
+`propagateCancellation` re-throws every `CancellationException`. Any other exception is passed through unchanged — unless the current scope is already cancelled, in which case it throws `LeanCancellationException` instead of returning.
 
 ## Cancellation sources
 
 | Source | Token state | Meaning |
 |---|---|---|
-| Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was canceled |
+| Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
-| Manual cancellation | `CANCELED` | Application code called `CancellationToken.cancel()` |
-| Parent cancellation | `PROPAGATED_CANCELED` | An outer scope canceled a nested scope |
+| Manual cancellation | `CANCELLED` | Application code called `CancellationToken.cancel()` |
+| Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
 
 All sources are observed through the same token state check. Nested `Par.map` calls inherit a parent token, so cancellation propagates to child tasks at their next checkpoint or blocking operation.
 

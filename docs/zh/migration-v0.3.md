@@ -22,7 +22,9 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>`（匿名子类） | 已删除；成员按 `par(...)` 的名字（`futureOf`/`valueOf`）或零起始声明位置（`futureAt`/`valueAt`）寻址 |
 | `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`；`Par.name()` → `Par.id()` |
-| `TaskBatchResult.submitCanceller()` | `TaskBatchResult.submitCanceler()`（美式拼写） |
+| `TaskOutcome.MEMBER_CANCELED` / `GROUP_CANCELED` | `MEMBER_CANCELLED` / `GROUP_CANCELLED` |
+| `CancellationToken.State.CANCELED` / `PROPAGATED_CANCELED` | `CANCELLED` / `PROPAGATED_CANCELLED` |
+| `ParRuntimePurgePolicy.canceledTaskRatioThreshold(double)`（及其 `Builder`） | `cancelledTaskRatioThreshold(double)` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.group(name, timeout)` / `global.groupInheriting(name)` |
 | `TaskGroupOptions`（name/timeout/listeners） | `group*` 实参列表加链首的 `GroupStart.closeGrace`；listeners 迁到 `Futures.addCallback` |
 | `TaskGroupDefinition.Builder.task(key, parName, callable[, options])` | 链上的 `par(name, par, type, body)`；需要自定义选项时用 `par(name, par, options, type, body)` |
@@ -608,7 +610,7 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `Task` 改为包私有，公开契约只有 `TaskFuture` | 原先使用 `Task` 的位置改声明 `TaskFuture`。 |
 | `Par.map` 接收任意 `Collection`，不再只收 `List` | 源码兼容；非 `List` 输入在入口处快照。 |
 | `TaskBatchResult.BatchReport.stateCounts()` 不再 `@Nullable`，`BatchReport` 构造器改为包私有 | 移除对 `stateCounts()` 的判空；report 一律从库获取。 |
-| `TaskBatchResult.submitCanceller()` 更名为 `submitCanceler()` | 更新调用点。方法形态（`ListenableFuture<?>`）、作为提交控制句柄的角色与行为都不变——只是这个词的拼写变了。 |
+| `TaskOutcome` 常量、`CancellationToken.State` 常量与 `ParRuntimePurgePolicy.canceledTaskRatioThreshold` 的双写 `l` 复原 | 改调用点即可，行为不变；见下文「拼写」。 |
 | `TaskGroup` 现在带两个类型参数 `TaskGroup<V, R>` | 声明该类型的位置要写全：无 combine 的组是 `TaskGroup<V, Void>`，空组是 `TaskGroup<Void, Void>`；用 `var` 之外的写法时请照抄 `submitAll()` 推出的形状。 |
 | `TaskGroup.future(TaskKey<T>)` 与 `CompletedTaskValues` 已删除 | 取 future 改用 `futureOf(name, TypeToken)` / `futureAt(index, TypeToken)`，取终端用 `terminalFuture()`；读值改用 `valuesFuture()` 的 `GroupValues`。 |
 | combine body 的入参从 `CompletedTaskValues`（`value(TaskKey)` 返回未标注的 `T`）换成装配好的元组成员值 | 分量标注 `@Nullable`——成员值本来就可能为 null，现在需要显式判空；位置解构见上文。 |
@@ -616,15 +618,20 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `ParRuntime.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
 | `VariableLinkedBlockingQueue` 不再实现 `Serializable` | 它沿用 JDK `LinkedBlockingQueue` 的形态，但哨兵节点链使得反序列化出来的实例表现为空队列、并在首次使用时抛 `NullPointerException`——该声明只承诺了它做不到的事，`DrainingBlockingQueue` 也从未声明过。队列不是序列化格式：需要时重建队列，或序列化元素后重新灌入。 |
 
-## 美式英语拼写
+## 拼写
 
-`0.3.0` 起全项目写作美式英语。此前源码两种拼法混用——`canceled` 53 次对 `cancelled` 35 次，
-甚至出现在同一个句子里——而没有任何文档说明该用哪种，读者只能靠猜。随散文一起改的还有一个
-标识符：`TaskBatchResult.submitCanceller()` 现在叫 `TaskBatchResult.submitCanceler()`。
+`0.3.0` 起全项目写作美式英语，只有一个例外：**双写 `l` 的那一族保留两个 `l`**。此前源码两种写法混用——
+仅 `src/main/java` 就有 `canceled` 53 次对 `cancelled` 35 次，甚至出现在同一个句子里——而且没有任何
+文档说明该用哪种，读者只能靠猜。
 
-第三方名字不改写，因为它们不归本库管：`Future.isCancelled()`、AssertJ 的 `isCancelled()`、
-Guava 的 `Futures.immediateCancelledFuture()` 都保留双写 `l`。`cancel`、`cancellation` 与
-`CancellationException` 在两种拼法下写法相同，不受影响。约定本身记录在 `AGENTS.md`。
+例外的理由是：本库包装的 API 本身就是双写 `l`——`Future.isCancelled()`、Guava 的
+`Futures.immediateCancelledFuture()`、`CancellationException`。在它们旁边写 `canceled` 会被读成笔误；
+何况 `cancellation` 在任何一种英语里都是双写。因此：`cancelled`、`cancelling`、`canceller`、
+`cancellable`、`signalling`、`labelled`。其余按美式（`behavior`、`honored`、`afterward`、`among`、
+`normalize`、`analyze`）。
+
+这条规则覆盖标识符，所以上表列出的 `0.3.0` 成员随之更名。`TaskBatchResult.submitCanceller()`
+**不在其列**——它本来就是双写 `l`。第三方的名字从不改写。约定记录在 `AGENTS.md`。
 
 ## 空值注解迁移到 JSpecify
 

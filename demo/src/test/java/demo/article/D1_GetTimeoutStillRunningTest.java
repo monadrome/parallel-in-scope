@@ -119,7 +119,7 @@ public class D1_GetTimeoutStillRunningTest {
                         // 被中断，记录状态后退出
                         if (x == 1) task1Completed.set(false);
                         else task2Completed.set(false);
-                        throw new RuntimeException("Task canceled", e);
+                        throw new RuntimeException("Task cancelled", e);
                     }
                     if (x == 1) task1Completed.set(true);
                     else task2Completed.set(true);

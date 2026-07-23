@@ -61,7 +61,7 @@ public final class ParRuntime implements AutoCloseable {
     private final ParRuntimePurgePolicy purgePolicy;
     private final AtomicBoolean purgeEnabled;
     private final AtomicDouble purgeQueuePressureThreshold;
-    private final AtomicDouble purgeCanceledTaskRatioThreshold;
+    private final AtomicDouble purgeCancelledTaskRatioThreshold;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
@@ -85,8 +85,8 @@ public final class ParRuntime implements AutoCloseable {
         this.purgePolicy = builder.purgePolicy;
         this.purgeEnabled = new AtomicBoolean(purgePolicy.enabled());
         this.purgeQueuePressureThreshold = new AtomicDouble(purgePolicy.queuePressureThreshold());
-        this.purgeCanceledTaskRatioThreshold = new AtomicDouble(purgePolicy.canceledTaskRatioThreshold());
-        this.purger = new HeuristicPurger(purgeEnabled, purgeQueuePressureThreshold, purgeCanceledTaskRatioThreshold);
+        this.purgeCancelledTaskRatioThreshold = new AtomicDouble(purgePolicy.cancelledTaskRatioThreshold());
+        this.purger = new HeuristicPurger(purgeEnabled, purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -212,7 +212,7 @@ public final class ParRuntime implements AutoCloseable {
      * Returns the build-time purge policy. Runtime adjustments made through {@link
      * #adjustPurgeThresholds(double, double)} and {@link #setPurgeEnabled(boolean)} are not
      * reflected here; read the live values from {@link #queuePressureThreshold()}, {@link
-     * #canceledTaskRatioThreshold()}, and {@link #purgeEnabled()}.
+     * #cancelledTaskRatioThreshold()}, and {@link #purgeEnabled()}.
      */
     public ParRuntimePurgePolicy purgePolicy() {
         return purgePolicy;
@@ -228,9 +228,9 @@ public final class ParRuntime implements AutoCloseable {
         return purgeQueuePressureThreshold.get();
     }
 
-    /** The live canceled-task-ratio threshold, honoring runtime adjustment. */
-    public double canceledTaskRatioThreshold() {
-        return purgeCanceledTaskRatioThreshold.get();
+    /** The live cancelled-task-ratio threshold, honoring runtime adjustment. */
+    public double cancelledTaskRatioThreshold() {
+        return purgeCancelledTaskRatioThreshold.get();
     }
 
     /**
@@ -240,11 +240,11 @@ public final class ParRuntime implements AutoCloseable {
      *
      * @throws IllegalArgumentException if either threshold is not in {@code (0, 1]}
      */
-    public void adjustPurgeThresholds(double queuePressureThreshold, double canceledTaskRatioThreshold) {
+    public void adjustPurgeThresholds(double queuePressureThreshold, double cancelledTaskRatioThreshold) {
         ParRuntimePurgePolicy.validateThreshold(queuePressureThreshold, "queuePressureThreshold");
-        ParRuntimePurgePolicy.validateThreshold(canceledTaskRatioThreshold, "canceledTaskRatioThreshold");
+        ParRuntimePurgePolicy.validateThreshold(cancelledTaskRatioThreshold, "cancelledTaskRatioThreshold");
         purgeQueuePressureThreshold.set(queuePressureThreshold);
-        purgeCanceledTaskRatioThreshold.set(canceledTaskRatioThreshold);
+        purgeCancelledTaskRatioThreshold.set(cancelledTaskRatioThreshold);
     }
 
     /**
@@ -386,7 +386,7 @@ public final class ParRuntime implements AutoCloseable {
             // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
             // The purger's maintenance service is deliberately NOT closed here: admitted batches
-            // keep draining after close(), and canceling their queued tasks is what feeds the
+            // keep draining after close(), and cancelling their queued tasks is what feeds the
             // purger. Closing it now would reject every post-close signal and silently drop purge
             // coverage exactly during the cancellation storm it exists for. It shuts down with the
             // other framework services once the topology drains.
@@ -400,7 +400,7 @@ public final class ParRuntime implements AutoCloseable {
      * framework-owned services have shut down. Call {@link #close()} first; without it this method
      * simply waits out the timeout.
      *
-     * <p>Task-body exit is tracked separately from future completion: a task canceled while
+     * <p>Task-body exit is tracked separately from future completion: a task cancelled while
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *
@@ -596,7 +596,7 @@ public final class ParRuntime implements AutoCloseable {
         if (!(introspectable instanceof ThreadPoolExecutor)) return;
         Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) introspectable);
         runtime.setPhaseObserver(phase -> {
-            if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) observer.run();
+            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) observer.run();
         });
     }
 

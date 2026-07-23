@@ -24,12 +24,12 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 滑动窗口会先为尚未提交的任务创建 placeholder，保证结果列表保持输入顺序。停止 admission
 后，框架不会让这些 placeholder 永久保持 `LIVE`：
 
-- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELED`；
-- 取消 `TaskBatchResult.submitCanceler()`：submitter 收到 interrupt，剩余 placeholder
+- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELLED`；
+- 取消 `TaskBatchResult.submitCanceller()`：submitter 收到 interrupt，剩余 placeholder
   以 `InterruptedException` 失败；
 - 后续提交被执行器拒绝：剩余 placeholder 以拒绝异常失败。
 
-因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceler()` 表示
+因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceller()` 表示
 “停止后续提交”，不保证已提交任务立即停止；任务本身仍遵循协作式取消规则。
 
 这意味着：
@@ -162,10 +162,10 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 |---|---|---|
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
 | 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
-| 手动取消 | `CANCELED` | 代码调用了 `CancellationToken.cancel()` |
-| 父作用域取消 | `PROPAGATED_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
+| 手动取消 | `CANCELLED` | 代码调用了 `CancellationToken.cancel()` |
+| 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
-所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELED`/`PROPAGATED_CANCELED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
+所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELLED`/`PROPAGATED_CANCELLED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
 
 ## 嵌套作用域的取消传播
 
@@ -180,7 +180,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 
 当 B 失败时：
 1. 外层 token 转为 `FAIL_FAST`。
-2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELED`。
+2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELLED`。
 3. A 和 C 的内层任务在下一次 checkpoint 或 I/O 阻塞时响应取消。
 
 你不需要手动编排这个传播——前提是内层任务中有足够的 checkpoint。

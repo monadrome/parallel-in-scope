@@ -176,7 +176,7 @@ Java 没有 move 语义。包私有实现让每个阶段持有同一份内部状
 |---|---|
 | 全部普通成员（及已声明的 terminal）成功 | 正常完成，值是该组的有序 `GroupValues` |
 | 已记录失败（成员或 terminal 的 `USER_FAILURE`/`SUBMISSION_FAILURE`） | 异常完成，cause 为该失败；`get()` 抛 `ExecutionException` |
-| 无记录失败的取消：`MEMBER_CANCELED`、组/父级取消、`TIMEOUT` | 以 `CancellationException` 完成（`isCancelled()` 为真），`get()` 抛 `CancellationException` |
+| 无记录失败的取消：`MEMBER_CANCELLED`、组/父级取消、`TIMEOUT` | 以 `CancellationException` 完成（`isCancelled()` 为真），`get()` 抛 `CancellationException` |
 
 它**永不**留在 pending，因此 `valuesFuture().get()` 不会在失败组上永久阻塞。发布顺序是不变量：收敛线程在同一次收敛里先发布 `valuesFuture()` 再发布 `completionFuture()`，所以 `completionFuture().isDone()` 蕴含 `valuesFuture().isDone()`；反过来不成立——一次收敛中先完成前者的写入，读者可能在 `completionFuture()` 尚未可见时就已经读到值。它不携带部分值，也不因为组成功而保证 terminal 已成功：terminal 成功已包含在"整组成功"判定内。
 

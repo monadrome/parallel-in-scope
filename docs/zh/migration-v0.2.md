@@ -90,7 +90,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 任务终态分类已统一为单个枚举 `TaskOutcome`，取代原先的
 早期内部的 `FutureState` 与 `TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
 之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
-`TaskOutcome.USER_FAILURE`，`FutureState.CANCELED` → `TaskOutcome.MEMBER_CANCELED`，
+`TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELLED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
 `TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
 组成员的终端快照（`TaskGroupResult.members()` 的值，统一为 `TaskCompletion` 类型）的成员终态
@@ -103,28 +103,28 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `TaskGroupResult.completionReason()` 改名为 `outcome()`，返回 `TaskOutcome`。映射关系：
 `SUCCESS` → `TaskOutcome.SUCCESS`；`TIMEOUT` → `TaskOutcome.TIMEOUT`；`FAILED` → 失败任务
 自己的 outcome（`USER_FAILURE` 或 `SUBMISSION_FAILURE`，见 `failedTaskName()`）；
-`CANCELED` → 组被整体取消或取消自上传播时为 `GROUP_CANCELED`，取消源自组员时为
-`MEMBER_CANCELED`。
+`CANCELLED` → 组被整体取消或取消自上传播时为 `GROUP_CANCELLED`，取消源自组员时为
+`MEMBER_CANCELLED`。
 
 任务组成员或终端 combine 的执行期诊断名现在取自其 `TaskKey`，不再取自
 选项的 name。checkpoint、任务监听器事件和任务图 label 因此与取 future 和结果快照时使用的名称
 一致；成员与 combine 的 `TaskOptions` 不含 name 字段，不存在被忽略的配置。由于失败源也可能是终端 combine，
 `TaskGroupResult.failedMemberName()` 同步改名为 `failedTaskName()`。
 
-`CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，
-`TIMEOUT_CANCELED` → `TIMEOUT`，`MUTUAL_CANCELED` → `CANCELED`，`PROPAGATING_CANCELED` →
-`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变；`code()` 已删除（整数编码是没有消费方的
+`CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELLED` → `FAIL_FAST`，
+`TIMEOUT_CANCELLED` → `TIMEOUT`，`MUTUAL_CANCELLED` → `CANCELLED`，`PROPAGATING_CANCELLED` →
+`PROPAGATED_CANCELLED`。`RUNNING`、`SUCCESS` 不变；`code()` 已删除（整数编码是没有消费方的
 实现细节），`shouldInterruptCurrentThread()` 语义不变，改为直接的枚举比较。
 
 批次报告现在基于批次 token 的已提交状态精确归因被取消的元素（`Par.map` 返回的结果始终
 携带 token）：deadline 到期记 `TIMEOUT`，兄弟失败级联记 `FAIL_FAST`，整批取消或取消自上
-传播记 `GROUP_CANCELED`，无框架路径提交（用户直消）记 `MEMBER_CANCELED`。批次内所有元素
+传播记 `GROUP_CANCELLED`，无框架路径提交（用户直消）记 `MEMBER_CANCELLED`。批次内所有元素
 共享同一 token，因此直接取消并触发级联的那个元素同样记 `FAIL_FAST`；需要逐个元素区分
 发起者时请使用任务组。`TaskBatchResult` 实例由执行 API 构造；原先公开的
 `of(...)` 工厂现已改为包私有。
 
-`ExecutionPhase.CANCELED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
-单 L `CANCELED` 拼写一致。
+`ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELLED_BEFORE_RUN`，与库内统一的
+单 L `CANCELLED` 拼写一致。
 
 `GlobalExecutionPolicy` 已删除：它的唯一内容是 `TaskListener` 列表，监听器现在直接注册在
 `GlobalPar.Builder` 上。原先 `GlobalExecutionPolicy.builder().taskListener(l).build()` 传给

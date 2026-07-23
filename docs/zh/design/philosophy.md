@@ -174,12 +174,12 @@ TaskBatchResult<?> result = SlidingWindowSubmitter
 // 阶段 2：绑定结果 Future、提交循环、超时和 fail-fast
 //（deadline 存在 token 内部，构造时已与 parent 取 min）
 cancellationToken.bind(
-    result.results(), result.submitCanceler(), timer);
+    result.results(), result.submitCanceller(), timer);
 ```
 
-> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceler` 用于在取消时终止后续任务提交。
+> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
 
-父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELED`）；`bind()` 再绑定两条链路：
+父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELLED`）；`bind()` 再绑定两条链路：
 
 1. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
 2. **超时** — `FluentFuture.withTimeout()` 在全局定时器上按 token 内 deadline 设置超时
@@ -225,8 +225,8 @@ Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 | `RUNNING` | 0 | 正常执行 |
 | `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
 | `TIMEOUT` | -2 | 批次超时 |
-| `CANCELED` | -3 | 被显式 `cancel()` |
-| `PROPAGATED_CANCELED` | -4 | 父任务取消，级联传播 |
+| `CANCELLED` | -3 | 被显式 `cancel()` |
+| `PROPAGATED_CANCELLED` | -4 | 父任务取消，级联传播 |
 
 `shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
 

@@ -444,7 +444,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCanceledFutures() throws Exception {
+    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -456,7 +456,7 @@ class ParRuntimeTest {
                             Collections.singletonList("a"),
                             x -> {
                                 entered.countDown();
-                                // Ignore interruption: the future is canceled immediately, but
+                                // Ignore interruption: the future is cancelled immediately, but
                                 // the body stays inside user code until released.
                                 boolean interrupted = false;
                                 while (true) {
@@ -673,11 +673,11 @@ class ParRuntimeTest {
         ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(1.0)
-                .canceledTaskRatioThreshold(0.5)
+                .cancelledTaskRatioThreshold(0.5)
                 .build();
         assertThat(purge.enabled()).isTrue();
         assertThat(purge.queuePressureThreshold()).isEqualTo(1.0);
-        assertThat(purge.canceledTaskRatioThreshold()).isEqualTo(0.5);
+        assertThat(purge.cancelledTaskRatioThreshold()).isEqualTo(0.5);
         assertThat(ParRuntimePurgePolicy.builder().build().enabled()).isFalse();
         assertThat(ParRuntimeDeadlockPolicy.builder().build().enabled()).isFalse();
     }
@@ -756,8 +756,8 @@ class ParRuntimeTest {
             for (Future<Integer> future : result.results()) {
                 assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
             }
-            // The token commits TIMEOUT before canceling the element futures, so once every
-            // future is canceled the attribution is already stable.
+            // The token commits TIMEOUT before cancelling the element futures, so once every
+            // future is cancelled the attribution is already stable.
             assertThat(result.report().stateCounts())
                     .containsOnlyKeys(TaskOutcome.TIMEOUT)
                     .containsEntry(TaskOutcome.TIMEOUT, 2);

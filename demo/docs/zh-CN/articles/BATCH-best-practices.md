@@ -33,8 +33,8 @@ TaskBatchResult<String> result = par.map( services, svc -> {
 Thread.sleep(3500);  // 等待任务完成
 System.out.println(result.reportString());
 // 正常: SUCCESS:10
-// 部分超时: SUCCESS:7,MEMBER_CANCELED:3
-// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1
+// 部分超时: SUCCESS:7,MEMBER_CANCELLED:3
+// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELLED:1
 ```
 
 关键点：
@@ -145,7 +145,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1 | firstException=timeout"
+// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELLED:1 | firstException=timeout"
 
 // 结构化访问
 TaskBatchResult.BatchReport r = result.report();

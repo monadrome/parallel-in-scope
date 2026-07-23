@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
  *   <li>Parent-child {@link CancellationToken} chaining
  *   <li>Late binding for timeout and fail-fast cancellation
- *   <li>Heuristic cleanup of canceled queued tasks
+ *   <li>Heuristic cleanup of cancelled queued tasks
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -45,7 +45,7 @@ public final class Par {
 
     private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
 
-    /** Null-object submission canceler: a single task carries no submission pipeline to stop. */
+    /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
     private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     private final ParRuntime runtime;
@@ -263,16 +263,16 @@ public final class Par {
         // thread — and it extends the deadline to cover the submission window rather than starting
         // only once every element is handed off.
         //
-        // The submission canceler cannot come from submitAll, which has not run yet, so it is
-        // pre-built here and pointed at the real one afterward. Canceling it before then is not
+        // The submission canceller cannot come from submitAll, which has not run yet, so it is
+        // pre-built here and pointed at the real one afterward. Cancelling it before then is not
         // lost: setFuture propagates the cancellation on to the submitting future.
-        SettableFuture<Object> submitCanceler = SettableFuture.create();
+        SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion =
-                unit.cancellationToken().bind(views, submitCanceler, runtime.timeoutScheduler());
+                unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         TaskBatchResult<R> result = submitter.submitAll(tasks, views);
-        submitCanceler.setFuture(result.submitCanceler());
+        submitCanceller.setFuture(result.submitCanceller());
         return result;
     }
 

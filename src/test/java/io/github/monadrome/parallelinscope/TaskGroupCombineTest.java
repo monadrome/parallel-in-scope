@@ -349,8 +349,8 @@ class TaskGroupCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(declaredTerminal(group).isCancelled()).isTrue();
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         } finally {
             global.close();
             executor.shutdownNow();

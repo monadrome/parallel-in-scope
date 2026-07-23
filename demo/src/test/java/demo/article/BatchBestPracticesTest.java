@@ -53,7 +53,7 @@ public class BatchBestPracticesTest {
     /**
      * 模拟调用 10 个下游微服务，parallelism=5 保护下游，3 秒超时，fail-fast。
      *
-     * <p>"payment" 服务快速失败（50ms），触发 fail-fast 取消剩余任务。 reportString() 应包含 FAILED 和 CANCELED 状态。
+     * <p>"payment" 服务快速失败（50ms），触发 fail-fast 取消剩余任务。 reportString() 应包含 FAILED 和 CANCELLED 状态。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)

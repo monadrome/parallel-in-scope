@@ -59,16 +59,16 @@ class CheckpointsTest {
         MultiTaskContext context = context("task");
         runInTask(context, Checkpoints::checkpoint);
 
-        MultiTaskContext canceled = context("task");
-        assertThatThrownBy(() -> runInTask(canceled, () -> {
-                    canceled.cancellationToken().cancel(false);
+        MultiTaskContext cancelled = context("task");
+        assertThatThrownBy(() -> runInTask(cancelled, () -> {
+                    cancelled.cancellationToken().cancel(false);
                     Checkpoints.checkpoint();
                 }))
                 .isInstanceOf(LeanCancellationException.class);
     }
 
     @Test
-    void checkpointTreatsAnExpiredDeadlineAsCanceledWithoutWaitingForTheTimer() throws Exception {
+    void checkpointTreatsAnExpiredDeadlineAsCancelledWithoutWaitingForTheTimer() throws Exception {
         MultiTaskContext expired = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1));
         Thread.sleep(5L);
@@ -165,7 +165,7 @@ class CheckpointsTest {
         Condition condition = lock.newCondition();
         lock.lock();
         try {
-            Thread signaler = new Thread(() -> {
+            Thread signaller = new Thread(() -> {
                 try {
                     Thread.sleep(50L);
                 } catch (InterruptedException ignored) {
@@ -178,9 +178,9 @@ class CheckpointsTest {
                     lock.unlock();
                 }
             });
-            signaler.start();
+            signaller.start();
             assertThat(Checkpoints.checkAwait(condition, astronomic)).isTrue();
-            signaler.join(2000L);
+            signaller.join(2000L);
         } finally {
             lock.unlock();
         }

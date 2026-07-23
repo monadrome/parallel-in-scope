@@ -6,11 +6,11 @@
 并行执行完 N 个任务后，最常见也最烦人的事情就是统计结果：多少成功了？多少失败了？多少被取消了？用原生 Java `Future` 做这件事，代码又臭又长：
 
 ```java
-int success = 0, failed = 0, canceled = 0;
+int success = 0, failed = 0, cancelled = 0;
 Throwable firstError = null;
 for (Future<String> f : futures) {
     if (f.isCancelled()) {
-        canceled++;
+        cancelled++;
     } else if (f.isDone()) {
         try {
             f.get();
@@ -45,7 +45,7 @@ for (int i = 0; i < 10; i++) {
 
 ## 解决方法
 
-`TaskBatchResult` 封装了所有任务的 `ListenableFuture`，一行调用 `reportString()` 即可拿到人类可读的状态概览。报告反映的是调用时每个 Future 的真实终态，包括 `SUCCESS`、`USER_FAILURE` 和 `MEMBER_CANCELED`。
+`TaskBatchResult` 封装了所有任务的 `ListenableFuture`，一行调用 `reportString()` 即可拿到人类可读的状态概览。报告反映的是调用时每个 Future 的真实终态，包括 `SUCCESS`、`USER_FAILURE` 和 `MEMBER_CANCELLED`。
 
 ```
 SUCCESS:6
@@ -100,7 +100,7 @@ assert total == items.size();
 assert report.firstException() != null;
 ```
 
-报告示例可能是 `USER_FAILURE:1,MEMBER_CANCELED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
+报告示例可能是 `USER_FAILURE:1,MEMBER_CANCELLED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
 
 对比两种方式：
 

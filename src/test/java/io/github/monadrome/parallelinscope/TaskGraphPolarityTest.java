@@ -55,7 +55,7 @@ class TaskGraphPolarityTest {
     }
 
     @Test
-    void displayNodeFormatsLabeledNodesAndPassesUnknownNodesThrough() {
+    void displayNodeFormatsLabelledNodesAndPassesUnknownNodesThrough() {
         TaskGraphData data = new TaskGraphData();
         assertThat(data.displayNode("unknown")).isEqualTo("unknown");
 

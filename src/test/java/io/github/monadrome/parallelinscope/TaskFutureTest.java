@@ -141,7 +141,7 @@ class TaskFutureTest {
     }
 
     @Test
-    void submitCancelerStaysAPlainFuture() {
+    void submitCancellerStaysAPlainFuture() {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -153,7 +153,7 @@ class TaskFutureTest {
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(1));
 
-            assertThat(batch.submitCanceler()).isNotInstanceOf(TaskFuture.class);
+            assertThat(batch.submitCanceller()).isNotInstanceOf(TaskFuture.class);
             assertThat(batch.results().get(1)).isInstanceOf(TaskFuture.class);
         } finally {
             block.countDown();
@@ -212,7 +212,7 @@ class TaskFutureTest {
     }
 
     @Test
-    void aMemberCanceledDirectlyKeepsItsInitiatorAttributionInTheSnapshot() throws Exception {
+    void aMemberCancelledDirectlyKeepsItsInitiatorAttributionInTheSnapshot() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -236,14 +236,14 @@ class TaskFutureTest {
             // The member snapshot records the reason before the group cancels itself for the other
             // members, so it keeps the initiating member distinct from the fall-out.
             assertThat(Objects.requireNonNull(snapshot.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
-            // The group-level outcome is the post-hoc view: the group token was canceled to protect
-            // the remaining members, so the group reads GROUP_CANCELED.
-            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+            // The group-level outcome is the post-hoc view: the group token was cancelled to protect
+            // the remaining members, so the group reads GROUP_CANCELLED.
+            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             // A future reads the token chain only. The member token is wired to the group token, so
             // once the group's own cancel lands it reports the group's cancellation too — the
-            // transient MEMBER_CANCELED a caller may see right after its own cancel() is not stable.
-            await().atMost(2, TimeUnit.SECONDS).until(() -> member.outcome() == TaskOutcome.GROUP_CANCELED);
+            // transient MEMBER_CANCELLED a caller may see right after its own cancel() is not stable.
+            await().atMost(2, TimeUnit.SECONDS).until(() -> member.outcome() == TaskOutcome.GROUP_CANCELLED);
         } finally {
             block.countDown();
             global.close();
@@ -252,7 +252,7 @@ class TaskFutureTest {
     }
 
     @Test
-    void groupCancellationReadsGroupCanceledOnEveryMember() throws Exception {
+    void groupCancellationReadsGroupCancelledOnEveryMember() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -276,10 +276,10 @@ class TaskFutureTest {
 
             group.cancel();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
 
-            assertThat(group.findMember("first").get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(group.findMember("second").get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(group.findMember("first").get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(group.findMember("second").get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         } finally {
             block.countDown();
             global.close();
@@ -288,7 +288,7 @@ class TaskFutureTest {
     }
 
     @Test
-    void siblingFailureReadsFailFastOnTheCanceledElement() throws Exception {
+    void siblingFailureReadsFailFastOnTheCancelledElement() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -368,7 +368,7 @@ class TaskFutureTest {
                                         .submitAll();
                                 innerGroup.set(group);
                                 innerMember.set(group.futureOf("slow", TypeToken.of(String.class)));
-                                return awaitQuietly(group.completionFuture()) == null ? "canceled" : "done";
+                                return awaitQuietly(group.completionFuture()) == null ? "cancelled" : "done";
                             },
                             BatchOptions.timeout("outer", SCOPE_TIMEOUT));
 
@@ -381,7 +381,7 @@ class TaskFutureTest {
                             .isDone());
             // The member token only learned about the cancellation by propagation, so the reported
             // cause is the originating state at the root of the chain, not the propagation link.
-            assertThat(Objects.requireNonNull(innerMember.get()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(innerMember.get()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         } finally {
             block.countDown();
             global.close();
@@ -513,7 +513,7 @@ class TaskFutureTest {
     }
 
     @Test
-    void cancelingAnElementBeforeSubmissionKeepsItsBodyUnentered() {
+    void cancellingAnElementBeforeSubmissionKeepsItsBodyUnentered() {
         AtomicBoolean bodyRan = new AtomicBoolean();
         ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> {
             bodyRan.set(true);
@@ -522,34 +522,34 @@ class TaskFutureTest {
         Task<String> element = Task.of("orders", new CancellationToken(), prepared);
 
         assertThat(element.cancel(true)).isTrue();
-        // Canceling the view forwards to the prepared future: the executor may still invoke it, and
+        // Cancelling the view forwards to the prepared future: the executor may still invoke it, and
         // the phase claim is what keeps the body unentered.
         assertThat(prepared.isCancelled()).isTrue();
         prepared.run();
 
         assertThat(bodyRan).isFalse();
-        assertThat(element.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(element.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
     }
 
     @Test
     void submissionFailureAndCancellationAttributeTheirOwnCause() {
         ExecutionPhaseHintFuture<String> rejected = preparedFuture(() -> "unreachable");
-        ExecutionPhaseHintFuture<String> canceled = preparedFuture(() -> "unreachable");
+        ExecutionPhaseHintFuture<String> cancelled = preparedFuture(() -> "unreachable");
         Task<String> rejectedView = Task.of("orders", new CancellationToken(), rejected);
-        Task<String> canceledView = Task.of("orders", new CancellationToken(), canceled);
+        Task<String> cancelledView = Task.of("orders", new CancellationToken(), cancelled);
 
         assertThat(rejected.claimSubmissionFailure(new InterruptedException("submitter interrupted")))
                 .isTrue();
         rejected.settleSubmissionFailure();
-        canceled.skipBody();
-        canceled.cancel(true);
+        cancelled.skipBody();
+        cancelled.cancel(true);
 
         assertThat(rejectedView.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
         assertThat(rejectedView.failure())
                 .isInstanceOf(SubmissionException.class)
                 .hasCauseInstanceOf(InterruptedException.class);
-        assertThat(canceledView.isCancelled()).isTrue();
-        assertThat(canceledView.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(cancelledView.isCancelled()).isTrue();
+        assertThat(cancelledView.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
     }
 
     @Test

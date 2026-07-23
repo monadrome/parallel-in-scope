@@ -37,11 +37,11 @@ public class TaskBatchResultTest {
         assertThat(report.stateCounts())
                 .containsEntry(TaskOutcome.SUCCESS, 1)
                 .containsEntry(TaskOutcome.USER_FAILURE, 2)
-                .containsEntry(TaskOutcome.MEMBER_CANCELED, 1)
+                .containsEntry(TaskOutcome.MEMBER_CANCELLED, 1)
                 .hasSize(3);
         assertThat(report.firstException()).isSameAs(firstFailure);
         assertThat(batch.reportString())
-                .isEqualTo("SUCCESS:1,USER_FAILURE:2,MEMBER_CANCELED:1 | firstException=first failure");
+                .isEqualTo("SUCCESS:1,USER_FAILURE:2,MEMBER_CANCELLED:1 | firstException=first failure");
     }
 
     @Test
@@ -104,7 +104,7 @@ public class TaskBatchResultTest {
         source.put(TaskOutcome.USER_FAILURE, 1);
 
         assertThat(report.stateCounts()).containsOnlyKeys(TaskOutcome.SUCCESS).containsEntry(TaskOutcome.SUCCESS, 1);
-        assertThatThrownBy(() -> report.stateCounts().put(TaskOutcome.MEMBER_CANCELED, 1))
+        assertThatThrownBy(() -> report.stateCounts().put(TaskOutcome.MEMBER_CANCELLED, 1))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -137,9 +137,9 @@ public class TaskBatchResultTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCause(failure);
 
-        TaskBatchResult<String> canceled =
+        TaskBatchResult<String> cancelled =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.immediateCancelledFuture())));
-        assertThatThrownBy(canceled::valuesOrThrow).isInstanceOf(CancellationException.class);
+        assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(CancellationException.class);
     }
 
     // ==================== token-based cancellation attribution ====================
@@ -147,7 +147,7 @@ public class TaskBatchResultTest {
     private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();
 
     @Test
-    public void report_attributesCanceledElementsToBatchDeadlineTimeout() {
+    public void report_attributesCancelledElementsToBatchDeadlineTimeout() {
         CancellationToken token = new CancellationToken();
         token.timeoutCancel();
         TaskBatchResult<String> batch = TaskBatchResult.of(Arrays.asList(
@@ -160,7 +160,7 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void report_attributesCanceledSiblingsToFailFast() {
+    public void report_attributesCancelledSiblingsToFailFast() {
         CancellationToken token = new CancellationToken();
         Task<String> failed = task(token, Futures.immediateFailedFuture(new RuntimeException("boom")));
         Task<String> sibling = task(token, Futures.<String>immediateCancelledFuture());
@@ -177,28 +177,28 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void report_attributesCancellationOfWholeBatchToGroupCanceled() {
+    public void report_attributesCancellationOfWholeBatchToGroupCancelled() {
         CancellationToken token = new CancellationToken();
         token.cancel();
         TaskBatchResult<String> batch =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.<String>immediateCancelledFuture())));
 
         assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskOutcome.GROUP_CANCELED)
-                .containsEntry(TaskOutcome.GROUP_CANCELED, 1);
+                .containsOnlyKeys(TaskOutcome.GROUP_CANCELLED)
+                .containsEntry(TaskOutcome.GROUP_CANCELLED, 1);
     }
 
     @Test
     public void report_attributesPropagatedCancellationToItsOrigin() {
         CancellationToken timedOutParent = new CancellationToken();
         CancellationToken propagatedTimeout = new CancellationToken(timedOutParent);
-        CancellationToken canceledParent = new CancellationToken();
-        CancellationToken propagatedCancel = new CancellationToken(canceledParent);
+        CancellationToken cancelledParent = new CancellationToken();
+        CancellationToken propagatedCancel = new CancellationToken(cancelledParent);
         timedOutParent.timeoutCancel();
-        canceledParent.cancel();
+        cancelledParent.cancel();
 
-        assertThat(propagatedTimeout.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
-        assertThat(propagatedCancel.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+        assertThat(propagatedTimeout.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(propagatedCancel.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(TaskBatchResult.of(Collections.singletonList(
                                 task(propagatedTimeout, Futures.<String>immediateCancelledFuture())))
                         .report()
@@ -208,19 +208,19 @@ public class TaskBatchResultTest {
                                 task(propagatedCancel, Futures.<String>immediateCancelledFuture())))
                         .report()
                         .stateCounts())
-                .containsOnlyKeys(TaskOutcome.GROUP_CANCELED);
+                .containsOnlyKeys(TaskOutcome.GROUP_CANCELLED);
     }
 
     @Test
-    public void report_keepsDirectCancellationAsMemberCanceledWhenNoFrameworkPathCommitted() {
+    public void report_keepsDirectCancellationAsMemberCancelledWhenNoFrameworkPathCommitted() {
         CancellationToken token = new CancellationToken();
         TaskBatchResult<String> batch =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.<String>immediateCancelledFuture())));
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskOutcome.MEMBER_CANCELED)
-                .containsEntry(TaskOutcome.MEMBER_CANCELED, 1);
+                .containsOnlyKeys(TaskOutcome.MEMBER_CANCELLED)
+                .containsEntry(TaskOutcome.MEMBER_CANCELLED, 1);
     }
 
     @Test

@@ -73,13 +73,13 @@ class TaskCompletionTest {
     @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
         TaskCompletion<Object> snapshot =
-                TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELED, null, 100, 0, 0);
+                TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELLED, null, 100, 0, 0);
 
         assertThat(snapshot.taskName()).isEqualTo("member");
         assertThat(snapshot.unitId()).isEqualTo("unit-1");
         assertThat(snapshot.taskIndex()).isZero();
         assertThat(snapshot.result()).isNull();
-        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
         assertThat(snapshot.waitTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.executionTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.totalTime()).isEqualTo(Duration.ZERO);

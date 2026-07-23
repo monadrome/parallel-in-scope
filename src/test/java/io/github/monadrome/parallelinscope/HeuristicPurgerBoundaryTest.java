@@ -81,7 +81,7 @@ class HeuristicPurgerBoundaryTest {
         HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.80), new AtomicDouble(0.10));
         try {
             Runnable observer = purger.cancellationObserverFor(executor);
-            enqueue(2); // Pressure 0.2 << 0.8 despite a high canceled ratio.
+            enqueue(2); // Pressure 0.2 << 0.8 despite a high cancelled ratio.
             cancelOne(observer);
             Thread.sleep(200);
             assertThat(purgeCount).hasValue(0);
@@ -91,7 +91,7 @@ class HeuristicPurgerBoundaryTest {
     }
 
     @Test
-    void canceledRatioBelowThresholdSuppressesPurgeEvenUnderPressure() throws Exception {
+    void cancelledRatioBelowThresholdSuppressesPurgeEvenUnderPressure() throws Exception {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
         HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.90));

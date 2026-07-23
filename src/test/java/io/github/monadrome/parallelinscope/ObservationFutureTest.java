@@ -105,7 +105,7 @@ class ObservationFutureTest {
             for (int index = 1; index < 3; index++) {
                 TaskCompletion<String> abandoned = completions.get(index);
                 assertThat(abandoned.taskIndex()).isEqualTo(index);
-                assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+                assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
                 // Never started: zero timings and durations, but a real outcome and identity.
                 assertThat(abandoned.startTimeNanos()).isZero();
                 assertThat(abandoned.endTimeNanos()).isZero();
@@ -136,7 +136,7 @@ class ObservationFutureTest {
             assertThat(queued.cancel(true)).isTrue();
 
             TaskCompletion<String> snapshot = queued.completionFuture().get(2, TimeUnit.SECONDS);
-            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
             assertThat(snapshot.startTimeNanos()).isZero();
             assertThat(snapshot.endTimeNanos()).isZero();
         } finally {
@@ -262,7 +262,7 @@ class ObservationFutureTest {
             assertThat(bodyEntered.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(task.cancel(true)).isTrue();
 
-            // The future is already canceled, but the body is still inside its finally: the
+            // The future is already cancelled, but the body is still inside its finally: the
             // observation must wait for the body exit and its final end time.
             assertThat(task.completionFuture().isDone()).isFalse();
 

@@ -419,7 +419,7 @@ GlobalPar
     └─ GlobalParPurgePolicy
          ├─ enabled
          ├─ queue pressure threshold
-         ├─ canceled-task ratio threshold
+         ├─ cancelled-task ratio threshold
          └─ Map<ExecutorIdentity, ExecutorRuntime>
 ```
 
@@ -865,7 +865,7 @@ GlobalPar runtime = GlobalPar.builder()
         .purgePolicy(GlobalParPurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(0.80)
-                .canceledTaskRatioThreshold(0.05)
+                .cancelledTaskRatioThreshold(0.05)
                 .build())
         .register("database", databasePool)
         .register("http", httpPool)
