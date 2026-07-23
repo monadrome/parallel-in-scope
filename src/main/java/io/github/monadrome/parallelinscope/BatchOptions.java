@@ -164,7 +164,6 @@ public final class BatchOptions {
 
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
-        return new UnitSpec(
-                name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue, runOnCallerThread);
+        return new UnitSpec(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread);
     }
 }

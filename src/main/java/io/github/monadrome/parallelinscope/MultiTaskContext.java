@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 
@@ -175,7 +174,7 @@ final class MultiTaskContext {
         TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
         int requested = spec.requestedParallelism();
         int effective = requested <= 0 ? resolution.taskCount : Math.min(requested, resolution.taskCount);
-        long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
+        long deadline = resolveDeadlineNanos(spec.timeout().orElse(null), deadlineCeiling, resolutionTime);
         return new MultiTaskContext(
                 spec.name(),
                 resolution.taskCount,
@@ -193,14 +192,14 @@ final class MultiTaskContext {
 
     /**
      * Resolves a deadline from an explicit timeout or an enclosing ceiling. An explicit timeout
-     * expires at the earlier of its own deadline and the ceiling; an empty timeout inherits the
+     * expires at the earlier of its own deadline and the ceiling; a null timeout inherits the
      * ceiling verbatim. Overflow saturates to {@link Long#MAX_VALUE}.
      */
-    static long resolveDeadlineNanos(Optional<Duration> timeout, long ceilingNanos, long nowNanos) {
-        if (!timeout.isPresent()) {
+    static long resolveDeadlineNanos(@Nullable Duration timeout, long ceilingNanos, long nowNanos) {
+        if (timeout == null) {
             return ceilingNanos;
         }
-        long timeoutNanos = Deadlines.saturatedNanos(timeout.get());
+        long timeoutNanos = Deadlines.saturatedNanos(timeout);
         // Saturated on both ends: an astronomical timeout and a clock reading that is far from zero
         // (nanoTime() may legally be negative) used to overflow this sum into a negative deadline,
         // which then read as "no deadline" and silently dropped the caller's timeout.

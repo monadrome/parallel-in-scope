@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Kernel-facing execution intent of one multi-task unit, adapted from a public option type.
@@ -17,7 +18,7 @@ import java.util.Optional;
 final class UnitSpec {
     private final String name;
     private final int requestedParallelism;
-    private final Optional<Duration> timeout;
+    private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
     private final boolean runOnCallerThread;
@@ -25,7 +26,7 @@ final class UnitSpec {
     UnitSpec(
             String name,
             int requestedParallelism,
-            Optional<Duration> timeout,
+            @Nullable Duration timeout,
             TaskType taskType,
             boolean rejectEnqueue,
             boolean runOnCallerThread) {
@@ -49,7 +50,7 @@ final class UnitSpec {
 
     /** The explicit timeout; empty means the enclosing scope's deadline is inherited. */
     Optional<Duration> timeout() {
-        return timeout;
+        return Optional.ofNullable(timeout);
     }
 
     TaskType taskType() {

@@ -474,8 +474,8 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(structuralParent, env);
         long start = System.nanoTime();
-        Optional<Duration> groupTimeout = definition.timeout();
-        if (!groupTimeout.isPresent() && structuralParent == null) {
+        Duration groupTimeout = definition.timeout().orElse(null);
+        if (groupTimeout == null && structuralParent == null) {
             throw new IllegalArgumentException(
                     "no enclosing deadline to inherit; call group(String, Duration) with an explicit timeout");
         }
