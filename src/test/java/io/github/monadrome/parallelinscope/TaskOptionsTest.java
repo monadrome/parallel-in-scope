@@ -89,14 +89,14 @@ class TaskOptionsTest {
 
         assertThat(spec.name()).isEqualTo("get-user");
         assertThat(spec.requestedParallelism()).isEqualTo(1);
-        assertThat(spec.timeout()).contains(Duration.ofSeconds(3));
+        assertThat(spec.timeout()).isEqualTo(Duration.ofSeconds(3));
         assertThat(spec.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(spec.rejectEnqueue()).isFalse();
         assertThat(spec.runOnCallerThread()).isTrue();
     }
 
     @Test
-    void specKeepsAnInheritedTimeoutEmpty() {
-        assertThat(TaskOptions.inheritTimeout().spec("member").timeout()).isEmpty();
+    void specKeepsAnInheritedTimeoutNull() {
+        assertThat(TaskOptions.inheritTimeout().spec("member").timeout()).isNull();
     }
 }

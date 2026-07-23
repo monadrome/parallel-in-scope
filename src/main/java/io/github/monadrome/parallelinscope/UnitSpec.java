@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
-import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,9 +47,10 @@ final class UnitSpec {
         return requestedParallelism;
     }
 
-    /** The explicit timeout; empty means the enclosing scope's deadline is inherited. */
-    Optional<Duration> timeout() {
-        return Optional.ofNullable(timeout);
+    /** The explicit timeout; null means the enclosing scope's deadline is inherited. */
+    @Nullable
+    Duration timeout() {
+        return timeout;
     }
 
     TaskType taskType() {
