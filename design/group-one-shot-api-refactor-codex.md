@@ -239,7 +239,6 @@ Java 没有 move 语义。包私有实现让每个阶段持有同一份内部状
 | `task-group-api-and-options.md` | `defineGroup*`/`TaskGroupDefinition`/`Member`/`TaskGroup`/`Bindings` 公共 API 清单与选项类型章节 |
 | `task-group-submission.md` | `ParRuntime.submitGroup` 的冻结与统一提交契约、`Bindings` 配置期校验、两阶段提交内核的调用形状（§9 复用边界仍然有效） |
 | `task-group-terminal-combine.md` | `Builder.combine()` 声明 + `Bindings.combine()` 绑定的入口形状；join/取消/观测机制本身仍然有效 |
-| `group-tuple-index-proposal-codex.md` | 已由本文取代（该文档抬头已标注，仅供追溯） |
 
 历史 ADR 不改写。
 

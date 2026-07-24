@@ -43,6 +43,5 @@
 
 ## 设计边界
 
-- [I1. Idea Graveyard](articles/I1-idea-graveyard.md)
 - [I2. Java 8 兼容成本](articles/I2-java8-compatibility-cost.md)
 - [I4. 与 CompletableFuture.allOf 对比](articles/I4-vs-completable-future.md)

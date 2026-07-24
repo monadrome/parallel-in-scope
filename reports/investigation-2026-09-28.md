@@ -11,7 +11,6 @@
 |---|---|
 | [perf-analysis-2026-09-28.md](perf-analysis-2026-09-28.md) | 运行时性能：实测数字、7 组问题、保留项与理由 |
 | [api-design-analysis-2026-09-28.md](api-design-analysis-2026-09-28.md) | 公共 API 与设计：37 个公开类型盘点、P0–P7 问题、保留/降级清单 |
-| [independent-verification-brief-2026-09-28.md](independent-verification-brief-2026-09-28.md) | 独立验证席位的任务简报（含 9 条待验证结论与反证要求） |
 | [independent-verification-kimi-2026-09-28.md](independent-verification-kimi-2026-09-28.md) | 独立验证席位（`kimi-code/k3`）的原始判定与逐条证据 |
 
 ---
