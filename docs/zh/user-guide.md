@@ -47,7 +47,7 @@ Par defaultPar = ParRuntime.global().defaultPar();
 
 测试和库代码应优先显式注入。`installGlobal` 只能成功一次，不能替换已有实例。
 
-## 执行批次
+## 执行批次 {#batch}
 
 `BatchOptions` 是一次批次调用的不可变输入。选项类型与作用域一一对应：批次用 `BatchOptions`，任务组的 timeout 来自 `ParRuntime.group` 或 `groupInheriting`、清理预算来自 `GroupStart.closeGrace`，单个成员或 combine 用 `TaskOptions`。库把作用域的 name、并发度与执行策略，连同任务数量、父批次和绑定的执行器 identity，一起解析为内部 `MultiTaskContext`。
 
@@ -93,7 +93,7 @@ try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccou
 
 `TaskBatchResult` 实现了 `AutoCloseable`：`result.close()` 经批次 token 取消所有未完成元素，然后在批次的 close grace 内等待任务体退出。close grace 是清理预算，用 `BatchOptions.closeGrace(Duration)` 配置；未配置时派生自关闭时批次的剩余执行 deadline——超时引发的关闭在预算耗尽后直接返回，忽略中断的任务体最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待。grace 耗尽而任务体仍在运行时，未退出任务的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor；正常返回不证明任务体已经退出——先用 `awaitBodyCompletion(Duration)` 确认。
 
-## 执行异构任务组
+## 执行异构任务组 {#task-group}
 
 当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组用一条流式的一次性链声明并提交：`ParRuntime.group(name, timeout)`（嵌套组用 `groupInheriting(name)`）开启草稿，每个 `par(...)` 写出一个成员的名称、`Par`、声明类型与**本次运行**的 body，`submitAll()` 是唯一的准入与提交边界。链在构建期什么都不执行：不调用任何 body，不创建取消 token、future、deadline、timer 或 TTL 快照，也不调用 executor。草稿被 `submitAll()` 消耗——一条链只运行一次——因此要重复同一拓扑的请求只能重新建链；草稿同时是单线程的，只有提交后返回的 `TaskGroup` 可以跨线程使用。
 
@@ -144,7 +144,7 @@ TaskFuture<?> secondMember = group.futureAt(1);
 
 组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 只发出取消请求；`close()` 取消未完成成员后，再在组的 close grace 内有界等待任务体退出——close grace 是清理预算，用链首的 `closeGrace(Duration)` 配置；未配置时派生自关闭时组的剩余 deadline：超时引发的关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待，等价于 `cancel()`。grace 耗尽而任务体仍在运行时，未退出成员的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor，忽略中断的任务体可能在它返回后继续运行；释放任务体使用的资源前，用 `group.awaitBodyCompletion(Duration)` 以独立预算确认任务体退出。在本组成员任务体内（含同线程嵌套 inline 调用）调用这两个等待会被拒绝并抛 `IllegalStateException`。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELLED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELLED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因，因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELLED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。执行顺序由链固定——普通成员按声明顺序、终端 combine 永远在最后。
 
-### 捕获资源与任务体退出
+### 捕获资源与任务体退出 {#captured-resources}
 
 提交给组的 lambda 会捕获其环境，而 `close()` 或 future 的终态都不证明任务体已经退出：close grace 耗尽后 `close()` 可以正常返回，忽略中断的任务体仍在运行；框架无法发现、关闭或强杀被捕获的对象。资源边界是任务体退出，而不是 future 或 `close()` 的返回：
 
@@ -152,7 +152,7 @@ TaskFuture<?> secondMember = group.futureAt(1);
 - 短资源最稳妥的用法是在 callable 内部创建并以 try-with-resources 关闭，使资源生命周期完全包含在任务体内；
 - application 级 service 可以随意捕获，因为其 owner 明确长于任务组。
 
-### 终端汇合
+### 终端汇合 {#terminal-combine}
 
 当请求最终要把各成员的值组装成一个结果时，用链尾的 `combine(name, par, type, body)` 声明唯一一个终端 combine——而不必自己编排 `Futures` 回调。它的 body 直接接收组装配后的值 `V`，即 `valuesFuture()` 暴露的同一个元组，因此输入在编译期就有类型，它既取不到成员 future，也无法取消或编排底层任务：
 
@@ -243,9 +243,9 @@ httpPar.map(accountIds, id -> {
 }, options);
 ```
 
-注意行为不对称：无参 `Checkpoints.checkpoint()` 在任何任务作用域之外是静默 no-op，而带名字的
-`checkpoint(taskName, lean)` 在那里会抛 `IllegalStateException`；`rawCheckpoint()` 不需要作用域，
-同时响应线程中断标志。
+三种 checkpoint 形式在作用域内外的行为不同（无参形式静默跳过、带名形式抛
+`IllegalStateException`、`rawCheckpoint()` 无需作用域），对照表见
+[协作式取消](reference/cooperative-cancellation.md)。
 
 任务内部再次调用 `map` 时，子调用继承当前 `MultiTaskContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
 

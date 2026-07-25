@@ -70,14 +70,11 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 | `Checkpoints.checkpoint(taskName, lean)` | 抛 `IllegalStateException` | `lean=true` 抛 `LeanCancellationException`；`lean=false` 抛带堆栈的 `CancellationException` |
 | `Checkpoints.rawCheckpoint()` | 可用——不需要作用域，同时响应线程中断标志 | 抛 `LeanCancellationException` |
 
-### Checkpoints API 一览
+另有两个配套工具：
 
 | 方法 | 用途 | 典型场景 |
 |---|---|---|
-| `Checkpoints.checkpoint()` | 无条件检查当前 scope 的 `CancellationToken`，已取消或 deadline 已过则抛异常 | CPU 密集型循环中的周期性检查（首选） |
-| `Checkpoints.checkpoint(taskName, lean)` | 同上，但要求任务名匹配，不匹配抛 `IllegalStateException` | 需要带堆栈的 `CancellationException`（`lean=false`）做诊断时 |
 | `Checkpoints.sleep(millis)` | 取消感知的 sleep，将 `InterruptedException` 统一转换为 `LeanCancellationException` | 替代 `Thread.sleep()` |
-| `Checkpoints.rawCheckpoint()` | 仅检查线程 interrupt 标志 | 不在 `Par` scope 内但仍需响应中断的场景 |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
 
 ## Checkpoint 插入策略
@@ -165,7 +162,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 | 手动取消 | `CANCELLED` | 代码调用了 `CancellationToken.cancel()` |
 | 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
-所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELLED`/`PROPAGATED_CANCELLED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
+所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELLED`/`PROPAGATED_CANCELLED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。`TaskFuture` 对用户呈现的归因（`TIMEOUT`/`FAIL_FAST`/`GROUP_CANCELLED`/`MEMBER_CANCELLED`）由这些 token 状态推导，见[从 future 读取任务归因](../user-guide.md#task-attribution)。
 
 ## 嵌套作用域的取消传播
 
@@ -184,12 +181,3 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 3. A 和 C 的内层任务在下一次 checkpoint 或 I/O 阻塞时响应取消。
 
 你不需要手动编排这个传播——前提是内层任务中有足够的 checkpoint。
-
-## 核心要点总结
-
-1. **协作式取消依赖你的配合**——框架发出信号，但 CPU 密集型任务需要你手动添加 `Checkpoints.checkpoint()` 才能响应。
-2. **优先用无参 `checkpoint()`**——带名字的 `checkpoint("x", lean)` 会在名字不匹配时抛 `IllegalStateException`，不会静默跳过。
-3. **在合理的粒度插入 checkpoint**——长循环每 N 次迭代一次，多阶段计算在阶段之间，递归在入口处。
-4. **不要在 catch 中吞掉取消异常**——使用 `Checkpoints.propagateCancellation(e)` 确保取消异常能透传。
-5. **用 `Checkpoints.sleep()` 替代 `Thread.sleep()`**——统一取消异常类型。
-6. **I/O 任务无需额外操作**——interrupt 机制已经覆盖。
