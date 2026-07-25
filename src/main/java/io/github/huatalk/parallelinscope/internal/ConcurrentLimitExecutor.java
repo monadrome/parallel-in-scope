@@ -12,8 +12,6 @@ import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.IntStream;
@@ -27,7 +25,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  * Implements a "submit one when one completes" pattern:
  * <ol>
  *   <li>Submits an initial batch equal to {@code parallelism}</li>
- *   <li>Uses a blocking queue (from {@link ExecutorCompletionService}) to detect completion events</li>
+ *   <li>Uses a blocking queue populated by {@link ListenableCompletionService} to detect completion events</li>
  *   <li>Fills freed slots incrementally with remaining tasks</li>
  * </ol>
  *
@@ -36,7 +34,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 public class ConcurrentLimitExecutor<V> {
 
-    private final ExecutorCompletionService<V> cs;
+    private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final ParOptions options;
     private final ListeningExecutorService submitterPool;
@@ -48,11 +46,10 @@ public class ConcurrentLimitExecutor<V> {
      * @param options       the execution options
      * @param submitterPool the executor that runs the submission loop
      */
-    @SuppressWarnings("unchecked")
     public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         this.options = options;
         this.submitterPool = submitterPool;
-        this.cs = new ExecutorCompletionService<>(pool, (BlockingQueue<Future<V>>) (BlockingQueue<?>) blockingQueue);
+        this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 
     /**
@@ -110,7 +107,7 @@ public class ConcurrentLimitExecutor<V> {
     private ListenableFuture<V> fallbackSubmit(List<? extends Callable<V>> tasks, int i) {
         ListenableFuture<V> submitted;
         try {
-            submitted = (ListenableFuture<V>) cs.submit(tasks.get(i));
+            submitted = cs.submit(tasks.get(i));
         } catch (RejectedExecutionException e) {
             if (TaskType.CPU_BOUND == options.getTaskType()) {
                 submitted = Futures.submit(tasks.get(i), directExecutor());

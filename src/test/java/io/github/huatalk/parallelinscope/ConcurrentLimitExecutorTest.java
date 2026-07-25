@@ -24,6 +24,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -84,6 +86,41 @@ public class ConcurrentLimitExecutorTest {
         }
         Collections.sort(values);
         assertThat(values).containsExactly(0, 10, 20);
+    }
+
+    /** Verifies that ConcurrentLimitExecutor exposes the same future queued by its worker executor. */
+    @Test
+    public void testSubmitAll_returnsTheRunnableQueuedByTheExecutor() throws Exception {
+        ThreadPoolExecutor singleWorker = new ThreadPoolExecutor(
+                1, 1, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        ListeningExecutorService listeningSingleWorker = MoreExecutors.listeningDecorator(singleWorker);
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+
+        try {
+            ParOptions options = ParOptions.of("test").parallelism(2).timeout(5000).build();
+            ConcurrentLimitExecutor<Integer> executor =
+                    ConcurrentLimitExecutor.create(listeningSingleWorker, options, submitterPool);
+            List<Callable<Integer>> tasks = new ArrayList<>();
+            tasks.add(() -> {
+                workerStarted.countDown();
+                releaseWorker.await();
+                return 0;
+            });
+            tasks.add(() -> 1);
+
+            AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+            assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            ListenableFuture<Integer> queued = result.getResults().get(1);
+
+            assertThat(singleWorker.getQueue()).containsExactly((Runnable) queued);
+            assertThat(queued.cancel(false)).isTrue();
+            singleWorker.purge();
+            assertThat(singleWorker.getQueue()).isEmpty();
+        } finally {
+            releaseWorker.countDown();
+            listeningSingleWorker.shutdownNow();
+        }
     }
 
     @Test
