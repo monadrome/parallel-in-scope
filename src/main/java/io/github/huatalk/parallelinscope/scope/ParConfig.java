@@ -9,8 +9,6 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
-import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
-import io.github.huatalk.parallelinscope.internal.PurgeContext;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 
@@ -31,6 +29,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +61,7 @@ import java.util.logging.Logger;
 public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
+    private static final Runnable NOOP = () -> { };
 
     // ==================== Global Default ====================
 
@@ -126,14 +126,14 @@ public final class ParConfig {
         ImmutableMap.Builder<String, ExecutorBinding> bindingBuilder = ImmutableMap.builder();
         for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorService rawExecutor = entry.getValue();
-            PurgeContext purgeContext = rawExecutor instanceof ThreadPoolExecutor
-                    ? heuristicPurger.contextFor((ThreadPoolExecutor) rawExecutor)
-                    : PurgeContext.NOOP;
+            Runnable cancellationObserver = rawExecutor instanceof ThreadPoolExecutor
+                    ? heuristicPurger.cancellationObserverFor((ThreadPoolExecutor) rawExecutor)
+                    : NOOP;
             bindingBuilder.put(entry.getKey(), new ExecutorBinding(
                     entry.getKey(),
                     MoreExecutors.listeningDecorator(rawExecutor),
-                    ExecutorProfile.capture(rawExecutor),
-                    purgeContext));
+                    isDeadlockProne(rawExecutor),
+                    cancellationObserver));
         }
         this.executorRegistry = bindingBuilder.build();
     }
@@ -772,5 +772,15 @@ public final class ParConfig {
         if (!(value > 0.0 && value <= 1.0)) {
             throw new IllegalArgumentException(name + " must be in the range (0, 1]");
         }
+    }
+
+    /** Captures whether nested blocking work can conservatively deadlock the executor. */
+    private static boolean isDeadlockProne(ExecutorService executor) {
+        if (!(executor instanceof ThreadPoolExecutor)) {
+            return true;
+        }
+        ThreadPoolExecutor threadPool = (ThreadPoolExecutor) executor;
+        return !(threadPool.getQueue() instanceof SynchronousQueue)
+                && threadPool.getMaximumPoolSize() < Integer.MAX_VALUE;
     }
 }

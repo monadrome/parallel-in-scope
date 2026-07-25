@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 final class FutureRunnable<V> extends SimpleForwardingListenableFuture<V> implements Runnable {
 
+    private static final Runnable NOOP = () -> { };
+
     private enum Phase {
         SUBMITTED,
         RUNNING,
@@ -23,24 +25,26 @@ final class FutureRunnable<V> extends SimpleForwardingListenableFuture<V> implem
     }
 
     private final ListenableFutureTask<V> task;
-    private final PurgeContext purgeContext;
+    private volatile Runnable queuedCancellationObserver;
     private final AtomicReference<Phase> phase = new AtomicReference<>(Phase.SUBMITTED);
 
     /** Creates a future runnable for a callable. */
-    static <V> FutureRunnable<V> create(Callable<V> callable, PurgeContext purgeContext) {
-        return new FutureRunnable<>(ListenableFutureTask.create(callable), purgeContext);
+    static <V> FutureRunnable<V> create(Callable<V> callable, Runnable queuedCancellationObserver) {
+        return new FutureRunnable<>(ListenableFutureTask.create(callable), queuedCancellationObserver);
     }
 
     /** Creates a future runnable for a runnable and fixed result. */
-    static <V> FutureRunnable<V> create(Runnable runnable, V result, PurgeContext purgeContext) {
-        return new FutureRunnable<>(ListenableFutureTask.create(runnable, result), purgeContext);
+    static <V> FutureRunnable<V> create(
+            Runnable runnable, V result, Runnable queuedCancellationObserver) {
+        return new FutureRunnable<>(
+                ListenableFutureTask.create(runnable, result), queuedCancellationObserver);
     }
 
     /** Wraps Guava's future semantics with task-local lifecycle state. */
-    private FutureRunnable(ListenableFutureTask<V> task, PurgeContext purgeContext) {
+    private FutureRunnable(ListenableFutureTask<V> task, Runnable queuedCancellationObserver) {
         super(task);
         this.task = task;
-        this.purgeContext = Objects.requireNonNull(purgeContext);
+        this.queuedCancellationObserver = Objects.requireNonNull(queuedCancellationObserver);
     }
 
     /** Runs the delegate only after claiming the transition out of the submitted state. */
@@ -49,6 +53,7 @@ final class FutureRunnable<V> extends SimpleForwardingListenableFuture<V> implem
         if (!phase.compareAndSet(Phase.SUBMITTED, Phase.RUNNING)) {
             return;
         }
+        queuedCancellationObserver = NOOP;
         try {
             task.run();
         } finally {
@@ -66,14 +71,18 @@ final class FutureRunnable<V> extends SimpleForwardingListenableFuture<V> implem
             Phase current = phase.get();
             if (current == Phase.SUBMITTED) {
                 if (phase.compareAndSet(Phase.SUBMITTED, Phase.CANCELLED_BEFORE_RUN)) {
-                    purgeContext.onPossiblyQueuedCancellation();
+                    Runnable observer = queuedCancellationObserver;
+                    queuedCancellationObserver = NOOP;
+                    observer.run();
                     return true;
                 }
             } else if (current == Phase.RUNNING) {
                 if (phase.compareAndSet(Phase.RUNNING, Phase.CANCEL_REQUESTED_RUNNING)) {
+                    queuedCancellationObserver = NOOP;
                     return true;
                 }
             } else {
+                queuedCancellationObserver = NOOP;
                 return true;
             }
         }

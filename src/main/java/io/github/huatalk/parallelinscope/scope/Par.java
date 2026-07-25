@@ -190,7 +190,7 @@ public final class Par {
                 sourceExecutorName,
                 list.size(),
                 normalizedOptions.timeoutMillis(),
-                binding.getProfile());
+                binding.isDeadlockProne());
         logForking(taskName, edge);
 
         // Build parent-child CancellationToken chain
@@ -213,7 +213,7 @@ public final class Par {
                         binding.getExecutor(),
                         normalizedOptions,
                         ParConfig.getSubmitterPool(),
-                        binding.getPurgeContext())
+                        binding.getQueuedCancellationObserver())
                 .submitAll(tasks);
 
         // Late bind: wire up cancellation, timeout, fail-fast

@@ -4,7 +4,6 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
 import org.junit.jupiter.api.AfterEach;
@@ -44,10 +43,20 @@ public class TaskGraphTest {
         return new TaskEdge(4, TaskType.IO_BOUND, targetExec, sourceExec, 10, 5000L);
     }
 
-    /** Creates an edge carrying the target executor's submission-time profile. */
+    /** Creates an edge carrying the target executor's submission-time deadlock risk. */
     private TaskEdge edge(String sourceExec, String targetExec, ExecutorService targetExecutor) {
         return new TaskEdge(4, TaskType.IO_BOUND, targetExec, sourceExec, 10, 5000L,
-                ExecutorProfile.capture(targetExecutor));
+                isDeadlockProne(targetExecutor));
+    }
+
+    /** Mirrors executor capability inputs while TaskGraph verifies captured snapshot behavior. */
+    private static boolean isDeadlockProne(ExecutorService executor) {
+        if (!(executor instanceof ThreadPoolExecutor)) {
+            return true;
+        }
+        ThreadPoolExecutor threadPool = (ThreadPoolExecutor) executor;
+        return !(threadPool.getQueue() instanceof SynchronousQueue)
+                && threadPool.getMaximumPoolSize() < Integer.MAX_VALUE;
     }
 
     // ==================== 5.1 Task-level cycle ====================
@@ -218,7 +227,7 @@ public class TaskGraphTest {
 
     @Test
     public void testUnknownExecutor_treatedAsRisky() {
-        // An edge without a captured profile remains conservatively risky.
+        // An edge without a captured capability remains conservatively risky.
         TaskGraph.logTaskPair("taskA", "taskB", edge("unknown-pool", "unknown-pool"));
 
         // Unknown executor should be treated as deadlock-prone
@@ -226,24 +235,26 @@ public class TaskGraphTest {
     }
 
     @Test
-    public void testExecutorProfile_customBoundedPoolIsRisky() {
+    public void testExecutorSnapshot_customBoundedPoolIsRisky() {
         // A ThreadPoolExecutor with bounded threads and LinkedBlockingQueue
         ThreadPoolExecutor bounded = new ThreadPoolExecutor(
                 2, 4, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         try {
-            assertThat(ExecutorProfile.capture(bounded).isDeadlockProne()).isTrue();
+            TaskGraph.logTaskPair("task", "task", edge("pool", "pool", bounded));
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isTrue();
         } finally {
             bounded.shutdownNow();
         }
     }
 
     @Test
-    public void testExecutorProfile_synchronousQueuePoolIsNotRisky() {
+    public void testExecutorSnapshot_synchronousQueuePoolIsNotRisky() {
         // A ThreadPoolExecutor with SynchronousQueue (like CachedThreadPool)
         ThreadPoolExecutor syncPool = new ThreadPoolExecutor(
                 0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
         try {
-            assertThat(ExecutorProfile.capture(syncPool).isDeadlockProne()).isFalse();
+            TaskGraph.logTaskPair("task", "task", edge("pool", "pool", syncPool));
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
         } finally {
             syncPool.shutdownNow();
         }

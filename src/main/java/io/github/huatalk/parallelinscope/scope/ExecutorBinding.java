@@ -1,8 +1,6 @@
 package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
-import io.github.huatalk.parallelinscope.internal.PurgeContext;
 
 import java.util.Objects;
 
@@ -11,19 +9,19 @@ final class ExecutorBinding {
 
     private final String name;
     private final ListeningExecutorService executor;
-    private final ExecutorProfile profile;
-    private final PurgeContext purgeContext;
+    private final boolean deadlockProne;
+    private final Runnable queuedCancellationObserver;
 
     /** Creates one immutable registration binding. */
     ExecutorBinding(
             String name,
             ListeningExecutorService executor,
-            ExecutorProfile profile,
-            PurgeContext purgeContext) {
+            boolean deadlockProne,
+            Runnable queuedCancellationObserver) {
         this.name = Objects.requireNonNull(name);
         this.executor = Objects.requireNonNull(executor);
-        this.profile = Objects.requireNonNull(profile);
-        this.purgeContext = Objects.requireNonNull(purgeContext);
+        this.deadlockProne = deadlockProne;
+        this.queuedCancellationObserver = Objects.requireNonNull(queuedCancellationObserver);
     }
 
     /** Returns the stable logical name. */
@@ -36,13 +34,13 @@ final class ExecutorBinding {
         return executor;
     }
 
-    /** Returns the registration-time capability snapshot. */
-    ExecutorProfile getProfile() {
-        return profile;
+    /** Returns the registration-time deadlock-risk snapshot. */
+    boolean isDeadlockProne() {
+        return deadlockProne;
     }
 
-    /** Returns the purge context bound to the same registered executor. */
-    PurgeContext getPurgeContext() {
-        return purgeContext;
+    /** Returns the queued-cancellation callback bound to the registered executor. */
+    Runnable getQueuedCancellationObserver() {
+        return queuedCancellationObserver;
     }
 }

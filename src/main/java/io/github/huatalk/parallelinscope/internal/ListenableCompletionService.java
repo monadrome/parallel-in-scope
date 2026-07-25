@@ -24,9 +24,11 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 final class ListenableCompletionService<V> implements CompletionService<V> {
 
+    private static final Runnable NOOP = () -> { };
+
     private final Executor executor;
     private final BlockingQueue<ListenableFuture<V>> completionQueue;
-    private final PurgeContext purgeContext;
+    private final Runnable queuedCancellationObserver;
 
     /**
      * Creates a completion service with an unbounded completion queue.
@@ -34,7 +36,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @param executor executor used to run submitted tasks
      */
     ListenableCompletionService(Executor executor) {
-        this(executor, new LinkedBlockingQueue<>(), PurgeContext.NOOP);
+        this(executor, new LinkedBlockingQueue<>(), NOOP);
     }
 
     /**
@@ -46,23 +48,23 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     ListenableCompletionService(
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue) {
-        this(executor, completionQueue, PurgeContext.NOOP);
+        this(executor, completionQueue, NOOP);
     }
 
     /**
      * Creates a completion service that reports cancellation of submitted tasks.
      *
-     * @param executor             executor used to run submitted tasks
-     * @param completionQueue      queue that receives completed futures
-     * @param purgeContext context notified when a submitted task is cancelled before run
+     * @param executor                   executor used to run submitted tasks
+     * @param completionQueue            queue that receives completed futures
+     * @param queuedCancellationObserver callback for tasks cancelled before run
      */
     ListenableCompletionService(
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue,
-            PurgeContext purgeContext) {
+            Runnable queuedCancellationObserver) {
         this.executor = Objects.requireNonNull(executor);
         this.completionQueue = Objects.requireNonNull(completionQueue);
-        this.purgeContext = Objects.requireNonNull(purgeContext);
+        this.queuedCancellationObserver = Objects.requireNonNull(queuedCancellationObserver);
     }
 
     /**
@@ -73,7 +75,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Callable<V> task) {
-        return submitTask(FutureRunnable.create(task, purgeContext));
+        return submitTask(FutureRunnable.create(task, queuedCancellationObserver));
     }
 
     /**
@@ -85,7 +87,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Runnable task, @Nullable V result) {
-        return submitTask(FutureRunnable.create(task, result, purgeContext));
+        return submitTask(FutureRunnable.create(task, result, queuedCancellationObserver));
     }
 
     /**

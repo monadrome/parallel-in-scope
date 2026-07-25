@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -119,6 +120,50 @@ public class ListenableCompletionServiceTest {
                 assertThat(calls).hasValue(1);
             }
         }
+    }
+
+    /** Verifies futures release the callback once queue-residency classification is complete. */
+    @Test
+    public void terminalFutureReleasesQueuedCancellationObserver() throws Exception {
+        AtomicReference<Runnable> submitted = new AtomicReference<>();
+        Runnable observer = () -> { };
+        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
+                submitted::set,
+                new LinkedBlockingQueue<>(),
+                observer);
+        ListenableFuture<Integer> completed = service.submit(() -> 1);
+        submitted.get().run();
+
+        assertThat(queuedCancellationObserver(completed)).isNotSameAs(observer);
+
+        ListenableFuture<Integer> cancelled = service.submit(() -> 2);
+        assertThat(cancelled.cancel(false)).isTrue();
+
+        assertThat(queuedCancellationObserver(cancelled)).isNotSameAs(observer);
+
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ListenableFuture<Integer> running = service.submit(() -> {
+            started.countDown();
+            release.await();
+            return 3;
+        });
+        Thread runner = new Thread(submitted.get());
+        runner.start();
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(queuedCancellationObserver(running)).isNotSameAs(observer);
+
+        release.countDown();
+        runner.join(5000);
+        assertThat(runner.isAlive()).isFalse();
+    }
+
+    /** Reads the internal callback field to verify reference release without relying on GC. */
+    private static Runnable queuedCancellationObserver(ListenableFuture<?> future) throws Exception {
+        Field field = FutureRunnable.class.getDeclaredField("queuedCancellationObserver");
+        field.setAccessible(true);
+        return (Runnable) field.get(future);
     }
 
     /** Waits for a test gate while preserving the thread's eventual interrupt status. */

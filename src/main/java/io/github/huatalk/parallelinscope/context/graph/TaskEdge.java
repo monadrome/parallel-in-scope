@@ -1,9 +1,6 @@
 package io.github.huatalk.parallelinscope.context.graph;
 
 import io.github.huatalk.parallelinscope.scope.TaskType;
-import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
-
-import java.util.Objects;
 
 /**
  * Value object representing metadata associated with a task dependency edge
@@ -22,7 +19,7 @@ public final class TaskEdge {
     private final String sourceExecutorName;
     private final int taskCount;
     private final long timeoutMillis;
-    private final ExecutorProfile executorProfile;
+    private final boolean executorDeadlockProne;
 
     /**
      * Creates task dependency metadata.
@@ -37,11 +34,11 @@ public final class TaskEdge {
     public TaskEdge(int parallelism, TaskType taskType, String executorName,
              String sourceExecutorName, int taskCount, long timeoutMillis) {
         this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeoutMillis,
-                ExecutorProfile.unknown());
+                true);
     }
 
     /**
-     * Creates task dependency metadata with a submission-time executor profile.
+     * Creates task dependency metadata with a submission-time executor capability snapshot.
      *
      * @param parallelism        the configured parallelism
      * @param taskType           the workload classification
@@ -49,18 +46,18 @@ public final class TaskEdge {
      * @param sourceExecutorName the parent executor name
      * @param taskCount          the number of child tasks
      * @param timeoutMillis      the child timeout in milliseconds
-     * @param executorProfile    the child executor capability snapshot
+     * @param executorDeadlockProne whether the child executor can conservatively deadlock
      */
     public TaskEdge(int parallelism, TaskType taskType, String executorName,
              String sourceExecutorName, int taskCount, long timeoutMillis,
-             ExecutorProfile executorProfile) {
+             boolean executorDeadlockProne) {
         this.parallelism = parallelism;
         this.taskType = taskType;
         this.executorName = executorName;
         this.sourceExecutorName = sourceExecutorName;
         this.taskCount = taskCount;
         this.timeoutMillis = timeoutMillis;
-        this.executorProfile = Objects.requireNonNull(executorProfile);
+        this.executorDeadlockProne = executorDeadlockProne;
     }
 
     /**
@@ -94,11 +91,11 @@ public final class TaskEdge {
      */
     public long getTimeoutMillis() { return timeoutMillis; }
     /**
-     * Returns the child executor capability snapshot captured at submission.
+     * Returns the child executor deadlock-risk snapshot captured at submission.
      *
-     * @return immutable executor profile
+     * @return {@code true} when nested blocking work can conservatively deadlock
      */
-    public ExecutorProfile getExecutorProfile() { return executorProfile; }
+    public boolean isExecutorDeadlockProne() { return executorDeadlockProne; }
 
     @Override
     public String toString() {

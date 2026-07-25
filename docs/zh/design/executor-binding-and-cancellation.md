@@ -74,8 +74,8 @@ token == TIMEOUT_CANCELED
 final class ExecutorBinding {
     String name;
     ListeningExecutorService executionExecutor;
-    ExecutorProfile profile;
-    PurgeContext purgeContext;
+    boolean deadlockProne;
+    Runnable queuedCancellationObserver;
 }
 ```
 
@@ -85,8 +85,8 @@ final class ExecutorBinding {
 |---|---|
 | `name` | 诊断、日志和 TaskGraph 中使用的稳定逻辑名称 |
 | `executionExecutor` | 本次任务实际提交到的执行器 |
-| `profile` | 注册时捕获的队列类型、最大线程数和 deadlock 风险等能力快照 |
-| `purgeContext` | 与实际 `SmartBlockingQueue` 绑定的取消统计和清理协调器；不支持时为 NOOP |
+| `deadlockProne` | 注册时捕获、供 TaskGraph 使用的 deadlock 风险快照 |
+| `queuedCancellationObserver` | 与实际 `SmartBlockingQueue` 清理状态绑定的单一回调；不支持时为静态 NOOP |
 
 `Par.map()` 只解析一次：
 
@@ -94,8 +94,8 @@ final class ExecutorBinding {
 executorName
     -> ExecutorBinding
        ├── executionExecutor
-       ├── profile
-       └── purgeContext
+       ├── deadlockProne
+       └── queuedCancellationObserver
 ```
 
 后续提交、TaskGraph 记录和取消清理全部使用该绑定，不再重新按名称查找线程池。
@@ -122,7 +122,7 @@ Provider 只提供执行资源。框架在解析成功后立即生成 `ExecutorB
 
 `getTaskToExecutorMapping()` 不迁移到新接口。TaskGraph 应记录本次调用实际使用的 binding，而不是依赖一份可能过期的外部映射。
 
-### 决策三：Future 关联 PurgeContext，而不是 Executor
+### 决策三：Future 只关联一次性取消回调，而不是 Executor
 
 Future 不需要知道线程池名称、resolver 或 `ParConfig`。它只需要在特定状态下发送一个取消信号。
 
@@ -130,13 +130,14 @@ Future 不需要知道线程池名称、resolver 或 `ParConfig`。它只需要�
 
 ```text
 ExecutorBinding
-    └── PurgeContext
-          ▲
-          │ captured once
+    └── queuedCancellationObserver
+          ▲ captured once
 FutureRunnable ── queued as the exact same object
 ```
 
-`PurgeContext` 可以持有 `SmartBlockingQueue`、阈值和每池统计状态，但这些细节不暴露给 Future。
+回调由 `HeuristicPurger` 针对实际执行器创建，可以闭包引用每池统计状态，但这些细节不暴露给 Future。它只有一个事件，因此直接使用 `Runnable`，不再为单实现、单方法场景保留 `PurgeContext` 接口。
+
+`FutureRunnable` 在 `run()` 赢得生命周期竞争、排队取消已经通知或运行中取消时立即把回调替换成静态 NOOP。这样即使调用方长期保存已完成 Future，或业务任务永久不返回，也不会通过回调继续保留 `PoolState -> ThreadPoolExecutor -> SmartBlockingQueue`。
 
 不采用：
 
@@ -202,7 +203,7 @@ completion listener 只负责把同一个 FutureRunnable 放入 completion queue
 final class FutureRunnable<V> implements Runnable, ListenableFuture<V> {
     ListenableFutureTask<V> delegate;
     AtomicReference<ExecutionPhase> phase;
-    PurgeContext purgeContext;
+    Runnable queuedCancellationObserver;
 }
 ```
 
@@ -211,13 +212,14 @@ final class FutureRunnable<V> implements Runnable, ListenableFuture<V> {
 ```text
 run():
     CAS SUBMITTED -> RUNNING
+    立即清除 queuedCancellationObserver
     成功才调用 delegate.run()
     最终进入 TERMINAL
 
 cancel():
     delegate.cancel(mayInterruptIfRunning)
     cancel 成功后读取并迁移 wrapper phase
-    原状态为 SUBMITTED 才通知 PurgeContext
+    原状态为 SUBMITTED 才运行 queuedCancellationObserver，并立即清除引用
 ```
 
 这里允许 cancel 和 run 竞争：如果 worker 已经调用 wrapper 的 `run()`，即使 delegate 因并发 cancel 而没有执行 Callable，也不再需要 purge，因为 wrapper 已经离开工作队列。
@@ -385,15 +387,11 @@ EXPLICIT
 
 TaskGraph 不应在请求结束时再次通过 executor name 查找线程池。
 
-提交时已经持有 `ExecutorBinding`，可以把稳定能力快照写入 `TaskEdge`：
+提交时已经持有 `ExecutorBinding`，只把 TaskGraph 真正消费的风险快照写入 `TaskEdge`：
 
 ```java
-final class ExecutorProfile {
-    String name;
-    QueueKind queueKind;
-    int maximumPoolSize;
-    boolean deadlockCapable;
-    boolean purgeSupported;
+final class TaskEdge {
+    boolean executorDeadlockProne;
 }
 ```
 
@@ -401,7 +399,7 @@ final class ExecutorProfile {
 
 ```text
 提交时的真实执行器
-    -> TaskEdge capability snapshot
+    -> TaskEdge deadlock-risk snapshot
     -> 请求结束时构建 executor graph
 ```
 
@@ -413,22 +411,22 @@ final class ExecutorProfile {
 ParConfig.Builder.executor(name, executor)
     -> build ExecutorBinding once
        ├── executionExecutor
-       ├── ExecutorProfile
-       └── PurgeContext or NOOP
+       ├── deadlockProne
+       └── queuedCancellationObserver or static NOOP
 
 Par.map(name, ...)
     -> resolve ExecutorBinding once
-    -> log TaskEdge with binding/profile snapshot
+    -> log TaskEdge with binding/deadlock snapshot
     -> ListenableCompletionService(binding)
-       -> create FutureRunnable(callable, binding.purgeContext)
+       -> create FutureRunnable(callable, binding.queuedCancellationObserver)
        -> executor.execute(the same FutureRunnable)
 
 FutureRunnable.cancel()
     -> atomic lifecycle transition
-       ├── SUBMITTED: purgeContext.onPossiblyQueuedCancellation()
-       └── RUNNING: no queue-garbage signal
+       ├── SUBMITTED: run observer once, then replace it with NOOP
+       └── RUNNING: replace observer with NOOP, no queue-garbage signal
 
-PurgeContext
+HeuristicPurger PoolState callback
     -> evaluate SmartBlockingQueue pressure and garbage ratio
     -> coalesce cancellation burst
     -> asynchronous purge cycle
@@ -447,12 +445,13 @@ PurgeContext
 
 - 返回 Future 与入队 Runnable 保持同一对象；
 - 将 purge 通知从 completion listener 移入 `cancel()` 生命周期分类；
+- `run()` 开始或取消完成分类后立即释放 executor-bound callback；
 - completion listener 只维护 completion queue；
 - 测试 cancel/run 的 CAS 竞态、CallerRunsPolicy 和排队取消。
 
 ### 已完成：移除 ExecutorResolver
 
-- TaskGraph 改用提交时的 `ExecutorProfile`；
+- TaskGraph 改用提交时捕获的 `executorDeadlockProne` 布尔值；
 - 删除未使用的 task-to-executor mapping；
 - 删除 resolver 优先级和 registry fallback 双重语义；
 - 如果存在真实动态提供方，再单独设计 `ExecutorProvider`。
@@ -467,17 +466,18 @@ PurgeContext
 
 实现迁移时至少验证：
 
-1. `Par.map()` 使用的执行器与 `PurgeContext` 绑定的是同一个实际注册对象。
+1. `Par.map()` 使用的执行器与 queued-cancellation callback 绑定的是同一个实际注册对象。
 2. 返回 Future、执行器接收 Runnable、`SmartBlockingQueue` 保存元素三者对象身份一致。
 3. 排队任务取消产生一次 possible queued cancellation 信号。
 4. `run()` 已经开始的任务取消不产生队列垃圾信号。
 5. cancel/run 并发竞争只能得到一个原子分类结果。
-6. 未提交占位 Future 不持有 PurgeContext，也不产生信号。
-7. 普通队列绑定 NOOP PurgeContext。
+6. 未提交占位 Future 不持有 queued-cancellation callback，也不产生信号。
+7. 普通队列绑定静态 NOOP callback。
 8. 同一取消批次合并为一个 purge 周期。
 9. Lean、Fat、普通异常和成功 TaskEvent 均不改变 purge 计数。
 10. fail-fast 的结构化 signal 保留首个触发异常，但不把 sibling Future 错判为已执行。
 11. TaskGraph 不在请求结束时重新解析执行器。
+12. `run()` 开始或取消完成分类后，Future 不再持有 executor-bound callback。
 
 ## 11. 明确不采用的方案
 
@@ -499,6 +499,6 @@ PurgeContext
 - `FutureRunnable` 生命周期回答“取消发生时 wrapper 是否已经开始 run”；
 - `CancellationSignal` 回答“批次为什么被取消”。
 
-`PurgeContext` 只消费第一个和第二个问题产生的信息。Lean/Fat cancellation exception 继续服务协作式取消和诊断，不承担队列状态推断职责。
+queued-cancellation callback 只消费第一个和第二个问题产生的信息，并在分类后立即释放。Lean/Fat cancellation exception 继续服务协作式取消和诊断，不承担队列状态推断职责。
 
 这个边界仍是近似的，但误差只剩 worker 已出队、尚未调用 `run()` 的窄窗口；在不侵入 `SmartBlockingQueue` 全部出队路径的前提下，这是成本和准确性的合理平衡。

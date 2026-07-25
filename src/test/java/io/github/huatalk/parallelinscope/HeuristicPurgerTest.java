@@ -3,7 +3,6 @@ package io.github.huatalk.parallelinscope;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
-import io.github.huatalk.parallelinscope.internal.PurgeContext;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
@@ -38,7 +37,7 @@ public class HeuristicPurgerTest {
     @Test
     public void belowQueuePressureDoesNotPurge() throws Exception {
         CountingThreadPoolExecutor executor = smartExecutor(10);
-        PurgeContext observer = purger(0.80, 0.05).contextFor(executor);
+        Runnable observer = purger(0.80, 0.05).cancellationObserverFor(executor);
 
         enqueueTasks(executor, 7);
         cancelExistingTasks(executor, observer, 7);
@@ -52,7 +51,7 @@ public class HeuristicPurgerTest {
     @Test
     public void belowCancelledTaskRatioDoesNotPurge() throws Exception {
         CountingThreadPoolExecutor executor = smartExecutor(100);
-        PurgeContext observer = purger(0.80, 0.05).contextFor(executor);
+        Runnable observer = purger(0.80, 0.05).cancellationObserverFor(executor);
         enqueueTasks(executor, 80);
 
         cancelExistingTasks(executor, observer, 3);
@@ -66,7 +65,7 @@ public class HeuristicPurgerTest {
     @Test
     public void bothThresholdsMetPurgesCancelledEntries() throws Exception {
         CountingThreadPoolExecutor executor = smartExecutor(10);
-        PurgeContext observer = purger(0.80, 0.05).contextFor(executor);
+        Runnable observer = purger(0.80, 0.05).cancellationObserverFor(executor);
         enqueueTasks(executor, 8);
 
         cancelExistingTasks(executor, observer, 1);
@@ -83,12 +82,12 @@ public class HeuristicPurgerTest {
         CountingThreadPoolExecutor executor =
                 new CountingThreadPoolExecutor(new LinkedBlockingQueue<>());
         executors.add(executor);
-        PurgeContext observer = purger(0.01, 0.01).contextFor(executor);
+        Runnable observer = purger(0.01, 0.01).cancellationObserverFor(executor);
         ListenableFutureTask<Void> task = ListenableFutureTask.create(() -> null);
         executor.getQueue().add(task);
 
         task.cancel(false);
-        observer.onPossiblyQueuedCancellation();
+        observer.run();
 
         assertThat(executor.purgeCount).hasValue(0);
         assertThat(executor.getQueue()).containsExactly(task);
@@ -166,14 +165,14 @@ public class HeuristicPurgerTest {
 
     /** Cancels existing queue entries and emits their corresponding observer signals. */
     private void cancelExistingTasks(
-            CountingThreadPoolExecutor executor, PurgeContext observer, int count) {
+            CountingThreadPoolExecutor executor, Runnable observer, int count) {
         int cancelled = 0;
         for (Runnable task : executor.getQueue()) {
             if (cancelled == count) {
                 break;
             }
             ((ListenableFutureTask<?>) task).cancel(false);
-            observer.onPossiblyQueuedCancellation();
+            observer.run();
             cancelled++;
         }
     }

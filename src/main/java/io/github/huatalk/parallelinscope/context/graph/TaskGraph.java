@@ -119,7 +119,7 @@ public final class TaskGraph {
         }
 
         /**
-         * Returns the executor graph built from profiles captured on task edges.
+         * Returns the executor graph built from deadlock-risk snapshots on task edges.
          *
          * @return executor dependency graph
          */
@@ -185,7 +185,7 @@ public final class TaskGraph {
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();
-                    if (!taskEdge.getExecutorProfile().isDeadlockProne()) {
+                    if (!taskEdge.isExecutorDeadlockProne()) {
                         continue;
                     }
                     EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
