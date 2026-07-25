@@ -39,7 +39,7 @@ API 面最关键的一条（`valuesOrThrow()` 的失败形状）写了复现程�
 > 只允许从 cmux 内部启动的进程连接），本次会话的进程链是 `cc-connect ← claude ← zsh`，
 > 不在 cmux 内，因此**未能经 cmux 派遣**，改用同一模型的 headless 调用
 > （`kimi -m kimi-code/k3 -p`，显式指定模型以避免默认模型静默降级）。
-> 席位身份是 `(harness, model)` 二元组，这一点与 `design/senate.md` 的约定一致。
+> 席位身份是 `(harness, model)` 二元组，这一点与 senate 工具的约定一致。
 
 ---
 
