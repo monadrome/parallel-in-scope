@@ -40,7 +40,7 @@ for (int i = 0; i < taskCount; i++) {
 
 **大堂经理只安排前 4 桌入座。第 1 桌吃完走了，经理立刻安排第 5 桌坐下；第 2 桌走了，安排第 6 桌……始终保持 4 桮满座，门口有人等但餐厅内部不堵。**
 
-技术上：`ConcurrentLimitExecutor` 初始只提交 `parallelism` 个任务，每当有一个任务完成（`ExecutorCompletionService.take()`），才提交下一个。队列深度永远不超过并行度。
+技术上：`ConcurrentLimitExecutor` 初始只提交 `parallelism` 个任务，每当内部 completion queue 收到一个完成事件，才提交下一个。队列深度永远不超过并行度。
 
 两个关键细节：
 

@@ -3,6 +3,7 @@ package io.github.huatalk.parallelinscope.cancel;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
+import io.github.huatalk.parallelinscope.internal.PurgeContext;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,15 +55,15 @@ public final class HeuristicPurger {
     }
 
     /**
-     * Returns a callback for cancellation of an actually submitted task.
-     * Unsupported queue implementations receive a no-op callback.
+     * Returns the purge context bound to an actually submitted task's executor.
+     * Unsupported queue implementations receive a no-op context.
      *
      * @param executor actual executor used to run the task
-     * @return cancellation callback
+     * @return executor-bound purge context
      */
-    public Runnable cancellationObserver(ThreadPoolExecutor executor) {
+    public PurgeContext contextFor(ThreadPoolExecutor executor) {
         if (!(executor.getQueue() instanceof SmartBlockingQueue)) {
-            return () -> { };
+            return PurgeContext.NOOP;
         }
         SmartBlockingQueue<?> queue = (SmartBlockingQueue<?>) executor.getQueue();
         PoolState state = states.computeIfAbsent(executor, ignored -> new PoolState(executor, queue));

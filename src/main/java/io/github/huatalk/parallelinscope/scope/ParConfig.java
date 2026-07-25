@@ -9,13 +9,13 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
-import io.github.huatalk.parallelinscope.spi.ExecutorResolver;
+import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
+import io.github.huatalk.parallelinscope.internal.PurgeContext;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +50,6 @@ import java.util.logging.Logger;
  * Users configure the framework by registering SPI implementations at build time:
  * <ul>
  *   <li>{@link TaskListener} - metrics/monitoring callbacks</li>
- *   <li>{@link ExecutorResolver} - thread pool resolution for purge and livelock detection</li>
  *   <li>{@link LivelockListener} - livelock detection event callbacks</li>
  * </ul>
  *
@@ -63,7 +62,6 @@ import java.util.logging.Logger;
 public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
-    private static final Runnable NOOP = () -> { };
 
     // ==================== Global Default ====================
 
@@ -105,9 +103,7 @@ public final class ParConfig {
 
     private final ImmutableList<TaskListener> taskListeners;
     private final ImmutableList<LivelockListener> livelockListeners;
-    private final ExecutorResolver executorResolver;
-    private final ImmutableMap<String, ListeningExecutorService> executorRegistry;
-    private final ImmutableMap<String, ExecutorService> executorRawRegistry;
+    private final ImmutableMap<String, ExecutorBinding> executorRegistry;
     private final long defaultTimeoutMillis;
     private final boolean livelockDetectionEnabled;
     private final AtomicDouble purgeQueuePressureThreshold;
@@ -118,7 +114,6 @@ public final class ParConfig {
     private ParConfig(Builder builder) {
         this.taskListeners = builder.taskListeners.build();
         this.livelockListeners = builder.livelockListeners.build();
-        this.executorResolver = builder.executorResolver;
         this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
         this.purgeQueuePressureThreshold = new AtomicDouble(builder.purgeQueuePressureThreshold);
@@ -127,15 +122,20 @@ public final class ParConfig {
                 purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
         this.timer = builder.timer == null ? null : createDispatchingTimer(builder.timer);
 
-        // Build executor maps: adapt raw executors to ListeningExecutorService
-        ImmutableMap.Builder<String, ListeningExecutorService> decoratedBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<String, ExecutorService> rawBuilder = ImmutableMap.builder();
+        // Capture every capability from the same raw executor used for submission.
+        ImmutableMap.Builder<String, ExecutorBinding> bindingBuilder = ImmutableMap.builder();
         for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
-            rawBuilder.put(entry.getKey(), entry.getValue());
-            decoratedBuilder.put(entry.getKey(), MoreExecutors.listeningDecorator(entry.getValue()));
+            ExecutorService rawExecutor = entry.getValue();
+            PurgeContext purgeContext = rawExecutor instanceof ThreadPoolExecutor
+                    ? heuristicPurger.contextFor((ThreadPoolExecutor) rawExecutor)
+                    : PurgeContext.NOOP;
+            bindingBuilder.put(entry.getKey(), new ExecutorBinding(
+                    entry.getKey(),
+                    MoreExecutors.listeningDecorator(rawExecutor),
+                    ExecutorProfile.capture(rawExecutor),
+                    purgeContext));
         }
-        this.executorRawRegistry = rawBuilder.build();
-        this.executorRegistry = decoratedBuilder.build();
+        this.executorRegistry = bindingBuilder.build();
     }
 
     // ==================== Builder ====================
@@ -154,7 +154,6 @@ public final class ParConfig {
 
         private final ImmutableList.Builder<TaskListener> taskListeners = ImmutableList.builder();
         private final ImmutableList.Builder<LivelockListener> livelockListeners = ImmutableList.builder();
-        private ExecutorResolver executorResolver;
         private final LinkedHashMap<String, ExecutorService> executors = new LinkedHashMap<>();
         private long defaultTimeoutMillis = 60_000L;
         private boolean livelockDetectionEnabled = false;
@@ -253,17 +252,6 @@ public final class ParConfig {
          */
         public Builder livelockListener(LivelockListener listener) {
             this.livelockListeners.add(Objects.requireNonNull(listener));
-            return this;
-        }
-
-        /**
-         * Sets the executor resolver for thread pool lookups.
-         *
-         * @param resolver the resolver implementation
-         * @return this builder
-         */
-        public Builder executorResolver(ExecutorResolver resolver) {
-            this.executorResolver = resolver;
             return this;
         }
 
@@ -705,16 +693,6 @@ public final class ParConfig {
     }
 
     /**
-     * Gets the registered executor resolver.
-     *
-     * @return the executor resolver, or null if none set
-     */
-    @Nullable
-    public ExecutorResolver getExecutorResolver() {
-        return executorResolver;
-    }
-
-    /**
      * Returns the executor registered under the given name, or {@code null} if not found.
      *
      * @param name the executor name
@@ -722,37 +700,14 @@ public final class ParConfig {
      */
     @Nullable
     public ListeningExecutorService getExecutor(String name) {
-        return executorRegistry.get(name);
+        ExecutorBinding binding = executorRegistry.get(name);
+        return binding == null ? null : binding.getExecutor();
     }
 
-    /**
-     * Resolves a thread pool by name. Uses the {@link ExecutorResolver} when configured,
-     * otherwise checks whether the registered executor is a {@link ThreadPoolExecutor}.
-     *
-     * @param executorName the registered executor name
-     * @return the resolved thread pool, or {@code null} if unavailable
-     */
+    /** Returns the immutable binding registered under the given name. */
     @Nullable
-    public ThreadPoolExecutor resolveThreadPool(String executorName) {
-        ExecutorResolver resolver = executorResolver;
-        if (resolver != null) {
-            return resolver.resolveThreadPool(executorName);
-        }
-        ExecutorService raw = executorRawRegistry.get(executorName);
-        if (raw instanceof ThreadPoolExecutor) {
-            return (ThreadPoolExecutor) raw;
-        }
-        return null;
-    }
-
-    /**
-     * Gets the task-to-executor mapping from the registered resolver.
-     *
-     * @return the configured mapping, or an empty map when no resolver is registered
-     */
-    public Map<String, String> getTaskToExecutorMapping() {
-        ExecutorResolver resolver = executorResolver;
-        return resolver != null ? resolver.getTaskToExecutorMapping() : Collections.<String, String>emptyMap();
+    ExecutorBinding getExecutorBinding(String name) {
+        return executorRegistry.get(name);
     }
 
     /**
@@ -810,18 +765,6 @@ public final class ParConfig {
     public void setPurgeCancelledTaskRatioThreshold(double threshold) {
         validateRatio("purgeCancelledTaskRatioThreshold", threshold);
         purgeCancelledTaskRatioThreshold.set(threshold);
-    }
-
-    /** Returns the observer bound to the actual registered executor, or a no-op when unsupported. */
-    Runnable cancellationObserver(@Nullable String executorName) {
-        if (executorName == null) {
-            return NOOP;
-        }
-        ExecutorService raw = executorRawRegistry.get(executorName);
-        ThreadPoolExecutor executor = raw instanceof ThreadPoolExecutor
-                ? (ThreadPoolExecutor) raw
-                : resolveThreadPool(executorName);
-        return executor == null ? NOOP : heuristicPurger.cancellationObserver(executor);
     }
 
     /** Rejects NaN, zero, negative, and greater-than-one ratio values. */

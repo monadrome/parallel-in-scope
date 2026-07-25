@@ -13,7 +13,7 @@ Every package declares `@ParametersAreNonnullByDefault` in `package-info.java`. 
 | Area | Annotation source | Examples |
 |---|---|---|
 | Public API | JSR-305 | `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints` |
-| SPI | JSR-305 | `TaskListener`, `ExecutorResolver`, `LivelockListener` |
+| SPI | JSR-305 | `TaskListener`, `LivelockListener` |
 | Internal implementation | Checker Framework | Executor, queue, context, and graph internals |
 
 ## When to use `@Nullable`
@@ -34,7 +34,7 @@ JSR-305 method style:
 
 ```java
 @Nullable
-public ExecutorResolver getExecutorResolver() { ... }
+public ListeningExecutorService getExecutor(String name) { ... }
 ```
 
 ## Dependencies

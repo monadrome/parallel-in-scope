@@ -37,9 +37,9 @@ Base package: `io.github.huatalk.parallelinscope` with 7 sub-packages:
 | `cancel` | Cancellation subsystem | `CancellationToken`, `CancellationTokenState`, `Checkpoints`, `FatCancellationException`, `LeanCancellationException`, `HeuristicPurger` |
 | `context` | TTL/TL context propagation | `ThreadRelay`, `TaskScopeTl` |
 | `context.graph` | Livelock detection | `TaskGraph`, `TaskEdge`, `TaskEdgeEntry` |
-| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `ScopedCallable`, `FutureInspector`, `FutureState` |
+| `internal` | Execution engine + utilities | `ConcurrentLimitExecutor`, `FutureRunnable`, `ExecutorProfile`, `ScopedCallable` |
 | `queue` | Scheduling queues | `SmartBlockingQueue`, `VariableLinkedBlockingQueue` |
-| `spi` | Extension points | `TaskListener`, `ExecutorResolver`, `LivelockListener` |
+| `spi` | Extension points | `TaskListener`, `LivelockListener` |
 
 ### Execution Flow
 
@@ -48,7 +48,7 @@ Base package: `io.github.huatalk.parallelinscope` with 7 sub-packages:
 3. **`TaskGraph.logTaskPair()`** — records parent-child task dependency for livelock detection
 4. **`CancellationToken`** — created and chained to parent token from `ThreadRelay`
 5. **`ScopedCallable`** — wraps each task with context setup, checkpoint check, timing, SPI callbacks, cleanup
-6. **`ConcurrentLimitExecutor.submitAll()`** — sliding-window submission: submits initial batch up to parallelism, then fills slots as tasks complete via `ExecutorCompletionService`
+6. **`ConcurrentLimitExecutor.submitAll()`** — sliding-window submission through `ListenableCompletionService`, whose returned `FutureRunnable` is the exact queued object
 7. **`CancellationToken.lateBind()`** — after all futures submitted, wires timeout (`FluentFuture.withTimeout`), fail-fast (`Futures.allAsList`), and parent propagation. This late-binding avoids race conditions
 8. **`AsyncBatchResult`** — returned to caller with `List<ListenableFuture<T>>` and `report()` for state aggregation
 
@@ -59,7 +59,8 @@ Base package: `io.github.huatalk.parallelinscope` with 7 sub-packages:
 - **Two-Map Context Relay** (`ThreadRelay`): parent thread's `curMap` becomes child thread's `parentMap` via TTL, propagating `CancellationToken`, `ParOptions`, and task names
 - **Task-Type-Aware Scheduling** (`SmartBlockingQueue`): CPU_BOUND tasks' `offer()` returns `false` to trigger `ThreadPoolExecutor` rejection handler (typically `CallerRunsPolicy`), preventing queue buildup
 - **Dual Cancellation Exceptions**: `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios; `FatCancellationException` (full stack trace) for debugging
-- **SPI Decoupling**: `TaskListener`, `ExecutorResolver`, `LivelockListener` registered on `ParConfig` — no hard-coded business dependencies
+- **Stable Executor Binding**: each registration binds submission, capability snapshot, and purge context to the same executor object
+- **SPI Decoupling**: `TaskListener` and `LivelockListener` registered on `ParConfig` — no hard-coded business dependencies
 - **JUL Logging**: Framework uses `java.util.logging.Logger` directly; users bridge to SLF4J/Log4j2 via standard JUL handlers
 
 ### API Stability
@@ -89,7 +90,7 @@ The project uses a **hybrid nullability annotation strategy** with package-level
 | Category | Classes | Annotation Source |
 |----------|---------|-------------------|
 | Public API | `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState` | `javax.annotation.Nullable` (JSR-305) |
-| SPI | `TaskListener`, `ExecutorResolver`, `LivelockListener` | `javax.annotation.Nullable` (JSR-305) |
+| SPI | `TaskListener`, `LivelockListener` | `javax.annotation.Nullable` (JSR-305) |
 | Internal | All other classes | `org.checkerframework.checker.nullness.qual.Nullable` (Checker Framework) |
 
 **When to add `@Nullable`:**

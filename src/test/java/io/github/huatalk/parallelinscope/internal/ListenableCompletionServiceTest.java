@@ -12,6 +12,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +44,97 @@ public class ListenableCompletionServiceTest {
         assertThat(observerThread).hasValue(cancellingThread);
         assertThat(task.cancel(false)).isFalse();
         assertThat(observations).hasValue(1);
+    }
+
+    /** Verifies cancellation after run starts is not classified as worker-queue garbage. */
+    @Test
+    public void runningCancellationDoesNotNotifyQueueCancellationObserver() throws Exception {
+        AtomicInteger observations = new AtomicInteger();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(
+                1, 1, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
+                pool,
+                new LinkedBlockingQueue<>(),
+                observations::incrementAndGet);
+
+        try {
+            ListenableFuture<Integer> task = service.submit(() -> {
+                started.countDown();
+                while (true) {
+                    try {
+                        release.await();
+                        return 1;
+                    } catch (InterruptedException ignored) {
+                        // Keep the task running until the test releases it.
+                    }
+                }
+            });
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(task.cancel(true)).isTrue();
+            assertThat(observations).hasValue(0);
+        } finally {
+            release.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies concurrent cancel and run never classify one task into both lifecycle branches. */
+    @Test
+    public void cancelAndRunRaceHasOneLifecycleClassification() throws Exception {
+        for (int attempt = 0; attempt < 100; attempt++) {
+            AtomicReference<Runnable> submitted = new AtomicReference<>();
+            AtomicInteger observations = new AtomicInteger();
+            AtomicInteger calls = new AtomicInteger();
+            AtomicBoolean cancelled = new AtomicBoolean();
+            ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
+                    submitted::set,
+                    new LinkedBlockingQueue<>(),
+                    observations::incrementAndGet);
+            ListenableFuture<Integer> future = service.submit(calls::incrementAndGet);
+            CountDownLatch start = new CountDownLatch(1);
+            CountDownLatch done = new CountDownLatch(2);
+            Thread runner = new Thread(() -> {
+                awaitUninterruptibly(start);
+                submitted.get().run();
+                done.countDown();
+            });
+            Thread canceller = new Thread(() -> {
+                awaitUninterruptibly(start);
+                cancelled.set(future.cancel(false));
+                done.countDown();
+            });
+
+            runner.start();
+            canceller.start();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(observations.get()).isBetween(0, 1);
+            assertThat(calls.get()).isBetween(0, 1);
+            assertThat(observations.get() + calls.get()).isLessThanOrEqualTo(1);
+            if (!cancelled.get()) {
+                assertThat(calls).hasValue(1);
+            }
+        }
+    }
+
+    /** Waits for a test gate while preserving the thread's eventual interrupt status. */
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        boolean interrupted = false;
+        while (true) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** Verifies that cancellation is visible on the exact runnable held by the executor queue. */

@@ -64,7 +64,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 **允许访问**：
 - `io.github.huatalk.parallelinscope.scope` (Par, ParOptions, AsyncBatchResult, ParConfig)
-- `io.github.huatalk.parallelinscope.spi` (TaskListener, ExecutorResolver)
+- `io.github.huatalk.parallelinscope.spi` (TaskListener, LivelockListener)
 
 **禁止访问**：
 - `io.github.huatalk.parallelinscope.internal`

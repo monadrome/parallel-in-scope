@@ -1,6 +1,9 @@
 package io.github.huatalk.parallelinscope.context.graph;
 
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
+
+import java.util.Objects;
 
 /**
  * Value object representing metadata associated with a task dependency edge
@@ -19,6 +22,7 @@ public final class TaskEdge {
     private final String sourceExecutorName;
     private final int taskCount;
     private final long timeoutMillis;
+    private final ExecutorProfile executorProfile;
 
     /**
      * Creates task dependency metadata.
@@ -32,12 +36,31 @@ public final class TaskEdge {
      */
     public TaskEdge(int parallelism, TaskType taskType, String executorName,
              String sourceExecutorName, int taskCount, long timeoutMillis) {
+        this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeoutMillis,
+                ExecutorProfile.unknown());
+    }
+
+    /**
+     * Creates task dependency metadata with a submission-time executor profile.
+     *
+     * @param parallelism        the configured parallelism
+     * @param taskType           the workload classification
+     * @param executorName       the child executor name
+     * @param sourceExecutorName the parent executor name
+     * @param taskCount          the number of child tasks
+     * @param timeoutMillis      the child timeout in milliseconds
+     * @param executorProfile    the child executor capability snapshot
+     */
+    public TaskEdge(int parallelism, TaskType taskType, String executorName,
+             String sourceExecutorName, int taskCount, long timeoutMillis,
+             ExecutorProfile executorProfile) {
         this.parallelism = parallelism;
         this.taskType = taskType;
         this.executorName = executorName;
         this.sourceExecutorName = sourceExecutorName;
         this.taskCount = taskCount;
         this.timeoutMillis = timeoutMillis;
+        this.executorProfile = Objects.requireNonNull(executorProfile);
     }
 
     /**
@@ -70,6 +93,12 @@ public final class TaskEdge {
      * @return the timeout in milliseconds
      */
     public long getTimeoutMillis() { return timeoutMillis; }
+    /**
+     * Returns the child executor capability snapshot captured at submission.
+     *
+     * @return immutable executor profile
+     */
+    public ExecutorProfile getExecutorProfile() { return executorProfile; }
 
     @Override
     public String toString() {

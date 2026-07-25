@@ -9,7 +9,6 @@ import io.github.huatalk.parallelinscope.scope.*;
 import io.github.huatalk.parallelinscope.spi.*;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import io.github.huatalk.parallelinscope.spi.ExecutorResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,13 +17,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -191,72 +187,4 @@ public class ExecutorRegistryTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    // ==================== 5.5: Auto-bridge to purge subsystem ====================
-
-    @Test
-    public void testResolveThreadPoolFromRegistry() {
-        ThreadPoolExecutor tpe = new ThreadPoolExecutor(
-                2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-        try {
-            ParConfig config = ParConfig.builder()
-                    .executor(POOL_NAME, tpe)
-                    .build();
-
-            // No explicit ExecutorResolver set
-            ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-            assertThat(resolved).isSameAs(tpe);
-        } finally {
-            tpe.shutdownNow();
-        }
-    }
-
-    @Test
-    public void testResolveThreadPoolReturnsNullForNonThreadPoolExecutor() {
-        // Executors.newFixedThreadPool returns a ThreadPoolExecutor in practice,
-        // but let's test with a non-TPE to verify the instanceof check
-        ParConfig config = ParConfig.builder()
-                .executor(POOL_NAME, executor)
-                .build();
-        // executor from Executors.newFixedThreadPool IS a ThreadPoolExecutor, so it should resolve
-        ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-        assertThat(resolved).isNotNull();
-    }
-
-    // ==================== 5.6: Explicit ExecutorResolver takes priority ====================
-
-    @Test
-    public void testExplicitExecutorResolverTakesPriority() {
-        ThreadPoolExecutor registryTpe = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-        ThreadPoolExecutor resolverTpe = new ThreadPoolExecutor(
-                2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-
-        try {
-            ParConfig config = ParConfig.builder()
-                    .executor(POOL_NAME, registryTpe)
-                    .executorResolver(new ExecutorResolver() {
-                        @Override
-                        public ThreadPoolExecutor resolveThreadPool(String executorName) {
-                            if (POOL_NAME.equals(executorName)) {
-                                return resolverTpe;
-                            }
-                            return null;
-                        }
-
-                        @Override
-                        public Map<String, String> getTaskToExecutorMapping() {
-                            return Collections.emptyMap();
-                        }
-                    })
-                    .build();
-
-            ThreadPoolExecutor resolved = config.resolveThreadPool(POOL_NAME);
-            assertThat(resolved)
-                    .as("Explicit ExecutorResolver should take priority over registry")
-                    .isSameAs(resolverTpe);
-        } finally {
-            registryTpe.shutdownNow();
-            resolverTpe.shutdownNow();
-        }
-    }
 }

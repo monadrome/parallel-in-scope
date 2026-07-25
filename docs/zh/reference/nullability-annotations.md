@@ -46,7 +46,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 **Public API 类**：`Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState`
 
-**SPI 接口**：`TaskListener`, `ExecutorResolver`, `LivelockListener`
+**SPI 接口**：`TaskListener`, `LivelockListener`
 
 **Internal 类**：其余所有类
 
@@ -77,7 +77,7 @@ public static @Nullable Data data() { ... }
 ```java
 // JSR-305 风格（Public API / SPI）
 @Nullable
-public ExecutorResolver getExecutorResolver() { ... }
+public ListeningExecutorService getExecutor(String name) { ... }
 ```
 
 ## 依赖配置

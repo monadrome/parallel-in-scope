@@ -2,7 +2,8 @@
 
 ## 1. 文档状态
 
-本文记录下一阶段的目标架构和核心决策，不表示当前代码已经完成迁移。
+本文记录已经落地的执行器绑定与取消清理架构。批次级结构化 `CancellationSignal`
+仍是独立的后续诊断增强，不属于当前 purge 分类实现。
 
 设计范围包括：
 
@@ -433,30 +434,30 @@ PurgeContext
     -> asynchronous purge cycle
 ```
 
-## 9. 分阶段迁移
+## 9. 实施状态
 
-### 阶段一：统一执行器绑定
+### 已完成：统一执行器绑定
 
 - 在 `ParConfig` 内建立 `name -> ExecutorBinding`；
 - `Par`、TaskGraph 和 purge 都接收同一个 binding；
 - 保留原公共注册方法，避免用户侧增加配置负担；
 - 不再为 purge 单独解析 executor name。
 
-### 阶段二：引入 FutureRunnable 生命周期
+### 已完成：引入 FutureRunnable 生命周期
 
 - 返回 Future 与入队 Runnable 保持同一对象；
 - 将 purge 通知从 completion listener 移入 `cancel()` 生命周期分类；
 - completion listener 只维护 completion queue；
 - 测试 cancel/run 的 CAS 竞态、CallerRunsPolicy 和排队取消。
 
-### 阶段三：移除 ExecutorResolver
+### 已完成：移除 ExecutorResolver
 
 - TaskGraph 改用提交时的 `ExecutorProfile`；
 - 删除未使用的 task-to-executor mapping；
 - 删除 resolver 优先级和 registry fallback 双重语义；
 - 如果存在真实动态提供方，再单独设计 `ExecutorProvider`。
 
-### 阶段四：增强取消诊断，可独立实施
+### 待实施：增强取消诊断，可独立实施
 
 - 用结构化 `CancellationSignal` 保存批次取消根因；
 - 保持 Lean/Fat 只表达异常成本和诊断深度；

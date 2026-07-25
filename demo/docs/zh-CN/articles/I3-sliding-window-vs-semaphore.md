@@ -43,7 +43,7 @@ while (index < tasks.size()) {
 }
 ```
 
-`parallel-in-scope` 的 `ConcurrentLimitExecutor` 就是这个模式的实现。它用 `ExecutorCompletionService` 监听完成事件，`blockingQueue.take()` 作为信号驱动后续提交。
+`parallel-in-scope` 的 `ConcurrentLimitExecutor` 就是这个模式的实现。它用内部 `ListenableCompletionService` 监听完成事件，`blockingQueue.take()` 作为信号驱动后续提交。
 
 ## 关键区别
 

@@ -20,8 +20,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -121,34 +119,31 @@ public final class TaskGraph {
         }
 
         /**
-         * Gets the executor-level graph, using the provided config for thread pool resolution.
+         * Returns the executor graph built from profiles captured on task edges.
          *
-         * @param config the configuration used to resolve executors
-         * @return the executor dependency graph
+         * @return executor dependency graph
          */
-        public ValueGraph<String, List<TaskEdge>> getExecutorGraph(ParConfig config) {
-            return generateExecutorGraph(config);
+        public ValueGraph<String, List<TaskEdge>> getExecutorGraph() {
+            return generateExecutorGraph();
         }
 
         /**
-         * Checks if any executor cycle exists, using the provided config.
+         * Returns whether the captured executor graph contains a cycle.
          *
-         * @param config the configuration used to resolve executors
          * @return {@code true} when an executor cycle exists
          */
-        public boolean isExecutorCycle(ParConfig config) {
-            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph(config);
+        public boolean isExecutorCycle() {
+            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph();
             return g != null && Graphs.hasCycle(g.asGraph());
         }
 
         /**
-         * Checks if any executor self-loop exists, using the provided config.
+         * Returns whether the captured executor graph contains a self-loop.
          *
-         * @param config the configuration used to resolve executors
          * @return {@code true} when an executor self-loop exists
          */
-        public boolean isExecutorSelfLoop(ParConfig config) {
-            return getExecutorGraph(config).edges().stream()
+        public boolean isExecutorSelfLoop() {
+            return getExecutorGraph().edges().stream()
                     .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
@@ -181,7 +176,7 @@ public final class TaskGraph {
                     .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
-        ValueGraph<String, List<TaskEdge>> generateExecutorGraph(ParConfig config) {
+        ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
             Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
@@ -190,7 +185,7 @@ public final class TaskGraph {
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();
-                    if (!canDeadlock(targetExecutor, config)) {
+                    if (!taskEdge.getExecutorProfile().isDeadlockProne()) {
                         continue;
                     }
                     EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
@@ -249,8 +244,8 @@ public final class TaskGraph {
     private static LivelockEvent buildDetectionEvent(Data data, ParConfig config) {
         boolean hasTaskCycle = data.isTaskCycle();
         boolean hasSelfLoop = data.isSelfLoop();
-        boolean hasExecutorCycle = data.isExecutorCycle(config);
-        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop(config);
+        boolean hasExecutorCycle = data.isExecutorCycle();
+        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop();
 
         if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
             return null;
@@ -263,9 +258,9 @@ public final class TaskGraph {
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
-        String executorEdges = data.getExecutorGraph(config).edges().stream()
+        String executorEdges = data.getExecutorGraph().edges().stream()
                 .map(p -> {
-                    List<TaskEdge> edges = data.getExecutorGraph(config)
+                    List<TaskEdge> edges = data.getExecutorGraph()
                             .edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
@@ -286,33 +281,6 @@ public final class TaskGraph {
                 logger.log(Level.WARNING, "LivelockListener callback failed: " + listener.getClass().getName(), e);
             }
         }
-    }
-
-    // ==================== Pool-aware deadlock risk ====================
-
-    /**
-     * Determines whether the given executor can participate in deadlocks,
-     * using the provided ParConfig for thread pool resolution.
-     *
-     * @param executorName the executor name to check
-     * @param config       the ParConfig instance for thread pool resolution
-     * @return true if the executor is deadlock-prone or unknown
-     */
-    static boolean canDeadlock(String executorName, ParConfig config) {
-        if (executorName == null || "NA".equals(executorName)) {
-            return true;
-        }
-        ThreadPoolExecutor tpe = config.resolveThreadPool(executorName);
-        if (tpe == null) {
-            return true;
-        }
-        if (tpe.getQueue() instanceof SynchronousQueue) {
-            return false;
-        }
-        if (tpe.getMaximumPoolSize() >= Integer.MAX_VALUE) {
-            return false;
-        }
-        return true;
     }
 
     // ==================== Data access ====================
@@ -363,24 +331,22 @@ public final class TaskGraph {
     }
 
     /**
-     * Checks if any executor cycle exists, using the provided config.
+     * Returns whether the current request graph contains an executor cycle.
      *
-     * @param config the configuration used to resolve executors
-     * @return {@code true} when the current request graph contains an executor cycle
+     * @return {@code true} when an executor cycle exists
      */
-    public static boolean hasExecutorCycle(ParConfig config) {
+    public static boolean hasExecutorCycle() {
         Data data = data();
-        return data != null && data.isExecutorCycle(config);
+        return data != null && data.isExecutorCycle();
     }
 
     /**
-     * Checks if any executor self-loop exists, using the provided config.
+     * Returns whether the current request graph contains an executor self-loop.
      *
-     * @param config the configuration used to resolve executors
-     * @return {@code true} when the current request graph contains an executor self-loop
+     * @return {@code true} when an executor self-loop exists
      */
-    public static boolean hasExecutorSelfLoop(ParConfig config) {
+    public static boolean hasExecutorSelfLoop() {
         Data data = data();
-        return data != null && data.isExecutorSelfLoop(config);
+        return data != null && data.isExecutorSelfLoop();
     }
 }

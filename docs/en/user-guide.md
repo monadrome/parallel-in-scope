@@ -118,10 +118,12 @@ their lifecycle explicit.
 
 **Problem:** Hard-coded monitoring and extension points are difficult to adapt to different technology stacks, coupling the framework to business monitoring systems.
 
-**Solution:** Three SPI extension points registered on `ParConfig` with zero hard-coded dependencies:
+**Solution:** Two SPI extension points registered on `ParConfig` with zero hard-coded dependencies:
 - **TaskListener** — Task lifecycle callbacks (execution time, queue wait time, exceptions) for integration with any monitoring system
-- **ExecutorResolver** — Thread pool name resolution, supporting purge cleanup and deadlock detection
 - **LivelockListener** — Deadlock detection event callbacks
+
+Executor registration itself creates a stable internal binding. Submission, purge cleanup, and
+deadlock capability snapshots therefore refer to the same executor object without a resolver SPI.
 
 ### 🔍 Deadlock Detection
 
@@ -212,17 +214,6 @@ ParConfig config = ParConfig.builder()
         if (event.hasExecutorSelfLoop()) {
             log.warn("Potential deadlock: executor self-loop detected! {}",
                 event.getExecutorEdges());
-        }
-    })
-    .executorResolver(new ExecutorResolver() {
-        @Override
-        public ThreadPoolExecutor resolveThreadPool(String name) {
-            return executorMap.get(name);
-        }
-
-        @Override
-        public Map<String, String> getTaskToExecutorMapping() {
-            return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
         }
     })
     .build();

@@ -34,8 +34,6 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 public class ConcurrentLimitExecutor<V> {
 
-    private static final Runnable NOOP = () -> { };
-
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final ParOptions options;
@@ -49,7 +47,7 @@ public class ConcurrentLimitExecutor<V> {
      * @param submitterPool the executor that runs the submission loop
      */
     public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
-        this(pool, options, submitterPool, NOOP);
+        this(pool, options, submitterPool, PurgeContext.NOOP);
     }
 
     /**
@@ -58,16 +56,16 @@ public class ConcurrentLimitExecutor<V> {
      * @param pool                 the executor that runs task bodies
      * @param options              the execution options
      * @param submitterPool        the executor that runs the submission loop
-     * @param cancellationObserver callback for cancellation of actually submitted tasks
+     * @param purgeContext context for cancellation of possibly queued submitted tasks
      */
     public ConcurrentLimitExecutor(
             ListeningExecutorService pool,
             ParOptions options,
             ListeningExecutorService submitterPool,
-            Runnable cancellationObserver) {
+            PurgeContext purgeContext) {
         this.options = options;
         this.submitterPool = submitterPool;
-        this.cs = new ListenableCompletionService<>(pool, blockingQueue, cancellationObserver);
+        this.cs = new ListenableCompletionService<>(pool, blockingQueue, purgeContext);
     }
 
     /**
@@ -90,15 +88,15 @@ public class ConcurrentLimitExecutor<V> {
      * @param pool                 the executor that runs task bodies
      * @param options              the execution options
      * @param submitterPool        the executor that runs the submission loop
-     * @param cancellationObserver callback for cancellation of submitted tasks
+     * @param purgeContext          context for cancellation of possibly queued submitted tasks
      * @return a new concurrency-limited executor
      */
     public static <V> ConcurrentLimitExecutor<V> create(
             ListeningExecutorService pool,
             ParOptions options,
             ListeningExecutorService submitterPool,
-            Runnable cancellationObserver) {
-        return new ConcurrentLimitExecutor<>(pool, options, submitterPool, cancellationObserver);
+            PurgeContext purgeContext) {
+        return new ConcurrentLimitExecutor<>(pool, options, submitterPool, purgeContext);
     }
 
     /**

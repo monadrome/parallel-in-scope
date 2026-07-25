@@ -117,10 +117,11 @@ ServiceLoader 自动发现这个持有线程池资源的配置，线程池及其
 
 **问题：** 硬编码的监控和扩展点难以适配不同技术栈，框架与业务监控系统耦合。
 
-**方案：** 三个 SPI 扩展点注册在 `ParConfig` 上，零硬编码依赖：
+**方案：** 两个 SPI 扩展点注册在 `ParConfig` 上，零硬编码依赖：
 - **TaskListener** — 任务生命周期回调（耗时、排队时间、异常），对接任意监控系统
-- **ExecutorResolver** — 线程池名称解析，支持 purge 清理和死锁检测
 - **LivelockListener** — 死锁检测事件回调
+
+执行器注册时会创建稳定的内部绑定，任务提交、purge 清理和死锁能力快照始终指向同一个执行器对象，无需额外 resolver SPI。
 
 ### 🔍 死锁检测（Deadlock Detection）
 
@@ -211,17 +212,6 @@ ParConfig config = ParConfig.builder()
         if (event.hasExecutorSelfLoop()) {
             log.warn("Potential deadlock: executor self-loop detected! {}",
                 event.getExecutorEdges());
-        }
-    })
-    .executorResolver(new ExecutorResolver() {
-        @Override
-        public ThreadPoolExecutor resolveThreadPool(String name) {
-            return executorMap.get(name);
-        }
-
-        @Override
-        public Map<String, String> getTaskToExecutorMapping() {
-            return taskToPoolMapping;  // e.g., {"fetchPrice": "io-pool", "calculate": "cpu-pool"}
         }
     })
     .build();

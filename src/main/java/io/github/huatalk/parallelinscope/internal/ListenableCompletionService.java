@@ -1,7 +1,6 @@
 package io.github.huatalk.parallelinscope.internal;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListenableFutureTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Objects;
@@ -25,11 +24,9 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 final class ListenableCompletionService<V> implements CompletionService<V> {
 
-    private static final Runnable NOOP = () -> { };
-
     private final Executor executor;
     private final BlockingQueue<ListenableFuture<V>> completionQueue;
-    private final Runnable cancellationObserver;
+    private final PurgeContext purgeContext;
 
     /**
      * Creates a completion service with an unbounded completion queue.
@@ -37,7 +34,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @param executor executor used to run submitted tasks
      */
     ListenableCompletionService(Executor executor) {
-        this(executor, new LinkedBlockingQueue<>(), NOOP);
+        this(executor, new LinkedBlockingQueue<>(), PurgeContext.NOOP);
     }
 
     /**
@@ -49,7 +46,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     ListenableCompletionService(
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue) {
-        this(executor, completionQueue, NOOP);
+        this(executor, completionQueue, PurgeContext.NOOP);
     }
 
     /**
@@ -57,15 +54,15 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      *
      * @param executor             executor used to run submitted tasks
      * @param completionQueue      queue that receives completed futures
-     * @param cancellationObserver callback invoked after a submitted task is cancelled
+     * @param purgeContext context notified when a submitted task is cancelled before run
      */
     ListenableCompletionService(
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue,
-            Runnable cancellationObserver) {
+            PurgeContext purgeContext) {
         this.executor = Objects.requireNonNull(executor);
         this.completionQueue = Objects.requireNonNull(completionQueue);
-        this.cancellationObserver = Objects.requireNonNull(cancellationObserver);
+        this.purgeContext = Objects.requireNonNull(purgeContext);
     }
 
     /**
@@ -76,7 +73,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Callable<V> task) {
-        return submitTask(ListenableFutureTask.create(task));
+        return submitTask(FutureRunnable.create(task, purgeContext));
     }
 
     /**
@@ -88,7 +85,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Runnable task, @Nullable V result) {
-        return submitTask(ListenableFutureTask.create(task, result));
+        return submitTask(FutureRunnable.create(task, result, purgeContext));
     }
 
     /**
@@ -131,16 +128,8 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @param task listenable task to submit
      * @return the submitted task
      */
-    private ListenableFuture<V> submitTask(ListenableFutureTask<V> task) {
-        task.addListener(() -> {
-            try {
-                completionQueue.add(task);
-            } finally {
-                if (task.isCancelled()) {
-                    cancellationObserver.run();
-                }
-            }
-        }, directExecutor());
+    private ListenableFuture<V> submitTask(FutureRunnable<V> task) {
+        task.addListener(() -> completionQueue.add(task), directExecutor());
         executor.execute(task);
         return task;
     }

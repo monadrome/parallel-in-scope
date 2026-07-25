@@ -174,7 +174,7 @@ cancellationToken.lateBind(
     result.getResults(), options.forTimeout(), result.getSubmitCanceller());
 ```
 
-> 注：以上省略了泛型和周边配置。实际实现通过 `ExecutorCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
+> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
 
 `lateBind()` 依次绑定三条链路：
 

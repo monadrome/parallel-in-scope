@@ -59,7 +59,7 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 | 超时取消 | get 超时后任务继续跑 | 超时自动中断 + 协作式取消 |
 | Fail-fast | 无，等全部完成 | 首个失败即取消剩余任务 |
 | 上下文传播 | ThreadLocal 丢失 | TTL 自动传播（MDC、身份等） |
-| SPI 扩展 | 无 | TaskListener / LivelockListener / ExecutorResolver |
+| SPI 扩展 | 无 | TaskListener / LivelockListener |
 | 依赖 | JDK 原生 | Guava + TTL（约 1.5MB） |
 
 ## 什么时候用哪个

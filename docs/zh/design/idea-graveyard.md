@@ -172,7 +172,7 @@ par.map("io-pool", urls, url -> {
 **为什么不做：**
 
 1. **`ListenableFuture` 是更好的并发原语。** 它的 `addListener(Runnable, Executor)` 强制指定回调执行的线程池，避免了 `CompletableFuture` 中臭名昭著的 `ForkJoinPool.commonPool()` 默认行为和 `thenApply` vs `thenApplyAsync` 的混淆。
-2. **内部基础设施绑定。** `ConcurrentLimitExecutor` 使用 `ExecutorCompletionService`、`SettableFuture`、`FluentFuture.withTimeout()`、`Futures.allAsList()` 等 Guava 原语构建——这些是核心机制，不是可替换的表面 API。提供 CF 适配层意味着维护两套 Future 语义。
+2. **内部基础设施绑定。** `ConcurrentLimitExecutor` 使用内部 `ListenableCompletionService`、`SettableFuture`、`FluentFuture.withTimeout()`、`Futures.allAsList()` 等 Guava 原语构建——这些是核心机制，不是可替换的表面 API。提供 CF 适配层意味着维护两套 Future 语义。
 3. **互操作可以显式完成。** Guava 没有内置 `ListenableFuture` 到 `CompletableFuture` 的转换 API；如果调用方确实需要 CF，可以在应用边界通过 `FutureCallback` 完成一个小型适配器，或选用专门维护的互操作库。
 
 ---

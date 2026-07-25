@@ -4,6 +4,7 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.huatalk.parallelinscope.internal.ExecutorProfile;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +42,12 @@ public class TaskGraphTest {
 
     private TaskEdge edge(String sourceExec, String targetExec) {
         return new TaskEdge(4, TaskType.IO_BOUND, targetExec, sourceExec, 10, 5000L);
+    }
+
+    /** Creates an edge carrying the target executor's submission-time profile. */
+    private TaskEdge edge(String sourceExec, String targetExec, ExecutorService targetExecutor) {
+        return new TaskEdge(4, TaskType.IO_BOUND, targetExec, sourceExec, 10, 5000L,
+                ExecutorProfile.capture(targetExecutor));
     }
 
     // ==================== 5.1 Task-level cycle ====================
@@ -109,15 +116,11 @@ public class TaskGraphTest {
     public void testExecutorCycle_fixedPools() {
         ExecutorService fixedA = Executors.newFixedThreadPool(4);
         ExecutorService fixedB = Executors.newFixedThreadPool(4);
-        ParConfig localConfig = ParConfig.builder()
-                .executor("fixed-pool-A", fixedA)
-                .executor("fixed-pool-B", fixedB)
-                .build();
         try {
-            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-B"));
-            TaskGraph.logTaskPair("taskB", "taskA", edge("fixed-pool-B", "fixed-pool-A"));
+            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-B", fixedB));
+            TaskGraph.logTaskPair("taskB", "taskA", edge("fixed-pool-B", "fixed-pool-A", fixedA));
 
-            assertThat(TaskGraph.hasExecutorCycle(localConfig)).isTrue();
+            assertThat(TaskGraph.hasExecutorCycle()).isTrue();
         } finally {
             fixedA.shutdownNow();
             fixedB.shutdownNow();
@@ -136,13 +139,10 @@ public class TaskGraphTest {
     @Test
     public void testExecutorSelfLoop_fixedPool() {
         ExecutorService fixed = Executors.newFixedThreadPool(4);
-        ParConfig localConfig = ParConfig.builder()
-                .executor("fixed-pool-A", fixed)
-                .build();
         try {
-            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-A"));
+            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "fixed-pool-A", fixed));
 
-            assertThat(TaskGraph.hasExecutorSelfLoop(localConfig)).isTrue();
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isTrue();
         } finally {
             fixed.shutdownNow();
         }
@@ -153,13 +153,10 @@ public class TaskGraphTest {
     @Test
     public void testCachedThreadPool_selfLoop_notReported() {
         ExecutorService cached = Executors.newCachedThreadPool();
-        ParConfig localConfig = ParConfig.builder()
-                .executor("cached-pool", cached)
-                .build();
         try {
-            TaskGraph.logTaskPair("taskA", "taskB", edge("cached-pool", "cached-pool"));
+            TaskGraph.logTaskPair("taskA", "taskB", edge("cached-pool", "cached-pool", cached));
 
-            assertThat(TaskGraph.hasExecutorSelfLoop(localConfig)).isFalse();
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
         } finally {
             cached.shutdownNow();
         }
@@ -171,18 +168,14 @@ public class TaskGraphTest {
     public void testCachedThreadPool_cycle_notReported() {
         ExecutorService cached = Executors.newCachedThreadPool();
         ExecutorService fixed = Executors.newFixedThreadPool(4);
-        ParConfig localConfig = ParConfig.builder()
-                .executor("cached-pool", cached)
-                .executor("fixed-pool-A", fixed)
-                .build();
         try {
             // fixed-pool-A -> cached-pool -> fixed-pool-A
             // target "cached-pool" is not deadlock-prone, so the edge to cached-pool is filtered
-            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "cached-pool"));
-            TaskGraph.logTaskPair("taskB", "taskA", edge("cached-pool", "fixed-pool-A"));
+            TaskGraph.logTaskPair("taskA", "taskB", edge("fixed-pool-A", "cached-pool", cached));
+            TaskGraph.logTaskPair("taskB", "taskA", edge("cached-pool", "fixed-pool-A", fixed));
 
             // The edge targeting cached-pool is filtered out, breaking the cycle
-            assertThat(TaskGraph.hasExecutorCycle(localConfig)).isFalse();
+            assertThat(TaskGraph.hasExecutorCycle()).isFalse();
         } finally {
             cached.shutdownNow();
             fixed.shutdownNow();
@@ -203,7 +196,7 @@ public class TaskGraphTest {
                 .livelockListener(listener)
                 .build();
         try {
-            TaskGraph.logTaskPair("taskA", "taskA", edge("fixed-pool-A", "fixed-pool-A"));
+            TaskGraph.logTaskPair("taskA", "taskA", edge("fixed-pool-A", "fixed-pool-A", fixed));
 
             // Trigger detection by destroying
             TaskGraph.destroyAfterRequest(localConfig);
@@ -225,40 +218,48 @@ public class TaskGraphTest {
 
     @Test
     public void testUnknownExecutor_treatedAsRisky() {
-        // Don't register any executor, so resolveThreadPool returns null
+        // An edge without a captured profile remains conservatively risky.
         TaskGraph.logTaskPair("taskA", "taskB", edge("unknown-pool", "unknown-pool"));
 
         // Unknown executor should be treated as deadlock-prone
-        assertThat(TaskGraph.hasExecutorSelfLoop(config)).isTrue();
+        assertThat(TaskGraph.hasExecutorSelfLoop()).isTrue();
     }
 
     @Test
-    public void testCanDeadlock_customBoundedPool() {
+    public void testExecutorProfile_customBoundedPoolIsRisky() {
         // A ThreadPoolExecutor with bounded threads and LinkedBlockingQueue
         ThreadPoolExecutor bounded = new ThreadPoolExecutor(
                 2, 4, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-        ParConfig localConfig = ParConfig.builder()
-                .executor("fixed-pool-A", bounded)
-                .build();
         try {
-            assertThat(TaskGraph.canDeadlock("fixed-pool-A", localConfig)).isTrue();
+            assertThat(ExecutorProfile.capture(bounded).isDeadlockProne()).isTrue();
         } finally {
             bounded.shutdownNow();
         }
     }
 
     @Test
-    public void testCanDeadlock_synchronousQueuePool() {
+    public void testExecutorProfile_synchronousQueuePoolIsNotRisky() {
         // A ThreadPoolExecutor with SynchronousQueue (like CachedThreadPool)
         ThreadPoolExecutor syncPool = new ThreadPoolExecutor(
                 0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
-        ParConfig localConfig = ParConfig.builder()
-                .executor("cached-pool", syncPool)
-                .build();
         try {
-            assertThat(TaskGraph.canDeadlock("cached-pool", localConfig)).isFalse();
+            assertThat(ExecutorProfile.capture(syncPool).isDeadlockProne()).isFalse();
         } finally {
             syncPool.shutdownNow();
+        }
+    }
+
+    /** Verifies later executor mutation cannot change historical edge classification. */
+    @Test
+    public void testExecutorGraphUsesSubmissionTimeProfile() {
+        ThreadPoolExecutor fixed = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+        try {
+            TaskGraph.logTaskPair("task", "task", edge("pool", "pool", fixed));
+            fixed.setMaximumPoolSize(Integer.MAX_VALUE);
+
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isTrue();
+        } finally {
+            fixed.shutdownNow();
         }
     }
 }

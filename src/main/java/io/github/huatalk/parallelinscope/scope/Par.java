@@ -3,7 +3,6 @@ package io.github.huatalk.parallelinscope.scope;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.JdkFutureAdapters;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
@@ -101,8 +100,8 @@ public final class Par {
             Function<? super T, ? extends R> function,
             ParOptions options) {
 
-        ListeningExecutorService executor = resolveExecutor(executorName);
-        return executeParallel(list, item -> () -> function.apply(item), options, executor, executorName);
+        ExecutorBinding binding = resolveExecutor(executorName);
+        return executeParallel(list, item -> () -> function.apply(item), options, binding);
     }
 
     /**
@@ -161,20 +160,19 @@ public final class Par {
         return JdkFutureAdapters.listenInPoolThread((Future<T>) future);
     }
 
-    private ListeningExecutorService resolveExecutor(String executorName) {
-        ListeningExecutorService executor = config.getExecutor(executorName);
-        if (executor == null) {
+    private ExecutorBinding resolveExecutor(String executorName) {
+        ExecutorBinding binding = config.getExecutorBinding(executorName);
+        if (binding == null) {
             throw new IllegalArgumentException("No executor registered with name '" + executorName + "'");
         }
-        return executor;
+        return binding;
     }
 
     private <T, R> AsyncBatchResult<R> executeParallel(
             List<T> list,
             Function<T, Callable<R>> callableMapper,
             ParOptions options,
-            ListeningExecutorService executor,
-            String executorName) {
+            ExecutorBinding binding) {
 
         if (list == null || list.isEmpty()) {
             return emptyBatchResult();
@@ -188,10 +186,11 @@ public final class Par {
         TaskEdge edge = new TaskEdge(
                 normalizedOptions.getParallelism(),
                 normalizedOptions.getTaskType(),
-                executorName != null ? executorName : "NA",
+                binding.getName(),
                 sourceExecutorName,
                 list.size(),
-                normalizedOptions.timeoutMillis());
+                normalizedOptions.timeoutMillis(),
+                binding.getProfile());
         logForking(taskName, edge);
 
         // Build parent-child CancellationToken chain
@@ -205,16 +204,16 @@ public final class Par {
         List<Callable<R>> tasks = list.stream()
                 .map(item -> {
                     ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config,
-                            normalizedOptions, cancellationToken, executorName != null ? executorName : "NA");
+                            normalizedOptions, cancellationToken, binding.getName());
                     return (Callable<R>) scopedCallable;
                 })
                 .collect(toImmutableList());
 
         AsyncBatchResult<R> result = ConcurrentLimitExecutor.<R>create(
-                        executor,
+                        binding.getExecutor(),
                         normalizedOptions,
                         ParConfig.getSubmitterPool(),
-                        config.cancellationObserver(executorName))
+                        binding.getPurgeContext())
                 .submitAll(tasks);
 
         // Late bind: wire up cancellation, timeout, fail-fast
