@@ -11,12 +11,39 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the completion, cancellation, and queue-identity contracts of ListenableCompletionService. */
 public class ListenableCompletionServiceTest {
+
+    /** Verifies cancellation runs the observer once on the cancelling thread. */
+    @Test
+    public void cancellationRunsObserverOnCancellingThread() throws Exception {
+        LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
+        AtomicInteger observations = new AtomicInteger();
+        AtomicReference<Thread> observerThread = new AtomicReference<>();
+        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
+                command -> { },
+                completions,
+                () -> {
+                    observations.incrementAndGet();
+                    observerThread.set(Thread.currentThread());
+                });
+
+        ListenableFuture<Integer> task = service.submit(() -> 1);
+        Thread cancellingThread = Thread.currentThread();
+
+        assertThat(task.cancel(false)).isTrue();
+        assertThat(service.take()).isSameAs(task);
+        assertThat(observations).hasValue(1);
+        assertThat(observerThread).hasValue(cancellingThread);
+        assertThat(task.cancel(false)).isFalse();
+        assertThat(observations).hasValue(1);
+    }
 
     /** Verifies that cancellation is visible on the exact runnable held by the executor queue. */
     @Test

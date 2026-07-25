@@ -50,6 +50,15 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
     }
 
     /**
+     * Returns the current queue capacity.
+     *
+     * @return the positive queue capacity
+     */
+    public int getCapacity() {
+        return delegate.getCapacity();
+    }
+
+    /**
      * CPU-bound tasks return false directly, triggering thread pool's RejectedExecutionHandler.
      * Other task types enqueue normally.
      */

@@ -25,8 +25,11 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 final class ListenableCompletionService<V> implements CompletionService<V> {
 
+    private static final Runnable NOOP = () -> { };
+
     private final Executor executor;
     private final BlockingQueue<ListenableFuture<V>> completionQueue;
+    private final Runnable cancellationObserver;
 
     /**
      * Creates a completion service with an unbounded completion queue.
@@ -34,7 +37,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @param executor executor used to run submitted tasks
      */
     ListenableCompletionService(Executor executor) {
-        this(executor, new LinkedBlockingQueue<>());
+        this(executor, new LinkedBlockingQueue<>(), NOOP);
     }
 
     /**
@@ -46,8 +49,23 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     ListenableCompletionService(
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue) {
+        this(executor, completionQueue, NOOP);
+    }
+
+    /**
+     * Creates a completion service that reports cancellation of submitted tasks.
+     *
+     * @param executor             executor used to run submitted tasks
+     * @param completionQueue      queue that receives completed futures
+     * @param cancellationObserver callback invoked after a submitted task is cancelled
+     */
+    ListenableCompletionService(
+            Executor executor,
+            BlockingQueue<ListenableFuture<V>> completionQueue,
+            Runnable cancellationObserver) {
         this.executor = Objects.requireNonNull(executor);
         this.completionQueue = Objects.requireNonNull(completionQueue);
+        this.cancellationObserver = Objects.requireNonNull(cancellationObserver);
     }
 
     /**
@@ -114,7 +132,15 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @return the submitted task
      */
     private ListenableFuture<V> submitTask(ListenableFutureTask<V> task) {
-        task.addListener(() -> completionQueue.add(task), directExecutor());
+        task.addListener(() -> {
+            try {
+                completionQueue.add(task);
+            } finally {
+                if (task.isCancelled()) {
+                    cancellationObserver.run();
+                }
+            }
+        }, directExecutor());
         executor.execute(task);
         return task;
     }

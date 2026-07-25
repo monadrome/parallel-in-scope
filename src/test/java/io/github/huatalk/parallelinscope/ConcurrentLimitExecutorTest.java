@@ -123,6 +123,44 @@ public class ConcurrentLimitExecutorTest {
         }
     }
 
+    /** Cancelling an unsubmitted placeholder must not report worker-queue garbage. */
+    @Test
+    public void testSubmitAll_unsubmittedPlaceholderDoesNotNotifyCancellationObserver() throws Exception {
+        ExecutorService singleWorker = Executors.newSingleThreadExecutor();
+        ListeningExecutorService listeningSingleWorker = MoreExecutors.listeningDecorator(singleWorker);
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        AtomicInteger cancellationObservations = new AtomicInteger();
+
+        try {
+            ParOptions options = ParOptions.of("test").parallelism(1).timeout(5000).build();
+            ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(
+                    listeningSingleWorker, options, submitterPool, cancellationObservations::incrementAndGet);
+            List<Callable<Integer>> tasks = new ArrayList<>();
+            tasks.add(() -> {
+                workerStarted.countDown();
+                releaseWorker.await();
+                return 0;
+            });
+            tasks.add(() -> 1);
+            tasks.add(() -> 2);
+
+            AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+            assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(result.getResults().get(1).cancel(false)).isTrue();
+            assertThat(cancellationObservations).hasValue(0);
+
+            releaseWorker.countDown();
+            assertThat(result.getResults().get(0).get(5, TimeUnit.SECONDS)).isZero();
+            result.getSubmitCanceller().get(5, TimeUnit.SECONDS);
+            assertThat(cancellationObservations).hasValue(0);
+        } finally {
+            releaseWorker.countDown();
+            listeningSingleWorker.shutdownNow();
+        }
+    }
+
     @Test
     public void testSubmitAll_slidingWindow() throws Exception {
         AtomicInteger concurrency = new AtomicInteger(0);

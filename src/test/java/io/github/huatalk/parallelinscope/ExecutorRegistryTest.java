@@ -64,6 +64,35 @@ public class ExecutorRegistryTest {
     }
 
     @Test
+    public void testPurgeThresholdsSupportBuilderAndAtomicRuntimeUpdates() {
+        ParConfig config = ParConfig.builder()
+                .purgeQueuePressureThreshold(0.70)
+                .purgeCancelledTaskRatioThreshold(0.10)
+                .build();
+
+        assertThat(config.getPurgeQueuePressureThreshold()).isEqualTo(0.70);
+        assertThat(config.getPurgeCancelledTaskRatioThreshold()).isEqualTo(0.10);
+
+        config.setPurgeQueuePressureThreshold(0.90);
+        config.setPurgeCancelledTaskRatioThreshold(0.20);
+
+        assertThat(config.getPurgeQueuePressureThreshold()).isEqualTo(0.90);
+        assertThat(config.getPurgeCancelledTaskRatioThreshold()).isEqualTo(0.20);
+    }
+
+    @Test
+    public void testPurgeThresholdsRejectInvalidRatios() {
+        ParConfig config = ParConfig.builder().build();
+
+        assertThatThrownBy(() -> config.setPurgeQueuePressureThreshold(0.0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> config.setPurgeCancelledTaskRatioThreshold(Double.NaN))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ParConfig.builder().purgeQueuePressureThreshold(1.01))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     public void testGetUnregistered_returnsNull() {
         ParConfig config = ParConfig.builder().build();
         assertThat(config.getExecutor(POOL_NAME)).isNull();

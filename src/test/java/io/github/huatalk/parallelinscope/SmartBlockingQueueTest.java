@@ -53,6 +53,16 @@ public class SmartBlockingQueueTest {
     }
 
     @Test
+    public void testSmartBlockingQueue_getCapacityTracksUpdates() {
+        SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(2);
+        assertThat(queue.getCapacity()).isEqualTo(2);
+
+        queue.setCapacity(3);
+
+        assertThat(queue.getCapacity()).isEqualTo(3);
+    }
+
+    @Test
     public void testSmartBlockingQueue_cpuBound_rejects() {
         SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(10);
 

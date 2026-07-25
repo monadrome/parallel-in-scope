@@ -34,6 +34,8 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 public class ConcurrentLimitExecutor<V> {
 
+    private static final Runnable NOOP = () -> { };
+
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final ParOptions options;
@@ -47,9 +49,25 @@ public class ConcurrentLimitExecutor<V> {
      * @param submitterPool the executor that runs the submission loop
      */
     public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
+        this(pool, options, submitterPool, NOOP);
+    }
+
+    /**
+     * Creates a sliding-window task submitter with cancellation observation.
+     *
+     * @param pool                 the executor that runs task bodies
+     * @param options              the execution options
+     * @param submitterPool        the executor that runs the submission loop
+     * @param cancellationObserver callback for cancellation of actually submitted tasks
+     */
+    public ConcurrentLimitExecutor(
+            ListeningExecutorService pool,
+            ParOptions options,
+            ListeningExecutorService submitterPool,
+            Runnable cancellationObserver) {
         this.options = options;
         this.submitterPool = submitterPool;
-        this.cs = new ListenableCompletionService<>(pool, blockingQueue);
+        this.cs = new ListenableCompletionService<>(pool, blockingQueue, cancellationObserver);
     }
 
     /**
@@ -63,6 +81,24 @@ public class ConcurrentLimitExecutor<V> {
      */
     public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
         return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
+    }
+
+    /**
+     * Creates a new executor that reports cancellation of actually submitted tasks.
+     *
+     * @param <V>                  the task result type
+     * @param pool                 the executor that runs task bodies
+     * @param options              the execution options
+     * @param submitterPool        the executor that runs the submission loop
+     * @param cancellationObserver callback for cancellation of submitted tasks
+     * @return a new concurrency-limited executor
+     */
+    public static <V> ConcurrentLimitExecutor<V> create(
+            ListeningExecutorService pool,
+            ParOptions options,
+            ListeningExecutorService submitterPool,
+            Runnable cancellationObserver) {
+        return new ConcurrentLimitExecutor<>(pool, options, submitterPool, cancellationObserver);
     }
 
     /**

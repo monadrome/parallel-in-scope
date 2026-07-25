@@ -5,9 +5,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
 import io.github.huatalk.parallelinscope.spi.ExecutorResolver;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
@@ -39,9 +40,9 @@ import java.util.logging.Logger;
 /**
  * Central configuration and service registry for the parallel-in-scope framework.
  * <p>
- * Immutable after construction. Use {@link #builder()} to create instances
- * via the fluent {@link Builder} API, or {@link GlobalParConfig#get()} for
- * the optional global default instance.
+ * Registries are immutable after construction, while purge thresholds can be adjusted atomically.
+ * Use {@link #builder()} to create instances via the fluent {@link Builder} API, or
+ * {@link GlobalParConfig#get()} for the optional global default instance.
  * <p>
  * The default timer and submitter pool are global infrastructure shared across all instances.
  * A custom timer can be supplied per configuration.
@@ -62,6 +63,7 @@ import java.util.logging.Logger;
 public final class ParConfig {
 
     private static final Logger JUL_LOGGER = Logger.getLogger(ParConfig.class.getName());
+    private static final Runnable NOOP = () -> { };
 
     // ==================== Global Default ====================
 
@@ -108,7 +110,9 @@ public final class ParConfig {
     private final ImmutableMap<String, ExecutorService> executorRawRegistry;
     private final long defaultTimeoutMillis;
     private final boolean livelockDetectionEnabled;
-    private final RateLimiter purgeRateLimiter;
+    private final AtomicDouble purgeQueuePressureThreshold;
+    private final AtomicDouble purgeCancelledTaskRatioThreshold;
+    private final HeuristicPurger heuristicPurger;
     private final @Nullable ListeningScheduledExecutorService timer;
 
     private ParConfig(Builder builder) {
@@ -117,7 +121,10 @@ public final class ParConfig {
         this.executorResolver = builder.executorResolver;
         this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
-        this.purgeRateLimiter = RateLimiter.create(builder.maxPurgeRate);
+        this.purgeQueuePressureThreshold = new AtomicDouble(builder.purgeQueuePressureThreshold);
+        this.purgeCancelledTaskRatioThreshold = new AtomicDouble(builder.purgeCancelledTaskRatioThreshold);
+        this.heuristicPurger = new HeuristicPurger(
+                purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
         this.timer = builder.timer == null ? null : createDispatchingTimer(builder.timer);
 
         // Build executor maps: adapt raw executors to ListeningExecutorService
@@ -142,9 +149,7 @@ public final class ParConfig {
         return new Builder();
     }
 
-    /**
-     * Fluent builder for constructing immutable {@link ParConfig} instances.
-     */
+    /** Fluent builder for constructing {@link ParConfig} instances. */
     public static final class Builder {
 
         private final ImmutableList.Builder<TaskListener> taskListeners = ImmutableList.builder();
@@ -153,7 +158,8 @@ public final class ParConfig {
         private final LinkedHashMap<String, ExecutorService> executors = new LinkedHashMap<>();
         private long defaultTimeoutMillis = 60_000L;
         private boolean livelockDetectionEnabled = false;
-        private double maxPurgeRate = 1.0;
+        private double purgeQueuePressureThreshold = 0.80;
+        private double purgeCancelledTaskRatioThreshold = 0.05;
         private ScheduledExecutorService timer;
 
         Builder() {
@@ -185,17 +191,28 @@ public final class ParConfig {
         }
 
         /**
-         * Sets the maximum purge rate (permits per second) for
-         * {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger}. Default is {@code 1.0}.
+         * Sets the queue pressure ({@code queue size / capacity}) required before purge.
+         * Default is {@code 0.80}.
          *
-         * @param maxPurgeRate maximum purge operations per second (must be positive)
+         * @param threshold ratio in the range {@code (0, 1]}
          * @return this builder
          */
-        public Builder maxPurgeRate(double maxPurgeRate) {
-            if (maxPurgeRate <= 0) {
-                throw new IllegalArgumentException("maxPurgeRate must be positive");
-            }
-            this.maxPurgeRate = maxPurgeRate;
+        public Builder purgeQueuePressureThreshold(double threshold) {
+            validateRatio("purgeQueuePressureThreshold", threshold);
+            this.purgeQueuePressureThreshold = threshold;
+            return this;
+        }
+
+        /**
+         * Sets the estimated garbage ratio ({@code cancellation signals / queue size}) required
+         * before purge. Default is {@code 0.05}.
+         *
+         * @param threshold ratio in the range {@code (0, 1]}
+         * @return this builder
+         */
+        public Builder purgeCancelledTaskRatioThreshold(double threshold) {
+            validateRatio("purgeCancelledTaskRatioThreshold", threshold);
+            this.purgeCancelledTaskRatioThreshold = threshold;
             return this;
         }
 
@@ -721,7 +738,6 @@ public final class ParConfig {
         if (resolver != null) {
             return resolver.resolveThreadPool(executorName);
         }
-        // Fall back to registry: check if the raw executor is a ThreadPoolExecutor
         ExecutorService raw = executorRawRegistry.get(executorName);
         if (raw instanceof ThreadPoolExecutor) {
             return (ThreadPoolExecutor) raw;
@@ -758,12 +774,60 @@ public final class ParConfig {
     }
 
     /**
-     * Gets the shared rate limiter for
-     * {@link io.github.huatalk.parallelinscope.cancel.HeuristicPurger HeuristicPurger} purge operations.
+     * Returns the queue pressure ({@code queue size / capacity}) required before purge.
      *
-     * @return the shared purge rate limiter
+     * @return ratio in the range {@code (0, 1]}
      */
-    public RateLimiter getPurgeRateLimiter() {
-        return purgeRateLimiter;
+    public double getPurgeQueuePressureThreshold() {
+        return purgeQueuePressureThreshold.get();
+    }
+
+    /**
+     * Atomically changes the queue pressure required before cancelled tasks are purged.
+     *
+     * @param threshold ratio in the range {@code (0, 1]}
+     */
+    public void setPurgeQueuePressureThreshold(double threshold) {
+        validateRatio("purgeQueuePressureThreshold", threshold);
+        purgeQueuePressureThreshold.set(threshold);
+    }
+
+    /**
+     * Returns the estimated garbage ratio ({@code cancellation signals / queue size}) required
+     * before purge.
+     *
+     * @return ratio in the range {@code (0, 1]}
+     */
+    public double getPurgeCancelledTaskRatioThreshold() {
+        return purgeCancelledTaskRatioThreshold.get();
+    }
+
+    /**
+     * Atomically changes the estimated cancelled-task ratio required before purge.
+     *
+     * @param threshold ratio in the range {@code (0, 1]}
+     */
+    public void setPurgeCancelledTaskRatioThreshold(double threshold) {
+        validateRatio("purgeCancelledTaskRatioThreshold", threshold);
+        purgeCancelledTaskRatioThreshold.set(threshold);
+    }
+
+    /** Returns the observer bound to the actual registered executor, or a no-op when unsupported. */
+    Runnable cancellationObserver(@Nullable String executorName) {
+        if (executorName == null) {
+            return NOOP;
+        }
+        ExecutorService raw = executorRawRegistry.get(executorName);
+        ThreadPoolExecutor executor = raw instanceof ThreadPoolExecutor
+                ? (ThreadPoolExecutor) raw
+                : resolveThreadPool(executorName);
+        return executor == null ? NOOP : heuristicPurger.cancellationObserver(executor);
+    }
+
+    /** Rejects NaN, zero, negative, and greater-than-one ratio values. */
+    private static void validateRatio(String name, double value) {
+        if (!(value > 0.0 && value <= 1.0)) {
+            throw new IllegalArgumentException(name + " must be in the range (0, 1]");
+        }
     }
 }
