@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>parallel-in-scope · 交互式演示</title>
+<style>
+:root{
+  --bg:#050505;
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --text:#ededed;
+  --muted:#8a8a8a;
+  --faint:#555;
+  --blue:#3b82f6;
+  --green:#22c55e;
+  --red:#ef4444;
+  --orange:#f59e0b;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%,rgba(59,130,246,.13),transparent),
+    radial-gradient(ellipse 60% 40% at 85% 110%,rgba(34,197,94,.06),transparent);
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+a{color:inherit;text-decoration:none}
+
+/* ---------- nav ---------- */
+.nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.brand .dot{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,var(--blue),var(--green))}
+.brand small{color:var(--muted);font-weight:400;font-size:12px}
+.nav a.gh{font:12px var(--mono);color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:6px 14px;transition:.15s}
+.nav a.gh:hover{color:var(--text);border-color:var(--border-strong)}
+
+/* ---------- hero ---------- */
+.hero{padding:80px 0 48px;text-align:center}
+.hero h1{font-size:clamp(28px,4.6vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.hero h1 .grad{background:linear-gradient(90deg,var(--blue),var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);max-width:620px;margin:18px auto 0;font-size:15px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:24px}
+.badge{font:12px var(--mono);color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:4px 12px}
+.hero .btns{justify-content:center;margin-top:28px}
+
+/* ---------- scenario sections ---------- */
+.scenario{padding:56px 0;border-top:1px solid var(--border)}
+.sc-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:24px}
+.sc-num{font:13px var(--mono);color:var(--blue);border:1px solid rgba(59,130,246,.35);border-radius:8px;padding:4px 9px;margin-top:5px;flex-shrink:0}
+.sc-head h2{font-size:20px;font-weight:650;letter-spacing:-.01em}
+.sc-head p{color:var(--muted);font-size:14px;margin-top:6px;max-width:680px}
+.sc-body{display:grid;grid-template-columns:1.15fr .95fr;gap:20px;align-items:start}
+@media(max-width:980px){.sc-body{grid-template-columns:1fr}}
+
+/* ---------- panel ---------- */
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0));border:1px solid var(--border);border-radius:14px;padding:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.ph-title{font:600 13px var(--mono);color:var(--text)}
+.ph-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.btns{display:flex;gap:8px;flex-shrink:0}
+.btn{cursor:pointer;font:inherit;font-size:13px;line-height:1;padding:8px 14px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text);transition:.15s}
+.btn:hover{border-color:rgba(255,255,255,.32)}
+.btn.primary{background:#fff;color:#000;border-color:#fff;font-weight:600}
+.btn.primary:hover{background:#d8d8d8}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.stat{font:12px var(--mono);color:var(--muted);margin-top:14px}
+
+/* ---------- task cards (s1 / s2) ---------- */
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+@media(max-width:560px){.grid{grid-template-columns:repeat(4,1fr)}}
+.task{position:relative;border:1px solid var(--border);border-radius:8px;padding:8px;font:11px var(--mono);color:var(--muted);background:rgba(255,255,255,.015);transition:border-color .2s,box-shadow .2s,opacity .2s}
+.tid{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.tdot{width:6px;height:6px;border-radius:50%;background:#3f3f46;flex-shrink:0}
+.tstate{font-size:10px;margin-top:4px;color:#6b7280}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.07);margin-top:7px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;border-radius:2px}
+.task.running{border-color:rgba(59,130,246,.7);color:#dbeafe;box-shadow:0 0 14px rgba(59,130,246,.22)}
+.task.running .tdot{background:var(--blue);box-shadow:0 0 8px var(--blue);animation:blink 1s ease-in-out infinite}
+.task.running .bar>i{background:var(--blue)}
+@keyframes blink{50%{opacity:.35}}
+.task.success{border-color:rgba(34,197,94,.55);color:#bbf7d0}
+.task.success .tdot{background:var(--green)}
+.task.success .bar>i{background:var(--green);width:100%!important;transition:none}
+.task.failed{border-color:var(--red);color:#fecaca;box-shadow:0 0 16px rgba(239,68,68,.32)}
+.task.failed .tdot{background:var(--red);box-shadow:0 0 8px var(--red)}
+.task.cancelled{border-style:dashed;opacity:.72}
+.attr{display:inline-block;font-size:9px;border-radius:4px;padding:1px 5px;border:1px solid;white-space:nowrap}
+.attr.TIMEOUT{color:#fbbf24;border-color:rgba(251,191,36,.4)}
+.attr.FAIL_FAST{color:#f87171;border-color:rgba(248,113,113,.4)}
+.attr.GROUP_CANCELED{color:#93c5fd;border-color:rgba(147,197,253,.35)}
+.attr.MEMBER_CANCELED{color:#c4b5fd;border-color:rgba(196,181,253,.35)}
+
+.bubble{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%) translateY(5px);width:215px;background:#1a1a1e;border:1px solid rgba(239,68,68,.5);border-radius:8px;padding:9px 11px;font-size:11px;line-height:1.55;color:#fecaca;opacity:0;pointer-events:none;transition:.25s;z-index:5;text-align:left}
+.bubble.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(239,68,68,.5)}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--muted)}
+.legend .li{display:flex;align-items:center;gap:6px}
+.sw{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+.alert{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.07);border-radius:10px;padding:10px 12px;font-size:12px;color:#fcd34d;margin-top:14px;line-height:1.6}
+.alert.red{border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.06);color:#fca5a5}
+.hidden{display:none!important}
+
+/* ---------- code block ---------- */
+.code{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0b0d10}
+.code-head{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);font:11px var(--mono);color:var(--muted)}
+.code-head i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.code-head i:nth-child(1){background:#ff5f57}.code-head i:nth-child(2){background:#febc2e}.code-head i:nth-child(3){background:#28c840}
+.code-head span{margin-left:6px}
+.code pre{padding:16px;overflow-x:auto;font:12.5px/1.75 var(--mono);color:#c9d1d9}
+.tok-k{color:#ff7b72}.tok-s{color:#a5d6ff}.tok-t{color:#ffa657}.tok-m{color:#d2a8ff}
+.tok-n{color:#79c0ff}.tok-c{color:#7d8590;font-style:italic}.tok-a{color:#ffa657}
+
+/* ---------- s3 timeline ---------- */
+.s3task{display:flex;align-items:center;gap:10px;margin-bottom:16px;font:12px var(--mono)}
+.chip{font-size:10px;letter-spacing:.08em;border-radius:5px;padding:3px 9px;border:1px solid var(--border-strong);color:var(--muted)}
+.chip.run{color:#93c5fd;border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.08)}
+.chip.timeout{color:#fbbf24;border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08)}
+.tl{display:flex;flex-direction:column;gap:13px}
+.tl-row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center}
+.tl-label{font-size:12px;color:var(--muted)}
+.tl-label b{color:var(--text);font-family:var(--mono);font-weight:600}
+.tl-track{position:relative;height:14px;border-radius:7px;background:rgba(255,255,255,.05)}
+.tl-fill{position:absolute;top:0;bottom:0;left:0;border-radius:7px}
+.tl-parent{width:62.5%;background:linear-gradient(90deg,rgba(239,68,68,.3),rgba(239,68,68,.5))}
+.tl-decl{width:100%;background:rgba(255,255,255,.13)}
+.tl-clamp{position:absolute;top:0;bottom:0;right:0;left:62.5%;border-radius:0 7px 7px 0;background:repeating-linear-gradient(45deg,rgba(239,68,68,.18) 0 6px,transparent 6px 12px);border-left:1px dashed rgba(239,68,68,.6)}
+.tl-eff{background:linear-gradient(90deg,var(--blue),var(--green));width:0}
+.tl-eff.dead{background:linear-gradient(90deg,var(--orange),var(--red))}
+.tl-tick{position:absolute;top:-4px;bottom:-4px;width:1px;background:rgba(239,68,68,.85)}
+.tl-tick::after{content:"父 5s";position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);font:9px var(--mono);color:#f87171;white-space:nowrap}
+.tl-head{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.6);border-radius:1px}
+.tl-scale{position:relative;height:16px;font:10px var(--mono);color:var(--faint);margin-left:162px}
+.tl-scale span{position:absolute;transform:translateX(-50%)}
+.s3nums{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font:12px var(--mono);color:var(--muted)}
+#s3note{color:#fbbf24}
+@media(max-width:560px){
+  .tl-row{grid-template-columns:104px 1fr}
+  .tl-scale{margin-left:116px}
+}
+
+/* ---------- s4 graph ---------- */
+svg{display:block;width:100%;height:auto}
+.gnode,.gedge{opacity:0;transition:opacity .4s}
+.gnode.on,.gedge.on{opacity:1}
+.gnode rect{fill:#101014;stroke:rgba(255,255,255,.16);stroke-width:1}
+.gnode text{fill:#e5e7eb;font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.gnode .sub{fill:#6b7280;font-size:9px}
+.gnode.cyc rect{stroke:var(--orange)}
+.gnode.cyc{animation:cycpulse 1.2s ease-in-out infinite}
+@keyframes cycpulse{50%{filter:drop-shadow(0 0 7px rgba(245,158,11,.55))}}
+.gedge path{stroke:rgba(255,255,255,.28);stroke-width:1.2;fill:none;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .5s ease .1s}
+.gedge.on path{stroke-dashoffset:0}
+.gedge.cyc path{stroke:var(--orange);stroke-dasharray:4 3;stroke-dashoffset:0;transition:none}
+.log{background:#0b0d10;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font:11px/1.9 var(--mono);color:#9ca3af;min-height:118px;max-height:170px;overflow:auto;margin-top:12px}
+.log .ok{color:#4ade80}.log .warn{color:var(--orange)}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--border);margin-top:40px;padding:44px 0 56px;text-align:center;color:var(--muted);font-size:13px}
+footer a{color:var(--text);border-bottom:1px solid var(--border-strong);transition:.15s}
+footer a:hover{border-color:var(--text)}
+footer .fine{margin-top:10px;font:11px var(--mono);color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <div class="brand">
+      <span class="dot"></span>
+      parallel-in-scope
+      <small>structured concurrency toolkit</small>
+    </div>
+    <a class="gh" href="https://github.com/monadrome/parallel-in-scope">GitHub ↗</a>
+  </nav>
+
+  <section class="hero">
+    <h1>把协作式取消、快速失败、死锁检测<br>带进 <span class="grad">Java 8</span></h1>
+    <p>parallel-in-scope 是基于 Guava ListenableFuture 与 TransmittableThreadLocal 的结构化并发工具库。下面四个可交互场景，各演示一条核心语义。</p>
+    <div class="badges">
+      <span class="badge">Java 8+</span>
+      <span class="badge">ListenableFuture</span>
+      <span class="badge">TransmittableThreadLocal</span>
+      <span class="badge">单文件 · 零依赖演示</span>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="playAll">▶ 运行全部场景</button>
+    </div>
+  </section>
+
+  <!-- ============ 场景 1：批量执行 ============ -->
+  <section class="scenario" id="s1">
+    <div class="sc-head">
+      <span class="sc-num">01</span>
+      <div>
+        <h2>批量执行 · Par.map</h2>
+        <p>滑动窗口提交：12 个账户查询共享同一批次身份，任意时刻最多 4 个活跃，完成一个补进一个。每个元素从创建起就有独立的 Task 视图，取消能直达正在运行它的线程。</p>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="ph-title">Par.map · parallelism = 4 · 12 tasks</div>
+            <div class="ph-sub">滑动窗口：活跃数恒定 ≤ 4</div>
+          </div>
+          <div class="btns">
+            <button class="btn primary" data-play="s1">运行</button>
+            <button class="btn" data-play="s1">重放</button>
+          </div>
+        </div>
+        <div class="grid" id="s1grid"></div>
+        <div class="legend">
+          <span class="li"><span class="sw" style="background:#3f3f46"></span>排队</span>
+          <span class="li"><span class="sw" style="background:#3b82f6"></span>运行中</span>
+          <span class="li"><span class="sw" style="background:#22c55e"></span>成功</span>
+        </div>
+        <div class="stat" id="s1stat">待运行 · parallelism = 4</div>
+      </div>
+      <div class="code">
+        <div class="code-head"><i></i><i></i><i></i><span>BatchOptions.java</span></div>
+        <pre><code class="java">BatchOptions options = BatchOptions
+        .timeout("fetch-account", Duration.ofSeconds(5))
+        .parallelism(16);   // 滑动窗口：同时最多 16 个活跃
+
+TaskBatchResult&lt;Account&gt; batch =
+        httpPar.map(accountIds, client::fetchAccount, options);</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 场景 2：fail-fast 取消级联 ============ -->
+  <section class="scenario" id="s2">
+    <div class="sc-head">
+      <span class="sc-num">02</span>
+      <div>
+        <h2>Fail-fast 取消级联</h2>
+        <p>任一元素失败，整批立即进入 fail-fast：运行中的兄弟任务收到中断（FAIL_FAST），从未进入窗口的按 GROUP_CANCELED 丢弃。每次取消都携带归因，不再是一声不吭的 cancel(true)。</p>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="ph-title">Par.map · parallelism = 4 · 8 tasks</div>
+            <div class="ph-sub">T3 将在第 2 秒失败</div>
+          </div>
+          <div class="btns">
+            <button class="btn primary" data-play="s2">运行</button>
+            <button class="btn" data-play="s2">重放</button>
+          </div>
+        </div>
+        <div class="grid" id="s2grid"></div>
+        <div class="alert red hidden" id="s2banner">
+          <span>⚠</span>
+          <span><b>fail-fast 已触发：</b>T3 失败 → 运行中的 T4 / T5 / T6 按
+            <span class="attr FAIL_FAST">FAIL_FAST</span> 中断，排队中的 T7 / T8 按
+            <span class="attr GROUP_CANCELED">GROUP_CANCELED</span> 丢弃；归因随 LeanCancellationException 一路带回调用方。</span>
+        </div>
+        <div class="legend">
+          <span class="li"><span class="attr TIMEOUT">TIMEOUT</span>自身或父级截止到期</span>
+          <span class="li"><span class="attr FAIL_FAST">FAIL_FAST</span>兄弟任务失败牵连</span>
+          <span class="li"><span class="attr GROUP_CANCELED">GROUP_CANCELED</span>批次取消时仍在排队</span>
+          <span class="li"><span class="attr MEMBER_CANCELED">MEMBER_CANCELED</span>成员被单独取消</span>
+        </div>
+        <div class="stat" id="s2stat">待运行 · T3 将在 2s 时失败</div>
+      </div>
+      <div class="code">
+        <div class="code-head"><i></i><i></i><i></i><span>FailFast.java</span></div>
+        <pre><code class="java">BatchOptions options = BatchOptions
+        .timeout("fetch-orders", Duration.ofSeconds(2))
+        .parallelism(4);
+
+// 任一元素失败 → 整批 fail-fast：
+// 运行中的兄弟任务按 FAIL_FAST 中断，
+// 排队中的按 GROUP_CANCELED 丢弃
+TaskBatchResult&lt;Order&gt; batch =
+        httpPar.map(userIds, client::fetchOrders, options);</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 场景 3：deadline 继承 ============ -->
+  <section class="scenario" id="s3">
+    <div class="sc-head">
+      <span class="sc-num">03</span>
+      <div>
+        <h2>Deadline 继承</h2>
+        <p>子任务声明的 8s 超时只是请求值，真正生效的截止是 min(自身声明, 父级剩余)。父 scope 的 5s 像天花板一样压住整条调用链，无需手工传递剩余时间。</p>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="ph-title">deadline = min(子声明 8s, 父剩余 5s)</div>
+            <div class="ph-sub" id="s3stat">待运行</div>
+          </div>
+          <div class="btns">
+            <button class="btn primary" data-play="s3">运行</button>
+            <button class="btn" data-play="s3">重放</button>
+          </div>
+        </div>
+        <div class="s3task">
+          <span class="chip" id="s3chip">QUEUED</span>
+          <span>sync-orders[0] · 声明 8s</span>
+        </div>
+        <div class="tl">
+          <div class="tl-row">
+            <span class="tl-label">父 scope 截止 <b>5s</b></span>
+            <div class="tl-track">
+              <div class="tl-fill tl-parent"></div>
+              <i class="tl-tick" style="left:62.5%"></i>
+            </div>
+          </div>
+          <div class="tl-row">
+            <span class="tl-label">子任务声明 <b>8s</b></span>
+            <div class="tl-track">
+              <div class="tl-fill tl-decl"></div>
+              <div class="tl-clamp"></div>
+            </div>
+          </div>
+          <div class="tl-row">
+            <span class="tl-label">实际生效 <b id="s3effv">min(8s, 5s) = 5s</b></span>
+            <div class="tl-track">
+              <div class="tl-fill tl-eff" id="s3eff"></div>
+              <i class="tl-head" id="s3head" style="left:0%"></i>
+            </div>
+          </div>
+          <div class="tl-scale">
+            <span style="left:0%;transform:none">0s</span>
+            <span style="left:25%">2s</span>
+            <span style="left:50%">4s</span>
+            <span style="left:75%">6s</span>
+            <span style="left:100%;transform:translateX(-100%)">8s</span>
+          </div>
+        </div>
+        <div class="s3nums">
+          <span id="s3parent">父级剩余 5.0s</span>
+          <span id="s3child">子级声明剩余 8.0s</span>
+          <span id="s3note" class="hidden">父级 5s 先生效 → 按 TIMEOUT 取消</span>
+        </div>
+      </div>
+      <div class="code">
+        <div class="code-head"><i></i><i></i><i></i><span>DeadlineInheritance.java</span></div>
+        <pre><code class="java">// 父批次：整批 5s 截止
+BatchOptions parent = BatchOptions
+        .timeout("sync-user", Duration.ofSeconds(5));
+
+httpPar.map(userIds, user -&gt; {
+    // 子批次声明 8s，实际生效 min(8s, 父级剩余)
+    // —— 父级 deadline 是天花板
+    BatchOptions child = BatchOptions
+            .timeout("sync-orders", Duration.ofSeconds(8));
+    return databasePar.map(user.orderIds(), db::syncOrder, child);
+}, parent);</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 场景 4：任务图与死锁检测 ============ -->
+  <section class="scenario" id="s4">
+    <div class="sc-head">
+      <span class="sc-num">04</span>
+      <div>
+        <h2>嵌套批次的任务图与死锁检测</h2>
+        <p>map 里再开 map 会在任务图上留下等待边。观察 scope 持续收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁。</p>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="ph-title">TaskGraphObservationScope · 任务依赖图</div>
+            <div class="ph-sub" id="s4stat">待运行</div>
+          </div>
+          <div class="btns">
+            <button class="btn primary" data-play="s4">运行</button>
+            <button class="btn" id="s4cycle" disabled>注入环</button>
+            <button class="btn" data-play="s4">重放</button>
+          </div>
+        </div>
+        <svg id="s4svg" viewBox="0 0 560 300" role="img" aria-label="任务依赖图"></svg>
+        <div class="log" id="s4log"></div>
+        <div class="alert hidden" id="s4banner">
+          <span>⚠</span>
+          <span><b>潜在死锁风险信号：</b>http 批次的 worker 正在等待 database 批次，而 database 又反向等待 http —— 两个池的 worker 互相占满时整批将永久挂起。TaskGraphObservationScope 在运行时持续检查此类环。</span>
+        </div>
+      </div>
+      <div class="code">
+        <div class="code-head"><i></i><i></i><i></i><span>DeadlockDetection.java</span></div>
+        <pre><code class="java">ParRuntime runtime = ParRuntime.global();
+Par http = runtime.par(ParId.of("http"));
+Par database = runtime.par(ParId.of("database"));
+
+try (TaskGraphObservationScope graphs =
+        runtime.openTaskGraphObservation()) {
+    http.map(requests, req -&gt; {
+        User user = client.fetchUser(req.userId());
+        // 嵌套批次：图上产生 http → database 的等待边
+        return database.map(user.orderIds(), db::fetchOrder, options);
+    }, options);
+
+    if (TaskGraphObservationScope.hasTaskCycle()) {
+        LOGGER.warning("检测到任务环 —— 潜在死锁风险信号");
+    }
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    GitHub 仓库（占位）：<a href="https://github.com/monadrome/parallel-in-scope">github.com/monadrome/parallel-in-scope</a>
+    <div class="fine">单文件 HTML · 内联 CSS/JS · 纯 JS 动画 · 可直接部署到 GitHub Pages</div>
+  </footer>
+
+</div>
+<script>
+/* ================= Java 语法高亮（极简，零依赖） ================= */
+function highlightJava(src){
+  const esc=src.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const re=/(\/\/[^\n]*)|("(?:[^"\\\n]|\\.)*")|(@\w+)|\b(package|import|public|private|protected|static|final|class|interface|extends|implements|void|new|return|try|catch|finally|throw|throws|if|else|for|while|this|super|var)\b|([A-Z][A-Za-z0-9_]*)|(\b\d[\d_]*(?:\.[\d_]+)?[fFdDlL]?\b)|([a-z_$][A-Za-z0-9_$]*(?=\s*\())|(::[A-Za-z_$][\w$]*)/g;
+  const cls=['tok-c','tok-s','tok-a','tok-k','tok-t','tok-n','tok-m','tok-m'];
+  let out='',last=0,m;
+  while((m=re.exec(esc))!==null){
+    out+=esc.slice(last,m.index);
+    for(let g=1;g<=8;g++){if(m[g]!==undefined){out+='<span class="'+cls[g-1]+'">'+m[g]+'</span>';break}}
+    last=re.lastIndex;
+  }
+  return out+esc.slice(last);
+}
+document.querySelectorAll('pre code.java').forEach(c=>{c.innerHTML=highlightJava(c.textContent)});
+
+/* ================= 场景 1：批量执行 ================= */
+const s1={timers:[],rafs:[],next:0,active:0,done:0};
+function s1Stat(t){document.getElementById('s1stat').textContent=t}
+function s1Cards(){return document.querySelectorAll('#s1grid .task')}
+function s1Reset(){
+  s1.timers.forEach(clearTimeout);s1.rafs.forEach(cancelAnimationFrame);
+  s1.timers=[];s1.rafs=[];s1.next=0;s1.active=0;s1.done=0;
+  const g=document.getElementById('s1grid');g.innerHTML='';
+  for(let i=0;i<12;i++){
+    const d=document.createElement('div');d.className='task';
+    d.innerHTML='<div class="tid"><span>T'+String(i+1).padStart(2,'0')+'</span><span class="tdot"></span></div>'
+      +'<div class="tstate">排队中</div><div class="bar"><i></i></div>';
+    g.appendChild(d);
+  }
+  s1Stat('待运行 · parallelism = 4');
+}
+function s1Pump(){
+  while(s1.active<4&&s1.next<12){s1Start(s1.next++)}
+  s1Stat(s1.done===12?'全部完成 · 12/12 ✓':'运行中 · 活跃 '+s1.active+'/4 · 完成 '+s1.done+'/12');
+}
+function s1Start(i){
+  const card=s1Cards()[i];
+  card.className='task running';card.querySelector('.tstate').textContent='运行中';
+  s1.active++;
+  const dur=700+Math.random()*1600, bar=card.querySelector('.bar i');
+  s1.rafs.push(requestAnimationFrame(()=>{bar.style.transition='width '+dur+'ms linear';bar.style.width='100%'}));
+  s1.timers.push(setTimeout(()=>{
+    card.className='task success';card.querySelector('.tstate').textContent='成功';
+    s1.active--;s1.done++;s1Pump();
+  },dur));
+}
+function s1Play(){s1Reset();s1Pump()}
+
+/* ================= 场景 2：fail-fast 取消级联 ================= */
+const s2={timers:[]};
+function s2Stat(t){document.getElementById('s2stat').textContent=t}
+function s2Card(i){return document.getElementById('s2t'+i)}
+function s2At(t,fn){s2.timers.push(setTimeout(fn,t))}
+function s2Reset(){
+  s2.timers.forEach(clearTimeout);s2.timers=[];
+  const g=document.getElementById('s2grid');g.innerHTML='';
+  for(let i=0;i<8;i++){
+    const d=document.createElement('div');d.className='task';d.id='s2t'+i;
+    d.innerHTML='<div class="tid"><span>T'+(i+1)+'</span><span class="tdot"></span></div>'
+      +'<div class="tstate">排队中</div><div class="bar"><i></i></div>'
+      +(i===2?'<div class="bubble" id="s2bubble"><b>T3 抛出异常</b><br>兄弟任务失败 → 触发整批 fail-fast 取消</div>':'');
+    g.appendChild(d);
+  }
+  document.getElementById('s2banner').classList.add('hidden');
+  s2Stat('待运行 · T3 将在 2s 时失败');
+}
+function s2Run(i){
+  const c=s2Card(i);c.className='task running';c.querySelector('.tstate').textContent='运行中';
+  const b=c.querySelector('.bar i');
+  requestAnimationFrame(()=>{b.style.transition='width 3000ms linear';b.style.width='100%'});
+}
+function s2Freeze(i){
+  const b=s2Card(i).querySelector('.bar i');
+  b.style.transition='none';b.style.width=getComputedStyle(b).width;
+}
+function s2Ok(i){
+  s2Freeze(i);const c=s2Card(i);
+  c.className='task success';c.querySelector('.tstate').textContent='成功';
+}
+function s2Cancel(i,attr){
+  s2Freeze(i);const c=s2Card(i);c.className='task cancelled';
+  c.querySelector('.tstate').innerHTML='已取消 <span class="attr '+attr+'">'+attr+'</span>';
+}
+function s2Fail(){
+  s2Freeze(2);const c=s2Card(2);
+  c.className='task failed';c.querySelector('.tstate').textContent='失败 · RuntimeException';
+  document.getElementById('s2bubble').classList.add('show');
+  [3,4,5].forEach(i=>s2Cancel(i,'FAIL_FAST'));
+  [6,7].forEach(i=>s2Cancel(i,'GROUP_CANCELED'));
+  document.getElementById('s2banner').classList.remove('hidden');
+  s2Stat('fail-fast 完成 · 1 失败 / 2 成功 / 5 取消');
+}
+function s2Play(){
+  s2Reset();s2Stat('运行中 · parallelism = 4…');
+  [0,1,2,3].forEach(i=>s2At(0,()=>s2Run(i)));
+  s2At(900,()=>{s2Ok(0);s2Run(4)});
+  s2At(1400,()=>{s2Ok(1);s2Run(5)});
+  s2At(2000,s2Fail);
+}
+
+/* ================= 场景 3：deadline 继承 ================= */
+const s3={raf:0};
+function s3Stat(t){document.getElementById('s3stat').textContent=t}
+function s3Reset(){
+  cancelAnimationFrame(s3.raf);
+  const eff=document.getElementById('s3eff');
+  eff.style.width='0%';eff.classList.remove('dead');
+  document.getElementById('s3head').style.left='0%';
+  document.getElementById('s3parent').textContent='父级剩余 5.0s';
+  document.getElementById('s3child').textContent='子级声明剩余 8.0s';
+  document.getElementById('s3note').classList.add('hidden');
+  const chip=document.getElementById('s3chip');chip.className='chip';chip.textContent='QUEUED';
+  s3Stat('待运行');
+}
+function s3Play(){
+  s3Reset();s3Stat('运行中 · 倒计时实时刷新');
+  const chip=document.getElementById('s3chip');chip.className='chip run';chip.textContent='RUNNING';
+  const eff=document.getElementById('s3eff'), head=document.getElementById('s3head');
+  const t0=performance.now();
+  const tick=(now)=>{
+    const el=(now-t0)/1000;
+    if(el>=5){
+      eff.style.width='62.5%';head.style.left='62.5%';eff.classList.add('dead');
+      document.getElementById('s3parent').textContent='父级剩余 0.0s';
+      document.getElementById('s3child').textContent='子级声明剩余 3.0s（永不生效）';
+      chip.className='chip timeout';chip.textContent='TIMEOUT';
+      document.getElementById('s3note').classList.remove('hidden');
+      s3Stat('父级 5s 截止先生效 · 子任务按 TIMEOUT 取消');
+      return;
+    }
+    const pc=el/8*100;
+    eff.style.width=pc+'%';head.style.left=pc+'%';
+    document.getElementById('s3parent').textContent='父级剩余 '+(5-el).toFixed(1)+'s';
+    document.getElementById('s3child').textContent='子级声明剩余 '+(8-el).toFixed(1)+'s';
+    s3.raf=requestAnimationFrame(tick);
+  };
+  s3.raf=requestAnimationFrame(tick);
+}
+
+/* ================= 场景 4：任务图与死锁检测 ================= */
+const s4={timers:[],built:false,cycled:false};
+const S4N=[
+  {id:'root',x:280,y:34, w:180,label:'request · handleOrder',sub:'TaskGroup'},
+  {id:'h1', x:130,y:140,w:180,label:'http · fetchUser',     sub:'Par http'},
+  {id:'h2', x:430,y:140,w:180,label:'http · fetchRecommend',sub:'Par http'},
+  {id:'d1', x:60, y:250,w:170,label:'db · fetchOrders',     sub:'Par database'},
+  {id:'d2', x:215,y:250,w:170,label:'db · fetchCoupons',    sub:'Par database'},
+  {id:'d3', x:430,y:250,w:170,label:'db · fetchAds',        sub:'Par database'}
+];
+const S4E=[['root','h1'],['root','h2'],['h1','d1'],['h1','d2'],['h2','d3']];
+const SVGNS='http://www.w3.org/2000/svg';
+function s4NodeById(id){return S4N.find(n=>n.id===id)}
+function s4Mk(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e}
+function s4Node(n){
+  const g=s4Mk('g',{class:'gnode',id:'n-'+n.id});
+  g.appendChild(s4Mk('rect',{x:n.x-n.w/2,y:n.y-18,width:n.w,height:36,rx:8}));
+  const t=s4Mk('text',{x:n.x,y:n.y-2,'text-anchor':'middle'});t.textContent=n.label;g.appendChild(t);
+  const s=s4Mk('text',{x:n.x,y:n.y+11,'text-anchor':'middle',class:'sub'});s.textContent=n.sub;g.appendChild(s);
+  return g;
+}
+function s4Edge(a,b,id,cls){
+  const na=s4NodeById(a),nb=s4NodeById(b);
+  const g=s4Mk('g',{class:'gedge'+(cls?' '+cls:''),id:id});
+  g.appendChild(s4Mk('path',{d:'M'+na.x+' '+(na.y+18)+' L'+nb.x+' '+(nb.y-18),pathLength:1,'marker-end':'url(#s4arr)'}));
+  return g;
+}
+function s4CycleEdge(){
+  const g=s4Mk('g',{class:'gedge',id:'e-cycle'});
+  g.appendChild(s4Mk('path',{d:'M215 232 C 330 215, 330 170, 134 160',pathLength:1,'marker-end':'url(#s4arrO)'}));
+  return g;
+}
+function s4Init(){
+  const svg=document.getElementById('s4svg');svg.innerHTML='';
+  const defs=s4Mk('defs',{});
+  const m1=s4Mk('marker',{id:'s4arr',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});
+  m1.appendChild(s4Mk('path',{d:'M0,0 L10,5 L0,10 z',fill:'rgba(255,255,255,.4)'}));
+  const m2=s4Mk('marker',{id:'s4arrO',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});
+  m2.appendChild(s4Mk('path',{d:'M0,0 L10,5 L0,10 z',fill:'#f59e0b'}));
+  defs.appendChild(m1);defs.appendChild(m2);svg.appendChild(defs);
+  S4E.forEach(([a,b])=>svg.appendChild(s4Edge(a,b,'e-'+a+'-'+b)));
+  S4N.forEach(n=>svg.appendChild(s4Node(n)));
+}
+function s4Stat(t){document.getElementById('s4stat').textContent=t}
+function s4Log(t,cls){
+  const l=document.getElementById('s4log'),d=document.createElement('div');
+  if(cls)d.className=cls;d.textContent=t;l.appendChild(d);l.scrollTop=l.scrollHeight;
+}
+function s4Show(id){document.getElementById(id).classList.add('on')}
+function s4Reset(){
+  s4.timers.forEach(clearTimeout);s4.timers=[];
+  s4.built=false;s4.cycled=false;
+  s4Init();
+  document.getElementById('s4log').innerHTML='';
+  document.getElementById('s4banner').classList.add('hidden');
+  document.getElementById('s4cycle').disabled=true;
+  s4Stat('待运行');
+}
+function s4Play(){
+  s4Reset();s4Stat('构建任务图…');
+  const seq=[
+    [150, ()=>{s4Show('n-root');s4Log('[graph] + request · handleOrder  (TaskGroup)')}],
+    [550, ()=>{s4Show('n-h1');s4Log('[graph] + http · fetchUser  (Par http)')}],
+    [750, ()=>{s4Show('n-h2');s4Log('[graph] + http · fetchRecommend  (Par http)')}],
+    [1050,()=>{s4Show('e-root-h1');s4Show('e-root-h2');s4Log('[graph] edge  request → http  ×2')}],
+    [1450,()=>{s4Show('n-d1');s4Show('n-d2');s4Log('[graph] + db · fetchOrders / fetchCoupons  (Par database)')}],
+    [1750,()=>{s4Show('e-h1-d1');s4Show('e-h1-d2');s4Log('[graph] edge  http → database  ×2  (嵌套批次产生的等待边)')}],
+    [2050,()=>{s4Show('n-d3');s4Show('e-h2-d3');s4Log('[graph] edge  http → db · fetchAds')}],
+    [2500,()=>{s4Log('hasTaskCycle() = false · 图结构健康 ✓','ok');s4Stat('任务图构建完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
+  ];
+  seq.forEach(([t,f])=>s4.timers.push(setTimeout(f,t)));
+}
+function s4Cycle(){
+  if(!s4.built||s4.cycled)return;
+  s4.cycled=true;document.getElementById('s4cycle').disabled=true;
+  document.getElementById('s4svg').appendChild(s4CycleEdge());
+  requestAnimationFrame(()=>{
+    const e=document.getElementById('e-cycle');
+    e.classList.add('on','cyc');
+    ['n-h1','n-d2'].forEach(id=>document.getElementById(id).classList.add('cyc'));
+    document.getElementById('e-h1-d2').classList.add('cyc');
+  });
+  s4Log('[graph] edge  db · fetchCoupons → http · fetchUser  ⚠ 反向依赖','warn');
+  s4Log('hasTaskCycle() = true','warn');
+  s4Log('环: http·fetchUser → db·fetchCoupons → http·fetchUser','warn');
+  document.getElementById('s4banner').classList.remove('hidden');
+  s4Stat('检测到环 · 潜在死锁风险信号');
+}
+
+/* ================= 装配 ================= */
+const plays={s1:s1Play,s2:s2Play,s3:s3Play,s4:s4Play};
+s1Reset();s2Reset();s3Reset();s4Reset();
+document.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>plays[b.dataset.play]()));
+document.getElementById('s4cycle').addEventListener('click',s4Cycle);
+document.getElementById('playAll').addEventListener('click',()=>{s1Play();s2Play();s3Play();s4Play()});
+
+/* 首次滚动到可视区域时自动播放一次 */
+const seen=new Set();
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting&&!seen.has(e.target.id)){seen.add(e.target.id);plays[e.target.id]()}
+}),{threshold:.3});
+document.querySelectorAll('.scenario').forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
