@@ -1,7 +1,9 @@
 # 中断处理契约
 
-> 状态：**规范草案**。本文确立中断标志与 `InterruptedException` 在本库中的处理原则、
-> 分角色规范与验证矩阵。所有关于 JDK / Guava 行为的结论均核对源码并附实测输出；
+> 状态：**已落地**。本文确立中断标志与 `InterruptedException` 在本库中的处理原则、
+> 分角色规范与验证矩阵。§7 的三处违反均已修复：7.1 随 `15a18e3`，7.2 的声明已补进
+> `Checkpoints.rawCheckpoint()` 的 javadoc，7.3 随 `8de2122`（[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）。
+> 所有关于 JDK / Guava 行为的结论均核对源码并附实测输出；
 > 本库现状结论带 `path:line` 锚点。
 > 基线：`main` HEAD（`0.3.0-SNAPSHOT`）、`guava-33.6.0-jre`（`pom.xml:49`）、JDK 21 源码
 > （行号取自 `temurin-21.0.5`）。
@@ -456,10 +458,9 @@ deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线�
 
 ## 9. 待拍板点
 
-1. **7.3 选选项 1 还是选项 2。** 倾向选项 1（inline 分支做标志隔离），理由是让 inline 与
-   非 inline 两条路径的对外语义一致。
-2. **7.1、7.2 是否与本规范文档同 PR 落地**，还是各自独立 issue。7.1 是行为修复
-   （含一处测试 stub 重写），7.2 只改 javadoc，7.3 是行为修复——三者可拆。
-3. **本文档在 `design/AGENTS.md` 路由表中的位置**：归入"取消与队列"一节，还是
-   与 `extension-and-wrapping.md` 并列为"跨层约定"。
-4. **是否把 P1–P4 摘要进根 `AGENTS.md`** 的 Key Conventions，让日常改动不必先读全文。
+1. ~~**7.3 选选项 1 还是选项 2。**~~ 已拍板：选项 1，隔离点改在 `ExecutionPhaseHintFuture.run()`
+   （见 7.3 顶部的已修复说明）。
+2. ~~**7.1、7.2 是否与本规范文档同 PR 落地**~~ 已由历史回答：三处违反分别随各自的修复提交落地。
+3. ~~**本文档在 `design/AGENTS.md` 路由表中的位置**~~ 已与 `extension-and-wrapping.md` 并列在
+   「扩展与包装」一节，作为跨层约定。
+4. **是否把 P1–P4 摘要进根 `AGENTS.md`** 的 Key Conventions，让日常改动不必先读全文。（仍开放）
