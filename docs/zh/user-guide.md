@@ -168,6 +168,36 @@ Par par = new Par(config);
 
 `timer` 只负责调度 deadline，不应提交长时间运行的业务任务；实际取消 action 在线程名 `Par-Timer-Task-*` 的 cached pool 执行。自定义 timer 由调用方持有并负责 `shutdown()`，框架不会替它关闭。该隔离避免 scheduler worker 被一个慢取消回调占满，但不能保证 cached pool 无限资源，也不能把协作式取消变成强制终止。
 
+### 清理已取消的排队任务
+
+自动 purge 默认关闭，当前只支持直接注册、且工作队列为 `SmartBlockingQueue` 的
+`ThreadPoolExecutor`。当大量尚未开始的任务取消后可能滞留在高压力队列中时，可以显式开启：
+
+```java
+ThreadPoolExecutor ioPool = new ThreadPoolExecutor(
+    8, 8, 0L, TimeUnit.MILLISECONDS,
+    new SmartBlockingQueue<Runnable>(1000));
+ParConfig config = ParConfig.builder()
+    .executor("io-pool", ioPool)
+    .purgeEnabled(true)
+    .purgeQueuePressureThreshold(0.80)
+    .purgeCancelledTaskRatioThreshold(0.05)
+    .build();
+```
+
+容量压力（`Q / K`）和估算取消比例（`min(G, Q) / K`）必须同时达到各自阈值，
+才会调用 `ThreadPoolExecutor.purge()`。
+运行期间可通过 `setPurgeQueuePressureThreshold` 和
+`setPurgeCancelledTaskRatioThreshold` 调整阈值；数值越低越激进。
+`setPurgeEnabled(false)` 会停止收集新的取消估算并清除待处理估算。阈值决策和 purge
+耗时通过 JUL 的 `Level.FINEST` 记录。
+
+取消信号按执行器合并。purge 任务提交后，直到该任务结束，取消 callback
+只推进内部序列，不读取队列，也不重复提交 purge。维护任务使用固定 50ms
+合并延迟，扫描期间到达的取消会保留到下一轮；首次 purge 失败时会延迟重试一次。
+
+Purge 只能移除仍被工作队列持有的已取消任务，不能停止忽略中断或阻塞在不可中断操作中的运行任务。
+
 ### 协作式取消
 
 ```java

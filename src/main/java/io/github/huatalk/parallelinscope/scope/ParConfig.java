@@ -34,6 +34,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -108,6 +109,7 @@ public final class ParConfig {
     private final ImmutableMap<String, ExecutorBinding> executorRegistry;
     private final long defaultTimeoutMillis;
     private final boolean livelockDetectionEnabled;
+    private final AtomicBoolean purgeEnabled;
     private final AtomicDouble purgeQueuePressureThreshold;
     private final AtomicDouble purgeCancelledTaskRatioThreshold;
     private final HeuristicPurger heuristicPurger;
@@ -118,10 +120,11 @@ public final class ParConfig {
         this.livelockListeners = builder.livelockListeners.build();
         this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.livelockDetectionEnabled = builder.livelockDetectionEnabled;
+        this.purgeEnabled = new AtomicBoolean(builder.purgeEnabled);
         this.purgeQueuePressureThreshold = new AtomicDouble(builder.purgeQueuePressureThreshold);
         this.purgeCancelledTaskRatioThreshold = new AtomicDouble(builder.purgeCancelledTaskRatioThreshold);
         this.heuristicPurger = new HeuristicPurger(
-                purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
+                purgeEnabled, purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
         this.timer = builder.timer == null ? null : createDispatchingTimer(builder.timer);
 
         // Capture every capability from the same raw executor used for submission.
@@ -164,6 +167,7 @@ public final class ParConfig {
         private final LinkedHashMap<String, ExecutorService> executors = new LinkedHashMap<>();
         private long defaultTimeoutMillis = 60_000L;
         private boolean livelockDetectionEnabled = false;
+        private boolean purgeEnabled = false;
         private double purgeQueuePressureThreshold = 0.80;
         private double purgeCancelledTaskRatioThreshold = 0.05;
         private ScheduledExecutorService timer;
@@ -197,6 +201,18 @@ public final class ParConfig {
         }
 
         /**
+         * Enables or disables automatic purge of cancelled SmartBlockingQueue entries.
+         * Automatic purge is disabled by default.
+         *
+         * @param enabled true to enable automatic purge
+         * @return this builder
+         */
+        public Builder purgeEnabled(boolean enabled) {
+            this.purgeEnabled = enabled;
+            return this;
+        }
+
+        /**
          * Sets the queue pressure ({@code queue size / capacity}) required before purge.
          * Default is {@code 0.80}.
          *
@@ -210,7 +226,7 @@ public final class ParConfig {
         }
 
         /**
-         * Sets the estimated garbage ratio ({@code cancellation signals / queue size}) required
+         * Sets the estimated garbage ratio ({@code cancellation signals / queue capacity}) required
          * before purge. Default is {@code 0.05}.
          *
          * @param threshold ratio in the range {@code (0, 1]}
@@ -736,6 +752,27 @@ public final class ParConfig {
     }
 
     /**
+     * Returns whether automatic purge of cancelled SmartBlockingQueue entries is enabled.
+     *
+     * @return {@code true} when automatic purge is enabled
+     */
+    public boolean isPurgeEnabled() {
+        return purgeEnabled.get();
+    }
+
+    /**
+     * Atomically enables or disables automatic purge. Disabling also discards pending estimates.
+     *
+     * @param enabled true to enable automatic purge
+     */
+    public synchronized void setPurgeEnabled(boolean enabled) {
+        purgeEnabled.set(enabled);
+        if (!enabled) {
+            heuristicPurger.clearPendingCancellations();
+        }
+    }
+
+    /**
      * Returns the queue pressure ({@code queue size / capacity}) required before purge.
      *
      * @return ratio in the range {@code (0, 1]}
@@ -755,7 +792,7 @@ public final class ParConfig {
     }
 
     /**
-     * Returns the estimated garbage ratio ({@code cancellation signals / queue size}) required
+     * Returns the estimated garbage ratio ({@code cancellation signals / queue capacity}) required
      * before purge.
      *
      * @return ratio in the range {@code (0, 1]}

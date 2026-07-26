@@ -62,18 +62,28 @@ public class ExecutorRegistryTest {
     @Test
     public void testPurgeThresholdsSupportBuilderAndAtomicRuntimeUpdates() {
         ParConfig config = ParConfig.builder()
+                .purgeEnabled(true)
                 .purgeQueuePressureThreshold(0.70)
                 .purgeCancelledTaskRatioThreshold(0.10)
                 .build();
 
+        assertThat(config.isPurgeEnabled()).isTrue();
         assertThat(config.getPurgeQueuePressureThreshold()).isEqualTo(0.70);
         assertThat(config.getPurgeCancelledTaskRatioThreshold()).isEqualTo(0.10);
 
+        config.setPurgeEnabled(false);
         config.setPurgeQueuePressureThreshold(0.90);
         config.setPurgeCancelledTaskRatioThreshold(0.20);
 
+        assertThat(config.isPurgeEnabled()).isFalse();
         assertThat(config.getPurgeQueuePressureThreshold()).isEqualTo(0.90);
         assertThat(config.getPurgeCancelledTaskRatioThreshold()).isEqualTo(0.20);
+    }
+
+    /** Automatic purge remains opt-in for existing configurations. */
+    @Test
+    public void testPurgeIsDisabledByDefault() {
+        assertThat(ParConfig.builder().build().isPurgeEnabled()).isFalse();
     }
 
     @Test

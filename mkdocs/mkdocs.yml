@@ -134,7 +134,6 @@ plugins:
                 - 空值注解: reference/nullability-annotations.md
             - 实现与设计:
                 - ThreadRelay 内部机制: internals/thread-relay.md
-                - 执行器绑定与取消清理: design/executor-binding-and-cancellation.md
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:
