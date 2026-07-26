@@ -7,6 +7,18 @@
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
 - Add the public `CancellationChecker` API for count- and duration-based cooperative checks.
+- Add one-time global `ParConfig` initialization for shared application configuration.
+
+### Fixes
+
+- Make completion-service cancellation visible to `ThreadPoolExecutor.purge()` by queuing and returning the same Future task.
+- Add opt-in `SmartBlockingQueue` purge maintenance gated by queue pressure and estimated cancelled-task ratio.
+- Coalesce concurrent cancellation signals without sliding-delay starvation or lost follow-up purge demand.
+
+### Documentation and tests
+
+- Record task/Future lifecycle and event-coalesced purge decisions as architecture decision records.
+- Add layered Cartesian and latch-controlled concurrency coverage for cancellation, queue mutation, and purge races.
 
 ## [0.1.0] - 2026-07-18
 
