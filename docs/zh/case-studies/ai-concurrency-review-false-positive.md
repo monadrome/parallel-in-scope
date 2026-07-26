@@ -1,5 +1,8 @@
 # AI 对并发代码审查的误报复盘
 
+> 本文复盘的事件发生在 `0.1.x` 时代，文中代码使用当时的历史 API（`CancellationToken.lateBind()`、
+> `FAIL_FAST_CANCELLED`、`getState()`）；这些 API 后来已删除或更名——取消绑定改为在提交前完成，
+> 现行状态词表见[协作式取消](../reference/cooperative-cancellation.md)。复盘结论与具体 API 无关。
 
 ## 背景
 

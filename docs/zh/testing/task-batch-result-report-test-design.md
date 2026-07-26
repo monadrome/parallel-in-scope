@@ -11,7 +11,7 @@
 
 | 能力 | 稳定契约 | 测试层级 |
 |---|---|---|
-| 状态分类 | 每个 Future 被归入 `RUNNING`、`SUCCESS`、`FAILED`、`CANCELLED` 之一 | 核心单元测试 |
+| 状态分类 | 每个 Future 被归入 `RUNNING`、`SUCCESS`、`USER_FAILURE`、`SUBMISSION_FAILURE` 或四种取消归因（`MEMBER_CANCELLED`/`GROUP_CANCELLED`/`FAIL_FAST`/`TIMEOUT`）之一 | 核心单元测试 |
 | 状态计数 | 所有状态计数之和等于结果 Future 数量 | 单元测试、集成测试 |
 | 首异常 | 返回 results 列表中第一个失败 Future 的 cause；没有失败时为 null | 核心单元测试 |
 | 快照语义 | `report()` 反映调用时状态；Future 后续完成时需再次调用以获取新快照 | 核心单元测试 |
@@ -52,7 +52,7 @@
 
 ```text
 所有状态计数之和 == 输入任务数
-至少存在一个 FAILED
+至少存在一个 USER_FAILURE
 firstException == 触发 fail-fast 的根异常
 ```
 
@@ -62,7 +62,7 @@ firstException == 触发 fail-fast 的根异常
 
 ### 固定普通并发任务的成功/失败数量
 
-例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `FAILED`。后续任务可能在执行到异常之前已经被取消。
+例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `USER_FAILURE`。后续任务可能在执行到异常之前已经被取消。
 
 ### 使用 sleep 排列线程时序
 
