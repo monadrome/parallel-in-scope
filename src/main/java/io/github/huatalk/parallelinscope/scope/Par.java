@@ -213,7 +213,7 @@ public final class Par {
                         binding.getExecutor(),
                         normalizedOptions,
                         ParConfig.getSubmitterPool(),
-                        binding.getQueuedCancellationObserver())
+                        binding.getPhaseObserver())
                 .submitAll(tasks);
 
         // Late bind: wire up cancellation, timeout, fail-fast

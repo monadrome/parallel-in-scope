@@ -1,6 +1,7 @@
 package io.github.huatalk.parallelinscope.internal;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Objects;
@@ -10,6 +11,7 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
@@ -24,11 +26,11 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 final class ListenableCompletionService<V> implements CompletionService<V> {
 
-    private static final Runnable NOOP = () -> { };
+    private static final Consumer<ExecutionPhase> NOOP = phase -> { };
 
     private final Executor executor;
     private final BlockingQueue<ListenableFuture<V>> completionQueue;
-    private final Runnable queuedCancellationObserver;
+    private final Consumer<? super ExecutionPhase> phaseObserver;
 
     /**
      * Creates a completion service with an unbounded completion queue.
@@ -52,6 +54,22 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     }
 
     /**
+     * Creates a completion service that observes execution-phase hints.
+     *
+     * @param executor      executor used to run submitted tasks
+     * @param completionQueue queue that receives completed futures
+     * @param phaseObserver phase hint consumer
+     */
+    ListenableCompletionService(
+            Executor executor,
+            BlockingQueue<ListenableFuture<V>> completionQueue,
+            Consumer<? super ExecutionPhase> phaseObserver) {
+        this.executor = Objects.requireNonNull(executor);
+        this.completionQueue = Objects.requireNonNull(completionQueue);
+        this.phaseObserver = Objects.requireNonNull(phaseObserver);
+    }
+
+    /**
      * Creates a completion service that reports cancellation of submitted tasks.
      *
      * @param executor                   executor used to run submitted tasks
@@ -62,9 +80,17 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
             Executor executor,
             BlockingQueue<ListenableFuture<V>> completionQueue,
             Runnable queuedCancellationObserver) {
-        this.executor = Objects.requireNonNull(executor);
-        this.completionQueue = Objects.requireNonNull(completionQueue);
-        this.queuedCancellationObserver = Objects.requireNonNull(queuedCancellationObserver);
+        this(executor, completionQueue, phaseObserverFor(queuedCancellationObserver));
+    }
+
+    private static Consumer<ExecutionPhase> phaseObserverFor(
+            Runnable queuedCancellationObserver) {
+        Objects.requireNonNull(queuedCancellationObserver);
+        return phase -> {
+            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
+                queuedCancellationObserver.run();
+            }
+        };
     }
 
     /**
@@ -75,7 +101,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Callable<V> task) {
-        return submitTask(FutureRunnable.create(task, queuedCancellationObserver));
+        return submitTask(ExecutionPhaseHintFuture.create(task, phaseObserver));
     }
 
     /**
@@ -87,7 +113,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Runnable task, @Nullable V result) {
-        return submitTask(FutureRunnable.create(task, result, queuedCancellationObserver));
+        return submitTask(ExecutionPhaseHintFuture.create(task, result, phaseObserver));
     }
 
     /**
@@ -130,7 +156,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * @param task listenable task to submit
      * @return the submitted task
      */
-    private ListenableFuture<V> submitTask(FutureRunnable<V> task) {
+    private ListenableFuture<V> submitTask(ExecutionPhaseHintFuture<V> task) {
         task.addListener(() -> completionQueue.add(task), directExecutor());
         executor.execute(task);
         return task;

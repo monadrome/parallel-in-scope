@@ -3,9 +3,12 @@ package io.github.huatalk.parallelinscope.internal;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -134,12 +137,12 @@ public class ListenableCompletionServiceTest {
         ListenableFuture<Integer> completed = service.submit(() -> 1);
         submitted.get().run();
 
-        assertThat(queuedCancellationObserver(completed)).isNotSameAs(observer);
+        assertThat(phaseObserver(completed)).isNotSameAs(observer);
 
         ListenableFuture<Integer> cancelled = service.submit(() -> 2);
         assertThat(cancelled.cancel(false)).isTrue();
 
-        assertThat(queuedCancellationObserver(cancelled)).isNotSameAs(observer);
+        assertThat(phaseObserver(cancelled)).isNotSameAs(observer);
 
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -152,18 +155,85 @@ public class ListenableCompletionServiceTest {
         runner.start();
         assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 
-        assertThat(queuedCancellationObserver(running)).isNotSameAs(observer);
+        assertThat(phaseObserver(running)).isNotSameAs(observer);
 
         release.countDown();
         runner.join(5000);
         assertThat(runner.isAlive()).isFalse();
     }
 
-    /** Reads the internal callback field to verify reference release without relying on GC. */
-    private static Runnable queuedCancellationObserver(ListenableFuture<?> future) throws Exception {
-        Field field = FutureRunnable.class.getDeclaredField("queuedCancellationObserver");
+    /** Reads the phase observer field to verify reference release without relying on GC. */
+    private static Object phaseObserver(ListenableFuture<?> future) throws Exception {
+        Field field = ExecutionPhaseHintFuture.class.getDeclaredField("phaseObserver");
         field.setAccessible(true);
-        return (Runnable) field.get(future);
+        return field.get(future);
+    }
+
+    /** Verifies that consumers can observe phases other than queued cancellation. */
+    @Test
+    public void phaseObserverReceivesExecutionHints() throws Exception {
+        List<ExecutionPhase> completedPhases = new ArrayList<>();
+        ExecutionPhaseHintFuture<Integer> completed = ExecutionPhaseHintFuture.create(
+                () -> 1, completedPhases::add);
+
+        completed.run();
+
+        assertThat(completedPhases).containsExactly(
+                ExecutionPhase.RUNNING,
+                ExecutionPhase.TERMINAL);
+
+        List<ExecutionPhase> cancelledPhases = new ArrayList<>();
+        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(
+                () -> 2, cancelledPhases::add);
+
+        assertThat(cancelled.cancel(false)).isTrue();
+        assertThat(cancelledPhases).containsExactly(
+                ExecutionPhase.CANCELLED_BEFORE_RUN);
+
+        List<ExecutionPhase> runningCancellationPhases = new ArrayList<>();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ExecutionPhaseHintFuture<Integer> running = ExecutionPhaseHintFuture.create(
+                () -> {
+                    started.countDown();
+                    release.await();
+                    return 3;
+                }, runningCancellationPhases::add);
+        Thread runner = new Thread(running);
+        runner.start();
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(running.cancel(true)).isTrue();
+        release.countDown();
+        runner.join(5000);
+        assertThat(runner.isAlive()).isFalse();
+        assertThat(runningCancellationPhases).containsExactly(
+                ExecutionPhase.RUNNING,
+                ExecutionPhase.CANCEL_REQUESTED_RUNNING,
+                ExecutionPhase.TERMINAL);
+    }
+
+    /** Verifies observer failures do not alter task execution or cancellation. */
+    @Test
+    public void phaseObserverFailureDoesNotAlterFutureLifecycle() throws Exception {
+        ExecutionPhaseHintFuture<Integer> completed = ExecutionPhaseHintFuture.create(
+                () -> 1,
+                phase -> {
+                    throw new IllegalStateException("observer failed");
+                });
+
+        completed.run();
+
+        assertThat(completed.get()).isEqualTo(1);
+
+        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(
+                () -> 2,
+                phase -> {
+                    throw new IllegalStateException("observer failed");
+                });
+
+        assertThat(cancelled.cancel(false)).isTrue();
+        assertThat(cancelled.isCancelled()).isTrue();
     }
 
     /** Waits for a test gate while preserving the thread's eventual interrupt status. */

@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
+import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 
@@ -33,6 +34,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -126,14 +128,19 @@ public final class ParConfig {
         ImmutableMap.Builder<String, ExecutorBinding> bindingBuilder = ImmutableMap.builder();
         for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorService rawExecutor = entry.getValue();
-            Runnable cancellationObserver = rawExecutor instanceof ThreadPoolExecutor
+            Runnable queuedCancellationObserver = rawExecutor instanceof ThreadPoolExecutor
                     ? heuristicPurger.cancellationObserverFor((ThreadPoolExecutor) rawExecutor)
                     : NOOP;
+            Consumer<ExecutionPhase> phaseObserver = phase -> {
+                if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
+                    queuedCancellationObserver.run();
+                }
+            };
             bindingBuilder.put(entry.getKey(), new ExecutorBinding(
                     entry.getKey(),
                     MoreExecutors.listeningDecorator(rawExecutor),
                     isDeadlockProne(rawExecutor),
-                    cancellationObserver));
+                    phaseObserver));
         }
         this.executorRegistry = bindingBuilder.build();
     }

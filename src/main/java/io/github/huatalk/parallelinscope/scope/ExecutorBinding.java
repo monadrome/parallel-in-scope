@@ -1,8 +1,10 @@
 package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
+import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /** Stable internal association between one executor registration and its capabilities. */
 final class ExecutorBinding {
@@ -10,18 +12,18 @@ final class ExecutorBinding {
     private final String name;
     private final ListeningExecutorService executor;
     private final boolean deadlockProne;
-    private final Runnable queuedCancellationObserver;
+    private final Consumer<? super ExecutionPhase> phaseObserver;
 
     /** Creates one immutable registration binding. */
     ExecutorBinding(
             String name,
             ListeningExecutorService executor,
             boolean deadlockProne,
-            Runnable queuedCancellationObserver) {
+            Consumer<? super ExecutionPhase> phaseObserver) {
         this.name = Objects.requireNonNull(name);
         this.executor = Objects.requireNonNull(executor);
         this.deadlockProne = deadlockProne;
-        this.queuedCancellationObserver = Objects.requireNonNull(queuedCancellationObserver);
+        this.phaseObserver = Objects.requireNonNull(phaseObserver);
     }
 
     /** Returns the stable logical name. */
@@ -39,8 +41,8 @@ final class ExecutorBinding {
         return deadlockProne;
     }
 
-    /** Returns the queued-cancellation callback bound to the registered executor. */
-    Runnable getQueuedCancellationObserver() {
-        return queuedCancellationObserver;
+    /** Returns the execution-phase observer bound to the registered executor. */
+    Consumer<? super ExecutionPhase> getPhaseObserver() {
+        return phaseObserver;
     }
 }

@@ -135,7 +135,11 @@ public class ConcurrentLimitExecutorTest {
         try {
             ParOptions options = ParOptions.of("test").parallelism(1).timeout(5000).build();
             ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(
-                    listeningSingleWorker, options, submitterPool, cancellationObservations::incrementAndGet);
+                    listeningSingleWorker, options, submitterPool, phase -> {
+                        if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
+                            cancellationObservations.incrementAndGet();
+                        }
+                    });
             List<Callable<Integer>> tasks = new ArrayList<>();
             tasks.add(() -> {
                 workerStarted.countDown();
