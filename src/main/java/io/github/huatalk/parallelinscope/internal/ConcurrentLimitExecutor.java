@@ -121,7 +121,16 @@ public class ConcurrentLimitExecutor<V> {
                 pool, options, submitterPool, phaseObserver);
     }
 
-    /** Creates an executor with the legacy queued-cancellation callback. */
+    /**
+     * Creates an executor with the legacy queued-cancellation callback.
+     *
+     * @param <V>                        the task result type
+     * @param pool                       the executor that runs task bodies
+     * @param options                    the execution options
+     * @param submitterPool              the executor that runs the submission loop
+     * @param queuedCancellationObserver callback for cancellations before {@code run()}
+     * @return a new concurrency-limited executor
+     */
     public static <V> ConcurrentLimitExecutor<V> create(
             ListeningExecutorService pool,
             ParOptions options,
