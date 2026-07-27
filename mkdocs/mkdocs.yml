@@ -146,6 +146,7 @@ plugins:
           nav:
             - 文档首页: index.md
             - 完整使用指南: user-guide.md
+            - 交互式演示: https://monadrome.github.io/parallel-in-scope/interactive-demo.html
             - 迁移指南:
                 - 从 0.2.x 升级到 0.3: migration-v0.3.md
                 - 从 0.1.x 升级到 0.2: migration-v0.2.md

@@ -6,6 +6,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.monadrome/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.monadrome/parallel-in-scope)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
+[![交互式演示](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
 > 当前开发版本：`0.3.0-SNAPSHOT`，已发布到 Central 快照仓库；最新稳定版：`0.2.0`。
 > `0.3.0` 对任务组 API 做了破坏性重设计——从 `0.2.x` 升级请先阅读
@@ -89,6 +90,7 @@ traceId.set("req-42");
 | 入口 | 内容 |
 |---|---|
 | [在线文档](https://monadrome.github.io/parallel-in-scope/) | 已发布版本的使用指南 |
+| [交互式演示](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | 单文件动画演示四条核心语义 |
 | [中文文档](docs/zh/index.md) | 完整中文文档集 |
 | [v0.3 迁移指南](docs/zh/migration-v0.3.md) | 相对 `0.2.x` 任务组 API 的破坏性变更 |
 | [v0.2 迁移指南](docs/zh/migration-v0.2.md) | 相对 `0.1.x` API 的破坏性变更 |
