@@ -47,7 +47,7 @@ public final class BatchOptions {
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, -1, null, TaskType.CPU_BOUND, true, false, null);
+        return new BatchOptions(name, -1, null, TaskType.IO_BOUND, false, false, null);
     }
 
     /**
@@ -58,7 +58,7 @@ public final class BatchOptions {
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
-                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.CPU_BOUND, true, false, null);
+                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, false, null);
     }
 
     /** Returns a copy of these options with the given requested parallelism. */

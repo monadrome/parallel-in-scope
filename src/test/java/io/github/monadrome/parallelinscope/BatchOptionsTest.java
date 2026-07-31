@@ -13,14 +13,17 @@ import org.junit.jupiter.api.Test;
 class BatchOptionsTest {
 
     @Test
-    void defaultsAreOneWorkerPerTaskCpuBoundRejectingAndFailOnRejection() {
+    void defaultsAreOneWorkerPerTaskIoBoundEnqueueingAndFailOnRejection() {
         BatchOptions options = BatchOptions.timeout("load", Duration.ofSeconds(30));
 
         assertThat(options.name()).isEqualTo("load");
         assertThat(options.parallelism()).isEqualTo(-1);
-        assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(options.rejectEnqueue()).isTrue();
-        // No task type implies the caller-thread fallback, CPU_BOUND included.
+        // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
+        // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
+        // refuse every task submitted with default options, leaving its capacity unused and sending
+        // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
+        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.rejectEnqueue()).isFalse();
         assertThat(options.runOnCallerThread()).isFalse();
     }
 
@@ -29,17 +32,17 @@ class BatchOptionsTest {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
         BatchOptions derived = base.parallelism(3)
-                .taskType(TaskType.IO_BOUND)
-                .rejectEnqueue(false)
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true)
                 .runOnCallerThread(true);
 
         assertThat(base.parallelism()).isEqualTo(-1);
-        assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(base.rejectEnqueue()).isTrue();
+        assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(base.rejectEnqueue()).isFalse();
         assertThat(base.runOnCallerThread()).isFalse();
         assertThat(derived.parallelism()).isEqualTo(3);
-        assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(derived.rejectEnqueue()).isFalse();
+        assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.runOnCallerThread()).isTrue();
         assertThat(derived.timeout()).isEmpty();
     }
