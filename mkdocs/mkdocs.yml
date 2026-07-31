@@ -106,7 +106,7 @@ plugins:
         zh-CN/user-guide.md: https://huatalk.github.io/parallel-in-scope/zh/user-guide/
         zh-CN/reference/cooperative-cancellation.md: https://huatalk.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/
         zh-CN/reference/nullability-annotations.md: https://huatalk.github.io/parallel-in-scope/zh/reference/nullability-annotations/
-        zh-CN/reference/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/reference/testing/async-batch-result-report-test-design/
+        zh-CN/reference/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
         zh-CN/internals/thread-relay.md: https://huatalk.github.io/parallel-in-scope/zh/internals/thread-relay/
         zh-CN/design/philosophy.md: https://huatalk.github.io/parallel-in-scope/zh/design/philosophy/
         zh-CN/design/idea-graveyard.md: https://huatalk.github.io/parallel-in-scope/zh/design/idea-graveyard/
