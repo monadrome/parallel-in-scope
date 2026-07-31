@@ -6,7 +6,7 @@
 
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
-- Add the public `CancellationChecker` API for count- and duration-based cooperative checks.
+- Add the public `ActionGate` API for count- and duration-based action gating.
 - Add one-time global `ParConfig` initialization for shared application configuration.
 
 ### Fixes

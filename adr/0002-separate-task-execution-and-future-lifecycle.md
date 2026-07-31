@@ -120,8 +120,8 @@ Runnable-based helper APIs have narrower responsibilities:
 
 - `Checkpoints.checkRunnable` performs a pre-execution cancellation check and
   translates a declared failure type to `FatCancellationException`;
-- `CancellationChecker` uses a `Runnable` callback to separate check cadence
-  from the cancellation action;
+- `ActionGate` uses a `Runnable` callback to separate action cadence from the
+  cancellation, purge, or maintenance mechanism;
 - timer and submitter executors may dispatch `Runnable` or `Callable` work, but
   those adapters do not replace `ScopedCallable` as the business-task wrapper.
 
@@ -228,7 +228,7 @@ Cancellation SHALL remain best effort:
   worker occupied after its Future becomes cancelled;
 - `CompletableFuture.cancel(boolean)` does not use the flag to interrupt an
   underlying computation;
-- cooperative tasks should use `Checkpoints` or `CancellationChecker` at
+- cooperative tasks should use `Checkpoints` or `ActionGate` at
   suitable boundaries.
 
 ### Cooperative blocking operations
@@ -416,7 +416,7 @@ concurrency framework.
 | Batch result and reporting | `scope/AsyncBatchResult.java` |
 | Group cancellation and timeout | `cancel/CancellationToken.java` |
 | Cooperative task boundaries | `cancel/Checkpoints.java` |
-| Amortized cancellation checks | `cancel/CancellationChecker.java` |
+| Amortized action checks | `control/ActionGate.java` |
 | Java 8 Future state view | `internal/FutureInspector.java`, `internal/FutureState.java` |
 | Current-task local context | `context/TaskScopeTl.java` |
 | Parent-child context relay | `context/ThreadRelay.java` |
