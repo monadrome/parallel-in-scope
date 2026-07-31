@@ -1,0 +1,25 @@
+docs/zh-CN/visuals/parallel-in-scope-architecture.html
+  s_d928e920910e59::t_e7d0024ff96b70 1-13
+mkdocs/mkdocs.yml
+  s_d928e920910e59::t_e7d0024ff96b70 109
+docs/zh-CN/visuals/parallel-in-scope-user-guide.html
+  s_d928e920910e59::t_e7d0024ff96b70 1-13
+.github/workflows/gh-pages.yml
+  s_d928e920910e59::t_e7d0024ff96b70 44-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.35-trip",
+  "base_commit_sha": "a8c6cfd45422a89c52812d834d1d01fe1c3a5ac5",
+  "prompts": {},
+  "sessions": {
+    "s_d928e920910e59": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f827f-4201-7292-8e86-667d81d6c8f4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
