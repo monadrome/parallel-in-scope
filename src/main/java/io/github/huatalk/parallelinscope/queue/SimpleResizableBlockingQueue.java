@@ -9,32 +9,36 @@ import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * A simple resizable blocking queue backed by a replaceable {@link LinkedBlockingQueue}.
+ * A resizable blocking queue backed by a replaceable {@link LinkedBlockingQueue}.
  * <p>
- * Resizing creates a new queue, moves retained elements in FIFO order, and atomically replaces
- * the active queue reference. All queue operations are blocked while that migration runs. If a
+ * Ordinary queue operations share a lifecycle read lock, allowing the delegate's independent
+ * enqueue and dequeue locks to retain their concurrency. Resizing takes the lifecycle write lock,
+ * moves retained elements in FIFO order, and atomically publishes a replacement queue state. If a
  * smaller capacity cannot hold every queued element, the oldest elements stay queued and the
  * remaining elements are returned to the caller for explicit handling.
  * <p>
- * A single state lock intentionally favors straightforward resize semantics over the two-lock
- * throughput of {@code LinkedBlockingQueue}. Blocking operations release that lock while waiting,
- * so a resize can still grow a full queue or replace an empty queue.
+ * Blocking operations never wait inside the replaceable delegate. A stable wait coordinator owns
+ * the {@code notEmpty} and {@code notFull} conditions, so waiters wake after a resize, reload the
+ * current queue state, and retry against the replacement delegate.
  *
  * @param <E> the type of elements held in this queue
  */
 public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E> {
 
-    private final AtomicReference<LinkedBlockingQueue<E>> queueReference;
-    private final ReentrantLock stateLock = new ReentrantLock(true);
-    private final Condition notEmpty = stateLock.newCondition();
-    private final Condition notFull = stateLock.newCondition();
-    private int capacity;
+    private final AtomicReference<QueueState<E>> stateReference;
+    private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock(true);
+    private final Lock operationLock = lifecycleLock.readLock();
+    private final Lock resizeLock = lifecycleLock.writeLock();
+    private final WaitCoordinator waitCoordinator = new WaitCoordinator();
 
     /**
      * Creates an empty queue with the supplied capacity.
@@ -44,8 +48,7 @@ public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
      */
     public SimpleResizableBlockingQueue(int capacity) {
         requirePositiveCapacity(capacity);
-        this.capacity = capacity;
-        this.queueReference = new AtomicReference<>(new LinkedBlockingQueue<>(capacity));
+        this.stateReference = new AtomicReference<>(new QueueState<>(capacity, 0L));
     }
 
     /**
@@ -53,7 +56,7 @@ public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
      * <p>
      * Elements are considered in FIFO order. Up to {@code newCapacity} elements are transferred
      * to the replacement queue; any remaining elements are removed from this queue and returned
-     * in their original order.
+     * in their original order. Resizing to the current capacity is a no-op.
      *
      * @param newCapacity the positive replacement capacity
      * @return a mutable list of elements that did not fit, or an empty list if all elements fit
@@ -61,30 +64,31 @@ public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
      */
     public List<E> resize(int newCapacity) {
         requirePositiveCapacity(newCapacity);
-        stateLock.lock();
-        try {
-            LinkedBlockingQueue<E> currentQueue = queueReference.get();
-            List<E> elements = new ArrayList<>(currentQueue);
-            int retainedCount = Math.min(elements.size(), newCapacity);
+        List<E> overflow;
 
+        resizeLock.lock();
+        try {
+            QueueState<E> currentState = stateReference.get();
+            if (newCapacity == currentState.capacity) {
+                return new ArrayList<>();
+            }
+
+            List<E> elements = new ArrayList<>(currentState.delegate);
+            int retainedCount = Math.min(elements.size(), newCapacity);
             LinkedBlockingQueue<E> replacement = new LinkedBlockingQueue<>(newCapacity);
             replacement.addAll(elements.subList(0, retainedCount));
-            List<E> overflow = new ArrayList<>(elements.subList(retainedCount, elements.size()));
+            overflow = new ArrayList<>(elements.subList(retainedCount, elements.size()));
 
-            currentQueue.clear();
-            queueReference.set(replacement);
-            capacity = newCapacity;
-
-            if (!replacement.isEmpty()) {
-                notEmpty.signalAll();
-            }
-            if (replacement.remainingCapacity() > 0) {
-                notFull.signalAll();
-            }
-            return overflow;
+            QueueState<E> replacementState = new QueueState<>(
+                    replacement, newCapacity, currentState.generation + 1L);
+            stateReference.set(replacementState);
+            currentState.delegate.clear();
         } finally {
-            stateLock.unlock();
+            resizeLock.unlock();
         }
+
+        waitCoordinator.signalAll();
+        return overflow;
     }
 
     /**
@@ -93,171 +97,156 @@ public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
      * @return the positive capacity
      */
     public int getCapacity() {
-        stateLock.lock();
+        operationLock.lock();
         try {
-            return capacity;
+            return stateReference.get().capacity;
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
     @Override
     public int size() {
-        stateLock.lock();
+        operationLock.lock();
         try {
             return queue().size();
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
     @Override
     public int remainingCapacity() {
-        stateLock.lock();
+        operationLock.lock();
         try {
             return queue().remainingCapacity();
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
     @Override
     public boolean offer(E element) {
         Objects.requireNonNull(element, "element");
-        stateLock.lock();
+        boolean added;
+        operationLock.lock();
         try {
-            boolean added = queue().offer(element);
-            if (added) {
-                notEmpty.signal();
-            }
-            return added;
+            added = queue().offer(element);
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
+        if (added) {
+            waitCoordinator.signalNotEmpty();
+        }
+        return added;
     }
 
     @Override
     public void put(E element) throws InterruptedException {
         Objects.requireNonNull(element, "element");
-        stateLock.lockInterruptibly();
-        try {
-            while (!queue().offer(element)) {
-                notFull.await();
-            }
-            notEmpty.signal();
-        } finally {
-            stateLock.unlock();
+        while (!offerInterruptibly(element)) {
+            waitCoordinator.awaitNotFull();
         }
     }
 
     @Override
     public boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(element, "element");
-        long nanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
-        stateLock.lockInterruptibly();
-        try {
-            while (!queue().offer(element)) {
-                if (nanos <= 0L) {
-                    return false;
-                }
-                nanos = notFull.awaitNanos(nanos);
+        long remainingNanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
+        long deadline = System.nanoTime() + remainingNanos;
+
+        while (!offerInterruptibly(element)) {
+            if (remainingNanos <= 0L) {
+                return false;
             }
-            notEmpty.signal();
-            return true;
-        } finally {
-            stateLock.unlock();
+            waitCoordinator.awaitNotFull(remainingNanos);
+            remainingNanos = deadline - System.nanoTime();
         }
+        return true;
     }
 
     @Override
     public E poll() {
-        stateLock.lock();
+        E element;
+        operationLock.lock();
         try {
-            E element = queue().poll();
-            if (element != null) {
-                notFull.signal();
-            }
-            return element;
+            element = queue().poll();
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
+        if (element != null) {
+            waitCoordinator.signalNotFull();
+        }
+        return element;
     }
 
     @Override
     public E take() throws InterruptedException {
-        stateLock.lockInterruptibly();
-        try {
-            E element;
-            while ((element = queue().poll()) == null) {
-                notEmpty.await();
-            }
-            notFull.signal();
-            return element;
-        } finally {
-            stateLock.unlock();
+        E element;
+        while ((element = pollInterruptibly()) == null) {
+            waitCoordinator.awaitNotEmpty();
         }
+        return element;
     }
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        long nanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
-        stateLock.lockInterruptibly();
-        try {
-            E element;
-            while ((element = queue().poll()) == null) {
-                if (nanos <= 0L) {
-                    return null;
-                }
-                nanos = notEmpty.awaitNanos(nanos);
+        long remainingNanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
+        long deadline = System.nanoTime() + remainingNanos;
+        E element;
+
+        while ((element = pollInterruptibly()) == null) {
+            if (remainingNanos <= 0L) {
+                return null;
             }
-            notFull.signal();
-            return element;
-        } finally {
-            stateLock.unlock();
+            waitCoordinator.awaitNotEmpty(remainingNanos);
+            remainingNanos = deadline - System.nanoTime();
         }
+        return element;
     }
 
     @Override
     public E peek() {
-        stateLock.lock();
+        operationLock.lock();
         try {
             return queue().peek();
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
     @Override
     public boolean remove(Object object) {
-        stateLock.lock();
+        boolean removed;
+        operationLock.lock();
         try {
-            boolean removed = queue().remove(object);
-            if (removed) {
-                notFull.signal();
-            }
-            return removed;
+            removed = queue().remove(object);
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
+        if (removed) {
+            waitCoordinator.signalNotFull();
+        }
+        return removed;
     }
 
     @Override
     public boolean contains(Object object) {
-        stateLock.lock();
+        operationLock.lock();
         try {
             return queue().contains(object);
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
     @Override
     public Iterator<E> iterator() {
-        stateLock.lock();
+        operationLock.lock();
         try {
             return new SnapshotIterator(new ArrayList<>(queue()).iterator());
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
         }
     }
 
@@ -272,54 +261,225 @@ public class SimpleResizableBlockingQueue<E> extends AbstractQueue<E>
         if (target == this) {
             throw new IllegalArgumentException("cannot drain a queue to itself");
         }
-        stateLock.lock();
+
+        operationLock.lock();
         try {
-            int drained = queue().drainTo(target, maxElements);
-            if (drained > 0) {
-                notFull.signalAll();
-            }
-            return drained;
+            return queue().drainTo(target, maxElements);
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
+            waitCoordinator.signalAllNotFull();
         }
     }
 
     @Override
     public void clear() {
-        stateLock.lock();
+        operationLock.lock();
         try {
-            if (!queue().isEmpty()) {
-                queue().clear();
-                notFull.signalAll();
-            }
+            queue().clear();
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
+        }
+        waitCoordinator.signalAllNotFull();
+    }
+
+    private boolean offerInterruptibly(E element) throws InterruptedException {
+        boolean added;
+        operationLock.lockInterruptibly();
+        try {
+            added = queue().offer(element);
+        } finally {
+            operationLock.unlock();
+        }
+        if (added) {
+            waitCoordinator.signalNotEmpty();
+        }
+        return added;
+    }
+
+    private E pollInterruptibly() throws InterruptedException {
+        E element;
+        operationLock.lockInterruptibly();
+        try {
+            element = queue().poll();
+        } finally {
+            operationLock.unlock();
+        }
+        if (element != null) {
+            waitCoordinator.signalNotFull();
+        }
+        return element;
+    }
+
+    private boolean isEmptyInterruptibly() throws InterruptedException {
+        operationLock.lockInterruptibly();
+        try {
+            return queue().isEmpty();
+        } finally {
+            operationLock.unlock();
+        }
+    }
+
+    private boolean isFullInterruptibly() throws InterruptedException {
+        operationLock.lockInterruptibly();
+        try {
+            return queue().remainingCapacity() == 0;
+        } finally {
+            operationLock.unlock();
         }
     }
 
     private LinkedBlockingQueue<E> queue() {
-        return queueReference.get();
+        return stateReference.get().delegate;
     }
 
     private void removeByIdentity(E target) {
-        stateLock.lock();
+        boolean removed = false;
+        operationLock.lock();
         try {
             Iterator<E> iterator = queue().iterator();
             while (iterator.hasNext()) {
                 if (iterator.next() == target) {
                     iterator.remove();
-                    notFull.signal();
-                    return;
+                    removed = true;
+                    break;
                 }
             }
         } finally {
-            stateLock.unlock();
+            operationLock.unlock();
+        }
+        if (removed) {
+            waitCoordinator.signalNotFull();
         }
     }
 
     private static void requirePositiveCapacity(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be positive");
+        }
+    }
+
+    private static final class QueueState<E> {
+        private final LinkedBlockingQueue<E> delegate;
+        private final int capacity;
+        private final long generation;
+
+        private QueueState(int capacity, long generation) {
+            this(new LinkedBlockingQueue<>(capacity), capacity, generation);
+        }
+
+        private QueueState(LinkedBlockingQueue<E> delegate, int capacity, long generation) {
+            this.delegate = delegate;
+            this.capacity = capacity;
+            this.generation = generation;
+        }
+    }
+
+    private final class WaitCoordinator {
+        private final ReentrantLock waitLock = new ReentrantLock();
+        private final Condition notEmpty = waitLock.newCondition();
+        private final Condition notFull = waitLock.newCondition();
+        private final AtomicInteger waitingConsumers = new AtomicInteger();
+        private final AtomicInteger waitingProducers = new AtomicInteger();
+
+        private void awaitNotEmpty() throws InterruptedException {
+            waitLock.lockInterruptibly();
+            waitingConsumers.incrementAndGet();
+            try {
+                while (isEmptyInterruptibly()) {
+                    notEmpty.await();
+                }
+            } finally {
+                waitingConsumers.decrementAndGet();
+                waitLock.unlock();
+            }
+        }
+
+        private void awaitNotEmpty(long nanos) throws InterruptedException {
+            waitLock.lockInterruptibly();
+            waitingConsumers.incrementAndGet();
+            try {
+                while (isEmptyInterruptibly() && nanos > 0L) {
+                    nanos = notEmpty.awaitNanos(nanos);
+                }
+            } finally {
+                waitingConsumers.decrementAndGet();
+                waitLock.unlock();
+            }
+        }
+
+        private void awaitNotFull() throws InterruptedException {
+            waitLock.lockInterruptibly();
+            waitingProducers.incrementAndGet();
+            try {
+                while (isFullInterruptibly()) {
+                    notFull.await();
+                }
+            } finally {
+                waitingProducers.decrementAndGet();
+                waitLock.unlock();
+            }
+        }
+
+        private void awaitNotFull(long nanos) throws InterruptedException {
+            waitLock.lockInterruptibly();
+            waitingProducers.incrementAndGet();
+            try {
+                while (isFullInterruptibly() && nanos > 0L) {
+                    nanos = notFull.awaitNanos(nanos);
+                }
+            } finally {
+                waitingProducers.decrementAndGet();
+                waitLock.unlock();
+            }
+        }
+
+        private void signalNotEmpty() {
+            if (waitingConsumers.get() == 0) {
+                return;
+            }
+            waitLock.lock();
+            try {
+                notEmpty.signal();
+            } finally {
+                waitLock.unlock();
+            }
+        }
+
+        private void signalNotFull() {
+            if (waitingProducers.get() == 0) {
+                return;
+            }
+            waitLock.lock();
+            try {
+                notFull.signal();
+            } finally {
+                waitLock.unlock();
+            }
+        }
+
+        private void signalAllNotFull() {
+            if (waitingProducers.get() == 0) {
+                return;
+            }
+            waitLock.lock();
+            try {
+                notFull.signalAll();
+            } finally {
+                waitLock.unlock();
+            }
+        }
+
+        private void signalAll() {
+            if (waitingConsumers.get() == 0 && waitingProducers.get() == 0) {
+                return;
+            }
+            waitLock.lock();
+            try {
+                notEmpty.signalAll();
+                notFull.signalAll();
+            } finally {
+                waitLock.unlock();
+            }
         }
     }
 
