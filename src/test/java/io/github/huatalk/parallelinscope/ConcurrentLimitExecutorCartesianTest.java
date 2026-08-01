@@ -115,15 +115,16 @@ public class ConcurrentLimitExecutorCartesianTest {
         }
     }
 
-    /** Asserts later IO rejection fails the submitter while leaving its placeholder unresolved. */
+    /** Asserts later IO rejection terminates both the submitter and its result placeholder. */
     private static void assertLaterIoRejection(
             AsyncBatchResult<Integer> result,
             AtomicReference<String> executionThread) {
         assertThatThrownBy(() -> result.getSubmitCanceller().get(5, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(RejectedExecutionException.class);
-        assertThat(result.getResults().get(1).isDone()).isFalse();
-        assertThat(result.getResults().get(1).cancel(false)).isTrue();
+        assertThatThrownBy(() -> result.getResults().get(1).get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(RejectedExecutionException.class);
         assertThat(executionThread).hasNullValue();
     }
 

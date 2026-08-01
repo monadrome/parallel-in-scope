@@ -217,7 +217,13 @@ public class ConcurrentLimitExecutor<V> {
             if (completed.isCancelled() || result.get(index).isCancelled() || Thread.interrupted()) {
                 return submitted;
             }
-            ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+            SettableFuture<V> placeholder = (SettableFuture<V>) result.get(index);
+            try {
+                placeholder.setFuture(fallbackSubmit(tasks, index));
+            } catch (RejectedExecutionException e) {
+                placeholder.setException(e);
+                throw e;
+            }
             submitted++;
             index++;
         }

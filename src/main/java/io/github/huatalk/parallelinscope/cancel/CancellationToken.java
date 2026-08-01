@@ -93,6 +93,7 @@ public class CancellationToken {
         Objects.requireNonNull(timer);
         if (parent != null) {
             if (parent.getState().shouldInterruptCurrentThread()) {
+                state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
                 futureToken.cancel(true);
             } else {
                 Futures.catching(parent.futureToken, Throwable.class, ex -> {

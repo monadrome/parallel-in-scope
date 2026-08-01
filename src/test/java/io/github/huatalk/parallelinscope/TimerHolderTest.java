@@ -2,6 +2,7 @@ package io.github.huatalk.parallelinscope;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.CancellationTokenState;
@@ -111,6 +112,46 @@ class TimerHolderTest {
         } finally {
             customTimer.shutdownNow();
         }
+    }
+
+    @Test
+    void timerDoesNotTerminateWhileDispatchedActionIsStillRunning() throws Exception {
+        ScheduledThreadPoolExecutor customTimer = new ScheduledThreadPoolExecutor(1);
+        ListeningScheduledExecutorService timer = ParConfig.builder()
+                .timer(customTimer)
+                .build()
+                .getTimerService();
+        CountDownLatch actionStarted = new CountDownLatch(1);
+        CountDownLatch releaseAction = new CountDownLatch(1);
+
+        timer.execute(() -> {
+            actionStarted.countDown();
+            boolean interrupted = false;
+            while (true) {
+                try {
+                    releaseAction.await();
+                    break;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        try {
+            assertThat(actionStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            timer.shutdownNow();
+
+            assertThat(timer.isTerminated()).isFalse();
+            assertThat(timer.awaitTermination(100, TimeUnit.MILLISECONDS)).isFalse();
+        } finally {
+            releaseAction.countDown();
+        }
+
+        assertThat(timer.awaitTermination(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(timer.isTerminated()).isTrue();
     }
 
     @Test

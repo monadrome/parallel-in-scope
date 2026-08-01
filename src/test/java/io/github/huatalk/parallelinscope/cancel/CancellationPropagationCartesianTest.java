@@ -6,7 +6,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import org.junit.jupiter.api.Named;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -83,7 +82,6 @@ public class CancellationPropagationCartesianTest {
     }
 
     /** Specifies consistent propagation classification when the parent was already cancelled. */
-    @Disabled("Production issue: already-cancelled parent is misclassified as FAIL_FAST_CANCELED")
     @Test
     public void alreadyCancelledParentClassifiesChildAsPropagatingCancellation() {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();

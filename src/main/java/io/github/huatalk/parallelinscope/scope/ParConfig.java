@@ -19,8 +19,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -340,6 +342,8 @@ public final class ParConfig {
     private static final class DispatchingScheduledExecutorService
             extends AbstractExecutorService implements ScheduledExecutorService {
         private final ScheduledExecutorService scheduler;
+        private final Set<TrackedAction> activeActions = ConcurrentHashMap.newKeySet();
+        private final Object terminationMonitor = new Object();
 
         private DispatchingScheduledExecutorService(ScheduledExecutorService scheduler) {
             this.scheduler = Objects.requireNonNull(scheduler);
@@ -372,7 +376,7 @@ public final class ParConfig {
                 throw new IllegalArgumentException("period must be positive");
             }
             return new DispatchingPeriodicFuture(
-                    scheduler, command, initialDelay, period, unit, true);
+                    this, scheduler, command, initialDelay, period, unit, true);
         }
 
         @Override
@@ -384,12 +388,27 @@ public final class ParConfig {
                 throw new IllegalArgumentException("delay must be positive");
             }
             return new DispatchingPeriodicFuture(
-                    scheduler, command, initialDelay, delay, unit, false);
+                    this, scheduler, command, initialDelay, delay, unit, false);
         }
 
         private ScheduledFuture<?> scheduleDispatch(Runnable command, long delay, TimeUnit unit) {
             return scheduler.schedule(
-                    () -> TimerTaskExecutorHolder.INSTANCE.execute(command), delay, unit);
+                    () -> {
+                        submitTracked(command);
+                    }, delay, unit);
+        }
+
+        /** Submits one callback while retaining its actual execution lifetime. */
+        private Future<?> submitTracked(Runnable command) {
+            TrackedAction action = new TrackedAction(command);
+            activeActions.add(action);
+            try {
+                TimerTaskExecutorHolder.INSTANCE.execute(action.future);
+                return action.future;
+            } catch (RuntimeException e) {
+                action.cancel(false);
+                throw e;
+            }
         }
 
         @Override
@@ -398,7 +417,7 @@ public final class ParConfig {
             if (scheduler.isShutdown()) {
                 throw new RejectedExecutionException("Timer scheduler is shut down");
             }
-            TimerTaskExecutorHolder.INSTANCE.execute(command);
+            submitTracked(command);
         }
 
         @Override
@@ -408,7 +427,9 @@ public final class ParConfig {
 
         @Override
         public List<Runnable> shutdownNow() {
-            return scheduler.shutdownNow();
+            List<Runnable> pending = scheduler.shutdownNow();
+            activeActions.forEach(action -> action.cancel(true));
+            return pending;
         }
 
         @Override
@@ -418,12 +439,68 @@ public final class ParConfig {
 
         @Override
         public boolean isTerminated() {
-            return scheduler.isTerminated();
+            return scheduler.isTerminated() && activeActions.isEmpty();
         }
 
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-            return scheduler.awaitTermination(timeout, unit);
+            Objects.requireNonNull(unit);
+            long timeoutNanos = unit.toNanos(timeout);
+            long started = System.nanoTime();
+            if (!scheduler.awaitTermination(timeout, unit)) {
+                return false;
+            }
+
+            synchronized (terminationMonitor) {
+                long remaining = timeoutNanos - (System.nanoTime() - started);
+                while (!activeActions.isEmpty()) {
+                    if (remaining <= 0L) {
+                        return false;
+                    }
+                    long millis = TimeUnit.NANOSECONDS.toMillis(remaining);
+                    int nanos = (int) (remaining - TimeUnit.MILLISECONDS.toNanos(millis));
+                    terminationMonitor.wait(millis, nanos);
+                    remaining = timeoutNanos - (System.nanoTime() - started);
+                }
+                return true;
+            }
+        }
+
+        /** Tracks a dispatched callback until its body actually returns. */
+        private final class TrackedAction {
+            private final AtomicBoolean claimed = new AtomicBoolean();
+            private final AtomicBoolean finished = new AtomicBoolean();
+            private final FutureTask<Void> future;
+
+            private TrackedAction(Runnable command) {
+                this.future = new FutureTask<>(() -> {
+                    if (!claimed.compareAndSet(false, true)) {
+                        return null;
+                    }
+                    try {
+                        command.run();
+                        return null;
+                    } finally {
+                        finish();
+                    }
+                });
+            }
+
+            private void cancel(boolean mayInterruptIfRunning) {
+                if (future.cancel(mayInterruptIfRunning)
+                        && claimed.compareAndSet(false, true)) {
+                    finish();
+                }
+            }
+
+            private void finish() {
+                if (finished.compareAndSet(false, true)) {
+                    activeActions.remove(this);
+                    synchronized (terminationMonitor) {
+                        terminationMonitor.notifyAll();
+                    }
+                }
+            }
         }
     }
 
@@ -481,6 +558,7 @@ public final class ParConfig {
      * the non-overlap and fixed-delay guarantees of ScheduledExecutorService.
      */
     private static final class DispatchingPeriodicFuture implements ScheduledFuture<Object> {
+        private final DispatchingScheduledExecutorService owner;
         private final ScheduledExecutorService scheduler;
         private final Runnable command;
         private final long intervalNanos;
@@ -494,12 +572,14 @@ public final class ParConfig {
         private long nextDeadlineNanos;
 
         private DispatchingPeriodicFuture(
+                DispatchingScheduledExecutorService owner,
                 ScheduledExecutorService scheduler,
                 Runnable command,
                 long initialDelay,
                 long interval,
                 TimeUnit unit,
                 boolean fixedRate) {
+            this.owner = owner;
             this.scheduler = scheduler;
             this.command = command;
             this.intervalNanos = unit.toNanos(interval);
@@ -528,7 +608,7 @@ public final class ParConfig {
                 }
                 trigger = null;
                 try {
-                    running = TimerTaskExecutorHolder.INSTANCE.submit(this::runAction);
+                    running = owner.submitTracked(this::runAction);
                 } catch (Throwable t) {
                     fail(t);
                 }
