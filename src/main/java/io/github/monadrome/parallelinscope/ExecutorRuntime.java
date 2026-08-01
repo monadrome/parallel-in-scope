@@ -122,6 +122,28 @@ final class ExecutorRuntime {
     }
 
     /**
+     * Whether the pool behind this executor is a {@link ThreadPoolExecutor}, read through {@link
+     * #introspectableExecutor()} so a TTL-wrapped pool still counts.
+     *
+     * <p>Named for what it tests rather than for the conclusion it supports, because the two are not
+     * equivalent in either direction: a TPE configured with {@code AbortPolicy} answers true and
+     * never runs a task inline, while a foreign executor that always does answers false. What the
+     * type does establish is an implication callers can rely on — a TPE dispatches to a worker or
+     * throws, so the only path by which a submitted task reaches the caller's own stack is its {@link
+     * java.util.concurrent.RejectedExecutionHandler}. For such a pool, "the body ran on the
+     * submitting thread" and "a rejection handler ran it" are therefore the same fact.
+     *
+     * <p>That is what makes it sound to treat inline execution as a violation for a TPE and not for
+     * anything else. An executor that always runs inline — {@code MoreExecutors.directExecutor()} and
+     * friends — is expressing its whole contract rather than a symptom of load, and it was chosen
+     * explicitly by whoever registered it; acting on that signal would break a documented allowance
+     * (see {@code CombineBody}) on the strength of an observation that carries no information.
+     */
+    boolean threadPoolBacked() {
+        return introspectableExecutor instanceof ThreadPoolExecutor;
+    }
+
+    /**
      * Reads a queue's configured capacity from the {@link BlockingQueue} contract alone: {@code
      * remainingCapacity()} is documented as the number of elements the queue can ideally accept
      * without blocking, or {@link Integer#MAX_VALUE} when it has no intrinsic limit, and the JDK

@@ -548,6 +548,14 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // callback at join time, not by the caller of submitAll(). A rejected combine
                 // therefore fails as SUBMISSION_FAILURE instead of running user code on the
                 // convergence callback thread, whatever runOnCallerThread the options declare.
+                //
+                // That false covers only this library's own inline fallback. A pool whose
+                // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
+                // the body without ever throwing RejectedExecutionException, so the flag never sees
+                // it and the combine would run on the convergence callback thread in silence.
+                // forbidInlineExecution() closes that path for a TPE-backed target, where thread
+                // identity proves a handler ran the body; see ExecutorRuntime for why it is scoped
+                // to a TPE and why an always-inline executor is left alone.
                 Par par = combineSlot.par;
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         MultiTaskContext.resolution(combineSlot.options.spec(combineSlot.name), 1)
@@ -566,6 +574,9 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 TypeToken<?> combineType = combineSlot.type;
                 Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
                 ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
+                if (par.executorRuntime().threadPoolBacked()) {
+                    future.forbidInlineExecution();
+                }
                 terminal =
                         new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor(), false);
                 if (observation != null) {

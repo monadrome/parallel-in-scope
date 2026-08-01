@@ -375,6 +375,24 @@ thread — member current task and group current context do not exist during the
 
 ## Behavior changes to plan for
 
+- **The default task type and enqueue policy are now permissive.** `TaskType` defaults to
+  `IO_BOUND` and `rejectEnqueue` to `false`, where both used to be the refusing values
+  (`CPU_BOUND`, `true`). `SmartBlockingQueue.offer` refuses when the type is `CPU_BOUND` **or** the
+  flag is set, so the old pair made such a queue refuse every task submitted with default options:
+  its configured capacity was never used, the pool grew to its maximum, and every further task went
+  to the rejection handler. If you relied on that as back-pressure — most visibly with a
+  `CallerRunsPolicy` pool, where it threw work back onto the submitting thread — you now have to ask
+  for it: declare `taskType(TaskType.CPU_BOUND)` or `rejectEnqueue(true)`. Both still behave exactly
+  as before when declared. Note the other side of this: tasks that used to be refused now occupy
+  queue slots, so a queue whose capacity was previously irrelevant becomes a real bound on memory.
+  Size it deliberately rather than inheriting a number that never applied.
+- **A combine is refused when its pool would run it on the convergence thread.** A combine body
+  must run on a worker of its own `Par`. With a `ThreadPoolExecutor` whose rejection handler runs
+  tasks inside `execute()` — `CallerRunsPolicy` — a saturated pool used to run the combine on the
+  convergence callback thread and report `SUCCESS`. That execution is now recorded as
+  `SUBMISSION_FAILURE` and the body never runs. Such a pool is not refused at registration: it only
+  runs inline under genuine saturation, so a pool that never saturates is unaffected. A `Par` backed
+  by a direct executor keeps its documented allowance and still runs the combine inline.
 - **Owner binding is explicit.** A chain only accepts `Par` handles of the `ParRuntime` that
   created it; a foreign `Par` fails on the `par` / `combine` call itself. After
   `ParRuntime.close()` a submitted group still converges normally, but a new `submitAll()` fails.
@@ -477,8 +495,15 @@ broken executor or a failing VM rather than an ordinary rejection. The full cont
 ## Executor rejection no longer runs user code by default
 
 `TaskType.CPU_BOUND` used to carry an implicit scheduling rule: when the bound executor rejected
-a task, the task ran on the submitting thread. `CPU_BOUND` is also the default task type, so
-every task that declared no type silently ran user code on the caller's thread on rejection.
+a task, the task ran on the submitting thread. `CPU_BOUND` was also the default task type in
+0.2.x, so every task that declared no type silently ran user code on the caller's thread on
+rejection.
+
+> Note: `CPU_BOUND` is no longer the default. 0.3 defaults to `IO_BOUND` with
+> `rejectEnqueue=false`, because `SmartBlockingQueue.offer` refuses when the type is `CPU_BOUND`
+> or the flag is set — defaulting to either refusing value makes such a queue refuse every task
+> submitted with default options, leaving its configured capacity unused. This section describes
+> 0.2.x behaviour and its migration, not the current defaults.
 
 The fallback is now an explicit option, and it defaults to off:
 
