@@ -330,11 +330,10 @@ class ParRuntimeTest {
     }
 
     @Test
-    void closeFromCallerThreadFallbackTaskDoesNotDeadlockBatchAdmission() throws Exception {
-        ExecutorService rejectedExecutor = Executors.newSingleThreadExecutor();
-        rejectedExecutor.shutdown();
+    void closeFromDirectExecutorTaskDoesNotDeadlockBatchAdmission() throws Exception {
+        ExecutorService directExecutor = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("cpu"), rejectedExecutor).build();
+                ParRuntime.builder().register(ParId.of("cpu"), directExecutor).build();
         try {
             TaskBatchResult<Integer> result = global.par(ParId.of("cpu"))
                     .map(
@@ -343,15 +342,13 @@ class ParRuntimeTest {
                                 global.close();
                                 return value + 1;
                             },
-                            BatchOptions.timeout("cpu", Duration.ofSeconds(30))
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .runOnCallerThread(true));
+                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
 
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(global.closed()).isTrue();
         } finally {
             global.close();
-            rejectedExecutor.shutdownNow();
+            directExecutor.shutdownNow();
         }
     }
 

@@ -170,11 +170,10 @@ class TaskGroupCombineTest {
     }
 
     @Test
-    void combineIgnoresRunOnCallerThreadAndStillFailsSubmissionOnRejection() throws Exception {
-        // Pins the combine side of the §19.9 boundary: the terminal combine never reads
-        // runOnCallerThread — its submission thread is the join-time convergence callback, not a
-        // borrowable caller thread — so a rejection stays SUBMISSION_FAILURE even when the declared
-        // options ask for the caller-thread fallback.
+    void combineFailsSubmissionOnRejectionWithoutRunningTheBody() throws Exception {
+        // The terminal combine never runs on the submitting thread — its submission thread is the
+        // join-time convergence callback, and forbidInlineExecution refuses an inline handoff — so
+        // a rejection stays SUBMISSION_FAILURE and the combine body never runs.
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
         ParRuntime global = ParRuntime.builder()
@@ -188,7 +187,7 @@ class TaskGroupCombineTest {
                     .combine(
                             "assemble",
                             global.par(ParId.of("rejecting")),
-                            TaskOptions.inheritTimeout().runOnCallerThread(true),
+                            TaskOptions.inheritTimeout(),
                             TypeToken.of(String.class),
                             values -> {
                                 combineRuns.incrementAndGet();

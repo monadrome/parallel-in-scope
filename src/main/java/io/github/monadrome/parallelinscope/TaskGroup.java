@@ -524,8 +524,8 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // member failure instead of a later ClassCastException at a caller's use site.
                 Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
                 ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
-                MemberState state = new MemberState(
-                        slot.name, slot.type, taskContext, future, par.submissionExecutor(), unit.runOnCallerThread());
+                MemberState state =
+                        new MemberState(slot.name, slot.type, taskContext, future, par.submissionExecutor());
                 states.put(slot.name, state);
             }
             int index = 0;
@@ -543,16 +543,15 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // structural parent — so its context capture happens on the submitting thread at
                 // submit time; only the executor submission is deferred to the join. The member
                 // states captured below are the frozen run registry created above, so the assembled
-                // values are read from already-settled futures. The caller-thread fallback is fixed
-                // false because the combine has no caller thread: it is submitted by the convergence
-                // callback at join time, not by the caller of submitAll(). A rejected combine
-                // therefore fails as SUBMISSION_FAILURE instead of running user code on the
-                // convergence callback thread, whatever runOnCallerThread the options declare.
+                // values are read from already-settled futures. A rejected combine fails as
+                // SUBMISSION_FAILURE rather than running user code on the convergence callback thread:
+                // it is submitted by that callback at join time, not by the caller of submitAll(), so
+                // there is no caller thread for it to borrow in the first place.
                 //
-                // That false covers only this library's own inline fallback. A pool whose
+                // Declining a rejection is not enough on its own, because a pool whose
                 // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
-                // the body without ever throwing RejectedExecutionException, so the flag never sees
-                // it and the combine would run on the convergence callback thread in silence.
+                // the body without ever throwing RejectedExecutionException. There is nothing to
+                // decline, and the combine would run on the convergence callback thread in silence.
                 // forbidInlineExecution() closes that path for a TPE-backed target, where thread
                 // identity proves a handler ran the body; see ExecutorRuntime for why it is scoped
                 // to a TPE and why an always-inline executor is left alone.
@@ -577,8 +576,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
-                terminal =
-                        new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor(), false);
+                terminal = new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor());
                 if (observation != null) {
                     logForking(unit, par.executorRuntime().starvationProne());
                 }
@@ -1089,7 +1087,6 @@ public final class TaskGroup<V, R> implements AutoCloseable {
 
         private final TaskExecutionContext context;
         private final Executor executor;
-        private final boolean runOnCallerThread;
         private @Nullable TaskOutcome reason;
         private @Nullable Throwable failure;
 
@@ -1101,23 +1098,18 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 TypeToken<?> type,
                 TaskExecutionContext context,
                 ExecutionPhaseHintFuture<Object> future,
-                Executor executor,
-                boolean runOnCallerThread) {
+                Executor executor) {
             this.name = name;
             this.type = type;
             this.context = context;
             this.future = future;
             this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
             this.executor = executor;
-            this.runOnCallerThread = runOnCallerThread;
         }
 
-        /**
-         * Submits once with the member's batch scope installed; a member whose options request the
-         * caller-thread fallback runs inline on rejection.
-         */
+        /** Submits once with the member's batch scope installed. */
         private void submit() {
-            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, runOnCallerThread);
+            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor);
         }
     }
 

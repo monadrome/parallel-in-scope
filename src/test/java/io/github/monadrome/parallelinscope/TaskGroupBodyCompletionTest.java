@@ -6,16 +6,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -498,43 +497,10 @@ class TaskGroupBodyCompletionTest {
     @Test
     void nestedInlineCallOnMemberThreadIsCoveredByTheSelfAwaitGuard() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ExecutorService rejecting = new AbstractExecutorService() {
-            private volatile boolean shutdown;
-
-            @Override
-            public void shutdown() {
-                shutdown = true;
-            }
-
-            @Override
-            public List<Runnable> shutdownNow() {
-                shutdown = true;
-                return Collections.emptyList();
-            }
-
-            @Override
-            public boolean isShutdown() {
-                return shutdown;
-            }
-
-            @Override
-            public boolean isTerminated() {
-                return shutdown;
-            }
-
-            @Override
-            public boolean awaitTermination(long timeout, TimeUnit unit) {
-                return true;
-            }
-
-            @Override
-            public void execute(Runnable command) {
-                throw new RejectedExecutionException("rejected");
-            }
-        };
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = ParRuntime.builder()
                 .register(ParId.of("worker"), executor)
-                .register(ParId.of("rejecting"), rejecting)
+                .register(ParId.of("direct"), direct)
                 .build();
         AtomicReference<TaskGroup<String, ?>> groupRef = new AtomicReference<>();
         CountDownLatch groupReady = new CountDownLatch(1);
@@ -542,10 +508,10 @@ class TaskGroupBodyCompletionTest {
             TaskGroup<String, Void> group = global.group("nested-guard", TIMEOUT)
                     .par("outer", global.par(ParId.of("worker")), String.class, () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
-                        // The inner task asks for the caller-thread fallback, so the rejecting
-                        // executor runs it inline on the member thread and the inner body nests
-                        // under the member body on the same call stack.
-                        return global.par(ParId.of("rejecting"))
+                        // The inner task's executor is a direct executor service, so it runs inline
+                        // on the member thread and the inner body nests under the member body on the
+                        // same call stack.
+                        return global.par(ParId.of("direct"))
                                 .submit(
                                         "inner",
                                         () -> {
@@ -557,7 +523,7 @@ class TaskGroupBodyCompletionTest {
                                                 return "guarded";
                                             }
                                         },
-                                        TaskOptions.inheritTimeout().runOnCallerThread(true))
+                                        TaskOptions.inheritTimeout())
                                 .get(5, TimeUnit.SECONDS);
                     })
                     .submitAll();

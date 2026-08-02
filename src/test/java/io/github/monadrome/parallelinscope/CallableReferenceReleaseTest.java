@@ -44,7 +44,7 @@ class CallableReferenceReleaseTest {
         Fixture fixture = fixture(unit("run-release"), tracker, 0, () -> "ok");
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            fixture.future.submitPrepared(workers, false);
+            fixture.future.submitPrepared(workers);
 
             assertThat(fixture.future.get(5, TimeUnit.SECONDS)).isEqualTo("ok");
             // releaseDelegate and the body-exit publish happen before the future completes, so they
@@ -62,7 +62,7 @@ class CallableReferenceReleaseTest {
     }
 
     @Test
-    void callerThreadFallbackRejectionStillRunsAndReleases() {
+    void directExecutorSubmissionStillRunsAndReleases() {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         AtomicBoolean ran = new AtomicBoolean();
         Fixture fixture = fixture(unit("inline-release"), tracker, 0, () -> {
@@ -70,11 +70,7 @@ class CallableReferenceReleaseTest {
             return "inline";
         });
 
-        fixture.future.submitPrepared(
-                command -> {
-                    throw new RejectedExecutionException("pool closed");
-                },
-                true);
+        fixture.future.submitPrepared(MoreExecutors.directExecutor());
 
         assertThat(ran).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
@@ -92,11 +88,9 @@ class CallableReferenceReleaseTest {
             return "never";
         });
 
-        fixture.future.submitPrepared(
-                command -> {
-                    throw new RejectedExecutionException("no capacity");
-                },
-                false);
+        fixture.future.submitPrepared(command -> {
+            throw new RejectedExecutionException("no capacity");
+        });
 
         assertThat(ran).isFalse();
         assertThat(fixture.future.isDone()).isTrue();
@@ -182,7 +176,7 @@ class CallableReferenceReleaseTest {
         });
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            fixture.future.submitPrepared(workers, false);
+            fixture.future.submitPrepared(workers);
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(fixture.future.cancel(true)).isTrue();

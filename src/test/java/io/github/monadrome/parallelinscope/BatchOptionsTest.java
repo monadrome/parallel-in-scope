@@ -24,26 +24,20 @@ class BatchOptionsTest {
         // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
         assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(options.rejectEnqueue()).isFalse();
-        assertThat(options.runOnCallerThread()).isFalse();
     }
 
     @Test
     void withersRoundTripEveryFieldWithoutMutatingTheOriginal() {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
-        BatchOptions derived = base.parallelism(3)
-                .taskType(TaskType.CPU_BOUND)
-                .rejectEnqueue(true)
-                .runOnCallerThread(true);
+        BatchOptions derived = base.parallelism(3).taskType(TaskType.CPU_BOUND).rejectEnqueue(true);
 
         assertThat(base.parallelism()).isEqualTo(-1);
         assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(base.rejectEnqueue()).isFalse();
-        assertThat(base.runOnCallerThread()).isFalse();
         assertThat(derived.parallelism()).isEqualTo(3);
         assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(derived.rejectEnqueue()).isTrue();
-        assertThat(derived.runOnCallerThread()).isTrue();
         assertThat(derived.timeout()).isEmpty();
     }
 
