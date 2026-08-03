@@ -22,7 +22,7 @@
 executor"的路径；配置期校验先于任何运行状态。`task()`/`combine()` 不检查或消耗 deadline，
 因为 Group 的逻辑执行时间从 `ParRuntime.submitGroup()` 的统一 start 开始。
 
-executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的成员默认不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；仅当成员选项声明 `runOnCallerThread(true)` 时才在提交线程 inline 执行该成员，属于正常执行路径。
+executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的成员不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；库自身没有 inline 回退路径，若执行器自身的拒绝策略在提交线程 inline 执行（如 `CallerRunsPolicy`），那是执行器的契约，同样经过统一内核的执行权竞态。
 
 该规则同样覆盖目标 executor 的 `execute()` 抛出的任何失败——含违反契约直接抛出的 `Error` 与借泛型擦除偷渡的受检异常（catch 范围见 [扩展契约 L7](extension-and-wrapping.md)）：它是成员提交结果，必须由公开成员 future 以 `SubmissionException` 终结，不能在 Group 已跨过 admission 边界后从 `submitGroup()` 抛出。`TaskGroup.completionFuture()` 仍正常完成并携带 `TaskGroupResult`；调用方通过组结果或成员 future 观察 `SUBMISSION_FAILURE` 及其原始 cause。Options 不提供把成员 handoff failure 改成同步抛出的开关，因为 Group 的成员提交虽然当前由调用线程发起，统一收敛契约仍必须与 Batch/共享 `TaskSubmissions` 内核一致。
 
@@ -85,7 +85,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 - 用户 callable 最多执行一次；
 - phase 继续区分 `CANCELLED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
 - `SubmissionScope` 只包住实际 `executor.execute()`；
-- 支持 `runOnCallerThread(true)` 显式声明的 rejection 后 inline 执行策略，但 inline 也必须遵守已注册和执行权竞态；
+- 库自身不做 rejection 后的 inline 回退（提交期选项 `runOnCallerThread` 已在 0.3.0 发布前删除）；若执行器自身的拒绝策略 inline 执行（`CallerRunsPolicy`、direct executor），inline 也必须遵守已注册和执行权竞态；
 - 每个冻结 future 最终达到终态。
 
 该内核同时供 `Par.map()` 和 Group 使用，避免两套取消/phase/TTL/ScopedCallable 实现。Batch 仍在其上保留 `SlidingWindowSubmitter` 的滑动窗口，Group 不使用滑动窗口。

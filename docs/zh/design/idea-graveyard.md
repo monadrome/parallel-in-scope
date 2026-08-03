@@ -264,6 +264,24 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 ---
 
+## 提交期 caller-thread 回退选项（`runOnCallerThread`）
+
+**曾经存在：** `TaskOptions`/`BatchOptions` 上的提交期选项，在绑定的 executor 拒绝任务时把任务体借到提交线程上 inline 执行。0.3.0 发布前被**主动删除**，从未进入任何已发布版本。
+
+**为什么删除：**
+
+1. **安全优先于表达力。** 它让用户代码跑在调用方未必预期的线程上：提交线程可能是调用方的请求线程、库的 submitter 线程或任何拒绝处理器所在线程，每一处都需要单独的隔离论证才能不出 bug。
+2. **贴近 JDK 习语。** 拒绝时如何处置是 `RejectedExecutionHandler` 的职责，在注册 executor 时声明一次即可。再加一个逐次提交的选项表达同一个决策，是职责重复——两份声明还可能互相矛盾。
+
+**承认的能力缺口：**
+
+1. **覆盖面变窄。** 该选项对任意 `ExecutorService` 都生效；`CallerRunsPolicy` 只对 `ThreadPoolExecutor` 生效。使用其他池实现的用户失去这条回退，需要自己包一层"拒绝即 `run()`"的装饰器（写法见迁移指南）。
+2. **背压语义补不回来。** 库内建的回退会把提交线程占在提交机制内部，池饱和时后续元素的提交自然变慢；执行器侧的处理器能复现执行本身，复现不了批次提交内部的这种节流时序。
+
+**替代方案：** `MoreExecutors.newDirectExecutorService()`（每个任务都 inline，契约即如此）或 `ThreadPoolExecutor` + `CallerRunsPolicy`（饱和时 inline）。被借用线程的中断标志与 `SubmissionScope` 隔离由内核的 `run()` 承担，与走哪条路径无关。
+
+---
+
 ## 不会有的东西
 
 以下特性与 parallel-in-scope 的定位有根本冲突，不会被考虑：

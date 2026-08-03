@@ -853,6 +853,9 @@ executor 自身，拒绝时无框架 fallback"按此理解：成员仅在选项�
 无可借用的 caller thread，被拒绝的 combine 一律记 `SUBMISSION_FAILURE`（空组 + combine
 由 submitGroup 线程在 submit flow 内提交，该路径同样保持禁用）。
 
+> 后续（2026-09-29）：`runOnCallerThread` 选项已在 0.3.0 发布前删除，§16 第 26 项恢复其
+> 字面含义——拒绝时无框架 fallback，inline 执行只可能来自 executor 自身的拒绝策略。
+
 ### 19.10 `ParName` 不删除，更名为 `ParId` 保留（取代 §13.2/§19.2 的 String 端点）
 
 评审认定 §13.1/§19.2 的"删 `ParName`、端点收裸 `String`"不构成有效简化：简化的目标应是

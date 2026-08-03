@@ -215,8 +215,11 @@ public final class TaskGroup implements AutoCloseable {
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue / runOnCallerThread | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
-| `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue / runOnCallerThread | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
+| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝 |
+| `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝 |
+
+> 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
+> `RejectedExecutionHandler`）；本节其余字段划分不受影响。
 
 组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.defineGroup(name,
 timeout)`/`ParRuntime.defineGroupInheriting(name)` 入口承担，close grace 由
@@ -228,12 +231,10 @@ public final class TaskOptions {
     public static TaskOptions timeout(Duration timeout);
     public TaskOptions taskType(TaskType taskType);
     public TaskOptions rejectEnqueue(boolean rejectEnqueue);
-    public TaskOptions runOnCallerThread(boolean runOnCallerThread); // 默认 false
 
     public Optional<Duration> timeout();
     public TaskType taskType();
     public boolean rejectEnqueue();
-    public boolean runOnCallerThread();
 }
 
 public final class BatchOptions {
@@ -242,24 +243,19 @@ public final class BatchOptions {
     public BatchOptions parallelism(int parallelism);
     public BatchOptions taskType(TaskType taskType);
     public BatchOptions rejectEnqueue(boolean rejectEnqueue);
-    public BatchOptions runOnCallerThread(boolean runOnCallerThread); // 默认 false
 
     public String name();
     public int parallelism();
     public Optional<Duration> timeout();
     public TaskType taskType();
     public boolean rejectEnqueue();
-    public boolean runOnCallerThread();
 }
 ```
 
 **字段即消费集合。** 每个选项类型暴露的字段集合必须等于其消费者读取的集合：成员与 combine
 的身份来自声明名（`Member.name()`），单任务是单次执行、没有扇出，因此 `TaskOptions` MUST
 NOT 含 name、parallelism、listeners；组不是一次任务执行，因此组级配置 MUST NOT 含
-parallelism、taskType、rejectEnqueue、runOnCallerThread。`runOnCallerThread` 的消费者是
-单次任务执行的 rejection 路径（拒绝时是否在提交线程 inline 运行），因此它与
-timeout/taskType/rejectEnqueue 一起只出现在 `TaskOptions`/`BatchOptions` 中，terminal
-combine 同样忽略它（见 [终端汇合 §4](task-group-terminal-combine.md)）。
+parallelism、taskType、rejectEnqueue。
 
 **判别式由调用点静态决定。** 就"一个单位的选项"而言，这是把原先的单
 product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOptions`，`task`/`combine`

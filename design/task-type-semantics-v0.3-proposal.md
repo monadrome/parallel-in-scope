@@ -6,6 +6,12 @@
 > 基线：`dev/v0.3.0` HEAD `6c3ce3b`。
 > 本文取代 2026-09-14 之前本文档推荐的"给 `MIXED` 赋 inline 语义"方案（原选项 B），
 > 该方案已否决，理由见 §2。
+>
+> **后续修正（2026-09-29）**：本文引入的 `runOnCallerThread` 选项已在 0.3.0 发布前删除，
+> 从未进入已发布版本——拒绝处置完全归执行器的 `RejectedExecutionHandler`（公理 3/4，
+> 见 `docs/{en,zh}/design/idea-graveyard.md` 与 `docs/{en,zh}/migration-v0.3.md`）。
+> 本文其余结论（`TaskType` 与拒绝处置正交、默认拒绝 inline、`rejectEnqueue` 的生效条件）
+> 仍然有效；文中涉及该选项的 API 清单与迁移写法仅作决策历史保留。
 
 ## 0. 拍板结论
 
