@@ -61,6 +61,14 @@ Two invariants to respect:
   binds them, and `submitAll()` only decides when each prepared future enters
   the pool. Cancelling a view therefore reaches the thread running its body.
 
+Interruption rules (P1-P4): never swallow `InterruptedException`; rethrow it,
+restore the flag, or translate with the original cause and restore the flag.
+The thread owner chooses post-interruption policy, so blocking APIs propagate
+`InterruptedException`. Clear a flag only immediately before throwing that
+exception or when the method is the documented sole consumer of the signal;
+otherwise inspect with `isInterrupted()`. Read-only status methods must not
+change their result or throw merely because the calling thread is interrupted.
+
 ## Design Decisions
 
 Optimize for structured concurrency and user safety and convenience. Prefer

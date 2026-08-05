@@ -14,8 +14,8 @@ import java.util.function.Consumer;
  * <ul>
  *   <li>Wrapping a user {@link Callable} with {@link ScopedCallable} lifecycle instrumentation and
  *       a TTL snapshot, and presenting it as an {@link ExecutionPhaseHintFuture}
- *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch, with the
- *       caller-thread fallback the task's options request on executor rejection
+ *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch; rejection
+ *       handling remains the bound executor's responsibility
  * </ul>
  *
  * <p>The entry points keep their distinct topologies on top of this: the batch path drives a

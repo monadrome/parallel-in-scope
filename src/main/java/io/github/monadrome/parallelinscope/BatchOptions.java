@@ -12,8 +12,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A batch is a fan-out over homogeneous input, so it owns exactly two concepts a single task
  * does not have: the batch identity shared by all elements and the concurrency limit of the sliding
- * window. Per-element execution policy is the rest of this type — timeout, task type, enqueue
- * rejection, and caller-thread fallback.
+ * window. Per-element execution policy is the rest of this type — timeout, task type, and enqueue
+ * rejection.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
@@ -140,6 +140,6 @@ public final class BatchOptions {
 
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
-        return new UnitSpec(name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue);
+        return new UnitSpec(name, parallelism, timeout, taskType, rejectEnqueue);
     }
 }

@@ -14,9 +14,9 @@ import org.jspecify.annotations.Nullable;
  * <p>The body runs exactly once, inside the same scoped-task machinery as a member (execution
  * context, TTL replay, deadline, cooperative cancellation, observation snapshot). It runs on a
  * worker of its own {@code Par}, never on the convergence callback thread of the last member to
- * finish. Two mechanisms hold that: the caller-thread fallback is disabled for a combine, so a
- * handoff that raises {@code RejectedExecutionException} is recorded as {@link
- * TaskOutcome#SUBMISSION_FAILURE}; and when the {@code Par} is backed by a {@link
+ * finish. The framework does not elect an inline fallback for a combine, so a handoff that raises
+ * {@code RejectedExecutionException} is recorded as {@link TaskOutcome#SUBMISSION_FAILURE}; and
+ * when the {@code Par} is backed by a {@link
  * java.util.concurrent.ThreadPoolExecutor}, a body that reaches the executing thread while the
  * handoff is still in progress — which is what the JDK's {@code CallerRunsPolicy} does under
  * saturation, without ever raising that exception — is also recorded as {@code SUBMISSION_FAILURE}

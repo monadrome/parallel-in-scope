@@ -48,14 +48,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * --------------------------  -------------------------------------------------------------
      * SUBMITTED                   No worker has claimed the runnable yet.
      * RUNNING                     A worker has claimed the runnable.
-     * CANCELED_BEFORE_RUN         Cancellation won before run() claimed the runnable.
+     * CANCELLED_BEFORE_RUN        Cancellation won before run() claimed the runnable.
      * CANCEL_REQUESTED_RUNNING    Cancellation followed a run() claim.
      * TERMINAL                    run() has returned.
      *
      * State transitions:
      *
      *                          cancellation wins
-     * SUBMITTED ----------------------------------------------> CANCELED_BEFORE_RUN
+     * SUBMITTED ----------------------------------------------> CANCELLED_BEFORE_RUN
      *     |
      *     | worker run() wins
      *     v
@@ -269,7 +269,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     /**
      * Claims this future for a submission failure without settling it, and records the attribution
-     * so it survives a cancellation that arrives afterwards.
+     * so it survives a cancellation that arrives afterward.
      *
      * <p>Split from {@link #settleSubmissionFailure()} for the batch paths, which must fail several
      * elements on one handoff failure while the batch's {@link CancellationToken} is already bound.
@@ -482,9 +482,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             ExecutionPhase current = phase.get();
             if (current == ExecutionPhase.SUBMITTED) {
                 // Cancel won before run(): no worker will emit phases, so report it here and release.
-                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELED_BEFORE_RUN)) {
+                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
                     skipBody();
-                    notifyPhase(ExecutionPhase.CANCELED_BEFORE_RUN);
+                    notifyPhase(ExecutionPhase.CANCELLED_BEFORE_RUN);
                     phaseObserver = NOOP;
                 }
             } else if (current == ExecutionPhase.RUNNING) {
