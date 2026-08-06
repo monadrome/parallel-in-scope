@@ -54,6 +54,17 @@ proposal is judged against. Ideas already weighed and declined are recorded in
 the [idea graveyard](docs/zh/design/idea-graveyard.md)
 ([en](docs/en/design/idea-graveyard.md)); check there before proposing.
 
+### Issue maintenance
+
+Issues are an opt-in public surface for maintainer-driven work; whoever opens
+one maintains it. The authoritative decision record is the implementing pull
+request and any accompanying `design/` document.
+
+- Keep an issue updated when the direction changes, and link the implementing
+  PR with `Closes #NN` or `Refs #NN`.
+- Use the current release milestone for findings that must land before that
+  release; leave other backlog items un-milestoned.
+
 ## Set up and verify locally
 
 The library targets Java 8 (`src/main/java` must stay on Java 8 APIs); tests
@@ -76,7 +87,7 @@ do not need Java tests — see
 - Commit messages follow Conventional Commits with a lowercase summary, e.g.
   `feat: add batch deadline option`, `fix: drain queue before close`,
   `docs: clarify cancellation contract` (see
-  [AGENTS.md — Git Workflow](AGENTS.md#git-workflow)).
+  [AGENTS.md — Verification And Completion](AGENTS.md#verification-and-completion)).
 - Link the pull request to its issue: `Closes #NN` when the PR completes the
   issue, `Refs #NN` when it is one step of it. Changes that don't require an
   issue (list above) may omit the link.
