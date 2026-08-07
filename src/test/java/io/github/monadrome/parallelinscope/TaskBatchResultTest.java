@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.junit.jupiter.api.Test;
@@ -140,6 +142,58 @@ public class TaskBatchResultTest {
         TaskBatchResult<String> cancelled =
                 TaskBatchResult.of(Collections.singletonList(task(token, Futures.immediateCancelledFuture())));
         assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(CancellationException.class);
+    }
+
+    @Test
+    public void valuesOrThrow_prefersRecordedFailureWhenFailFastCancelledSiblings() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("worker"), executor)
+                .defaultPar(ParId.of("worker"))
+                .build();
+        try {
+            Par par = runtime.par(ParId.of("worker"));
+            List<Integer> input = Arrays.asList(0, 1, 2, 3, 4, 5);
+            TaskBatchResult<Integer> batch = par.map(
+                    input,
+                    value -> {
+                        if (value == 5) {
+                            throw new IllegalStateException("recorded failure");
+                        }
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return value;
+                    },
+                    BatchOptions.timeout("failure", Duration.ofSeconds(5)).parallelism(input.size()));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(IllegalStateException.class)
+                    .hasRootCauseMessage("recorded failure");
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void valuesOrThrow_prefersRecordedSubmissionFailureOnCancelledElement() {
+        CancellationToken token = new CancellationToken();
+        ExecutionPhaseHintFuture<String> prepared = ExecutionPhaseHintFuture.create(() -> "unreachable", phase -> {});
+        Task<String> element = Task.of("batch", token, prepared);
+        assertThat(prepared.claimSubmissionFailure(new IllegalStateException("recorded submission failure")))
+                .isTrue();
+        assertThat(prepared.cancel(true)).isTrue();
+
+        TaskBatchResult<String> batch = TaskBatchResult.of(Collections.singletonList(element));
+
+        assertThatThrownBy(batch::valuesOrThrow)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(SubmissionException.class)
+                .hasRootCauseMessage("recorded submission failure");
     }
 
     // ==================== token-based cancellation attribution ====================

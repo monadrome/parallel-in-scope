@@ -146,9 +146,10 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * me the results, fail if any failed" path in one call.
      *
      * <p>Unlike {@link #results()}, forgetting to handle failure is not possible here: the first
-     * element failure propagates, a cancelled element surfaces as {@link CancellationException},
-     * and an interrupted wait restores the interrupt flag and throws {@link
-     * LeanCancellationException}.
+     * recorded element failure in input order takes precedence over fail-fast cancellation and
+     * propagates as an {@link ExecutionException}; cancellation with no recorded failure surfaces
+     * as {@link CancellationException}; and an interrupted wait restores the interrupt flag and
+     * throws {@link LeanCancellationException}.
      *
      * @return the element values in input order
      * @throws ExecutionException if any element failed
@@ -158,6 +159,18 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     public List<T> valuesOrThrow() throws ExecutionException {
         try {
             return Futures.allAsList(results).get();
+        } catch (ExecutionException aggregateFailure) {
+            Throwable recordedFailure = firstRecordedFailure();
+            if (recordedFailure == null) {
+                recordedFailure = aggregateFailure.getCause();
+            }
+            throw new ExecutionException(recordedFailure);
+        } catch (CancellationException cancellation) {
+            Throwable recordedFailure = firstRecordedFailure();
+            if (recordedFailure != null) {
+                throw new ExecutionException(recordedFailure);
+            }
+            throw cancellation;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LeanCancellationException cancellation =
@@ -165,6 +178,14 @@ public final class TaskBatchResult<T> implements AutoCloseable {
             cancellation.initCause(e);
             throw cancellation;
         }
+    }
+
+    private @Nullable Throwable firstRecordedFailure() {
+        return results.stream()
+                .map(TaskFuture::failure)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
