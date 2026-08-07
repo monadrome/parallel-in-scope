@@ -125,7 +125,8 @@ failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括
 读取不等待、不消费中断标志。
 
 `asFuture()` 提供 Guava 适配：已完成、cancel 永远 false、isCancelled 为 false；
-取消作为失败值，get 抛 ExecutionException，cause 是 CancellationException。
+库执行产生的取消作为失败值，get 抛 ExecutionException，cause 是 CancellationException。
+手动 `failed(outcome, failure)` 保留传入异常；outcome 是元数据，不转换异常类型。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
 scope 及其资源生命周期之外。

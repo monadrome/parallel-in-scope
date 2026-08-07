@@ -141,13 +141,15 @@ values; individual successful member results remain readable.
 `outcome()` never returns RUNNING; SUCCESS may hold null, and every non-success holds a throwable.
 `failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the original cause,
 including cancellation. Container reads never block or consume an interrupt.
+The `failed(outcome, failure)` factory preserves the supplied throwable for every permitted outcome;
+the outcome is metadata and does not convert the throwable's type.
 
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
-returns false, and `isCancelled()` is false. Cancellation is a failed value whose get throws
-ExecutionException with a CancellationException cause. Both get overloads return immediately and
-preserve interruption; timed get validates its TimeUnit but cannot time out. The static Future
-signature still declares checked exceptions. Listeners use the consumer's executor and run outside
-the completed business scope and its resource ownership.
+returns false, and `isCancelled()` is false. Cancellation from `map` or `runAll` is a failed value
+whose get throws ExecutionException with a CancellationException cause. Both get overloads return
+immediately and preserve interruption; timed get validates its TimeUnit but cannot time out. The
+static Future signature still declares checked exceptions. Listeners use the consumer's executor
+and run outside the completed business scope and its resource ownership.
 
 ## Interruption and cleanup
 
