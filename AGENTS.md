@@ -68,6 +68,9 @@ The thread owner chooses post-interruption policy, so blocking APIs propagate
 exception or when the method is the documented sole consumer of the signal;
 otherwise inspect with `isInterrupted()`. Read-only status methods must not
 change their result or throw merely because the calling thread is interrupted.
+Exception: synchronous `Par.map` / group `runAll` deliberately wait uninterruptibly
+and restore the flag, including their bounded cleanup waits. Caller interruption
+does not cancel these executions. `ParRuntime.awaitQuiescence` remains interruptible.
 
 ## Design Decisions
 

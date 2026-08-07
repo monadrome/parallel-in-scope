@@ -93,8 +93,8 @@ mvn test
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │          根包：公共 API + callbacks             │   │
-│  │  ParRuntime, Par, BatchOptions, TaskGroup,        │   │
-│  │  TaskBatchResult, CancellationToken, listeners...   │   │
+│  │  ParRuntime, Par, BatchOptions, GroupStart...        │   │
+│  │  TaskBatchResult, TaskGroupResult, ImmediateResult   │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │

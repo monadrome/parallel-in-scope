@@ -38,7 +38,7 @@ class SlidingWindowSubmitterTest {
      * tests exercise the submitter directly and have nothing to bind, so they pair the two calls
      * here.
      */
-    private static <V> TaskBatchResult<V> submitAllWithViews(
+    private static <V> TaskBatch<V> submitAllWithViews(
             SlidingWindowSubmitter<V> submitter, List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         return submitter.submitAll(tasks, submitter.viewsFor(tasks));
     }
@@ -113,7 +113,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(
+            TaskBatch<Integer> batch = submitAllWithViews(
                     executor,
                     futures(
                             () -> {
@@ -146,7 +146,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
             assertThat(batch.results()).hasSize(3);
             for (ListenableFuture<Integer> result : batch.results()) {
                 assertThatThrownBy(result::get).isInstanceOf(ExecutionException.class);
@@ -164,7 +164,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(
+            TaskBatch<Integer> batch = submitAllWithViews(
                     executor,
                     futures(
                             () -> {
@@ -238,7 +238,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(direct, context(2, 1, TaskType.CPU_BOUND), submitter);
 
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
@@ -258,7 +258,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(direct, context(2, 1, TaskType.CPU_BOUND), submitter);
 
-            TaskBatchResult<Integer> batch = submitAllWithViews(
+            TaskBatch<Integer> batch = submitAllWithViews(
                     executor,
                     futures(
                             () -> {
@@ -290,7 +290,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
 
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> {
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> {
                 bodyRan.set(true);
                 return 7;
             }));
@@ -348,7 +348,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
@@ -413,7 +413,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
 
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
 
             assertThat(batch.results()).hasSize(3);
             for (int i = 0; i < 3; i++) {
@@ -474,7 +474,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
@@ -506,13 +506,13 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
 
             assertThatThrownBy(batch::valuesOrThrow)
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
-            TaskBatchResult.BatchReport report = batch.report();
+            TaskBatch.BatchReport report = batch.report();
             assertThat(report.stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
             assertThat(report.firstException())
                     .isInstanceOf(SubmissionException.class)
@@ -540,7 +540,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
             List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, tasks);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
 
             assertThatThrownBy(batch::valuesOrThrow)
                     .isInstanceOf(ExecutionException.class)
@@ -570,7 +570,7 @@ class SlidingWindowSubmitterTest {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
             List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, tasks);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
@@ -597,7 +597,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThatThrownBy(batch::valuesOrThrow)
                     .isInstanceOf(ExecutionException.class)
@@ -671,7 +671,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = submitAllWithViews(
+            TaskBatch<Integer> batch = submitAllWithViews(
                     executor,
                     futures(
                             () -> 1,
@@ -722,7 +722,7 @@ class SlidingWindowSubmitterTest {
                 AtomicInteger ran1 = new AtomicInteger();
                 SlidingWindowSubmitter<Integer> executor =
                         new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-                TaskBatchResult<Integer> batch = submitAllWithViews(
+                TaskBatch<Integer> batch = submitAllWithViews(
                         executor,
                         futures(
                                 () -> {
@@ -795,7 +795,7 @@ class SlidingWindowSubmitterTest {
                         return 1;
                     },
                     () -> 2);
-            TaskBatchResult<Integer> batch = submitAllWithViews(executor, tasks);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
             assertThat(batch.results()).hasSize(2);
             assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
 

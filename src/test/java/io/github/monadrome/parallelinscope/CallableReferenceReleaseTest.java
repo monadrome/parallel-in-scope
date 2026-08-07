@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
 class CallableReferenceReleaseTest {
 
     /** Submits through the production two-step shape; see the note in SlidingWindowSubmitterTest. */
-    private static <V> TaskBatchResult<V> submitAllWithViews(
+    private static <V> TaskBatch<V> submitAllWithViews(
             SlidingWindowSubmitter<V> submitter, List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         return submitter.submitAll(tasks, submitter.viewsFor(tasks));
     }
@@ -215,7 +215,7 @@ class CallableReferenceReleaseTest {
         try {
             SlidingWindowSubmitter<String> submit =
                     new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
-            TaskBatchResult<String> result = submitAllWithViews(
+            TaskBatch<String> result = submitAllWithViews(
                     submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
 
             for (int i = 0; i < fixtures.size(); i++) {
@@ -257,7 +257,7 @@ class CallableReferenceReleaseTest {
         try {
             SlidingWindowSubmitter<String> submit =
                     new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
-            TaskBatchResult<String> result = submitAllWithViews(
+            TaskBatch<String> result = submitAllWithViews(
                     submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 

@@ -1,5 +1,10 @@
 # Scope 关闭与任务体终止：最终设计方案
 
+> 公开执行/结果及中断等待形状已由
+> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
+> 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
+
 > 状态：**已实施**（2026-09-28 标注）。本文描述的「取消 + 有界等待」关闭语义与 body-exit
 > 状态机已落地（`TaskGroup` / `TaskBatchResult` / `BodyCompletionTracker`），实施记录见 §9。
 > 三处需注意的沿革：§3 的「不为 Batch 新增 close 入口」**在实施中被反转**；§2 第三态所依赖的

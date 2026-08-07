@@ -8,6 +8,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A group is declared and submitted in one fluent chain — {@link ParRuntime#group(String,
  * Duration)} or {@link ParRuntime#groupInheriting(String)}, then {@link GroupStart#par}, then
- * {@link GroupStep#submitAll()} — so this object is only ever obtained already running. It holds the
+ * {@link GroupStep#runAll()} — the internal running object holds the
  * complete member registry: futures are looked up by declaration position ({@link #futureAt(int)}),
  * by name ({@link #futureOf(String)}), or as the whole named map ({@link #members()}).
  *
@@ -55,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * attributed by reading {@link CancellationToken} states after the fact — never by capturing who
  * initiated a cancel — so attribution stays correct under races.
  */
-public final class TaskGroup<V, R> implements AutoCloseable {
+final class TaskGroup<V, R> implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
 
     /** Null-object submission canceller: group members carry no submission pipeline to stop. */
@@ -89,7 +90,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     private final ImmutableList<TypeToken<?>> memberTypes;
     private final @Nullable MemberState terminal;
     private final Map<String, TaskFuture<?>> members;
-    private final SettableFuture<TaskGroupResult> completion = SettableFuture.create();
+    private final SettableFuture<TaskGroupReport> completion = SettableFuture.create();
 
     /**
      * The aggregated member values, published at convergence for a fully successful group.
@@ -109,7 +110,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      */
     private final ListenableFuture<GroupValues<V>> valuesView = TaskObservation.readOnly(values);
 
-    private final Task<TaskGroupResult> completionTask;
+    private final Task<TaskGroupReport> completionTask;
     private final CancellationToken groupToken;
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable Duration closeGrace;
@@ -165,7 +166,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // The group's own terminal future is a task like any other: it carries the group name and
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
         // as on a member future. Its observation is the single group-level summary — the result is
-        // the TaskGroupResult itself and the timings are the group's own — which describes no
+        // the TaskGroupReport itself and the timings are the group's own — which describes no
         // additional task body and is counted neither among the members nor in the TaskGraph.
         this.completionTask = Task.of(
                 groupName, groupToken, completion, TaskObservation.of(() -> groupSummary(completion), completion));
@@ -204,7 +205,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      *
      * <p>It is an aggregate, not a task: it has no execution context, no attribution, and no
      * observation snapshot of its own. Per-member outcomes stay in {@link #completionFuture()}'s
-     * {@link TaskGroupResult}.
+     * {@link TaskGroupReport}.
      *
      * <p>Listeners run on the thread that converges the group, and that thread publishes {@link
      * #completionFuture()} only after this future's listeners have returned. A listener that blocks
@@ -216,8 +217,88 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         return valuesView;
     }
 
-    public TaskFuture<TaskGroupResult> completionFuture() {
+    public TaskFuture<TaskGroupReport> completionFuture() {
         return completionTask;
+    }
+
+    TaskGroupResult<V, R> finish() {
+        TaskGroupReport report;
+        try {
+            report = com.google.common.base.Verify.verifyNotNull(Uninterruptibles.getUninterruptibly(completion));
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("group completion cannot fail", impossible);
+        }
+        long start = System.nanoTime();
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanos);
+        BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
+        for (MemberState member : membersAndTerminal) {
+            BodyCompletionTracker.awaitSettledUninterruptibly(
+                    member.view.observationView(), budget, start, "member observation signal");
+        }
+        Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
+        Map<String, TaskCompletion<?>> observations = new LinkedHashMap<>();
+        for (MemberState member : orderedMembers) {
+            ImmediateResult<Object> immediate = freezeResult(member);
+            results.put(member.name, immediate);
+            TaskCompletion<?> observed = finalObservation(member, immediate);
+            if (observed != null) {
+                observations.put(member.name, observed);
+            }
+        }
+        ImmediateResult<GroupValues<V>> frozenValues;
+        if (report.outcome() == TaskOutcome.SUCCESS) {
+            try {
+                frozenValues = ImmediateResult.succeeded(Futures.getDone(values));
+            } catch (ExecutionException impossible) {
+                throw new AssertionError("successful group values cannot fail", impossible);
+            }
+        } else {
+            Throwable failure = report.recordedFailure();
+            if (failure == null) {
+                failure =
+                        new LeanCancellationException("task group '" + groupName + "' ended with " + report.outcome());
+            }
+            frozenValues = ImmediateResult.failed(report.outcome(), failure);
+        }
+        Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
+        BodyCompletionTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
+        ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
+        return new TaskGroupResult<>(
+                report,
+                memberNames,
+                memberTypes,
+                results,
+                observations,
+                frozenValues,
+                terminalResult,
+                terminal == null
+                        ? null
+                        : finalObservation(terminal, com.google.common.base.Verify.verifyNotNull(terminalResult)),
+                unfinished);
+    }
+
+    private ImmediateResult<Object> freezeResult(MemberState member) {
+        TaskOutcome reason = com.google.common.base.Verify.verifyNotNull(member.reason);
+        return ImmediateResult.fromTask(member.view, reason);
+    }
+
+    private @Nullable TaskCompletion<?> finalObservation(MemberState member, ImmediateResult<?> immediate) {
+        ListenableFuture<TaskCompletion<Object>> observation = member.view.observationView();
+        if (!observation.isDone()) {
+            return null;
+        }
+        try {
+            TaskCompletion<Object> finalTimes =
+                    com.google.common.base.Verify.verifyNotNull(Futures.getDone(observation));
+            return TaskCompletion.withResult(finalTimes, immediate);
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("member observation cannot fail", impossible);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> ImmediateResult<T> castResult(ImmediateResult<?> result) {
+        return (ImmediateResult<T>) result;
     }
 
     public Optional<TaskFuture<?>> findMember(String memberName) {
@@ -892,7 +973,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      */
     private void converge() {
         TaskOutcome decided = deriveOutcome();
-        TaskGroupResult result = snapshot(decided, failedTaskName.get());
+        TaskGroupReport result = snapshot(decided, failedTaskName.get());
         try {
             publishValues(decided);
         } catch (Throwable failure) {
@@ -1017,7 +1098,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      * is only ever set with a result — convergence never fails or cancels it — so a failure here
      * is an implementation defect.
      */
-    private static TaskCompletion<TaskGroupResult> groupSummary(SettableFuture<TaskGroupResult> completion) {
+    private static TaskCompletion<TaskGroupReport> groupSummary(SettableFuture<TaskGroupReport> completion) {
         try {
             return TaskCompletion.groupSummary(Objects.requireNonNull(
                     Futures.getDone(completion), "group result is committed before observation"));
@@ -1026,12 +1107,12 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         }
     }
 
-    private TaskGroupResult snapshot(TaskOutcome outcome, @Nullable String failedName) {
+    private TaskGroupReport snapshot(TaskOutcome outcome, @Nullable String failedName) {
         Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
         }
-        return new TaskGroupResult(
+        return new TaskGroupReport(
                 groupId,
                 groupName,
                 startTimeNanos,

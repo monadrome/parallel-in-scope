@@ -6,9 +6,9 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -153,7 +153,8 @@ class D2_LateBindRaceConditionTest {
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchOptions options = BatchOptions.timeout("unified-timeout-test", java.time.Duration.ofMillis(batchTimeoutMs))
+            BatchOptions options = BatchOptions.timeout(
+                            "unified-timeout-test", java.time.Duration.ofMillis(batchTimeoutMs))
                     .parallelism(PARALLELISM)
                     .taskType(TaskType.IO_BOUND);
 
@@ -177,8 +178,18 @@ class D2_LateBindRaceConditionTest {
                     options);
 
             // Wait for all futures to complete
-            for (int i = 0; i < result.results().size(); i++) {
-                result.results().get(i).get(15, TimeUnit.SECONDS);
+            for (int i = 0;
+                    i
+                            < result.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .size();
+                    i++) {
+                result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(i)
+                        .get(15, TimeUnit.SECONDS);
             }
 
             long totalElapsed = System.currentTimeMillis() - startTime;

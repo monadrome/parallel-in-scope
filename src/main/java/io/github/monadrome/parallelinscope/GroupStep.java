@@ -13,7 +13,7 @@ import java.util.concurrent.Callable;
  * whole shape and {@link GroupValues#typedValues()} needs no cast at the use site.
  *
  * <p>Declaring a combine moves to {@link CombinedGroupStep}, which exposes only {@link
- * CombinedGroupStep#submitAll()}: a combine is terminal, so a member or a second combine after it
+ * CombinedGroupStep#runAll()}: a combine is terminal, so a member or a second combine after it
  * does not compile. {@code closeGrace} belongs to {@link GroupStart} and is likewise not reachable
  * from here.
  *
@@ -70,7 +70,7 @@ public interface GroupStep<V> {
      *
      * <p>The combine depends on every plain member and is submitted to its own {@code Par} only
      * after all of them succeed. It is the last task of the group: the group completes only when
-     * its future is terminal. Its value is reached through {@link TaskGroup#terminalFuture()}; it is
+     * its future is terminal. Its value is reached through {@link TaskGroupResult#terminalResult()}; it is
      * not a slot in {@link GroupValues}, and it cannot read itself.
      *
      * <p>A group accepts at most one combine. Because this method is reachable only from a stage
@@ -118,19 +118,20 @@ public interface GroupStep<V> {
             String name, Par par, TaskOptions options, TypeToken<R> type, CombineBody<? super V, ? extends R> body);
 
     /**
-     * Submits the declared group: preparation, registration, and executor handoff happen at this
-     * one boundary.
+     * Executes the declared group and returns frozen results after all task results settle and a
+     * bounded cleanup attempt. Waiting ignores interruption and restores the interrupt flag;
+     * caller interruption does not cancel the group. Deadline and ancestor cancellation remain
+     * active. Check TaskGroupResult.bodyCompletionConfirmed before releasing shared resources.
      *
-     * <p>Consumes the draft whether the submission succeeds or fails; a second {@code submitAll()}
+     * <p>Consumes the draft whether the submission succeeds or fails; a second {@code runAll()}
      * throws. A failure after admission — a rejected handoff, a failing body, a timeout, a
-     * cancellation — does not throw here: it is reported through {@link TaskGroup#completionFuture()}
-     * and the member futures.
+     * cancellation — is returned as outcome data. Use TaskGroupResult.valuesOrThrow to raise it.
      *
-     * @return the running group
+     * @return the frozen group result
      * @throws IllegalStateException if this stage is stale, the draft was already submitted, or the
      *     draft is used from another thread
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */
-    TaskGroup<V, Void> submitAll();
+    TaskGroupResult<V, Void> runAll();
 }

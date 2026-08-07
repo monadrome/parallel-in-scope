@@ -2,8 +2,6 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
@@ -28,7 +26,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>演示问题：标准 ExecutorService 没有任务监控钩子，只能在 lambda 里手动埋点。
  *
- * <p>演示解决：Par.map() 返回的 TaskBatchResult.completionFuture() 携带每个任务的终态快照，
+ * <p>演示解决：Par.map() 返回的 TaskBatchResult.completions() 携带每个任务的终态快照，
  * 配合 Futures.addCallback 零侵入地消费执行数据。
  */
 public class G1_CompletionFutureMonitoringTest {
@@ -93,14 +91,14 @@ public class G1_CompletionFutureMonitoringTest {
     }
 
     /**
-     * 解决方法：batch.completionFuture() 配合 Futures.addCallback，零侵入监控。
+     * 解决方法：batch.completions() 读取终态观测，零侵入监控。
      *
      * <p>批次观测 future 以输入顺序交付每个任务的终态快照 TaskCompletion，包含 taskName、
      * executionTime()、waitTime()、totalTime()、failure 等完整信息。业务 lambda 无需任何监控代码；
-     * callback 运行在你自己选择的 executor 上。
+     * 返回后处理观测，监控 executor 的生命周期归应用。
      */
     @Test
-    void parMap_withCompletionFuture_capturesSuccessfulTaskSnapshots() throws Exception {
+    void parMap_withFinalObservations_capturesSuccessfulTaskSnapshots() throws Exception {
         List<TaskCompletion<String>> snapshots = Collections.synchronizedList(new ArrayList<>());
         java.util.concurrent.CountDownLatch callbackDone = new java.util.concurrent.CountDownLatch(1);
 
@@ -129,34 +127,18 @@ public class G1_CompletionFutureMonitoringTest {
                 },
                 opts);
 
-        // 在批次观测 future 上登记 callback：快照在任务 future 终态且任务体退出后发布
-        Futures.addCallback(
-                result.completionFuture(),
-                new FutureCallback<List<TaskCompletion<String>>>() {
-                    @Override
-                    public void onSuccess(List<TaskCompletion<String>> completions) {
-                        snapshots.addAll(completions);
-                        callbackDone.countDown();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable failure) {
-                        throw new AssertionError("observation future never fails", failure);
-                    }
-                },
-                callbackExecutor);
-
-        // 等待观测数据发布（callback 在另一个 executor 上运行）
-        List<TaskCompletion<String>> completions =
-                result.completionFuture().get(5, TimeUnit.SECONDS);
+        // map 已同步返回；观测是冻结数据，监控 executor 的生命周期归应用。
+        List<TaskCompletion<String>> completions = result.completions();
+        callbackExecutor.execute(() -> {
+            snapshots.addAll(completions);
+            callbackDone.countDown();
+        });
         assertThat(callbackDone.await(5, TimeUnit.SECONDS)).isTrue();
         assertThat(snapshots).hasSize(5);
 
         // 验证：捕获了所有 5 个任务的快照，按输入顺序
         assertThat(completions).hasSize(5);
-        assertThat(completions)
-                .extracting(TaskCompletion::taskIndex)
-                .containsExactly(0, 1, 2, 3, 4);
+        assertThat(completions).extracting(TaskCompletion::taskIndex).containsExactly(0, 1, 2, 3, 4);
 
         // 验证：每个快照都有正确的 taskName
         for (TaskCompletion<String> event : completions) {
@@ -191,13 +173,13 @@ public class G1_CompletionFutureMonitoringTest {
     }
 
     /**
-     * completionFuture() 的快照同样携带失败任务的异常信息。
+     * completions() 的快照同样携带失败任务的异常信息。
      *
      * <p>当任务抛出异常时，TaskCompletion.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch；
      * 任务失败不会让观测 future 失败——它以成功完成携带真实 outcome。
      */
     @Test
-    void parMap_withCompletionFuture_capturesFailedTaskException() throws Exception {
+    void parMap_withFinalObservations_capturesFailedTaskException() throws Exception {
         ParRuntime config = ParRuntime.builder()
                 .register(ParId.of("test-pool"), pool)
                 .defaultPar(ParId.of("test-pool"))
@@ -207,7 +189,7 @@ public class G1_CompletionFutureMonitoringTest {
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
         BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000))
-                .parallelism(2)
+                .parallelism(1)
                 .taskType(TaskType.IO_BOUND);
 
         TaskBatchResult<String> result = par.map(
@@ -225,13 +207,12 @@ public class G1_CompletionFutureMonitoringTest {
                 opts);
 
         // 观测 future 不因元素失败而失败：列表里带着每个元素的真实 outcome
-        List<TaskCompletion<String>> completions =
-                result.completionFuture().get(5, TimeUnit.SECONDS);
+        List<TaskCompletion<String>> completions = result.completions();
         assertThat(completions).hasSize(2);
 
         // 验证：捕获到了失败任务的异常
         TaskCompletion<String> failedEvent = completions.stream()
-                .filter(e -> e.failure() != null)
+                .filter(e -> e.outcome() == io.github.monadrome.parallelinscope.TaskOutcome.USER_FAILURE)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
         assertThat(failedEvent.failure().getMessage()).contains("item 2 failed");
@@ -240,7 +221,9 @@ public class G1_CompletionFutureMonitoringTest {
         assertThat(failedEvent.taskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
-        long successCount = completions.stream().filter(e -> e.failure() == null).count();
+        long successCount = completions.stream()
+                .filter(e -> e.outcome() == io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS)
+                .count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Contract tests for the observation futures: {@link TaskFuture#completionFuture()} and {@link
- * TaskBatchResult#completionFuture()} publish the final immutable {@link TaskCompletion} snapshot
+ * TaskBatch#completionFuture()} publish the final immutable {@link TaskCompletion} snapshot
  * of every task — including tasks that never started — once the task future is terminal and the
  * task body has exited.
  */
@@ -38,8 +38,8 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("first", "second", "third"),
                             item -> {
                                 if ("second".equals(item)) {
@@ -89,8 +89,8 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("blocker", "queued-a", "queued-b"),
                             item -> holdQuietly(block, item),
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
@@ -126,8 +126,8 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("blocker", "queued"),
                             item -> holdQuietly(block, item),
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
@@ -153,8 +153,8 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("blocker", "queued"),
                             item -> holdQuietly(block, item),
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
@@ -206,8 +206,8 @@ class ObservationFutureTest {
         CountDownLatch started = new CountDownLatch(2);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("fail", "victim"),
                             item -> {
                                 started.countDown();
@@ -286,8 +286,9 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(Arrays.asList(1, 2, 3), value -> value, BatchOptions.timeout("awaited", SCOPE_TIMEOUT));
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
+                            Arrays.asList(1, 2, 3), value -> value, BatchOptions.timeout("awaited", SCOPE_TIMEOUT));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             // No polling and no further wait: the observation future is already done.
@@ -343,12 +344,12 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroup<String, Void> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
-            TaskCompletion<TaskGroupResult> summary =
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskCompletion<TaskGroupReport> summary =
                     group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(summary.taskName()).isEqualTo("page");
@@ -381,13 +382,13 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskGroup<String, Void> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         throw boom;
                     })
                     .submitAll();
 
-            TaskCompletion<TaskGroupResult> summary =
+            TaskCompletion<TaskGroupReport> summary =
                     group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(summary.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(summary.failure()).isSameAs(boom);

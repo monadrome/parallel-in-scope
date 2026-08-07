@@ -1,5 +1,11 @@
 # 中断处理契约
 
+> 同步执行出口例外：`Par.map` / group `runAll` 等待结果与有界清理时不响应中断退出，
+> 等待结束恢复标志；调用线程中断不取消执行。deadline、fail-fast、祖先取消及任务体规范
+> 保持有效。`ParRuntime.awaitQuiescence` 仍传播 `InterruptedException`。已完成结果和
+> `ImmediateResult.asFuture()` 的读取不消费标志。详见
+> [同步出口契约](synchronous-scope-exit-proposal.md)。
+
 > 状态：**已落地**。本文确立中断标志与 `InterruptedException` 在本库中的处理原则、
 > 分角色规范与验证矩阵。§7 的三处违反均已修复：7.1 随 `15a18e3`，7.2 的声明已补进
 > `Checkpoints.rawCheckpoint()` 的 javadoc，7.3 随 `8de2122`（[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）。

@@ -4,6 +4,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -300,6 +301,38 @@ final class BodyCompletionTracker {
         } catch (ExecutionException | CancellationException impossible) {
             // The signal is only ever set to null on completion; it cannot fail or be cancelled.
             throw new AssertionError("body-exit signal cannot fail", impossible);
+        }
+    }
+
+    /** Uses one total budget across interruptions and publication barriers, restoring the flag. */
+    static boolean awaitSettledUninterruptibly(
+            ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail) {
+        if (future.isDone()) {
+            return true;
+        }
+        long remaining = budgetNanos - (System.nanoTime() - startNanos);
+        if (remaining <= 0) {
+            return false;
+        }
+        try {
+            Uninterruptibles.getUninterruptibly(future, remaining, TimeUnit.NANOSECONDS);
+            return true;
+        } catch (ExecutionException | CancellationException settled) {
+            if (cannotFail != null) {
+                throw new AssertionError(cannotFail + " cannot fail", settled);
+            }
+            return true;
+        } catch (TimeoutException elapsed) {
+            return false;
+        }
+    }
+
+    static void warnUnfinished(String label, Map<String, Integer> unfinished, Logger logger) {
+        if (unfinished.isEmpty()) return;
+        try {
+            logger.warning(label + " returned with task bodies still running: " + unfinished);
+        } catch (Throwable ignored) {
+            // A user-installed log handler must not change a completed execution's result.
         }
     }
 }

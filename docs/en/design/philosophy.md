@@ -8,9 +8,13 @@ The library targets three recurring Java 8 problems: cancellation that cannot re
 
 `Par.map` gives a batch a clear scope, executor, task type, parallelism, timeout, and result report. The scope makes failure and cancellation ownership visible. It also gives the implementation one place to enforce fail-fast behavior, sliding-window submission, and parent-child cancellation.
 
-## Late binding
+## Prepare, bind, then submit
 
-Cancellation and timeout wiring is completed after all futures have been created. This late-binding step avoids races where an early task fails before the rest of the batch has been connected to the same cancellation token. The trade-off is a slightly more explicit internal lifecycle in exchange for deterministic batch semantics.
+Every element has its execution future prepared before cancellation and timeout wiring. Binding
+finishes before any task is submitted, including tasks that an executor runs on the caller.
+The sliding window controls admission of those same prepared futures; there are no placeholders or
+later delegate swaps. Public execution waits for terminal results and bounded cleanup, then returns
+frozen values and failures.
 
 ## Two cancellation exceptions
 

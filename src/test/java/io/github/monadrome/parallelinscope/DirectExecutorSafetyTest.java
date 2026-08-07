@@ -46,8 +46,8 @@ class DirectExecutorSafetyTest {
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
         try {
-            TaskBatchResult<String> batch = runtime.par(ParId.of("d"))
-                    .map(
+            TaskBatch<String> batch = runtime.par(ParId.of("d"))
+                    .submitBatch(
                             Arrays.asList(1, 2, 3),
                             // Every element restores the flag, which is what a correct body does after
                             // catching InterruptedException. Every element matters: if only an earlier
@@ -80,7 +80,7 @@ class DirectExecutorSafetyTest {
         AtomicReference<String> seen = new AtomicReference<>("<never ran>");
         try {
             runtime.par(ParId.of("d"))
-                    .map(
+                    .submitBatch(
                             Arrays.asList(1),
                             i -> {
                                 MultiTaskContext unit = SubmissionScope.current();
@@ -119,14 +119,14 @@ class DirectExecutorSafetyTest {
         AtomicReference<String> innerSaw = new AtomicReference<>("<never ran>");
         try {
             List<String> out = runtime.par(ParId.of("outer"))
-                    .map(
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             i -> {
                                 // A nested batch on the direct executor: its bodies borrow this
                                 // worker, which is itself mid-submission for the outer batch.
                                 try {
                                     runtime.par(ParId.of("d"))
-                                            .map(
+                                            .submitBatch(
                                                     Arrays.asList(9),
                                                     j -> {
                                                         MultiTaskContext unit = SubmissionScope.current();
@@ -161,7 +161,7 @@ class DirectExecutorSafetyTest {
         try {
             TTL.set("submit-time");
             runtime.par(ParId.of("d"))
-                    .map(
+                    .submitBatch(
                             Arrays.asList(1),
                             i -> {
                                 seen.set(TTL.get());
@@ -196,7 +196,7 @@ class DirectExecutorSafetyTest {
         String caller = Thread.currentThread().getName();
         try {
             List<String> threads = runtime.par(ParId.of("d"))
-                    .map(
+                    .submitBatch(
                             inputs,
                             i -> Thread.currentThread().getName(),
                             BatchOptions.timeout("b", Duration.ofSeconds(5)))
@@ -217,7 +217,7 @@ class DirectExecutorSafetyTest {
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
         try {
-            TaskGroup<?, ?> group = runtime.group("g", Duration.ofSeconds(5))
+            TaskGroup<?, ?> group = runtime.groupDraft("g", Duration.ofSeconds(5))
                     .par(
                             "a",
                             runtime.par(ParId.of("d")),
@@ -229,7 +229,7 @@ class DirectExecutorSafetyTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(5, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(5, TimeUnit.SECONDS);
 
             assertThat(Thread.currentThread().isInterrupted()).isFalse();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -250,7 +250,7 @@ class DirectExecutorSafetyTest {
         ParRuntime runtime = ParRuntime.builder().register(ParId.of("p"), pool).build();
         try {
             List<String> first = runtime.par(ParId.of("p"))
-                    .map(
+                    .submitBatch(
                             Arrays.asList(1),
                             i -> {
                                 Thread.currentThread().interrupt();
@@ -259,7 +259,7 @@ class DirectExecutorSafetyTest {
                             BatchOptions.timeout("first", Duration.ofSeconds(5)))
                     .valuesOrThrow();
             List<String> second = runtime.par(ParId.of("p"))
-                    .map(
+                    .submitBatch(
                             Arrays.asList(1),
                             i -> Thread.currentThread().getName() + ":"
                                     + Thread.currentThread().isInterrupted(),

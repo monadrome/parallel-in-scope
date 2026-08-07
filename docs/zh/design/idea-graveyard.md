@@ -188,7 +188,7 @@ par.map("io-pool", urls, url -> {
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
 1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
-2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交任务，`SettableFuture` 按索引占位。流式输入无法提供这种随机访问模式。
+2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交 prepared tasks，全部执行 future 在提交前就已准备并绑定。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 
 **替代方案：** 先收集再提交。如果数据源是流式的，在入口处物化为列表：
@@ -249,7 +249,7 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 ## 内置受检异常映射接口（ThrowingFunction）
 
-**请求：** 让 `Par.map` 的元素函数可以直接声明受检异常。现状是它收标准 `java.util.function.Function`，其 `apply` 不能声明 `throws`，因此元素体里做 HTTP、JDBC、文件这类 IO 时必须自己 try/catch 包成非受检异常；而同一份工作写在 `Par.submit`、group 成员或 combine 上就不必，因为那些入口本来就收 `Callable` / `CombineBody`。
+**请求：** 让 `Par.map` 的元素函数可以直接声明受检异常。现状是它收标准 `java.util.function.Function`，其 `apply` 不能声明 `throws`，因此元素体里做 HTTP、JDBC、文件这类 IO 时必须自己 try/catch 包成非受检异常；而同一份工作写在 group 成员或 combine 上就不必，因为那些入口本来就收 `Callable` / `CombineBody`。
 
 **为什么不做：**
 
@@ -258,7 +258,7 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 3. **"新增重载"这条折中路本来就堵死。** `map(Collection, Function, ...)` 与 `map(Collection, ThrowingFunction, ...)` 对无显式类型的 lambda 调用点会产生二义性，两个函数式接口无法共存于同名重载——所以只能在"改签名"和"不改"之间二选一。
 4. **包装策略属于调用方。** 是改抛非受检异常、还是返回领域结果类型，取决于应用的错误模型以及调用链上的重试/告警策略；库替你决定，等于把策略焊死在公开 API 上。标准 JDK `Function` 也更小、更熟悉，调用方不必再学一个词根相同的库内类型。
 
-**替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 `Par.submit` 或 group 成员（收 `Callable`，可直接声明 `throws`），把纯映射留给 `map`。
+**替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 group 成员（收 `Callable`，可直接声明 `throws`）；单任务用单成员组，把纯映射留给 `map`。
 
 **状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。完整分析与被否决的逐项方案见 `design/par-map-throwing-function-v0.3-proposal.md`（已标注否决）与 `design/axiom-drift-decisions-2026-09-14.md` §6；除非用户明确重启该决策，后续不再重开。
 

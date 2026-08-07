@@ -41,14 +41,15 @@ class GroupDraftContractTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            assertThatThrownBy(() -> global.group(null, TIMEOUT)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group(" ", TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.group("page", null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group("page", Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.group("page", Duration.ofMillis(-1)))
+            assertThatThrownBy(() -> global.groupDraft(null, TIMEOUT)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> global.groupDraft(" ", TIMEOUT)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> global.groupDraft("page", null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> global.groupDraft("page", Duration.ZERO))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.groupInheriting(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.groupInheriting("  ")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> global.groupDraft("page", Duration.ofMillis(-1)))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> global.groupDraftInheriting(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> global.groupDraftInheriting("  ")).isInstanceOf(IllegalArgumentException.class);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -66,11 +67,11 @@ class GroupDraftContractTest {
                 .build();
         try {
             Par foreign = second.par(ParId.of("worker"));
-            assertThatThrownBy(() -> first.group("page", TIMEOUT).par("user", foreign, String.class, () -> "x"))
+            assertThatThrownBy(() -> first.groupDraft("page", TIMEOUT).par("user", foreign, String.class, () -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
 
             Par local = first.par(ParId.of("worker"));
-            assertThatThrownBy(() -> first.group("page", TIMEOUT)
+            assertThatThrownBy(() -> first.groupDraft("page", TIMEOUT)
                             .par("user", local, String.class, () -> "x")
                             .combine("assemble", foreign, String.class, values -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
@@ -91,21 +92,22 @@ class GroupDraftContractTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par(" ", par, String.class, () -> "x"))
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT).par(" ", par, String.class, () -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par(null, par, String.class, () -> "x"))
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT).par(null, par, String.class, () -> "x"))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("user", par, String.class, null))
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT).par("user", par, String.class, null))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("user", null, String.class, () -> "x"))
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT).par("user", null, String.class, () -> "x"))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("user", par, TypeToken.of(String.class), null))
+            assertThatThrownBy(
+                            () -> global.groupDraft("page", TIMEOUT).par("user", par, TypeToken.of(String.class), null))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT)
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
                             .par("user", par, String.class, () -> "x")
                             .par("user", par, Integer.class, () -> 1))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.group("page", TIMEOUT)
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
                             .par("user", par, String.class, () -> "x")
                             .combine("user", par, String.class, values -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
@@ -122,31 +124,32 @@ class GroupDraftContractTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("count", par, TypeToken.of(int.class), () -> 1))
-                    .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() ->
-                            global.group("page", TIMEOUT).par("nothing", par, TypeToken.of(void.class), () -> null))
+                            global.groupDraft("page", TIMEOUT).par("count", par, TypeToken.of(int.class), () -> 1))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
+                            .par("nothing", par, TypeToken.of(void.class), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
             // Guava refuses to build a token whose type is a bare type variable, but it happily
             // builds one that merely *contains* an unresolved variable as a type argument — and that
             // token can never equal the concrete token a caller would query with. Guava's own
             // refusal is what makes the nested case the one worth rejecting here.
-            assertThatThrownBy(
-                            () -> global.group("page", TIMEOUT).par("unresolved", par, unresolvedToken(), () -> null))
+            assertThatThrownBy(() ->
+                            global.groupDraft("page", TIMEOUT).par("unresolved", par, unresolvedToken(), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
             // An inner class carries its owner's type arguments: Outer<T>.Inner has an empty argument
             // list of its own, so a walk that visits only arguments would accept it.
-            assertThatThrownBy(
-                            () -> global.group("page", TIMEOUT).par("inner", par, unresolvedInnerToken(), () -> null))
+            assertThatThrownBy(() ->
+                            global.groupDraft("page", TIMEOUT).par("inner", par, unresolvedInnerToken(), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
             // The same shape with the owner resolved is a concrete type and is accepted.
-            assertThat(global.group("page", TIMEOUT)
+            assertThat(global.groupDraft("page", TIMEOUT)
                             .par("inner", par, new TypeToken<Outer<String>.Inner>() {}, () -> null)
                             .submitAll()
                             .groupName())
                     .isEqualTo("page");
             // A resolved parameterized type is accepted, including its wildcard arguments.
-            assertThat(global.group("page", TIMEOUT)
+            assertThat(global.groupDraft("page", TIMEOUT)
                             .par(
                                     "names",
                                     par,
@@ -175,18 +178,20 @@ class GroupDraftContractTest {
         try {
             Par par = global.par(ParId.of("worker"));
             // A generic array whose component type is the variable itself.
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("array", par, arrayToken(), () -> null))
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT).par("array", par, arrayToken(), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
             // The variable reached through an upper bound.
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("upper", par, upperBoundToken(), () -> null))
+            assertThatThrownBy(
+                            () -> global.groupDraft("page", TIMEOUT).par("upper", par, upperBoundToken(), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
             // And through a lower bound, which is a separate bounds list on the same wildcard.
-            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("lower", par, lowerBoundToken(), () -> null))
+            assertThatThrownBy(
+                            () -> global.groupDraft("page", TIMEOUT).par("lower", par, lowerBoundToken(), () -> null))
                     .isInstanceOf(IllegalArgumentException.class);
 
             // A generic array with a concrete component type is a concrete type and is accepted:
             // the walk must reject variables, not arrays.
-            assertThat(global.group("page", TIMEOUT)
+            assertThat(global.groupDraft("page", TIMEOUT)
                             .par("concrete-array", par, new TypeToken<List<String>[]>() {}, () -> null)
                             .submitAll()
                             .groupName())
@@ -234,7 +239,7 @@ class GroupDraftContractTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         Par par = global.par(ParId.of("worker"));
-        try (TaskGroup<Tuple2<String, Integer>, List<String>> group = global.group("page", TIMEOUT)
+        try (TaskGroup<Tuple2<String, Integer>, List<String>> group = global.groupDraft("page", TIMEOUT)
                 .par("user", par, String.class, () -> "alice")
                 .par("count", par, Integer.class, () -> 41)
                 .combine("assemble", par, new TypeToken<List<String>>() {}, values -> {
@@ -242,7 +247,7 @@ class GroupDraftContractTest {
                     return Arrays.asList(members.first(), String.valueOf(members.second()));
                 })
                 .submitAll()) {
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             // The terminal is declared, so its future is present and carries the assembled value
@@ -269,12 +274,12 @@ class GroupDraftContractTest {
             Par par = closing.par(ParId.of("worker"));
             closing.close();
 
-            assertThatThrownBy(() -> closing.group("page", TIMEOUT)
+            assertThatThrownBy(() -> closing.groupDraft("page", TIMEOUT)
                             .par("user", par, String.class, () -> "x")
                             .submitAll())
                     .isInstanceOf(IllegalStateException.class);
             // The same shape on a live topology is unaffected by the other runtime closing.
-            assertThat(open.group("page", TIMEOUT)
+            assertThat(open.groupDraft("page", TIMEOUT)
                             .par("user", open.par(ParId.of("worker")), String.class, () -> "x")
                             .submitAll()
                             .groupName())
@@ -292,7 +297,7 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<String, Integer>, Long> group = global.group("page", TIMEOUT)
+        try (TaskGroup<Tuple2<String, Integer>, Long> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                 .par("count", global.par(ParId.of("worker")), Integer.class, () -> 2)
                 .combine("assemble", global.par(ParId.of("worker")), Long.class, values -> 1L)
@@ -313,7 +318,7 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                 .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
                 .submitAll()) {
@@ -360,7 +365,7 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> null)
                 .submitAll()) {
             GroupValues<String> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
@@ -385,10 +390,10 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, (Callable) () -> 41)
                 .submitAll()) {
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             // The declared token is enforced on the write side as well as the read side: a body that
             // violates it through raw or unchecked code fails as its own USER_FAILURE instead of
@@ -413,7 +418,7 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<Tuple2<String, Integer>, Boolean>, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<Tuple2<Tuple2<String, Integer>, Boolean>, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                 .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
                 .par("flag", global.par(ParId.of("worker")), Boolean.class, () -> true)
@@ -447,7 +452,7 @@ class GroupDraftContractTest {
         try {
             Par par = global.par(ParId.of("worker"));
             Par foreignPar = foreign.par(ParId.of("worker"));
-            GroupStep<String> step = global.group("page", TIMEOUT).par("one", par, String.class, () -> "1");
+            GroupDraft.Step<String> step = global.groupDraft("page", TIMEOUT).par("one", par, String.class, () -> "1");
 
             // Rejected on the foreign Par — the draft must be left exactly as it was.
             assertThatThrownBy(() -> step.par("two", foreignPar, Integer.class, () -> 2))
@@ -457,7 +462,7 @@ class GroupDraftContractTest {
                     .isInstanceOf(IllegalArgumentException.class);
 
             // The stage never advanced, so the name was never taken: the retry has to succeed.
-            GroupStep<Tuple2<String, Integer>> accepted = step.par("two", par, Integer.class, () -> 2);
+            GroupDraft.Step<Tuple2<String, Integer>> accepted = step.par("two", par, Integer.class, () -> 2);
             assertThat(accepted).isNotNull();
         } finally {
             global.close();
@@ -476,10 +481,10 @@ class GroupDraftContractTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            GroupStart start = global.group("page", TIMEOUT);
-            GroupStep<String> step = start.par("one", par, String.class, () -> "1");
+            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
+            GroupDraft.Step<String> step = start.par("one", par, String.class, () -> "1");
             // Advance past both earlier stages so they are genuinely stale, not merely unused.
-            GroupStep<Tuple2<String, Integer>> advanced = step.par("two", par, Integer.class, () -> 2);
+            GroupDraft.Step<Tuple2<String, Integer>> advanced = step.par("two", par, Integer.class, () -> 2);
 
             // Both violations are present on each stale stage. The Class overloads check the draft
             // first, so the lifecycle violation is what is reported, not the null argument — the

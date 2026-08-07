@@ -310,7 +310,7 @@ public final class ParRuntime implements AutoCloseable {
      *
      * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and nothing runs
      * while it is built: no cancellation token, future, deadline, timer, or TTL snapshot exists and
-     * no executor is called until {@link GroupStep#submitAll()} or {@link GroupStart#submitAll()}.
+     * no executor is called until {@link GroupStep#runAll()} or {@link GroupStart#runAll()}.
      * The group timeout is a forced explicit choice: use this entry for an explicit budget, or
      * {@link #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
      * deadline.
@@ -323,6 +323,10 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
     public GroupStart group(String groupName, Duration timeout) {
+        return groupDraft(groupName, timeout);
+    }
+
+    GroupDraft.Start groupDraft(String groupName, Duration timeout) {
         return new GroupDraft.Start(new GroupDraft(
                 this, Validation.requireName(groupName, "group name"), Validation.requirePositive(timeout, "timeout")));
     }
@@ -340,6 +344,10 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if the name is blank
      */
     public GroupStart groupInheriting(String groupName) {
+        return groupDraftInheriting(groupName);
+    }
+
+    GroupDraft.Start groupDraftInheriting(String groupName) {
         return new GroupDraft.Start(new GroupDraft(this, Validation.requireName(groupName, "group name"), null));
     }
 

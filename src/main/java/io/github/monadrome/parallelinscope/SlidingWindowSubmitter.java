@@ -102,11 +102,11 @@ final class SlidingWindowSubmitter<V> {
      * @param tasks prepared task futures to execute
      * @param results the element views from {@link #viewsFor}, positionally aligned with {@code
      *     tasks}; taken as a parameter so the caller can bind them before submission starts
-     * @return TaskBatchResult containing individual task futures
+     * @return TaskBatch containing individual task futures
      */
-    public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
+    public TaskBatch<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(
+            return TaskBatch.of(
                     bodyCompletion,
                     Futures.immediateVoidFuture(),
                     ImmutableList.of(),
@@ -128,14 +128,14 @@ final class SlidingWindowSubmitter<V> {
                 // attributed as a submission failure rather than a user one.
                 logHandoffError(failure, i, "the initial window");
                 failRemainingAsSubmissionFailures(tasks, i, failure);
-                return TaskBatchResult.of(
+                return TaskBatch.of(
                         bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            return TaskBatchResult.of(
+            return TaskBatch.of(
                     bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
         }
 
@@ -156,7 +156,7 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
+        return TaskBatch.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
     }
 
     /**
@@ -290,7 +290,7 @@ final class SlidingWindowSubmitter<V> {
      * Completes every future that will never receive a submission so the batch always reaches a
      * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
      * submitter or rejected submission records its cause. Without this cleanup, {@link
-     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
+     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatch#report()}.
      *
      * <p>The prepared futures behind the abandoned placeholders are never submitted and never
      * cancelled, so their body slots are released here as skipped — exactly once, guarded by the

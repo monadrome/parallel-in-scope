@@ -19,9 +19,12 @@
 
 ## TaskGroup（独立并行任务组）
 
+最新执行/结果契约：[同步出口](synchronous-scope-exit-proposal.md)。下表历史公开 API 形状
+以该文为准，底层取消、调度与直接 body 退出机制保持。
+
 | 文档 | 摘要 |
 |---|---|
-| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **TaskGroup 公开 API 的最新决策（已落地，§10 实施记录）**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….submitAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、`valuesFuture()` 完成契约（成功/失败/取消三态，永不 pending）、统一准入与草稿生命周期；§9 列出被取代的文档。与本文冲突的组 API 表述一律以本文为准 |
+| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **一次性草稿决策（已落地，§10 实施记录；公开出口见同步契约）**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….submitAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、`valuesFuture()` 完成契约（成功/失败/取消三态，永不 pending）、统一准入与草稿生命周期；§9 列出被取代的文档。声明阶段规则仍适用；执行/结果形状以同步出口契约为准 |
 | [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`）。**公共 API 清单章节已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代** |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界（§9 复用边界仍有效）。**`submitGroup`/`Bindings` 的调用形状已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代** |

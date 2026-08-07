@@ -66,7 +66,7 @@ class TaskGroupCombineInlineGuardTest {
         }
         AtomicReference<String> combineThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -94,7 +94,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             // The violation is now visible instead of silent, and the body never ran at all.
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -135,7 +135,7 @@ class TaskGroupCombineInlineGuardTest {
             });
         }
         try {
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -175,7 +175,7 @@ class TaskGroupCombineInlineGuardTest {
             // Same pool, same CallerRunsPolicy, nothing occupying it. This is the case a
             // detect-the-policy-and-refuse design would have broken: the guarantee is never actually
             // violated here, so the combine must run normally.
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -193,7 +193,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).isEqualTo("combine-worker");
@@ -218,7 +218,7 @@ class TaskGroupCombineInlineGuardTest {
             // and CombineBody documents it as an accepted exception. The guard must leave it alone:
             // it is scoped to ThreadPoolExecutor, where inline execution can only come from a
             // rejection handler.
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -236,7 +236,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).startsWith("member");
@@ -258,7 +258,7 @@ class TaskGroupCombineInlineGuardTest {
                 ParRuntime.builder().register(ParId.of("s"), shared).build();
         AtomicReference<String> combineThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("s")),
@@ -282,7 +282,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).startsWith("shared");

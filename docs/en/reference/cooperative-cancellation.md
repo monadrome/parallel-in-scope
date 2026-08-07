@@ -12,14 +12,16 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 | During blocking I/O | `futureToken.cancel(true)` interrupts the blocking operation | None |
 | Sliding-window submission | `SlidingWindowSubmitter` stops submitting after cancellation | None |
 
-### Sliding-window placeholders
+### Sliding-window preparation
 
-Unsubmitted tasks are represented by input-ordered placeholder Futures. When admission stops,
-placeholders never remain live indefinitely: direct placeholder cancellation produces
-`CANCELLED`; cancelling the public submitter Future interrupts the submitter and records
-`InterruptedException`; a later executor rejection records its rejection cause. This guarantees
-that `Futures.allAsList` over the batch results can reach a terminal state. The submitter Future
-stops future admission, but does not by itself guarantee that already-submitted task bodies stop.
+Every element has its internal execution future prepared before cancellation and deadlines are
+bound. Binding finishes before submission starts; the sliding window only controls when each
+prepared task enters the executor. Cancellation therefore reaches running bodies and prevents
+unsubmitted tasks from starting. There are no placeholders or later delegate-binding steps.
+
+`Par.map` waits for all results to settle and attempts bounded cleanup before returning frozen
+`ImmediateResult` data. `unfinishedBodies()` reports direct bodies whose exit was not confirmed;
+terminal cancellation alone does not prove that a body stopped.
 
 Tasks that have not started are skipped, blocked I/O tasks are interrupted, and queued tasks are not submitted.
 
@@ -80,7 +82,12 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 |---|---|---|
 | Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
-| Manual cancellation | `CANCELLED` | Application code called `CancellationToken.cancel()` |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
 
-All sources are observed through the same token state check. Nested `Par.map` calls inherit a parent token, so cancellation propagates to child tasks at their next checkpoint or blocking operation. The attribution a `TaskFuture` reports — `TIMEOUT`, `FAIL_FAST`, `GROUP_CANCELLED`, `MEMBER_CANCELLED` — is derived from these token states; see [Read task attribution from a future](../user-guide.md#read-task-attribution-from-a-future).
+All sources use the same internal token state check. Nested `Par.map` calls inherit a parent token,
+so cancellation reaches child tasks at their next checkpoint or interruptible blocking operation.
+Task bodies can also throw cancellation exceptions. `ImmediateResult.outcome()` exposes the frozen
+task attribution; see [Immediate results](../user-guide.md#task-future-attribution).
+Interrupting the caller waiting in `map` or `runAll` does not cancel execution; those waits restore
+the interrupt flag on exit. Results expose no execution-owned token or running future;
+`asFuture().cancel(...)` always returns false.

@@ -71,8 +71,8 @@ class TaskGraphScopeOwnershipTest {
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
             TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
 
-            TaskBatchResult<Integer> batch = foreign.par(ParId.of("foreign"))
-                    .map(
+            TaskBatch<Integer> batch = foreign.par(ParId.of("foreign"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> value + 1,
                             BatchOptions.timeout("foreign-batch", Duration.ofSeconds(5)));
@@ -111,7 +111,10 @@ class TaskGraphScopeOwnershipTest {
             TaskFuture<Integer> outer = foreignPar.submit(
                     "foreign-outer",
                     () -> foreignPar
-                            .map(Arrays.asList(1, 2), value -> value + 1, BatchOptions.inheritTimeout("foreign-inner"))
+                            .submitBatch(
+                                    Arrays.asList(1, 2),
+                                    value -> value + 1,
+                                    BatchOptions.inheritTimeout("foreign-inner"))
                             .valuesOrThrow()
                             .size(),
                     TaskOptions.timeout(Duration.ofSeconds(5)));
@@ -151,7 +154,7 @@ class TaskGraphScopeOwnershipTest {
                     () -> foreignPar
                             .submit(
                                     "foreign-middle",
-                                    () -> ownerPar.map(
+                                    () -> ownerPar.submitBatch(
                                                     Arrays.asList(1, 2),
                                                     value -> value + 1,
                                                     BatchOptions.timeout("owner-inner", Duration.ofSeconds(5)))
@@ -189,7 +192,7 @@ class TaskGraphScopeOwnershipTest {
                         // batch into the enclosing scope and leave this one reporting nothing.
                         try (TaskGraphObservationScope inner = owner.openTaskGraphObservation()) {
                             TaskGraphData innerData = Objects.requireNonNull(TaskGraphObservationScope.data());
-                            ownerPar.map(
+                            ownerPar.submitBatch(
                                             Arrays.asList(1, 2),
                                             value -> value + 1,
                                             BatchOptions.timeout("inner-batch", Duration.ofSeconds(5)))
@@ -217,7 +220,7 @@ class TaskGraphScopeOwnershipTest {
             TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             Par ownerPar = owner.par(ParId.of("owner"));
 
-            ownerPar.map(
+            ownerPar.submitBatch(
                             Arrays.asList(1, 2),
                             value -> value + 1,
                             BatchOptions.timeout("owner-batch", Duration.ofSeconds(5)))

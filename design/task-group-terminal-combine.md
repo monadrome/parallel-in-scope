@@ -1,5 +1,10 @@
 # TaskGroup 终端汇合设计
 
+> 公开执行/结果及中断等待形状已由
+> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
+> 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
+
 > ⚠️ **声明/绑定入口已被取代**：`Builder.combine()` 声明 + `Bindings.combine()` 绑定已由
 > [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 链尾的
 > `combine(name, par, type, body)` 取代，combine body 现在直接接收成员值的元组而非 `CombineContext`。
