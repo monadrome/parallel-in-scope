@@ -34,13 +34,14 @@ body:
     id: jdk
     attributes:
       label: JDK
-      description: The CI matrix covers 8 (library runtime), 11, 17, and 21; a version-specific finding is useful to know.
+      description: CI builds and tests on JDK 25 and exercises the artifact on a Java 8 runtime; a version-specific finding is useful to know.
       multiple: true
       options:
         - "8"
         - "11"
         - "17"
         - "21"
+        - "25"
         - Other (describe below)
     validations:
       required: true
