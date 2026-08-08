@@ -1,6 +1,7 @@
 package io.github.huatalk.parallelinscope.control;
 
 import com.google.common.util.concurrent.AbstractService;
+import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.Service;
 
 import javax.annotation.Nullable;
@@ -16,8 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A bounded {@link BlockingQueue} that owns its own waiting, so shutting it down releases blocked
@@ -32,8 +31,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * landing on a recycled thread.
  *
  * <p>This class owns the wait queues instead, so shutdown and interruption travel on two separate
- * channels and the attribution problem does not arise. Shutdown sets a flag and calls {@link
- * Condition#signalAll()}; waiters wake, re-test their predicate, and throw {@link
+ * channels and the attribution problem does not arise. Shutdown sets a flag that satisfies both
+ * {@link Monitor.Guard guards}; waiters wake, re-test the flag, and throw {@link
  * QueueShutdownException}. No interrupt is ever issued, so an {@link InterruptedException} observed
  * here always came from outside and propagates unchanged with no inspection at all. There is no call
  * registry, no phase handshake, and no interrupt to consume.
@@ -45,14 +44,15 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>Implementation</h2>
  *
- * The element storage is the two-lock linked queue of {@link java.util.concurrent.LinkedBlockingQueue
- * LinkedBlockingQueue}: a singly-linked node list, a {@code putLock} guarding the tail with a {@code
- * notFull} condition, a {@code takeLock} guarding the head with a {@code notEmpty} condition, and an
- * {@link AtomicInteger} count linking the two. Producers and consumers therefore do not exclude each
- * other, exactly as in {@code LinkedBlockingQueue}.
+ * The element storage follows the two-lock linked queue of {@link
+ * java.util.concurrent.LinkedBlockingQueue LinkedBlockingQueue}: a singly-linked node list, a {@code
+ * putMonitor} guarding the tail, a {@code takeMonitor} guarding the head, and an {@link AtomicInteger}
+ * count linking the two. Each monitor owns a guard that becomes satisfied when its operation can
+ * proceed or shutdown begins. Producers and consumers therefore do not exclude each other, exactly
+ * as in {@code LinkedBlockingQueue}.
  *
- * <p>Owning the locks is what makes the lifecycle cheap. Waiter accounting lives beside the {@code
- * await()} calls it describes, so it is reached only by calls that actually block; a {@code put} or
+ * <p>Owning the monitors is what makes the lifecycle cheap. Waiter accounting lives beside the {@code
+ * waitFor()} calls it describes, so it is reached only by calls that actually block; a {@code put} or
  * {@code take} that completes without waiting touches no lifecycle state whatsoever, and adds no
  * contended write to the hot path.
  *
@@ -74,7 +74,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>Differences from {@code LinkedBlockingQueue}</h2>
  *
- * Capacity is fixed at construction, {@link #iterator()} walks a snapshot taken under both locks
+ * Capacity is fixed at construction, {@link #iterator()} walks a snapshot taken inside both monitors
  * rather than being weakly consistent, and instances are not {@link java.io.Serializable
  * Serializable}, since a live lifecycle does not survive serialization meaningfully.
  *
@@ -120,7 +120,7 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
 
     private final int capacity;
 
-    /** Current element count, shared across both locks so each side can test the other's predicate. */
+    /** Current element count, shared across both monitors so each side can test the other's guard. */
     private final AtomicInteger count = new AtomicInteger();
 
     /** Sentinel whose {@code next} is the first element; {@code head.item} is always {@code null}. */
@@ -129,29 +129,41 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
     /** Last node; {@code last.next} is always {@code null}. */
     private Node<E> last = head;
 
-    private final ReentrantLock takeLock = new ReentrantLock();
-    private final Condition notEmpty = takeLock.newCondition();
-    private final ReentrantLock putLock = new ReentrantLock();
-    private final Condition notFull = putLock.newCondition();
+    private final Monitor takeMonitor = new Monitor();
+    private final Monitor.Guard notEmptyOrShutdown = new Monitor.Guard(takeMonitor) {
+        /** Allows a consumer to proceed once data is available or shutdown must release it. */
+        @Override
+        public boolean isSatisfied() {
+            return count.get() > 0 || shutdown;
+        }
+    };
+    private final Monitor putMonitor = new Monitor();
+    private final Monitor.Guard notFullOrShutdown = new Monitor.Guard(putMonitor) {
+        /** Allows a producer to proceed once capacity is available or shutdown must release it. */
+        @Override
+        public boolean isSatisfied() {
+            return count.get() < capacity || shutdown;
+        }
+    };
 
     /**
-     * Set once when shutdown begins, before either condition is signalled.
+     * Set once when shutdown begins, before either monitor is left to notify satisfied guards.
      *
-     * <p>Volatile so a caller can reject itself before taking a lock, but every write happens while
-     * both locks are held. That is what makes the handoff airtight: a waiter tests this flag under the
-     * same lock that shutdown must hold to signal, so the two cannot interleave. A waiter either sees
-     * the flag and leaves without waiting, or is already in {@code await()} and gets signalled.
+     * <p>Volatile so a caller can reject itself before entering a monitor, but every write happens while
+     * both monitors are occupied. That is what makes the handoff airtight: a waiter tests this flag
+     * inside the same monitor that shutdown must occupy, so the two cannot interleave. A waiter either
+     * sees the flag and leaves without waiting, or is already waiting on a guard that shutdown satisfies.
      */
     private volatile boolean shutdown;
 
     /**
-     * Threads waiting in {@link #notFull}. Mutated only while {@code putLock} is held, so its updates
-     * are already serialized; it is atomic solely so a consumer holding the other lock can read it when
-     * testing for termination.
+     * Threads waiting on {@link #notFullOrShutdown}. Mutated only while {@link #putMonitor} is occupied,
+     * so its updates are already serialized; it is atomic solely so a consumer occupying the other
+     * monitor can read it when testing for termination.
      */
     private final AtomicInteger waitingPuts = new AtomicInteger();
 
-    /** Threads waiting in {@link #notEmpty}; mutated only while {@code takeLock} is held. */
+    /** Threads waiting on {@link #notEmptyOrShutdown}; mutated inside {@link #takeMonitor}. */
     private final AtomicInteger waitingTakes = new AtomicInteger();
 
     /** Guarantees {@link AbstractService#notifyStopped()} runs at most once across draining threads. */
@@ -190,24 +202,24 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         this.name = java.util.Objects.requireNonNull(name, "name");
     }
 
-    /** Acquires both locks, in the fixed order that prevents deadlock. */
+    /** Enters both monitors, in the fixed order that prevents deadlock. */
     private void fullyLock() {
-        putLock.lock();
-        takeLock.lock();
+        putMonitor.enter();
+        takeMonitor.enter();
     }
 
-    /** Releases both locks. */
+    /** Leaves both monitors in reverse acquisition order. */
     private void fullyUnlock() {
-        takeLock.unlock();
-        putLock.unlock();
+        takeMonitor.leave();
+        putMonitor.leave();
     }
 
-    /** Links a node at the tail; caller must hold {@code putLock}. */
+    /** Links a node at the tail; caller must occupy {@link #putMonitor}. */
     private void enqueue(Node<E> node) {
         last = last.next = node;
     }
 
-    /** Unlinks the first element; caller must hold {@code takeLock}. */
+    /** Unlinks the first element; caller must occupy {@link #takeMonitor}. */
     private E dequeue() {
         Node<E> h = head;
         Node<E> first = h.next;
@@ -218,24 +230,16 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         return x;
     }
 
-    /** Signals one waiting consumer; called by producers that do not hold {@code takeLock}. */
+    /** Prompts the consumer monitor to notify a waiter whose guard is now satisfied. */
     private void signalNotEmpty() {
-        takeLock.lock();
-        try {
-            notEmpty.signal();
-        } finally {
-            takeLock.unlock();
-        }
+        takeMonitor.enter();
+        takeMonitor.leave();
     }
 
-    /** Signals one waiting producer; called by consumers that do not hold {@code putLock}. */
+    /** Prompts the producer monitor to notify a waiter whose guard is now satisfied. */
     private void signalNotFull() {
-        putLock.lock();
-        try {
-            notFull.signal();
-        } finally {
-            putLock.unlock();
-        }
+        putMonitor.enter();
+        putMonitor.leave();
     }
 
     private QueueShutdownException shutdownException(String op) {
@@ -260,15 +264,15 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         lifecycle.startIfNew();
         int c = -1;
         Node<E> node = new Node<>(e);
-        putLock.lockInterruptibly();
+        putMonitor.enterInterruptibly();
         try {
-            while (count.get() == capacity) {
-                if (shutdown) {
-                    throw shutdownException("put");
-                }
+            if (shutdown) {
+                throw shutdownException("put");
+            }
+            if (count.get() == capacity) {
                 waitingPuts.incrementAndGet();
                 try {
-                    notFull.await();
+                    putMonitor.waitFor(notFullOrShutdown);
                 } finally {
                     waitingPuts.decrementAndGet();
                 }
@@ -278,11 +282,8 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
             }
             enqueue(node);
             c = count.getAndIncrement();
-            if (c + 1 < capacity) {
-                notFull.signal();
-            }
         } finally {
-            putLock.unlock();
+            putMonitor.leave();
             lifecycle.publishTerminationIfDrained();
         }
         if (c == 0) {
@@ -311,20 +312,24 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         lifecycle.startIfNew();
         long nanos = unit.toNanos(timeout);
         int c = -1;
-        putLock.lockInterruptibly();
+        putMonitor.enterInterruptibly();
         try {
-            while (count.get() == capacity) {
-                if (shutdown) {
-                    throw shutdownException("offer");
-                }
+            if (shutdown) {
+                throw shutdownException("offer");
+            }
+            if (count.get() == capacity) {
                 if (nanos <= 0) {
                     return false;
                 }
+                boolean ready;
                 waitingPuts.incrementAndGet();
                 try {
-                    nanos = notFull.awaitNanos(nanos);
+                    ready = putMonitor.waitFor(notFullOrShutdown, nanos, TimeUnit.NANOSECONDS);
                 } finally {
                     waitingPuts.decrementAndGet();
+                }
+                if (!ready) {
+                    return false;
                 }
             }
             if (shutdown) {
@@ -332,11 +337,8 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
             }
             enqueue(new Node<>(e));
             c = count.getAndIncrement();
-            if (c + 1 < capacity) {
-                notFull.signal();
-            }
         } finally {
-            putLock.unlock();
+            putMonitor.leave();
             lifecycle.publishTerminationIfDrained();
         }
         if (c == 0) {
@@ -359,15 +361,15 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         lifecycle.startIfNew();
         E x;
         int c = -1;
-        takeLock.lockInterruptibly();
+        takeMonitor.enterInterruptibly();
         try {
-            while (count.get() == 0) {
-                if (shutdown) {
-                    throw shutdownException("take");
-                }
+            if (shutdown) {
+                throw shutdownException("take");
+            }
+            if (count.get() == 0) {
                 waitingTakes.incrementAndGet();
                 try {
-                    notEmpty.await();
+                    takeMonitor.waitFor(notEmptyOrShutdown);
                 } finally {
                     waitingTakes.decrementAndGet();
                 }
@@ -379,11 +381,8 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
             }
             x = dequeue();
             c = count.getAndDecrement();
-            if (c > 1) {
-                notEmpty.signal();
-            }
         } finally {
-            takeLock.unlock();
+            takeMonitor.leave();
             lifecycle.publishTerminationIfDrained();
         }
         if (c == capacity) {
@@ -410,20 +409,24 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         E x;
         int c = -1;
         long nanos = unit.toNanos(timeout);
-        takeLock.lockInterruptibly();
+        takeMonitor.enterInterruptibly();
         try {
-            while (count.get() == 0) {
-                if (shutdown) {
-                    throw shutdownException("poll");
-                }
+            if (shutdown) {
+                throw shutdownException("poll");
+            }
+            if (count.get() == 0) {
                 if (nanos <= 0) {
                     return null;
                 }
+                boolean ready;
                 waitingTakes.incrementAndGet();
                 try {
-                    nanos = notEmpty.awaitNanos(nanos);
+                    ready = takeMonitor.waitFor(notEmptyOrShutdown, nanos, TimeUnit.NANOSECONDS);
                 } finally {
                     waitingTakes.decrementAndGet();
+                }
+                if (!ready) {
+                    return null;
                 }
             }
             if (shutdown) {
@@ -431,11 +434,8 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
             }
             x = dequeue();
             c = count.getAndDecrement();
-            if (c > 1) {
-                notEmpty.signal();
-            }
         } finally {
-            takeLock.unlock();
+            takeMonitor.leave();
             lifecycle.publishTerminationIfDrained();
         }
         if (c == capacity) {
@@ -463,17 +463,14 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         }
         int c = -1;
         Node<E> node = new Node<>(e);
-        putLock.lock();
+        putMonitor.enter();
         try {
             if (count.get() < capacity) {
                 enqueue(node);
                 c = count.getAndIncrement();
-                if (c + 1 < capacity) {
-                    notFull.signal();
-                }
             }
         } finally {
-            putLock.unlock();
+            putMonitor.leave();
         }
         if (c == 0) {
             signalNotEmpty();
@@ -496,17 +493,14 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         }
         E x = null;
         int c = -1;
-        takeLock.lock();
+        takeMonitor.enter();
         try {
             if (count.get() > 0) {
                 x = dequeue();
                 c = count.getAndDecrement();
-                if (c > 1) {
-                    notEmpty.signal();
-                }
             }
         } finally {
-            takeLock.unlock();
+            takeMonitor.leave();
         }
         if (c == capacity) {
             signalNotFull();
@@ -525,12 +519,12 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         if (count.get() == 0) {
             return null;
         }
-        takeLock.lock();
+        takeMonitor.enter();
         try {
             Node<E> first = head.next;
             return first == null ? null : first.item;
         } finally {
-            takeLock.unlock();
+            takeMonitor.leave();
         }
     }
 
@@ -581,10 +575,9 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         if (maxElements <= 0) {
             return 0;
         }
-        // Deferred, not signalled inline: signalNotFull() takes putLock, and taking it while holding
-        // takeLock inverts the fullyLock() order and would deadlock.
+        // Deferred because entering putMonitor while occupying takeMonitor would invert fullyLock().
         boolean shouldSignalNotFull = false;
-        takeLock.lock();
+        takeMonitor.enter();
         try {
             int n = Math.min(maxElements, count.get());
             Node<E> h = head;
@@ -607,7 +600,7 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
                 }
             }
         } finally {
-            takeLock.unlock();
+            takeMonitor.leave();
             if (shouldSignalNotFull) {
                 signalNotFull();
             }
@@ -634,9 +627,7 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
                     if (last == p) {
                         last = trail;
                     }
-                    if (count.getAndDecrement() == capacity) {
-                        notFull.signal();
-                    }
+                    count.getAndDecrement();
                     return true;
                 }
             }
@@ -650,8 +641,8 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
      * Returns an iterator over a snapshot of this queue, taken in order from head to tail.
      *
      * <p>Unlike {@link java.util.concurrent.LinkedBlockingQueue LinkedBlockingQueue}'s weakly consistent
-     * iterator, this one copies under both locks, so it never reflects concurrent changes and its {@link
-     * Iterator#remove()} is unsupported.
+     * iterator, this one copies while both monitors are occupied, so it never reflects concurrent
+     * changes and its {@link Iterator#remove()} is unsupported.
      *
      * @return an iterator over a point-in-time snapshot
      */
@@ -716,12 +707,12 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         }
 
         /**
-         * Releases every waiter, then terminates once they have all left.
+         * Makes both shutdown guards true, then terminates once every waiter has left.
          *
-         * <p>Both locks are held while {@link LifecycleQueue#shutdown} is set and both conditions are
-         * signalled. That is the whole correctness argument: a waiter can only test the flag while
-         * holding the matching lock, so it either sees the flag and leaves without waiting, or is
-         * already inside {@code await()} and will be signalled. No thread can slip between the two.
+         * <p>Both monitors are occupied while {@link LifecycleQueue#shutdown} is set. That is the whole
+         * correctness argument: a waiter can only test the flag inside its matching monitor, so it
+         * either sees the flag and leaves without waiting, or is already waiting on a guard that becomes
+         * satisfied. Each departing waiter prompts the monitor to notify the next satisfied waiter.
          */
         @Override
         protected void doStop() {
@@ -730,7 +721,7 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
         }
 
         /**
-         * Sets {@link LifecycleQueue#shutdown} and wakes every waiter on both conditions.
+         * Sets {@link LifecycleQueue#shutdown}, satisfying both guards and starting waiter release.
          *
          * <p>Idempotent, so the {@link #requestStop()} and {@link #doStop()} paths may both run it.
          */
@@ -738,8 +729,6 @@ public class LifecycleQueue<E> extends AbstractQueue<E>
             fullyLock();
             try {
                 shutdown = true;
-                notEmpty.signalAll();
-                notFull.signalAll();
             } finally {
                 fullyUnlock();
             }

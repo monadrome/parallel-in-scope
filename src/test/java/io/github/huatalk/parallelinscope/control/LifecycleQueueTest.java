@@ -59,6 +59,194 @@ class LifecycleQueueTest {
         return outcome;
     }
 
+    /** Verifies constructor capacity and lifecycle-name validation and diagnostics. */
+    @Test
+    void constructorConfigurationControlsCapacityAndDiagnostics() {
+        LifecycleQueue<Integer> unbounded = new LifecycleQueue<>();
+        assertEquals(Integer.MAX_VALUE, unbounded.remainingCapacity());
+
+        LifecycleQueue<Integer> named = new LifecycleQueue<>(3, "orders");
+        assertEquals(3, named.remainingCapacity());
+        assertTrue(named.toString().contains("orders"));
+        named.close();
+        QueueShutdownException failure = assertThrows(QueueShutdownException.class, named::take);
+        assertTrue(failure.getMessage().contains("orders"));
+
+        assertThrows(IllegalArgumentException.class, () -> new LifecycleQueue<>(0));
+        assertThrows(IllegalArgumentException.class, () -> new LifecycleQueue<>(-1));
+        assertThrows(NullPointerException.class, () -> new LifecycleQueue<>(1, null));
+    }
+
+    /** Verifies collection-style operations leave a new queue's service lifecycle untouched. */
+    @Test
+    void nonBlockingOperationsDoNotStartLifecycle() {
+        LifecycleQueue<Integer> queue = new LifecycleQueue<>(2);
+
+        assertTrue(queue.offer(1));
+        assertEquals(1, queue.peek());
+        assertEquals(1, queue.size());
+        assertEquals(1, queue.remainingCapacity());
+        assertTrue(queue.contains(1));
+        assertEquals(1, queue.iterator().next());
+        assertTrue(queue.remove(1));
+
+        assertTrue(queue.offer(2));
+        List<Integer> drained = new ArrayList<>();
+        assertEquals(1, queue.drainTo(drained));
+        assertEquals(Collections.singletonList(2), drained);
+        queue.clear();
+
+        assertTrue(queue.offer(3));
+        assertEquals(3, queue.poll());
+        assertEquals(Service.State.NEW, queue.state());
+
+        queue.close();
+        queue.awaitTerminated();
+        assertEquals(Service.State.TERMINATED, queue.state());
+    }
+
+    /** Verifies each of the four potentially blocking entry points starts the service implicitly. */
+    @Test
+    void eachBlockingOperationStartsLifecycleImplicitly() throws Exception {
+        LifecycleQueue<Integer> putQueue = new LifecycleQueue<>(1);
+        putQueue.put(1);
+        assertEquals(Service.State.RUNNING, putQueue.state());
+
+        LifecycleQueue<Integer> offerQueue = new LifecycleQueue<>(1);
+        assertTrue(offerQueue.offer(1, 1, TimeUnit.SECONDS));
+        assertEquals(Service.State.RUNNING, offerQueue.state());
+
+        LifecycleQueue<Integer> takeQueue = new LifecycleQueue<>(1);
+        assertTrue(takeQueue.offer(1));
+        assertEquals(1, takeQueue.take());
+        assertEquals(Service.State.RUNNING, takeQueue.state());
+
+        LifecycleQueue<Integer> pollQueue = new LifecycleQueue<>(1);
+        assertTrue(pollQueue.offer(1));
+        assertEquals(1, pollQueue.poll(1, TimeUnit.SECONDS));
+        assertEquals(Service.State.RUNNING, pollQueue.state());
+
+        for (LifecycleQueue<Integer> queue : Arrays.asList(
+                putQueue, offerQueue, takeQueue, pollQueue)) {
+            queue.close();
+            queue.awaitTerminated();
+        }
+    }
+
+    /** Verifies shutdown is thread-safe, idempotent, and permanently closes the lifecycle. */
+    @Test
+    void concurrentStopRequestsAreIdempotentAndRestartIsForbidden() throws Exception {
+        LifecycleQueue<Integer> queue = new LifecycleQueue<>(1);
+        queue.startAsync();
+        queue.awaitRunning(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        int callers = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(callers);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(callers);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        try {
+            for (int i = 0; i < callers; i++) {
+                pool.execute(() -> {
+                    try {
+                        start.await();
+                        for (int attempt = 0; attempt < 20; attempt++) {
+                            queue.stopAsync();
+                        }
+                    } catch (Throwable thrown) {
+                        failure.compareAndSet(null, thrown);
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+
+            start.countDown();
+            assertTrue(done.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            queue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            assertNull(failure.get());
+            assertTrue(queue.isShutdown());
+            assertEquals(Service.State.TERMINATED, queue.state());
+            assertThrows(IllegalStateException.class, queue::startAsync);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies shutdown drains every producer and consumer Guard, not only the first waiter. */
+    @Test
+    void shutdownReleasesEveryGuardWaiterWithoutInterruptingThreads() throws Exception {
+        int waiterCount = 16;
+        LifecycleQueue<Integer> producerQueue = new LifecycleQueue<>(1);
+        producerQueue.put(0);
+        LifecycleQueue<Integer> consumerQueue = new LifecycleQueue<>(1);
+        ExecutorService pool = Executors.newFixedThreadPool(waiterCount * 2);
+        List<Outcome> outcomes = new ArrayList<>();
+        try {
+            for (int i = 0; i < waiterCount; i++) {
+                outcomes.add(fork(pool, () -> producerQueue.put(1)));
+                outcomes.add(fork(pool, consumerQueue::take));
+            }
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS).until(() ->
+                    producerQueue.waitingProducers() == waiterCount
+                            && consumerQueue.waitingConsumers() == waiterCount);
+
+            producerQueue.stopAsync();
+            consumerQueue.stopAsync();
+            producerQueue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            consumerQueue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            for (Outcome outcome : outcomes) {
+                outcome.await();
+                assertSame(QueueShutdownException.class, outcome.thrown.get().getClass());
+                assertNull(outcome.thrown.get().getCause());
+                assertFalse(outcome.interruptFlag.get());
+            }
+            assertEquals(0, producerQueue.waitingProducers());
+            assertEquals(0, consumerQueue.waitingConsumers());
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies timed-out Guard waits release lifecycle accounting on both queue sides. */
+    @Test
+    void timedWaitersAreCountedOnlyWhileWaiting() throws Exception {
+        LifecycleQueue<Integer> producerQueue = new LifecycleQueue<>(1);
+        producerQueue.put(0);
+        LifecycleQueue<Integer> consumerQueue = new LifecycleQueue<>(1);
+
+        assertFalse(producerQueue.offer(1, 0, TimeUnit.NANOSECONDS));
+        assertNull(consumerQueue.poll(0, TimeUnit.NANOSECONDS));
+        assertEquals(0, producerQueue.waitingProducers());
+        assertEquals(0, consumerQueue.waitingConsumers());
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Outcome producer = fork(pool, () ->
+                    assertFalse(producerQueue.offer(1, 3, TimeUnit.SECONDS)));
+            Outcome consumer = fork(pool, () ->
+                    assertNull(consumerQueue.poll(3, TimeUnit.SECONDS)));
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS).until(() ->
+                    producerQueue.waitingProducers() == 1
+                            && consumerQueue.waitingConsumers() == 1);
+
+            producer.await();
+            consumer.await();
+            assertNull(producer.thrown.get());
+            assertNull(consumer.thrown.get());
+            assertEquals(0, producerQueue.waitingProducers());
+            assertEquals(0, consumerQueue.waitingConsumers());
+            assertEquals(Service.State.RUNNING, producerQueue.state());
+            assertEquals(Service.State.RUNNING, consumerQueue.state());
+        } finally {
+            producerQueue.close();
+            consumerQueue.close();
+            pool.shutdownNow();
+        }
+    }
+
     @Test
     void allFourBlockingMethodsAreReleasedByShutdownWithoutInterrupts() throws Exception {
         // Capacity 1, kept full, so producers block; consumers block only once it is drained. Both
@@ -441,7 +629,7 @@ class LifecycleQueueTest {
 
     @Test
     void drainToDoesNotDeadlockAgainstWaitingProducers() throws Exception {
-        // drainTo holds takeLock and must signal notFull only after releasing it; signalling inline
+        // drainTo occupies takeMonitor and must prompt putMonitor only after leaving it; doing so inline
         // would invert the fullyLock() order and deadlock against a concurrent shutdown.
         LifecycleQueue<Integer> queue = new LifecycleQueue<>(2);
         queue.put(1);
