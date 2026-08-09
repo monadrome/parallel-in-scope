@@ -169,8 +169,10 @@ final class MultiTaskContext {
         // rejected -- and because resolveFor reads the parent's stored scope, a unit of another
         // ParRuntime carrying its parent's scope would launder it into the next nesting level.
         TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
-        int requested = spec.requestedParallelism();
-        int effective = requested <= 0 ? resolution.taskCount : Math.min(requested, resolution.taskCount);
+        // A non-positive request has no fallback left: the sliding window would never submit and
+        // the batch would wait forever, so the invariant both producers already keep fails loudly.
+        int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
+        int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
         return new MultiTaskContext(
                 spec.name(),

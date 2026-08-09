@@ -63,6 +63,19 @@ final class Validation {
     }
 
     /**
+     * Rejects a zero or negative count, for a limit where zero would mean "no workers at all"
+     * rather than a choice a caller can have meant.
+     *
+     * @param count the count to check
+     * @param what the argument's role, used to open the message ({@code "parallelism"})
+     * @return {@code count}
+     */
+    static int requirePositive(int count, String what) {
+        checkArgument(count > 0, "%s must be positive: %s", what, count);
+        return count;
+    }
+
+    /**
      * Rejects a negative count.
      *
      * @param count the count to check

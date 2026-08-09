@@ -74,6 +74,11 @@ be structurally mutated during execution; other collections are snapshotted. Map
 `Function`, so checked business exceptions must be handled inside the function. Single tasks
 requiring `Callable` use a single-member group.
 
+An explicit `.parallelism(n)` must be positive; the entry rejects zero or negative with
+`IllegalArgumentException`. The default, `Integer.MAX_VALUE`, sets no cap beyond the task count —
+resolution caps it at the batch size, so the whole batch is submitted at once. Set an explicit value
+matching downstream capacity to get a bounded sliding window.
+
 Timeout is explicit: choose `BatchOptions.timeout(name, positiveDuration)` or
 `inheritTimeout(name)`. Inheritance requires an enclosing library task; every deadline is capped by
 its parent's. The first failure cancels unfinished siblings, including elements outside the sliding
