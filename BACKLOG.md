@@ -32,7 +32,7 @@
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
 | API | A-P1 | `CancellationToken` 是不可达的公开类型 | 复核 | 中（破坏性） |
 | API | A-P2 | 诊断断言无作用域时静默返回 `false` | 复核 | 低-中 |
-| API | A-P3 | 两个访问器让用户静默出错 | 复核 | 低 |
+| API | A-P3 | `failedTaskName()` 可能是 combine 名且无公开 `failedTask()`（`TaskCompletion.failure()` 口径已修复） | 复核 | 低 |
 | API | A-P6 | 4 处零调用的公开成员 | 读码 | 低-中（破坏性） |
 | API | A-P7 | 6 项选项与形状瑕疵 | 读码 | 低 |
 
@@ -156,17 +156,19 @@ Guava 的 SEVERE 日志里。
   `DISABLED/NO_ISSUE/ISSUE`。
 - **修复**：改为实例方法 `scope.hasTaskCycle()`（用户本就持有该实例），或返回 `TaskGraphReport.Status`。
 
-### A-P3 · 两个访问器让用户静默出错
+### A-P3 · 两个访问器让用户静默出错 ——`failure()` 半项已修复
 
-- **`TaskCompletion.failure()`**：javadoc 写 "or null on success"（`:218`），但 future 被取消的任务
-  （超时、被 fail-fast 级联取消的兄弟）也是 null。正确判定用 `successful()`（`:205`）。
-- **反方向更值得注意**：任务体抛 `InterruptedException`/`CancellationException` 被
-  `Task.classifyFailure`（`Task.java:242-243`）归因成 `TIMEOUT`/`FAIL_FAST` 时，快照**带着该异常**，
-  而同任务的 `TaskFuture.failure()` 返回 null → **同一任务两个访问器给出相反读数**。
+- ~~**`TaskCompletion.failure()`**：javadoc 写 "or null on success"（`:218`），但 future 被取消的任务
+  （超时、被 fail-fast 级联取消的兄弟）也是 null。正确判定用 `successful()`（`:205`）。~~
+  **已修复（工作区，未提交）**：Javadoc 与中英指南改为实测口径——成功恒 null；`USER_FAILURE`
+  记 body 自抛异常；`TIMEOUT`/`FAIL_FAST` 等取消归类（通常）记 `LeanCancellationException`。
+  实测与独立审查均确认公开面不存在"非 SUCCESS 且 failure 为 null"的路径（公开快照全经
+  `withResult` ← `ImmediateResult`，后者保证非 SUCCESS 必有 throwable）；旧文"取消的任务
+  failure 为 null"是静态误读。
 - **`TaskGroupResult.failedTaskName()`**（`:71-74`）可能是 terminal combine 名，而 `members()`（`:76-79`）
   不含 combine → 用户按字面写 `members().get(failedTaskName())` 在 combine 失败时 NPE。
   私有 `failedTaskSnapshot()`（`:160-166`）已有正确 fallback，但未公开。
-- **修复**：统一两个访问器的口径 + 暴露 `failedTask()`。
+- **修复（剩余）**：暴露 `failedTask()` 并统一 `members()`/combine 归因口径。
 
 ### A-P6 · 零调用的公开成员（可收敛）
 
@@ -186,9 +188,9 @@ Guava 的 SEVERE 日志里。
 | `TaskType.java:10-11` | `taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**，且无任何诊断（`rejectEnqueue` 至少有一次 per-Par 告警） |
 | `MultiTaskContext.java:168-169` | `parallelism(0)` 实为最大并发，与"0 个并行"的直觉相反；指南只说了负值 |
 | `MultiTaskContext.java:203-210` | 超大 `Duration` 溢出饱和为 `Long.MAX_VALUE`，而它同时是"无 deadline"哨兵 → 有限超时静默变无限 |
-| `GroupStep`/`GroupStart` vs `TaskGroup` | `par`/`combine` 有 `Class<T>` 重载，`futureOf`/`futureAt` 只有 `TypeToken`——不对称，逼用户退回无类型重载 |
-| `TaskBatchResult.java:363-372` | `report()` 无终止性标记，`firstException() == null` 同时表示"没有失败"与"还没跑完" |
-| `TaskBatchResult.java:37, :237` | `close()` 返回 `void` + `AutoCloseable`，调用方无法区分"等到了"与"只取消了" |
+| ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已修复（工作区，未提交）**：公开查询侧新增 `GroupValues.valueOf(String, Class<T>)`、`TaskGroupResult.resultOf(String, Class<T>)`；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
+| ~~`TaskBatchResult.java:363-372`~~ | ~~`firstException() == null` 双义~~ **已随同步化重构作废**：公开 `TaskBatchResult` 按构造即冻结终态，null 只剩"没有失败"一义 |
+| ~~`TaskBatchResult.java:37, :237`~~ | ~~`close()` 返回 `void`~~ **已随同步化重构作废**：`TaskBatchResult` 不再是 `AutoCloseable` |
 
 ---
 
@@ -209,15 +211,15 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 | ~~O-1~~ | ~~批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline~~ **已被同步化重构取代**（见下） | — | — | — |
 | ~~O-2~~ | ~~`parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明~~ **已修复（工作区，见下）** | — | — | — |
 | O-3 | 无法显式表达"无 deadline"；超大 `Duration` 静默饱和为哨兵 | API | 读码 | 低-中 |
-| O-4 | 注册虚拟线程 executor 的告警文案事实错误、处方错误 | 用户使用 | 实测 | 极低 |
+| ~~O-4~~ | ~~注册虚拟线程 executor 的告警文案事实错误、处方错误~~ **已修复（工作区，未提交）** | — | — | — |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
 | O-6 | 动态批次 + 终端汇合无组合形态，deadline 语义差异未文档化 | 功能 | 读码 | 中-高 |
 | O-7 | `stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法 | API | 读码 | 低-中 |
 | O-8 | 嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法 | 文档 | 实测 | 低 |
 | O-9 | 主源码零 `@since`；`package-info` 无入口导引 | 文档 | 读码 | 低 |
-| O-10 | README 快速开始缺 0.3 旗舰（任务组）示例 | 文档 | 读码 | 低 |
+| ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
-| O-12 | `TaskGroup` 成了不可达的公开类型；`TaskGroupReport` 包私有却出现在公开签名（A-P1 同类） | 公开面 | 读码 | 低-中 |
+| ~~O-12~~ | ~~`TaskGroup` 成了不可达的公开类型~~ **已不存在**：`TaskGroup` 现为包私有（`TaskGroup.java:59`），`TaskGroupReport` 无公开签名泄漏 | — | — | — |
 
 ### O-1 ·（已被同步化重构取代）批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline
 
@@ -253,14 +255,12 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 `unbounded()`（`BatchOptions`/`TaskOptions`；组对应 `groupUnbounded`）——是显式第三选择而非漏写，
 不违反"逼用户思考"；顺带在 resolved deadline 为哨兵时免调度定时器（P-P1 热路径顺风车）。
 
-### O-4 · 虚拟线程 executor 注册告警文案错误（实测原文）
+### O-4 · 虚拟线程 executor 注册告警文案错误 ——**已修复（工作区，未提交）**
 
-注册 `Executors.newVirtualThreadPerTaskExecutor()` 时 `build()` 打出 "…which this library cannot see
-through: queue purge and blocking-risk detection are disabled for it. Register the physical
-ThreadPoolExecutor instead of a decorated wrapper to keep them."（`ParRuntime.java:118-122`）：
-`ThreadPerTaskExecutor` 不是 wrapper，且对 Java 21 用户处方是错的。
-`design/executor-transparency.md` 已决不产出 `VIRTUAL_THREAD_PER_TASK` 分类、不按类名探测——
-本项只改文案：陈述事实，把处方收窄到真正的 wrapper 形态。
+**已修复**：事实句保留（"cannot see through: queue purge and blocking-risk detection are disabled"），
+处方收窄为"若该 executor 只是物理池的 wrapper，请注册物理池本身"，并明说每任务新线程的 executor
+（如 `Executors.newVirtualThreadPerTaskExecutor()`）没有有界队列可清理、两项功能本就不适用。
+无测试断言该文案，未新建测试。以下原文保留作记录。
 
 ### O-5 · 交互式演示仅中文，CI 不拦
 
@@ -289,8 +289,9 @@ O-7 同批决策。
 
 ### O-9 / O-10 · 低成本复利（文档）
 
-- 主源码 56 个文件零 `@since`；0.x 每版破坏性变更，用户在 javadoc 里无法分辨成员新旧。
-- `README.md` / `README.zh-CN.md` 快速开始只有 `map`，0.3 旗舰（任务组链）在 README 不可见。
+- 主源码 56 个文件零 `@since`；0.x 每版破坏性变更，用户在 javadoc 里无法分辨成员新旧。（仍开放）
+- ~~`README.md` / `README.zh-CN.md` 快速开始只有 `map`~~ **已修复（工作区，未提交）**：快速开始
+  补了任务组链示例，并把示例改写为完整生命周期形态（finally 中 `runtime.close()` + 关闭注册池）。
 
 ### O-11 · 无时间缝（开放问题）
 
@@ -299,14 +300,12 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 （direct executor、极小 deadline、用 `bodyCompletionConfirmed()`/`unfinishedBodies()` 断言而不是 sleep）；
 `ParRuntime.Builder.timeSource(...)` 留作开放问题（跨内核改动，须过六问 + 独立对抗性审查）。
 
-### O-12 · `TaskGroup` 成为不可达的公开类型（A-P1 同类，同步化重构引入）
+### O-12 · `TaskGroup` 成为不可达的公开类型 ——**已不存在（2026-10-02 复核）**
 
-同步化重构后 `GroupStep.runAll()` 返回冻结的 `TaskGroupResult`；`public final class TaskGroup` 仍有
-`cancel()`/`close()`/`awaitBodyCompletion()`/`members()` 等约 15 个公开成员，但**没有任何公开 API
-返回或接受它**（生产路径全部包私有：`GroupDraft.submitAll()`、`ParRuntime.submitPreparedGroup`）。
-同时 `TaskGroup.completionFuture()` 的公开签名里出现了包私有类型 `TaskGroupReport`（`TaskGroup.java:220`），
-包外无法命名。修复与 A-P1 同批：`TaskGroup` 连同 `TaskGroupReport` 一并包私有化（或明确重新暴露为
-异步高级入口并补文档）；`PublicApiSurfaceTest` 需同步。
+复核当前工作树：`TaskGroup` 已是包私有（`TaskGroup.java:59` `final class TaskGroup`），
+其 `completionFuture()` 等公开成员不构成公开面；`TaskGroupReport` 包私有且未出现在任何
+公开可达签名中。本条记录时的前提（"public final class TaskGroup"）已不成立，无需修复；
+A-P1（`CancellationToken` 孤岛）仍开放。
 
 ---
 
@@ -318,6 +317,7 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 | `1ba1937` | 文档漂移 14 个文件：README 两条失效特性、`user-guide` 的"不可变"措辞与"显式 token 取消"、`migration-v0.2` 抬头指向从未发布的 API、`propagateCancellation` 的过度承诺、idea-graveyard/philosophy 的旧类型示例、`TaskBatchResult` javadoc 里已删除的 `FAILED`、`design/AGENTS.md` 三行悬空索引 |
 | 工作区（未提交） | 两份提案标注"已实施"并加 §9 实施记录（经复核逐行核对） |
 | 工作区（未提交） | O-2：`parallelism` 默认改为 `Integer.MAX_VALUE` 并在 javadoc/README 契约块/中英指南写明"缺省＝整批一次性提交"；`parallelism(int)` 拒绝非正值（带回归测试）；CHANGELOG 与 v0.3 迁移说明同步 |
+| 工作区（未提交） | 2026-10-02 可用性批次：O-4 告警文案修正；A-P7 查询侧 `Class<T>` 重载（`GroupValues.valueOf`/`valueAt`、`TaskGroupResult.resultOf`/`resultAt`，带测试）；A-P3 的 `TaskCompletion.failure()` Javadoc 按实测口径重写 + 中英指南同步；O-10 README 任务组示例 + 快速开始资源关闭（含 `awaitQuiescence`）；指南补优雅停机模板、`SmartBlockingQueue`/`TaskType` 配置示例、3+ 成员 DTO 指导、集成配方（MDC/OTel/客户端超时/指标/Guava-CF 互操作）；A-P7 两行（`firstException` 双义、`close()` 返回 void）确认为同步化重构后作废；O-12 确认为已不存在。经独立对抗性审查一轮，发现均已处置（公开面"非 SUCCESS 且 failure 为 null"不可达的文案误述已删、OTel 配方修正、停机顺序两档文档对齐、测试补强、null 字面量歧义记入 CHANGELOG 与迁移指南） |
 
 ## 待决策
 
@@ -332,9 +332,11 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 
 > P-P0、A-P0 已于 `9f8867c` 完成。
 
-1. **用户使用速修（O 组，全部低成本，可合成一次文档+小 API 变更）**：O-4（告警文案）、
-   O-9/O-10（文档）；O-1 已随同步化重构关闭，O-2 已修复（工作区）。
+1. ~~**用户使用速修（O 组）**~~ **已完成（2026-10-02）**：O-4（告警文案）、O-10（README 任务组示例）；
+   O-9（`@since`）仍开放。O-1 已随同步化重构关闭，O-2 已修复（工作区）。
 2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
-3. **公开面收敛（破坏性，合成一次变更）**：A-P1/A-P6 与 O-12（`TaskGroup`/`TaskGroupReport`），
-   顺带 A-P2/A-P3/A-P7 与 O-7 的命名/checked 收敛；同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。
+3. **公开面收敛（破坏性，合成一次变更）**：A-P1（`CancellationToken` 孤岛）与 A-P6（零调用公开成员），
+   顺带 A-P2（`has*()` 三态化）、A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
+   同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P3 的
+   `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
 4. **开放问题**（走六问清单）：待决策 2–4（parallelism 强制化、batch+combine、TimeSource）。

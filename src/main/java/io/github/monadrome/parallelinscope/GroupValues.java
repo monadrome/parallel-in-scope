@@ -112,6 +112,22 @@ public final class GroupValues<V> {
     }
 
     /**
+     * The value at a declaration position, checked against the class declared for that slot.
+     *
+     * <p>Shorthand for {@link #valueAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic result
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
+     *
+     * @throws NullPointerException if {@code expectedType} is null
+     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than {@link #size()}
+     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
+     */
+    public <T> @Nullable T valueAt(int index, Class<T> expectedType) {
+        Objects.requireNonNull(expectedType, "expectedType cannot be null");
+        return valueAt(index, TypeToken.of(expectedType));
+    }
+
+    /**
      * The value of the named member, checked against the token declared for that slot.
      *
      * @throws NullPointerException if {@code name} or {@code expectedType} is null
@@ -123,6 +139,22 @@ public final class GroupValues<V> {
         int index = locate(name);
         requireDeclaredType(index, expectedType);
         return cast(values.get(index));
+    }
+
+    /**
+     * The value of the named member, checked against the class declared for that slot.
+     *
+     * <p>Shorthand for {@link #valueOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic result
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
+     *
+     * @throws NullPointerException if {@code name} or {@code expectedType} is null
+     * @throws IllegalArgumentException if no member was declared with that name, or {@code
+     *     expectedType} is not exactly the declared type
+     */
+    public <T> @Nullable T valueOf(String name, Class<T> expectedType) {
+        Objects.requireNonNull(expectedType, "expectedType cannot be null");
+        return valueOf(name, TypeToken.of(expectedType));
     }
 
     /**

@@ -91,6 +91,29 @@ A plain queue makes `rejectEnqueue` inert and emits a diagnostic. An executor ha
 recorded as `SUBMISSION_FAILURE` with a `SubmissionException` retaining the original cause,
 including an Error. Validation and closed-runtime admission errors still throw from the entry.
 
+`TaskType` defaults to `IO_BOUND` and `rejectEnqueue` to `false`. Install the queue on the physical
+pool and state the policy per batch:
+
+```java
+ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
+        4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
+
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool)
+        .build();
+
+TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
+        records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5))
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true));
+```
+
+A `CPU_BOUND` task makes `offer` return false on its own or together with `rejectEnqueue(true)`, so
+the pool grows a thread or runs its rejection handler instead of buffering CPU work behind IO;
+`rejectEnqueue(true)` is redundant with it and only states the intent. With any other queue,
+`TaskType` never changes what the library does and `rejectEnqueue` is inert.
+
 ## Execute a heterogeneous task group {#task-group}
 
 Declare fixed named tasks with their Par, declared type, and body. `runAll()` consumes the chain,
@@ -137,6 +160,31 @@ present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` 
 failure conventions: rethrow unchecked failures, wrap checked failures in CompletionException, and
 throw CancellationException for pure cancellation. A failed combine also fails aggregated member
 values; individual successful member results remain readable.
+
+### Three or more members
+
+Each `par` after the first widens the assembled type by one left-nested `Tuple2`, so inside a
+three-member combine `values` is `Tuple2<Tuple2<A, B>, C>`. Read it with `first()`/`second()` and
+build the flat object there, while the shape is still typed:
+
+```java
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par("account", httpPar, Account.class, () -> loadAccount(userId))
+        .par("order", httpPar, Order.class, () -> loadOrder(userId))
+        .combine("profile", httpPar, Profile.class, values -> new Profile(
+                values.first().first(),
+                values.first().second(),
+                values.second()))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+`GroupValues.valueOf(name)` reads the same slots by member name when positional access is not
+convenient. As members accumulate, have the combine emit the flattened object immediately rather
+than passing the nested `Tuple2` out: the nesting is a declaration artifact, and callers downstream
+should not have to rebuild the member order to read a value.
 
 <a id="read-task-attribution-from-a-future"></a>
 
@@ -198,6 +246,36 @@ primary/suppressed exception rules. A failure lost because cancellation already 
 logged with task identity; it does not rewrite the frozen cancellation result. The library does not
 discover or close captured/returned objects, unmanaged threads, or external async operations.
 
+### Application shutdown
+
+Three separate owners stop at shutdown: the runtime stops accepting work and releases its own
+services, the runtime waits for admitted bodies, and the application closes the executors it
+registered. Order them that way:
+
+```java
+runtime.close();                                      // reject new work; release timer/submitter services
+try {
+    runtime.awaitQuiescence(Duration.ofSeconds(30));  // wait for every admitted body to exit
+} catch (InterruptedException interrupted) {
+    Thread.currentThread().interrupt();               // restore; shutdown still has to finish
+} finally {
+    httpExecutor.shutdownNow();                       // stop the application-owned pools
+    databaseExecutor.shutdown();                      // graceful variant for a quiet pool
+}
+```
+
+`close()` is idempotent and never shuts down a registered executor; it releases the framework's
+timer and submitter services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
+does the body-level wait, but only after `close()`: without it the call simply waits out its timeout,
+and it returns false on timeout. It is interruptible, so restore the flag and continue shutdown.
+Registered executors remain the application's to stop, after quiescence, with `shutdown()`,
+`shutdownNow()`, or the container's own lifecycle.
+
+Do not read `inFlight()` as a body count. It counts admissions setting up a batch plus undrained
+batches — future-level tracking, not bodies still inside user code. A task cancelled mid-run settles
+its future immediately while its body may still be unwinding, so `inFlight()` can reach zero while a
+body runs. `awaitQuiescence` is the one that waits for both the future drain and body exit.
+
 ## Final observations {#completion-snapshots}
 
 Batch `completions()` is an input-ordered list of available final TaskCompletion snapshots; a null
@@ -207,6 +285,13 @@ All observations contain identity, submit/start/end times, duration, outcome, fa
 successful values. Never-started tasks have zero start/end times. Missing observations stay missing
 in the frozen result; no pending business future is returned. `report()`/`reportString()` and group
 `outcomeCounts()` still include every terminal task, regardless of missing observations.
+
+`failure()` carries the detail, not the verdict. A successful task always reports null. Every other
+outcome carries a throwable: the body-thrown exception for `USER_FAILURE` — including an
+`InterruptedException` or `CancellationException` the body raised itself — and, for
+cancellation-attributed endings such as `TIMEOUT` and `FAIL_FAST`, normally a
+`LeanCancellationException` naming the outcome. Read `successful()` or `outcome()` to classify the
+task.
 
 ## Cancellation and nested batches
 
@@ -275,6 +360,149 @@ Job job = queue.take(); // real element before drained; poison after drained
 ```
 
 Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md).
+
+## Integration recipes {#integration-recipes}
+
+### MDC (SLF4J)
+
+Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
+it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it neither
+crosses the pool boundary nor gets captured automatically. Hold the diagnostic fields in a TTL and
+bridge them into MDC inside the body:
+
+```java
+private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
+        new TransmittableThreadLocal<>();
+
+// Submitting thread: declare this call's diagnostic fields.
+DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
+try {
+    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+} finally {
+    DIAGNOSTIC.remove();
+}
+
+Account fetchAccount(String id) {
+    Map<String, String> fields = DIAGNOSTIC.get();
+    if (fields != null) fields.forEach(MDC::put);   // body entry: TTL -> MDC
+    try {
+        return load(id);
+    } finally {
+        MDC.clear();
+    }
+}
+```
+
+This covers library-managed work only. The library performs the TTL capture and restore around each
+task, so these bodies need no TTL agent; code on the same pool that submits directly, outside this
+library, still has to wrap TTL itself.
+
+### OpenTelemetry
+
+The same shape carries a span context: put the OTel `Context` in a TransmittableThreadLocal and make
+it current at body entry.
+
+```java
+private static final TransmittableThreadLocal<Context> REQUEST_CONTEXT =
+        new TransmittableThreadLocal<>();
+
+TaskBatchResult<String> batch = databasePar.map(ids, id -> {
+    Context parent = REQUEST_CONTEXT.get();
+    SpanBuilder builder = tracer.spanBuilder("load");
+    if (parent != null) {
+        builder.setParent(parent);
+    }
+    Span span = builder.startSpan();
+    try (Scope ignored = span.makeCurrent()) {
+        return load(id);
+    } finally {
+        span.end();               // end this body's span, restoring the previous current context
+    }
+});
+```
+
+The names follow the standard OTel API for illustration; no real dependency is implied. The rules
+are that the `Scope` from `makeCurrent()` closes inside the body and the span always ends. The
+library only moves the TTL value to the worker; it knows nothing about spans.
+
+### Client timeouts
+
+A deadline here is cooperative: it interrupts the worker but cannot abort a thread blocked in a
+socket read. Every HTTP or database call inside a body therefore needs its own connect/read timeout:
+
+```java
+String fetch(String url) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+    connection.setConnectTimeout(1_000);      // client-side connect budget
+    connection.setReadTimeout(2_000);         // client-side read budget
+    try (InputStream in = connection.getInputStream()) {
+        return new String(ByteStreams.toByteArray(in), StandardCharsets.UTF_8);
+    } finally {
+        connection.disconnect();
+    }
+}
+
+TaskBatchResult<String> bodies = httpPar.map(urls, this::fetch,
+        BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
+```
+
+The batch timeout bounds the whole batch; the client-side connect/read timeouts are the hard bound
+on one call.
+
+### Metrics callbacks
+
+Aggregate on the caller from the frozen snapshots: `completions()` for a batch (input-ordered, a
+null entry means publication was not confirmed) and `members()` for a group (keyed by member name).
+
+```java
+TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+        BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+for (TaskCompletion<Account> completion : batch.completions()) {
+    if (completion == null) continue;         // not confirmed published before return
+    metrics.record(
+            completion.taskName(),
+            completion.successful() ? "ok" : "failed",
+            completion.outcome(),
+            completion.waitTime(),
+            completion.executionTime());
+}
+```
+
+For a group, report each `(name, completion)` from `members()`; `terminal()` is the combine's
+snapshot. Timings and outcome come from one freeze, so they never change after the call returns.
+
+### Guava and CompletableFuture interop
+
+`ImmediateResult.asFuture()` is a read-only `ListenableFuture`: already done, `cancel(...)` always
+false, and a cancellation appears as a failure whose cause is a CancellationException. Compose it
+with `Futures.addCallback` / `Futures.transform`:
+
+```java
+ListenableFuture<Account> account = batch.results().get(0).asFuture();
+Futures.addCallback(account, new FutureCallback<Account>() {
+    @Override public void onSuccess(Account value) { cache.put(value); }
+    @Override public void onFailure(Throwable failure) { log.warn("load failed", failure); }
+}, executor);
+
+ListenableFuture<String> label = Futures.transform(account, Account::displayName, executor);
+```
+
+To expose a `CompletableFuture` at an application boundary, bridge with a listener:
+
+```java
+CompletableFuture<Account> future = new CompletableFuture<>();
+account.addListener(() -> {
+    try {
+        future.complete(Futures.getDone(account));
+    } catch (ExecutionException failure) {
+        future.completeExceptionally(failure.getCause());
+    }
+}, executor);
+```
+
+Because `map` and `runAll` are synchronous, interop happens on the result side: there is no
+submission-side future to compose, only the already-frozen `ImmediateResult`.
 
 ## Operational rules
 
