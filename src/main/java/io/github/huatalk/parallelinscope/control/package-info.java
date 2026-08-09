@@ -1,4 +1,4 @@
-/** Lifecycle control primitives: lazy value containers and service-managed blocking queues. */
+/** Lifecycle-aware blocking queue primitives. */
 @ParametersAreNonnullByDefault
 package io.github.huatalk.parallelinscope.control;
 

@@ -75,10 +75,9 @@ import java.util.function.UnaryOperator;
  *
  * @param <E> the element type
  * @author Eric Lin (linqinghua4 at gmail dot com)
- * @see LifecycleQueue
  * @see QueueShutdownException
  */
-public class LifecycleQueueV2<E> extends AbstractQueue<E>
+public class StoppableBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E>, Service, AutoCloseable {
 
     /** Defines how element-returning consumer operations report lifecycle shutdown. */
@@ -151,19 +150,19 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
 
     //region Construction
 
-    /** Creates an effectively unbounded queue named {@code LifecycleQueueV2}. */
-    public LifecycleQueueV2() {
-        this(Integer.MAX_VALUE, "LifecycleQueueV2", Collections.emptyList(),
+    /** Creates an effectively unbounded queue named {@code StoppableBlockingQueue}. */
+    public StoppableBlockingQueue() {
+        this(Integer.MAX_VALUE, "StoppableBlockingQueue", Collections.emptyList(),
                 ShutdownBehavior.THROW, null);
     }
 
     /**
-     * Creates a bounded queue named {@code LifecycleQueueV2}.
+     * Creates a bounded queue named {@code StoppableBlockingQueue}.
      *
      * @param capacity maximum element count, which must be positive
      */
-    public LifecycleQueueV2(int capacity) {
-        this(capacity, "LifecycleQueueV2", Collections.emptyList(),
+    public StoppableBlockingQueue(int capacity) {
+        this(capacity, "StoppableBlockingQueue", Collections.emptyList(),
                 ShutdownBehavior.THROW, null);
     }
 
@@ -172,8 +171,8 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      *
      * @param initialElements initial queue contents
      */
-    public LifecycleQueueV2(Collection<? extends E> initialElements) {
-        this(Integer.MAX_VALUE, "LifecycleQueueV2", initialElements,
+    public StoppableBlockingQueue(Collection<? extends E> initialElements) {
+        this(Integer.MAX_VALUE, "StoppableBlockingQueue", initialElements,
                 ShutdownBehavior.THROW, null);
     }
 
@@ -183,7 +182,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param capacity maximum element count, which must be positive
      * @param name lifecycle name used in diagnostics and shutdown exceptions
      */
-    public LifecycleQueueV2(int capacity, String name) {
+    public StoppableBlockingQueue(int capacity, String name) {
         this(capacity, name, Collections.emptyList(), ShutdownBehavior.THROW, null);
     }
 
@@ -195,9 +194,9 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
      *     {@code null} for {@link ShutdownBehavior#THROW}
      */
-    public LifecycleQueueV2(
+    public StoppableBlockingQueue(
             int capacity, ShutdownBehavior shutdownBehavior, @Nullable E poisonObject) {
-        this(capacity, "LifecycleQueueV2", Collections.emptyList(), shutdownBehavior, poisonObject);
+        this(capacity, "StoppableBlockingQueue", Collections.emptyList(), shutdownBehavior, poisonObject);
     }
 
     /**
@@ -208,11 +207,11 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
      *     {@code null} for {@link ShutdownBehavior#THROW}
      */
-    public LifecycleQueueV2(
+    public StoppableBlockingQueue(
             Collection<? extends E> initialElements,
             ShutdownBehavior shutdownBehavior,
             @Nullable E poisonObject) {
-        this(Integer.MAX_VALUE, "LifecycleQueueV2", initialElements,
+        this(Integer.MAX_VALUE, "StoppableBlockingQueue", initialElements,
                 shutdownBehavior, poisonObject);
     }
 
@@ -223,7 +222,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param name lifecycle name used in diagnostics and shutdown exceptions
      * @param initialElements initial queue contents, whose size must not exceed capacity
      */
-    public LifecycleQueueV2(
+    public StoppableBlockingQueue(
             int capacity, String name, Collection<? extends E> initialElements) {
         this(capacity, name, initialElements, ShutdownBehavior.THROW, null);
     }
@@ -237,7 +236,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
      *     {@code null} for {@link ShutdownBehavior#THROW}
      */
-    public LifecycleQueueV2(
+    public StoppableBlockingQueue(
             int capacity,
             String name,
             ShutdownBehavior shutdownBehavior,
@@ -255,7 +254,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
      * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
      *     {@code null} for {@link ShutdownBehavior#THROW}
      */
-    public LifecycleQueueV2(
+    public StoppableBlockingQueue(
             int capacity,
             String name,
             Collection<? extends E> initialElements,
@@ -1147,7 +1146,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
         /** Returns the current live queue size. */
         @Override
         public int size() {
-            return LifecycleQueueV2.this.size();
+            return StoppableBlockingQueue.this.size();
         }
 
         /** Returns a fail-fast reverse-order iterator over the backed live queue. */
@@ -1449,7 +1448,7 @@ public class LifecycleQueueV2<E> extends AbstractQueue<E>
         /** Clears the underlying live queue. */
         @Override
         public void clear() {
-            LifecycleQueueV2.this.clear();
+            StoppableBlockingQueue.this.clear();
         }
 
         /** Rejects equality-based removal before an empty closed view can report a successful no-op. */

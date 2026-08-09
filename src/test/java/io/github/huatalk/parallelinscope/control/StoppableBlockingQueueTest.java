@@ -38,8 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Exercises the V2 Guard, Service, and shutdown-recovery contracts. */
-class LifecycleQueueV2Test {
+/** Exercises the Guard, Service, and shutdown-recovery contracts. */
+class StoppableBlockingQueueTest {
 
     private static final long TIMEOUT_SECONDS = 10;
 
@@ -81,53 +81,53 @@ class LifecycleQueueV2Test {
     /** Verifies constructor validation and the pre-termination remaining-list access boundary. */
     @Test
     void configurationAndRemainingListAccessAreValidated() {
-        LifecycleQueueV2<Integer> unbounded = new LifecycleQueueV2<>();
+        StoppableBlockingQueue<Integer> unbounded = new StoppableBlockingQueue<>();
         assertEquals(Integer.MAX_VALUE, unbounded.remainingCapacity());
 
-        LifecycleQueueV2<Integer> named = new LifecycleQueueV2<>(3, "orders-v2");
-        assertTrue(named.toString().contains("orders-v2"));
+        StoppableBlockingQueue<Integer> named = new StoppableBlockingQueue<>(3, "orders");
+        assertTrue(named.toString().contains("orders"));
         assertThrows(IllegalStateException.class, named::remainingList);
 
-        assertThrows(IllegalArgumentException.class, () -> new LifecycleQueueV2<>(0));
-        assertThrows(IllegalArgumentException.class, () -> new LifecycleQueueV2<>(-1));
-        assertThrows(NullPointerException.class, () -> new LifecycleQueueV2<>(1, null));
+        assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(0));
+        assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(-1));
+        assertThrows(NullPointerException.class, () -> new StoppableBlockingQueue<>(1, null));
         assertThrows(NullPointerException.class, () -> named.offer(1, 1, null));
         assertThrows(NullPointerException.class, () -> named.poll(1, null));
 
-        LifecycleQueueV2<Integer> copied =
-                new LifecycleQueueV2<>(4, "copied", Arrays.asList(1, 2, 3));
+        StoppableBlockingQueue<Integer> copied =
+                new StoppableBlockingQueue<>(4, "copied", Arrays.asList(1, 2, 3));
         assertEquals(Arrays.asList(1, 2, 3), new ArrayList<>(copied));
         assertEquals(1, copied.remainingCapacity());
-        LifecycleQueueV2<Integer> unboundedCopy =
-                new LifecycleQueueV2<>(Arrays.asList(4, 5));
+        StoppableBlockingQueue<Integer> unboundedCopy =
+                new StoppableBlockingQueue<>(Arrays.asList(4, 5));
         assertEquals(Arrays.asList(4, 5), new ArrayList<>(unboundedCopy));
 
         assertThrows(NullPointerException.class,
-                () -> new LifecycleQueueV2<Integer>((Collection<Integer>) null));
+                () -> new StoppableBlockingQueue<Integer>((Collection<Integer>) null));
         assertThrows(NullPointerException.class,
-                () -> new LifecycleQueueV2<>(Arrays.asList(1, null)));
+                () -> new StoppableBlockingQueue<>(Arrays.asList(1, null)));
         assertThrows(IllegalArgumentException.class,
-                () -> new LifecycleQueueV2<>(1, "too-small", Arrays.asList(1, 2)));
+                () -> new StoppableBlockingQueue<>(1, "too-small", Arrays.asList(1, 2)));
         assertThrows(NullPointerException.class,
-                () -> new LifecycleQueueV2<Integer>(
-                        1, "poison", LifecycleQueueV2.ShutdownBehavior.POISON, null));
+                () -> new StoppableBlockingQueue<Integer>(
+                        1, "poison", StoppableBlockingQueue.ShutdownBehavior.POISON, null));
         assertThrows(IllegalArgumentException.class,
-                () -> new LifecycleQueueV2<>(
-                        1, "throw", LifecycleQueueV2.ShutdownBehavior.THROW, 0));
+                () -> new StoppableBlockingQueue<>(
+                        1, "throw", StoppableBlockingQueue.ShutdownBehavior.THROW, 0));
         Object poison = new Object();
         assertThrows(IllegalArgumentException.class,
-                () -> new LifecycleQueueV2<>(
+                () -> new StoppableBlockingQueue<>(
                         1,
                         "reserved-poison",
                         Collections.singletonList(poison),
-                        LifecycleQueueV2.ShutdownBehavior.POISON,
+                        StoppableBlockingQueue.ShutdownBehavior.POISON,
                         poison));
     }
 
     /** Verifies stop-before-start detaches FIFO elements and permanently rejects every producer path. */
     @Test
     void stopBeforeStartPublishesFifoRemainingListAndRejectsWrites() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(4);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(4);
         assertTrue(queue.offer(1));
         assertTrue(queue.offer(2));
         assertTrue(queue.offer(3));
@@ -169,15 +169,15 @@ class LifecycleQueueV2Test {
     @Test
     void poisonShutdownBehaviorReturnsConfiguredObjectToClosedConsumers() throws Exception {
         String poison = new String("STOP");
-        LifecycleQueueV2<String> consumerQueue = new LifecycleQueueV2<>(
-                1, "poison-consumer", LifecycleQueueV2.ShutdownBehavior.POISON, poison);
-        LifecycleQueueV2<String> timedConsumerQueue = new LifecycleQueueV2<>(
-                1, "poison-timed-consumer", LifecycleQueueV2.ShutdownBehavior.POISON, poison);
-        LifecycleQueueV2<String> producerQueue = new LifecycleQueueV2<>(
+        StoppableBlockingQueue<String> consumerQueue = new StoppableBlockingQueue<>(
+                1, "poison-consumer", StoppableBlockingQueue.ShutdownBehavior.POISON, poison);
+        StoppableBlockingQueue<String> timedConsumerQueue = new StoppableBlockingQueue<>(
+                1, "poison-timed-consumer", StoppableBlockingQueue.ShutdownBehavior.POISON, poison);
+        StoppableBlockingQueue<String> producerQueue = new StoppableBlockingQueue<>(
                 1,
                 "poison-producer",
                 Collections.singletonList("accepted"),
-                LifecycleQueueV2.ShutdownBehavior.POISON,
+                StoppableBlockingQueue.ShutdownBehavior.POISON,
                 poison);
         assertThrows(IllegalArgumentException.class, () -> consumerQueue.offer(poison));
         ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -230,22 +230,22 @@ class LifecycleQueueV2Test {
         }
     }
 
-    /** Verifies V2 owns only two Monitors and defers linear recovery work until list access. */
+    /** Verifies the queue owns only two Monitors and defers linear recovery work until list access. */
     @Test
     void shutdownUsesTwoMonitorsAndLazilyMaterializesRemainingList() throws Exception {
-        long monitorCount = Arrays.stream(LifecycleQueueV2.class.getDeclaredFields())
+        long monitorCount = Arrays.stream(StoppableBlockingQueue.class.getDeclaredFields())
                 .filter(field -> field.getType() == Monitor.class)
                 .count();
         assertEquals(2, monitorCount);
 
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(1024);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(1024);
         for (int i = 0; i < 1024; i++) {
             queue.offer(i);
         }
         queue.stopAsync();
         queue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-        Field remainingTaskField = LifecycleQueueV2.class.getDeclaredField("remainingTask");
+        Field remainingTaskField = StoppableBlockingQueue.class.getDeclaredField("remainingTask");
         remainingTaskField.setAccessible(true);
         FutureTask<?> remainingTask = (FutureTask<?>) remainingTaskField.get(queue);
         assertFalse(remainingTask.isDone(), "stopAsync must not traverse detached elements");
@@ -257,7 +257,7 @@ class LifecycleQueueV2Test {
     /** Verifies startup cannot pass a shutdown that already owns the producer Monitor. */
     @Test
     void startupWaitsForShutdownLinearizationAndThenFails() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(1);
         queue.offer(1);
         Monitor putMonitor = monitorField(queue, "putMonitor");
         Monitor takeMonitor = monitorField(queue, "takeMonitor");
@@ -297,8 +297,8 @@ class LifecycleQueueV2Test {
     }
 
     /** Reads one private Monitor for deterministic lock-order tests. */
-    private static Monitor monitorField(LifecycleQueueV2<?> queue, String name) throws Exception {
-        Field field = LifecycleQueueV2.class.getDeclaredField(name);
+    private static Monitor monitorField(StoppableBlockingQueue<?> queue, String name) throws Exception {
+        Field field = StoppableBlockingQueue.class.getDeclaredField(name);
         field.setAccessible(true);
         return (Monitor) field.get(queue);
     }
@@ -306,7 +306,7 @@ class LifecycleQueueV2Test {
     /** Verifies normal untimed and timed calls use the Service-backed queue before shutdown. */
     @Test
     void blockingOperationsStartServiceAndPreserveFifoSemantics() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
         assertEquals(Service.State.NEW, queue.state());
 
         queue.put("a");
@@ -325,7 +325,7 @@ class LifecycleQueueV2Test {
     /** Verifies explicit repeated starts retain Guava Service's rejection contract. */
     @Test
     void repeatedExplicitStartIsRejectedAfterRunning() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
         queue.startAsync();
         queue.awaitRunning();
 
@@ -339,9 +339,9 @@ class LifecycleQueueV2Test {
     @Test
     void shutdownReleasesAllGuardWaitersWithoutInterruptingThreads() throws Exception {
         int waiterCount = 12;
-        LifecycleQueueV2<Integer> producerQueue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<Integer> producerQueue = new StoppableBlockingQueue<>(1);
         producerQueue.put(0);
-        LifecycleQueueV2<Integer> consumerQueue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<Integer> consumerQueue = new StoppableBlockingQueue<>(1);
         ExecutorService pool = Executors.newFixedThreadPool(waiterCount * 2);
         List<Outcome> outcomes = new ArrayList<>();
         try {
@@ -379,7 +379,7 @@ class LifecycleQueueV2Test {
     /** Verifies a blocked producer retains ownership of its never-enqueued payload after shutdown. */
     @Test
     void blockedProducerPayloadIsNotReportedAsRemaining() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
         queue.put("accepted");
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
@@ -404,7 +404,7 @@ class LifecycleQueueV2Test {
     /** Verifies an external interrupt remains distinguishable from lifecycle shutdown. */
     @Test
     void externalInterruptPropagatesUnchanged() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
         Outcome outcome = new Outcome();
         Thread caller = new Thread(() -> {
             try {
@@ -431,7 +431,7 @@ class LifecycleQueueV2Test {
     /** Verifies concurrent stop calls publish one stable recovery list without duplication. */
     @Test
     void concurrentStopsAreIdempotentAndPublishRemainingOnce() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(128);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(128);
         for (int i = 0; i < 100; i++) {
             assertTrue(queue.offer(i));
         }
@@ -473,7 +473,7 @@ class LifecycleQueueV2Test {
     @Test
     void takeVsShutdownPartitionsElementsWithoutLossOrDuplication() throws Exception {
         int elementCount = 64;
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(elementCount);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(elementCount);
         for (int i = 0; i < elementCount; i++) {
             queue.offer(i);
         }
@@ -521,7 +521,7 @@ class LifecycleQueueV2Test {
     /** Verifies the recovery list is shared, mutable, and independent from the closed queue. */
     @Test
     void remainingListIsASharedCopyOnWriteRecoveryList() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
         queue.close();
@@ -538,7 +538,7 @@ class LifecycleQueueV2Test {
     /** Verifies concurrent first access executes one recovery task and returns one shared list. */
     @Test
     void concurrentRemainingListAccessPublishesOneInstance() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(64);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(64);
         for (int i = 0; i < 64; i++) {
             queue.offer(i);
         }
@@ -584,7 +584,7 @@ class LifecycleQueueV2Test {
     /** Verifies Service listeners observe the standard RUNNING, STOPPING, TERMINATED sequence. */
     @Test
     void serviceListenerSequenceFollowsGuavaContract() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
         List<String> events = Collections.synchronizedList(new ArrayList<>());
         queue.addListener(new Service.Listener() {
             /** Records the RUNNING transition. */
@@ -617,7 +617,7 @@ class LifecycleQueueV2Test {
     /** Verifies an inline startup listener cannot retain a queue monitor needed by shutdown. */
     @Test
     void blockingRunningListenerCanBeReleasedByConcurrentShutdown() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
         AtomicReference<Throwable> listenerFailure = new AtomicReference<>();
         queue.addListener(new Service.Listener() {
             /** Waits as a consumer until shutdown satisfies the lifecycle-aware Guard. */
@@ -654,7 +654,7 @@ class LifecycleQueueV2Test {
     /** Verifies drain target callbacks execute after the queue monitor is released. */
     @Test
     void blockingDrainTargetCannotDelayShutdown() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
         queue.offer(1);
         queue.offer(2);
         CountDownLatch callbackEntered = new CountDownLatch(1);
@@ -701,7 +701,7 @@ class LifecycleQueueV2Test {
     /** Verifies a partial target failure leaves the entire detached drain batch caller-owned. */
     @Test
     void failedDrainTargetOwnsDetachedBatchAndDoesNotPopulateRemaining() {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
         queue.offer(1);
         queue.offer(2);
         AtomicInteger additions = new AtomicInteger();
@@ -734,7 +734,7 @@ class LifecycleQueueV2Test {
     /** Verifies clear is supported and releases a producer waiting for capacity. */
     @Test
     void clearRemovesLiveElementsAndReleasesBlockedProducer() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
         queue.put(1);
         queue.put(2);
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -762,7 +762,7 @@ class LifecycleQueueV2Test {
     /** Verifies the weakly consistent iterator removes only its exact live node and enables bulk removal. */
     @Test
     void weaklyConsistentIteratorSupportsIdentityRemovalAndBulkOperations() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(4);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
         String first = new String("same");
         String second = new String("same");
         queue.offer(first);
@@ -786,7 +786,7 @@ class LifecycleQueueV2Test {
     /** Verifies a JDK-shaped iterator can observe a serial append after construction. */
     @Test
     void weaklyConsistentIteratorObservesAppendBeforeTraversal() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
         queue.addLast("first");
 
         Iterator<String> iterator = queue.iterator();
@@ -800,7 +800,7 @@ class LifecycleQueueV2Test {
     /** Verifies clear self-links cleared nodes so an existing iterator exposes only its buffered value. */
     @Test
     void weaklyConsistentIteratorDoesNotTraverseClearedNodes() {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(3);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(3);
         queue.addAll(Arrays.asList(1, 2, 3));
         Iterator<Integer> iterator = queue.iterator();
 
@@ -815,7 +815,7 @@ class LifecycleQueueV2Test {
     /** Verifies inherited array, traversal, spliterator, and stream surfaces retain queue ordering. */
     @Test
     void inheritedTraversalSurfacesRetainEncounterOrderAndLateBinding() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(8);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(8);
         queue.addAll(Arrays.asList("a", "b", "c"));
 
         assertEquals(Arrays.asList("a", "b", "c"), Arrays.asList(queue.toArray()));
@@ -842,7 +842,7 @@ class LifecycleQueueV2Test {
     /** Verifies an inherited forEach callback cannot retain either queue monitor during shutdown. */
     @Test
     void blockingForEachCallbackCannotDelayShutdown() throws Exception {
-        LifecycleQueueV2<Integer> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
         queue.addAll(Arrays.asList(1, 2));
         CountDownLatch callbackEntered = new CountDownLatch(1);
         CountDownLatch releaseCallback = new CountDownLatch(1);
@@ -878,7 +878,7 @@ class LifecycleQueueV2Test {
     /** Verifies reverse list iterators fail fast after an external structural queue change. */
     @Test
     void reverseListIteratorFailsFastAfterExternalQueueMutation() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(5);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(5);
         String first = new String("same");
         String second = new String("same");
         queue.addAll(Arrays.asList(first, second, "tail"));
@@ -895,7 +895,7 @@ class LifecycleQueueV2Test {
     /** Verifies reverse list iterators refresh their own version but fail after dequeue or shutdown. */
     @Test
     void reverseListIteratorTracksOwnMutationsAndExternalLifecycleChanges() throws Exception {
-        LifecycleQueueV2<String> ownMutationQueue = new LifecycleQueueV2<>(4);
+        StoppableBlockingQueue<String> ownMutationQueue = new StoppableBlockingQueue<>(4);
         ownMutationQueue.addAll(Arrays.asList("a", "b"));
         ListIterator<String> ownMutationIterator = ownMutationQueue.reversed().listIterator();
         assertEquals("b", ownMutationIterator.next());
@@ -905,13 +905,13 @@ class LifecycleQueueV2Test {
         assertEquals("z", ownMutationIterator.previous());
         assertEquals(Arrays.asList("z", "a"), new ArrayList<>(ownMutationQueue));
 
-        LifecycleQueueV2<String> dequeueQueue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> dequeueQueue = new StoppableBlockingQueue<>(2);
         dequeueQueue.addAll(Arrays.asList("a", "b"));
         ListIterator<String> dequeueIterator = dequeueQueue.reversed().listIterator();
         dequeueQueue.poll();
         assertThrows(ConcurrentModificationException.class, dequeueIterator::next);
 
-        LifecycleQueueV2<String> shutdownQueue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> shutdownQueue = new StoppableBlockingQueue<>(1);
         shutdownQueue.addLast("a");
         ListIterator<String> shutdownIterator = shutdownQueue.reversed().listIterator();
         shutdownQueue.stopAsync();
@@ -923,7 +923,7 @@ class LifecycleQueueV2Test {
     /** Verifies reverse batches and inherited bulk removal preserve encounter order. */
     @Test
     void reverseViewEndpointAddAllAndBulkRemovalWriteThrough() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(10);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(10);
         queue.addAll(Arrays.asList("a", "b", "c"));
         List<String> reversed = queue.reversed();
 
@@ -941,7 +941,7 @@ class LifecycleQueueV2Test {
 
         assertThrows(IndexOutOfBoundsException.class,
                 () -> reversed.addAll(-1, Collections.singletonList("invalid")));
-        LifecycleQueueV2<String> nearlyFull = new LifecycleQueueV2<>(3);
+        StoppableBlockingQueue<String> nearlyFull = new StoppableBlockingQueue<>(3);
         nearlyFull.addAll(Arrays.asList("a", "b"));
         assertThrows(IllegalStateException.class,
                 () -> nearlyFull.reversed().addAll(Arrays.asList("c", "d")));
@@ -951,7 +951,7 @@ class LifecycleQueueV2Test {
     /** Verifies the backed reverse List supports standard middle mutation and ListIterator state changes. */
     @Test
     void reverseViewSupportsStandardPositionalListAndIteratorMutations() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(12);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(12);
         queue.addAll(Arrays.asList("a", "b", "c", "d"));
         List<String> reversed = queue.reversed();
 
@@ -977,7 +977,7 @@ class LifecycleQueueV2Test {
     /** Verifies caller iteration for reverse endpoint batches cannot hold shutdown monitors. */
     @Test
     void blockingReverseAddAllSourceCannotDelayShutdown() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(2);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
         queue.addLast("accepted");
         CountDownLatch iterationEntered = new CountDownLatch(1);
         CountDownLatch releaseIteration = new CountDownLatch(1);
@@ -1029,7 +1029,7 @@ class LifecycleQueueV2Test {
     /** Verifies a pre-existing reverse view observes only the empty live queue after detachment. */
     @Test
     void closedReverseViewInheritedSurfacesObserveDetachedQueue() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(3);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(3);
         queue.addAll(Arrays.asList("a", "b", "c"));
         List<String> reversed = queue.reversed();
 
@@ -1050,7 +1050,7 @@ class LifecycleQueueV2Test {
     /** Verifies inherited and iterator mutation entry points reject a closed lifecycle uniformly. */
     @Test
     void closedQueueRejectsBulkAndIteratorMutations() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(4);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
         queue.addAll(Arrays.asList("a", "b"));
         Iterator<String> forward = queue.iterator();
         assertEquals("a", forward.next());
@@ -1073,7 +1073,7 @@ class LifecycleQueueV2Test {
     /** Verifies Java 8-compatible sequenced methods and the backed reverse-order list view. */
     @Test
     void sequencedEndpointsAndReverseViewWriteThroughInBothDirections() {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(8);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(8);
         queue.addLast("b");
         queue.addFirst("a");
         queue.addLast("c");
@@ -1097,7 +1097,7 @@ class LifecycleQueueV2Test {
         assertEquals("z", queue.removeFirst());
         assertEquals(Arrays.asList("a", "b", "c"), new ArrayList<>(queue));
 
-        LifecycleQueueV2<Integer> full = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<Integer> full = new StoppableBlockingQueue<>(1);
         full.addFirst(1);
         assertThrows(IllegalStateException.class, () -> full.addLast(2));
         full.clear();
@@ -1110,8 +1110,8 @@ class LifecycleQueueV2Test {
     /** Verifies endpoint insertion releases consumers and endpoint removal releases producers. */
     @Test
     void sequencedEndpointMutationsReleaseOppositeGuardWaiters() throws Exception {
-        LifecycleQueueV2<Integer> consumerQueue = new LifecycleQueueV2<>(1);
-        LifecycleQueueV2<Integer> producerQueue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<Integer> consumerQueue = new StoppableBlockingQueue<>(1);
+        StoppableBlockingQueue<Integer> producerQueue = new StoppableBlockingQueue<>(1);
         producerQueue.put(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
@@ -1150,7 +1150,7 @@ class LifecycleQueueV2Test {
             return;
         }
 
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(4);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
         queue.addLast("first");
         queue.addLast("last");
         List<String> reversed = queue.reversed();
@@ -1174,7 +1174,7 @@ class LifecycleQueueV2Test {
     /** Verifies user equality executes outside both queue monitors and cannot hold shutdown hostage. */
     @Test
     void blockingEqualsCannotDelayShutdown() throws Exception {
-        LifecycleQueueV2<String> queue = new LifecycleQueueV2<>(1);
+        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
         queue.offer("value");
         CountDownLatch equalsEntered = new CountDownLatch(1);
         CountDownLatch releaseEquals = new CountDownLatch(1);
