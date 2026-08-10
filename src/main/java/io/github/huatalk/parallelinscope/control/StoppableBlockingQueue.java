@@ -47,11 +47,11 @@ import java.util.function.UnaryOperator;
  * blocked producers have never entered the queue and therefore remain owned by those callers when
  * their operation throws {@link QueueShutdownException}.
  *
- * <p>{@link ShutdownBehavior#THROW} rejects closed consumers with the same exception.
- * {@link ShutdownBehavior#POISON} instead returns one configured, identity-reserved poison object
- * from {@link #take()}, both {@code poll} variants, {@link #remove()}, {@link #removeFirst()}, and
- * {@link #removeLast()}. The poison object is virtual: it is never linked, counted, iterated, or added
- * to {@link #remainingList()}. Producer and collection mutations always throw after shutdown.
+ * <p>A {@code null} poison object rejects closed consumers with {@link QueueShutdownException}.
+ * A non-null poison object instead returns that identity-reserved object from {@link #take()}, both
+ * {@code poll} variants, {@link #remove()}, {@link #removeFirst()}, and {@link #removeLast()}. The
+ * poison object is virtual: it is never linked, counted, iterated, or added to
+ * {@link #remainingList()}. Producer and collection mutations always throw after shutdown.
  *
  * <p>No thread registry is used. A packed atomic admission word contains only a closed bit and the
  * number of admitted blocking calls. It lets {@link #awaitTerminated()} guarantee that the recovery
@@ -80,16 +80,9 @@ import java.util.function.UnaryOperator;
 public class StoppableBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E>, Service, AutoCloseable {
 
-    /** Defines how element-returning consumer operations report lifecycle shutdown. */
-    public enum ShutdownBehavior {
-        /** Reject every closed operation with {@link QueueShutdownException}. */
-        THROW,
-        /** Return the configured poison object from closed element-removing consumer operations. */
-        POISON
-    }
-
     private static final int ADMISSION_CLOSED = Integer.MIN_VALUE;
     private static final int ACTIVE_CALL_MASK = Integer.MAX_VALUE;
+    private static final String NAME = StoppableBlockingQueue.class.getSimpleName();
 
     /** Queue-owned lifecycle used by admission and Guards independently of Guava startup details. */
     private enum QueueState {
@@ -112,8 +105,6 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
     }
 
     private final int capacity;
-    private final String name;
-    private final ShutdownBehavior shutdownBehavior;
     @Nullable
     private final E poisonObject;
     private final AtomicInteger count = new AtomicInteger();
@@ -152,8 +143,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
 
     /** Creates an effectively unbounded queue named {@code StoppableBlockingQueue}. */
     public StoppableBlockingQueue() {
-        this(Integer.MAX_VALUE, "StoppableBlockingQueue", Collections.emptyList(),
-                ShutdownBehavior.THROW, null);
+        this(Integer.MAX_VALUE, Collections.emptyList(), null);
     }
 
     /**
@@ -162,8 +152,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      * @param capacity maximum element count, which must be positive
      */
     public StoppableBlockingQueue(int capacity) {
-        this(capacity, "StoppableBlockingQueue", Collections.emptyList(),
-                ShutdownBehavior.THROW, null);
+        this(capacity, Collections.emptyList(), null);
     }
 
     /**
@@ -172,109 +161,52 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      * @param initialElements initial queue contents
      */
     public StoppableBlockingQueue(Collection<? extends E> initialElements) {
-        this(Integer.MAX_VALUE, "StoppableBlockingQueue", initialElements,
-                ShutdownBehavior.THROW, null);
+        this(Integer.MAX_VALUE, initialElements, null);
     }
 
     /**
-     * Creates a bounded queue with a diagnostic lifecycle name.
-     *
-     * @param capacity maximum element count, which must be positive
-     * @param name lifecycle name used in diagnostics and shutdown exceptions
-     */
-    public StoppableBlockingQueue(int capacity, String name) {
-        this(capacity, name, Collections.emptyList(), ShutdownBehavior.THROW, null);
-    }
-
-    /**
-     * Creates an empty bounded queue with configurable shutdown behavior and the default name.
-     *
-     * @param capacity maximum element count, which must be positive
-     * @param shutdownBehavior closed-consumer behavior
-     * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
-     *     {@code null} for {@link ShutdownBehavior#THROW}
-     */
-    public StoppableBlockingQueue(
-            int capacity, ShutdownBehavior shutdownBehavior, @Nullable E poisonObject) {
-        this(capacity, "StoppableBlockingQueue", Collections.emptyList(), shutdownBehavior, poisonObject);
-    }
-
-    /**
-     * Creates an effectively unbounded queue with initial contents and shutdown behavior.
+     * Creates an effectively unbounded queue with initial contents and closed-consumer behavior.
      *
      * @param initialElements initial queue contents
-     * @param shutdownBehavior closed-consumer behavior
-     * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
-     *     {@code null} for {@link ShutdownBehavior#THROW}
+     * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
+     *     {@link QueueShutdownException}
      */
     public StoppableBlockingQueue(
             Collection<? extends E> initialElements,
-            ShutdownBehavior shutdownBehavior,
             @Nullable E poisonObject) {
-        this(Integer.MAX_VALUE, "StoppableBlockingQueue", initialElements,
-                shutdownBehavior, poisonObject);
+        this(Integer.MAX_VALUE, initialElements, poisonObject);
     }
 
     /**
-     * Creates a named bounded queue containing the supplied elements in encounter order.
+     * Creates an empty bounded queue with configurable closed-consumer behavior.
      *
      * @param capacity maximum element count, which must be positive
-     * @param name lifecycle name used in diagnostics and shutdown exceptions
-     * @param initialElements initial queue contents, whose size must not exceed capacity
-     */
-    public StoppableBlockingQueue(
-            int capacity, String name, Collection<? extends E> initialElements) {
-        this(capacity, name, initialElements, ShutdownBehavior.THROW, null);
-    }
-
-    /**
-     * Creates an empty bounded queue with configurable shutdown behavior.
-     *
-     * @param capacity maximum element count, which must be positive
-     * @param name lifecycle name used in diagnostics and shutdown exceptions
-     * @param shutdownBehavior closed-consumer behavior
-     * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
-     *     {@code null} for {@link ShutdownBehavior#THROW}
+     * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
+     *     {@link QueueShutdownException}
      */
     public StoppableBlockingQueue(
             int capacity,
-            String name,
-            ShutdownBehavior shutdownBehavior,
             @Nullable E poisonObject) {
-        this(capacity, name, Collections.emptyList(), shutdownBehavior, poisonObject);
+        this(capacity, Collections.emptyList(), poisonObject);
     }
 
     /**
-     * Creates a bounded queue with initial contents and configurable shutdown behavior.
+     * Creates a bounded queue with initial contents and configurable closed-consumer behavior.
      *
      * @param capacity maximum element count, which must be positive
-     * @param name lifecycle name used in diagnostics and shutdown exceptions
      * @param initialElements initial queue contents, whose size must not exceed capacity
-     * @param shutdownBehavior closed-consumer behavior
-     * @param poisonObject non-null poison object required by {@link ShutdownBehavior#POISON}, or
-     *     {@code null} for {@link ShutdownBehavior#THROW}
+     * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
+     *     {@link QueueShutdownException}
      */
     public StoppableBlockingQueue(
             int capacity,
-            String name,
             Collection<? extends E> initialElements,
-            ShutdownBehavior shutdownBehavior,
             @Nullable E poisonObject) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be positive");
         }
         this.capacity = capacity;
-        this.name = Objects.requireNonNull(name, "name");
-        this.shutdownBehavior = Objects.requireNonNull(shutdownBehavior, "shutdownBehavior");
-        if (shutdownBehavior == ShutdownBehavior.POISON) {
-            this.poisonObject = Objects.requireNonNull(poisonObject, "poisonObject");
-        } else {
-            if (poisonObject != null) {
-                throw new IllegalArgumentException(
-                        "poisonObject is accepted only with POISON shutdown behavior");
-            }
-            this.poisonObject = null;
-        }
+        this.poisonObject = poisonObject;
 
         Objects.requireNonNull(initialElements, "initialElements");
         List<E> copied = new ArrayList<>();
@@ -297,7 +229,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
     /** Validates a user element and reserves the configured poison object for shutdown signalling. */
     private E requireElement(E element) {
         Objects.requireNonNull(element, "element");
-        if (shutdownBehavior == ShutdownBehavior.POISON && element == poisonObject) {
+        if (poisonObject != null && element == poisonObject) {
             throw new IllegalArgumentException("the poison object is reserved for shutdown signalling");
         }
         return element;
@@ -358,7 +290,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
     /** Creates the uniform unchecked failure used by lifecycle-rejected blocking calls. */
     private QueueShutdownException shutdownException(String operation) {
         return new QueueShutdownException(
-                name + " is shut down; " + operation + " is no longer accepted");
+                NAME + " is shut down; " + operation + " is no longer accepted");
     }
 
     /**
@@ -392,7 +324,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
 
     /** Returns false for a poison-capable consumer, otherwise throws the shutdown rejection. */
     private boolean rejectClosedOperation(String operation, boolean poisonCapable) {
-        if (poisonCapable && shutdownBehavior == ShutdownBehavior.POISON) {
+        if (poisonCapable && poisonObject != null) {
             return false;
         }
         throw shutdownException(operation);
@@ -405,7 +337,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
 
     /** Returns poison for a closed consumer, or throws under the exception behavior. */
     private E closedConsumerResult(String operation) {
-        if (shutdownBehavior == ShutdownBehavior.POISON) {
+        if (poisonObject != null) {
             return poisonObject();
         }
         throw shutdownException(operation);
@@ -1724,7 +1656,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
     /** Returns a diagnostic summary without traversing the live queue. */
     @Override
     public String toString() {
-        return name + " [" + state() + ", size=" + count.get() + '/' + capacity + ']';
+        return NAME + " [" + state() + ", size=" + count.get() + '/' + capacity + ']';
     }
 
     //endregion

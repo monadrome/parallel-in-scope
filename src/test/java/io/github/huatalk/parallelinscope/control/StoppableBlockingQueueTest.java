@@ -84,18 +84,17 @@ class StoppableBlockingQueueTest {
         StoppableBlockingQueue<Integer> unbounded = new StoppableBlockingQueue<>();
         assertEquals(Integer.MAX_VALUE, unbounded.remainingCapacity());
 
-        StoppableBlockingQueue<Integer> named = new StoppableBlockingQueue<>(3, "orders");
-        assertTrue(named.toString().contains("orders"));
-        assertThrows(IllegalStateException.class, named::remainingList);
+        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(3);
+        assertTrue(queue.toString().contains(StoppableBlockingQueue.class.getSimpleName()));
+        assertThrows(IllegalStateException.class, queue::remainingList);
 
         assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(0));
         assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(-1));
-        assertThrows(NullPointerException.class, () -> new StoppableBlockingQueue<>(1, null));
-        assertThrows(NullPointerException.class, () -> named.offer(1, 1, null));
-        assertThrows(NullPointerException.class, () -> named.poll(1, null));
+        assertThrows(NullPointerException.class, () -> queue.offer(1, 1, null));
+        assertThrows(NullPointerException.class, () -> queue.poll(1, null));
 
         StoppableBlockingQueue<Integer> copied =
-                new StoppableBlockingQueue<>(4, "copied", Arrays.asList(1, 2, 3));
+                new StoppableBlockingQueue<>(4, Arrays.asList(1, 2, 3), null);
         assertEquals(Arrays.asList(1, 2, 3), new ArrayList<>(copied));
         assertEquals(1, copied.remainingCapacity());
         StoppableBlockingQueue<Integer> unboundedCopy =
@@ -107,20 +106,19 @@ class StoppableBlockingQueueTest {
         assertThrows(NullPointerException.class,
                 () -> new StoppableBlockingQueue<>(Arrays.asList(1, null)));
         assertThrows(IllegalArgumentException.class,
-                () -> new StoppableBlockingQueue<>(1, "too-small", Arrays.asList(1, 2)));
-        assertThrows(NullPointerException.class,
-                () -> new StoppableBlockingQueue<Integer>(
-                        1, "poison", StoppableBlockingQueue.ShutdownBehavior.POISON, null));
-        assertThrows(IllegalArgumentException.class,
                 () -> new StoppableBlockingQueue<>(
-                        1, "throw", StoppableBlockingQueue.ShutdownBehavior.THROW, 0));
+                        1, Arrays.asList(1, 2), null));
+        StoppableBlockingQueue<Integer> explicitThrow =
+                new StoppableBlockingQueue<>(1, null);
+        explicitThrow.stopAsync().awaitTerminated();
+        QueueShutdownException shutdown =
+                assertThrows(QueueShutdownException.class, explicitThrow::poll);
+        assertTrue(shutdown.getMessage().contains(StoppableBlockingQueue.class.getSimpleName()));
         Object poison = new Object();
         assertThrows(IllegalArgumentException.class,
                 () -> new StoppableBlockingQueue<>(
                         1,
-                        "reserved-poison",
                         Collections.singletonList(poison),
-                        StoppableBlockingQueue.ShutdownBehavior.POISON,
                         poison));
     }
 
@@ -167,17 +165,15 @@ class StoppableBlockingQueueTest {
 
     /** Verifies poison behavior releases consumers while producers and collection mutations still fail. */
     @Test
-    void poisonShutdownBehaviorReturnsConfiguredObjectToClosedConsumers() throws Exception {
+    void poisonObjectReturnsFromClosedConsumers() throws Exception {
         String poison = new String("STOP");
         StoppableBlockingQueue<String> consumerQueue = new StoppableBlockingQueue<>(
-                1, "poison-consumer", StoppableBlockingQueue.ShutdownBehavior.POISON, poison);
+                1, poison);
         StoppableBlockingQueue<String> timedConsumerQueue = new StoppableBlockingQueue<>(
-                1, "poison-timed-consumer", StoppableBlockingQueue.ShutdownBehavior.POISON, poison);
+                1, poison);
         StoppableBlockingQueue<String> producerQueue = new StoppableBlockingQueue<>(
                 1,
-                "poison-producer",
                 Collections.singletonList("accepted"),
-                StoppableBlockingQueue.ShutdownBehavior.POISON,
                 poison);
         assertThrows(IllegalArgumentException.class, () -> consumerQueue.offer(poison));
         ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -297,8 +293,9 @@ class StoppableBlockingQueueTest {
     }
 
     /** Reads one private Monitor for deterministic lock-order tests. */
-    private static Monitor monitorField(StoppableBlockingQueue<?> queue, String name) throws Exception {
-        Field field = StoppableBlockingQueue.class.getDeclaredField(name);
+    private static Monitor monitorField(
+            StoppableBlockingQueue<?> queue, String fieldName) throws Exception {
+        Field field = StoppableBlockingQueue.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return (Monitor) field.get(queue);
     }
