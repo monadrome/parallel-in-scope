@@ -1,9 +1,8 @@
 # inline 回退路径分析：幂等性、阻塞与 deadline 失效
 
 > 状态：**已落地**（分支 `feat/bind-before-submit-and-interrupt-isolation`）。
-> 采纳 §6.2 的**选项 A** + §6.1 的中断隔离，两者同一个改动。§8 的四个待拍板点按
-> [caller-runs-support-after-inline-deletion.md](caller-runs-support-after-inline-deletion.md)
-> §8 的顺序处理：本次落地其中第 1、2 两项，其余仍待拍板。落地细节见本文末尾的"落地记录"。
+> 采纳 §6.2 的**选项 A** + §6.1 的中断隔离，两者同一个改动；§8 的四个待拍板点现已
+> 全部处理。落地细节见本文末尾的"落地记录"。
 >
 > 起因是一个具体问题：任务已在 executor 的阻塞队列上，
 > 而 caller 线程也执行它，有无幂等限制？
@@ -261,22 +260,19 @@ group 已经这么做了（`TaskGroup.java:435-439`），证明技术上可行�
 
 用例 3、4 是死锁的回归锁；用例 5 必须同时存在，否则修 batch 时可能把 group 一起改坏。
 
-## 8. 待拍板点
+## 8. 待拍板点（全部已关闭）
 
-1. **6.2 选 A、B 还是 C。** 倾向 A（batch 改为先 bind 后提交）。若倾向 B，则应作为
-   "删除 `runOnCallerThread`"的提案处理，并记入 idea-graveyard。
-2. **6.1 的中断隔离是否与 A 同 PR。** 两者独立可分，但都属于"inline 路径语义对齐"，
-   合并一个 PR 便于一次性锁定 INV-3 与 INV-10 的验证。
-3. **`AGENTS.md:43-45` 的不变量表述是否需要修订。** 若采纳 A，"bind 只在全部 future
-   提交后接线"这句对 batch 就不再成立，需改为与 group 一致的表述。
-4. **是否把"提交期间无 deadline 保护"单独作为一条已知限制记录。** 即便不采纳 A，
-   这个窗口在慢 executor 下也存在，用户有权知道。
+1. 6.2 拍板 **A**（batch 先 bind 后提交）。
+2. 6.1 的中断隔离与 A 同一改动落地。
+3. 根 `AGENTS.md` 的 bind 顺序不变量已改写为与 group 一致的表述。
+4. 慢 executor 的提交窗口仍可能暂时缺少可观察的 deadline 进展；该限制已写入
+   caller-runs 分析与用户指南，不作为待决策项。
 
 ## 9. 落地记录
 
 拍板结果：**选项 A + 6.1 的中断隔离，同一个改动**。分支
 `feat/bind-before-submit-and-interrupt-isolation`，全量 `mvn clean test` 703 通过
-（基线 697），连跑两次稳定。§8 的第 1、2、3 项已处理；第 4 项仍开放。
+（基线 697），连跑两次稳定。§8 的第 1、2、3、4 项已处理。
 
 ### 与本文 §6 的三处偏差
 
