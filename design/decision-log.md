@@ -8,7 +8,7 @@
 
 同一次重构的过程稿，落地后的现行契约见根目录活文档（组 API 见
 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 与
-[synchronous-scope-exit-proposal.md](synchronous-scope-exit-proposal.md)）。
+[synchronous-scope-exit.md](synchronous-scope-exit.md)）。
 
 | 提案（全文见 archive/） | 结论与残值 |
 |---|---|

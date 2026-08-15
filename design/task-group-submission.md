@@ -1,74 +1,78 @@
 # TaskGroup 设计契约：提交与 rejection
 
-> ⚠️ **调用形状已被取代**：`ParRuntime.submitGroup(definition, binder)` 与 `TaskGroup.Bindings`
-> 的冻结/校验入口已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 的
-> `submitAll()` 取代。§9「单任务运行内核的复用边界」与统一提交、rejection 处置的结论仍然有效。
+> 组的声明形状见 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)；
+> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束声明期校验、
+> 冻结与统一提交、executor rejection 与单任务提交内核的复用边界。
 >
 > 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
+> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
 
 ## 7. submit、冻结与统一提交契约
 
-### 7.1 配置期校验
+### 7.1 声明期校验
 
-`TaskGroupDefinition.Builder.task()`/`combine()` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
+链式声明的 `par(...)`/`combine(...)` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
 
 - memberName 为 null/空白或重复；
 - 参数为 null；
-- `Par` 不属于 owner `ParRuntime`（foreign Par）；
-- 第二个 `combine()` 调用（一个 definition 至多一个 terminal combine）。
+- `Par` 不属于 owner `ParRuntime`（foreign Par）。
 
-成员 `Par` 在配置期解析并保存进 definition（owner-bound），不存在"submit 时才按注册名解析
-executor"的路径；配置期校验先于任何运行状态。`task()`/`combine()` 不检查或消耗 deadline，
-因为 Group 的逻辑执行时间从 `ParRuntime.submitGroup()` 的统一 start 开始。
+至多一个 terminal combine 由链尾类型保证：`combine(...)` 返回的 `CombinedGroupStep`
+不再暴露 `par` 或第二次 `combine`；对保存的过期 step 引用继续调用（含重复 combine）由草稿
+阶段守卫在运行期拒绝（`IllegalStateException`，见 §7.2）。
 
-executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的成员不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；库自身没有 inline 回退路径，若执行器自身的拒绝策略在提交线程 inline 执行（如 `CallerRunsPolicy`），那是执行器的契约，同样经过统一内核的执行权竞态。
+成员 `Par` 在声明期解析并保存进草稿（owner-bound），不存在"submit 时才按注册名解析
+executor"的路径；声明期校验先于任何运行状态。`par(...)`/`combine(...)` 不检查或消耗 deadline，
+因为 Group 的逻辑执行时间从提交准备边界的统一 start 开始。
 
-该规则同样覆盖目标 executor 的 `execute()` 抛出的任何失败——含违反契约直接抛出的 `Error` 与借泛型擦除偷渡的受检异常（catch 范围见 [扩展契约 L7](extension-and-wrapping.md)）：它是成员提交结果，必须由公开成员 future 以 `SubmissionException` 终结，不能在 Group 已跨过 admission 边界后从 `submitGroup()` 抛出。`TaskGroup.completionFuture()` 仍正常完成并携带 `TaskGroupResult`；调用方通过组结果或成员 future 观察 `SUBMISSION_FAILURE` 及其原始 cause。Options 不提供把成员 handoff failure 改成同步抛出的开关，因为 Group 的成员提交虽然当前由调用线程发起，统一收敛契约仍必须与 Batch/共享 `TaskSubmissions` 内核一致。
+executor rejection 只有实际提交时才能知道，因此属于提交后的成员运行结果，不是声明校验失败。被目标 executor 拒绝的成员不运行用户 callable，该成员以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；库自身没有 inline 回退路径，若执行器自身的拒绝策略在提交线程 inline 执行（如 `CallerRunsPolicy`），那是执行器的契约，同样经过统一内核的执行权竞态。
+
+该规则同样覆盖目标 executor 的 `execute()` 抛出的任何失败——含违反契约直接抛出的 `Error` 与借泛型擦除偷渡的受检异常（catch 范围见 [扩展契约 L7](extension-and-wrapping.md)）：它是成员提交结果，必须由成员结果以 `SubmissionException` 终结，不能在 Group 已跨过 admission 边界后从 `runAll()` 抛出；`runAll()` 仍正常返回 `TaskGroupResult`，调用方经成员结果容器观察 `SUBMISSION_FAILURE` 及其原始 cause。Options 不提供把成员 handoff failure 改成同步抛出的开关，因为 Group 的成员提交虽然当前由调用线程发起，统一收敛契约仍必须与 Batch/共享 `TaskSubmissions` 内核一致。
 
 ### 7.2 submit 线性化与步骤
 
-`ParRuntime.submitGroup()` 必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `ParRuntime.whileOpen()` 中；实际 executor 调用仍须在内部锁和 ParRuntime admission 机制外进行：
+`runAll()`（经包私有 `submitAll()`）必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。准备和注册阶段整体处于一次 `ParRuntime.whileOpen()` 中；实际 executor 调用仍须在内部锁和 ParRuntime admission 机制外进行：
 
-本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：binder 执行前没有任何运行状态或执行，binder 返回后一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
+本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：声明期没有任何运行状态或执行，提交时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
 必须满足：
 
-1. 校验 definition owner，创建 `Bindings` 并在调用线程同步执行 binder；binder 返回后冻结、
-   全量校验（missing/duplicate/foreign/wrong-kind binding、null body）并把本次 payload
-   转移为内部 RunBindings；
-2. 在 `ParRuntime.whileOpen()` 内解析结构父任务/observation（成员 executor 为配置期已解析的
+1. 校验草稿归属（创建线程、阶段有效），冻结有序成员声明与本次 payload；
+2. 在 `ParRuntime.whileOpen()` 内解析结构父任务/observation（成员 executor 为声明期已解析的
    `Par`），冻结有序成员定义；
 3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
-4. 为每个定义创建 member Batch、TaskExecutionContext、公开 future 和执行权竞争对象；
+4. 为每个声明创建 member Batch、TaskExecutionContext、成员 future 和执行权竞争对象；
 5. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
 6. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
 7. 退出所有 registry/admission 机制；
-8. 按定义顺序向各自目标 executor 提交同一个 prepared future；
-9. 提交循环结束后返回 Group；若某个成员 inline 执行、失败或触发 fail-fast，剩余尚未调用 executor 的 prepared future 也必须被取消并达到终态。
+8. 按声明顺序向各自目标 executor 提交同一个 prepared future；
+9. 提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发 fail-fast，剩余尚未调用
+   executor 的 prepared future 也必须被取消并达到终态。
 
-冻结校验的异常类型有分界：重复绑定是一次性收集器的生命周期状态错误，故 freeze 抛
-`IllegalStateException`；foreign/wrong-kind/missing binding 属参数错误，故抛
-`IllegalArgumentException`。
+声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
+旧 step、重复提交）抛 `IllegalStateException`；声明参数错误（名称为 null/空白/重复、`Par`
+为 null 或不属于 owner、body/options/type 为 null、type 为 primitive 或含未解析类型变量）
+按 JDK 惯例抛 `NullPointerException`/`IllegalArgumentException`。
 
 不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。
 
-不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致 close/cancel 长时间无法取得锁。
+不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致清理/取消长时间无法取得锁。
 
-`ParRuntime.submitGroup()` 正常返回时必须保证完整 members registry 已发布（`future(member)`
-可立即解析），并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
+提交循环开始前必须保证完整 members registry 已发布，并且每个仍未因 fail-fast/timeout/cancel
+终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，执行期间
+部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submitGroup()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、binder 校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许 `submitGroup` 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
 
 ### 7.3 Prepared single-task submission
 
-两阶段单任务提交内核位于 `internal.TaskSubmissions`（`prepare` / `submitScoped`）与
-`internal.ExecutionPhaseHintFuture`：`Par.map` 与 Group 共用同一内核，避免两套
+两阶段单任务提交内核是根包的包私有 `TaskSubmissions`（`prepare` / `submitScoped`）与
+`ExecutionPhaseHintFuture`：`Par.map` 与 Group 共用同一内核，避免两套
 取消/phase/TTL/ScopedCallable 实现：
 
 ```java
 ExecutionPhaseHintFuture<Object> prepared = TaskSubmissions.prepare(taskContext, callable, listeners, phaseObserver);
-// prepared 已存在（对外公开 future），但尚未交给 executor
+// prepared 已存在（成员 future），但尚未交给 executor
 
 registerAll(preparedTasks); // 所有 future 同时成为完整冻结集合
 
@@ -77,7 +81,8 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 
 必须保证：
 
-- 公开 future 是对外返回、参与执行权竞争和 phase 观测的同一个逻辑 future；
+- 成员 future 从创建起就是被注册、参与执行权竞争和 phase 观测的同一个逻辑 future，不存在
+  placeholder 或事后 bind；
 - 区分用户直消与 Group 传播取消、fail-fast、timeout 不靠 `isCancelled()` 事后猜测；归因在
   收敛时读取 member/group token 状态（见 [取消与归因 §8.4](task-group-cancellation.md#84-deadline)）；
 - `cancel()` 在线程取得执行权前成功后，之后的 prepared submission 不得进入用户 callable；
@@ -123,18 +128,17 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 ### 9.3 代码组织
 
 ```text
-scope/
-  TaskGroup.java
-  TaskGroupDefinition.java
+io.github.monadrome.parallelinscope/
+  GroupDraft.java                 // 链式草稿，三个公开 step 接口的实现
+  TaskGroup.java                  // 包私有运行对象
+  TaskGroupDefinition.java        // 包私有冻结结构
   TaskGroupResult.java
   TaskCompletion.java
   TaskOutcome.java
   TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
 ```
 
-`TaskKey`、`CombineFunction`、`CompletedTaskValues`、`TaskGroupListener`、
-`TaskGroupOptions` 及 `TaskGroupDefinition` 的公共嵌套类型 `TaskDefinition`/
-`CombineDefinition` 已删除，不再出现在代码组织中；`ParName` 更名为 `ParId` 保留（见
+`ParName` 已更名为 `ParId` 保留（见
 [group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) §13.1 及其增补
 裁定 §19.6、§19.10）。
 
