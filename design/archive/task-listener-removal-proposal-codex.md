@@ -1,7 +1,7 @@
 # 删除 `TaskListener`：观测归宿设计提案
 
 > 公开执行/结果及中断等待形状已由
-> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> [同步出口契约](../synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
 > ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
 > 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
 
@@ -122,7 +122,7 @@ ListenableFuture<TaskCompletion<T>> completionFuture();
 终态与 body exit 两个条件都满足后 set，异常路径也必须 set。不得重新调用用户代码或
 listener。所有已发布的 TaskFuture 都必须暴露同一个 observation future，放弃/拒绝路径也必须
 终结。（原文这里还要求"滑动窗口 placeholder 在绑定真实任务后透传真实 observation future"。
-placeholder 已随 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)
+placeholder 已随 [ADR 0007](../../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)
 删除：视图从创建起就包住 prepared future，两者本来就是同一个 observation，透传要求随之消失。
 要求本身不变。）
 

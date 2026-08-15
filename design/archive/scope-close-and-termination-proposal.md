@@ -1,7 +1,7 @@
 # Scope 关闭与任务体终止：最终设计方案
 
 > 公开执行/结果及中断等待形状已由
-> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> [同步出口契约](../synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
 > ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
 > 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
 

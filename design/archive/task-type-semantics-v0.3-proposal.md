@@ -133,7 +133,7 @@ public enum TaskType {
 - `MIXED` 表达的是调用方的**意图声明**，而库当前没有、将来也不一定需要据此做区分；
   删除它会把"混合型任务"这一真实存在的类别从公开词汇里抹掉。
 - **入队维度有稳定载体**：2026-09-14 拍板 queue 包与 core 同产物发布
-  （[adr/0006-queues-ship-with-core.md](../adr/0006-queues-ship-with-core.md)），
+  （[adr/0006-queues-ship-with-core.md](../../adr/0006-queues-ship-with-core.md)），
   且 `design/queue-artifact-boundary-decision.md` §5 已复核：`SmartBlockingQueue`
   在 root 包，queue 包内没有任何读取 `TaskType` 的代码——机制二本就整体留在 core。
   因此"queue 包移出 core 导致三值失去载体"这一情形**已被排除**，本节此前的重访条件

@@ -60,7 +60,7 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 ## 3. 决策二：queue 包的产物边界（B8，产品决策）——**已拍板：维持现状**
 
 **结论（2026-09-14）：不拆分、不私有化，queue 包与 core 同产物发布。** 约 21% 的评审面
-作为有意承担的结论固化于 [adr/0006-queues-ship-with-core.md](../adr/0006-queues-ship-with-core.md)；
+作为有意承担的结论固化于 [adr/0006-queues-ship-with-core.md](../../adr/0006-queues-ship-with-core.md)；
 产物边界不再作为开放问题提出。以下为决策过程的背景事实，仅作历史保留。
 
 现状：`queue/DrainingBlockingQueue` 1 642 行（全项目最大文件，main 的 ~18%），

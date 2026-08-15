@@ -1,7 +1,7 @@
 # queue 包产物边界决策（决策分析，已归档）
 
 > 状态：**已拍板（2026-09-14）：维持现状，queue 包与 core 同产物发布。**
-> 结论固化于 [adr/0006-queues-ship-with-core.md](../adr/0006-queues-ship-with-core.md)，
+> 结论固化于 [adr/0006-queues-ship-with-core.md](../../adr/0006-queues-ship-with-core.md)，
 > 该 ADR 是本题的唯一权威依据。本文仅保留决策过程的背景事实：**产物边界已关闭，不要再在
 > 设计评审、缺陷分诊或重构提案中重新提出拆分/删除 queue 包。**
 
@@ -116,7 +116,7 @@ queues 不能反向依赖 core。
 基础设施成本（parent POM、模块版本策略、发布配置、站点与文档归属）对一个 Java 8 基线库
 而言高于其收益（评审面隔离与依赖可选性），且"发布节奏解耦"在同 reactor 构建设想下本就不
 成立。约 21% 的评审面作为有意承担的结论写入
-[adr/0006-queues-ship-with-core.md](../adr/0006-queues-ship-with-core.md)。
+[adr/0006-queues-ship-with-core.md](../../adr/0006-queues-ship-with-core.md)。
 
 ## 7. 拍板问题清单（已作答）
 

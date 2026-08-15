@@ -9,7 +9,7 @@
 > 结论：**幂等有双层保护，不会重复执行**；但这条路径有三个其他缺陷，其中一个是
 > **deadline 无法解救的死锁**。所有结论附实测输出与 `path:line` 锚点。
 > 基线：`main` HEAD（`0.3.0-SNAPSHOT`）、JDK 21 源码、`guava-33.6.0-jre`。
-> 中断相关的两处见 [interruption-contract.md](interruption-contract.md) 第 7.3 节，本文不重复。
+> 中断相关的两处见 [interruption-contract.md](../interruption-contract.md) 第 7.3 节，本文不重复。
 >
 > 后续（2026-09-29）：本文分析的 `runOnCallerThread` 选项已在 0.3.0 发布前删除
 > （拒绝处置归执行器的 `RejectedExecutionHandler`）；中断与 `SubmissionScope` 隔离机制保留。
@@ -174,7 +174,7 @@ group: TIMEOUT:2 | outcome=TIMEOUT
 
 ## 4. 缺陷二与三：中断标志（详见 interruption-contract.md）
 
-同一条 inline 路径上另有两处，已在 [interruption-contract.md](interruption-contract.md) 第 7.3
+同一条 inline 路径上另有两处，已在 [interruption-contract.md](../interruption-contract.md) 第 7.3
 节展开，此处只记结论与本文的补充：
 
 - **中断标志泄漏**：任务体按教科书正确做法恢复中断标志后，标志留在调用方线程或
