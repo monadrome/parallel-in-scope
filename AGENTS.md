@@ -80,6 +80,13 @@ API, or mechanism, use the evaluation checklist in `design/first-principles.md`
 before choosing an implementation. For fixes to existing behavior, consult the
 relevant contract through the document routes below.
 
+Prefer established higher-level concurrency abstractions over direct use of
+low-level primitives such as `Thread.interrupt()` and `synchronized`, whose
+protocols are easy to get wrong. Before introducing or changing a mechanism
+that directly uses such primitives, explain why the higher-level alternatives
+are insufficient, present the proposed mechanism and its risks, and obtain
+explicit human confirmation before implementing it.
+
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
