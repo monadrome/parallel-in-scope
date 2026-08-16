@@ -45,3 +45,4 @@
 | group-curried-api-proposal | 被一次性链式草稿（group-one-shot）取代 |
 | group-tuple-index-proposal | 同上；`GroupValues` 的双通道查询最终以别的形状落地 |
 | close-and-quiescence-proposal | 被 scope-close 与同步出口契约取代 |
+| simple-resizable-blocking-queue-conclusion | 三个变体（condition/monitor/future-coordinated）随 `94f1a50` 移出主线，未并入任何契约；结论与 V1/V3 未采纳替代全文见 [archive/](archive/simple-resizable-blocking-queue-conclusion.md)。实现仅存于本地分支 `experimental-blocking-queue`（`94f1a50` 声称的 `explore/resizable-blocking-queue` 不存在） |

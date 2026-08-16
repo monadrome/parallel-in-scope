@@ -29,6 +29,7 @@
 | 性能 | P-P4 | `remove(Object)` 每次约 1 KB 垃圾 + 两趟遍历 | 读码 | 低 |
 | 性能 | P-P5 | 队列包 6 项零散开销（节点分配在锁内等） | 读码 | 低 |
 | 性能 | P-P6 | 热路径 6 项常数开销 | 读码 | 低 |
+| 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
 | API | A-P1 | `CancellationToken` 是不可达的公开类型 | 复核 | 中（破坏性） |
 | API | A-P2 | 诊断断言无作用域时静默返回 `false` | 复核 | 低-中 |
@@ -109,6 +110,15 @@
 （`stateListeners` 永远分配）、`CancellationToken.java:150,166`（`bind` 读两次时钟）、
 `MultiTaskContext.java:50`（unitId 字符串拼接）、`TaskOptions.java:94,112`（每次提交 2 个 `Optional` + `UnitSpec`）、
 `Par.java:285` → `ExecutorRuntime.java:110-113`（每次提交重算 `rejectEnqueueEffective()`）。
+
+### P-P7 · 每批次一个阻塞 submitter 线程，跑在无界池上
+
+`SlidingWindowSubmitter` 每批向 `submitterPool` 提交一个 `submitRemaining`（`:145`），该线程
+阻塞在 `blockingQueue.take()`（`:247`）等待窗口推进；池是无界 `Executors.newCachedThreadPool`
+（`ParRuntime.java:99`；`:98` 的 `timeoutActionPool` 同）。并发批次数大时线程规模与资源假设
+无任何文档。
+
+- **修复**：提交器改用固定池或复用调度线程；至少把资源假设写进文档。
 
 ---
 
@@ -330,6 +340,16 @@ A-P1（`CancellationToken` 孤岛）仍开放。
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
    先做"如何测试使用本库的代码"指南。
+4. **explore 审查残余四项**（2026-10-03 清理吸收，原 `explore/` 已删）——逐条「采纳或关闭」：
+   - **observer 锁内回调**：`ExecutionPhaseHintFuture` 在 `synchronized(this)` 内调 `notifyPhase`
+     （`:436-452`、`:488-508`），用户 observer 代码在监视器内运行；现行注释只记了收益
+     （防取消相位被吞），未记代价。判定「接受取舍」（补 design 记录）或移出监视器。
+   - **公理 1 是否拆 T1/T2 措辞**：公理仍为单句（`design/first-principles.md:9-10`），实质语义已在
+     `task-group-lifecycle.md` §6.1 落地；拆分或明确关闭。
+   - **`Checkpoints` 收敛为 `interruptible(op)`**（B7）：现 577 行 / 31 个公开 static，无该原语；
+     采纳则内部重构（免 issue），否则关闭。
+   - **`DrainingBlockingQueue` 拆分**：现 1621 行；「内部 VLQ 委托 + 状态机/队列语义拆两个可测
+     单元」——采纳或关闭。
 
 ## 建议的起步顺序
 
