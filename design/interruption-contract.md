@@ -238,6 +238,18 @@ directExecutor      : caller's next await() THREW InterruptedException
 "inline 路径与正常路径顺序相同"，`first-principles.md:36` 亦把 inline 列入必须恢复的路径。
 所以 7.3 是**违反既有书面不变量**，不是本文新增的要求。
 
+### 5.5 取消中断投递与 runner 退出
+
+- 取消侧 MUST 在读取 runner 之前发布中断投递正在进行的状态，并 MUST 在 `finally`
+  中发布投递结束，包括 `Thread.interrupt()` 抛异常的路径。
+- 执行侧 MUST 先撤销 runner，再等待已经登记的投递结束；等待 MUST 在恢复入口中断标志
+  和从 `run()` 返回之前完成，MUST NOT 因取消中断提前退出。
+- 取消中断 MUST NOT 投递到复用同一线程的后继任务。仅清空 runner、再次检查 runner 或
+  在任务间清中断标志都不能替代投递握手。
+
+实现与验证依据见 [runner 中断投递修复](runner-interrupt-delivery.md)。此握手只等待投递结束，
+不等待用户任务体响应取消；任务体结束观测也不等同于线程已完成交接。
+
 ## 6. 现状审计
 
 全库 `catch (InterruptedException)` 共 18 处，`.interrupt()` 调用 8 处，

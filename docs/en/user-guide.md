@@ -211,6 +211,11 @@ bounded cleanup, and restores the flag on exit. Interrupting the waiting caller 
 the execution. Deadline, fail-fast, ancestor token propagation, worker interruption, and
 `Checkpoints.checkpoint()` remain effective. `ParRuntime.awaitQuiescence` remains interruptible.
 
+Cancellation interrupt delivery is coordinated with runner exit: a task cannot return its thread
+to the executor while its cancellation interrupt is still in flight. A later task reusing that
+thread therefore cannot receive the previous task's delayed cancellation interrupt. Body completion
+alone does not mean this thread handoff has finished.
+
 A direct executor or CallerRunsPolicy may execute a body on the caller before waiting begins.
 Its existing borrowed-thread isolation restores the interrupt state present at body entry; it does
 not promise to preserve a new external interrupt received during inline body execution. Blocking

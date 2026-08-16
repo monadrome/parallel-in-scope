@@ -67,6 +67,7 @@ Adversarial Review。
 |---|---|
 | [extension-and-wrapping.md](extension-and-wrapping.md) | 扩展边界契约：唯一用户扩展点是任务体本身（自助包装，不提供装饰器 SPI——含暂缓理由与重开条件）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、用户能包装的三个对象（线程池/Callable/FutureTask）、必须避免的 14 类问题、自助包装守则（MDC/追踪/指标/重试）、契约与验证矩阵 |
 | [interruption-contract.md](interruption-contract.md) | 中断处理跨层规范：中断标志与 `InterruptedException` 四原则、分角色规范（任务体/库的阻塞方法/状态检查/executor 边界）；P1–P4 摘要已进根 AGENTS.md |
+| [runner-interrupt-delivery.md](runner-interrupt-delivery.md) | runner 退出与取消中断投递握手、volatile 顺序证明、回归验证与独立评审记录 |
 
 ## 设计哲学与决策记录
 
