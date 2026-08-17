@@ -23,13 +23,13 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。唯一的运行时可调项是自动 purge：`setPurgeEnabled(boolean)` 与 `adjustPurgeThresholds(double, double)` 可在构建后重新调整。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
+id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。队列清理由执行器所有者负责。
 
-注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
+注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
 
-注册时读取执行器自身的结构，读不出的事实不做任何声明。这次读取只得到两项事实：队列 purge 能否观测这个池（需要是 `ThreadPoolExecutor` 且队列容量有限且为正），以及池上的任务体在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——两项都取保守答案，并在组成根提示一次。
+注册时读取执行器自身的结构，读不出的事实不做任何声明。它判断池上的任务体在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——取保守答案，并在组成根提示一次。
 
-因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，队列 purge 与阻塞风险检测完整可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
+因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，阻塞风险检测可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
 
 ```java
 ExecutorService reportPool = new ThreadPoolExecutor(
@@ -292,22 +292,13 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 ## 清理已取消的排队任务
 
-purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生效。执行前取消会发出 execution phase 信号；`ParRuntime` 按物理执行器 identity 合并维护任务，因此同一线程池的别名或多个 `Par` 不会创建重复协调器。
+库不再自动 purge 注册的执行器。取消项可能留在物理队列里，直到 worker 取出或执行器所有者主动移除。有界队列里的取消项仍占用容量，可能使后续提交被拒绝。执行前取消仍会释放任务的 Callable 捕获和 body slot。
 
 ```java
-ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
-        .enabled(true)
-        .queuePressureThreshold(0.80)
-        .cancelledTaskRatioThreshold(0.05)
-        .build();
-
-ParRuntime global = ParRuntime.builder()
-        .purgePolicy(purge)
-        .register(ParId.of("io"), ioThreadPool)
-        .build();
+ioThreadPool.purge(); // 执行器所有者的维护流程
 ```
 
-两个阈值都达到后才会请求 `ThreadPoolExecutor.purge()`。purge 只能删除仍留在队列里的已取消任务，无法停止忽略中断的任务体。
+对物理 `ThreadPoolExecutor`，prepared future 就是排队的 RunnableFuture，JDK `purge()` 可以移除这些取消项。自行包装 runnable 的执行器需管理实际排队对象。purge 无法停止忽略中断的任务体。需要周期清理的应用自行管理维护调度及其关闭；原取消驱动 purger 保存在 `dev/experimental` 分支。
 
 ## 生命周期队列
 

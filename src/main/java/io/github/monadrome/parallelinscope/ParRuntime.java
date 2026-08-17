@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -43,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
  * policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
- * timer, submission, and maintenance services; registered executors are borrowed and are never
+ * timer and submission services; registered executors are borrowed and are never
  * shut down by this object.
  *
  * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
@@ -59,11 +58,6 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
     private final @Nullable ParId defaultId;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
-    private final ParRuntimePurgePolicy purgePolicy;
-    private final AtomicBoolean purgeEnabled;
-    private final AtomicDouble purgeQueuePressureThreshold;
-    private final AtomicDouble purgeCancelledTaskRatioThreshold;
-    private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
@@ -83,11 +77,6 @@ public final class ParRuntime implements AutoCloseable {
 
     private ParRuntime(Builder builder) {
         this.deadlockPolicy = builder.deadlockPolicy;
-        this.purgePolicy = builder.purgePolicy;
-        this.purgeEnabled = new AtomicBoolean(purgePolicy.enabled());
-        this.purgeQueuePressureThreshold = new AtomicDouble(purgePolicy.queuePressureThreshold());
-        this.purgeCancelledTaskRatioThreshold = new AtomicDouble(purgePolicy.cancelledTaskRatioThreshold());
-        this.purger = new HeuristicPurger(purgeEnabled, purgeQueuePressureThreshold, purgeCancelledTaskRatioThreshold);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -108,21 +97,22 @@ public final class ParRuntime implements AutoCloseable {
             if (runtime == null) {
                 // A TTL wrapper hides the physical pool, so every structural fact below is read
                 // through it. Without this the wrapper is indistinguishable from a foreign
-                // executor: purge and blocking-risk detection silently downgrade, and the
+                // executor: blocking-risk detection silently downgrades, and the
                 // discarding-policy guard below never runs at all.
                 ExecutorService introspectable = TtlUnwrap.unwrap(entry.getValue());
                 if (!(introspectable instanceof ThreadPoolExecutor)) {
                     // Detection that silently downgrades is worse than a diagnostic: a decorated
-                    // or foreign executor hides the physical pool from purge and deadlock-risk
+                    // or foreign executor hides the physical pool from deadlock-risk
                     // classification, so say so once at the composition root.
-                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with "
-                            + entry.getValue().getClass().getName()
-                            + ", which this library cannot see through: queue purge and"
-                            + " blocking-risk detection are disabled for it. If this executor only"
-                            + " decorates a physical ThreadPoolExecutor, register that pool itself"
-                            + " instead of the wrapper to keep them. An executor that starts a fresh"
-                            + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
-                            + " has no bounded queue to purge, so neither feature applies to it.");
+                    LOGGER.warning(
+                            "Par '" + entry.getKey() + "' is registered with "
+                                    + entry.getValue().getClass().getName()
+                                    + ", which this library cannot see through:"
+                                    + " blocking-risk detection is disabled for it. If this executor only"
+                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
                 } else {
                     // A discarding policy accepts the task and then drops it without running it
                     // and without throwing, so the framework would keep waiting on a future that
@@ -160,7 +150,6 @@ public final class ParRuntime implements AutoCloseable {
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
             }
-            bindPurgeObserver(runtime);
             builtRuntimes.put(entry.getKey(), runtime);
             builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime));
         }
@@ -222,57 +211,6 @@ public final class ParRuntime implements AutoCloseable {
         return deadlockPolicy;
     }
 
-    /**
-     * Returns the build-time purge policy. Runtime adjustments made through {@link
-     * #adjustPurgeThresholds(double, double)} and {@link #setPurgeEnabled(boolean)} are not
-     * reflected here; read the live values from {@link #queuePressureThreshold()}, {@link
-     * #cancelledTaskRatioThreshold()}, and {@link #purgeEnabled()}.
-     */
-    public ParRuntimePurgePolicy purgePolicy() {
-        return purgePolicy;
-    }
-
-    /** Whether automatic purge is currently enabled, honoring {@link #setPurgeEnabled(boolean)}. */
-    public boolean purgeEnabled() {
-        return purgeEnabled.get();
-    }
-
-    /** The live queue-pressure threshold, honoring runtime adjustment. */
-    public double queuePressureThreshold() {
-        return purgeQueuePressureThreshold.get();
-    }
-
-    /** The live cancelled-task-ratio threshold, honoring runtime adjustment. */
-    public double cancelledTaskRatioThreshold() {
-        return purgeCancelledTaskRatioThreshold.get();
-    }
-
-    /**
-     * Adjusts both advisory purge thresholds for subsequent purge evaluations. Each value is held
-     * atomically and validated exactly as the builder validates it; invalid values are rejected
-     * before either threshold changes.
-     *
-     * @throws IllegalArgumentException if either threshold is not in {@code (0, 1]}
-     */
-    public void adjustPurgeThresholds(double queuePressureThreshold, double cancelledTaskRatioThreshold) {
-        ParRuntimePurgePolicy.validateThreshold(queuePressureThreshold, "queuePressureThreshold");
-        ParRuntimePurgePolicy.validateThreshold(cancelledTaskRatioThreshold, "cancelledTaskRatioThreshold");
-        purgeQueuePressureThreshold.set(queuePressureThreshold);
-        purgeCancelledTaskRatioThreshold.set(cancelledTaskRatioThreshold);
-    }
-
-    /**
-     * Enables or disables automatic purge at runtime.
-     *
-     * <p>Disabling stops evaluation, not accounting. An estimate whose cancellation signal arrives
-     * while purge is off is settled immediately rather than held, so re-enabling never purges on a
-     * signal observed during the disabled window; estimates already outstanding when the switch
-     * flipped stay live and are dropped only by the expiry of their own idle boundary.
-     */
-    public void setPurgeEnabled(boolean enabled) {
-        purgeEnabled.set(enabled);
-    }
-
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
     public Map<ParId, Par> pars() {
         return pars;
@@ -286,10 +224,6 @@ public final class ParRuntime implements AutoCloseable {
     /** Package-private identity index; runtime binding is not a public application API. */
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
-    }
-
-    HeuristicPurger purger() {
-        return purger;
     }
 
     ListeningExecutorService submitterPool() {
@@ -407,11 +341,6 @@ public final class ParRuntime implements AutoCloseable {
             // Symmetric with installGlobal: closing the installed instance releases the slot so a
             // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
-            // The purger's maintenance service is deliberately NOT closed here: admitted batches
-            // keep draining after close(), and cancelling their queued tasks is what feeds the
-            // purger. Closing it now would reject every post-close signal and silently drop purge
-            // coverage exactly during the cancellation storm it exists for. It shuts down with the
-            // other framework services once the topology drains.
             shutdownServicesWhenAdmissionsComplete();
         }
     }
@@ -490,9 +419,6 @@ public final class ParRuntime implements AutoCloseable {
             timerService.shutdown();
             timeoutActionPool.shutdown();
             submitterPool.shutdown();
-            // Closed before the quiescence publication so that observing quiescence implies the
-            // purger's maintenance service is already down.
-            purger.close();
             synchronized (quiescenceMonitor) {
                 quiescenceMonitor.notifyAll();
             }
@@ -613,30 +539,14 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
-    private void bindPurgeObserver(ExecutorRuntime runtime) {
-        ExecutorService introspectable = runtime.introspectableExecutor();
-        if (!(introspectable instanceof ThreadPoolExecutor)) return;
-        Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) introspectable);
-        runtime.setPhaseObserver(phase -> {
-            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) observer.run();
-        });
-    }
-
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
-        private ParRuntimePurgePolicy purgePolicy =
-                ParRuntimePurgePolicy.builder().build();
         private @Nullable ParId defaultId;
 
         public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
             this.deadlockPolicy = Objects.requireNonNull(policy);
-            return this;
-        }
-
-        public Builder purgePolicy(ParRuntimePurgePolicy policy) {
-            this.purgePolicy = Objects.requireNonNull(policy);
             return this;
         }
 

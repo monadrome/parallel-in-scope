@@ -18,6 +18,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -668,16 +670,45 @@ class ParRuntimeTest {
         ParRuntimeDeadlockPolicy deadlock =
                 ParRuntimeDeadlockPolicy.builder().enabled(true).build();
         assertThat(deadlock.enabled()).isTrue();
-        ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
-                .enabled(true)
-                .queuePressureThreshold(1.0)
-                .cancelledTaskRatioThreshold(0.5)
-                .build();
-        assertThat(purge.enabled()).isTrue();
-        assertThat(purge.queuePressureThreshold()).isEqualTo(1.0);
-        assertThat(purge.cancelledTaskRatioThreshold()).isEqualTo(0.5);
-        assertThat(ParRuntimePurgePolicy.builder().build().enabled()).isFalse();
         assertThat(ParRuntimeDeadlockPolicy.builder().build().enabled()).isFalse();
+    }
+
+    @Test
+    void cancelledQueueEntriesRetainCapacityUntilTheExecutorOwnerPurges() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.MILLISECONDS, new java.util.concurrent.ArrayBlockingQueue<>(1));
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskBatch<Integer> batch = runtime.par(ParId.of("io"))
+                    .submitBatch(
+                            Arrays.asList(0, 1),
+                            value -> {
+                                if (value == 0) {
+                                    entered.countDown();
+                                    com.google.common.util.concurrent.Uninterruptibles.awaitUninterruptibly(release);
+                                }
+                                return value;
+                            },
+                            BatchOptions.timeout("retained", Duration.ofSeconds(30))
+                                    .parallelism(2));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            ExecutionPhaseHintFuture<?> queued =
+                    (ExecutionPhaseHintFuture<?>) executor.getQueue().element();
+            assertThat(batch.results().get(1).cancel(false)).isTrue();
+            assertThat(queued.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
+            assertThat(queued.callableReleased()).isTrue();
+            assertThat(executor.getQueue()).containsExactly(queued);
+            assertThatThrownBy(() -> executor.execute(() -> {})).isInstanceOf(RejectedExecutionException.class);
+            executor.purge();
+            assertThat(executor.getQueue()).isEmpty();
+        } finally {
+            release.countDown();
+            runtime.close();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -686,22 +717,17 @@ class ParRuntimeTest {
         try {
             ParRuntimeDeadlockPolicy deadlock =
                     ParRuntimeDeadlockPolicy.builder().enabled(true).build();
-            ParRuntimePurgePolicy purge =
-                    ParRuntimePurgePolicy.builder().enabled(true).build();
             ParRuntime global = ParRuntime.builder()
                     .deadlockPolicy(deadlock)
-                    .purgePolicy(purge)
                     .register(ParId.of("one"), executor)
                     .build();
 
             assertThat(global.deadlockPolicy()).isSameAs(deadlock);
-            assertThat(global.purgePolicy()).isSameAs(purge);
             assertThat(global.find(ParId.of("one"))).contains(global.par(ParId.of("one")));
             assertThat(global.find(ParId.of("missing"))).isEmpty();
             assertThat(global.pars()).containsOnlyKeys(ParId.of("one"));
             assertThat(global.runtimes()).containsOnlyKeys(ParId.of("one"));
             assertThat(global.runtimesByIdentity()).hasSize(1);
-            assertThat(global.purger()).isNotNull();
             assertThatThrownBy(() -> global.pars().clear()).isInstanceOf(UnsupportedOperationException.class);
         } finally {
             executor.shutdownNow();

@@ -495,7 +495,7 @@ class TaskFutureTest {
 
     /** A prepared future with no observation and no body slot, standing in for a batch element. */
     private static <V> ExecutionPhaseHintFuture<V> preparedFuture(Callable<V> body) {
-        return ExecutionPhaseHintFuture.create(body, phase -> {});
+        return ExecutionPhaseHintFuture.create(body);
     }
 
     @Test

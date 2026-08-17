@@ -141,12 +141,43 @@ choice. Terminal combines reject inline execution by a ThreadPoolExecutor reject
 direct executors remain supported. TaskType/rejectEnqueue alter SmartBlockingQueue admission rather
 than select pools; TaskOptions default enqueue refusal is inert on plain queues and emits a warning.
 Directly registered DiscardPolicy/DiscardOldestPolicy pools are rejected at build time; opaque wrappers
-remain accepted with diagnostics and reduced purge/deadlock visibility.
+remain accepted with diagnostics and reduced deadlock visibility.
 
 Checkpoint guards fail rather than silently skip expired/cancelled work. ParRuntime.close rejects new
 admissions and drains accepted work without owning registered executors; awaitQuiescence includes body
 exit. Graph report futures remain read-only diagnostics published at observation scope close; they are
-not business execution handles. Purge policies and the public queue artifact boundary are unchanged.
+not business execution handles. The public queue artifact boundary is unchanged.
+
+## Executor Queue Cleanup
+
+Automatic purge and `ParRuntimePurgePolicy` are removed. Remove `Builder.purgePolicy(...)`,
+`purgePolicy()`, `purgeEnabled()`, `setPurgeEnabled(...)`, `queuePressureThreshold()`,
+`cancelledTaskRatioThreshold()`, and `adjustPurgeThresholds(...)` calls.
+
+Before:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("io"), ioPool)
+        .purgePolicy(ParRuntimePurgePolicy.builder().enabled(true).build())
+        .build();
+```
+
+After:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("io"), ioPool)
+        .build();
+ioPool.purge(); // at an application-owned maintenance boundary
+```
+
+Cancellation does not automatically remove physical queue entries. Cancelled entries can retain
+bounded queue capacity and cause rejection until dequeued or purged. Applications needing periodic
+cleanup own its schedule and shutdown; one manual purge is not equivalent to cancellation-driven
+maintenance. The removed implementation, configuration, tests, and documentation are preserved on
+`dev/experimental`. The change removes maintenance coordination from the execution kernel; task
+cancellation, interruption delivery, body-exit tracking, and internal execution-phase queries remain.
 
 For executable examples and detailed contracts, see the [user guide](user-guide.md). For 0.1.x
 migration history, see [v0.2 migration](migration-v0.2.md).

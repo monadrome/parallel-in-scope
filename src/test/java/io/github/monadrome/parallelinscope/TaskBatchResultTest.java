@@ -181,7 +181,7 @@ public class TaskBatchResultTest {
     @Test
     public void valuesOrThrow_prefersRecordedSubmissionFailureOnCancelledElement() {
         CancellationToken token = new CancellationToken();
-        ExecutionPhaseHintFuture<String> prepared = ExecutionPhaseHintFuture.create(() -> "unreachable", phase -> {});
+        ExecutionPhaseHintFuture<String> prepared = ExecutionPhaseHintFuture.create(() -> "unreachable");
         Task<String> element = Task.of("batch", token, prepared);
         assertThat(prepared.claimSubmissionFailure(new IllegalStateException("recorded submission failure")))
                 .isTrue();

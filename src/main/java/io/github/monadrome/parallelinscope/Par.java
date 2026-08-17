@@ -80,7 +80,7 @@ public final class Par {
     }
 
     ExecutionPhaseHintFuture<Object> prepareGroupTask(Callable<Object> callable, TaskExecutionContext taskContext) {
-        return TaskSubmissions.prepare(taskContext, callable, executorRuntime.phaseObserver());
+        return TaskSubmissions.prepare(taskContext, callable);
     }
 
     ExecutorIdentity executorIdentity() {
@@ -185,8 +185,8 @@ public final class Par {
         // the observation scope is one of them. Install the scope this unit actually joined -- which
         // may be none -- so the worker does not inherit a binding the ownership rule rejected and
         // hand it to whatever the body submits next.
-        ExecutionPhaseHintFuture<T> future = prepareUnderResolvedScope(
-                observation, () -> TaskSubmissions.prepare(taskContext, task, executorRuntime.phaseObserver()));
+        ExecutionPhaseHintFuture<T> future =
+                prepareUnderResolvedScope(observation, () -> TaskSubmissions.prepare(taskContext, task));
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
@@ -263,8 +263,7 @@ public final class Par {
                 () -> IntStream.range(0, list.size())
                         .mapToObj(index -> TaskSubmissions.prepare(
                                 new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
-                                callableMapper.apply(list.get(index)),
-                                executorRuntime.phaseObserver()))
+                                callableMapper.apply(list.get(index))))
                         .collect(toImmutableList()));
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace);

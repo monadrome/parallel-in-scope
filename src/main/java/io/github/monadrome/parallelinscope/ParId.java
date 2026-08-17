@@ -18,7 +18,7 @@ package io.github.monadrome.parallelinscope;
  *
  * <p>A {@code ParId} proves only that the argument is a well-formed id; it cannot prove the id is
  * registered. {@code of("htpp")} is a valid value that fails at {@link ParRuntime.Builder#build()}
- * or {@link ParRuntime#par(ParId)}. It must never participate in deadlock or purge decisions, which
+ * or {@link ParRuntime#par(ParId)}. It must never participate in deadlock decisions, which
  * are keyed on {@link ExecutorIdentity}.
  */
 public final class ParId {
