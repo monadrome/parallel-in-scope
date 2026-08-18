@@ -45,6 +45,7 @@ public final class CancellationToken {
     private final @Nullable CancellationToken parent;
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
+    private final @Nullable ParentLink parentLink;
 
     /**
      * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
@@ -73,13 +74,15 @@ public final class CancellationToken {
         this.parent = parent;
         this.deadlineNanos = parent == null ? deadlineNanos : Math.min(deadlineNanos, parent.deadlineNanos());
         if (parent != null) {
-            parent.futureToken.addListener(
-                    () -> {
-                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATED_CANCELLED)) {
-                            futureToken.cancel(true);
-                        }
-                    },
-                    directExecutor());
+            // The listener reaches this token through a severable holder: once this token commits a
+            // terminal state, transitionTo clears the holder, so a still-running parent cannot keep
+            // this token — and the results carried by its futureToken — alive through the parent's
+            // pending listener list until the parent itself finishes.
+            ParentLink link = new ParentLink(parent, this);
+            parent.futureToken.addListener(link::parentFinished, directExecutor());
+            this.parentLink = link;
+        } else {
+            this.parentLink = null;
         }
     }
 
@@ -285,6 +288,10 @@ public final class CancellationToken {
     /** Commits a terminal transition from {@code RUNNING}, notifying state listeners when it wins. */
     private boolean transitionTo(State terminal) {
         if (state.compareAndSet(RUNNING, terminal)) {
+            ParentLink link = parentLink;
+            if (link != null) {
+                link.sever();
+            }
             notifyStateListeners(terminal);
             return true;
         }
@@ -298,6 +305,41 @@ public final class CancellationToken {
             } catch (Throwable failure) {
                 LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
             }
+        }
+    }
+
+    /**
+     * The parent side of a parent→child cancellation link.
+     *
+     * <p>The parent's completion listener reaches the child only through this holder. {@link
+     * #parentFinished()} runs when the parent's future completes; it propagates the cancellation
+     * only while the child is still running. {@link CancellationToken#transitionTo} severs the
+     * holder when the child commits any terminal state, so a completed child token — including the
+     * business results carried by its {@code futureToken} — stays collectable instead of being
+     * pinned by the parent's pending listener list for the parent's whole lifetime.
+     */
+    private static final class ParentLink {
+
+        private final CancellationToken parent;
+        private @Nullable CancellationToken child;
+
+        ParentLink(CancellationToken parent, CancellationToken child) {
+            this.parent = parent;
+            this.child = child;
+        }
+
+        void parentFinished() {
+            CancellationToken linked = child;
+            if (linked != null
+                    && parent.state().shouldInterruptCurrentThread()
+                    && linked.transitionTo(PROPAGATED_CANCELLED)) {
+                linked.futureToken.cancel(true);
+            }
+        }
+
+        /** Drops the child reference; called exactly once by the child's own terminal transition. */
+        void sever() {
+            child = null;
         }
     }
 
