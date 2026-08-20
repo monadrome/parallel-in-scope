@@ -16,6 +16,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -313,8 +316,41 @@ public class CancellationTokenTest {
         assertThat(task).isCancelled();
     }
 
-    // ==================== originState ====================
+    @Test
+    public void brokenLogHandlerDoesNotSkipCancellationCascade() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<String> task = SettableFuture.create();
+        token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), TIMER);
+        token.addStateListener(state -> {
+            throw new IllegalStateException("listener boom");
+        });
+        Logger logger = Logger.getLogger(CancellationToken.class.getName());
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                throw new IllegalStateException("handler boom");
+            }
 
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        logger.addHandler(handler);
+        try {
+            token.cancel(true);
+        } finally {
+            logger.removeHandler(handler);
+        }
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(task)
+                .as("a failing listener diagnostic must not skip the futureToken cancellation cascade")
+                .isCancelled();
+    }
+
+    // ==================== originState ====================
     @Test
     public void originStateResolvesThroughPropagationChain() {
         CancellationToken grandparent = CancellationToken.create();
