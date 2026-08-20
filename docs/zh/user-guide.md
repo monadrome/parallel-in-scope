@@ -45,7 +45,7 @@ ParRuntime.installGlobal(global);
 Par defaultPar = ParRuntime.global().defaultPar();
 ```
 
-测试和库代码应优先显式注入。`installGlobal` 只能成功一次，不能替换已有实例。
+测试和库代码应优先显式注入。`installGlobal` 只能成功一次，不能替换已有实例。关闭已安装的实例会释放该槽位，重启的容器可重新安装；对已关闭的实例调用 `installGlobal` 会以 `IllegalStateException` 明确失败，且不占用槽位。
 
 ## 执行批次 {#batch}
 
