@@ -1206,4 +1206,363 @@ class ClosableBlockingQueueTest {
             pool.shutdownNow();
         }
     }
+
+    /** Verifies a blocking put releases a consumer waiting on an empty queue. */
+    @Test
+    void putReleasesConsumerWaitingOnEmptyQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome consumer = fork(pool, queue::take);
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingConsumers() == 1);
+
+            queue.put(1);
+            consumer.awaitDone();
+
+            assertNull(consumer.thrown.get());
+            assertEquals(1, consumer.value.get());
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies a timed offer releases a consumer waiting on an empty queue. */
+    @Test
+    void timedOfferReleasesConsumerWaitingOnEmptyQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome consumer = fork(pool, queue::take);
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingConsumers() == 1);
+
+            assertTrue(queue.offer(1, 1, TimeUnit.SECONDS));
+            consumer.awaitDone();
+
+            assertNull(consumer.thrown.get());
+            assertEquals(1, consumer.value.get());
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies a non-blocking offer releases a consumer waiting on an empty queue. */
+    @Test
+    void offerReleasesConsumerWaitingOnEmptyQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome consumer = fork(pool, queue::take);
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingConsumers() == 1);
+
+            assertTrue(queue.offer(1));
+            consumer.awaitDone();
+
+            assertNull(consumer.thrown.get());
+            assertEquals(1, consumer.value.get());
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies a blocking take releases a producer waiting on a full queue. */
+    @Test
+    void takeReleasesProducerWaitingOnFullQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1);
+        queue.put(0);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome producer = fork(pool, () -> {
+                queue.put(1);
+                return null;
+            });
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingProducers() == 1);
+
+            assertEquals(0, queue.take());
+            producer.awaitDone();
+
+            assertNull(producer.thrown.get());
+            assertEquals(Collections.singletonList(1), new ArrayList<>(queue));
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies a timed poll releases a producer waiting on a full queue. */
+    @Test
+    void timedPollReleasesProducerWaitingOnFullQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1);
+        queue.put(0);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome producer = fork(pool, () -> {
+                queue.put(1);
+                return null;
+            });
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingProducers() == 1);
+
+            assertEquals(0, queue.poll(1, TimeUnit.SECONDS));
+            producer.awaitDone();
+
+            assertNull(producer.thrown.get());
+            assertEquals(Collections.singletonList(1), new ArrayList<>(queue));
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies a non-blocking poll releases a producer waiting on a full queue. */
+    @Test
+    void pollReleasesProducerWaitingOnFullQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1);
+        queue.put(0);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome producer = fork(pool, () -> {
+                queue.put(1);
+                return null;
+            });
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingProducers() == 1);
+
+            assertEquals(0, queue.poll());
+            producer.awaitDone();
+
+            assertNull(producer.thrown.get());
+            assertEquals(Collections.singletonList(1), new ArrayList<>(queue));
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies drainTo releases a producer waiting on a full queue. */
+    @Test
+    void drainToReleasesProducerWaitingOnFullQueue() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1);
+        queue.put(0);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome producer = fork(pool, () -> {
+                queue.put(1);
+                return null;
+            });
+            await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> queue.waitingProducers() == 1);
+
+            List<Integer> drained = new ArrayList<>();
+            assertEquals(1, queue.drainTo(drained));
+            producer.awaitDone();
+
+            assertNull(producer.thrown.get());
+            assertEquals(Collections.singletonList(0), drained);
+            assertEquals(Collections.singletonList(1), new ArrayList<>(queue));
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies timed offer releases the producer monitor so another thread can enqueue. */
+    @Test
+    void timedOfferReleasesProducerMonitorForOtherThreads() throws Exception {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
+        assertTrue(queue.offer(1, 1, TimeUnit.SECONDS));
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome producer = fork(pool, () -> queue.offer(2));
+            producer.awaitDone();
+            assertNull(producer.thrown.get());
+            assertEquals(true, producer.value.get());
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies timed poll, poll, and peek release the consumer monitor for another thread. */
+    @Test
+    void consumerOperationsReleaseTakeMonitorForOtherThreads() throws Exception {
+        ClosableBlockingQueue<Integer> timedPollQueue = new ClosableBlockingQueue<>(2);
+        timedPollQueue.offer(1);
+        timedPollQueue.offer(2);
+        assertEquals(1, timedPollQueue.poll(1, TimeUnit.SECONDS));
+
+        ClosableBlockingQueue<Integer> pollQueue = new ClosableBlockingQueue<>(2);
+        pollQueue.offer(1);
+        pollQueue.offer(2);
+        assertEquals(1, pollQueue.poll());
+
+        ClosableBlockingQueue<Integer> peekQueue = new ClosableBlockingQueue<>(1);
+        peekQueue.offer(1);
+        assertEquals(1, peekQueue.peek());
+
+        ExecutorService pool = Executors.newFixedThreadPool(3);
+        try {
+            Outcome timedPollConsumer = fork(pool, timedPollQueue::take);
+            Outcome pollConsumer = fork(pool, pollQueue::take);
+            Outcome peekConsumer = fork(pool, peekQueue::take);
+            timedPollConsumer.awaitDone();
+            pollConsumer.awaitDone();
+            peekConsumer.awaitDone();
+
+            assertNull(timedPollConsumer.thrown.get());
+            assertNull(pollConsumer.thrown.get());
+            assertNull(peekConsumer.thrown.get());
+            assertEquals(2, timedPollConsumer.value.get());
+            assertEquals(2, pollConsumer.value.get());
+            assertEquals(1, peekConsumer.value.get());
+        } finally {
+            timedPollQueue.close();
+            pollQueue.close();
+            peekQueue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies remove and getLast release both monitors for another thread. */
+    @Test
+    void bothMonitorOperationsReleaseLocksForOtherThreads() throws Exception {
+        ClosableBlockingQueue<Integer> removeQueue = new ClosableBlockingQueue<>(2);
+        removeQueue.offer(1);
+        removeQueue.offer(2);
+        assertTrue(removeQueue.remove(1));
+
+        ClosableBlockingQueue<Integer> getLastQueue = new ClosableBlockingQueue<>(1);
+        getLastQueue.offer(1);
+        assertEquals(1, getLastQueue.getLast());
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Outcome removeConsumer = fork(pool, removeQueue::take);
+            Outcome getLastConsumer = fork(pool, getLastQueue::take);
+            removeConsumer.awaitDone();
+            getLastConsumer.awaitDone();
+
+            assertNull(removeConsumer.thrown.get());
+            assertNull(getLastConsumer.thrown.get());
+            assertEquals(2, removeConsumer.value.get());
+            assertEquals(1, getLastConsumer.value.get());
+        } finally {
+            removeQueue.close();
+            getLastQueue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies bulk, equality, and drain return values match the actual queue mutations. */
+    @Test
+    void bulkAndEqualityOperationsReportCorrectResults() {
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(10);
+        assertTrue(queue.addAll(Arrays.asList(1, 2, 3)));
+        assertFalse(queue.addAll(Collections.emptyList()));
+        assertTrue(queue.removeAll(Arrays.asList(1, 99)));
+        assertFalse(queue.removeAll(Collections.emptyList()));
+        assertTrue(queue.retainAll(Arrays.asList(2, 99)));
+        assertFalse(queue.retainAll(Arrays.asList(2, 99)));
+        assertFalse(queue.removeIf(value -> value > 100));
+        assertTrue(queue.removeIf(value -> value == 2));
+
+        ClosableBlockingQueue<String> removeQueue = new ClosableBlockingQueue<>(3);
+        removeQueue.offer("a");
+        removeQueue.offer("b");
+        assertTrue(removeQueue.remove("a"));
+        assertFalse(removeQueue.remove("a"));
+        assertFalse(removeQueue.remove("missing"));
+        assertFalse(removeQueue.remove(null));
+        assertEquals(Collections.singletonList("b"), new ArrayList<>(removeQueue));
+
+        ClosableBlockingQueue<Integer> drainQueue = new ClosableBlockingQueue<>(4);
+        drainQueue.offer(1);
+        drainQueue.offer(2);
+        assertEquals(0, drainQueue.drainTo(new ArrayList<>(), 0));
+        assertEquals(0, drainQueue.drainTo(new ArrayList<>(), -1));
+        assertEquals(Arrays.asList(1, 2), new ArrayList<>(drainQueue));
+
+        ClosableBlockingQueue<Integer> full = new ClosableBlockingQueue<>(1);
+        full.offer(1);
+        assertThrows(IllegalStateException.class, () -> full.addFirst(2));
+    }
+
+    /** Verifies lifecycle diagnostics and identity follow the current service state. */
+    @Test
+    void lifecycleDiagnosticsReflectCurrentState() throws Exception {
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
+        assertFalse(queue.isRunning());
+        assertFalse(queue.isShutdown());
+        assertThrows(IllegalStateException.class, queue::failureCause);
+
+        assertSame(queue, queue.startAsync());
+        queue.awaitRunning(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertTrue(queue.isRunning());
+
+        queue.close();
+        queue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertFalse(queue.isRunning());
+        assertTrue(queue.isShutdown());
+    }
+
+    /** Verifies a closed queue rejects a null-target remove before reporting no match. */
+    @Test
+    void closedQueueRejectsNullTargetRemove() {
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
+        queue.offer("a");
+        queue.close();
+        queue.awaitTerminated();
+        assertThrows(QueueShutdownException.class, () -> queue.remove(null));
+    }
+
+    /** Verifies awaitRunning blocks until the service is explicitly started. */
+    @Test
+    void awaitRunningBlocksUntilServiceStarts() throws Exception {
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome awaitOutcome = fork(pool, () -> {
+                queue.awaitRunning();
+                return null;
+            });
+            await().atMost(2, TimeUnit.SECONDS)
+                    .until(() -> queue.state() == Service.State.NEW);
+            assertFalse(awaitOutcome.done.getCount() == 0, "awaitRunning must block until start");
+
+            queue.startAsync();
+            awaitOutcome.awaitDone();
+            assertNull(awaitOutcome.thrown.get());
+        } finally {
+            queue.close();
+            pool.shutdownNow();
+        }
+    }
+
+    /** Verifies awaitTerminated blocks until the service is stopped. */
+    @Test
+    void awaitTerminatedBlocksUntilServiceStops() throws Exception {
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
+        queue.startAsync();
+        queue.awaitRunning(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Outcome awaitOutcome = fork(pool, () -> {
+                queue.awaitTerminated(1, TimeUnit.HOURS);
+                return null;
+            });
+            assertFalse(awaitOutcome.done.getCount() == 0, "awaitTerminated must block until stop");
+
+            queue.stopAsync();
+            awaitOutcome.awaitDone();
+            assertNull(awaitOutcome.thrown.get());
+        } finally {
+            pool.shutdownNow();
+        }
+    }
 }

@@ -216,10 +216,10 @@
                         <configuration>
                             <testPlugin>junit5</testPlugin>
                             <targetClasses>
-                                <param>io.github.huatalk.parallelinscope.queue.MonitorLinkedBlockingQueue</param>
+                                <param>io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue</param>
                             </targetClasses>
                             <targetTests>
-                                <param>io.github.huatalk.parallelinscope.MonitorLinkedBlockingQueueTest</param>
+                                <param>io.github.huatalk.parallelinscope.queue.ClosableBlockingQueueTest</param>
                             </targetTests>
                             <outputFormats>
                                 <param>HTML</param>
