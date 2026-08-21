@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConcurrentHashMap 的锁：边界画在哪里</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color: #1f2328; line-height: 1.85; background: #fff; padding: 36px 20px 60px; }
+article { max-width: 780px; margin: 0 auto; }
+h1 { font-size: 28px; line-height: 1.35; margin-bottom: 6px; }
+.subtitle { color: #57606a; font-size: 15px; margin-bottom: 28px; }
+h2 { font-size: 19px; margin: 44px 0 12px; padding-left: 10px; border-left: 4px solid #0969da; }
+p { margin: 12px 0; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; background: #f6f8fa; padding: 1px 5px; border-radius: 4px; }
+pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.65; }
+pre code { background: none; padding: 0; }
+.lead { font-size: 16px; color: #333; border-left: 3px solid #d0d7de; padding-left: 14px; margin: 18px 0 8px; }
+.figure { border: 1px solid #d0d7de; border-radius: 10px; margin: 16px 0; }
+.fig-title { background: #f6f8fa; border-bottom: 1px solid #d0d7de; padding: 8px 14px; font-weight: 600; font-size: 13.5px; }
+.fig-body { padding: 16px 14px; }
+.fig-note { color: #57606a; font-size: 13px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d8dee4; }
+.bins { display: flex; gap: 3px; flex-wrap: wrap; }
+.bin { width: 40px; height: 32px; border: 1px solid #d0d7de; background: #f6f8fa; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: "SF Mono", Menlo, monospace; }
+.bin.locked { background: #fff8c5; border-color: #d4a72c; font-size: 10px; }
+.bin.cas { background: #dafbe1; border-color: #1a7f37; font-size: 9px; }
+.gen { margin-bottom: 10px; }
+.gen-label { font-size: 12.5px; font-weight: 600; margin-bottom: 5px; }
+table.sync { border-collapse: collapse; font-size: 14px; margin: 12px 0; width: 100%; }
+table.sync th, table.sync td { border: 1px solid #d0d7de; padding: 7px 12px; text-align: left; vertical-align: top; }
+table.sync th { background: #f6f8fa; }
+.tree { font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+.tree .line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.tree .box { border: 1px solid #d0d7de; background: #f6f8fa; border-radius: 6px; padding: 4px 10px; }
+.tree .box.cas { background: #dafbe1; border-color: #1a7f37; }
+.tree .box.lk { background: #fff8c5; border-color: #d4a72c; }
+.tree .box.help { background: #ddf4ff; border-color: #0969da; }
+.tree .tag { color: #8c959f; font-size: 12px; }
+.tree .junc { color: #8c959f; padding-left: 14px; }
+.tree .ind { padding-left: 22px; }
+.states { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.state { border: 1px solid #d0d7de; border-radius: 10px; padding: 12px 16px; background: #fbfcfd; flex: 1; min-width: 200px; }
+.state b { display: block; font-size: 14px; margin-bottom: 6px; }
+.state div { font-size: 12.5px; color: #57606a; }
+.state.live { border-color: #1a7f37; }
+.state.live b { color: #1a7f37; }
+.state.fwd { border-color: #d4a72c; background: #fff8c5; }
+.state.fwd b { color: #9a6700; }
+.state-arrow { color: #8c959f; font-size: 13px; text-align: center; }
+.boundary { display: flex; gap: 0; border: 1px solid #d0d7de; border-radius: 10px; overflow: hidden; }
+.boundary .side { flex: 1; padding: 14px 16px; }
+.boundary .side h4 { font-size: 13.5px; margin-bottom: 8px; }
+.boundary .locked { background: #fff8c5; }
+.boundary .locked h4 { color: #9a6700; }
+.boundary .free { background: #f6f8fa; }
+.boundary .free h4 { color: #0969da; }
+.boundary .sep { width: 3px; background: #0969da; position: relative; }
+.boundary .sep span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); writing-mode: vertical-rl; font-size: 12px; color: #fff; background: #0969da; padding: 8px 4px; border-radius: 4px; letter-spacing: 2px; white-space: nowrap; }
+.boundary ul { list-style: none; font-size: 13px; }
+.boundary li { padding: 3px 0; }
+.boundary li::before { content: "· "; color: #8c959f; }
+.insight { background: #ddf4ff; border-left: 4px solid #0969da; border-radius: 0 8px 8px 0; padding: 10px 16px; margin: 14px 0; font-size: 14.5px; }
+.insight b { color: #0969da; }
+.three { display: flex; gap: 12px; flex-wrap: wrap; margin: 18px 0; }
+.tcard { flex: 1; min-width: 200px; border: 1px solid #d0d7de; border-radius: 10px; padding: 14px 16px; background: #fbfcfd; counter-increment: tc; }
+.tcard .n { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #0969da; color: #fff; text-align: center; line-height: 22px; font-size: 12px; margin-bottom: 8px; }
+.tcard div { font-size: 13.5px; }
+footer { margin-top: 44px; padding-top: 12px; border-top: 1px solid #d0d7de; color: #8c959f; font-size: 12px; }
+</style>
+</head>
+<body>
+<article>
+
+<h1>ConcurrentHashMap 的锁：边界画在哪里</h1>
+<div class="subtitle">能 CAS 就不锁，能局部锁就不全局锁，读永远不锁 —— 基于 JDK 8（Corretto 8.412）</div>
+
+<div class="lead">
+问 CHM 怎么加锁，不如问：<b>哪里不需要锁</b>。JDK 8 的答案写在一个 <code>putVal</code> 里——
+一个循环，三个分支，只有一个分支有锁。
+</div>
+
+<h2>一、锁的粒度跟着数据结构走</h2>
+
+<p>三代实现，三种锁的覆盖范围：</p>
+
+<div class="figure">
+  <div class="fig-title">图 1 · 锁的粒度演化（16 个 bin 的表，黄色 = 被锁范围）</div>
+  <div class="fig-body">
+    <div class="gen">
+      <div class="gen-label">Hashtable：整个表一把锁</div>
+      <div class="bins">
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div>
+      </div>
+    </div>
+    <div class="gen">
+      <div class="gen-label">JDK 7：锁分段（默认 16 段，段内整段锁）</div>
+      <div class="bins">
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+        <div class="bin locked">🔒</div><div class="bin locked">🔒</div>
+      </div>
+    </div>
+    <div class="gen">
+      <div class="gen-label">JDK 8：锁 bin 头节点；空 bin 无锁（CAS）</div>
+      <div class="bins">
+        <div class="bin cas">CAS</div><div class="bin">-</div><div class="bin">-</div><div class="bin">-</div>
+        <div class="bin">-</div><div class="bin locked">🔒</div><div class="bin cas">CAS</div><div class="bin">-</div>
+        <div class="bin">-</div><div class="bin">-</div><div class="bin">-</div><div class="bin">-</div>
+        <div class="bin">-</div><div class="bin cas">CAS</div><div class="bin">-</div><div class="bin">-</div>
+      </div>
+    </div>
+    <div class="fig-note">
+      锁的粒度在收敛到<b>数据结构的最小一致单元</b>：JDK 8 的最小一致单元是一条链表（平均长度 ≈ 1），锁就缩到一条链。
+      JDK 7 的 segment 本质是"为了少写 CAS 而粗化"的锁；JDK 8 用 CAS 补齐了细粒度，锁自然退到只剩"必须锁的地方"。
+    </div>
+  </div>
+</div>
+
+<h2>二、三把尺子，管三件事</h2>
+
+<p>CHM 的同步不是一个"锁"，而是三种机制按操作触及的范围分工：</p>
+
+<table class="sync">
+  <tr><th>机制</th><th>管什么</th><th>用在哪里</th></tr>
+  <tr><td><b>volatile</b></td><td>看到什么（可见性）</td><td>bin 槽、<code>Node.val</code> / <code>Node.next</code>、迁移的三步发布</td></tr>
+  <tr><td><b>CAS</b></td><td>放什么（单点状态翻转）</td><td>空 bin 插入、<code>transferIndex</code> 领活、<code>sizeCtl</code>、计数</td></tr>
+  <tr><td><b>synchronized (f)</b></td><td>怎么改（结构变更）</td><td>链表插入/删除、树操作、迁移拆链</td></tr>
+</table>
+
+<div class="insight">
+<b>洞察：</b>三者的分界不是"并发程度"，而是"操作触及的范围"——一个字段用 volatile，一个槽位用 CAS，一条链用锁。
+<b>锁不是最小的同步单位，字段才是。</b>
+</div>
+
+<h2>三、putVal 的三个分支，就是锁的必要条件</h2>
+
+<div class="figure">
+  <div class="fig-title">图 2 · putVal 的决策树：锁只在最后一个分支出现</div>
+  <div class="fig-body">
+    <div class="tree">
+      <div class="line"><span class="box">put(key, value)</span></div>
+      <div class="junc">│</div>
+      <div class="line"><span class="box">tabAt(tab, i) == null ?</span></div>
+      <div class="junc">├─ 是 →</div>
+      <div class="line ind"><span class="box cas">casTabAt(tab, i, null, node)</span> <span class="tag">CAS，无锁——空 bin，没有结构</span></div>
+      <div class="junc">└─ 否 →</div>
+      <div class="line ind"><span class="box">f.hash == MOVED ?</span></div>
+      <div class="junc ind">├─ 是 →</div>
+      <div class="line ind"><span class="box help">helpTransfer(tab, f)，然后重试</span> <span class="tag">bin 正在迁移：帮忙，去新表</span></div>
+      <div class="junc ind">└─ 否 →</div>
+      <div class="line ind"><span class="box lk">synchronized (f) { 双检 → 插入 / 更新 }</span> <span class="tag">锁 bin 头节点</span></div>
+    </div>
+    <div class="fig-note">
+      三个分支的先后顺序本身就是优先级：<b>能 CAS 就不锁</b>。双检 <code>tabAt(tab, i) == f</code> 处理"拿到锁之前 bin 已被迁移"——
+      锁的对象是头节点，迁移会把头节点换成 ForwardingNode，双检失效即重试。
+    </div>
+  </div>
+</div>
+
+<div class="insight">
+<b>洞察：锁的必要条件不是"多个线程可能同时写"，而是"写会破坏共享结构"。</b>
+空 bin 的写入是"无中生有"——CAS 一个槽就够，没有结构可破坏；
+链表的写入是"有中改有"——必须锁住整条链，结构才完整。
+</div>
+
+<h2>四、迁移和写者，共用一把锁</h2>
+
+<div class="figure">
+  <div class="fig-title">图 3 · bin 的一生：从活 bin 到 ForwardingNode，一次原子转换</div>
+  <div class="fig-body">
+    <div class="states">
+      <div class="state live">
+        <b>活 bin</b>
+        <div>链表完整，可读可写<br>写者：synchronized (f) 修改</div>
+      </div>
+      <div class="state-arrow">── transfer 在<br>synchronized (f) 内三步 ──▶</div>
+      <div class="state fwd">
+        <b>ForwardingNode</b>
+        <div>指向新表<br>写者：helpTransfer 帮忙后<br>去新表重试</div>
+      </div>
+    </div>
+    <div class="fig-note">
+      三步：① 双检 ② 拆链（全部新建节点）写新表 {i, i+n} ③ 旧表原子替换为 FWD。
+      对写者而言不存在"正在迁移的 bin"：要么迁移前写旧表，要么迁移后写新表。
+    </div>
+  </div>
+</div>
+
+<p>这里有一处容易被忽略的精妙设计：<b>迁移用的锁和写者用的锁是同一把</b>（都是 <code>synchronized (f)</code> + 双检）。
+一个 bin 从"活"到"FWD"因此成为一次原子转换——不需要专门的迁移锁，不需要读写锁，一把 bin 锁就协调了写者与迁移者的全部关系。
+而 <code>transferIndex</code> 用 CAS 分片领活，让撞到 FWD 的写者（<code>helpTransfer</code>）顺手帮忙搬几个 bin：
+迁移是多线程协作的，锁只保证同一 bin 互斥，不同 bin 全程并行。</p>
+
+<h2>五、读永远无锁：锁的边界</h2>
+
+<div class="figure">
+  <div class="fig-title">图 4 · 锁的边界：写写互斥，读写从不互斥</div>
+  <div class="fig-body">
+    <div class="boundary">
+      <div class="side locked">
+        <h4>🔒 锁内（synchronized (f)）</h4>
+        <ul>
+          <li>写者：put / remove / compute / merge</li>
+          <li>迁移：transfer 转发 bin</li>
+        </ul>
+      </div>
+      <div class="sep"><span>边界</span></div>
+      <div class="side free">
+        <h4>无锁（volatile 读）</h4>
+        <ul>
+          <li>get / containsKey</li>
+          <li>迭代 Traverser（含扩容中的下降）</li>
+          <li>size() / isEmpty()</li>
+        </ul>
+      </div>
+    </div>
+    <div class="fig-note">
+      读无锁安全，靠两个事实：① 迁移<b>不原地修改旧链</b>（全部新建节点，只有链尾被复用），旧 bin 要么完整、要么 FWD（volatile 发布）；
+      ② <code>Node.val</code> / <code>Node.next</code> 是 volatile，链上读到的一定是完整状态。
+    </div>
+  </div>
+</div>
+
+<p>代价是弱一致性：迭代结果不精确、<code>size()</code> 是近似值、迁移期间会漏看。这是一笔明账——</p>
+
+<div class="insight">
+<b>洞察：</b>数据库锁的世界观是"读写都加锁，防止读到中间状态"；CHM 用<b>不可变发布</b>换掉了读锁，
+把一致性成本从"锁"转移给了"契约"（弱一致）。<b>读无锁不是白来的，是弱一致性买来的。</b>
+</div>
+
+<h2>六、三句话</h2>
+
+<div class="three">
+  <div class="tcard"><span class="n">1</span><div><b>能 CAS 就不锁，能局部锁就不全局锁，读永远不锁。</b></div></div>
+  <div class="tcard"><span class="n">2</span><div><b>锁的粒度 = 数据结构的最小一致单元。</b>JDK 8 的最小单元是一条链，锁就缩到一条链。</div></div>
+  <div class="tcard"><span class="n">3</span><div><b>锁保护的不是并发，是结构。</b>并发天然存在，锁只是让结构的变化有序发生——仅此而已。</div></div>
+</div>
+
+<h2>附录 · 源码关键行（JDK 8）</h2>
+
+<pre><code>// putVal：三个分支，锁只在最后一个
+if (f == null)
+    casTabAt(tab, i, null, new Node&lt;K,V&gt;(hash, key, value, null)); // CAS
+else if ((fh = f.hash) == MOVED)
+    tab = helpTransfer(tab, f);           // 帮忙迁移
+else {
+    synchronized (f) {                    // 锁 bin 头节点
+        if (tabAt(tab, i) == f) { ... }   // 双检
+    }
+}
+
+// transfer：和写者同一把锁、同一个双检；三步 volatile 写
+synchronized (f) {
+    if (tabAt(tab, i) == f) {
+        ... // 全部新建节点，旧链不动
+        setTabAt(nextTab, i, ln);         // 新表低半区
+        setTabAt(nextTab, i + n, hn);     // 新表高半区
+        setTabAt(tab, i, fwd);            // 旧表放 ForwardingNode
+    }
+}
+
+// 无锁读的地基：volatile 字段
+volatile V val;
+volatile Node&lt;K,V&gt; next;
+static final &lt;K,V&gt; Node&lt;K,V&gt; tabAt(Node&lt;K,V&gt;[] tab, int i) {
+    return (Node&lt;K,V&gt;)U.getObjectVolatile(tab, ((long)i &lt;&lt; ASHIFT) + ABASE);
+}</code></pre>
+
+<footer>
+生成于 2026-08-16 · 基于 Corretto 8.412（JDK 8）源码 · 配套阅读：tmp/chm-iterator-no-duplicate.html（迁移与迭代的图解证明）
+</footer>
+
+</article>
+</body>
+</html>
