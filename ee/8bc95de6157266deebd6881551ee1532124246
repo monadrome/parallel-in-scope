@@ -1,0 +1,24 @@
+src/test/java/io/github/huatalk/parallelinscope/queue/ClosableBlockingQueueTest.java
+  s_289bf50fb54a83::t_bd876ba57f7c12 1530-1533,1536
+  s_289bf50fb54a83::t_4dadf218c61989 1555-1559
+  s_289bf50fb54a83::t_5889833685ac2e 1209-1512
+  s_289bf50fb54a83::t_a339f5d0649cfd 1513-1529,1534-1535,1537-1554,1560-1567
+pom.xml
+  s_289bf50fb54a83::t_efa5329f51b4f4 219,222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "ee8bc95de6157266deebd6881551ee1532124246",
+  "prompts": {},
+  "sessions": {
+    "s_289bf50fb54a83": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bdf4c786-329c-4e2f-9f7a-cf4db44a5b17",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
