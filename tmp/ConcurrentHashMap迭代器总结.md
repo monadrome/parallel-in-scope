@@ -21,6 +21,86 @@
 
 ---
 
+## 一个可控的弱一致性示例：看到了 remove，看不到 put
+
+下面的例子不依赖线程运行速度“碰巧”形成时序，而是用两个 `CountDownLatch` 把时序固定下来：
+
+1. 先放入 `old-0`（桶 0）、`old-1`（桶 1）和 `old-2`（桶 2）；
+2. 迭代器读完桶 0 后暂停；
+3. 另一个线程向**已经扫过的桶 0** 放入 `new-0`，并从**尚未扫描的桶 2** 删除 `old-2`；
+4. 放行迭代器继续扫描。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+
+public class ChmWeakConsistencyDemo {
+    // 固定 hash，保证示例中的两个 bin 相邻（初始容量 16）
+    static final class Key {
+        final String name;
+        final int hash;
+
+        Key(String name, int hash) {
+            this.name = name;
+            this.hash = hash;
+        }
+
+        @Override public int hashCode() { return hash; }
+        @Override public boolean equals(Object obj) {
+            return obj instanceof Key && name.equals(((Key) obj).name);
+        }
+        @Override public String toString() { return name; }
+    }
+
+    public static void main(String[] args) throws Exception {
+        ConcurrentHashMap<Key, String> map = new ConcurrentHashMap<>(16);
+        Key old0 = new Key("old-0", 0); // bin 0
+        Key old1 = new Key("old-1", 1); // bin 1
+        Key old2 = new Key("old-2", 2); // bin 2
+        Key new0 = new Key("new-0", 0); // 与 old0 同 bin
+        map.put(old0, "old");
+        map.put(old1, "old");
+        map.put(old2, "old");
+
+        CountDownLatch firstBinRead = new CountDownLatch(1);
+        CountDownLatch allowContinue = new CountDownLatch(1);
+        List<Key> seen = new ArrayList<>();
+
+        Thread iterator = new Thread(() -> {
+            for (Key key : map.keySet()) {
+                seen.add(key);
+                if (key.equals(old0)) {
+                    firstBinRead.countDown();
+                    try {
+                        allowContinue.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        });
+
+        iterator.start();
+        firstBinRead.await();       // 迭代器已扫过 bin 0
+        map.put(new0, "new");       // 新元素落入已扫过的 bin 0：本趟可能看不到
+        map.remove(old2);            // 删除尚未预取的 bin 2：本趟看不到 old2
+        allowContinue.countDown();
+        iterator.join();
+
+        System.out.println("seen  = " + seen);
+        System.out.println("map   = " + map.keySet());
+        // 输出：seen=[old-0, old-1]，map=[old-0, old-1, new-0]
+    }
+}
+```
+
+这个输出正是弱一致性的一个具体表现：`new-0` 在迭代器经过桶 0 之后才插入，因此没有第二次进入桶 0 的机会；`old-2` 则在迭代器到达桶 2 之前、且未被预取时删除，因此迭代器读到的是删除后的结构。注意这里的“典型输出”不是 API 对顺序和完整性的保证，弱一致迭代器只保证不会抛 `ConcurrentModificationException`，不保证看到某个并发时刻的精确快照。
+
+---
+
 ## 一、迭代器行走的三个事实
 
 迭代器（`Traverser`）的行为由三个事实决定。理解了它们，"不会重复"就是顺理成章的结果。
