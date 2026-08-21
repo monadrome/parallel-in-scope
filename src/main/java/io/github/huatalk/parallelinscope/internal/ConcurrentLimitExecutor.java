@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -130,16 +131,53 @@ public class ConcurrentLimitExecutor<V> {
             try {
                 completed = blockingQueue.take();
             } catch (InterruptedException e) {
+                abandonRemaining(result, index, e);
                 Thread.currentThread().interrupt();
                 return submitted;
             }
-            if (completed.isCancelled() || result.get(index).isCancelled() || Thread.interrupted()) {
+            if (completed.isCancelled() || result.get(index).isCancelled()) {
+                abandonRemaining(result, index, null);
                 return submitted;
             }
-            ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+            if (Thread.currentThread().isInterrupted()) {
+                abandonRemaining(result, index, new InterruptedException(
+                        "submitter thread interrupted while scheduling remaining tasks"));
+                Thread.currentThread().interrupt();
+                return submitted;
+            }
+            try {
+                ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+            } catch (RuntimeException e) {
+                abandonRemaining(result, index, e);
+                throw e;
+            }
             submitted++;
             index++;
         }
         return submitted;
+    }
+
+    /**
+     * Completes every future that will never receive a submission so the batch always reaches
+     * a terminal state. A submission that is abandoned mid-batch would otherwise leave those
+     * futures incomplete forever, so a caller awaiting them blocks indefinitely; completing
+     * them also fails the batch fast through {@link Futures#allAsList}, making the reason
+     * visible in {@link AsyncBatchResult#report()}.
+     *
+     * @param result    the batch futures
+     * @param fromIndex the first never-submitted future index (inclusive)
+     * @param reason    the failure reported for the abandoned futures, or {@code null} to
+     *                  cancel them when the batch is already being cancelled
+     */
+    private static <V> void abandonRemaining(
+            List<ListenableFuture<V>> result, int fromIndex, @Nullable Throwable reason) {
+        for (int i = fromIndex; i < result.size(); i++) {
+            SettableFuture<V> future = (SettableFuture<V>) result.get(i);
+            if (reason != null) {
+                future.setException(reason);
+            } else {
+                future.cancel(true);
+            }
+        }
     }
 }

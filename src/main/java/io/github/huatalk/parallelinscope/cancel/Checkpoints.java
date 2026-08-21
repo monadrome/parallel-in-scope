@@ -89,7 +89,7 @@ public final class Checkpoints {
         try {
             latch.await();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during latch await by interruption");
+            throw interrupted("Cancel during latch await by interruption", e);
         }
     }
 
@@ -118,7 +118,7 @@ public final class Checkpoints {
         try {
             return latch.await(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during latch await by interruption");
+            throw interrupted("Cancel during latch await by interruption", e);
         }
     }
 
@@ -147,7 +147,7 @@ public final class Checkpoints {
         try {
             return condition.await(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during condition await by interruption");
+            throw interrupted("Cancel during condition await by interruption", e);
         }
     }
 
@@ -161,7 +161,7 @@ public final class Checkpoints {
         try {
             thread.join();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during thread join by interruption");
+            throw interrupted("Cancel during thread join by interruption", e);
         }
     }
 
@@ -188,7 +188,7 @@ public final class Checkpoints {
         try {
             unit.timedJoin(thread, timeout);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during thread join by interruption");
+            throw interrupted("Cancel during thread join by interruption", e);
         }
     }
 
@@ -205,7 +205,7 @@ public final class Checkpoints {
         try {
             return future.get();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during future get by interruption");
+            throw interrupted("Cancel during future get by interruption", e);
         }
     }
 
@@ -242,7 +242,7 @@ public final class Checkpoints {
         try {
             return future.get(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during future get by interruption");
+            throw interrupted("Cancel during future get by interruption", e);
         }
     }
 
@@ -258,7 +258,7 @@ public final class Checkpoints {
         try {
             return queue.take();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during queue take by interruption");
+            throw interrupted("Cancel during queue take by interruption", e);
         }
     }
 
@@ -274,7 +274,7 @@ public final class Checkpoints {
         try {
             queue.put(element);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during queue put by interruption");
+            throw interrupted("Cancel during queue put by interruption", e);
         }
     }
 
@@ -299,7 +299,7 @@ public final class Checkpoints {
         try {
             unit.sleep(duration);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during sleep by interruption");
+            throw interrupted("Cancel during sleep by interruption", e);
         }
     }
 
@@ -356,7 +356,7 @@ public final class Checkpoints {
         try {
             return semaphore.tryAcquire(permits, timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during semaphore acquisition by interruption");
+            throw interrupted("Cancel during semaphore acquisition by interruption", e);
         }
     }
 
@@ -385,7 +385,7 @@ public final class Checkpoints {
         try {
             return lock.tryLock(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during lock acquisition by interruption");
+            throw interrupted("Cancel during lock acquisition by interruption", e);
         }
     }
 
@@ -425,7 +425,7 @@ public final class Checkpoints {
         try {
             return executor.awaitTermination(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during executor termination wait by interruption");
+            throw interrupted("Cancel during executor termination wait by interruption", e);
         }
     }
 
@@ -509,9 +509,11 @@ public final class Checkpoints {
         }
     }
 
-    private static LeanCancellationException interrupted(String message) {
+    private static LeanCancellationException interrupted(String message, InterruptedException cause) {
         Thread.currentThread().interrupt();
-        return cancellation(message);
+        LeanCancellationException cancellation = cancellation(message);
+        cancellation.initCause(cause);
+        return cancellation;
     }
 
     private static LeanCancellationException cancellation(String message) {

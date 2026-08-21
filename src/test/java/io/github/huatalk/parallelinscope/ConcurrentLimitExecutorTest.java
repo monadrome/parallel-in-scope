@@ -22,10 +22,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -252,5 +255,140 @@ public class ConcurrentLimitExecutorTest {
         // Tasks 2 and 3 should still complete (sliding window continues past failures)
         assertThat(result.getResults().get(2).get(5, TimeUnit.SECONDS)).isEqualTo(3);
         assertThat(result.getResults().get(3).get(5, TimeUnit.SECONDS)).isEqualTo(4);
+    }
+
+    @Test
+    public void testSubmitAll_taskThrowsInterruptedException_futureCompletesWithFailure() throws Exception {
+        // SI-8938: an InterruptedException thrown by task code (e.g. Thread.sleep) must
+        // complete the future exceptionally instead of leaving it incomplete forever.
+        ParOptions options = ParOptions.of("test")
+                .parallelism(2)
+                .timeout(5000)
+                .taskType(TaskType.IO_BOUND)
+                .rejectEnqueue(false)
+                .build();
+        ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(pool, options, submitterPool);
+
+        List<Callable<Integer>> tasks = new ArrayList<>();
+        tasks.add(() -> { throw new InterruptedException("sleep interrupted"); });
+        tasks.add(() -> 2);
+
+        AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+
+        assertThatThrownBy(() -> result.getResults().get(0).get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(InterruptedException.class);
+        // The failing task must not stall the sliding window for the other tasks.
+        assertThat(result.getResults().get(1).get(5, TimeUnit.SECONDS)).isEqualTo(2);
+    }
+
+    @Test
+    public void testSubmitAll_submitterInterrupted_completesRemainingFutures() throws Exception {
+        // SI-8938 regression: an interrupted submission loop must not leave the
+        // not-yet-submitted futures incomplete forever.
+        AtomicReference<Thread> submitterThread = new AtomicReference<>();
+        ExecutorService singleSubmitter = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "TestSubmitter-Interrupt");
+            submitterThread.set(t);
+            t.setDaemon(true);
+            return t;
+        });
+        ListeningExecutorService singleSubmitterPool = MoreExecutors.listeningDecorator(singleSubmitter);
+
+        CountDownLatch started = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+
+        ParOptions options = ParOptions.of("test")
+                .parallelism(2)
+                .timeout(5000)
+                .taskType(TaskType.IO_BOUND)
+                .rejectEnqueue(false)
+                .build();
+        ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(pool, options, singleSubmitterPool);
+
+        List<Callable<Integer>> tasks = IntStream.range(0, 6)
+                .mapToObj(i -> (Callable<Integer>) () -> {
+                    started.countDown();
+                    release.await(10, TimeUnit.SECONDS);
+                    return i;
+                })
+                .collect(Collectors.toList());
+
+        AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+
+        // Both initial-batch tasks block, so the submitter loop is parked in take() and
+        // no completion can advance it before the interrupt arrives.
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+        await().atMost(5, TimeUnit.SECONDS).until(() -> submitterThread.get() != null);
+
+        submitterThread.get().interrupt();
+        release.countDown();
+
+        // Every future must reach a terminal state: tasks 0/1 succeed, tasks 2..5 fail
+        // with the interrupted submission instead of never completing.
+        await().atMost(10, TimeUnit.SECONDS).until(() ->
+                result.getResults().stream().allMatch(ListenableFuture::isDone));
+        for (int i = 2; i < 6; i++) {
+            final int taskIndex = i;
+            assertThatThrownBy(() -> result.getResults().get(taskIndex).get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(InterruptedException.class);
+        }
+        // The submission loop itself returned normally after abandoning the batch.
+        assertThat(result.getSubmitCanceller().get(5, TimeUnit.SECONDS)).isEqualTo(0);
+
+        singleSubmitterPool.shutdownNow();
+    }
+
+    @Test
+    public void testSubmitAll_midBatchRejection_completesRemainingFutures() throws Exception {
+        // SI-8938 regression: a rejection while the sliding window is still filling must
+        // complete the remaining futures with the rejection instead of never completing them.
+        ExecutorService shuttingPool = Executors.newFixedThreadPool(2);
+        ListeningExecutorService shuttingPoolDecorated = MoreExecutors.listeningDecorator(shuttingPool);
+        CountDownLatch shutdownDone = new CountDownLatch(1);
+
+        ParOptions options = ParOptions.of("test")
+                .parallelism(2)
+                .timeout(5000)
+                .taskType(TaskType.IO_BOUND)
+                .rejectEnqueue(false)
+                .build();
+        ConcurrentLimitExecutor<Integer> executor =
+                ConcurrentLimitExecutor.create(shuttingPoolDecorated, options, submitterPool);
+
+        List<Callable<Integer>> tasks = new ArrayList<>();
+        tasks.add(() -> {
+            shuttingPool.shutdown(); // reject every later submission
+            shutdownDone.countDown();
+            return 0;
+        });
+        tasks.add(() -> {
+            // Hold this slot so task 0's completion reaches the submitter first.
+            shutdownDone.await(10, TimeUnit.SECONDS);
+            return 1;
+        });
+        for (int i = 2; i < 6; i++) {
+            final int value = i;
+            tasks.add(() -> value);
+        }
+
+        AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+
+        // Submitting task 2 after task 0 shut the pool down is rejected; the remaining
+        // futures must fail with the rejection instead of never completing.
+        await().atMost(10, TimeUnit.SECONDS).until(() ->
+                result.getResults().stream().allMatch(ListenableFuture::isDone));
+        assertThatThrownBy(() -> result.getSubmitCanceller().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(RejectedExecutionException.class);
+        for (int i = 2; i < 6; i++) {
+            final int taskIndex = i;
+            assertThatThrownBy(() -> result.getResults().get(taskIndex).get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+        }
+
+        shuttingPool.shutdownNow();
     }
 }
