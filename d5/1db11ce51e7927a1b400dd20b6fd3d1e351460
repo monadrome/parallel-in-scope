@@ -1,0 +1,9 @@
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  ai_agent 9,13,15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d51db11ce51e7927a1b400dd20b6fd3d1e351460",
+  "prompts": {}
+}
