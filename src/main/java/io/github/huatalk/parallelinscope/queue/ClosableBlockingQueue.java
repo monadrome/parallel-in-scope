@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope.control;
+package io.github.huatalk.parallelinscope.queue;
 
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.Monitor;
@@ -77,12 +77,12 @@ import java.util.function.UnaryOperator;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @see QueueShutdownException
  */
-public class StoppableBlockingQueue<E> extends AbstractQueue<E>
+public class ClosableBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E>, Service, AutoCloseable {
 
     private static final int ADMISSION_CLOSED = Integer.MIN_VALUE;
     private static final int ACTIVE_CALL_MASK = Integer.MAX_VALUE;
-    private static final String NAME = StoppableBlockingQueue.class.getSimpleName();
+    private static final String NAME = ClosableBlockingQueue.class.getSimpleName();
 
     /** Queue-owned lifecycle used by admission and Guards independently of Guava startup details. */
     private enum QueueState {
@@ -141,17 +141,17 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
 
     //region Construction
 
-    /** Creates an effectively unbounded queue named {@code StoppableBlockingQueue}. */
-    public StoppableBlockingQueue() {
+    /** Creates an effectively unbounded queue named {@code ClosableBlockingQueue}. */
+    public ClosableBlockingQueue() {
         this(Integer.MAX_VALUE, Collections.emptyList(), null);
     }
 
     /**
-     * Creates a bounded queue named {@code StoppableBlockingQueue}.
+     * Creates a bounded queue named {@code ClosableBlockingQueue}.
      *
      * @param capacity maximum element count, which must be positive
      */
-    public StoppableBlockingQueue(int capacity) {
+    public ClosableBlockingQueue(int capacity) {
         this(capacity, Collections.emptyList(), null);
     }
 
@@ -160,7 +160,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      *
      * @param initialElements initial queue contents
      */
-    public StoppableBlockingQueue(Collection<? extends E> initialElements) {
+    public ClosableBlockingQueue(Collection<? extends E> initialElements) {
         this(Integer.MAX_VALUE, initialElements, null);
     }
 
@@ -171,7 +171,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
      *     {@link QueueShutdownException}
      */
-    public StoppableBlockingQueue(
+    public ClosableBlockingQueue(
             Collection<? extends E> initialElements,
             @Nullable E poisonObject) {
         this(Integer.MAX_VALUE, initialElements, poisonObject);
@@ -184,7 +184,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
      *     {@link QueueShutdownException}
      */
-    public StoppableBlockingQueue(
+    public ClosableBlockingQueue(
             int capacity,
             @Nullable E poisonObject) {
         this(capacity, Collections.emptyList(), poisonObject);
@@ -198,7 +198,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
      * @param poisonObject object returned by closed consumer operations, or {@code null} to throw
      *     {@link QueueShutdownException}
      */
-    public StoppableBlockingQueue(
+    public ClosableBlockingQueue(
             int capacity,
             Collection<? extends E> initialElements,
             @Nullable E poisonObject) {
@@ -1078,7 +1078,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
         /** Returns the current live queue size. */
         @Override
         public int size() {
-            return StoppableBlockingQueue.this.size();
+            return ClosableBlockingQueue.this.size();
         }
 
         /** Returns a fail-fast reverse-order iterator over the backed live queue. */
@@ -1380,7 +1380,7 @@ public class StoppableBlockingQueue<E> extends AbstractQueue<E>
         /** Clears the underlying live queue. */
         @Override
         public void clear() {
-            StoppableBlockingQueue.this.clear();
+            ClosableBlockingQueue.this.clear();
         }
 
         /** Rejects equality-based removal before an empty closed view can report a successful no-op. */

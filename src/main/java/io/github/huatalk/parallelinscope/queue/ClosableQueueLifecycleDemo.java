@@ -1,6 +1,5 @@
 package io.github.huatalk.parallelinscope.queue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -8,9 +7,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Demonstrates the termination contract of {@link MonitorLinkedBlockingQueue}: blocked
- * producers and consumers are released with {@link InterruptedException}, and operations started
- * after {@code terminate()} are rejected with {@link UnsupportedOperationException}.
+ * Demonstrates the shutdown contract of {@link ClosableBlockingQueue}: blocking producers and
+ * consumers are released by {@code close()} without being interrupted, rejected operations throw
+ * {@link QueueShutdownException}, queued elements remain recoverable via {@link #remainingList()},
+ * and a configured poison object can replace the exception for closed consumers.
  */
 public final class ClosableQueueLifecycleDemo {
 
@@ -18,60 +18,70 @@ public final class ClosableQueueLifecycleDemo {
     }
 
     public static void main(String[] args) throws Exception {
-        // A full queue: put and timed offer both block.
-        MonitorLinkedBlockingQueue<Integer> fullQueue = new MonitorLinkedBlockingQueue<>(1);
+        // A full queue: put blocks on the producer Guard.
+        ClosableBlockingQueue<Integer> fullQueue = new ClosableBlockingQueue<>(1);
         fullQueue.put(0);
-        // An empty queue: take and timed poll both block.
-        MonitorLinkedBlockingQueue<Integer> emptyQueue = new MonitorLinkedBlockingQueue<>(1);
+        // An empty queue: take blocks on the consumer Guard.
+        ClosableBlockingQueue<Integer> emptyQueue = new ClosableBlockingQueue<>(1);
 
-        AtomicInteger interrupted = new AtomicInteger();
+        AtomicInteger rejected = new AtomicInteger();
         AtomicReference<Throwable> unexpected = new AtomicReference<>();
         List<Thread> waiters = Arrays.asList(
-                blocked("blocked-put", interrupted, unexpected, () -> {
+                blocked("blocked-put", rejected, unexpected, () -> {
                     fullQueue.put(1);
                     return null;
                 }),
-                blocked("blocked-timed-offer", interrupted, unexpected,
-                        () -> fullQueue.offer(2, 1, TimeUnit.DAYS)),
-                blocked("blocked-take", interrupted, unexpected, emptyQueue::take),
-                blocked("blocked-timed-poll", interrupted, unexpected,
-                        () -> emptyQueue.poll(1, TimeUnit.DAYS)));
+                blocked("blocked-take", rejected, unexpected, emptyQueue::take));
 
         for (Thread waiter : waiters) {
             waiter.start();
         }
-        // Give the four threads time to park on the queue.
+        // Give the two threads time to park on their Guards.
         TimeUnit.MILLISECONDS.sleep(300);
 
-        System.out.println("terminate fullQueue -> " + fullQueue.terminate());
-        System.out.println("terminate emptyQueue -> " + emptyQueue.terminate());
-        System.out.println("terminate again (idempotent) -> " + fullQueue.terminate());
+        // close() never interrupts; it satisfies the Guards and waiters reject themselves.
+        fullQueue.close();
+        emptyQueue.close();
+        System.out.println("shutdown -> fullQueue.isShutdown()=" + fullQueue.isShutdown()
+                + ", emptyQueue.isShutdown()=" + emptyQueue.isShutdown());
 
         for (Thread waiter : waiters) {
             waiter.join(TimeUnit.SECONDS.toMillis(5));
         }
-        System.out.println("blocked callers interrupted: " + interrupted.get()
+        System.out.println("blocked callers rejected: " + rejected.get()
                 + " (expect " + waiters.size() + ")");
         if (unexpected.get() != null) {
             throw new IllegalStateException("unexpected outcome", unexpected.get());
         }
-        if (interrupted.get() != waiters.size()) {
+        if (rejected.get() != waiters.size()) {
             throw new IllegalStateException(
-                    "expected " + waiters.size() + " interrupted callers, got " + interrupted.get());
+                    "expected " + waiters.size() + " rejected callers, got " + rejected.get());
         }
 
+        // Termination is only published once every admitted blocking call has exited.
+        fullQueue.awaitTerminated();
+        System.out.println("state -> " + fullQueue.state());
+        System.out.println("remaining after close: fullQueue=" + fullQueue.remainingList()
+                + ", emptyQueue=" + emptyQueue.remainingList());
+
         try {
-            fullQueue.offer(3);
-            throw new AssertionError("offer after termination should fail");
-        } catch (UnsupportedOperationException terminated) {
-            System.out.println("post-termination offer -> " + terminated.getMessage());
+            fullQueue.offer(2);
+            throw new AssertionError("offer after close should fail");
+        } catch (QueueShutdownException shutdown) {
+            System.out.println("post-close offer -> " + shutdown.getMessage());
         }
-        System.out.println("isTerminated -> " + fullQueue.isTerminated());
+
+        // POISON mode: a closed consumer returns the reserved object instead of throwing.
+        Integer poison = Integer.valueOf(-1);
+        ClosableBlockingQueue<Integer> poisonQueue = new ClosableBlockingQueue<>(1, poison);
+        poisonQueue.put(1);
+        poisonQueue.close();
+        System.out.println("poison mode take -> " + poisonQueue.take());
     }
 
     private static Thread blocked(
             String name,
-            AtomicInteger interrupted,
+            AtomicInteger rejected,
             AtomicReference<Throwable> unexpected,
             CheckedOperation operation) {
         return new Thread(() -> {
@@ -79,8 +89,8 @@ public final class ClosableQueueLifecycleDemo {
                 operation.run();
                 unexpected.compareAndSet(null,
                         new IllegalStateException(name + " returned instead of blocking"));
-            } catch (InterruptedException expected) {
-                interrupted.incrementAndGet();
+            } catch (QueueShutdownException expected) {
+                rejected.incrementAndGet();
             } catch (Throwable failure) {
                 unexpected.compareAndSet(null, failure);
             }

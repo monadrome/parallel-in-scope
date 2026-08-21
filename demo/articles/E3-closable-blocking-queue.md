@@ -1,296 +1,255 @@
-# E3. 可关闭的 BlockingQueue：思路、约束、契约与技术设计
+# E3. 可关闭的 BlockingQueue：ClosableBlockingQueue 的设计目标、约束与契约
 
-> 从零实现一个带"永久终止"语义的 BlockingQueue：终止前正在等待的调用抛 InterruptedException，终止后发起的调用抛 UnsupportedOperationException。基于 Guava Monitor 双管程，终止状态折叠进等待谓词，无需线程注册表即可唤醒全部等待者。
+> 一个把"关闭"做成队列一等公民的有界 FIFO 阻塞队列：close() 自动释放全部等待者但从不中断线程，关闭后写操作抛 QueueShutdownException，消费端可配毒丸，存量元素经 remainingList() 恢复。基于 Guava Monitor 双管程 + AbstractService 生命周期。
 
-## 问题背景：JDK 队列没有关闭语义
+## 设计目标
 
-生产-消费是并发基础模式。但 JDK BlockingQueue 缺一个能力：关闭。线程池有 `shutdown()` / `shutdownNow()`，队列没有。任务队列排空后，`take()` 永久阻塞；放满后，`put()` 永久阻塞。程序要优雅退出，只能靠毒丸（poison pill）——塞一个特殊标记，消费端识别后退出。
+JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻塞，放满后 `put()` 永久阻塞。传统解法是毒丸（poison pill），但毒丸只解决消费端、需要业务代码识别标记、多消费者还容易漏分。
 
-毒丸的痛点：
+`ClosableBlockingQueue` 的设计目标，是把"关闭"做成队列自己的一等公民能力：
 
-- 只解决消费端。生产端 `put()` 满队列阻塞、无人消费时永远醒不来。
-- 需要业务代码识别毒丸，污染逻辑；元素类型还得兼容"毒丸"这个值。
-- 多消费者场景每个消费者都要分到毒丸，漏一个就卡死。
+1. **关闭自动释放全部等待者，不依赖协作**。`close()` 一次调用，生产端和消费端所有阻塞调用全部苏醒，无需毒丸或 shutdownNow 式的线程枚举。
+2. **关闭 ≠ 中断**。关闭不 `interrupt()` 任何线程。等待者"看见"关闭后以明确结果退出——抛异常或返回毒丸——结果可预期、可测试。外部 `interrupt()` 的既有语义原样保留。
+3. **生产消费对称**。`put` / `offer(t)` 被关闭释放 → 抛异常；`take` / `poll(t)` 被关闭释放 → 抛异常或返回毒丸。两边都不卡死，没有"只关一半"的窗口。
+4. **元素可恢复**。关闭时已入队元素不丢失，`remainingList()` 在终止后取回。
+5. **关闭不被用户代码阻塞**。`stopAsync()` 不遍历链表，存量延迟物化；用户回调（drain 目标集合的 add、元素 equals、forEach 回调）都在 monitor 之外执行，再慢也拖不住关闭。
+6. **完整兼容**。实现 `BlockingQueue` + `Collection` + Guava `Service` + `AutoCloseable`，并暴露 Java 21 sequenced 集合端点与反向视图。
+7. **关闭幂等、可等待**。并发 stop 只发布一次；`awaitTerminated()` 保证恢复快照已固定、所有已准入的阻塞调用已退出。
 
-思路转向：把"关闭"做成队列的一等公民。队列自己持有终止状态，终止瞬间唤醒所有等待者，之后拒绝一切操作。调用方不用改业务逻辑，队列自己处理。
+## 约束
 
-## 约束：先立规矩再写代码
+实现前立下的边界：
 
-实现前，先明确边界：
+1. **有界 FIFO，元素非 null**，行为对齐 `LinkedBlockingQueue`。
+2. **无线程注册表**。用 packed 原子"准入词"（closed 位 + 活跃阻塞调用计数）代替线程枚举，`awaitTerminated()` 靠它保证所有准入调用已离开。
+3. **双状态机协同**。内部 `OPEN / CLOSING / CLOSED`（队列判定用）+ Guava `NEW / RUNNING / STOPPING / TERMINATED`（生命周期发布用），两边通过终止发布协议衔接。
+4. **关闭判定折叠进 guard 谓词**。`queueState != OPEN` 是 put/take 两侧谓词的组成项，等待者自己"看见"关闭，无需外部唤醒信号。
+5. **阻塞调用准入制**。进入阻塞前取一个 lease；关闭后新调用直接拒绝，已持 lease 的调用完成后才发布终止。
+6. **Java 8 兼容**。sequenced 端点以普通方法暴露；运行时是 Java 21 时 `reversed()` 返回的 List 才额外实现 `SequencedCollection`。
+7. **用户代码不进锁**。`equals` / `compareTo` / 集合回调在 monitor 外执行，持锁期间绝不调用业务代码。
 
-1. **单向不可逆**。终止是永久状态，没有重启。
-2. **契约以"调用发起时点"分界**。终止瞬间正在等待的调用，与终止之后发起的调用，行为必须不同。
-3. **等待者必须被唤醒，且不保留线程引用**。不用线程注册表，终止时全部释放。
-4. **等待中的阻塞调用抛 InterruptedException**。四种阻塞方法：`put` / `take` / `offer(限时)` / `poll(限时)`，以及排队等锁期间被终止的调用。
-5. **终止后发起的调用抛 UnsupportedOperationException**。非阻塞操作、集合操作、迭代器、序列化，全部拒绝。
-6. **外部中断 ≠ 终止**。业务线程被 `interrupt()` 只影响该线程，队列继续可用；只有显式 `terminate()` 能终止队列。
-7. **`terminate()` 不得死锁**。双管程模型下，它要与任何并发路径都能安全交错。
-8. **空转快速失败**。终止后，`offer()` / `poll()` / `peek()` / `size()` 这些非阻塞操作应无锁快速拒绝，而不是抢锁后发现已终止。
+## 新契约
 
-## 契约：三种结果，一条分界线
-
-| 场景 | 行为 |
+| 时机 | 行为 |
 |---|---|
-| 终止前正常操作 | 标准 BlockingQueue 语义：FIFO、有界、双管程并发 |
-| 终止时正在等待（put / take / offer(t) / poll(t)） | 抛 `InterruptedException("queue service has been terminated")` |
-| 终止前已开始、排队等 monitor 时被终止 | 抛 `InterruptedException`（阻塞方法拿到锁后重查终止态） |
-| 终止后发起操作（28 个：size / offer / poll / iterator / toArray / serialize ...） | 抛 `UnsupportedOperationException("queue service has been terminated")` |
-| `terminate()` | 幂等：首次返回 true，之后 false |
-| `isTerminated()` | 布尔查询 |
+| 正常操作 | 标准 BlockingQueue 语义：FIFO、有界、put/take 双管程并发 |
+| 关闭时正在等待 put / offer(t) | 释放，抛 `QueueShutdownException` |
+| 关闭时正在等待 take / poll(t)，未配毒丸 | 释放，抛 `QueueShutdownException` |
+| 关闭时正在等待 take / poll(t)，配了毒丸 | 释放，返回毒丸对象 |
+| 关闭后写操作（offer / add / clear / remove / addAll ...） | 抛 `QueueShutdownException` |
+| 关闭后消费操作，未配毒丸 | 抛 `QueueShutdownException` |
+| 关闭后消费操作，配了毒丸 | 返回毒丸对象 |
+| 外部 `interrupt()` 等待中 | 抛 `InterruptedException`（与关闭正交，原样传播） |
+| `remainingList()` | 终止后返回已入队元素的共享 `CopyOnWriteArrayList` |
+| `close()` / `stopAsync()` | 幂等、从不中断线程 |
+| `awaitTerminated()` | 阻塞直到终止发布且准入调用清零 |
 
-为什么等待中的调用用 InterruptedException，而不是自定义异常或返回 null？
+三个关键决策：
 
-- 调用已经在"阻塞"语境里，Java 表达"等待被打断"的既定信号就是 InterruptedException。调用方现有的 `catch (InterruptedException)` 路径直接生效，无需新增异常类型。
-- 返回 null 有歧义：`poll()` 超时本来就返回 null，无法区分"超时"与"队列被关闭"。
-- 自定义异常要侵入调用方的 catch 结构，破坏对现有阻塞 API 的兼容。
+**为什么是 unchecked `QueueShutdownException`，而不是 `InterruptedException`？** 关闭不打断线程。`InterruptedException` 是"外部中断"的既定信号，关闭是"队列不再接受操作"的语义，两者必须分开。若复用中断异常，调用方现有的 `catch (InterruptedException)` 会被队列关闭误触发，且中断标志状态会被污染。`QueueShutdownException` 继承 `IllegalStateException`，是运行时异常，不破坏 `BlockingQueue` 的方法签名，也不被业务 catch 误接。
 
-为什么终止后的调用用 UnsupportedOperationException？操作压根没开始，队列处于不可用终态。这是运行时异常，调用方不必声明。消息统一 "queue service has been terminated"，可读、可测。
+**为什么毒丸可选而不是强制？** 异常模式 fail-fast，适合"关闭即收尾"；毒丸模式适合"关闭后消费端还要优雅收尾"的场景。构造器传一个毒丸对象即切换模式。毒丸是**虚拟对象**：它保留身份、从不入链表、不计数、不进 `remainingList()`；若用户试图入队与毒丸同一标识的元素，`requireElement` 直接拒绝。
 
-分界线的关键是"调用已开始"这个时点。阻塞调用从进入方法起就处于阻塞语境，之后无论卡在哪一步（等 monitor、等元素、等容量），终止都按"等待被打断"处理——InterruptedException。非阻塞 / 集合调用没有等待语义，被终止拦截就是拒绝——UnsupportedOperationException。
+**关闭时元素不丢失，但也不"救回"未入队的 put。** 阻塞中的 `put` 其元素从未进入队列，仍归调用方所有。关闭后它抛异常返回，元素由调用方自己处理。测试 `blockedProducerPayloadIsNotReportedAsRemaining` 明确了这一边界。
 
-一个容易踩的细节：**终止路径抛出的 InterruptedException 不会设置当前线程的中断标志**。队列的终止不是对线程的 interrupt，只是"谓词满足了终止分支"。调用方如果习惯性地在 catch 里 `Thread.currentThread().interrupt()` 恢复中断状态，反而会错误地中断自己。这是刻意的语义：队列关闭不等于线程被打断。
+## 现有实现支持功能
+
+- **队列核心**：四种阻塞方法（put / take / offer(t) / poll(t)）、非阻塞 offer / poll / peek、`drainTo`（锁内摘除、锁外回调）、`clear`、`remove`、弱一致迭代器（Java 8 LinkedBlockingQueue 形状，支持基于身份移除）。
+- **生命周期**：完整 Guava `Service` API（startAsync / stopAsync / awaitRunning / awaitTerminated / state / isRunning / addListener / failureCause）；首个阻塞调用隐式启动服务；显式重复启动被拒绝；并发 stop 幂等。
+- **恢复与诊断**：`remainingList()` 懒物化为共享 `CopyOnWriteArrayList`（首个访问者物化，之后并发读写互不干扰）；`waitingProducers()` / `waitingConsumers()` 等待队列长度诊断；`isShutdown()`；诊断型 `toString()`。
+- **关闭安全**：关闭不被阻塞的 drain 目标、阻塞的 equals、阻塞的 forEach、阻塞的倒序 addAll 拖延；`drainTo` 半途失败时已摘除批次归 target 所有，不回灌、不进 remaining。
+- **Sequenced 面**：`addFirst` / `addLast` / `getFirst` / `getLast` / `removeFirst` / `removeLast`，以及 `reversed()` 反向 List 视图——支持端点、按位读写、批量添加、fail-fast 迭代器，双向写穿到队列；Java 21 下视图还实现 `SequencedCollection`。
+- **双管程并行**：put 与 take 各自独立 Monitor，生产和消费并发不互斥。
 
 ## 技术设计
 
-### 选型：为什么是 Guava Monitor
+### 双管程布局与 guard 谓词
 
-| 方案 | 问题 |
-|---|---|
-| `synchronized` + wait/notify | 谓词判断要手写循环，跨线程通知要自己记标志位，易错 |
-| ReentrantLock + Condition | `await` 后要手动 `while` 循环重查谓词（spurious wakeup 由调用方兜底），通知也要手动 |
-| Guava Monitor | `newGuard(predicate)` + `waitFor(guard)`，谓词在每次唤醒时自动重估，循环由库托管 |
-
-Monitor 的 guard 天然贴合本文场景：谓词本身是"终止 或 条件满足"的复合表达式。终止状态折叠进谓词，唤醒语义自动成立——不用为"终止"单独设计通知机制。
-
-### 双管程布局：复刻 LinkedBlockingQueue 的双锁
-
-JDK LinkedBlockingQueue 用 takeLock / putLock 双锁，生产和消费并行不互斥。这里同样拆两个 Monitor：
-
-- `putMonitor` 保护 tail 与容量等待
-- `takeMonitor` 保护 head 与元素等待
-- `AtomicInteger count` 串联两端
+与 `LinkedBlockingQueue` 双锁一致，`putMonitor` 保护 tail 与容量等待，`takeMonitor` 保护 head 与元素等待，`AtomicInteger count` 串联两端。guard 谓词直接读共享状态，无需缓存布尔：
 
 ```java
-private final Monitor putMonitor = new Monitor();
-private final Monitor takeMonitor = new Monitor();
-private final AtomicInteger count = new AtomicInteger();
-
-private final Monitor.Guard notFullOrTerminated = putMonitor.newGuard(
-        () -> terminated || putPermitted);
-private final Monitor.Guard notEmptyOrTerminated = takeMonitor.newGuard(
-        () -> terminated || takePermitted);
+private final Monitor.Guard takeReady = new Monitor.Guard(takeMonitor) {
+    public boolean isSatisfied() {
+        return count.get() > 0 || queueState != QueueState.OPEN;
+    }
+};
+private final Monitor.Guard putReady = new Monitor.Guard(putMonitor) {
+    public boolean isSatisfied() {
+        return count.get() < capacity || queueState != QueueState.OPEN;
+    }
+};
 ```
 
-`put()` 的结构（`take()` 对称）：
+谓词两项分别对应两类唤醒：有数据/有容量（正常流转），或 `queueState != OPEN`（关闭取代流转）。关闭状态折叠进谓词——等待者不需要被显式通知，关闭后 guard 一满足，`enterWhen` 返回，方法体自行决定结果是入队/出队还是拒绝。
+
+### 关闭即谓词：initiateShutdown
+
+`close()` → `stopAsync()` → `requestStop()` → `initiateShutdown()`。关闭在双锁内原子完成：
 
 ```java
-public void put(E element) throws InterruptedException {
-    rejectIfTerminated();                      // ① 无锁快拒
-    putMonitor.enterInterruptibly();           // ② 可中断进管程
+private void initiateShutdown() {
+    fullyLock();                     // 固定锁序 putMonitor → takeMonitor
     try {
-        throwIfTerminatedDuringBlockingCall(); // ③ 持锁重查：阻塞调用被打断 = 中断
-        if (count.get() == capacity) {
-            putMonitor.waitFor(notFullOrTerminated);   // ④ 等待容量
-            throwIfTerminatedDuringBlockingCall();     // ⑤ 醒来重查
-        }
-        enqueue(new Node<>(element));
-        putPermitted = count.get() < capacity;         // ⑥ 维护谓词不变式
-    } finally {
-        putMonitor.leave();
-    }
-    if (previousCount == 0) {
-        signalNotEmpty();   // ⑦ 跨管程唤醒消费端
-    }
-}
-```
-
-### 终止即唤醒：状态折叠进谓词
-
-终止为什么能唤醒所有人？因为终止标志是两侧谓词的一部分：
-
-```java
-public boolean terminate() {
-    fullyLock();          // 先 putMonitor 后 takeMonitor，固定锁序
-    try {
-        if (terminated) return false;
-        terminated = true;
-    } finally {
-        fullyUnlock();    // leave 触发 Monitor 重估谓词，全部等待者醒来
-    }
-    return true;
-}
-```
-
-`fullyLock` 同时占住两个管程，置位后 `fullyUnlock` 释放。Monitor 在 leave 时唤醒 guard 已满足的等待线程重估谓词——此时 `terminated=true` 使两个谓词都为真，所有等待者醒来。醒来后每个阻塞方法立刻 `throwIfTerminatedDuringBlockingCall()`，抛 InterruptedException。
-
-这里有个优雅的点：**终止不需要保留任何等待线程的引用**。终止状态就在谓词里，等待者是自己"看见"终止并退出的。没有线程注册表，没有 shutdownNow 式的线程枚举。
-
-### 跨管程通知：布尔缓存谓词
-
-双管程的代价：消费者在 takeMonitor 释放容量，等待的生产者却在 putMonitor 上，Monitor 不会跨实例通知。需要显式跨管程信号：
-
-```java
-// 消费端：容量空出来了，通知生产端
-private void signalNotFull() {
-    putMonitor.enter();
-    try {
-        putPermitted = count.get() < capacity;   // 持锁重查，写入真实状态
-    } finally {
-        putMonitor.leave();
-    }
-}
-```
-
-为什么谓词读缓存布尔 `putPermitted`，而不是直接读 `count.get()`？
-
-关键在不变式：`putPermitted == (count < capacity)`，且只在持锁时由对侧写入。谓词把"是否还有容量 / 元素"这个判定权收拢到持有对应管程的一侧，等待线程的唤醒不再依赖对共享计数的实时读取，而是依赖对侧"确认过"的状态翻转。这让 guard 从"尽力而为的提示"变成**可靠的先决条件**——所以 `put()` 在 `waitFor` 返回后直接 enqueue，不再二次检查容量；`take()` 同理。谓词满足即证明安全，代码可以信任它。
-
-### 三类检查：堵死三个竞态窗口
-
-终止与并发操作交错，有三个窗口必须各自封死：
-
-| 窗口 | 检查 | 异常 |
-|---|---|---|
-| 进 monitor 前（快路径） | `rejectIfTerminated()` | UnsupportedOperationException |
-| 持锁后（非阻塞 / 集合操作） | `ensureOperational()` | UnsupportedOperationException |
-| 持锁后 / 醒来后（阻塞方法） | `throwIfTerminatedDuringBlockingCall()` | InterruptedException |
-
-非阻塞的 `offer()` 是典型例子，体现"快拒 + 持锁重查"的叠加：
-
-```java
-public boolean offer(E element) {
-    rejectIfTerminated();              // 快拒：终止后无锁直接抛
-    if (count.get() == capacity) {     // 无锁判满，满了直接返回 false
-        return false;
-    }
-    putMonitor.enter();
-    try {
-        ensureOperational();           // 持锁重查：快拒与进锁之间可能被 terminate 抢先
-        if (count.get() < capacity) {  // 再次判满：进锁前可能被其他生产者填满
-            enqueue(new Node<>(element));
-            ...
+        if (queueState == OPEN) {
+            final Node<E> detached = head.next;      // 原子摘下整个链表
+            remainingTask = new FutureTask<>(() -> materializeRemaining(detached));
+            closeAdmission();                        // 拒绝后续阻塞调用
+            head = new Node<>(null);
+            last = head;
+            count.set(0);
+            queueState = QueueState.CLOSING;
         }
     } finally {
-        putMonitor.leave();
+        fullyUnlock();               // leave 触发两侧 guard 重估，等待者醒来
     }
-    ...
 }
 ```
 
-快拒避免终止后所有操作都去抢锁；持锁重查保证"快拒通过之后、拿到锁之前"这个空窗期的 terminate 不会漏网。阻塞方法则多一层：拿到锁后查终止态抛的是 InterruptedException，因为调用始终处于阻塞语境。
+两个关键性质：
 
-### drainTo 与终止的交叉
+- **stopAsync 不遍历**。存量链表被原样摘下存进 `remainingTask`，物化推迟到首次 `remainingList()`（`FutureTask` 保证只物化一次）。所以"关闭"这个动作是 O(1) 的。
+- **元素归位明确**。已入队元素进恢复列表；阻塞中 put 的元素从未入队，抛异常后归调用方。
 
-`drainTo` 持 takeMonitor，且可能阻塞在 `target.add()`（目标集合满 / 慢）。此时消费者排队，terminate 在 fullyLock 上排队。drain 释放锁后谁先拿到锁都能正确推进：
+### admission 准入词：无注册表的等待者管理
 
-- 消费者先拿 takeMonitor：发现 terminated，抛 InterruptedException；
-- terminate 先拿双锁：置位，唤醒全部等待者。
+不记录等待线程，只记"有多少阻塞调用处于活跃状态"：
 
-防止死锁靠两点：**固定锁序**（所有 fullyLock 都是 put→take），以及**不变量维护**——drainTo 在 finally 里修正 head / count / 谓词状态，即使 `target.add` 抛异常，未转移的元素留在队列、生产者被唤醒。
+```java
+private static final int ADMISSION_CLOSED = Integer.MIN_VALUE;
+private static final int ACTIVE_CALL_MASK = Integer.MAX_VALUE;
+```
+
+- `beginBlockingCall()`：CAS 取 lease——closed 位已置 → 直接拒绝；否则活跃计数 +1。取到 lease 才允许进入阻塞。
+- `endBlockingCall()`：活跃计数 -1；若 closed 位已置且活跃归零 → 发布终止。
+
+`awaitTerminated()` 靠它保证两件事：恢复快照已固定（`remainingTask` 已可见），以及每个拿到 lease 的调用都已退出（活跃计数归零）。这取代了"枚举线程再 interrupt"的线程注册表方案——关闭不用知道谁在等，只等计数清空。
+
+### 关闭与中断正交
+
+两条完全独立的退出路径：
+
+```java
+// 外部 interrupt：enterWhen 可中断，InterruptedException 原样传播，中断标志正常设置
+takeMonitor.enterWhen(takeReady);   // throws InterruptedException
+
+// 关闭：guard 因 queueState != OPEN 而满足，enterWhen 正常返回，
+// 方法内 allowBlockingCommit() 发现已关闭 → QueueShutdownException（不设置中断标志）
+```
+
+测试 `externalInterruptPropagatesUnchanged` 与 `shutdownReleasesAllGuardWaitersWithoutInterruptingThreads` 分别钉死这两条路径。调用方可以放心区分：收到 `InterruptedException` 说明线程真的被打断，收到 `QueueShutdownException` 说明队列已关闭。
+
+### 锁外回调：关闭不被用户代码阻塞
+
+凡是可能慢的用户代码都移出 monitor：
+
+- `drainTo`：锁内只做摘除（所有权的线性化点），锁外逐个 `target.add`。若 add 抛异常，已摘除批次归 target 所有，不回灌。
+- `remove(Object)`：锁内快照节点 + item，锁外跑 `equals`，再按身份重锁校验后摘除。
+- 迭代器 / forEach / 倒序 addAll：同样遵守"锁内不碰业务代码"。
+
+配合这些，测试 `blockingDrainTargetCannotDelayShutdown`、`blockingEqualsCannotDelayShutdown`、`blockingForEachCallbackCannotDelayShutdown` 证明了关闭不会被慢回调拖死。
 
 ## 示例
 
 完整可运行代码见 `io.github.huatalk.parallelinscope.queue.ClosableQueueLifecycleDemo`：
 
 ```java
-public static void main(String[] args) throws Exception {
-    // 一个放满的队列：put / 限时 offer 都会阻塞
-    MonitorLinkedBlockingQueue<Integer> fullQueue = new MonitorLinkedBlockingQueue<>(1);
-    fullQueue.put(0);
-    // 一个空队列：take / 限时 poll 都会阻塞
-    MonitorLinkedBlockingQueue<Integer> emptyQueue = new MonitorLinkedBlockingQueue<>(1);
+import io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue;
+import io.github.huatalk.parallelinscope.queue.QueueShutdownException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-    AtomicInteger interrupted = new AtomicInteger();
+public static void main(String[] args) throws Exception {
+    // 一个放满的队列：put 阻塞在 producer Guard 上
+    ClosableBlockingQueue<Integer> fullQueue = new ClosableBlockingQueue<>(1);
+    fullQueue.put(0);
+    // 一个空队列：take 阻塞在 consumer Guard 上
+    ClosableBlockingQueue<Integer> emptyQueue = new ClosableBlockingQueue<>(1);
+
+    AtomicInteger rejected = new AtomicInteger();
     AtomicReference<Throwable> unexpected = new AtomicReference<>();
     List<Thread> waiters = Arrays.asList(
-            blocked("blocked-put", interrupted, unexpected,
-                    () -> { fullQueue.put(1); return null; }),
-            blocked("blocked-timed-offer", interrupted, unexpected,
-                    () -> fullQueue.offer(2, 1, TimeUnit.DAYS)),
-            blocked("blocked-take", interrupted, unexpected, emptyQueue::take),
-            blocked("blocked-timed-poll", interrupted, unexpected,
-                    () -> emptyQueue.poll(1, TimeUnit.DAYS)));
+            blocked("blocked-put", rejected, unexpected, () -> {
+                fullQueue.put(1);
+                return null;
+            }),
+            blocked("blocked-take", rejected, unexpected, emptyQueue::take));
 
     for (Thread waiter : waiters) {
         waiter.start();
     }
-    TimeUnit.MILLISECONDS.sleep(300);   // 等 4 个线程全部进入阻塞
+    TimeUnit.MILLISECONDS.sleep(300);   // 等两个线程各自进入阻塞
 
-    System.out.println("terminate fullQueue -> " + fullQueue.terminate());
-    System.out.println("terminate emptyQueue -> " + emptyQueue.terminate());
-    System.out.println("terminate again (idempotent) -> " + fullQueue.terminate());
+    fullQueue.close();    // 关闭不中断任何线程，等待者自己醒来拒绝
+    emptyQueue.close();
+    System.out.println("shutdown -> fullQueue.isShutdown()=" + fullQueue.isShutdown()
+            + ", emptyQueue.isShutdown()=" + emptyQueue.isShutdown());
 
     for (Thread waiter : waiters) {
-        waiter.join(5_000);
+        waiter.join(TimeUnit.SECONDS.toMillis(5));
     }
-    System.out.println("blocked callers interrupted: " + interrupted.get()
+    System.out.println("blocked callers rejected: " + rejected.get()
             + " (expect " + waiters.size() + ")");
-    if (unexpected.get() != null) {
-        throw new IllegalStateException("unexpected outcome", unexpected.get());
-    }
+
+    fullQueue.awaitTerminated();
+    System.out.println("state -> " + fullQueue.state());
+    System.out.println("remaining after close: fullQueue=" + fullQueue.remainingList()
+            + ", emptyQueue=" + emptyQueue.remainingList());
 
     try {
-        fullQueue.offer(3);
-        throw new AssertionError("offer after termination should fail");
-    } catch (UnsupportedOperationException terminated) {
-        System.out.println("post-termination offer -> " + terminated.getMessage());
+        fullQueue.offer(2);
+        throw new AssertionError("offer after close should fail");
+    } catch (QueueShutdownException shutdown) {
+        System.out.println("post-close offer -> " + shutdown.getMessage());
     }
-}
 
-private static Thread blocked(String name,
-        AtomicInteger interrupted,
-        AtomicReference<Throwable> unexpected,
-        CheckedOperation operation) {
-    return new Thread(() -> {
-        try {
-            operation.run();
-            unexpected.compareAndSet(null,
-                    new IllegalStateException(name + " returned instead of blocking"));
-        } catch (InterruptedException expected) {
-            interrupted.incrementAndGet();
-        } catch (Throwable failure) {
-            unexpected.compareAndSet(null, failure);
-        }
-    }, name);
+    // POISON 模式：关闭后的消费者返回保留对象，而不是抛异常
+    Integer poison = Integer.valueOf(-1);
+    ClosableBlockingQueue<Integer> poisonQueue = new ClosableBlockingQueue<>(1, poison);
+    poisonQueue.put(1);
+    poisonQueue.close();
+    System.out.println("poison mode take -> " + poisonQueue.take());
 }
 ```
 
 输出：
 
 ```
-terminate fullQueue -> true
-terminate emptyQueue -> true
-terminate again (idempotent) -> false
-blocked callers interrupted: 4 (expect 4)
-post-termination offer -> queue service has been terminated
-isTerminated -> true
+shutdown -> fullQueue.isShutdown()=true, emptyQueue.isShutdown()=true
+blocked callers rejected: 2 (expect 2)
+state -> TERMINATED
+remaining after close: fullQueue=[0], emptyQueue=[]
+post-close offer -> ClosableBlockingQueue is shut down; offer is no longer accepted
+poison mode take -> -1
 ```
 
-四个线程分别阻塞在 put / offer(限时) / take / poll(限时)，`terminate()` 后全部以 InterruptedException 退出，证明终止契约完整覆盖所有等待入口；`terminate()` 幂等返回 false；终止后非阻塞 offer 抛 UnsupportedOperationException。
+两个阻塞线程一个在满队列 put、一个在空队列 take，`close()` 后都苏醒并以 `QueueShutdownException` 退出——注意没有任何 interrupt 发生。`fullQueue.remainingList()` 取回关闭前已入队的 `[0]`；关闭后 `offer` 抛异常；毒丸模式下 `take` 返回 `-1` 而非抛异常。
 
 ## 测试验证
 
-终止契约与竞态由 `MonitorLinkedBlockingQueueTest` 系统覆盖，关键用例：
+`ClosableBlockingQueueTest` 覆盖 35 个用例，与本设计直接相关的关键项：
 
-- `terminationInterruptsAllBlockedProducers` / `terminationInterruptsAllBlockedConsumers`：满队列的 put 与空队列的 take 全被唤醒
-- `terminationInterruptsTimedProducerAndConsumerWaits`：限时 offer / poll 同样被打断
-- `terminationInterruptsMixedWaitersAcrossAllFourBlockingMethods`：四种阻塞方法混合等待
-- `producersWaitingForMonitorAcquisitionAreInterruptedByTermination`：序列化持锁时，排队等 monitor 的调用被终止
-- `globalCollectionOperationsRaceWithTerminationWithoutDeadlock`：全局操作与终止赛跑不死锁
-- `mpmcPreservesEveryElementUnderGlobalReadContention`（@RepeatedTest(10)）：多生产者多消费者 + 全局快照观察者，元素零丢失
-- `counterpartReleaseCompletesOperationBeforeLaterTermination`：即将完成的调用在终止前正常结束
-- `externalInterruptDoesNotTerminateQueue`：外部中断不终止队列
-- `operationsStartedAfterTerminationAreUnsupported`：终止后 28 个操作全部拒绝
+- `shutdownReleasesAllGuardWaitersWithoutInterruptingThreads`：关闭释放全部等待者且不中断
+- `externalInterruptPropagatesUnchanged`：外部中断原样传播，与关闭正交
+- `poisonObjectReturnsFromClosedConsumers`：毒丸模式
+- `blockedProducerPayloadIsNotReportedAsRemaining`：阻塞 put 的元素归调用方，不进恢复列表
+- `concurrentStopsAreIdempotentAndPublishRemainingOnce`：并发关闭只发布一次
+- `takeVsShutdownPartitionsElementsWithoutLossOrDuplication`：关闭与 take 竞争，元素不丢不重
+- `stopBeforeStartPublishesFifoRemainingListAndRejectsWrites`：未启动即关闭也能正确发布
+- `blockingDrainTargetCannotDelayShutdown` / `blockingEqualsCannotDelayShutdown` / `blockingForEachCallbackCannotDelayShutdown`：关闭不被用户回调阻塞
+- `serviceListenerSequenceFollowsGuavaContract`：Service 监听器时序符合 Guava 契约
 
-> 📁 完整测试代码：[MonitorLinkedBlockingQueueTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/src/test/java/io/github/huatalk/parallelinscope/MonitorLinkedBlockingQueueTest.java)
+> 📁 完整测试代码：[ClosableBlockingQueueTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/src/test/java/io/github/huatalk/parallelinscope/queue/ClosableBlockingQueueTest.java)
 
 ## 总结
 
-- **契约两条线**：终止前已开始的阻塞调用 → InterruptedException；终止后发起的调用 → UnsupportedOperationException。`terminate()` 幂等。
-- **终止即谓词**：`terminated` 折叠进两个 guard，等待者自己"看见"终止退出，无线程注册表。
-- **双管程 + 跨管程布尔信号**：复刻 LinkedBlockingQueue 双锁并发度；谓词不变式让 guard 成为可靠先决条件。
-- **三类检查封死全部竞态窗口**：无锁快拒、持锁重查（非阻塞）、持锁 / 醒来重查（阻塞）。
-- **固定锁序 + 不变量维护**，保证 terminate 与任何并发路径交错不死锁。
+- **设计目标一句话**：把关闭做成队列一等公民——自动释放等待者、不中断线程、存量可恢复、关闭不被用户代码阻塞。
+- **新契约**：关闭 ≠ 中断。被关闭释放的阻塞调用抛 unchecked `QueueShutdownException`（或返回可选毒丸）；外部 interrupt 仍抛 `InterruptedException`。两条路径互不污染。
+- **关闭即谓词**：`queueState != OPEN` 折叠进双管程 guard，等待者自己"看见"关闭退出，无线程注册表。
+- **admission 准入词**：closed 位 + 活跃调用计数，让 `awaitTerminated()` 能保证恢复快照固定、准入调用清零。
+- **O(1) 关闭**：`stopAsync()` 原子摘下链表、延迟物化到 `remainingList()`，慢用户回调全部在锁外。
 
 ---
 

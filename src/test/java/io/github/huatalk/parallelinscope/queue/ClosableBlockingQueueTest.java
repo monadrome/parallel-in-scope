@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope.control;
+package io.github.huatalk.parallelinscope.queue;
 
 import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Exercises the Guard, Service, and shutdown-recovery contracts. */
-class StoppableBlockingQueueTest {
+class ClosableBlockingQueueTest {
 
     private static final long TIMEOUT_SECONDS = 10;
 
@@ -81,42 +81,42 @@ class StoppableBlockingQueueTest {
     /** Verifies constructor validation and the pre-termination remaining-list access boundary. */
     @Test
     void configurationAndRemainingListAccessAreValidated() {
-        StoppableBlockingQueue<Integer> unbounded = new StoppableBlockingQueue<>();
+        ClosableBlockingQueue<Integer> unbounded = new ClosableBlockingQueue<>();
         assertEquals(Integer.MAX_VALUE, unbounded.remainingCapacity());
 
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(3);
-        assertTrue(queue.toString().contains(StoppableBlockingQueue.class.getSimpleName()));
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(3);
+        assertTrue(queue.toString().contains(ClosableBlockingQueue.class.getSimpleName()));
         assertThrows(IllegalStateException.class, queue::remainingList);
 
-        assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(0));
-        assertThrows(IllegalArgumentException.class, () -> new StoppableBlockingQueue<>(-1));
+        assertThrows(IllegalArgumentException.class, () -> new ClosableBlockingQueue<>(0));
+        assertThrows(IllegalArgumentException.class, () -> new ClosableBlockingQueue<>(-1));
         assertThrows(NullPointerException.class, () -> queue.offer(1, 1, null));
         assertThrows(NullPointerException.class, () -> queue.poll(1, null));
 
-        StoppableBlockingQueue<Integer> copied =
-                new StoppableBlockingQueue<>(4, Arrays.asList(1, 2, 3), null);
+        ClosableBlockingQueue<Integer> copied =
+                new ClosableBlockingQueue<>(4, Arrays.asList(1, 2, 3), null);
         assertEquals(Arrays.asList(1, 2, 3), new ArrayList<>(copied));
         assertEquals(1, copied.remainingCapacity());
-        StoppableBlockingQueue<Integer> unboundedCopy =
-                new StoppableBlockingQueue<>(Arrays.asList(4, 5));
+        ClosableBlockingQueue<Integer> unboundedCopy =
+                new ClosableBlockingQueue<>(Arrays.asList(4, 5));
         assertEquals(Arrays.asList(4, 5), new ArrayList<>(unboundedCopy));
 
         assertThrows(NullPointerException.class,
-                () -> new StoppableBlockingQueue<Integer>((Collection<Integer>) null));
+                () -> new ClosableBlockingQueue<Integer>((Collection<Integer>) null));
         assertThrows(NullPointerException.class,
-                () -> new StoppableBlockingQueue<>(Arrays.asList(1, null)));
+                () -> new ClosableBlockingQueue<>(Arrays.asList(1, null)));
         assertThrows(IllegalArgumentException.class,
-                () -> new StoppableBlockingQueue<>(
+                () -> new ClosableBlockingQueue<>(
                         1, Arrays.asList(1, 2), null));
-        StoppableBlockingQueue<Integer> explicitThrow =
-                new StoppableBlockingQueue<>(1, null);
+        ClosableBlockingQueue<Integer> explicitThrow =
+                new ClosableBlockingQueue<>(1, null);
         explicitThrow.stopAsync().awaitTerminated();
         QueueShutdownException shutdown =
                 assertThrows(QueueShutdownException.class, explicitThrow::poll);
-        assertTrue(shutdown.getMessage().contains(StoppableBlockingQueue.class.getSimpleName()));
+        assertTrue(shutdown.getMessage().contains(ClosableBlockingQueue.class.getSimpleName()));
         Object poison = new Object();
         assertThrows(IllegalArgumentException.class,
-                () -> new StoppableBlockingQueue<>(
+                () -> new ClosableBlockingQueue<>(
                         1,
                         Collections.singletonList(poison),
                         poison));
@@ -125,7 +125,7 @@ class StoppableBlockingQueueTest {
     /** Verifies stop-before-start detaches FIFO elements and permanently rejects every producer path. */
     @Test
     void stopBeforeStartPublishesFifoRemainingListAndRejectsWrites() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(4);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(4);
         assertTrue(queue.offer(1));
         assertTrue(queue.offer(2));
         assertTrue(queue.offer(3));
@@ -167,11 +167,11 @@ class StoppableBlockingQueueTest {
     @Test
     void poisonObjectReturnsFromClosedConsumers() throws Exception {
         String poison = new String("STOP");
-        StoppableBlockingQueue<String> consumerQueue = new StoppableBlockingQueue<>(
+        ClosableBlockingQueue<String> consumerQueue = new ClosableBlockingQueue<>(
                 1, poison);
-        StoppableBlockingQueue<String> timedConsumerQueue = new StoppableBlockingQueue<>(
+        ClosableBlockingQueue<String> timedConsumerQueue = new ClosableBlockingQueue<>(
                 1, poison);
-        StoppableBlockingQueue<String> producerQueue = new StoppableBlockingQueue<>(
+        ClosableBlockingQueue<String> producerQueue = new ClosableBlockingQueue<>(
                 1,
                 Collections.singletonList("accepted"),
                 poison);
@@ -229,19 +229,19 @@ class StoppableBlockingQueueTest {
     /** Verifies the queue owns only two Monitors and defers linear recovery work until list access. */
     @Test
     void shutdownUsesTwoMonitorsAndLazilyMaterializesRemainingList() throws Exception {
-        long monitorCount = Arrays.stream(StoppableBlockingQueue.class.getDeclaredFields())
+        long monitorCount = Arrays.stream(ClosableBlockingQueue.class.getDeclaredFields())
                 .filter(field -> field.getType() == Monitor.class)
                 .count();
         assertEquals(2, monitorCount);
 
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(1024);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1024);
         for (int i = 0; i < 1024; i++) {
             queue.offer(i);
         }
         queue.stopAsync();
         queue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-        Field remainingTaskField = StoppableBlockingQueue.class.getDeclaredField("remainingTask");
+        Field remainingTaskField = ClosableBlockingQueue.class.getDeclaredField("remainingTask");
         remainingTaskField.setAccessible(true);
         FutureTask<?> remainingTask = (FutureTask<?>) remainingTaskField.get(queue);
         assertFalse(remainingTask.isDone(), "stopAsync must not traverse detached elements");
@@ -253,7 +253,7 @@ class StoppableBlockingQueueTest {
     /** Verifies startup cannot pass a shutdown that already owns the producer Monitor. */
     @Test
     void startupWaitsForShutdownLinearizationAndThenFails() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(1);
         queue.offer(1);
         Monitor putMonitor = monitorField(queue, "putMonitor");
         Monitor takeMonitor = monitorField(queue, "takeMonitor");
@@ -294,8 +294,8 @@ class StoppableBlockingQueueTest {
 
     /** Reads one private Monitor for deterministic lock-order tests. */
     private static Monitor monitorField(
-            StoppableBlockingQueue<?> queue, String fieldName) throws Exception {
-        Field field = StoppableBlockingQueue.class.getDeclaredField(fieldName);
+            ClosableBlockingQueue<?> queue, String fieldName) throws Exception {
+        Field field = ClosableBlockingQueue.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return (Monitor) field.get(queue);
     }
@@ -303,7 +303,7 @@ class StoppableBlockingQueueTest {
     /** Verifies normal untimed and timed calls use the Service-backed queue before shutdown. */
     @Test
     void blockingOperationsStartServiceAndPreserveFifoSemantics() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(2);
         assertEquals(Service.State.NEW, queue.state());
 
         queue.put("a");
@@ -322,7 +322,7 @@ class StoppableBlockingQueueTest {
     /** Verifies explicit repeated starts retain Guava Service's rejection contract. */
     @Test
     void repeatedExplicitStartIsRejectedAfterRunning() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
         queue.startAsync();
         queue.awaitRunning();
 
@@ -336,9 +336,9 @@ class StoppableBlockingQueueTest {
     @Test
     void shutdownReleasesAllGuardWaitersWithoutInterruptingThreads() throws Exception {
         int waiterCount = 12;
-        StoppableBlockingQueue<Integer> producerQueue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> producerQueue = new ClosableBlockingQueue<>(1);
         producerQueue.put(0);
-        StoppableBlockingQueue<Integer> consumerQueue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> consumerQueue = new ClosableBlockingQueue<>(1);
         ExecutorService pool = Executors.newFixedThreadPool(waiterCount * 2);
         List<Outcome> outcomes = new ArrayList<>();
         try {
@@ -376,7 +376,7 @@ class StoppableBlockingQueueTest {
     /** Verifies a blocked producer retains ownership of its never-enqueued payload after shutdown. */
     @Test
     void blockedProducerPayloadIsNotReportedAsRemaining() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
         queue.put("accepted");
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
@@ -401,7 +401,7 @@ class StoppableBlockingQueueTest {
     /** Verifies an external interrupt remains distinguishable from lifecycle shutdown. */
     @Test
     void externalInterruptPropagatesUnchanged() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
         Outcome outcome = new Outcome();
         Thread caller = new Thread(() -> {
             try {
@@ -428,7 +428,7 @@ class StoppableBlockingQueueTest {
     /** Verifies concurrent stop calls publish one stable recovery list without duplication. */
     @Test
     void concurrentStopsAreIdempotentAndPublishRemainingOnce() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(128);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(128);
         for (int i = 0; i < 100; i++) {
             assertTrue(queue.offer(i));
         }
@@ -470,7 +470,7 @@ class StoppableBlockingQueueTest {
     @Test
     void takeVsShutdownPartitionsElementsWithoutLossOrDuplication() throws Exception {
         int elementCount = 64;
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(elementCount);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(elementCount);
         for (int i = 0; i < elementCount; i++) {
             queue.offer(i);
         }
@@ -518,7 +518,7 @@ class StoppableBlockingQueueTest {
     /** Verifies the recovery list is shared, mutable, and independent from the closed queue. */
     @Test
     void remainingListIsASharedCopyOnWriteRecoveryList() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
         queue.close();
@@ -535,7 +535,7 @@ class StoppableBlockingQueueTest {
     /** Verifies concurrent first access executes one recovery task and returns one shared list. */
     @Test
     void concurrentRemainingListAccessPublishesOneInstance() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(64);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(64);
         for (int i = 0; i < 64; i++) {
             queue.offer(i);
         }
@@ -581,7 +581,7 @@ class StoppableBlockingQueueTest {
     /** Verifies Service listeners observe the standard RUNNING, STOPPING, TERMINATED sequence. */
     @Test
     void serviceListenerSequenceFollowsGuavaContract() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(2);
         List<String> events = Collections.synchronizedList(new ArrayList<>());
         queue.addListener(new Service.Listener() {
             /** Records the RUNNING transition. */
@@ -614,7 +614,7 @@ class StoppableBlockingQueueTest {
     /** Verifies an inline startup listener cannot retain a queue monitor needed by shutdown. */
     @Test
     void blockingRunningListenerCanBeReleasedByConcurrentShutdown() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
         AtomicReference<Throwable> listenerFailure = new AtomicReference<>();
         queue.addListener(new Service.Listener() {
             /** Waits as a consumer until shutdown satisfies the lifecycle-aware Guard. */
@@ -651,7 +651,7 @@ class StoppableBlockingQueueTest {
     /** Verifies drain target callbacks execute after the queue monitor is released. */
     @Test
     void blockingDrainTargetCannotDelayShutdown() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
         queue.offer(1);
         queue.offer(2);
         CountDownLatch callbackEntered = new CountDownLatch(1);
@@ -698,7 +698,7 @@ class StoppableBlockingQueueTest {
     /** Verifies a partial target failure leaves the entire detached drain batch caller-owned. */
     @Test
     void failedDrainTargetOwnsDetachedBatchAndDoesNotPopulateRemaining() {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
         queue.offer(1);
         queue.offer(2);
         AtomicInteger additions = new AtomicInteger();
@@ -731,7 +731,7 @@ class StoppableBlockingQueueTest {
     /** Verifies clear is supported and releases a producer waiting for capacity. */
     @Test
     void clearRemovesLiveElementsAndReleasesBlockedProducer() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
         queue.put(1);
         queue.put(2);
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -759,7 +759,7 @@ class StoppableBlockingQueueTest {
     /** Verifies the weakly consistent iterator removes only its exact live node and enables bulk removal. */
     @Test
     void weaklyConsistentIteratorSupportsIdentityRemovalAndBulkOperations() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(4);
         String first = new String("same");
         String second = new String("same");
         queue.offer(first);
@@ -783,7 +783,7 @@ class StoppableBlockingQueueTest {
     /** Verifies a JDK-shaped iterator can observe a serial append after construction. */
     @Test
     void weaklyConsistentIteratorObservesAppendBeforeTraversal() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(2);
         queue.addLast("first");
 
         Iterator<String> iterator = queue.iterator();
@@ -797,7 +797,7 @@ class StoppableBlockingQueueTest {
     /** Verifies clear self-links cleared nodes so an existing iterator exposes only its buffered value. */
     @Test
     void weaklyConsistentIteratorDoesNotTraverseClearedNodes() {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(3);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(3);
         queue.addAll(Arrays.asList(1, 2, 3));
         Iterator<Integer> iterator = queue.iterator();
 
@@ -812,7 +812,7 @@ class StoppableBlockingQueueTest {
     /** Verifies inherited array, traversal, spliterator, and stream surfaces retain queue ordering. */
     @Test
     void inheritedTraversalSurfacesRetainEncounterOrderAndLateBinding() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(8);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(8);
         queue.addAll(Arrays.asList("a", "b", "c"));
 
         assertEquals(Arrays.asList("a", "b", "c"), Arrays.asList(queue.toArray()));
@@ -839,7 +839,7 @@ class StoppableBlockingQueueTest {
     /** Verifies an inherited forEach callback cannot retain either queue monitor during shutdown. */
     @Test
     void blockingForEachCallbackCannotDelayShutdown() throws Exception {
-        StoppableBlockingQueue<Integer> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(2);
         queue.addAll(Arrays.asList(1, 2));
         CountDownLatch callbackEntered = new CountDownLatch(1);
         CountDownLatch releaseCallback = new CountDownLatch(1);
@@ -875,7 +875,7 @@ class StoppableBlockingQueueTest {
     /** Verifies reverse list iterators fail fast after an external structural queue change. */
     @Test
     void reverseListIteratorFailsFastAfterExternalQueueMutation() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(5);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(5);
         String first = new String("same");
         String second = new String("same");
         queue.addAll(Arrays.asList(first, second, "tail"));
@@ -892,7 +892,7 @@ class StoppableBlockingQueueTest {
     /** Verifies reverse list iterators refresh their own version but fail after dequeue or shutdown. */
     @Test
     void reverseListIteratorTracksOwnMutationsAndExternalLifecycleChanges() throws Exception {
-        StoppableBlockingQueue<String> ownMutationQueue = new StoppableBlockingQueue<>(4);
+        ClosableBlockingQueue<String> ownMutationQueue = new ClosableBlockingQueue<>(4);
         ownMutationQueue.addAll(Arrays.asList("a", "b"));
         ListIterator<String> ownMutationIterator = ownMutationQueue.reversed().listIterator();
         assertEquals("b", ownMutationIterator.next());
@@ -902,13 +902,13 @@ class StoppableBlockingQueueTest {
         assertEquals("z", ownMutationIterator.previous());
         assertEquals(Arrays.asList("z", "a"), new ArrayList<>(ownMutationQueue));
 
-        StoppableBlockingQueue<String> dequeueQueue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> dequeueQueue = new ClosableBlockingQueue<>(2);
         dequeueQueue.addAll(Arrays.asList("a", "b"));
         ListIterator<String> dequeueIterator = dequeueQueue.reversed().listIterator();
         dequeueQueue.poll();
         assertThrows(ConcurrentModificationException.class, dequeueIterator::next);
 
-        StoppableBlockingQueue<String> shutdownQueue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> shutdownQueue = new ClosableBlockingQueue<>(1);
         shutdownQueue.addLast("a");
         ListIterator<String> shutdownIterator = shutdownQueue.reversed().listIterator();
         shutdownQueue.stopAsync();
@@ -920,7 +920,7 @@ class StoppableBlockingQueueTest {
     /** Verifies reverse batches and inherited bulk removal preserve encounter order. */
     @Test
     void reverseViewEndpointAddAllAndBulkRemovalWriteThrough() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(10);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(10);
         queue.addAll(Arrays.asList("a", "b", "c"));
         List<String> reversed = queue.reversed();
 
@@ -938,7 +938,7 @@ class StoppableBlockingQueueTest {
 
         assertThrows(IndexOutOfBoundsException.class,
                 () -> reversed.addAll(-1, Collections.singletonList("invalid")));
-        StoppableBlockingQueue<String> nearlyFull = new StoppableBlockingQueue<>(3);
+        ClosableBlockingQueue<String> nearlyFull = new ClosableBlockingQueue<>(3);
         nearlyFull.addAll(Arrays.asList("a", "b"));
         assertThrows(IllegalStateException.class,
                 () -> nearlyFull.reversed().addAll(Arrays.asList("c", "d")));
@@ -948,7 +948,7 @@ class StoppableBlockingQueueTest {
     /** Verifies the backed reverse List supports standard middle mutation and ListIterator state changes. */
     @Test
     void reverseViewSupportsStandardPositionalListAndIteratorMutations() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(12);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(12);
         queue.addAll(Arrays.asList("a", "b", "c", "d"));
         List<String> reversed = queue.reversed();
 
@@ -974,7 +974,7 @@ class StoppableBlockingQueueTest {
     /** Verifies caller iteration for reverse endpoint batches cannot hold shutdown monitors. */
     @Test
     void blockingReverseAddAllSourceCannotDelayShutdown() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(2);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(2);
         queue.addLast("accepted");
         CountDownLatch iterationEntered = new CountDownLatch(1);
         CountDownLatch releaseIteration = new CountDownLatch(1);
@@ -1026,7 +1026,7 @@ class StoppableBlockingQueueTest {
     /** Verifies a pre-existing reverse view observes only the empty live queue after detachment. */
     @Test
     void closedReverseViewInheritedSurfacesObserveDetachedQueue() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(3);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(3);
         queue.addAll(Arrays.asList("a", "b", "c"));
         List<String> reversed = queue.reversed();
 
@@ -1047,7 +1047,7 @@ class StoppableBlockingQueueTest {
     /** Verifies inherited and iterator mutation entry points reject a closed lifecycle uniformly. */
     @Test
     void closedQueueRejectsBulkAndIteratorMutations() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(4);
         queue.addAll(Arrays.asList("a", "b"));
         Iterator<String> forward = queue.iterator();
         assertEquals("a", forward.next());
@@ -1070,7 +1070,7 @@ class StoppableBlockingQueueTest {
     /** Verifies Java 8-compatible sequenced methods and the backed reverse-order list view. */
     @Test
     void sequencedEndpointsAndReverseViewWriteThroughInBothDirections() {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(8);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(8);
         queue.addLast("b");
         queue.addFirst("a");
         queue.addLast("c");
@@ -1094,7 +1094,7 @@ class StoppableBlockingQueueTest {
         assertEquals("z", queue.removeFirst());
         assertEquals(Arrays.asList("a", "b", "c"), new ArrayList<>(queue));
 
-        StoppableBlockingQueue<Integer> full = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> full = new ClosableBlockingQueue<>(1);
         full.addFirst(1);
         assertThrows(IllegalStateException.class, () -> full.addLast(2));
         full.clear();
@@ -1107,8 +1107,8 @@ class StoppableBlockingQueueTest {
     /** Verifies endpoint insertion releases consumers and endpoint removal releases producers. */
     @Test
     void sequencedEndpointMutationsReleaseOppositeGuardWaiters() throws Exception {
-        StoppableBlockingQueue<Integer> consumerQueue = new StoppableBlockingQueue<>(1);
-        StoppableBlockingQueue<Integer> producerQueue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> consumerQueue = new ClosableBlockingQueue<>(1);
+        ClosableBlockingQueue<Integer> producerQueue = new ClosableBlockingQueue<>(1);
         producerQueue.put(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
@@ -1147,7 +1147,7 @@ class StoppableBlockingQueueTest {
             return;
         }
 
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(4);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(4);
         queue.addLast("first");
         queue.addLast("last");
         List<String> reversed = queue.reversed();
@@ -1171,7 +1171,7 @@ class StoppableBlockingQueueTest {
     /** Verifies user equality executes outside both queue monitors and cannot hold shutdown hostage. */
     @Test
     void blockingEqualsCannotDelayShutdown() throws Exception {
-        StoppableBlockingQueue<String> queue = new StoppableBlockingQueue<>(1);
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(1);
         queue.offer("value");
         CountDownLatch equalsEntered = new CountDownLatch(1);
         CountDownLatch releaseEquals = new CountDownLatch(1);

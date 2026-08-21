@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope.control;
+package io.github.huatalk.parallelinscope.queue;
 
 /**
  * Thrown when a lifecycle-aware queue rejects an operation because shutdown has begun or completed.
@@ -6,14 +6,14 @@ package io.github.huatalk.parallelinscope.control;
  * <p>This exception is unchecked because {@link java.util.concurrent.BlockingQueue} method
  * signatures cannot express lifecycle rejection. It may be raised either by a blocked operation that
  * was released by lifecycle shutdown or by a new operation rejected after admission closed.
- * {@link StoppableBlockingQueue} uses Monitor guards to release blocked callers and does not interrupt
+ * {@link ClosableBlockingQueue} uses Monitor guards to release blocked callers and does not interrupt
  * threads.
  *
  * <p>External interrupts remain {@link InterruptedException}; lifecycle rejection is never used to
  * disguise an external interrupt.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
- * @see StoppableBlockingQueue
+ * @see ClosableBlockingQueue
  */
 public class QueueShutdownException extends IllegalStateException {
 
