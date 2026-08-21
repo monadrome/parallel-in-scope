@@ -6,14 +6,14 @@
 
 JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻塞，放满后 `put()` 永久阻塞。传统解法是毒丸（poison pill），但毒丸只解决消费端、需要业务代码识别标记、多消费者还容易漏分。
 
-`ClosableBlockingQueue` 的设计目标，是把"关闭"做成队列自己的一等公民能力：
+`ClosableBlockingQueue` 的设计目标，是把"关闭"做成队列支持的能力：
 
 1. **关闭自动释放全部等待者，不依赖协作**。`close()` 一次调用，生产端和消费端所有阻塞调用全部苏醒，无需毒丸或 shutdownNow 式的线程枚举。
 2. **关闭 ≠ 中断**。关闭不 `interrupt()` 任何线程。等待者"看见"关闭后以明确结果退出——抛异常或返回毒丸——结果可预期、可测试。外部 `interrupt()` 的既有语义原样保留。
-3. **生产消费对称**。`put` / `offer(t)` 被关闭释放 → 抛异常；`take` / `poll(t)` 被关闭释放 → 抛异常或返回毒丸。两边都不卡死，没有"只关一半"的窗口。
+3. **生产消费对称**。`put` / `offer(t)` 被关闭释放 → 抛异常；`take` / `poll(t)` 被关闭释放 → 抛异常或返回毒丸。两边都不卡死，不支持"只关一半"。
 4. **元素可恢复**。关闭时已入队元素不丢失，`remainingList()` 在终止后取回。
-5. **关闭不被用户代码阻塞**。`stopAsync()` 不遍历链表，存量延迟物化；用户回调（drain 目标集合的 add、元素 equals、forEach 回调）都在 monitor 之外执行，再慢也拖不住关闭。
-6. **完整兼容**。实现 `BlockingQueue` + `Collection` + Guava `Service` + `AutoCloseable`，并暴露 Java 21 sequenced 集合端点与反向视图。
+5. **关闭不被用户代码阻塞**。`stopAsync()` 不遍历链表，存量延迟获取；用户回调（drain 目标集合的 add、元素 equals、forEach 回调）都在 monitor 之外执行，再慢也拖不住关闭。
+6. **完整兼容**。实现 `BlockingQueue`  + Guava `Service` + `AutoCloseable`，并暴露 Java 21 sequenced 集合端点与反向视图。
 7. **关闭幂等、可等待**。并发 stop 只发布一次；`awaitTerminated()` 保证恢复快照已固定、所有已准入的阻塞调用已退出。
 
 ## 约束
