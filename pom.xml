@@ -199,6 +199,42 @@
 
     <profiles>
         <profile>
+            <id>pitest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.19.1</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <testPlugin>junit5</testPlugin>
+                            <targetClasses>
+                                <param>io.github.huatalk.parallelinscope.queue.MonitorLinkedBlockingQueue</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.huatalk.parallelinscope.MonitorLinkedBlockingQueueTest</param>
+                            </targetTests>
+                            <outputFormats>
+                                <param>HTML</param>
+                            </outputFormats>
+                            <threads>8</threads>
+                            <timestampedReports>false</timestampedReports>
+                            <withHistory>true</withHistory>
+                            <historyInputFile>target/pit-history/pitest.xml</historyInputFile>
+                            <historyOutputFile>target/pit-history/pitest.xml</historyOutputFile>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>release</id>
             <build>
                 <plugins>
