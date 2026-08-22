@@ -8,7 +8,15 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
-/** Per-batch runtime context; never cached by a Par or GlobalPar. */
+/**
+ * Immutable resolved state for one {@code Par.map} invocation; never cached by a {@code Par} or
+ * {@code GlobalPar}.
+ *
+ * <p>Resolution is the only place where user options become executable values: requested
+ * parallelism is capped by task count, absent timeout uses the global default, and a nested batch
+ * uses the earlier of its requested and parent deadlines. The cancellation token is always a new
+ * child token, so cancellation propagates downward without making child failure cancel its parent.
+ */
 public final class BatchExecutionContext {
     private final String batchId;
     private final String taskName;
@@ -43,6 +51,10 @@ public final class BatchExecutionContext {
         this.rejectEnqueue = rejectEnqueue;
     }
 
+    /**
+     * Resolves public options without binding a concrete {@code Par}. This overload is intended for
+     * compatibility and tests; normal execution uses the identity-aware overload below.
+     */
     public static BatchExecutionContext resolve(
             GlobalExecutionPolicy policy,
             ExecutionOptions options,
@@ -89,7 +101,11 @@ public final class BatchExecutionContext {
                 parent, effectiveObservation, null, null, options.taskType(), options.rejectEnqueue());
     }
 
-    /** Resolves a batch while recording its concrete Par and supplied executor identity. */
+    /**
+     * Resolves a batch while recording its concrete {@code Par} and supplied executor identity.
+     * The identity is diagnostic and graph state, not a submission target; actual submission is
+     * owned by the corresponding internal executor runtime.
+     */
     public static BatchExecutionContext resolve(
             GlobalExecutionPolicy policy, ExecutionOptions options, int taskCount,
             BatchExecutionContext parent, GlobalParObservationContext observationContext,
@@ -107,6 +123,7 @@ public final class BatchExecutionContext {
     public int taskCount() { return taskCount; }
     public int effectiveParallelism() { return effectiveParallelism; }
     public long deadlineNanos() { return deadlineNanos; }
+    /** Returns a non-negative remaining timeout derived from the monotonic clock. */
     public Duration remaining() {
         long nanos = Math.max(0L, deadlineNanos - System.nanoTime());
         return Duration.ofNanos(nanos);

@@ -107,13 +107,21 @@ public final class HeuristicPurger {
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("ThreadPoolPurger-%d").build());
     }
 
-    /** Discards cancellation estimates issued before this reset generation. */
+    /**
+     * Discards cancellation estimates issued before this reset generation.
+     *
+     * <p>Already running maintenance is not interrupted. The generation check instead prevents
+     * stale cancellation observations from scheduling a later purge after the reset.
+     */
     public void clearPendingCancellations() {
         resetGeneration.incrementAndGet();
         states.values().forEach(PoolState::settleCurrentGeneration);
     }
 
-    /** Stops this purger's scheduler and releases its pool-level state. */
+    /**
+     * Stops this purger's scheduler and releases its pool-level state.
+     * This method never shuts down or otherwise mutates an observed application executor.
+     */
     public void close() {
         maintenanceExecutor.shutdownNow();
         states.clear();
@@ -123,7 +131,11 @@ public final class HeuristicPurger {
      * Returns the queued-cancellation callback bound to the submitted task's executor.
      * Unsupported queue implementations receive a static no-op callback.
      *
-     * @param executor actual executor used to run the task
+     * <p>The returned callback must be invoked only when a submitted task is cancelled before it
+     * starts. It is safe to invoke more than once: accounting is heuristic and maintenance is
+     * coalesced. The executor is keyed by object identity, not by its display name.
+     *
+     * @param executor actual supplied executor used to run the task
      * @return executor-bound cancellation callback
      */
     public Runnable cancellationObserverFor(ThreadPoolExecutor executor) {

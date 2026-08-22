@@ -671,7 +671,13 @@ public class ClosableBlockingQueue<E> extends AbstractQueue<E>
         return capacity - count.get();
     }
 
-    /** Transfers all live or shutdown-recovery elements to the supplied collection. */
+    /**
+     * Transfers all live or shutdown-recovery elements to the supplied collection.
+     *
+     * <p>Unlike every other queue mutation, this operation remains legal after close so callers
+     * can recover work that was detached during shutdown. It never returns the configured poison
+     * value, which is a virtual consumer signal rather than a queued element.
+     */
     @Override
     public int drainTo(Collection<? super E> target) {
         return drainTo(target, Integer.MAX_VALUE);

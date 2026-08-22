@@ -6,7 +6,13 @@ import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Explicit request-level observation scope owned by one GlobalPar. */
+/**
+ * Explicit request-level task-graph observation scope owned by one {@link GlobalPar}.
+ *
+ * <p>This context is intentionally not a global collector. It captures and restores the graph data
+ * active on the opening thread, and {@link #close()} is idempotent so it can be used with
+ * try-with-resources. Tasks submitted under the scope share its graph through the batch context.
+ */
 public final class GlobalParObservationContext implements AutoCloseable {
     private final GlobalPar owner;
     private final AtomicBoolean closed = new AtomicBoolean();

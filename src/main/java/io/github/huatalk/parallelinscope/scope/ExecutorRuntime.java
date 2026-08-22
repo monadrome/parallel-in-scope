@@ -9,7 +9,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 
-/** Runtime capability record for one supplied executor. Internal to the GlobalPar package. */
+/**
+ * Runtime capability record for one supplied executor. Internal to the {@code GlobalPar} package.
+ *
+ * <p>The supplied executor is the resource identity used for queue inspection, purge, and blocking
+ * risk. The submission executor is either that same object or a Guava listening adapter used only
+ * to obtain {@code ListenableFuture}s; the adapter must never be mistaken for the physical pool.
+ */
 final class ExecutorRuntime {
     private final ExecutorService suppliedExecutor;
     private final ListeningExecutorService submissionExecutor;

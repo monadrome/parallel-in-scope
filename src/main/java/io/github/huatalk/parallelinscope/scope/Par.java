@@ -67,7 +67,19 @@ public final class Par {
         return runtime;
     }
 
-    /** Executes a batch using the executor bound at GlobalPar build time. */
+    /**
+     * Executes a batch using the executor bound when the owning {@link GlobalPar} was built.
+     *
+     * <p>The supplied list is snapshotted only as task callables are created; callers must not
+     * structurally mutate it while this method runs. A {@code null} or empty list returns an empty
+     * result without submitting work. When invoked within another scoped task, the child batch
+     * inherits cancellation and cannot outlive its parent's deadline. The selected executor never
+     * changes per call and is not owned by this {@code Par}.
+     *
+     * @param list input elements, or {@code null} for an empty batch
+     * @param function synchronous mapping function, run at most once for each submitted element
+     * @param options immutable per-batch request; it cannot select an executor
+     */
     public <T, R> AsyncBatchResult<R> map(
             @Nullable List<T> list,
             Function<? super T, ? extends R> function,
@@ -112,7 +124,8 @@ public final class Par {
     }
 
     /**
-     * Records a fork relationship for livelock detection.
+     * Records one parent-to-child batch edge. Batch IDs, rather than reusable task names, preserve
+     * graph correctness when the same named operation is invoked concurrently.
      */
     private static void logForking(BatchExecutionContext context, TaskEdge edge) {
         BatchExecutionContext parent = context.parent();

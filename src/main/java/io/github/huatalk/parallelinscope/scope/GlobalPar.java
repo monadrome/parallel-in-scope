@@ -20,7 +20,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Immutable application execution topology containing logical Par entries. */
+/**
+ * Immutable application execution topology containing logical {@link Par} entries.
+ *
+ * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
+ * policies, and executor bindings cannot change. A registered executor is borrowed; closing this
+ * object releases only framework-owned timer and maintenance resources, never a supplied executor.
+ */
 public final class GlobalPar implements AutoCloseable {
     private static final AtomicReference<GlobalPar> INSTALLED = new AtomicReference<>();
     private final Map<String, Par> pars;
@@ -74,6 +80,13 @@ public final class GlobalPar implements AutoCloseable {
     }
 
     public static Builder builder() { return new Builder(); }
+    /**
+     * Installs the optional process-wide convenience instance exactly once.
+     *
+     * <p>This does not transfer ownership of supplied executors. Applications should normally pass
+     * individual {@code Par} instances to their components rather than use {@link #global()} as a
+     * service locator.
+     */
     public static void installGlobal(GlobalPar globalPar) {
         Objects.requireNonNull(globalPar, "globalPar cannot be null");
         if (!INSTALLED.compareAndSet(null, globalPar)) {
@@ -110,6 +123,12 @@ public final class GlobalPar implements AutoCloseable {
     HeuristicPurger purger() { return purger; }
     ScheduledExecutorService timerService() { return timerService; }
     ListeningExecutorService submitterPool() { return submitterPool; }
+    /**
+     * Opens a request-scoped task-graph observation owned by this topology.
+     *
+     * <p>The caller must close the returned context. Only nested batches belonging to this same
+     * {@code GlobalPar} join it; crossing to another topology deliberately starts no shared graph.
+     */
     public GlobalParObservationContext openObservation() {
         return new GlobalParObservationContext(this);
     }
@@ -161,6 +180,12 @@ public final class GlobalPar implements AutoCloseable {
             this.purgePolicy = Objects.requireNonNull(policy);
             return this;
         }
+        /**
+         * Registers a logical entry with one exact executor object.
+         *
+         * <p>The name is only a build-time lookup and diagnostic label. Executor sharing is instead
+         * detected by object identity, so two names may intentionally use the same physical pool.
+         */
         public Builder register(String name, ExecutorService executor) {
             if (name == null || name.isEmpty()) throw new IllegalArgumentException("name must not be empty");
             if (executors.containsKey(name)) throw new IllegalArgumentException("Duplicate Par name '" + name + "'");

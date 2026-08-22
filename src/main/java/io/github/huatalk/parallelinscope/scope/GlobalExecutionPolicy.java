@@ -6,7 +6,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Immutable application-level defaults shared by all Par entries in one GlobalPar. */
+/**
+ * Immutable application-level defaults shared by all {@link Par} entries in one {@link GlobalPar}.
+ *
+ * <p>This is declarative configuration only: it does not register executors, own schedulers, or
+ * retain batch state. A per-Par override replaces this policy for that entry during batch
+ * resolution; it does not create another executor or resource-ownership scope.
+ */
 public final class GlobalExecutionPolicy {
     private final long defaultTimeoutMillis;
     private final List<TaskListener> taskListeners;
@@ -18,6 +24,10 @@ public final class GlobalExecutionPolicy {
 
     public static Builder builder() { return new Builder(); }
     public long defaultTimeoutMillis() { return defaultTimeoutMillis; }
+    /**
+     * Returns an immutable listener snapshot. Listener callbacks run on task execution paths and
+     * must therefore be non-blocking and tolerate concurrent invocation.
+     */
     public List<TaskListener> taskListeners() { return taskListeners; }
 
     public static final class Builder {

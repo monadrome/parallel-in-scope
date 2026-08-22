@@ -1,6 +1,11 @@
 package io.github.huatalk.parallelinscope.scope;
 
-/** Immutable thread-pool-level purge policy owned by one GlobalPar. */
+/**
+ * Immutable thread-pool-level purge policy owned by one {@link GlobalPar}.
+ *
+ * <p>The thresholds are advisory trigger conditions, not queue-accounting guarantees. They apply
+ * once per physical supplied executor even when several named {@code Par} entries share it.
+ */
 public final class GlobalParPurgePolicy {
     private final boolean enabled;
     private final double queuePressureThreshold;
