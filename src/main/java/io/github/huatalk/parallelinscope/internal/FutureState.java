@@ -8,12 +8,12 @@ package io.github.huatalk.parallelinscope.internal;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public enum FutureState {
-  /** Task is still executing */
-  RUNNING,
-  /** Task completed successfully */
-  SUCCESS,
-  /** Task completed with an exception */
-  FAILED,
-  /** Task was cancelled */
-  CANCELLED
+    /** Task is still executing */
+    RUNNING,
+    /** Task completed successfully */
+    SUCCESS,
+    /** Task completed with an exception */
+    FAILED,
+    /** Task was cancelled */
+    CANCELLED
 }

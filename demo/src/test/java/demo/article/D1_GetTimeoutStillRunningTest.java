@@ -26,124 +26,118 @@ import org.junit.jupiter.api.Test;
  */
 public class D1_GetTimeoutStillRunningTest {
 
-  private ExecutorService pool;
-  private Par par;
+    private ExecutorService pool;
+    private Par par;
 
-  @BeforeEach
-  void setUp() {
-    pool = Executors.newFixedThreadPool(2);
-    ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-    par = new Par(config);
-  }
-
-  @AfterEach
-  void tearDown() {
-    pool.shutdownNow();
-  }
-
-  @Test
-  void futureGet_timeout_taskStillRunning() throws Exception {
-    // 问题演示：Future.get(timeout) 超时后，任务仍在运行
-    AtomicBoolean task1Completed = new AtomicBoolean(false);
-    AtomicBoolean task2Completed = new AtomicBoolean(false);
-
-    Future<?> future1 =
-        pool.submit(
-            () -> {
-              try {
-                Thread.sleep(3000);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
-              task1Completed.set(true);
-              return "task1";
-            });
-
-    Future<?> future2 =
-        pool.submit(
-            () -> {
-              try {
-                Thread.sleep(3000);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
-              task2Completed.set(true);
-              return "task2";
-            });
-
-    // 调用者等待 500ms 后超时
-    try {
-      future1.get(500, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      // 预期：调用者收到超时异常
+    @BeforeEach
+    void setUp() {
+        pool = Executors.newFixedThreadPool(2);
+        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
+        par = new Par(config);
     }
 
-    try {
-      future2.get(500, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      // 预期：调用者收到超时异常
+    @AfterEach
+    void tearDown() {
+        pool.shutdownNow();
     }
 
-    // 验证：此时任务仍在运行，尚未完成
-    assertThat(task1Completed.get()).isFalse();
-    assertThat(task2Completed.get()).isFalse();
+    @Test
+    void futureGet_timeout_taskStillRunning() throws Exception {
+        // 问题演示：Future.get(timeout) 超时后，任务仍在运行
+        AtomicBoolean task1Completed = new AtomicBoolean(false);
+        AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-    // 等待任务自然完成
-    // 说明：虽然调用者已超时返回，但任务继续占用线程直到完成
-    future1.get(5, TimeUnit.SECONDS);
-    future2.get(5, TimeUnit.SECONDS);
-
-    // 验证：任务最终完成了（但调用者早已超时离开）
-    assertThat(task1Completed.get()).isTrue();
-    assertThat(task2Completed.get()).isTrue();
-  }
-
-  @Test
-  void parMap_withTimeout_cancelsTasks() throws Exception {
-    // 解决方案：Par.map() 配合超时自动取消
-    AtomicBoolean task1Completed = new AtomicBoolean(false);
-    AtomicBoolean task2Completed = new AtomicBoolean(false);
-
-    ParOptions opts =
-        ParOptions.of("cancel-demo")
-            .parallelism(2)
-            .timeout(500)
-            .timeUnit(TimeUnit.MILLISECONDS)
-            .taskType(TaskType.IO_BOUND)
-            .build();
-
-    List<Integer> input = Arrays.asList(1, 2);
-    AsyncBatchResult<Integer> result =
-        par.map(
-            "test-pool",
-            input,
-            x -> {
-              try {
+        Future<?> future1 = pool.submit(() -> {
+            try {
                 Thread.sleep(3000);
-              } catch (InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                // 被中断，记录状态后退出
-                if (x == 1) task1Completed.set(false);
-                else task2Completed.set(false);
-                throw new RuntimeException("Task cancelled", e);
-              }
-              if (x == 1) task1Completed.set(true);
-              else task2Completed.set(true);
-              return x;
-            },
-            opts);
+            }
+            task1Completed.set(true);
+            return "task1";
+        });
 
-    // 等待超时取消生效
-    Thread.sleep(2000);
+        Future<?> future2 = pool.submit(() -> {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            task2Completed.set(true);
+            return "task2";
+        });
 
-    // 验证：任务被取消，不会完成
-    // task1Completed 和 task2Completed 保持初始值 false
-    assertThat(task1Completed.get()).isFalse();
-    assertThat(task2Completed.get()).isFalse();
+        // 调用者等待 500ms 后超时
+        try {
+            future1.get(500, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            // 预期：调用者收到超时异常
+        }
 
-    // 验证：所有 Future 都已取消
-    for (Future<Integer> future : result.getResults()) {
-      assertThat(future.isCancelled() || future.isDone()).isTrue();
+        try {
+            future2.get(500, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            // 预期：调用者收到超时异常
+        }
+
+        // 验证：此时任务仍在运行，尚未完成
+        assertThat(task1Completed.get()).isFalse();
+        assertThat(task2Completed.get()).isFalse();
+
+        // 等待任务自然完成
+        // 说明：虽然调用者已超时返回，但任务继续占用线程直到完成
+        future1.get(5, TimeUnit.SECONDS);
+        future2.get(5, TimeUnit.SECONDS);
+
+        // 验证：任务最终完成了（但调用者早已超时离开）
+        assertThat(task1Completed.get()).isTrue();
+        assertThat(task2Completed.get()).isTrue();
     }
-  }
+
+    @Test
+    void parMap_withTimeout_cancelsTasks() throws Exception {
+        // 解决方案：Par.map() 配合超时自动取消
+        AtomicBoolean task1Completed = new AtomicBoolean(false);
+        AtomicBoolean task2Completed = new AtomicBoolean(false);
+
+        ParOptions opts = ParOptions.of("cancel-demo")
+                .parallelism(2)
+                .timeout(500)
+                .timeUnit(TimeUnit.MILLISECONDS)
+                .taskType(TaskType.IO_BOUND)
+                .build();
+
+        List<Integer> input = Arrays.asList(1, 2);
+        AsyncBatchResult<Integer> result = par.map(
+                "test-pool",
+                input,
+                x -> {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        // 被中断，记录状态后退出
+                        if (x == 1) task1Completed.set(false);
+                        else task2Completed.set(false);
+                        throw new RuntimeException("Task cancelled", e);
+                    }
+                    if (x == 1) task1Completed.set(true);
+                    else task2Completed.set(true);
+                    return x;
+                },
+                opts);
+
+        // 等待超时取消生效
+        Thread.sleep(2000);
+
+        // 验证：任务被取消，不会完成
+        // task1Completed 和 task2Completed 保持初始值 false
+        assertThat(task1Completed.get()).isFalse();
+        assertThat(task2Completed.get()).isFalse();
+
+        // 验证：所有 Future 都已取消
+        for (Future<Integer> future : result.getResults()) {
+            assertThat(future.isCancelled() || future.isDone()).isTrue();
+        }
+    }
 }

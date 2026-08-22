@@ -24,91 +24,87 @@ import org.junit.jupiter.api.Test;
  */
 class ArchitectureConstraintsTest {
 
-  /** 禁止访问的内部包列表 */
-  private static final List<String> FORBIDDEN_PACKAGES =
-      Arrays.asList(
-          "io.github.huatalk.parallelinscope.internal",
-          "io.github.huatalk.parallelinscope.cancel",
-          "io.github.huatalk.parallelinscope.context",
-          "io.github.huatalk.parallelinscope.context.graph",
-          "io.github.huatalk.parallelinscope.queue");
+    /** 禁止访问的内部包列表 */
+    private static final List<String> FORBIDDEN_PACKAGES = Arrays.asList(
+            "io.github.huatalk.parallelinscope.internal",
+            "io.github.huatalk.parallelinscope.cancel",
+            "io.github.huatalk.parallelinscope.context",
+            "io.github.huatalk.parallelinscope.context.graph",
+            "io.github.huatalk.parallelinscope.queue");
 
-  /** 允许的例外类（来自禁止包的白名单） */
-  private static final List<String> ALLOWED_EXCEPTIONS =
-      Arrays.asList("io.github.huatalk.parallelinscope.cancel.Checkpoints");
+    /** 允许的例外类（来自禁止包的白名单） */
+    private static final List<String> ALLOWED_EXCEPTIONS =
+            Arrays.asList("io.github.huatalk.parallelinscope.cancel.Checkpoints");
 
-  @Test
-  void testNoForbiddenPackageImports() throws IOException {
-    Path sourceRoot = Paths.get("src/main/java");
+    @Test
+    void testNoForbiddenPackageImports() throws IOException {
+        Path sourceRoot = Paths.get("src/main/java");
 
-    if (!Files.exists(sourceRoot)) {
-      // 如果源目录不存在，跳过测试
-      return;
+        if (!Files.exists(sourceRoot)) {
+            // 如果源目录不存在，跳过测试
+            return;
+        }
+
+        try (Stream<Path> javaFiles =
+                Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
+
+            List<String> violations =
+                    javaFiles.flatMap(this::checkFileForForbiddenImports).collect(Collectors.toList());
+
+            assertThat(violations).as("Should not import forbidden packages").isEmpty();
+        }
     }
 
-    try (Stream<Path> javaFiles =
-        Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
+    @Test
+    void testUsesDemoPackageNamespace() throws IOException {
+        Path sourceRoot = Paths.get("src/main/java");
 
-      List<String> violations =
-          javaFiles.flatMap(this::checkFileForForbiddenImports).collect(Collectors.toList());
+        if (!Files.exists(sourceRoot)) {
+            return;
+        }
 
-      assertThat(violations).as("Should not import forbidden packages").isEmpty();
+        try (Stream<Path> javaFiles =
+                Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
+
+            List<String> violations = javaFiles
+                    .filter(path -> !isTestFile(path))
+                    .flatMap(this::checkFilePackageDeclaration)
+                    .collect(Collectors.toList());
+
+            assertThat(violations).as("Should use demo package namespace").isEmpty();
+        }
     }
-  }
 
-  @Test
-  void testUsesDemoPackageNamespace() throws IOException {
-    Path sourceRoot = Paths.get("src/main/java");
+    private Stream<String> checkFileForForbiddenImports(Path javaFile) {
+        try {
+            List<String> lines = Files.readAllLines(javaFile);
+            String fileName = javaFile.getFileName().toString();
 
-    if (!Files.exists(sourceRoot)) {
-      return;
+            return lines.stream()
+                    .filter(line -> line.trim().startsWith("import "))
+                    .filter(line -> FORBIDDEN_PACKAGES.stream().anyMatch(pkg -> line.contains(pkg)))
+                    .filter(line -> ALLOWED_EXCEPTIONS.stream().noneMatch(ex -> line.contains(ex)))
+                    .map(line -> String.format("%s: forbidden import: %s", fileName, line.trim()));
+        } catch (IOException e) {
+            return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
+        }
     }
 
-    try (Stream<Path> javaFiles =
-        Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
+    private Stream<String> checkFilePackageDeclaration(Path javaFile) {
+        try {
+            List<String> lines = Files.readAllLines(javaFile);
+            String fileName = javaFile.getFileName().toString();
 
-      List<String> violations =
-          javaFiles
-              .filter(path -> !isTestFile(path))
-              .flatMap(this::checkFilePackageDeclaration)
-              .collect(Collectors.toList());
-
-      assertThat(violations).as("Should use demo package namespace").isEmpty();
+            return lines.stream()
+                    .filter(line -> line.trim().startsWith("package "))
+                    .filter(line -> !line.trim().startsWith("package demo"))
+                    .map(line -> String.format("%s: should use demo package, found: %s", fileName, line.trim()));
+        } catch (IOException e) {
+            return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
+        }
     }
-  }
 
-  private Stream<String> checkFileForForbiddenImports(Path javaFile) {
-    try {
-      List<String> lines = Files.readAllLines(javaFile);
-      String fileName = javaFile.getFileName().toString();
-
-      return lines.stream()
-          .filter(line -> line.trim().startsWith("import "))
-          .filter(line -> FORBIDDEN_PACKAGES.stream().anyMatch(pkg -> line.contains(pkg)))
-          .filter(line -> ALLOWED_EXCEPTIONS.stream().noneMatch(ex -> line.contains(ex)))
-          .map(line -> String.format("%s: forbidden import: %s", fileName, line.trim()));
-    } catch (IOException e) {
-      return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
+    private boolean isTestFile(Path path) {
+        return path.toString().contains("/test/") || path.toString().contains("\\test\\");
     }
-  }
-
-  private Stream<String> checkFilePackageDeclaration(Path javaFile) {
-    try {
-      List<String> lines = Files.readAllLines(javaFile);
-      String fileName = javaFile.getFileName().toString();
-
-      return lines.stream()
-          .filter(line -> line.trim().startsWith("package "))
-          .filter(line -> !line.trim().startsWith("package demo"))
-          .map(
-              line ->
-                  String.format("%s: should use demo package, found: %s", fileName, line.trim()));
-    } catch (IOException e) {
-      return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
-    }
-  }
-
-  private boolean isTestFile(Path path) {
-    return path.toString().contains("/test/") || path.toString().contains("\\test\\");
-  }
 }

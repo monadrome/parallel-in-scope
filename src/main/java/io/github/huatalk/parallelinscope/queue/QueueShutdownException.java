@@ -17,14 +17,14 @@ package io.github.huatalk.parallelinscope.queue;
  */
 public class QueueShutdownException extends IllegalStateException {
 
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  /**
-   * Creates an exception for a call that was rejected before reaching the backing queue.
-   *
-   * @param message the detail message
-   */
-  public QueueShutdownException(String message) {
-    super(message);
-  }
+    /**
+     * Creates an exception for a call that was rejected before reaching the backing queue.
+     *
+     * @param message the detail message
+     */
+    public QueueShutdownException(String message) {
+        super(message);
+    }
 }

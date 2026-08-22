@@ -28,84 +28,80 @@ import org.junit.jupiter.api.Test;
  */
 public class A1_CancelTrueInvalidTest {
 
-  private ExecutorService pool;
-  private Par par;
+    private ExecutorService pool;
+    private Par par;
 
-  @BeforeEach
-  void setUp() {
-    pool = Executors.newFixedThreadPool(4);
-    ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-    par = new Par(config);
-  }
+    @BeforeEach
+    void setUp() {
+        pool = Executors.newFixedThreadPool(4);
+        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
+        par = new Par(config);
+    }
 
-  @AfterEach
-  void tearDown() {
-    pool.shutdownNow();
-  }
+    @AfterEach
+    void tearDown() {
+        pool.shutdownNow();
+    }
 
-  @Test
-  void cancelTrue_doesNotStopNonInterruptibleTask() throws Exception {
-    // 问题演示：cancel(true) 对忽略中断标志的代码无效
-    final CountDownLatch started = new CountDownLatch(3);
-    AtomicInteger completed = new AtomicInteger(0);
-    List<Future<?>> futures = new ArrayList<>();
-    for (int i = 0; i < 3; i++) {
-      futures.add(
-          pool.submit(
-              () -> {
+    @Test
+    void cancelTrue_doesNotStopNonInterruptibleTask() throws Exception {
+        // 问题演示：cancel(true) 对忽略中断标志的代码无效
+        final CountDownLatch started = new CountDownLatch(3);
+        AtomicInteger completed = new AtomicInteger(0);
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            futures.add(pool.submit(() -> {
                 started.countDown();
                 // 紧密循环，忽略中断标志
                 long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
                 while (System.nanoTime() < end) {
-                  /* 忙等待，不检查 Thread.interrupted() */
+                    /* 忙等待，不检查 Thread.interrupted() */
                 }
                 completed.incrementAndGet();
-              }));
+            }));
+        }
+        // 确保所有任务已开始执行
+        started.await(3, TimeUnit.SECONDS);
+        // 尝试取消所有任务
+        futures.forEach(f -> f.cancel(true));
+        // cancel(true) 后 get() 立即抛 CancellationException，不会阻塞等待
+        for (Future<?> f : futures) {
+            try {
+                f.get(5, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
+        }
+        // 等待忙循环自然结束（2 秒），证明 cancel(true) 没有停止任务
+        Thread.sleep(3000);
+        // 问题验证：尽管调用了 cancel(true)，所有 3 个任务仍然完成
+        assertThat(completed.get()).isEqualTo(3);
     }
-    // 确保所有任务已开始执行
-    started.await(3, TimeUnit.SECONDS);
-    // 尝试取消所有任务
-    futures.forEach(f -> f.cancel(true));
-    // cancel(true) 后 get() 立即抛 CancellationException，不会阻塞等待
-    for (Future<?> f : futures) {
-      try {
-        f.get(5, TimeUnit.SECONDS);
-      } catch (Exception ignored) {
-      }
+
+    @Test
+    void parMap_withTimeout_cancelsTasks() throws Exception {
+        // 解决方案：Par.map() 配合超时自动取消
+        ParOptions opts = ParOptions.of("cancel-demo")
+                .parallelism(3)
+                .timeout(500)
+                .taskType(TaskType.IO_BOUND)
+                .build();
+
+        List<Integer> input = Arrays.asList(1, 2, 3);
+        long start = System.currentTimeMillis();
+        AsyncBatchResult<Integer> result = par.map(
+                "test-pool",
+                input,
+                x -> {
+                    // 使用 Checkpoints.sleep() 响应取消信号
+                    Checkpoints.sleep(5000);
+                    return x;
+                },
+                opts);
+
+        // 等待超时取消生效
+        Thread.sleep(2000);
+        long elapsed = System.currentTimeMillis() - start;
+        // 验证：总耗时远小于 3 个任务各 5 秒的总和
+        assertThat(elapsed).isLessThan(5000);
     }
-    // 等待忙循环自然结束（2 秒），证明 cancel(true) 没有停止任务
-    Thread.sleep(3000);
-    // 问题验证：尽管调用了 cancel(true)，所有 3 个任务仍然完成
-    assertThat(completed.get()).isEqualTo(3);
-  }
-
-  @Test
-  void parMap_withTimeout_cancelsTasks() throws Exception {
-    // 解决方案：Par.map() 配合超时自动取消
-    ParOptions opts =
-        ParOptions.of("cancel-demo")
-            .parallelism(3)
-            .timeout(500)
-            .taskType(TaskType.IO_BOUND)
-            .build();
-
-    List<Integer> input = Arrays.asList(1, 2, 3);
-    long start = System.currentTimeMillis();
-    AsyncBatchResult<Integer> result =
-        par.map(
-            "test-pool",
-            input,
-            x -> {
-              // 使用 Checkpoints.sleep() 响应取消信号
-              Checkpoints.sleep(5000);
-              return x;
-            },
-            opts);
-
-    // 等待超时取消生效
-    Thread.sleep(2000);
-    long elapsed = System.currentTimeMillis() - start;
-    // 验证：总耗时远小于 3 个任务各 5 秒的总和
-    assertThat(elapsed).isLessThan(5000);
-  }
 }

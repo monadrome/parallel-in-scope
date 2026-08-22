@@ -16,189 +16,181 @@ import java.util.UUID;
  * child token, so cancellation propagates downward without making child failure cancel its parent.
  */
 public final class BatchExecutionContext {
-  private final String batchId;
-  private final String taskName;
-  private final int taskCount;
-  private final int effectiveParallelism;
-  private final long deadlineNanos;
-  private final CancellationToken cancellationToken;
-  private final BatchExecutionContext parent;
-  private final GlobalParObservationContext observationContext;
-  private final ExecutorIdentity executorIdentity;
-  private final String parLabel;
-  private final TaskType taskType;
-  private final boolean rejectEnqueue;
+    private final String batchId;
+    private final String taskName;
+    private final int taskCount;
+    private final int effectiveParallelism;
+    private final long deadlineNanos;
+    private final CancellationToken cancellationToken;
+    private final BatchExecutionContext parent;
+    private final GlobalParObservationContext observationContext;
+    private final ExecutorIdentity executorIdentity;
+    private final String parLabel;
+    private final TaskType taskType;
+    private final boolean rejectEnqueue;
 
-  private BatchExecutionContext(
-      String taskName,
-      int taskCount,
-      int effectiveParallelism,
-      long deadlineNanos,
-      CancellationToken cancellationToken,
-      BatchExecutionContext parent,
-      GlobalParObservationContext observationContext,
-      ExecutorIdentity executorIdentity,
-      String parLabel,
-      TaskType taskType,
-      boolean rejectEnqueue) {
-    this.batchId = UUID.randomUUID().toString();
-    this.taskName = taskName;
-    this.taskCount = taskCount;
-    this.effectiveParallelism = effectiveParallelism;
-    this.deadlineNanos = deadlineNanos;
-    this.cancellationToken = cancellationToken;
-    this.parent = parent;
-    this.observationContext = observationContext;
-    this.executorIdentity = executorIdentity;
-    this.parLabel = parLabel;
-    this.taskType = taskType;
-    this.rejectEnqueue = rejectEnqueue;
-  }
-
-  /**
-   * Resolves public options without binding a concrete {@code Par}. This overload is intended for
-   * compatibility and tests; normal execution uses the identity-aware overload below.
-   */
-  public static BatchExecutionContext resolve(
-      GlobalExecutionPolicy policy,
-      ExecutionOptions options,
-      int taskCount,
-      BatchExecutionContext parent) {
-    return resolve(policy, options, taskCount, parent, null);
-  }
-
-  public static BatchExecutionContext resolve(
-      GlobalExecutionPolicy policy,
-      ExecutionOptions options,
-      int taskCount,
-      BatchExecutionContext parent,
-      GlobalParObservationContext observationContext) {
-    Objects.requireNonNull(policy);
-    Objects.requireNonNull(options);
-    if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
-    int requested = options.parallelism();
-    int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
-    long timeoutMillis;
-    if (options.timeout() == null) {
-      timeoutMillis = policy.defaultTimeoutMillis();
-    } else {
-      try {
-        timeoutMillis = options.timeout().toMillis();
-      } catch (ArithmeticException overflow) {
-        timeoutMillis = Long.MAX_VALUE / 1_000_000L;
-      }
+    private BatchExecutionContext(
+            String taskName,
+            int taskCount,
+            int effectiveParallelism,
+            long deadlineNanos,
+            CancellationToken cancellationToken,
+            BatchExecutionContext parent,
+            GlobalParObservationContext observationContext,
+            ExecutorIdentity executorIdentity,
+            String parLabel,
+            TaskType taskType,
+            boolean rejectEnqueue) {
+        this.batchId = UUID.randomUUID().toString();
+        this.taskName = taskName;
+        this.taskCount = taskCount;
+        this.effectiveParallelism = effectiveParallelism;
+        this.deadlineNanos = deadlineNanos;
+        this.cancellationToken = cancellationToken;
+        this.parent = parent;
+        this.observationContext = observationContext;
+        this.executorIdentity = executorIdentity;
+        this.parLabel = parLabel;
+        this.taskType = taskType;
+        this.rejectEnqueue = rejectEnqueue;
     }
-    long now = System.nanoTime();
-    long timeoutNanos;
-    try {
-      timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
-    } catch (ArithmeticException overflow) {
-      timeoutNanos = Long.MAX_VALUE;
+
+    /**
+     * Resolves public options without binding a concrete {@code Par}. This overload is intended for
+     * compatibility and tests; normal execution uses the identity-aware overload below.
+     */
+    public static BatchExecutionContext resolve(
+            GlobalExecutionPolicy policy, ExecutionOptions options, int taskCount, BatchExecutionContext parent) {
+        return resolve(policy, options, taskCount, parent, null);
     }
-    long requestedDeadline =
-        timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
-    long deadline =
-        parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
-    CancellationToken token =
-        new CancellationToken(parent == null ? null : parent.cancellationToken);
-    GlobalParObservationContext effectiveObservation =
-        observationContext != null
-            ? observationContext
-            : parent == null ? null : parent.observationContext;
-    return new BatchExecutionContext(
-        options.taskName(),
-        taskCount,
-        effective,
-        deadline,
-        token,
-        parent,
-        effectiveObservation,
-        null,
-        null,
-        options.taskType(),
-        options.rejectEnqueue());
-  }
 
-  /**
-   * Resolves a batch while recording its concrete {@code Par} and supplied executor identity. The
-   * identity is diagnostic and graph state, not a submission target; actual submission is owned by
-   * the corresponding internal executor runtime.
-   */
-  public static BatchExecutionContext resolve(
-      GlobalExecutionPolicy policy,
-      ExecutionOptions options,
-      int taskCount,
-      BatchExecutionContext parent,
-      GlobalParObservationContext observationContext,
-      ExecutorIdentity executorIdentity,
-      String parLabel) {
-    BatchExecutionContext context = resolve(policy, options, taskCount, parent, observationContext);
-    return new BatchExecutionContext(
-        context.taskName,
-        context.taskCount,
-        context.effectiveParallelism,
-        context.deadlineNanos,
-        context.cancellationToken,
-        context.parent,
-        context.observationContext,
-        executorIdentity,
-        parLabel,
-        context.taskType,
-        context.rejectEnqueue);
-  }
+    public static BatchExecutionContext resolve(
+            GlobalExecutionPolicy policy,
+            ExecutionOptions options,
+            int taskCount,
+            BatchExecutionContext parent,
+            GlobalParObservationContext observationContext) {
+        Objects.requireNonNull(policy);
+        Objects.requireNonNull(options);
+        if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
+        int requested = options.parallelism();
+        int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
+        long timeoutMillis;
+        if (options.timeout() == null) {
+            timeoutMillis = policy.defaultTimeoutMillis();
+        } else {
+            try {
+                timeoutMillis = options.timeout().toMillis();
+            } catch (ArithmeticException overflow) {
+                timeoutMillis = Long.MAX_VALUE / 1_000_000L;
+            }
+        }
+        long now = System.nanoTime();
+        long timeoutNanos;
+        try {
+            timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
+        } catch (ArithmeticException overflow) {
+            timeoutNanos = Long.MAX_VALUE;
+        }
+        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
+        long deadline = parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
+        CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken);
+        GlobalParObservationContext effectiveObservation =
+                observationContext != null ? observationContext : parent == null ? null : parent.observationContext;
+        return new BatchExecutionContext(
+                options.taskName(),
+                taskCount,
+                effective,
+                deadline,
+                token,
+                parent,
+                effectiveObservation,
+                null,
+                null,
+                options.taskType(),
+                options.rejectEnqueue());
+    }
 
-  public String taskName() {
-    return taskName;
-  }
+    /**
+     * Resolves a batch while recording its concrete {@code Par} and supplied executor identity. The
+     * identity is diagnostic and graph state, not a submission target; actual submission is owned by
+     * the corresponding internal executor runtime.
+     */
+    public static BatchExecutionContext resolve(
+            GlobalExecutionPolicy policy,
+            ExecutionOptions options,
+            int taskCount,
+            BatchExecutionContext parent,
+            GlobalParObservationContext observationContext,
+            ExecutorIdentity executorIdentity,
+            String parLabel) {
+        BatchExecutionContext context = resolve(policy, options, taskCount, parent, observationContext);
+        return new BatchExecutionContext(
+                context.taskName,
+                context.taskCount,
+                context.effectiveParallelism,
+                context.deadlineNanos,
+                context.cancellationToken,
+                context.parent,
+                context.observationContext,
+                executorIdentity,
+                parLabel,
+                context.taskType,
+                context.rejectEnqueue);
+    }
 
-  /** Stable identity for this one batch instance; never use taskName as graph identity. */
-  public String batchId() {
-    return batchId;
-  }
+    public String taskName() {
+        return taskName;
+    }
 
-  public int taskCount() {
-    return taskCount;
-  }
+    /** Stable identity for this one batch instance; never use taskName as graph identity. */
+    public String batchId() {
+        return batchId;
+    }
 
-  public int effectiveParallelism() {
-    return effectiveParallelism;
-  }
+    public int taskCount() {
+        return taskCount;
+    }
 
-  public long deadlineNanos() {
-    return deadlineNanos;
-  }
+    public int effectiveParallelism() {
+        return effectiveParallelism;
+    }
 
-  /** Returns a non-negative remaining timeout derived from the monotonic clock. */
-  public Duration remaining() {
-    long nanos = Math.max(0L, deadlineNanos - System.nanoTime());
-    return Duration.ofNanos(nanos);
-  }
+    public long deadlineNanos() {
+        return deadlineNanos;
+    }
 
-  public CancellationToken cancellationToken() {
-    return cancellationToken;
-  }
+    /** Returns a non-negative remaining timeout derived from the monotonic clock. */
+    public Duration remaining() {
+        long nanos = Math.max(0L, deadlineNanos - System.nanoTime());
+        return Duration.ofNanos(nanos);
+    }
 
-  public BatchExecutionContext parent() {
-    return parent;
-  }
+    public CancellationToken cancellationToken() {
+        return cancellationToken;
+    }
 
-  public GlobalParObservationContext observationContext() {
-    return observationContext;
-  }
+    public BatchExecutionContext parent() {
+        return parent;
+    }
 
-  public ExecutorIdentity executorIdentity() {
-    return executorIdentity;
-  }
+    public GlobalParObservationContext observationContext() {
+        return observationContext;
+    }
 
-  public String parLabel() {
-    return parLabel;
-  }
+    public ExecutorIdentity executorIdentity() {
+        return executorIdentity;
+    }
 
-  public TaskType taskType() {
-    return taskType;
-  }
+    public String parLabel() {
+        return parLabel;
+    }
 
-  public boolean rejectEnqueue() {
-    return rejectEnqueue;
-  }
+    public TaskType taskType() {
+        return taskType;
+    }
+
+    public boolean rejectEnqueue() {
+        return rejectEnqueue;
+    }
 }

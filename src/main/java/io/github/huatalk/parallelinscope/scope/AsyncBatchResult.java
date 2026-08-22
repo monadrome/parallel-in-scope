@@ -22,158 +22,148 @@ import javax.annotation.Nullable;
  */
 public final class AsyncBatchResult<T> {
 
-  private final ListenableFuture<?> submitCanceller;
-  private final List<ListenableFuture<T>> results;
+    private final ListenableFuture<?> submitCanceller;
+    private final List<ListenableFuture<T>> results;
 
-  private AsyncBatchResult(
-      @Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
-    this.submitCanceller =
-        submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
-    this.results = results;
-  }
-
-  /**
-   * Provides the future running the sliding-window submission loop. Cancelling it stops further
-   * submissions and interrupts the submitter. Any unsubmitted placeholders then fail with the
-   * interruption cause; cancelling a placeholder directly completes it as {@code CANCELLED}.
-   *
-   * @return the submission-loop future
-   */
-  public ListenableFuture<?> getSubmitCanceller() {
-    return submitCanceller;
-  }
-
-  /**
-   * Returns the futures for individual batch elements in input order.
-   *
-   * @return the individual result futures
-   */
-  public List<ListenableFuture<T>> getResults() {
-    return results;
-  }
-
-  /**
-   * Creates a result for a batch whose submissions may still be running.
-   *
-   * @param <T> the element result type
-   * @param submitCanceller the future running the remaining submissions
-   * @param results the individual result futures
-   * @return a new batch result
-   */
-  public static <T> AsyncBatchResult<T> of(
-      ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
-    return new AsyncBatchResult<>(submitCanceller, results);
-  }
-
-  /**
-   * Creates a result for a fully submitted batch.
-   *
-   * @param <T> the element result type
-   * @param results the individual result futures
-   * @return a new batch result
-   */
-  public static <T> AsyncBatchResult<T> of(List<ListenableFuture<T>> results) {
-    return new AsyncBatchResult<>(Futures.immediateVoidFuture(), results);
-  }
-
-  /**
-   * Generates execution report: counts tasks by state and extracts first failure exception.
-   *
-   * @return a BatchReport containing state counts and the first exception (if any)
-   */
-  public BatchReport report() {
-    Map<FutureState, Integer> stateMap =
-        results.stream()
-            .collect(
-                Collectors.toMap(
-                    FutureInspector::state,
-                    x -> 1,
-                    Integer::sum,
-                    () -> new EnumMap<>(FutureState.class)));
-    Throwable firstException = null;
-    if (stateMap.containsKey(FutureState.FAILED)) {
-      firstException =
-          results.stream()
-              .filter(x -> FutureInspector.state(x) == FutureState.FAILED)
-              .map(FutureInspector::exceptionNow)
-              .findFirst()
-              .orElse(null);
-    }
-    return new BatchReport(stateMap, firstException);
-  }
-
-  /**
-   * Returns a human-readable summary string of the execution report.
-   *
-   * <p>Format: {@code STATE1:count,STATE2:count | firstException=message}
-   *
-   * @return formatted report string
-   */
-  public String reportString() {
-    BatchReport r = report();
-    StringBuilder sb = new StringBuilder();
-    boolean first = true;
-    for (Map.Entry<FutureState, Integer> e : r.getStateCounts().entrySet()) {
-      if (!first) sb.append(',');
-      sb.append(e.getKey()).append(':').append(e.getValue());
-      first = false;
-    }
-    if (r.getFirstException() != null) {
-      sb.append(" | firstException=").append(r.getFirstException().getMessage());
-    }
-    return sb.toString();
-  }
-
-  /** Immutable report of batch task execution state. */
-  public static final class BatchReport {
-    private final @Nullable Map<FutureState, Integer> stateCounts;
-    private final Throwable firstException;
-
-    /**
-     * Creates a batch report.
-     *
-     * @param stateCounts counts keyed by terminal or current future state
-     * @param firstException the first observed failure, or {@code null}
-     */
-    public BatchReport(
-        @Nullable Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
-      this.stateCounts = immutableStateCounts(stateCounts);
-      this.firstException = firstException;
+    private AsyncBatchResult(@Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+        this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
+        this.results = results;
     }
 
     /**
-     * Provides counts by future state, for example {@code SUCCESS=3, FAILED=1}.
+     * Provides the future running the sliding-window submission loop. Cancelling it stops further
+     * submissions and interrupts the submitter. Any unsubmitted placeholders then fail with the
+     * interruption cause; cancelling a placeholder directly completes it as {@code CANCELLED}.
      *
-     * @return the immutable state count map, or {@code null} when unavailable
+     * @return the submission-loop future
      */
-    @Nullable
-    public Map<FutureState, Integer> getStateCounts() {
-      return stateCounts;
+    public ListenableFuture<?> getSubmitCanceller() {
+        return submitCanceller;
     }
 
     /**
-     * Returns the first exception from failed tasks.
+     * Returns the futures for individual batch elements in input order.
      *
-     * @return the first failure, or {@code null} if no task failed
+     * @return the individual result futures
      */
-    @Nullable
-    public Throwable getFirstException() {
-      return firstException;
+    public List<ListenableFuture<T>> getResults() {
+        return results;
     }
 
-    @Override
-    public String toString() {
-      return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
+    /**
+     * Creates a result for a batch whose submissions may still be running.
+     *
+     * @param <T> the element result type
+     * @param submitCanceller the future running the remaining submissions
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    public static <T> AsyncBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+        return new AsyncBatchResult<>(submitCanceller, results);
     }
 
-    private static @Nullable Map<FutureState, Integer> immutableStateCounts(
-        @Nullable Map<FutureState, Integer> stateCounts) {
-      if (stateCounts == null) {
-        return null;
-      }
-      EnumMap<FutureState, Integer> copy = new EnumMap<>(FutureState.class);
-      copy.putAll(stateCounts);
-      return Collections.unmodifiableMap(copy);
+    /**
+     * Creates a result for a fully submitted batch.
+     *
+     * @param <T> the element result type
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    public static <T> AsyncBatchResult<T> of(List<ListenableFuture<T>> results) {
+        return new AsyncBatchResult<>(Futures.immediateVoidFuture(), results);
     }
-  }
+
+    /**
+     * Generates execution report: counts tasks by state and extracts first failure exception.
+     *
+     * @return a BatchReport containing state counts and the first exception (if any)
+     */
+    public BatchReport report() {
+        Map<FutureState, Integer> stateMap = results.stream()
+                .collect(Collectors.toMap(
+                        FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(FutureState.class)));
+        Throwable firstException = null;
+        if (stateMap.containsKey(FutureState.FAILED)) {
+            firstException = results.stream()
+                    .filter(x -> FutureInspector.state(x) == FutureState.FAILED)
+                    .map(FutureInspector::exceptionNow)
+                    .findFirst()
+                    .orElse(null);
+        }
+        return new BatchReport(stateMap, firstException);
+    }
+
+    /**
+     * Returns a human-readable summary string of the execution report.
+     *
+     * <p>Format: {@code STATE1:count,STATE2:count | firstException=message}
+     *
+     * @return formatted report string
+     */
+    public String reportString() {
+        BatchReport r = report();
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<FutureState, Integer> e : r.getStateCounts().entrySet()) {
+            if (!first) sb.append(',');
+            sb.append(e.getKey()).append(':').append(e.getValue());
+            first = false;
+        }
+        if (r.getFirstException() != null) {
+            sb.append(" | firstException=").append(r.getFirstException().getMessage());
+        }
+        return sb.toString();
+    }
+
+    /** Immutable report of batch task execution state. */
+    public static final class BatchReport {
+        private final @Nullable Map<FutureState, Integer> stateCounts;
+        private final Throwable firstException;
+
+        /**
+         * Creates a batch report.
+         *
+         * @param stateCounts counts keyed by terminal or current future state
+         * @param firstException the first observed failure, or {@code null}
+         */
+        public BatchReport(@Nullable Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
+            this.stateCounts = immutableStateCounts(stateCounts);
+            this.firstException = firstException;
+        }
+
+        /**
+         * Provides counts by future state, for example {@code SUCCESS=3, FAILED=1}.
+         *
+         * @return the immutable state count map, or {@code null} when unavailable
+         */
+        @Nullable
+        public Map<FutureState, Integer> getStateCounts() {
+            return stateCounts;
+        }
+
+        /**
+         * Returns the first exception from failed tasks.
+         *
+         * @return the first failure, or {@code null} if no task failed
+         */
+        @Nullable
+        public Throwable getFirstException() {
+            return firstException;
+        }
+
+        @Override
+        public String toString() {
+            return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
+        }
+
+        private static @Nullable Map<FutureState, Integer> immutableStateCounts(
+                @Nullable Map<FutureState, Integer> stateCounts) {
+            if (stateCounts == null) {
+                return null;
+            }
+            EnumMap<FutureState, Integer> copy = new EnumMap<>(FutureState.class);
+            copy.putAll(stateCounts);
+            return Collections.unmodifiableMap(copy);
+        }
+    }
 }

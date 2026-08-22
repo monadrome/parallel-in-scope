@@ -10,23 +10,23 @@ import org.junit.jupiter.api.Test;
  */
 class LeanCancellationExceptionTest {
 
-  @Test
-  void constructor_producesEmptyStackTrace() {
-    LeanCancellationException exception = new LeanCancellationException("cancel");
-    assertThat(exception.getMessage()).isEqualTo("cancel");
-    assertThat(exception.getStackTrace()).isEmpty();
-  }
+    @Test
+    void constructor_producesEmptyStackTrace() {
+        LeanCancellationException exception = new LeanCancellationException("cancel");
+        assertThat(exception.getMessage()).isEqualTo("cancel");
+        assertThat(exception.getStackTrace()).isEmpty();
+    }
 
-  @Test
-  void fillInStackTrace_returnsSelfWithoutTracing() {
-    LeanCancellationException exception = new LeanCancellationException("cancel");
-    assertThat(exception.fillInStackTrace()).isSameAs(exception);
-    assertThat(exception.getStackTrace()).isEmpty();
-  }
+    @Test
+    void fillInStackTrace_returnsSelfWithoutTracing() {
+        LeanCancellationException exception = new LeanCancellationException("cancel");
+        assertThat(exception.fillInStackTrace()).isSameAs(exception);
+        assertThat(exception.getStackTrace()).isEmpty();
+    }
 
-  @Test
-  void thrownException_remainsCancellationException() {
-    Throwable thrown = new LeanCancellationException("cancel");
-    assertThat(thrown).isInstanceOf(java.util.concurrent.CancellationException.class);
-  }
+    @Test
+    void thrownException_remainsCancellationException() {
+        Throwable thrown = new LeanCancellationException("cancel");
+        assertThat(thrown).isInstanceOf(java.util.concurrent.CancellationException.class);
+    }
 }

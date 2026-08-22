@@ -26,91 +26,86 @@ import org.junit.jupiter.api.Test;
  */
 public class E2_SubmitterPoolOffloadingTest {
 
-  /** 问题演示：朴素滑动窗口的提交循环运行在业务线程池上， 占用一个业务线程，导致线程池为 1 时死锁。 */
-  @Test
-  void naiveSlidingWindow_deadlocksWhenPoolSizeEqualsParallelism() throws Exception {
-    // 使用 1 个线程的业务线程池
-    ExecutorService pool = Executors.newFixedThreadPool(1);
-    try {
-      ExecutorCompletionService<Integer> ecs = new ExecutorCompletionService<>(pool);
+    /** 问题演示：朴素滑动窗口的提交循环运行在业务线程池上， 占用一个业务线程，导致线程池为 1 时死锁。 */
+    @Test
+    void naiveSlidingWindow_deadlocksWhenPoolSizeEqualsParallelism() throws Exception {
+        // 使用 1 个线程的业务线程池
+        ExecutorService pool = Executors.newFixedThreadPool(1);
+        try {
+            ExecutorCompletionService<Integer> ecs = new ExecutorCompletionService<>(pool);
 
-      Callable<Integer> task =
-          () -> {
-            try {
-              Thread.sleep(100);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
+            Callable<Integer> task = () -> {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return 1;
+            };
+
+            // 提交第一个任务到业务线程池
+            ecs.submit(task);
+
+            // 朴素实现：将提交循环也提交到同一个业务线程池
+            Future<?> scheduler = pool.submit(() -> {
+                try {
+                    for (int i = 1; i < 3; i++) {
+                        ecs.take(); // 阻塞等待任务完成
+                        ecs.submit(task); // 提交下一个任务
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+
+            // 问题验证：提交循环占用唯一线程，导致死锁
+            // task0 完成后，提交循环在唯一线程上运行，
+            // 它调用 take() 等待 task1 完成，但 task1 无法运行（线程被占用）
+            assertThatThrownBy(() -> scheduler.get(2, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** 解决方案：Par.map() 将提交循环运行在专用的 Par-Submitter 守护线程上， 业务线程只执行实际任务，不会被调度逻辑占用。 */
+    @Test
+    void parMap_schedulingOffloadedToSubmitterPool() throws Exception {
+        // 同样使用 1 个线程的业务线程池
+        ExecutorService pool = Executors.newFixedThreadPool(1);
+        try {
+            ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
+            Par par = new Par(config);
+
+            ParOptions opts = ParOptions.of("offload-demo").parallelism(1).build();
+
+            List<Integer> input = Arrays.asList(1, 2, 3);
+
+            // Par.map() 不会死锁，因为提交循环运行在 Par-Submitter 线程上
+            AsyncBatchResult<Integer> result = par.map(
+                    "test-pool",
+                    input,
+                    x -> {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return x * 2;
+                    },
+                    opts);
+
+            // 收集结果
+            List<Integer> results = new ArrayList<>();
+            for (Future<Integer> f : result.getResults()) {
+                results.add(f.get(5, TimeUnit.SECONDS));
             }
-            return 1;
-          };
 
-      // 提交第一个任务到业务线程池
-      ecs.submit(task);
+            // 验证：所有任务正常完成
+            assertThat(results).containsExactlyInAnyOrder(2, 4, 6);
 
-      // 朴素实现：将提交循环也提交到同一个业务线程池
-      Future<?> scheduler =
-          pool.submit(
-              () -> {
-                try {
-                  for (int i = 1; i < 3; i++) {
-                    ecs.take(); // 阻塞等待任务完成
-                    ecs.submit(task); // 提交下一个任务
-                  }
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-              });
-
-      // 问题验证：提交循环占用唯一线程，导致死锁
-      // task0 完成后，提交循环在唯一线程上运行，
-      // 它调用 take() 等待 task1 完成，但 task1 无法运行（线程被占用）
-      assertThatThrownBy(() -> scheduler.get(2, TimeUnit.SECONDS))
-          .isInstanceOf(TimeoutException.class);
-
-    } finally {
-      pool.shutdownNow();
+        } finally {
+            pool.shutdownNow();
+        }
     }
-  }
-
-  /** 解决方案：Par.map() 将提交循环运行在专用的 Par-Submitter 守护线程上， 业务线程只执行实际任务，不会被调度逻辑占用。 */
-  @Test
-  void parMap_schedulingOffloadedToSubmitterPool() throws Exception {
-    // 同样使用 1 个线程的业务线程池
-    ExecutorService pool = Executors.newFixedThreadPool(1);
-    try {
-      ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-      Par par = new Par(config);
-
-      ParOptions opts = ParOptions.of("offload-demo").parallelism(1).build();
-
-      List<Integer> input = Arrays.asList(1, 2, 3);
-
-      // Par.map() 不会死锁，因为提交循环运行在 Par-Submitter 线程上
-      AsyncBatchResult<Integer> result =
-          par.map(
-              "test-pool",
-              input,
-              x -> {
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-                return x * 2;
-              },
-              opts);
-
-      // 收集结果
-      List<Integer> results = new ArrayList<>();
-      for (Future<Integer> f : result.getResults()) {
-        results.add(f.get(5, TimeUnit.SECONDS));
-      }
-
-      // 验证：所有任务正常完成
-      assertThat(results).containsExactlyInAnyOrder(2, 4, 6);
-
-    } finally {
-      pool.shutdownNow();
-    }
-  }
 }

@@ -21,42 +21,41 @@ import org.junit.jupiter.api.Test;
  */
 public class FutureInspectorTest {
 
-  @Test
-  public void testState_success() {
-    ListenableFuture<String> future = Futures.immediateFuture("ok");
-    assertThat(FutureInspector.state(future)).isEqualTo(FutureState.SUCCESS);
-  }
+    @Test
+    public void testState_success() {
+        ListenableFuture<String> future = Futures.immediateFuture("ok");
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.SUCCESS);
+    }
 
-  @Test
-  public void testState_canceled() {
-    ListenableFuture<String> future = Futures.immediateCancelledFuture();
-    assertThat(FutureInspector.state(future)).isEqualTo(FutureState.CANCELLED);
-  }
+    @Test
+    public void testState_canceled() {
+        ListenableFuture<String> future = Futures.immediateCancelledFuture();
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.CANCELLED);
+    }
 
-  @Test
-  public void testState_failed() {
-    ListenableFuture<String> future = Futures.immediateFailedFuture(new RuntimeException("fail"));
-    assertThat(FutureInspector.state(future)).isEqualTo(FutureState.FAILED);
-  }
+    @Test
+    public void testState_failed() {
+        ListenableFuture<String> future = Futures.immediateFailedFuture(new RuntimeException("fail"));
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.FAILED);
+    }
 
-  @Test
-  public void testState_running() {
-    SettableFuture<String> future = SettableFuture.create();
-    assertThat(FutureInspector.state(future)).isEqualTo(FutureState.RUNNING);
-  }
+    @Test
+    public void testState_running() {
+        SettableFuture<String> future = SettableFuture.create();
+        assertThat(FutureInspector.state(future)).isEqualTo(FutureState.RUNNING);
+    }
 
-  @Test
-  public void testExceptionNow_failed() {
-    RuntimeException expected = new RuntimeException("fail");
-    ListenableFuture<String> future = Futures.immediateFailedFuture(expected);
-    Throwable actual = FutureInspector.exceptionNow(future);
-    assertThat(actual).isSameAs(expected);
-  }
+    @Test
+    public void testExceptionNow_failed() {
+        RuntimeException expected = new RuntimeException("fail");
+        ListenableFuture<String> future = Futures.immediateFailedFuture(expected);
+        Throwable actual = FutureInspector.exceptionNow(future);
+        assertThat(actual).isSameAs(expected);
+    }
 
-  @Test
-  public void testExceptionNow_success() {
-    ListenableFuture<String> future = Futures.immediateFuture("ok");
-    assertThatThrownBy(() -> FutureInspector.exceptionNow(future))
-        .isInstanceOf(IllegalStateException.class);
-  }
+    @Test
+    public void testExceptionNow_success() {
+        ListenableFuture<String> future = Futures.immediateFuture("ok");
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(future)).isInstanceOf(IllegalStateException.class);
+    }
 }

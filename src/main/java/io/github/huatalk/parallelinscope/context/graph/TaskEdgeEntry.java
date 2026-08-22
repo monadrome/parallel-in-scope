@@ -10,19 +10,19 @@ import com.google.common.graph.EndpointPair;
  */
 final class TaskEdgeEntry {
 
-  private final EndpointPair<String> edge;
-  private final TaskEdge value;
+    private final EndpointPair<String> edge;
+    private final TaskEdge value;
 
-  TaskEdgeEntry(EndpointPair<String> edge, TaskEdge value) {
-    this.edge = edge;
-    this.value = value;
-  }
+    TaskEdgeEntry(EndpointPair<String> edge, TaskEdge value) {
+        this.edge = edge;
+        this.value = value;
+    }
 
-  EndpointPair<String> getEdge() {
-    return edge;
-  }
+    EndpointPair<String> getEdge() {
+        return edge;
+    }
 
-  TaskEdge getValue() {
-    return value;
-  }
+    TaskEdge getValue() {
+        return value;
+    }
 }

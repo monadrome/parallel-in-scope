@@ -14,165 +14,165 @@ import io.github.huatalk.parallelinscope.scope.TaskType;
  */
 public final class TaskEdge {
 
-  private final int parallelism;
-  private final TaskType taskType;
-  private final String executorName;
-  private final String sourceExecutorName;
-  private final int taskCount;
-  private final long timeoutMillis;
-  private final boolean executorDeadlockProne;
-  private final ExecutorIdentity executorIdentity;
-  private final ExecutorIdentity sourceExecutorIdentity;
+    private final int parallelism;
+    private final TaskType taskType;
+    private final String executorName;
+    private final String sourceExecutorName;
+    private final int taskCount;
+    private final long timeoutMillis;
+    private final boolean executorDeadlockProne;
+    private final ExecutorIdentity executorIdentity;
+    private final ExecutorIdentity sourceExecutorIdentity;
 
-  /**
-   * Creates task dependency metadata.
-   *
-   * @param parallelism the configured parallelism
-   * @param taskType the workload classification
-   * @param executorName the child executor name
-   * @param sourceExecutorName the parent executor name
-   * @param taskCount the number of child tasks
-   * @param timeoutMillis the child timeout in milliseconds
-   */
-  public TaskEdge(
-      int parallelism,
-      TaskType taskType,
-      String executorName,
-      String sourceExecutorName,
-      int taskCount,
-      long timeoutMillis) {
-    this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeoutMillis, true);
-  }
+    /**
+     * Creates task dependency metadata.
+     *
+     * @param parallelism the configured parallelism
+     * @param taskType the workload classification
+     * @param executorName the child executor name
+     * @param sourceExecutorName the parent executor name
+     * @param taskCount the number of child tasks
+     * @param timeoutMillis the child timeout in milliseconds
+     */
+    public TaskEdge(
+            int parallelism,
+            TaskType taskType,
+            String executorName,
+            String sourceExecutorName,
+            int taskCount,
+            long timeoutMillis) {
+        this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeoutMillis, true);
+    }
 
-  /**
-   * Creates task dependency metadata with a submission-time executor capability snapshot.
-   *
-   * @param parallelism the configured parallelism
-   * @param taskType the workload classification
-   * @param executorName the child executor name
-   * @param sourceExecutorName the parent executor name
-   * @param taskCount the number of child tasks
-   * @param timeoutMillis the child timeout in milliseconds
-   * @param executorDeadlockProne whether the child executor can conservatively deadlock
-   */
-  public TaskEdge(
-      int parallelism,
-      TaskType taskType,
-      String executorName,
-      String sourceExecutorName,
-      int taskCount,
-      long timeoutMillis,
-      boolean executorDeadlockProne) {
-    this.parallelism = parallelism;
-    this.taskType = taskType;
-    this.executorName = executorName;
-    this.sourceExecutorName = sourceExecutorName;
-    this.taskCount = taskCount;
-    this.timeoutMillis = timeoutMillis;
-    this.executorDeadlockProne = executorDeadlockProne;
-    this.executorIdentity = null;
-    this.sourceExecutorIdentity = null;
-  }
+    /**
+     * Creates task dependency metadata with a submission-time executor capability snapshot.
+     *
+     * @param parallelism the configured parallelism
+     * @param taskType the workload classification
+     * @param executorName the child executor name
+     * @param sourceExecutorName the parent executor name
+     * @param taskCount the number of child tasks
+     * @param timeoutMillis the child timeout in milliseconds
+     * @param executorDeadlockProne whether the child executor can conservatively deadlock
+     */
+    public TaskEdge(
+            int parallelism,
+            TaskType taskType,
+            String executorName,
+            String sourceExecutorName,
+            int taskCount,
+            long timeoutMillis,
+            boolean executorDeadlockProne) {
+        this.parallelism = parallelism;
+        this.taskType = taskType;
+        this.executorName = executorName;
+        this.sourceExecutorName = sourceExecutorName;
+        this.taskCount = taskCount;
+        this.timeoutMillis = timeoutMillis;
+        this.executorDeadlockProne = executorDeadlockProne;
+        this.executorIdentity = null;
+        this.sourceExecutorIdentity = null;
+    }
 
-  /** Creates metadata using supplied-executor identity for resource graph analysis. */
-  public TaskEdge(
-      int parallelism,
-      TaskType taskType,
-      ExecutorIdentity executorIdentity,
-      ExecutorIdentity sourceExecutorIdentity,
-      String executorName,
-      String sourceExecutorName,
-      int taskCount,
-      long timeoutMillis,
-      boolean executorDeadlockProne) {
-    this.parallelism = parallelism;
-    this.taskType = taskType;
-    this.executorName = executorName;
-    this.sourceExecutorName = sourceExecutorName;
-    this.taskCount = taskCount;
-    this.timeoutMillis = timeoutMillis;
-    this.executorDeadlockProne = executorDeadlockProne;
-    this.executorIdentity = executorIdentity;
-    this.sourceExecutorIdentity = sourceExecutorIdentity;
-  }
+    /** Creates metadata using supplied-executor identity for resource graph analysis. */
+    public TaskEdge(
+            int parallelism,
+            TaskType taskType,
+            ExecutorIdentity executorIdentity,
+            ExecutorIdentity sourceExecutorIdentity,
+            String executorName,
+            String sourceExecutorName,
+            int taskCount,
+            long timeoutMillis,
+            boolean executorDeadlockProne) {
+        this.parallelism = parallelism;
+        this.taskType = taskType;
+        this.executorName = executorName;
+        this.sourceExecutorName = sourceExecutorName;
+        this.taskCount = taskCount;
+        this.timeoutMillis = timeoutMillis;
+        this.executorDeadlockProne = executorDeadlockProne;
+        this.executorIdentity = executorIdentity;
+        this.sourceExecutorIdentity = sourceExecutorIdentity;
+    }
 
-  /**
-   * Returns the configured parallelism.
-   *
-   * @return the parallelism
-   */
-  public int getParallelism() {
-    return parallelism;
-  }
+    /**
+     * Returns the configured parallelism.
+     *
+     * @return the parallelism
+     */
+    public int getParallelism() {
+        return parallelism;
+    }
 
-  /**
-   * Returns the workload classification.
-   *
-   * @return the task type
-   */
-  public TaskType getTaskType() {
-    return taskType;
-  }
+    /**
+     * Returns the workload classification.
+     *
+     * @return the task type
+     */
+    public TaskType getTaskType() {
+        return taskType;
+    }
 
-  /**
-   * Returns the child executor name.
-   *
-   * @return the executor name
-   */
-  public String getExecutorName() {
-    return executorName;
-  }
+    /**
+     * Returns the child executor name.
+     *
+     * @return the executor name
+     */
+    public String getExecutorName() {
+        return executorName;
+    }
 
-  /**
-   * Returns the parent executor name.
-   *
-   * @return the source executor name
-   */
-  public String getSourceExecutorName() {
-    return sourceExecutorName;
-  }
+    /**
+     * Returns the parent executor name.
+     *
+     * @return the source executor name
+     */
+    public String getSourceExecutorName() {
+        return sourceExecutorName;
+    }
 
-  /**
-   * Returns the child task count.
-   *
-   * @return the task count
-   */
-  public int getTaskCount() {
-    return taskCount;
-  }
+    /**
+     * Returns the child task count.
+     *
+     * @return the task count
+     */
+    public int getTaskCount() {
+        return taskCount;
+    }
 
-  /**
-   * Returns the child timeout.
-   *
-   * @return the timeout in milliseconds
-   */
-  public long getTimeoutMillis() {
-    return timeoutMillis;
-  }
+    /**
+     * Returns the child timeout.
+     *
+     * @return the timeout in milliseconds
+     */
+    public long getTimeoutMillis() {
+        return timeoutMillis;
+    }
 
-  /**
-   * Returns the child executor deadlock-risk snapshot captured at submission.
-   *
-   * @return {@code true} when nested blocking work can conservatively deadlock
-   */
-  public boolean isExecutorDeadlockProne() {
-    return executorDeadlockProne;
-  }
+    /**
+     * Returns the child executor deadlock-risk snapshot captured at submission.
+     *
+     * @return {@code true} when nested blocking work can conservatively deadlock
+     */
+    public boolean isExecutorDeadlockProne() {
+        return executorDeadlockProne;
+    }
 
-  /** Returns the child supplied-executor identity, or null for legacy edges. */
-  public ExecutorIdentity getExecutorIdentity() {
-    return executorIdentity;
-  }
+    /** Returns the child supplied-executor identity, or null for legacy edges. */
+    public ExecutorIdentity getExecutorIdentity() {
+        return executorIdentity;
+    }
 
-  /** Returns the parent supplied-executor identity, or null for legacy edges. */
-  public ExecutorIdentity getSourceExecutorIdentity() {
-    return sourceExecutorIdentity;
-  }
+    /** Returns the parent supplied-executor identity, or null for legacy edges. */
+    public ExecutorIdentity getSourceExecutorIdentity() {
+        return sourceExecutorIdentity;
+    }
 
-  @Override
-  public String toString() {
-    return String.format(
-        "{p=%d, type=%s, src=%s, exec=%s, count=%d, timeout=%dms}",
-        parallelism, taskType, sourceExecutorName, executorName, taskCount, timeoutMillis);
-  }
+    @Override
+    public String toString() {
+        return String.format(
+                "{p=%d, type=%s, src=%s, exec=%s, count=%d, timeout=%dms}",
+                parallelism, taskType, sourceExecutorName, executorName, taskCount, timeoutMillis);
+    }
 }

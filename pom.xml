@@ -150,9 +150,9 @@
                 <version>2.44.5</version>
                 <configuration>
                     <java>
-                        <googleJavaFormat>
-                            <version>1.28.0</version>
-                        </googleJavaFormat>
+                        <palantirJavaFormat>
+                            <version>2.97.0</version>
+                        </palantirJavaFormat>
                     </java>
                 </configuration>
             </plugin>

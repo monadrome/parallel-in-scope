@@ -23,49 +23,48 @@ import java.util.concurrent.Executors;
  */
 public class BasicParDemo {
 
-  public static void main(String[] args) {
-    System.out.println("=== BasicParDemo ===");
-    System.out.println("演示 Par.map() 基本用法\n");
+    public static void main(String[] args) {
+        System.out.println("=== BasicParDemo ===");
+        System.out.println("演示 Par.map() 基本用法\n");
 
-    // 1. 创建线程池
-    ExecutorService pool = Executors.newFixedThreadPool(4);
+        // 1. 创建线程池
+        ExecutorService pool = Executors.newFixedThreadPool(4);
 
-    // 2. 创建 ParConfig 并注册执行器
-    ParConfig config = ParConfig.builder().executor("demo-pool", pool).build();
+        // 2. 创建 ParConfig 并注册执行器
+        ParConfig config = ParConfig.builder().executor("demo-pool", pool).build();
 
-    // 3. 创建 Par 实例
-    Par par = new Par(config);
+        // 3. 创建 Par 实例
+        Par par = new Par(config);
 
-    try {
-      // 4. 准备数据
-      List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-      System.out.println("输入数据: " + numbers);
+        try {
+            // 4. 准备数据
+            List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+            System.out.println("输入数据: " + numbers);
 
-      // 5. 配置并行选项
-      ParOptions options = ParOptions.of("basic-demo").parallelism(3).build();
+            // 5. 配置并行选项
+            ParOptions options = ParOptions.of("basic-demo").parallelism(3).build();
 
-      System.out.println("并行度: " + options.getParallelism());
+            System.out.println("并行度: " + options.getParallelism());
 
-      // 6. 执行并行处理
-      System.out.println("\n开始并行处理...");
-      AsyncBatchResult<Integer> result =
-          par.map(
-              "demo-pool",
-              numbers,
-              n -> {
-                String threadName = Thread.currentThread().getName();
-                System.out.println("  [" + threadName + "] 处理: " + n);
-                return n * n;
-              },
-              options);
+            // 6. 执行并行处理
+            System.out.println("\n开始并行处理...");
+            AsyncBatchResult<Integer> result = par.map(
+                    "demo-pool",
+                    numbers,
+                    n -> {
+                        String threadName = Thread.currentThread().getName();
+                        System.out.println("  [" + threadName + "] 处理: " + n);
+                        return n * n;
+                    },
+                    options);
 
-      // 7. 获取结果
-      System.out.println("\n处理完成!");
-      System.out.println("结果: " + result.reportString());
+            // 7. 获取结果
+            System.out.println("\n处理完成!");
+            System.out.println("结果: " + result.reportString());
 
-    } finally {
-      // 8. 清理资源
-      pool.shutdownNow();
+        } finally {
+            // 8. 清理资源
+            pool.shutdownNow();
+        }
     }
-  }
 }

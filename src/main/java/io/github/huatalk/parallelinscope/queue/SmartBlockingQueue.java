@@ -20,69 +20,69 @@ import java.util.concurrent.SynchronousQueue;
  */
 public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 
-  private final VariableLinkedBlockingQueue<E> delegate;
+    private final VariableLinkedBlockingQueue<E> delegate;
 
-  /**
-   * Creates a queue with the supplied positive capacity.
-   *
-   * @param capacity the initial queue capacity
-   */
-  public SmartBlockingQueue(int capacity) {
-    if (capacity <= 0) {
-      throw new IllegalArgumentException("capacity must be positive");
+    /**
+     * Creates a queue with the supplied positive capacity.
+     *
+     * @param capacity the initial queue capacity
+     */
+    public SmartBlockingQueue(int capacity) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("capacity must be positive");
+        }
+        this.delegate = new VariableLinkedBlockingQueue<>(capacity);
     }
-    this.delegate = new VariableLinkedBlockingQueue<>(capacity);
-  }
 
-  @Override
-  protected BlockingQueue<E> delegate() {
-    return delegate;
-  }
-
-  /**
-   * Dynamically adjusts queue capacity.
-   *
-   * @param capacity the new positive capacity
-   */
-  public void setCapacity(int capacity) {
-    delegate.setCapacity(capacity);
-  }
-
-  /**
-   * Returns the current queue capacity.
-   *
-   * @return the positive queue capacity
-   */
-  public int getCapacity() {
-    return delegate.getCapacity();
-  }
-
-  /**
-   * CPU-bound tasks return false directly, triggering thread pool's RejectedExecutionHandler. Other
-   * task types enqueue normally.
-   */
-  @Override
-  public boolean offer(E o) {
-    BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
-    if (batch != null) {
-      if (batch.taskType() == TaskType.CPU_BOUND || batch.rejectEnqueue()) return false;
-      return delegate.offer(o);
+    @Override
+    protected BlockingQueue<E> delegate() {
+        return delegate;
     }
-    return delegate.offer(o);
-  }
 
-  /**
-   * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0}, otherwise
-   * returns {@link SmartBlockingQueue}.
-   *
-   * @param <T> the queue element type
-   * @param capacity the requested queue capacity
-   * @return a synchronous or capacity-adjustable blocking queue
-   */
-  public static <T> BlockingQueue<T> create(int capacity) {
-    if (capacity <= 0) {
-      return new SynchronousQueue<>();
+    /**
+     * Dynamically adjusts queue capacity.
+     *
+     * @param capacity the new positive capacity
+     */
+    public void setCapacity(int capacity) {
+        delegate.setCapacity(capacity);
     }
-    return new SmartBlockingQueue<>(capacity);
-  }
+
+    /**
+     * Returns the current queue capacity.
+     *
+     * @return the positive queue capacity
+     */
+    public int getCapacity() {
+        return delegate.getCapacity();
+    }
+
+    /**
+     * CPU-bound tasks return false directly, triggering thread pool's RejectedExecutionHandler. Other
+     * task types enqueue normally.
+     */
+    @Override
+    public boolean offer(E o) {
+        BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
+        if (batch != null) {
+            if (batch.taskType() == TaskType.CPU_BOUND || batch.rejectEnqueue()) return false;
+            return delegate.offer(o);
+        }
+        return delegate.offer(o);
+    }
+
+    /**
+     * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0}, otherwise
+     * returns {@link SmartBlockingQueue}.
+     *
+     * @param <T> the queue element type
+     * @param capacity the requested queue capacity
+     * @return a synchronous or capacity-adjustable blocking queue
+     */
+    public static <T> BlockingQueue<T> create(int capacity) {
+        if (capacity <= 0) {
+            return new SynchronousQueue<>();
+        }
+        return new SmartBlockingQueue<>(capacity);
+    }
 }

@@ -32,113 +32,110 @@ import javax.annotation.Nullable;
  */
 public class CancellationToken {
 
-  private final SettableFuture<Object> futureToken = SettableFuture.create();
-  private final AtomicReference<CancellationTokenState> state = new AtomicReference<>(RUNNING);
-  private final CancellationToken parent;
+    private final SettableFuture<Object> futureToken = SettableFuture.create();
+    private final AtomicReference<CancellationTokenState> state = new AtomicReference<>(RUNNING);
+    private final CancellationToken parent;
 
-  /**
-   * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
-   *
-   * @param parent the parent token, or {@code null} for a root token
-   */
-  public CancellationToken(@Nullable CancellationToken parent) {
-    this.parent = parent;
-  }
-
-  /** Creates an unlinked root token. */
-  public CancellationToken() {
-    this.parent = null;
-  }
-
-  /**
-   * Creates an unlinked root token.
-   *
-   * @return a new cancellation token
-   */
-  public static CancellationToken create() {
-    return new CancellationToken();
-  }
-
-  /**
-   * Connects this token to submitted work using the supplied timeout scheduler.
-   *
-   * @param <T> the task result type
-   * @param futures the submitted task futures
-   * @param timeout the maximum execution time
-   * @param submitCanceller the submission future to cancel with the tasks
-   * @param timer scheduler used to detect the timeout
-   */
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  public <T> void lateBind(
-      List<ListenableFuture<T>> futures,
-      Duration timeout,
-      ListenableFuture<?> submitCanceller,
-      ScheduledExecutorService timer) {
-    Objects.requireNonNull(timer);
-    if (parent != null) {
-      if (parent.getState().shouldInterruptCurrentThread()) {
-        state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
-        futureToken.cancel(true);
-      } else {
-        Futures.catching(
-            parent.futureToken,
-            Throwable.class,
-            ex -> {
-              state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
-              futureToken.cancel(true);
-              return null;
-            },
-            directExecutor());
-      }
+    /**
+     * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
+     *
+     * @param parent the parent token, or {@code null} for a root token
+     */
+    public CancellationToken(@Nullable CancellationToken parent) {
+        this.parent = parent;
     }
 
-    FluentFuture<?> failFastFuture =
-        FluentFuture.from(Futures.allAsList(futures))
-            .catchingAsync(
-                Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-            .withTimeout(timeout, timer);
+    /** Creates an unlinked root token. */
+    public CancellationToken() {
+        this.parent = null;
+    }
 
-    ListenableFuture<?> allFutures =
-        Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
+    /**
+     * Creates an unlinked root token.
+     *
+     * @return a new cancellation token
+     */
+    public static CancellationToken create() {
+        return new CancellationToken();
+    }
 
-    failFastFuture.addCallback(
-        new FutureCallback() {
-          @Override
-          public void onSuccess(Object result) {
-            state.compareAndSet(RUNNING, SUCCESS);
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            allFutures.cancel(true);
-            if (t instanceof TimeoutException) {
-              state.compareAndSet(RUNNING, TIMEOUT_CANCELED);
+    /**
+     * Connects this token to submitted work using the supplied timeout scheduler.
+     *
+     * @param <T> the task result type
+     * @param futures the submitted task futures
+     * @param timeout the maximum execution time
+     * @param submitCanceller the submission future to cancel with the tasks
+     * @param timer scheduler used to detect the timeout
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public <T> void lateBind(
+            List<ListenableFuture<T>> futures,
+            Duration timeout,
+            ListenableFuture<?> submitCanceller,
+            ScheduledExecutorService timer) {
+        Objects.requireNonNull(timer);
+        if (parent != null) {
+            if (parent.getState().shouldInterruptCurrentThread()) {
+                state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
+                futureToken.cancel(true);
             } else {
-              state.compareAndSet(RUNNING, FAIL_FAST_CANCELED);
+                Futures.catching(
+                        parent.futureToken,
+                        Throwable.class,
+                        ex -> {
+                            state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
+                            futureToken.cancel(true);
+                            return null;
+                        },
+                        directExecutor());
             }
-          }
-        },
-        directExecutor());
+        }
 
-    futureToken.setFuture(failFastFuture);
-  }
+        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
+                .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
+                .withTimeout(timeout, timer);
 
-  /**
-   * Cancels this token and its linked work.
-   *
-   * @param useInterrupt whether to interrupt running threads
-   */
-  public void cancel(boolean useInterrupt) {
-    state.compareAndSet(RUNNING, MUTUAL_CANCELED);
-    futureToken.cancel(useInterrupt);
-  }
+        ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
-  /**
-   * Returns the current state.
-   *
-   * @return the current state
-   */
-  public CancellationTokenState getState() {
-    return state.get();
-  }
+        failFastFuture.addCallback(
+                new FutureCallback() {
+                    @Override
+                    public void onSuccess(Object result) {
+                        state.compareAndSet(RUNNING, SUCCESS);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        allFutures.cancel(true);
+                        if (t instanceof TimeoutException) {
+                            state.compareAndSet(RUNNING, TIMEOUT_CANCELED);
+                        } else {
+                            state.compareAndSet(RUNNING, FAIL_FAST_CANCELED);
+                        }
+                    }
+                },
+                directExecutor());
+
+        futureToken.setFuture(failFastFuture);
+    }
+
+    /**
+     * Cancels this token and its linked work.
+     *
+     * @param useInterrupt whether to interrupt running threads
+     */
+    public void cancel(boolean useInterrupt) {
+        state.compareAndSet(RUNNING, MUTUAL_CANCELED);
+        futureToken.cancel(useInterrupt);
+    }
+
+    /**
+     * Returns the current state.
+     *
+     * @return the current state
+     */
+    public CancellationTokenState getState() {
+        return state.get();
+    }
 }
