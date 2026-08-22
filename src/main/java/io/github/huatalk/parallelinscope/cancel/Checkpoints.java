@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.cancel;
 
 import com.google.common.base.Throwables;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -48,12 +48,13 @@ public final class Checkpoints {
      * @throws FatCancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
-        ParOptions options = TaskScopeTl.getParallelOptions();
-        if (taskName == null || options == null
-                || !taskName.equals(options.getTaskName())) {
+        BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
+        if (batch != null) {
+            if (taskName == null || !taskName.equals(batch.taskName())) return;
+            checkCancellationToken(lean);
             return;
         }
-        checkCancellationToken(lean);
+        return;
     }
 
     /**
@@ -501,7 +502,9 @@ public final class Checkpoints {
     }
 
     private static void checkCancellationToken(boolean lean) {
-        CancellationToken cancelToken = TaskScopeTl.getCancellationToken();
+        BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
+        CancellationToken cancelToken = batch == null
+                ? TaskScopeTl.getCancellationToken() : batch.cancellationToken();
         if (cancelToken != null && cancelToken.getState().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")

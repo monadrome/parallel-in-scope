@@ -6,6 +6,7 @@ import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
+import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
 

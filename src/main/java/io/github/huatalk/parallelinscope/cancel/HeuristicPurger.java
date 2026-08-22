@@ -52,14 +52,6 @@ public final class HeuristicPurger {
         }
     }
 
-    private static final class PurgeExecutorHolder {
-        private static final ScheduledExecutorService INSTANCE = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder()
-                        .setDaemon(true)
-                        .setNameFormat("ThreadPoolPurger-%d")
-                        .build());
-    }
-
     private final AtomicBoolean enabled;
     private final AtomicDouble queuePressureThreshold;
     private final AtomicDouble cancelledTaskRatioThreshold;
@@ -67,6 +59,7 @@ public final class HeuristicPurger {
     private final long estimateExpiryNanos;
     private final AtomicLong resetGeneration = new AtomicLong();
     private final ConcurrentHashMap<ThreadPoolExecutor, PoolState> states = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService maintenanceExecutor;
 
     /**
      * Creates a purger backed by atomically adjustable thresholds.
@@ -110,12 +103,20 @@ public final class HeuristicPurger {
             throw new IllegalArgumentException("estimateExpiryNanos must be positive");
         }
         this.estimateExpiryNanos = estimateExpiryNanos;
+        this.maintenanceExecutor = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("ThreadPoolPurger-%d").build());
     }
 
     /** Discards cancellation estimates issued before this reset generation. */
     public void clearPendingCancellations() {
         resetGeneration.incrementAndGet();
         states.values().forEach(PoolState::settleCurrentGeneration);
+    }
+
+    /** Stops this purger's scheduler and releases its pool-level state. */
+    public void close() {
+        maintenanceExecutor.shutdownNow();
+        states.clear();
     }
 
     /**
@@ -214,7 +215,7 @@ public final class HeuristicPurger {
             if (maintenanceState.compareAndSet(MaintenanceState.IDLE, MaintenanceState.SUBMITTED)) {
                 logCurrentDecision("submitted", estimatedCancelled);
                 try {
-                    PurgeExecutorHolder.INSTANCE.schedule(this::runMaintenance, delayMillis,
+                    maintenanceExecutor.schedule(this::runMaintenance, delayMillis,
                             TimeUnit.MILLISECONDS);
                 } catch (RuntimeException e) {
                     maintenanceState.compareAndSet(

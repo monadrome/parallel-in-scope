@@ -7,7 +7,8 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
+import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,7 +41,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>Request start: {@link #initOnRequest()} creates a new Data instance</li>
  *   <li>During request: {@link #logTaskPair(String, String, TaskEdge)} records fork relationships</li>
- *   <li>Request end: {@link #destroyAfterRequest(ParConfig)} checks for cycles and notifies listeners</li>
+ *   <li>Request end: {@link #destroyAfterRequest(GlobalParObservationContext)} checks for cycles and notifies listeners</li>
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -69,6 +71,7 @@ public final class TaskGraph {
      */
     public static class Data {
         final BlockingQueue<TaskEdgeEntry> subTaskList = new LinkedTransferQueue<>();
+        private final Map<String, String> nodeLabels = new ConcurrentHashMap<>();
 
         private volatile ValueGraph<String, List<TaskEdge>> graph;
         private volatile Boolean taskCycle;
@@ -133,8 +136,12 @@ public final class TaskGraph {
          * @return {@code true} when an executor cycle exists
          */
         public boolean isExecutorCycle() {
-            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph();
-            return g != null && Graphs.hasCycle(g.asGraph());
+            ValueGraph<ExecutorIdentity, List<TaskEdge>> g = generateExecutorIdentityGraph();
+            if (g != null && !g.nodes().isEmpty()) {
+                return Graphs.hasCycle(g.asGraph());
+            }
+            ValueGraph<String, List<TaskEdge>> legacy = getExecutorGraph();
+            return legacy != null && Graphs.hasCycle(legacy.asGraph());
         }
 
         /**
@@ -143,6 +150,11 @@ public final class TaskGraph {
          * @return {@code true} when an executor self-loop exists
          */
         public boolean isExecutorSelfLoop() {
+            ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = generateExecutorIdentityGraph();
+            if (identityGraph != null && !identityGraph.nodes().isEmpty()) {
+                return identityGraph.edges().stream()
+                        .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+            }
             return getExecutorGraph().edges().stream()
                     .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
@@ -164,6 +176,11 @@ public final class TaskGraph {
                         Collections.unmodifiableList(entry.getValue()));
             }
             return graphBuilder.build();
+        }
+
+        String displayNode(String node) {
+            String label = nodeLabels.get(node);
+            return label == null ? node : label + "[" + node + "]";
         }
 
         boolean checkTaskCycle() {
@@ -206,6 +223,30 @@ public final class TaskGraph {
             }
             return graphBuilder.build();
         }
+
+        private ValueGraph<ExecutorIdentity, List<TaskEdge>> generateExecutorIdentityGraph() {
+            Map<EndpointPair<ExecutorIdentity>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
+            for (TaskEdgeEntry entry : subTaskList) {
+                TaskEdge edge = entry.getValue();
+                if (!edge.isExecutorDeadlockProne()
+                        || edge.getExecutorIdentity() == null
+                        || edge.getSourceExecutorIdentity() == null) {
+                    continue;
+                }
+                EndpointPair<ExecutorIdentity> pair = EndpointPair.ordered(
+                        edge.getSourceExecutorIdentity(), edge.getExecutorIdentity());
+                executorEdges.computeIfAbsent(pair, k -> new ArrayList<>()).add(edge);
+            }
+            ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder =
+                    ValueGraphBuilder.directed().allowsSelfLoops(true)
+                            .incidentEdgeOrder(ElementOrder.stable())
+                            .<ExecutorIdentity, List<TaskEdge>>immutable();
+            for (Map.Entry<EndpointPair<ExecutorIdentity>, List<TaskEdge>> entry : executorEdges.entrySet()) {
+                builder.putEdgeValue(entry.getKey().source(), entry.getKey().target(),
+                        Collections.unmodifiableList(entry.getValue()));
+            }
+            return builder.build();
+        }
     }
 
     // ==================== Request lifecycle ====================
@@ -217,31 +258,62 @@ public final class TaskGraph {
         TTL.set(new Data());
     }
 
-    /**
-     * Destroys task graph at request end. Runs livelock detection and notifies listeners.
-     *
-     * @param config the ParConfig instance for livelock detection settings and listeners
-     */
-    public static void destroyAfterRequest(ParConfig config) {
+    /** Initializes a graph owned by one GlobalPar observation scope. */
+    public static Data initOnRequest(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
+        if (context.isClosed()) {
+            throw new IllegalStateException("observation context is already closed");
+        }
+        Data previous = TTL.get();
+        TTL.set(new Data());
+        return previous;
+    }
+
+    /** Installs the graph owned by an observation scope on the current worker thread. */
+    public static void install(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
+        TTL.set(context.data());
+    }
+
+    /** Restores a graph captured before entering a scoped worker task. */
+    public static void restore(@Nullable Data data) {
+        if (data == null) TTL.remove(); else TTL.set(data);
+    }
+
+    /** Destroys a GlobalPar-owned graph using the GlobalPar livelock policy. */
+    public static void destroyAfterRequest(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
         try {
             Data data = TTL.get();
-            if (data != null && !data.subTaskList.isEmpty()) {
-                if (config.isLivelockDetectionEnabled()) {
-                    LivelockEvent event = buildDetectionEvent(data, config);
-                    if (event != null && event.hasAnyIssue()) {
-                        logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
-                        notifyLivelockListeners(config, event);
+            if (data != null && !data.subTaskList.isEmpty()
+                    && context.owner().livelockPolicy().enabled()) {
+                LivelockEvent event = buildDetectionEvent(data);
+                if (event != null && event.hasAnyIssue()) {
+                    logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
+                    for (LivelockListener listener : context.owner().livelockPolicy().listeners()) {
+                        try {
+                            listener.onDetection(event);
+                        } catch (Exception e) {
+                            logger.log(Level.WARNING, "LivelockListener callback failed: "
+                                    + listener.getClass().getName(), e);
+                        }
                     }
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
+            logger.log(Level.WARNING, "[[title=TaskGraph,function=destroyAfterRequest]]"
+                    + "Failed to run GlobalPar livelock detection", e);
         } finally {
-            TTL.remove();
+            if (context.previousData() == null) {
+                TTL.remove();
+            } else {
+                TTL.set(context.previousData());
+            }
+            context.complete();
         }
     }
 
-    private static LivelockEvent buildDetectionEvent(Data data, ParConfig config) {
+    private static LivelockEvent buildDetectionEvent(Data data) {
         boolean hasTaskCycle = data.isTaskCycle();
         boolean hasSelfLoop = data.isSelfLoop();
         boolean hasExecutorCycle = data.isExecutorCycle();
@@ -255,7 +327,8 @@ public final class TaskGraph {
                 .map(p -> {
                     List<TaskEdge> edges = data.getGraph().edgeValueOrDefault(
                             p.source(), p.target(), Collections.<TaskEdge>emptyList());
-                    return p.source() + " -> " + p.target() + " " + edges;
+                    return data.displayNode(p.source()) + " -> " + data.displayNode(p.target())
+                            + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
         String executorEdges = data.getExecutorGraph().edges().stream()
@@ -270,17 +343,6 @@ public final class TaskGraph {
                 hasTaskCycle, hasSelfLoop,
                 hasExecutorCycle, hasExecutorSelfLoop,
                 taskEdges, executorEdges);
-    }
-
-    private static void notifyLivelockListeners(ParConfig config, LivelockEvent event) {
-        List<LivelockListener> listeners = config.getLivelockListeners();
-        for (LivelockListener listener : listeners) {
-            try {
-                listener.onDetection(event);
-            } catch (Exception e) {
-                logger.log(Level.WARNING, "LivelockListener callback failed: " + listener.getClass().getName(), e);
-            }
-        }
     }
 
     // ==================== Data access ====================
@@ -308,6 +370,17 @@ public final class TaskGraph {
         }
         parent = parent != null ? parent : "NA";
         data.subTaskList.add(new TaskEdgeEntry(EndpointPair.ordered(parent, child), edge));
+    }
+
+    /** Records a new-model edge using unique batch identities and display labels. */
+    public static void logTaskPair(@Nullable String parentId, @Nullable String parentLabel,
+                                   String childId, String childLabel, TaskEdge edge) {
+        Data data = TTL.get();
+        if (data == null) return;
+        String source = parentId == null ? "root" : parentId;
+        data.nodeLabels.put(source, parentLabel == null ? "NA" : parentLabel);
+        data.nodeLabels.put(childId, childLabel == null ? "NA" : childLabel);
+        data.subTaskList.add(new TaskEdgeEntry(EndpointPair.ordered(source, childId), edge));
     }
 
     /**

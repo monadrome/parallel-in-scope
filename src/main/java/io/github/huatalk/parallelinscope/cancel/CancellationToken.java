@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
 
 import javax.annotation.Nullable;
 
@@ -28,7 +27,7 @@ import static io.github.huatalk.parallelinscope.cancel.CancellationTokenState.TI
  * Cooperative cancellation token for parallel task groups.
  * <p>
  * A token may be linked to a parent so that cancellation propagates to child task groups.
- * After task submission, {@link #lateBind(List, Duration, ListenableFuture)} connects the token
+ * After task submission, {@link #lateBind(List, Duration, ListenableFuture, ScheduledExecutorService)} connects the token
  * to the submitted futures and enables timeout and fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -60,19 +59,6 @@ public class CancellationToken {
      */
     public static CancellationToken create() {
         return new CancellationToken();
-    }
-
-    /**
-     * Connects this token to a completed set of task submissions.
-     * Parent cancellation, task failure, and timeout cancel the linked work.
-     *
-     * @param <T>             the task result type
-     * @param futures         the submitted task futures
-     * @param timeout         the maximum execution time
-     * @param submitCanceller the submission future to cancel with the tasks
-     */
-    public <T> void lateBind(List<ListenableFuture<T>> futures, Duration timeout, ListenableFuture<?> submitCanceller) {
-        lateBind(futures, timeout, submitCanceller, ParConfig.getDefault().getTimerService());
     }
 
     /**

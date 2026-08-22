@@ -162,8 +162,8 @@ public class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             endTime = ticker.read();
-            TaskScopeTl.restore(previousToken, null, previousBatch);
-            ThreadRelay.restoreCurrent(previousRelayToken, null, previousTaskName,
+            TaskScopeTl.restore(previousToken, previousBatch);
+            ThreadRelay.restoreCurrent(previousRelayToken, previousTaskName,
                     previousExecutorName, previousIdentity);
             TaskGraph.restore(previousGraph);
 

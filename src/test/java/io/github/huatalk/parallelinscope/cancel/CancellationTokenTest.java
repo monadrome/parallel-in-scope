@@ -10,6 +10,8 @@ import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.*;
@@ -20,6 +22,7 @@ import static org.assertj.core.api.Assertions.*;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class CancellationTokenTest {
+    private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();
 
     @Test
     public void testInitialState() {
@@ -70,7 +73,7 @@ public class CancellationTokenTest {
         SettableFuture<String> f3 = SettableFuture.create();
         List<ListenableFuture<String>> futures = Arrays.asList(f1, f2, f3);
 
-        token.lateBind(futures, Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        token.lateBind(futures, Duration.ofSeconds(5), Futures.immediateVoidFuture(), TIMER);
 
         f1.set("a");
         f2.set("b");
@@ -87,7 +90,7 @@ public class CancellationTokenTest {
 
         SettableFuture<String> f1 = SettableFuture.create(); // never completed
 
-        token.lateBind(ImmutableList.of(f1), Duration.ofMillis(100), Futures.immediateVoidFuture());
+        token.lateBind(ImmutableList.of(f1), Duration.ofMillis(100), Futures.immediateVoidFuture(), TIMER);
 
         // Wait for timeout to fire
         Thread.sleep(300);
@@ -104,7 +107,7 @@ public class CancellationTokenTest {
 
         // Priority 7: a failed future must transition the shared token into fail-fast cancellation.
         // This is the low-level state change that lets higher-level map calls stop sibling tasks.
-        token.lateBind(futures, Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        token.lateBind(futures, Duration.ofSeconds(5), Futures.immediateVoidFuture(), TIMER);
 
         f1.setException(new RuntimeException("boom"));
 
@@ -121,7 +124,7 @@ public class CancellationTokenTest {
         SettableFuture<String> sibling = SettableFuture.create();
         SettableFuture<Void> submitCanceller = SettableFuture.create();
 
-        token.lateBind(Arrays.asList(failed, sibling), Duration.ofSeconds(5), submitCanceller);
+        token.lateBind(Arrays.asList(failed, sibling), Duration.ofSeconds(5), submitCanceller, TIMER);
 
         failed.setException(new RuntimeException("boom"));
 
@@ -142,7 +145,7 @@ public class CancellationTokenTest {
         // Priority 9: nested scopes inherit cancellation from their parent.
         // Parent cancellation should mark the child as propagating cancellation even if its own
         // future has not completed yet.
-        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture(), TIMER);
 
         parent.cancel(true);
 
@@ -160,7 +163,7 @@ public class CancellationTokenTest {
         CancellationToken child = new CancellationToken(parent);
 
         SettableFuture<String> f1 = SettableFuture.create();
-        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture());
+        child.lateBind(ImmutableList.of(f1), Duration.ofSeconds(5), Futures.immediateVoidFuture(), TIMER);
 
         // The future should be cancelled immediately because parent is already canceled
         assertThat(f1).isCancelled();

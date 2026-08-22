@@ -7,7 +7,7 @@ import java.time.Duration;
  * SPI: Task lifecycle listener for metrics collection and monitoring.
  * <p>
  * Implementations can record task execution times, queue wait times, etc.
- * Register via {@link io.github.huatalk.parallelinscope.scope.ParConfig.Builder#taskListener(TaskListener)}.
+ * Register through {@link io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy.Builder#taskListener(TaskListener)}.
  * <p>
  * Timing methods return {@link Duration}. Raw nanos timestamps are available via getters.
  *

@@ -1,6 +1,7 @@
 package io.github.huatalk.parallelinscope.context.graph;
 
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 
 /**
  * Value object representing metadata associated with a task dependency edge
@@ -20,6 +21,8 @@ public final class TaskEdge {
     private final int taskCount;
     private final long timeoutMillis;
     private final boolean executorDeadlockProne;
+    private final ExecutorIdentity executorIdentity;
+    private final ExecutorIdentity sourceExecutorIdentity;
 
     /**
      * Creates task dependency metadata.
@@ -58,6 +61,24 @@ public final class TaskEdge {
         this.taskCount = taskCount;
         this.timeoutMillis = timeoutMillis;
         this.executorDeadlockProne = executorDeadlockProne;
+        this.executorIdentity = null;
+        this.sourceExecutorIdentity = null;
+    }
+
+    /** Creates metadata using supplied-executor identity for resource graph analysis. */
+    public TaskEdge(int parallelism, TaskType taskType,
+                    ExecutorIdentity executorIdentity, ExecutorIdentity sourceExecutorIdentity,
+                    String executorName, String sourceExecutorName, int taskCount,
+                    long timeoutMillis, boolean executorDeadlockProne) {
+        this.parallelism = parallelism;
+        this.taskType = taskType;
+        this.executorName = executorName;
+        this.sourceExecutorName = sourceExecutorName;
+        this.taskCount = taskCount;
+        this.timeoutMillis = timeoutMillis;
+        this.executorDeadlockProne = executorDeadlockProne;
+        this.executorIdentity = executorIdentity;
+        this.sourceExecutorIdentity = sourceExecutorIdentity;
     }
 
     /**
@@ -96,6 +117,12 @@ public final class TaskEdge {
      * @return {@code true} when nested blocking work can conservatively deadlock
      */
     public boolean isExecutorDeadlockProne() { return executorDeadlockProne; }
+
+    /** Returns the child supplied-executor identity, or null for legacy edges. */
+    public ExecutorIdentity getExecutorIdentity() { return executorIdentity; }
+
+    /** Returns the parent supplied-executor identity, or null for legacy edges. */
+    public ExecutorIdentity getSourceExecutorIdentity() { return sourceExecutorIdentity; }
 
     @Override
     public String toString() {
