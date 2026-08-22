@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
+import java.lang.reflect.Modifier;
 
 import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
@@ -15,6 +16,11 @@ import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import org.junit.jupiter.api.Test;
 
 class GlobalParTest {
+    @Test
+    void executorRuntimeIsPackagePrivateImplementationDetail() {
+        assertThat(Modifier.isPublic(ExecutorRuntime.class.getModifiers())).isFalse();
+    }
+
     @Test
     void buildsImmutableNamedEntriesAndSharesRuntimeBySuppliedIdentity() {
         ExecutorService executor = Executors.newFixedThreadPool(1);

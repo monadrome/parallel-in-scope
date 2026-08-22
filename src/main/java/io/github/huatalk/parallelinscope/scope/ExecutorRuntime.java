@@ -9,8 +9,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 
-/** Runtime capability record for one supplied executor. */
-public final class ExecutorRuntime {
+/** Runtime capability record for one supplied executor. Internal to the GlobalPar package. */
+final class ExecutorRuntime {
     private final ExecutorService suppliedExecutor;
     private final ListeningExecutorService submissionExecutor;
     private final boolean adapter;
@@ -18,11 +18,11 @@ public final class ExecutorRuntime {
     private final BlockingRisk blockingRisk;
     private volatile Consumer<? super ExecutionPhase> phaseObserver = phase -> { };
 
-    public ExecutorRuntime(ExecutorService suppliedExecutor) {
+    ExecutorRuntime(ExecutorService suppliedExecutor) {
         this(suppliedExecutor, detectRisk(suppliedExecutor));
     }
 
-    public ExecutorRuntime(ExecutorService suppliedExecutor, BlockingRisk blockingRisk) {
+    ExecutorRuntime(ExecutorService suppliedExecutor, BlockingRisk blockingRisk) {
         this.suppliedExecutor = Objects.requireNonNull(suppliedExecutor);
         this.identity = new ExecutorIdentity(suppliedExecutor);
         this.blockingRisk = Objects.requireNonNull(blockingRisk);
@@ -35,12 +35,12 @@ public final class ExecutorRuntime {
         }
     }
 
-    public ExecutorService suppliedExecutor() { return suppliedExecutor; }
-    public ListeningExecutorService submissionExecutor() { return submissionExecutor; }
-    public boolean submissionExecutorIsAdapter() { return adapter; }
-    public ExecutorIdentity identity() { return identity; }
-    public BlockingRisk blockingRisk() { return blockingRisk; }
-    public Consumer<? super ExecutionPhase> phaseObserver() { return phaseObserver; }
+    ExecutorService suppliedExecutor() { return suppliedExecutor; }
+    ListeningExecutorService submissionExecutor() { return submissionExecutor; }
+    boolean submissionExecutorIsAdapter() { return adapter; }
+    ExecutorIdentity identity() { return identity; }
+    BlockingRisk blockingRisk() { return blockingRisk; }
+    Consumer<? super ExecutionPhase> phaseObserver() { return phaseObserver; }
     void setPhaseObserver(Consumer<? super ExecutionPhase> observer) {
         this.phaseObserver = Objects.requireNonNull(observer);
     }
