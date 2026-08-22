@@ -240,10 +240,10 @@ public class ConcurrentLimitExecutor<V> {
 
     /**
      * Completes every future that will never receive a submission so the batch always reaches
-     * a terminal state. A submission that is abandoned mid-batch would otherwise leave those
-     * futures incomplete forever, so a caller awaiting them blocks indefinitely; completing
-     * them also fails the batch fast through {@link Futures#allAsList}, making the reason
-     * visible in {@link AsyncBatchResult#report()}.
+     * a terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an
+     * interrupted submitter or rejected submission records its cause. Without this cleanup,
+     * {@link Futures#allAsList} could wait forever and hide the reason in
+     * {@link AsyncBatchResult#report()}.
      *
      * @param result    the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)

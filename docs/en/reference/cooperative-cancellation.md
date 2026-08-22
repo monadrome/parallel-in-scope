@@ -12,6 +12,15 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 | During blocking I/O | `futureToken.cancel(true)` interrupts the blocking operation | None |
 | Sliding-window submission | `ConcurrentLimitExecutor` stops submitting after cancellation | None |
 
+### Sliding-window placeholders
+
+Unsubmitted tasks are represented by input-ordered placeholder Futures. When admission stops,
+placeholders never remain live indefinitely: direct placeholder cancellation produces
+`CANCELLED`; cancelling the public submitter Future interrupts the submitter and records
+`InterruptedException`; a later executor rejection records its rejection cause. This guarantees
+that `Futures.allAsList` over the batch results can reach a terminal state. The submitter Future
+stops future admission, but does not by itself guarantee that already-submitted task bodies stop.
+
 Tasks that have not started are skipped, blocked I/O tasks are interrupted, and queued tasks are not submitted.
 
 ## Add checkpoints to CPU-bound work

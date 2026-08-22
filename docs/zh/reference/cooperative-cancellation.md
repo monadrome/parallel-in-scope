@@ -19,6 +19,19 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 | I/O 阻塞期间 | `futureToken.cancel(true)` 发送 `Thread.interrupt()`，阻塞操作抛出 `InterruptedException` | 无需任何操作 |
 | 滑动窗口提交循环 | `ConcurrentLimitExecutor` 在每次提交前检查取消状态，发现取消后停止提交剩余任务 | 无需任何操作 |
 
+## 滑动窗口占位 Future 的终态
+
+滑动窗口会先为尚未提交的任务创建 placeholder，保证结果列表保持输入顺序。停止 admission
+后，框架不会让这些 placeholder 永久保持 `LIVE`：
+
+- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELLED`；
+- 取消 `AsyncBatchResult.getSubmitCanceller()`：submitter 收到 interrupt，剩余 placeholder
+  以 `InterruptedException` 失败；
+- 后续提交被执行器拒绝：剩余 placeholder 以拒绝异常失败。
+
+因此 `Futures.allAsList(result.getResults())` 最终一定会完成。`getSubmitCanceller()` 表示
+“停止后续提交”，不保证已提交任务立即停止；任务本身仍遵循协作式取消规则。
+
 这意味着：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
 - **正在阻塞等待 I/O 的任务**会被 interrupt 唤醒。

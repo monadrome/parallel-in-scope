@@ -164,6 +164,13 @@ The Future running the remaining-submission loop SHALL be returned separately
 as `submitCanceller`. Cancelling a batch must be able to stop both task Futures
 and future admissions.
 
+When admission stops, every placeholder that will never be submitted SHALL reach
+a terminal state. Direct placeholder cancellation produces `CANCELLED`; cancelling
+the submitter Future interrupts its submission loop and records `InterruptedException`
+on abandoned placeholders; a later submission rejection records the rejection cause.
+No abandoned placeholder may remain `LIVE` indefinitely, and `Futures.allAsList` over
+the batch results must be able to complete.
+
 When executor submission rejects a `CPU_BOUND` task, the executor may use the
 existing direct-executor fallback. Other rejection behavior remains explicit
 and is not hidden by Future adaptation.
