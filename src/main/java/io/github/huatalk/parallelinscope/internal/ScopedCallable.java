@@ -1,12 +1,12 @@
 package io.github.huatalk.parallelinscope.internal;
 
-import com.google.common.base.Ticker;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  * </ul>
  * <p>
  * Exposes the currently executing instance via {@link #current()}, allowing
- * inner callables to access task metadata (CancellationToken, ParOptions, etc.)
+ * inner callables to access the current batch cancellation and diagnostics context.
  * through the enclosing ScopedCallable.
  * <p>
  * Timeline: {@code submitTime -> startTime -> endTime}
@@ -58,68 +58,31 @@ public class ScopedCallable<V> implements Callable<V> {
 
     private final String taskName;
     private final Callable<V> delegate;
-    private final Ticker ticker;
-    private final ParConfig config;
+    private final com.google.common.base.Ticker ticker;
     private final long submitTime;
 
-    private final ParOptions parallelOptions;
     private final CancellationToken cancellationToken;
     private final String executorName;
+    private final @Nullable BatchExecutionContext batchContext;
 
     private volatile long startTime;
     private volatile long endTime;
 
-    /**
-     * Creates a scoped task wrapper with an explicit ticker.
-     *
-     * @param taskName          the logical task name
-     * @param delegate          the task body
-     * @param config            the framework configuration
-     * @param ticker            the monotonic time source
-     * @param parallelOptions   the execution options
-     * @param cancellationToken the task cancellation token
-     * @param executorName      the logical executor name
-     */
-    public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config, Ticker ticker,
-                          ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
+    /** Creates a task wrapper from the batch context owned by one GlobalPar execution. */
+    public ScopedCallable(String taskName, Callable<V> delegate, BatchExecutionContext batchContext,
+                          List<TaskListener> taskListeners) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
-        this.config = Objects.requireNonNull(config, "config cannot be null");
-        this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
-        this.parallelOptions = Objects.requireNonNull(parallelOptions, "parallelOptions cannot be null");
-        this.cancellationToken = Objects.requireNonNull(cancellationToken, "cancellationToken cannot be null");
-        this.executorName = executorName != null ? executorName : "NA";
+        this.ticker = com.google.common.base.Ticker.systemTicker();
+        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
+        this.cancellationToken = batchContext.cancellationToken();
+        this.executorName = batchContext.parLabel() == null ? "NA" : batchContext.parLabel();
+        this.newTaskListeners = taskListeners == null
+                ? java.util.Collections.emptyList() : taskListeners;
         this.submitTime = ticker.read();
     }
 
-    /**
-     * Creates a scoped task wrapper using the system ticker.
-     *
-     * @param taskName          the logical task name
-     * @param delegate          the task body
-     * @param config            the framework configuration
-     * @param parallelOptions   the execution options
-     * @param cancellationToken the task cancellation token
-     * @param executorName      the logical executor name
-     */
-    public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
-                          ParOptions parallelOptions, CancellationToken cancellationToken, String executorName) {
-        this(taskName, delegate, config, Ticker.systemTicker(), parallelOptions, cancellationToken, executorName);
-    }
-
-    /**
-     * Creates a scoped task wrapper without a named executor.
-     *
-     * @param taskName          the logical task name
-     * @param delegate          the task body
-     * @param config            the framework configuration
-     * @param parallelOptions   the execution options
-     * @param cancellationToken the task cancellation token
-     */
-    public ScopedCallable(String taskName, Callable<V> delegate, ParConfig config,
-                          ParOptions parallelOptions, CancellationToken cancellationToken) {
-        this(taskName, delegate, config, parallelOptions, cancellationToken, "NA");
-    }
+    private List<TaskListener> newTaskListeners = java.util.Collections.emptyList();
 
     /**
      * Returns task execution time.
@@ -142,15 +105,6 @@ public class ScopedCallable<V> implements Callable<V> {
     // ==================== Context Fields ====================
 
     /**
-     * Returns this task's execution options.
-     *
-     * @return the task execution options
-     */
-    public ParOptions getParallelOptions() {
-        return parallelOptions;
-    }
-
-    /**
      * Returns this task's cancellation token.
      *
      * @return the task cancellation token
@@ -171,16 +125,30 @@ public class ScopedCallable<V> implements Callable<V> {
     @Override
     public V call() throws Exception {
         // ==================== prepareContext ====================
+        ScopedCallable<?> previousCurrent = CURRENT.get();
+        CancellationToken previousToken = TaskScopeTl.getCancellationToken();
+        BatchExecutionContext previousBatch = TaskScopeTl.getBatchExecutionContext();
+        CancellationToken previousRelayToken = ThreadRelay.getCurrentCancellationToken();
+        String previousTaskName = ThreadRelay.getCurrentTaskName();
+        String previousExecutorName = ThreadRelay.getCurrentExecutorName();
+        io.github.huatalk.parallelinscope.scope.ExecutorIdentity previousIdentity =
+                ThreadRelay.getCurrentExecutorIdentity();
+        TaskGraph.Data previousGraph = TaskGraph.data();
         CURRENT.set(this);
 
         CancellationToken currentToken = getCancellationToken();
-        ParOptions currentOptions = getParallelOptions();
-        TaskScopeTl.init(currentToken, currentOptions);
+        if (batchContext != null) {
+            TaskScopeTl.setBatchExecutionContext(batchContext);
+            GlobalParObservationContext observation = batchContext.observationContext();
+            if (observation != null) TaskGraph.install(observation);
+        }
 
         ThreadRelay.setCurrentCancellationToken(currentToken);
-        ThreadRelay.setCurrentParallelOptions(currentOptions);
         ThreadRelay.setCurrentTaskName(taskName);
         ThreadRelay.setCurrentExecutorName(getExecutorName());
+        if (batchContext != null) {
+            ThreadRelay.setCurrentExecutorIdentity(batchContext.executorIdentity());
+        }
 
         Throwable taskException = null;
         try {
@@ -194,17 +162,20 @@ public class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             endTime = ticker.read();
-            TaskScopeTl.remove();
+            TaskScopeTl.restore(previousToken, null, previousBatch);
+            ThreadRelay.restoreCurrent(previousRelayToken, null, previousTaskName,
+                    previousExecutorName, previousIdentity);
+            TaskGraph.restore(previousGraph);
 
             // Fire SPI callbacks
             notifyListeners(taskException);
 
-            CURRENT.remove();
+            if (previousCurrent == null) CURRENT.remove(); else CURRENT.set(previousCurrent);
         }
     }
 
     private void notifyListeners(Throwable exception) {
-        List<TaskListener> listeners = config.getTaskListeners();
+        List<TaskListener> listeners = newTaskListeners;
         if (listeners.isEmpty()) {
             return;
         }
