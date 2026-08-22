@@ -30,6 +30,13 @@ import org.jspecify.annotations.Nullable;
  * <p>Blocking-operation adapters restore the interrupt flag and translate {@link
  * InterruptedException} into {@link LeanCancellationException}.
  *
+ * <p>The {@code Duration} overloads of the blocking adapters convert through the same saturated
+ * deadline arithmetic the execution engine uses: a positive duration past about 292 years means
+ * "no limit", and a negative duration — representable or not — means "already elapsed", so the
+ * adapter performs a single non-blocking check and returns the same outcome the underlying JDK
+ * call gives a negative timeout ({@code false}, an immediate return, or {@link
+ * TimeoutException}).
+ *
  * <p>{@link #checkRunnable(Runnable, Class)} and {@link #checkSupplier(Supplier, Class)} instead
  * translate a matching failure into {@link CancellationException}, retaining the original failure
  * as its cause.

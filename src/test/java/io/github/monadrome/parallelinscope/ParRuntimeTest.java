@@ -21,6 +21,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -437,6 +438,52 @@ class ParRuntimeTest {
             assertThat(global.awaitQuiescence(Duration.ofSeconds(Long.MAX_VALUE)))
                     .isTrue();
             assertThat(System.nanoTime() - start).isLessThan(TimeUnit.SECONDS.toNanos(5));
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitQuiescenceTreatsNegativeOverflowAsAnElapsedBudget() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            // Duration.ofSeconds(-10_000_000_000L) overflows toNanos() in the negative direction.
+            // On this not-yet-quiescent runtime an elapsed budget must report false immediately,
+            // not park on the ~292-year wait the old conversion produced. The wait runs on its
+            // own thread so a regression surfaces as a failure after a bounded watchdog wait;
+            // the interrupt then propagates as the method's declared InterruptedException.
+            AtomicBoolean result = new AtomicBoolean();
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread waiter = new Thread(() -> {
+                try {
+                    result.set(global.awaitQuiescence(Duration.ofSeconds(-10_000_000_000L)));
+                } catch (Throwable t) {
+                    failure.set(t);
+                }
+            });
+            waiter.start();
+            try {
+                waiter.join(2000L);
+                assertThat(waiter.isAlive())
+                        .as("awaitQuiescence returned instead of parking on the saturated wait")
+                        .isFalse();
+            } finally {
+                waiter.interrupt();
+                waiter.join(2000L);
+            }
+            assertThat(failure.get()).isNull();
+            assertThat(result.get()).isFalse();
+
+            // An in-range negative budget already read as elapsed; keep it pinned.
+            assertThat(global.awaitQuiescence(Duration.ofMillis(-5))).isFalse();
+
+            global.close();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(-10_000_000_000L)))
+                    .isTrue();
+            assertThat(global.awaitQuiescence(Duration.ofMillis(-5))).isTrue();
         } finally {
             global.close();
             executor.shutdownNow();
