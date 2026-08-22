@@ -3,6 +3,7 @@ package io.github.huatalk.parallelinscope;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
@@ -101,11 +102,13 @@ public class SlidingWindowCartesianTest {
             } else {
                 assertThat(secondEntered).isFalse();
                 if (placeholder == NextPlaceholder.LIVE) {
-                    assertThat(result.getResults().get(1).isDone()).isFalse();
-                    assertThat(result.getResults().get(1).cancel(false)).isTrue();
+                    assertThat(result.getResults().get(1)).isCancelled();
                 } else {
                     assertThat(result.getResults().get(1)).isCancelled();
                 }
+            }
+            if (outcome == FirstOutcome.CANCELLED) {
+                assertThat(Futures.allAsList(result.getResults()).isDone()).isTrue();
             }
         } finally {
             releaseFirst.countDown();

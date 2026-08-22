@@ -217,6 +217,7 @@ public class ConcurrentLimitExecutor<V> {
                 return submitted;
             }
             if (completed.isCancelled() || result.get(index).isCancelled()) {
+                abandonRemaining(result, index, null);
                 return submitted;
             }
             if (Thread.currentThread().isInterrupted()) {
