@@ -11,8 +11,7 @@ target/
 # Claude
 .claude/
 
-# Agent specifications and local planning state
-openspec/
+# Local planning state
 .planning/
 **/task_plan.md
 **/findings.md

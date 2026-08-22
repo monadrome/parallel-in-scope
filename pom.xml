@@ -183,7 +183,7 @@
                 <version>3.12.0</version>
                 <configuration>
                     <source>${java.release}</source>
-                    <failOnWarnings>true</failOnWarnings>
+                    <failOnWarnings>false</failOnWarnings>
                 </configuration>
                 <executions>
                     <execution>

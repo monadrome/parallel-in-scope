@@ -22,6 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -141,8 +142,8 @@ class ClosableBlockingQueueTest {
         assertNull(queue.peek());
         assertThrows(QueueShutdownException.class, () -> queue.offer(4));
         List<Integer> drained = new ArrayList<>();
-        assertThrows(QueueShutdownException.class, () -> queue.drainTo(drained));
-        assertTrue(drained.isEmpty());
+        assertEquals(3, queue.drainTo(drained));
+        assertEquals(Arrays.asList(1, 2, 3), drained);
         assertFalse(queue.iterator().hasNext());
         assertTrue(queue.reversed().isEmpty());
         assertThrows(QueueShutdownException.class, () -> queue.remove(1));
@@ -160,7 +161,84 @@ class ClosableBlockingQueueTest {
         assertThrows(IllegalStateException.class, queue::startAsync);
 
         assertInstanceOf(CopyOnWriteArrayList.class, queue.remainingList());
-        assertEquals(Arrays.asList(1, 2, 3), queue.remainingList());
+        assertTrue(queue.remainingList().isEmpty());
+    }
+
+    /** Verifies standard drainTo can claim shutdown recovery in FIFO batches exactly once. */
+    @Test
+    void drainToRemainsAvailableAfterClose() throws Exception {
+        ClosableBlockingQueue<Integer> queue =
+                new ClosableBlockingQueue<>(4, Arrays.asList(1, 2, 3, 4), null);
+
+        queue.close();
+
+        List<Integer> drained = new ArrayList<>();
+        assertEquals(2, queue.drainTo(drained, 2));
+        assertEquals(Arrays.asList(1, 2), drained);
+        assertThrows(QueueShutdownException.class, queue::take);
+        assertEquals(2, queue.drainTo(drained));
+        assertEquals(Arrays.asList(1, 2, 3, 4), drained);
+        assertEquals(0, queue.drainTo(drained));
+
+        queue.awaitTerminated(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertTrue(queue.remainingList().isEmpty());
+    }
+
+    /** Verifies concurrent shutdown drains divide recovery ownership without duplicates. */
+    @Test
+    void concurrentDrainToAfterCloseClaimsEachElementOnce() throws Exception {
+        int elementCount = 128;
+        List<Integer> elements = new ArrayList<>();
+        for (int i = 0; i < elementCount; i++) {
+            elements.add(i);
+        }
+        ClosableBlockingQueue<Integer> queue =
+                new ClosableBlockingQueue<>(elementCount, elements, null);
+        queue.close();
+
+        List<Integer> first = new CopyOnWriteArrayList<>();
+        List<Integer> second = new CopyOnWriteArrayList<>();
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Integer> firstDrain = pool.submit(() -> queue.drainTo(first));
+            Future<Integer> secondDrain = pool.submit(() -> queue.drainTo(second));
+            assertEquals(elementCount, firstDrain.get() + secondDrain.get());
+
+            List<Integer> combined = new ArrayList<>(first);
+            combined.addAll(second);
+            Collections.sort(combined);
+            assertEquals(elements, combined);
+            assertEquals(0, queue.drainTo(new ArrayList<>()));
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** Kills recovery-drain mutations that restore or retain a target-rejected batch. */
+    @Test
+    void failedClosedDrainTargetDoesNotRestoreRecoveryBatch() {
+        ClosableBlockingQueue<Integer> queue =
+                new ClosableBlockingQueue<>(3, Arrays.asList(1, 2, 3), null);
+        queue.close();
+        AtomicInteger additions = new AtomicInteger();
+        List<Integer> target = new ArrayList<Integer>() {
+            @Override
+            public boolean add(Integer value) {
+                if (additions.incrementAndGet() == 2) {
+                    throw new IllegalStateException("closed target rejected element");
+                }
+                return super.add(value);
+            }
+        };
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class, () -> queue.drainTo(target));
+
+        assertEquals("closed target rejected element", failure.getMessage());
+        assertEquals(Collections.singletonList(1), target);
+        assertEquals(0, queue.drainTo(new ArrayList<>()));
+        queue.awaitTerminated();
+        assertTrue(queue.remainingList().isEmpty());
     }
 
     /** Verifies poison behavior releases consumers while producers and collection mutations still fail. */
@@ -219,8 +297,7 @@ class ClosableBlockingQueueTest {
             assertFalse(consumerQueue.iterator().hasNext());
             assertThrows(QueueShutdownException.class, () -> consumerQueue.offer("late"));
             assertThrows(QueueShutdownException.class, consumerQueue::clear);
-            assertThrows(QueueShutdownException.class,
-                    () -> consumerQueue.drainTo(new ArrayList<>()));
+            assertEquals(0, consumerQueue.drainTo(new ArrayList<>()));
         } finally {
             pool.shutdownNow();
         }

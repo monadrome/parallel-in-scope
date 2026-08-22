@@ -51,7 +51,8 @@ import java.util.function.UnaryOperator;
  * A non-null poison object instead returns that identity-reserved object from {@link #take()}, both
  * {@code poll} variants, {@link #remove()}, {@link #removeFirst()}, and {@link #removeLast()}. The
  * poison object is virtual: it is never linked, counted, iterated, or added to
- * {@link #remainingList()}. Producer and collection mutations always throw after shutdown.
+ * {@link #remainingList()}. Producer and collection mutations throw after shutdown, except that
+ * {@link #drainTo(Collection)} remains available to transfer detached recovery elements.
  *
  * <p>No thread registry is used. A packed atomic admission word contains only a closed bit and the
  * number of admitted blocking calls. It lets {@link #awaitTerminated()} guarantee that the recovery
@@ -670,15 +671,17 @@ public class ClosableBlockingQueue<E> extends AbstractQueue<E>
         return capacity - count.get();
     }
 
-    /** Transfers all currently queued elements to the supplied collection. */
+    /** Transfers all live or shutdown-recovery elements to the supplied collection. */
     @Override
     public int drainTo(Collection<? super E> target) {
         return drainTo(target, Integer.MAX_VALUE);
     }
 
     /**
-     * Removes up to {@code maxElements} under the consumer monitor, then invokes the target collection
-     * outside all queue monitors so target callbacks cannot delay shutdown.
+     * Removes up to {@code maxElements} from the live queue or its shutdown-recovery list, then
+     * invokes the target collection outside all queue monitors so target callbacks cannot delay
+     * shutdown. Unlike other collection mutations, this operation remains available in every
+     * lifecycle state; closed consumer operations such as {@link #take()} remain rejected.
      *
      * <p>Removal is the ownership linearization point. Transfer invokes {@link Collection#add} once
      * per element, matching the JDK callback shape but executing outside the queue monitor. If an add
@@ -696,22 +699,29 @@ public class ClosableBlockingQueue<E> extends AbstractQueue<E>
             throw new IllegalArgumentException("cannot drain a queue into itself");
         }
 
-        List<E> drained;
-        int oldCount;
+        List<E> drained = Collections.emptyList();
+        int oldCount = -1;
+        boolean drainRecovery = false;
         takeMonitor.enter();
         try {
-            requireOpenMutation("drainTo");
             if (maxElements <= 0) {
                 return 0;
             }
-            int amount = Math.min(maxElements, count.get());
-            drained = new ArrayList<>(amount);
-            for (int i = 0; i < amount; i++) {
-                drained.add(dequeue());
+            if (queueState != QueueState.OPEN) {
+                drainRecovery = true;
+            } else {
+                int amount = Math.min(maxElements, count.get());
+                drained = new ArrayList<>(amount);
+                for (int i = 0; i < amount; i++) {
+                    drained.add(dequeue());
+                }
+                oldCount = count.getAndAdd(-amount);
             }
-            oldCount = count.getAndAdd(-amount);
         } finally {
             takeMonitor.leave();
+        }
+        if (drainRecovery) {
+            drained = detachRecoveryElements(maxElements);
         }
         if (oldCount == capacity && !drained.isEmpty()) {
             signalPutReady();
@@ -720,6 +730,23 @@ public class ClosableBlockingQueue<E> extends AbstractQueue<E>
             target.add(item);
         }
         return drained.size();
+    }
+
+    /** Claims a FIFO prefix from the recovery list after shutdown has detached it. */
+    private List<E> detachRecoveryElements(int maxElements) {
+        CopyOnWriteArrayList<E> remaining = recoveryList();
+        synchronized (remaining) {
+            int amount = Math.min(maxElements, remaining.size());
+            List<E> drained = new ArrayList<>(amount);
+            while (drained.size() < amount) {
+                try {
+                    drained.add(remaining.remove(0));
+                } catch (IndexOutOfBoundsException concurrentlyDepleted) {
+                    break;
+                }
+            }
+            return drained;
+        }
     }
 
     /**
@@ -1606,16 +1633,30 @@ public class ClosableBlockingQueue<E> extends AbstractQueue<E>
      *
      * <p>The list is intentionally a {@link CopyOnWriteArrayList}: the first caller materializes it
      * outside both queue monitors, after which recovery code may inspect or modify the shared result
-     * concurrently without affecting this queue.
+     * concurrently without affecting this queue. Such writes may interleave with a shutdown-state
+     * {@link #drainTo(Collection)}, which claims each transferred element through an atomic list
+     * removal.
      *
      * @return the shared recovery list
      * @throws IllegalStateException until the service reaches TERMINATED
      */
     public CopyOnWriteArrayList<E> remainingList() {
-        FutureTask<CopyOnWriteArrayList<E>> task = remainingTask;
-        if (state() != State.TERMINATED || task == null) {
+        if (state() != State.TERMINATED) {
             throw new IllegalStateException(
                     "remaining elements are available only after termination");
+        }
+        return recoveryList();
+    }
+
+    /**
+     * Materializes the shutdown recovery list for lifecycle-internal consumers.
+     *
+     * @return the shared recovery list
+     */
+    private CopyOnWriteArrayList<E> recoveryList() {
+        FutureTask<CopyOnWriteArrayList<E>> task = remainingTask;
+        if (task == null) {
+            throw new IllegalStateException("shutdown recovery is not available while open");
         }
         task.run();
         try {

@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Demonstrates the shutdown contract of {@link ClosableBlockingQueue}: blocking producers and
  * consumers are released by {@code close()} without being interrupted, rejected operations throw
- * {@link QueueShutdownException}, queued elements remain recoverable via {@link #remainingList()},
+ * {@link QueueShutdownException}, queued elements remain recoverable via
+ * {@link ClosableBlockingQueue#remainingList()},
  * and a configured poison object can replace the exception for closed consumers.
  */
 public final class ClosableQueueLifecycleDemo {
