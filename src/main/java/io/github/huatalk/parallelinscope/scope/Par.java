@@ -89,7 +89,14 @@ public final class Par {
                         && parent.observationContext() != null
                         && parent.observationContext().owner() == globalPar
                 ? parent.observationContext()
-                : null;
+                : parent == null
+                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                                        != null
+                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                                                .owner()
+                                        == globalPar
+                        ? io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                        : null;
         BatchExecutionContext batchContext = BatchExecutionContext.resolve(
                 globalPar.executionPolicyFor(displayName),
                 options,

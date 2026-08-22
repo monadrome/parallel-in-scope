@@ -13,15 +13,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * try-with-resources. Tasks submitted under the scope share its graph through the batch context.
  */
 public final class GlobalParObservationContext implements AutoCloseable {
+    private static final ThreadLocal<GlobalParObservationContext> CURRENT = new ThreadLocal<>();
+
     private final GlobalPar owner;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final GlobalParObservationContext previousContext;
     private final TaskGraph.Data previousData;
     private final TaskGraph.Data data;
 
     public GlobalParObservationContext(GlobalPar owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
+        this.previousContext = CURRENT.get();
+        CURRENT.set(this);
         this.previousData = TaskGraph.initOnRequest(this);
         this.data = TaskGraph.data();
+    }
+
+    /** Returns the observation scope active on the calling thread, if any. */
+    public static GlobalParObservationContext current() {
+        GlobalParObservationContext context = CURRENT.get();
+        return context != null && !context.isClosed() ? context : null;
     }
 
     public GlobalPar owner() {
@@ -35,7 +46,14 @@ public final class GlobalParObservationContext implements AutoCloseable {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            TaskGraph.destroyAfterRequest(this);
+            try {
+                TaskGraph.destroyAfterRequest(this);
+            } finally {
+                if (CURRENT.get() == this) {
+                    if (previousContext == null) CURRENT.remove();
+                    else CURRENT.set(previousContext);
+                }
+            }
         }
     }
 

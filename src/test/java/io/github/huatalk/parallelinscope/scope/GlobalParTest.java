@@ -107,6 +107,46 @@ class GlobalParTest {
     }
 
     @Test
+    void topLevelBatchInstallsObservationOnPreexistingWorkerAndPropagatesItToNestedBatch() throws Exception {
+        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
+        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
+        outerExecutor.submit(() -> {}).get(2, TimeUnit.SECONDS);
+        GlobalPar global = GlobalPar.builder()
+                .register("outer", outerExecutor)
+                .register("inner", innerExecutor)
+                .build();
+        try (GlobalParObservationContext observation = global.openObservation()) {
+            java.util.concurrent.atomic.AtomicReference<TaskGraph.Data> graphOnOuterWorker =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            AsyncBatchResult<Integer> outer = global.par("outer")
+                    .map(
+                            Collections.singletonList(2),
+                            value -> {
+                                graphOnOuterWorker.set(TaskGraph.data());
+                                AsyncBatchResult<Integer> inner = global.par("inner")
+                                        .map(
+                                                Collections.singletonList(value),
+                                                item -> item + 1,
+                                                ExecutionOptions.of("inner").build());
+                                try {
+                                    return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
+                                } catch (Exception failure) {
+                                    throw new RuntimeException(failure);
+                                }
+                            },
+                            ExecutionOptions.of("outer").build());
+
+            assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(graphOnOuterWorker.get()).isSameAs(observation.data());
+            assertThat(observation.data().getGraph().edges()).hasSize(2);
+        } finally {
+            global.close();
+            outerExecutor.shutdownNow();
+            innerExecutor.shutdownNow();
+        }
+    }
+
+    @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
@@ -154,9 +194,11 @@ class GlobalParTest {
                     global.openObservation();
             assertThat(observation.owner()).isSameAs(global);
             assertThat(observation.isClosed()).isFalse();
+            assertThat(GlobalParObservationContext.current()).isSameAs(observation);
             observation.close();
             observation.close();
             assertThat(observation.isClosed()).isTrue();
+            assertThat(GlobalParObservationContext.current()).isNull();
         } finally {
             global.close();
             executor.shutdownNow();
