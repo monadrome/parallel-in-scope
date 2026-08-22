@@ -199,6 +199,48 @@
 
     <profiles>
         <profile>
+            <id>pitest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.19.1</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <testPlugin>junit5</testPlugin>
+                            <targetClasses>
+                                <param>io.github.huatalk.parallelinscope.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.huatalk.parallelinscope.*</param>
+                            </targetTests>
+                            <outputFormats>
+                                <param>HTML</param>
+                                <param>XML</param>
+                            </outputFormats>
+                            <threads>8</threads>
+                            <!-- Concurrency tests may legitimately wait up to 10s (awaitility TIMEOUT_SECONDS);
+                                 keep the per-mutation timeout above that so slow tests are not
+                                 misjudged as killed by timeout. -->
+                            <timeoutConstant>20000</timeoutConstant>
+                            <timeoutFactor>1.25</timeoutFactor>
+                            <!-- Coverage phase must fit the whole suite; the 10s default kills
+                                 the minion mid-run and misreports the running test as failing. -->
+                            <coverageTimeout>300</coverageTimeout>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>release</id>
             <build>
                 <plugins>

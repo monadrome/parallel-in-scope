@@ -302,6 +302,39 @@ public class ParTest {
         assertThat(batch.getResults()).isEmpty();
     }
 
+    // ==================== task graph recording ====================
+
+    /**
+     * Forking records a parent-child edge in the request graph and the edge metadata
+     * carries the named executor; dropping the logTaskPair call leaves an empty graph.
+     */
+    @Test
+    public void testTaskGraph_recordsForkEdgeWithExecutorName() throws Exception {
+        ParOptions options = ParOptions.of("graph-task").timeout(5000).build();
+        AsyncBatchResult<Integer> batch = par.map(EXECUTOR_NAME, Arrays.asList(1, 2, 3), x -> x, options);
+        for (com.google.common.util.concurrent.ListenableFuture<Integer> f : batch.getResults()) {
+            f.get(5, TimeUnit.SECONDS);
+        }
+
+        TaskGraph.Data data = TaskGraph.data();
+        assertThat(data).isNotNull();
+        com.google.common.graph.ValueGraph<String, List<TaskEdge>> graph = data.getGraph();
+        assertThat(graph.edges()).as("fork edge must be recorded").isNotEmpty();
+        assertThat(graph.nodes()).contains("graph-task");
+
+        boolean executorCarried = false;
+        for (com.google.common.graph.EndpointPair<String> pair : graph.edges()) {
+            for (TaskEdge edge : graph.edgeValue(pair).orElse(Collections.emptyList())) {
+                if (EXECUTOR_NAME.equals(edge.getExecutorName())) {
+                    executorCarried = true;
+                }
+            }
+        }
+        assertThat(executorCarried)
+                .as("edge must carry the named executor instead of NA")
+                .isTrue();
+    }
+
     static class RecordingTaskListener implements TaskListener {
         final CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
 
