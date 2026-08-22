@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
  * <p>
  * Lifecycle:
  * <ul>
- *   <li>Request start: {@link #initOnRequest()} creates a new Data instance</li>
- *   <li>During request: {@link #logTaskPair(String, String, TaskEdge)} records fork relationships</li>
+ *   <li>Request start: {@link GlobalParObservationContext} creates a new Data instance</li>
+ *   <li>During request: the GlobalPar execution path records batch-instance relationships</li>
  *   <li>Request end: {@link #destroyAfterRequest(GlobalParObservationContext)} checks for cycles and notifies listeners</li>
  * </ul>
  *
@@ -251,13 +251,6 @@ public final class TaskGraph {
 
     // ==================== Request lifecycle ====================
 
-    /**
-     * Initializes task graph at request entry.
-     */
-    public static void initOnRequest() {
-        TTL.set(new Data());
-    }
-
     /** Initializes a graph owned by one GlobalPar observation scope. */
     public static Data initOnRequest(GlobalParObservationContext context) {
         Objects.requireNonNull(context, "context cannot be null");
@@ -354,22 +347,6 @@ public final class TaskGraph {
      */
     public static @Nullable Data data() {
         return TTL.get();
-    }
-
-    /**
-     * Records a parent-child task relationship with edge metadata.
-     *
-     * @param parent parent task name
-     * @param child  child task name
-     * @param edge   edge metadata (parallelism, task type, executor, etc.)
-     */
-    public static void logTaskPair(@Nullable String parent, String child, TaskEdge edge) {
-        Data data = TTL.get();
-        if (data == null) {
-            return;
-        }
-        parent = parent != null ? parent : "NA";
-        data.subTaskList.add(new TaskEdgeEntry(EndpointPair.ordered(parent, child), edge));
     }
 
     /** Records a new-model edge using unique batch identities and display labels. */
