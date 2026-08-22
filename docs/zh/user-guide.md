@@ -140,6 +140,10 @@ TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深�
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
 使聚合成员值失败，但单独的成功成员结果仍可读。
 
+combine 体内，唯一的成员成功返回 null 时 `values` 整体为 null；两个及以上成员时
+`values` 本身是非 null 的 `Tuple2`，但各分量可为 null。combine 返回 null 也是成功
+combine，因此 body 可以直接写 `values -> null`。
+
 ### 三个及以上成员
 
 第一个之后的每次 `par` 都让聚合类型左嵌套一层 `Tuple2`，因此三成员组 combine 里的 `values`
