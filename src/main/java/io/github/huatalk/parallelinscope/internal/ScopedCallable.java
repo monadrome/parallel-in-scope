@@ -126,7 +126,6 @@ public class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         // ==================== prepareContext ====================
         ScopedCallable<?> previousCurrent = CURRENT.get();
-        CancellationToken previousToken = TaskScopeTl.getCancellationToken();
         BatchExecutionContext previousBatch = TaskScopeTl.getBatchExecutionContext();
         CancellationToken previousRelayToken = ThreadRelay.getCurrentCancellationToken();
         String previousTaskName = ThreadRelay.getCurrentTaskName();
@@ -162,7 +161,7 @@ public class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             endTime = ticker.read();
-            TaskScopeTl.restore(previousToken, previousBatch);
+            TaskScopeTl.restore(previousBatch);
             ThreadRelay.restoreCurrent(previousRelayToken, previousTaskName,
                     previousExecutorName, previousIdentity);
             TaskGraph.restore(previousGraph);

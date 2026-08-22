@@ -503,8 +503,7 @@ public final class Checkpoints {
 
     private static void checkCancellationToken(boolean lean) {
         BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
-        CancellationToken cancelToken = batch == null
-                ? TaskScopeTl.getCancellationToken() : batch.cancellationToken();
+        CancellationToken cancelToken = batch == null ? null : batch.cancellationToken();
         if (cancelToken != null && cancelToken.getState().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")
