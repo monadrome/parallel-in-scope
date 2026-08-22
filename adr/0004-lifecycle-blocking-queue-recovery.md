@@ -1,6 +1,40 @@
-# LifecycleQueueV2 Contract
+# ADR 0004: Lifecycle Blocking Queue Recovery Contract
 
-Status: active design and acceptance record.
+- Status: Accepted
+- Date: 2026-08-22
+- Decision scope: `ClosableBlockingQueue` shutdown and recovery semantics
+- Supersedes: None
+
+## Context
+
+The queue must release blocked producers and consumers during shutdown while preserving elements
+that were already linked at the shutdown linearization point. Recovery must be deterministic,
+bounded, and safe when multiple consumers drain it concurrently. The implementation also targets
+Java 8 bytecode while exposing the backed reverse-view behavior available on newer JDKs.
+
+## Decision
+
+Use a one-way `OPEN -> CLOSING -> CLOSED` lifecycle, detach queued elements into a recovery list at
+shutdown, and keep `drainTo(Collection)` available after shutdown to claim recovery elements in FIFO
+order. `remainingList()` remains the post-termination inspection API. Poison signaling is virtual and
+identity-based; it is never stored in the queue or recovery list.
+
+## Alternatives Considered
+
+- Reject every collection operation after shutdown and expose recovery only through
+  `remainingList()`. Rejected because standard `drainTo` is the natural transfer API and recovery
+  callers may need bounded incremental ownership.
+- Store poison objects as queue nodes. Rejected because one node cannot release an unbounded number
+  of blocked consumers and would corrupt capacity/iteration semantics.
+- Keep a thread registry to interrupt blocked callers. Rejected because lifecycle guards and monitor
+  admission provide release without interrupting user threads.
+
+## Consequences
+
+Shutdown recovery has an explicit ownership-transfer operation and concurrent drains cannot duplicate
+elements. `remainingList()` is empty after successful drains, while target collection failures do
+not restore already claimed elements. The queue has more lifecycle-specific code and callers must
+distinguish recovery transfer (`drainTo`) from closed consumer operations (`take`/`poll`).
 
 This document is the single source for `LifecycleQueueV2`. It replaces the former separate design
 draft and JDK-difference exploration.
@@ -15,7 +49,8 @@ draft and JDK-difference exploration.
    contract. In particular, use the Java 8 `LinkedBlockingQueue` weakly consistent FIFO iterator
    model rather than a stable iterator snapshot.
 3. Support two constructor-selected shutdown behaviors: exception rejection and poison-object
-   signalling. Producer and collection mutations never succeed after shutdown.
+   signalling. Producer and collection mutations never succeed after shutdown, except that standard
+   `BlockingQueue.drainTo` remains available for recovery transfer.
 4. Make the reverse view behave as a normal backed mutable `List`. On Java 21+, the returned `List`
    is a real `SequencedCollection`, including its endpoint defaults and `reversed()` behavior.
 5. Keep implementation, tests, and this document synchronized.
@@ -65,7 +100,7 @@ queue's correctness predicate.
 | State | Reads | Producers/collection mutations | Element-removing consumers |
 |---|---|---|---|
 | `OPEN` | Standard bounded FIFO queue behavior | Accepted subject to capacity | Wait for data or timeout |
-| `CLOSING` / `CLOSED` | Non-removing reads observe an empty live queue | Throw `QueueShutdownException` | THROW: exception; POISON: configured poison object |
+| `CLOSING` / `CLOSED` | Non-removing reads observe an empty live queue | Throw `QueueShutdownException`; `drainTo` transfers recovery elements | THROW: exception; POISON: configured poison object |
 
 Shutdown holds both Monitors, closes admission, detaches the live chain, installs a fresh empty
 sentinel, resets `count`, and publishes `CLOSING`. A blocking call admitted before that point is
@@ -111,15 +146,22 @@ use V2's inherited spliterator as a substitute.
 
 ### Bulk and drain operations
 
-`remove(Object)`, `removeIf`, `removeAll`, `retainAll`, `clear`, `drainTo`, iterator removal, producer
-operations, and every reverse-view mutation throw after shutdown under both behaviors. The
-element-removing consumer methods listed above are the only poison-capable operations.
+`remove(Object)`, `removeIf`, `removeAll`, `retainAll`, `clear`, iterator removal, producer operations,
+and every reverse-view mutation throw after shutdown under both behaviors. `drainTo` is the sole
+mutation exception: it remains available in every lifecycle state and transfers a FIFO prefix from
+the detached recovery list after shutdown. The element-removing consumer methods listed above are
+the only poison-capable operations.
 
-`drainTo` first detaches the selected FIFO batch under the consumer Monitor and calls the target's
-`add` once per item after releasing the Monitor. If a target callback throws, the detached batch is
-not restored to the queue or recovery list. This differs from the current `LinkedBlockingQueue`
-implementation but is permitted by the `BlockingQueue.drainTo` exception contract and prevents
-arbitrary target code from blocking shutdown.
+The recovery list remains publicly mutable. Concurrent recovery-list writes may interleave with a
+shutdown-state drain; each drain claims elements through atomic list removals, so an element cannot
+also remain available to a later drain. Calls to `drainTo` serialize with each other to preserve FIFO
+claim order.
+
+`drainTo` first detaches the selected FIFO batch from the live queue or shutdown recovery list and
+calls the target's `add` once per item after releasing the Monitor. If a target callback throws, the
+detached batch is not restored to the queue or recovery list. This differs from the current
+`LinkedBlockingQueue` implementation but is permitted by the `BlockingQueue.drainTo` exception
+contract and prevents arbitrary target code from blocking shutdown.
 
 ## 4. Sequenced Reverse View
 
