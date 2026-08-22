@@ -4,6 +4,8 @@
 
 An independent consumer project containing runnable examples for `parallel-in-scope`.
 
+> The current demo source depends on the `0.1.x` published artifact and uses the legacy API. It is not a v0.2 API reference; use the main [user guide](../docs/en/user-guide.md) and [migration guide](../docs/en/migration-v0.2.md) for `0.2.0-SNAPSHOT`.
+
 ## Build and Run
 
 Install the library from the repository root, then build the demo:

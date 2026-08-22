@@ -1,368 +1,152 @@
-[Project home](https://github.com/HuaTalk/parallel-in-scope/blob/main/README.en.md)
+# User Guide
 
-# 🪿 parallel-in-scope
+> This guide documents the current `0.2.0-SNAPSHOT` API. `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [migration guide](migration-v0.2.md).
 
-> **Document role: User guide.** This is the primary guide to configuration, public APIs, runtime behavior, and advanced features.
+`parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `BatchExecutionContext` owns one invocation's runtime state.
 
-> **Current version: `v0.2.0`**
->
-> The project remains under active development. APIs may change in future `0.x` releases. Feedback and suggestions are welcome via Issues.
+## Build the execution topology
 
-🪿 **parallel-in-scope** is a structured concurrency toolkit for Java 8+, built around cooperative cancellation, fail-fast behavior, context propagation, deadlock detection, and sliding-window scheduling.
-It targets practical Java 8 pain points: lost cancellation signals, missing `ThreadLocal` context across thread pools, and hard-to-debug deadlocks in nested parallel calls.
-Compared with CompletableFuture chains and traditional `ExecutorService + invokeAll` workflows, parallel-in-scope prioritizes structured semantics and operational safety.
-The goal is simple: without upgrading JDK, make concurrent code move from “just works” to **fail immediately, cancel cascadingly, deadlocks visible**.
-
-## Quick Start
-
-In most cases, all you need is a single method: **`Par.map`**.
-
-### 1. Add Maven Dependency
-
-```xml
-<dependency>
-    <groupId>io.github.huatalk</groupId>
-    <artifactId>parallel-in-scope</artifactId>
-    <version>0.2.0</version>
-</dependency>
-```
-
-### 2. Initialize (once at application startup)
+Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
 
 ```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-Par par = new Par(config);
+GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
+        .defaultTimeoutMillis(10_000)
+        .taskListener(metricsListener)
+        .build();
+
+GlobalPar global = GlobalPar.builder()
+        .executionPolicy(defaults)
+        .register("database", databaseExecutor)
+        .register("http", httpExecutor)
+        .defaultPar("http")
+        .build();
+
+Par httpPar = global.par("http");
 ```
 
-### 3. Parallel Processing with `Par.map`
+Names are validated at build time. `GlobalPar` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `GlobalPar` shuts down its internal timer and submitter services only, never a registered executor.
+
+For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
 ```java
-ParOptions options = ParOptions.ioTask("fetchData")
-    .parallelism(5)
-    .timeout(3000)
-    .build();
-
-List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.map(
-    "io-pool",
-    urls,
-    url -> httpClient.fetch(url),
-    options
-);
-
-List<ListenableFuture<String>> futures = result.getResults();
+GlobalPar.installGlobal(global);
+Par defaultPar = GlobalPar.global().defaultPar();
 ```
 
-That's it. `Par.map` internally handles sliding-window scheduling, timeout control, fail-fast cancellation, and context propagation — no extra configuration needed.
+Prefer explicit injection in tests and libraries. `installGlobal` is one-time and intentionally rejects replacement.
 
-### Choosing explicit or global configuration
+## Execute a batch
 
-Prefer explicit construction and dependency injection when the application owns its
-configuration:
+`ExecutionOptions` is immutable input for one call. The library resolves it with `GlobalExecutionPolicy`, the item count, any parent batch, and the bound executor identity into an internal `BatchExecutionContext`.
 
 ```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-Par par = new Par(config);
+ExecutionOptions options = ExecutionOptions.of("fetch-account")
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(16)
+        .timeout(Duration.ofSeconds(5))
+        .rejectEnqueue(false)
+        .build();
+
+AsyncBatchResult<Account> result = httpPar.map(
+        accountIds,
+        client::fetchAccount,
+        options);
+
+List<ListenableFuture<Account>> futures = result.getResults();
 ```
 
-For code that uses the shared convenience singleton, initialize the global
-configuration once during bootstrap:
+`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. An explicit timeout must be positive; omitted timeout uses the global default. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
+
+The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
+
+## Cancellation and nested batches
+
+Any task failure triggers fail-fast cancellation for its batch. A timeout, explicit `CancellationToken` cancellation, or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
 
 ```java
-GlobalParConfig.initializeDefault(config);
-Par par = Par.getInstance();
+httpPar.map(accountIds, id -> {
+    for (int page = 0; page < pageCount(id); page++) {
+        Checkpoints.checkpoint("fetch-account", true);
+        fetchPage(id, page);
+    }
+    return id;
+}, options);
 ```
 
-`GlobalParConfig` follows a one-time initialization rule. The first call to
-`GlobalParConfig.get()`, `Par.getInstance()`, or the legacy
-`ParConfig.getDefault()` freezes the built-in default when no explicit
-configuration was installed. A later `initializeDefault` call throws
-`IllegalStateException`; the old `ParConfig.setDefault` method is deprecated and
-has the same one-time behavior. Service discovery is intentionally not used for
-this resource-owning configuration: applications should make thread pools and
-their lifecycle explicit.
-
----
-
-## Core Features
-
-### ⚡ Fail-Fast
-
-**Problem:** In traditional parallel processing, when one subtask fails, the remaining tasks continue to execute, wasting thread and IO resources. The caller still has to wait for all tasks to complete before receiving the error.
-
-**Solution:** When any subtask throws an exception, the framework immediately cancels all remaining tasks in the same batch. This is a deliberate design choice — only fail-fast semantics are provided, with no "ignore failures and continue" mode. If you need fault tolerance, catch exceptions inside your task function.
-
-### 🛡️ Cooperative Cancellation
-
-**Problem:** `Thread.interrupt()` has no effect on code that doesn't check the interrupt flag, and forcibly killing threads may cause resource leaks. In nested parallel calls, cancellation signals cannot automatically propagate downward.
-
-**Solution:** Parent-child tokens cascade automatically — cancelling a parent task cascades to all child tasks. The Late-Binding mechanism wires timeout and fail-fast only after all tasks are submitted, avoiding race conditions. Dual exception strategy — `LeanCancellationException` (no stack trace, zero overhead) for high-frequency scenarios, `FatCancellationException` (full stack trace) for debugging.
-
-### 🔗 Context Propagation
-
-**Problem:** `ThreadLocal` values are lost when tasks are submitted to a thread pool. Request-scoped context (trace IDs, user identity, cancellation tokens) cannot automatically transfer to child threads, forcing developers to pass parameters manually in every task.
-
-**Solution:** Two-level map relay based on Alibaba TTL — the parent thread's `curMap` automatically becomes the child thread's `parentMap`, transparently propagating cancellation tokens, task config, and task names with zero intrusion into business code.
-
-### 🚀 Sliding-Window Scheduling
-
-**Problem:** Submitting all tasks to a thread pool at once causes memory pressure and thread starvation when task volume is high. `invokeAll()` blocks until all tasks complete, making it impossible to retrieve results incrementally.
-
-**Solution:** A "fill one slot as one completes" sliding window — initially submits `parallelism` tasks, then immediately fills one slot as each task completes, keeping the thread pool fully utilized without overflowing.
-
-### 🔌 Pluggable SPI
-
-**Problem:** Hard-coded monitoring and extension points are difficult to adapt to different technology stacks, coupling the framework to business monitoring systems.
-
-**Solution:** Two SPI extension points registered on `ParConfig` with zero hard-coded dependencies:
-- **TaskListener** — Task lifecycle callbacks (execution time, queue wait time, exceptions) for integration with any monitoring system
-- **LivelockListener** — Deadlock detection event callbacks
-
-Executor registration itself creates a stable internal binding. Submission, purge cleanup, and
-deadlock capability snapshots therefore refer to the same executor object without a resolver SPI.
-
-### 🔍 Deadlock Detection
-
-**Problem:** When nested parallel calls share the same thread pool, outer tasks hold threads waiting for inner tasks to complete, while inner tasks queue waiting for outer tasks to release threads — a deadlock. Such issues are extremely hard to reproduce and diagnose in production.
-
-**Solution:** A request-scoped DAG automatically records task dependencies. At request end, cycle detection runs covering both task-level circular dependencies and executor-level self-loops, notifying diagnostic results via SPI callbacks.
-
-### 🎯 Task-Type-Aware Dispatch
-
-**Problem:** When CPU-bound and IO-bound tasks share the same queue, a flood of IO tasks can starve CPU tasks, causing computation latency to spike.
-
-**Solution:** CPU-bound tasks' `offer()` returns `false`, triggering the rejection policy (typically `CallerRunsPolicy`) — preferring synchronous execution on the caller thread over blocking worker threads. IO-bound tasks queue normally.
-
----
-
-## When to Use & Design Boundaries
-
-**Recommended for:** Java 8 parallel batch workloads that need fail-fast behavior, cascading cancellation, context propagation, and better observability.
-
-**Not ideal for:** workflows that require reactive chain orchestration, built-in retry/fault-tolerance policies, or a Spring Boot Starter (intentionally out of scope for now).
-
-To keep the API minimal and semantics consistent, the project maintains an [Idea Graveyard](design/idea-graveyard.md): a place to document features we seriously evaluated but intentionally decided not to implement (for example configurable failure policies, built-in retry, chained orchestration, and a Spring Boot Starter), together with clear rationale and alternatives. If you plan to submit a feature request, we recommend reading it first to align expectations with the project's design direction.
-
----
-
-## Advanced Features
-
-The following features can be enabled on demand without affecting basic `Par.map` usage.
-
-### Supplying a timeout scheduler
-
-The default TimerHolder uses a `corePoolSize=2` scheduler to wait for deadlines and dispatches timeout/cancel actions to a framework-managed cached task pool. To isolate tenants, control thread names, or attach the scheduler to an application lifecycle, supply your own `ScheduledExecutorService` through `ParConfig`:
+Nested `map` calls inherit the current `BatchExecutionContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 
 ```java
-ScheduledExecutorService timer = Executors.newScheduledThreadPool(1);
-ParConfig config = ParConfig.builder()
-    .timer(timer)
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-
-// Par binds timeouts through config's timer
-Par par = new Par(config);
+databasePar.map(ids, id -> {
+    AsyncBatchResult<Response> children = httpPar.map(
+            endpoints(id), client::call, httpOptions);
+    return collect(children);
+}, databaseOptions);
 ```
 
-The supplied `timer` should only schedule deadlines, not run long-lived business work. Actual cancellation actions run on the cached `Par-Timer-Task-*` pool. The caller owns the custom scheduler and must call `shutdown()`; the framework does not close it. This keeps a slow cancellation callback away from the scheduler worker, but it does not provide unlimited task-pool capacity or force-stop code that ignores cooperative cancellation.
+Use an [observation scope](#observe-nested-work) when the request needs graph diagnostics across multiple `Par` entries.
 
-### Purging cancelled queued tasks
+## Observe nested work
 
-Automatic purge is disabled by default and currently supports only a directly registered
-`ThreadPoolExecutor` backed by `SmartBlockingQueue`. Enable it when cancelled, not-yet-started
-tasks can remain in a pressured queue:
+Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes livelock listeners at the end of the request.
 
 ```java
-ThreadPoolExecutor ioPool = new ThreadPoolExecutor(
-    8, 8, 0L, TimeUnit.MILLISECONDS,
-    new SmartBlockingQueue<Runnable>(1000));
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", ioPool)
-    .purgeEnabled(true)
-    .purgeQueuePressureThreshold(0.80)
-    .purgeCancelledTaskRatioThreshold(0.05)
-    .build();
-```
-
-The queue pressure (`Q / K`) and estimated cancelled-task ratio (`min(G, Q) / K`) must both
-reach their configured thresholds before `ThreadPoolExecutor.purge()` runs. The values can be changed at runtime with
-`setPurgeQueuePressureThreshold` and `setPurgeCancelledTaskRatioThreshold`; lower values are more
-aggressive. `setPurgeEnabled(false)` stops collecting new cancellation estimates and clears
-pending estimates. Decisions and purge duration are logged through JUL at `Level.FINEST`.
-
-Cancellation signals are coalesced per executor. Once a purge task is submitted,
-callbacks only advance an internal sequence until that task finishes; they do not
-read the queue or submit duplicate purge work. The maintenance task uses a fixed
-50 ms coalescing delay, preserves cancellations that arrive during its scan for a
-follow-up round, and retries one failed purge after a delay.
-
-Purge only removes cancelled tasks still retained by the work queue. It cannot stop a running
-task that ignores interruption or blocks in an uninterruptible operation.
-
-### Cooperative Cancellation
-
-```java
-// In parent task
-CancellationToken parentToken = CancellationToken.create();
-CancellationToken childToken = new CancellationToken(parentToken);
-
-// Cancel parent → automatically cascades to child tasks
-parentToken.cancel(false);
-// childToken state also becomes PROPAGATING_CANCELED
-
-// Set checkpoints in subtask code
-Checkpoints.checkpoint("myTask", true);  // Throws LeanCancellationException if cancelled
-```
-
-### Monitoring Callbacks
-
-```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .taskListener(event -> {
-        System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
-            event.getTaskName(),
-            event.executionTime().toMillis(),
-            event.waitTime().toMillis());
-
-        if (event.getException() != null) {
-            System.err.println("Task failed: " + event.getException().getMessage());
-        }
-    })
-    .build();
-```
-
-### Deadlock Detection
-
-```java
-// Build config with deadlock detection enabled
-ParConfig config = ParConfig.builder()
-    .executor("shared-pool", pool)
-    .livelockDetectionEnabled(true)
-    .livelockListener(event -> {
-        if (event.hasExecutorSelfLoop()) {
-            log.warn("Potential deadlock: executor self-loop detected! {}",
-                event.getExecutorEdges());
-        }
-    })
-    .build();
-
-// Initialize at request entry
-TaskGraph.initOnRequest();
-try {
-    // ... execute business logic; all Par calls automatically record dependencies
-} finally {
-    // Detect and notify at request end
-    TaskGraph.destroyAfterRequest(config);
+try (GlobalParObservationContext observation = global.openObservation()) {
+    // Calls made below this scope, including nested calls on other Pars in global,
+    // are recorded in the same graph.
+    service.handleRequest();
 }
 ```
 
-### CPU-Bound Task Scheduling
+Configure the policy while building the topology:
 
 ```java
-// CPU-bound: reject queueing, prefer synchronous execution over blocking worker threads
-ParOptions cpuOptions = ParOptions.cpuTask("compute")
-    .parallelism(Runtime.getRuntime().availableProcessors())
-    .build();
-
-// IO-bound: queue normally
-ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
-    .parallelism(20)
-    .timeout(5000)
-    .build();
+GlobalParLivelockPolicy livelock = GlobalParLivelockPolicy.builder()
+        .enabled(true)
+        .listener(event -> log.warn("Potential livelock: {}", event))
+        .build();
 ```
 
----
+An observation scope does not merge graphs from separate `GlobalPar` instances.
 
-## Execution Flow
+## Purge cancelled queue entries
 
-```mermaid
-sequenceDiagram
-    participant U as User Code
-    participant P as Par
-    participant O as ParOptions
-    participant G as TaskGraph
-    participant T as CancellationToken
-    participant S as ScopedCallable
-    participant E as ConcurrentLimitExecutor
-    participant R as AsyncBatchResult
+Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor`. Cancellation before execution emits an execution phase signal; `GlobalPar` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
 
-    U ->> P: map(pool, items, fn, options)
+```java
+GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
+        .enabled(true)
+        .queuePressureThreshold(0.80)
+        .cancelledTaskRatioThreshold(0.05)
+        .build();
 
-    rect rgb(230, 240, 255)
-        Note over P, T: ① Initialize
-        P ->> O: formalized()
-        Note right of O: Normalize config<br/>Cap parallelism / fill default timeout
-        P ->> G: logTaskPair()
-        Note right of G: Record parent→child dependency<br/>for livelock detection
-        P ->> T: create & chain
-        Note right of T: Create child token<br/>& chain to parent (via ThreadRelay)
-    end
-
-    rect rgb(230, 255, 230)
-        Note over S, E: ② Wrap & Submit
-        P ->> S: wrap(task)
-        Note right of S: Context setup + checkpoint<br/>+ SPI callbacks + cleanup
-        P ->> E: submitAll(wrappedTasks)
-        Note right of E: Sliding window submission<br/>Submit initial batch up to parallelism<br/>then fill slots as tasks complete
-    end
-
-    rect rgb(255, 235, 230)
-        Note over T, R: ③ Late Binding
-        P ->> T: lateBind(futures, timeout)
-        Note right of T: Wire timeout (withTimeout)<br/>Wire fail-fast (allAsList)<br/>Wire parent cancellation propagation
-        E -->> R: return futures
-        Note right of R: futures + report()
-    end
-
-    P -->> U: AsyncBatchResult
+GlobalPar global = GlobalPar.builder()
+        .purgePolicy(purge)
+        .register("io", ioThreadPool)
+        .build();
 ```
 
----
+Both thresholds must be reached before `ThreadPoolExecutor.purge()` is requested. Purge only removes cancelled work still retained in the queue; it cannot stop a task body that ignores interruption.
 
-## Dependencies
+## Lifecycle-aware queues
 
-| Dependency | Version | Purpose |
-|---|---|---|
-| Guava | 33.6.0-jre | ListenableFuture, FluentFuture, Graph API |
-| TransmittableThreadLocal | 2.14.5 | Cross-thread context propagation |
+`ClosableBlockingQueue` is a separate bounded `BlockingQueue` implementation for producer/consumer lifecycles. Closing it releases blocked callers without interrupting them, rejects new production and collection mutation, and detaches queued values for recovery.
 
----
+```java
+ClosableBlockingQueue<Job> queue = new ClosableBlockingQueue<>(100);
+queue.put(job);
+queue.close();
+queue.awaitTerminated();
 
-## Compatibility
-
-| Item | Notes |
-|---|---|
-| JDK | Java 8+ (production code uses `maven.compiler.release = 8`) |
-| Build Tool | Maven 3.x (recommended) |
-| Published Artifact | `parallel-in-scope` (library) |
-| Sample Project | `demo/` (not published) |
-
----
-
-## Build
-
-```bash
-# Compile
-mvn clean compile
-
-# Run tests
-mvn test
-
-# Package
-mvn clean package
-
-# Run the default demo (install the library into the local Maven repository first)
-mvn install -DskipTests -Dmaven.javadoc.skip=true
-mvn -f demo/pom.xml exec:java
+List<Job> recovery = new ArrayList<>();
+queue.drainTo(recovery); // allowed after close, in FIFO order
 ```
 
----
+With no poison object, closed consumer operations throw `QueueShutdownException`; with a configured poison object they return that object. `drainTo` is the deliberate exception to post-close mutation rejection: it transfers items from the detached recovery list in FIFO order. See [ADR 0004](../../adr/0004-lifecycle-blocking-queue-recovery.md) for the full contract.
 
-## License
+## Operational rules
 
-Apache License 2.0
+- Keep a `GlobalPar` for the application lifetime and close it during application shutdown.
+- Keep registered executor ownership outside the library; shut executors down in the owning component.
+- Give each batch a stable task name and add checkpoints to long CPU work.
+- Use different `Par` entries for resources that require isolation, even when both are IO-bound.
+- Treat `BatchExecutionContext`, `ExecutorRuntime`, and `ExecutorIdentity` as runtime/internal concepts, not configuration objects to cache or construct.

@@ -1,363 +1,151 @@
-[项目首页](https://github.com/HuaTalk/parallel-in-scope)
+# 使用指南
 
-# 🪿 parallel-in-scope
+> 本文档面向当前 `0.2.0-SNAPSHOT` API。使用 `ParConfig` 或 `ParOptions` 的 `0.1.x` 示例不能直接用于本版本，请先阅读 [v0.2 迁移指南](migration-v0.2.md)。
 
+`parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`BatchExecutionContext` 负责单次调用的运行时状态。
 
-> **当前版本：`v0.2.0`**
->
-> 项目仍在积极开发中，`0.x` API 可能在后续版本中调整。欢迎通过 Issue 提交反馈和建议。
+## 构建执行拓扑
 
-## 项目介绍
-
-**parallel-in-scope** 是一个面向 Java 8+ 的结构化并发工具包，核心能力包括协作式取消、快速失败、上下文传播、死锁检测和滑动窗口调度。
-它聚焦解决 Java 8 并行编程中的典型痛点：取消信号难传播、`ThreadLocal` 上下文丢失、嵌套并行死锁难诊断。
-相比 CompletableFuture 链式编排与 `ExecutorService + invokeAll` 传统模型，parallel-in-scope 更强调结构化语义与工程可控性。
-目标很直接：在不升级 JDK 的前提下，让并发代码从“能跑”走向“失败即止、取消级联、死锁可见”。
-
----
-
-## 快速开始
-
-大多数场景下，你只需要用 **`Par.map`** 一个方法：
-
-### 1. 添加 Maven 依赖
-
-```xml
-<dependency>
-    <groupId>io.github.huatalk</groupId>
-    <artifactId>parallel-in-scope</artifactId>
-    <version>0.2.0</version>
-</dependency>
-```
-
-### 2. 初始化（应用启动时执行一次）
+在 composition root 创建 `GlobalPar`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
 
 ```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-Par par = new Par(config);
+GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
+        .defaultTimeoutMillis(10_000)
+        .taskListener(metricsListener)
+        .build();
+
+GlobalPar global = GlobalPar.builder()
+        .executionPolicy(defaults)
+        .register("database", databaseExecutor)
+        .register("http", httpExecutor)
+        .defaultPar("http")
+        .build();
+
+Par httpPar = global.par("http");
 ```
 
-### 3. 使用 `Par.map` 并行处理
+名称会在构建期校验；`build()` 后 `GlobalPar` 不可变，未知名称的 `par(name)` 会失败。注册的执行器属于调用方：关闭 `GlobalPar` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
+
+需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
 ```java
-ParOptions options = ParOptions.ioTask("fetchData")
-    .parallelism(5)
-    .timeout(3000)
-    .build();
-
-List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.map(
-    "io-pool",
-    urls,
-    url -> httpClient.fetch(url),
-    options
-);
-
-List<ListenableFuture<String>> futures = result.getResults();
+GlobalPar.installGlobal(global);
+Par defaultPar = GlobalPar.global().defaultPar();
 ```
 
-以上就是全部。`Par.map` 内部自动处理滑动窗口调度、超时控制、快速失败取消和上下文传播，无需额外配置。
+测试和库代码应优先显式注入。`installGlobal` 只能成功一次，不能替换已有实例。
 
-### 选择显式配置还是全局配置
+## 执行批次
 
-当应用自己管理配置时，优先使用显式构造和依赖注入：
+`ExecutionOptions` 是单次调用的不可变输入。库将它与 `GlobalExecutionPolicy`、任务数量、父批次和绑定的执行器 identity 解析为内部 `BatchExecutionContext`。
 
 ```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-Par par = new Par(config);
+ExecutionOptions options = ExecutionOptions.of("fetch-account")
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(16)
+        .timeout(Duration.ofSeconds(5))
+        .rejectEnqueue(false)
+        .build();
+
+AsyncBatchResult<Account> result = httpPar.map(
+        accountIds,
+        client::fetchAccount,
+        options);
+
+List<ListenableFuture<Account>> futures = result.getResults();
 ```
 
-如果代码需要使用共享的便利单例，应在启动阶段只初始化一次全局配置：
+`parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制；显式 timeout 必须为正，未设置时使用全局默认值。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
+
+结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
+
+## 取消与嵌套批次
+
+任一任务失败都会触发该批次的快速失败取消。超时、显式 `CancellationToken` 取消或父批次取消共享同一协作式边界：排队任务被取消；可中断的阻塞任务会被中断；CPU 密集型代码在 checkpoint 处停止。
 
 ```java
-GlobalParConfig.initializeDefault(config);
-Par par = Par.getInstance();
+httpPar.map(accountIds, id -> {
+    for (int page = 0; page < pageCount(id); page++) {
+        Checkpoints.checkpoint("fetch-account", true);
+        fetchPage(id, page);
+    }
+    return id;
+}, options);
 ```
 
-`GlobalParConfig` 遵循一次性初始化规则。如果没有显式配置，第一次调用
-`GlobalParConfig.get()`、`Par.getInstance()` 或旧入口
-`ParConfig.getDefault()` 会冻结内置默认值；之后再调用
-`initializeDefault` 会抛出 `IllegalStateException`。旧的
-`ParConfig.setDefault` 已标记为废弃，并且同样只允许初始化一次。这里刻意不使用
-ServiceLoader 自动发现这个持有线程池资源的配置，线程池及其生命周期应由应用显式管理。
-
----
-
-## 核心特性
-
-### ⚡ 快速失败（Fail-Fast）
-
-**问题：** 传统并行处理中，某个子任务失败后其余任务仍继续执行，白白消耗线程和 IO 资源，调用方还得等所有任务结束才能拿到错误。
-
-**方案：** 任一子任务抛出异常，框架立即取消同批所有剩余任务。这是刻意的设计选择——只提供 fail-fast 语义，不提供"忽略失败继续执行"模式。如需容错，在任务函数内部自行 catch。
-
-### 🛡️ 协作式取消（Cooperative Cancellation）
-
-**问题：** `Thread.interrupt()` 对不检查中断标志的代码无效，强制 kill 线程可能导致资源泄漏。嵌套并行调用时，取消信号无法自动向下传播。
-
-**方案：** 父子令牌自动级联，取消父任务即级联取消所有子任务。Late-Binding 机制在所有任务提交后才绑定超时和 fail-fast，避免竞态。双异常策略——`LeanCancellationException`（无堆栈，零开销）用于高频场景，`FatCancellationException`（完整堆栈）用于调试。
-
-### 🔗 上下文传播（Context Propagation）
-
-**问题：** `ThreadLocal` 值在任务提交到线程池后丢失，请求级上下文（链路追踪 ID、用户身份、取消令牌）无法自动传递到子线程，开发者被迫在每个任务中手动传参。
-
-**方案：** 基于 Alibaba TTL 的两级 Map 接力——父线程的 `curMap` 自动成为子线程的 `parentMap`，取消令牌、任务配置、任务名称透明传播，零侵入业务代码。
-
-### 🚀 滑动窗口调度（Sliding-Window Scheduling）
-
-**问题：** 一次性提交所有任务到线程池，任务量大时造成内存压力和线程饥饿；`invokeAll()` 阻塞到全部完成，无法逐个获取结果。
-
-**方案：** "完成一个补一个"的滑动窗口——初始提交 parallelism 个任务，每完成一个立即补充一个，既保持线程池满载又避免溢出。
-
-### 🔌 可插拔扩展（Pluggable SPI）
-
-**问题：** 硬编码的监控和扩展点难以适配不同技术栈，框架与业务监控系统耦合。
-
-**方案：** 两个 SPI 扩展点注册在 `ParConfig` 上，零硬编码依赖：
-- **TaskListener** — 任务生命周期回调（耗时、排队时间、异常），对接任意监控系统
-- **LivelockListener** — 死锁检测事件回调
-
-执行器注册时会创建稳定的内部绑定，任务提交、purge 清理和死锁能力快照始终指向同一个执行器对象，无需额外 resolver SPI。
-
-### 🔍 死锁检测（Deadlock Detection）
-
-**问题：** 嵌套并行调用共享同一线程池时，外层任务占住线程等待内层完成，内层排队等外层释放线程——死锁。此类问题在生产环境极难复现和定位。
-
-**方案：** 请求级 DAG 图自动记录任务依赖关系，请求结束时执行环路检测，覆盖任务级循环依赖和执行器级自环，通过 SPI 回调通知诊断结果。
-
-### 🎯 任务类型感知调度（Task-Type-Aware Dispatch）
-
-**问题：** CPU 密集型和 IO 密集型任务混用同一队列，大量 IO 任务排队会饿死 CPU 任务，计算延迟飙升。
-
-**方案：** CPU 密集型任务的 `offer()` 返回 `false`，触发拒绝策略（通常 `CallerRunsPolicy`），宁可调用方线程同步执行也不阻塞工作线程；IO 密集型正常排队。
-
----
-
-## 适用场景与设计边界
-
-**推荐使用：** 需要在 Java 8 上做并行批处理，希望获得失败即止、取消级联、上下文传播和可观测性保障的服务端业务。
-
-**暂不适合：** 需要链式响应式编排、内置重试/容错策略或 Spring Boot Starter 的场景（这些能力当前刻意不内置）。
-
-为了保持 API 简洁和语义一致，项目维护了 [Idea Graveyard](design/idea-graveyard.md)（参考 Guava 同名实践）：集中记录那些我们认真评估过、但最终决定不实现的特性（例如可配置失败策略、内置重试、链式编排、Spring Boot Starter 等），并给出明确的拒绝理由和替代方案。提交 Feature Request 前建议先阅读，能更快对齐项目设计方向。
-
----
-
-## 进阶功能
-
-以下功能按需启用，不影响 `Par.map` 的基本使用。
-
-### 指定 timeout scheduler
-
-默认 TimerHolder 使用 `corePoolSize=2` 的 scheduler 等待 deadline，并把 timeout/cancel action 投递到框架维护的 cached task pool。需要隔离租户、统一线程命名或接入应用生命周期时，可以给 `ParConfig` 指定自己的 `ScheduledExecutorService`：
+任务内部再次调用 `map` 时，子调用继承当前 `BatchExecutionContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
 
 ```java
-ScheduledExecutorService timer = Executors.newScheduledThreadPool(1);
-ParConfig config = ParConfig.builder()
-    .timer(timer)
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .build();
-
-// Par 使用 config 的 timer 绑定 timeout
-Par par = new Par(config);
+databasePar.map(ids, id -> {
+    AsyncBatchResult<Response> children = httpPar.map(
+            endpoints(id), client::call, httpOptions);
+    return collect(children);
+}, databaseOptions);
 ```
 
-`timer` 只负责调度 deadline，不应提交长时间运行的业务任务；实际取消 action 在线程名 `Par-Timer-Task-*` 的 cached pool 执行。自定义 timer 由调用方持有并负责 `shutdown()`，框架不会替它关闭。该隔离避免 scheduler worker 被一个慢取消回调占满，但不能保证 cached pool 无限资源，也不能把协作式取消变成强制终止。
+需要跨多个 `Par` 诊断任务图时，请使用[观测作用域](#观测嵌套工作)。
 
-### 清理已取消的排队任务
+## 观测嵌套工作
 
-自动 purge 默认关闭，当前只支持直接注册、且工作队列为 `SmartBlockingQueue` 的
-`ThreadPoolExecutor`。当大量尚未开始的任务取消后可能滞留在高压力队列中时，可以显式开启：
-
-```java
-ThreadPoolExecutor ioPool = new ThreadPoolExecutor(
-    8, 8, 0L, TimeUnit.MILLISECONDS,
-    new SmartBlockingQueue<Runnable>(1000));
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", ioPool)
-    .purgeEnabled(true)
-    .purgeQueuePressureThreshold(0.80)
-    .purgeCancelledTaskRatioThreshold(0.05)
-    .build();
-```
-
-容量压力（`Q / K`）和估算取消比例（`min(G, Q) / K`）必须同时达到各自阈值，
-才会调用 `ThreadPoolExecutor.purge()`。
-运行期间可通过 `setPurgeQueuePressureThreshold` 和
-`setPurgeCancelledTaskRatioThreshold` 调整阈值；数值越低越激进。
-`setPurgeEnabled(false)` 会停止收集新的取消估算并清除待处理估算。阈值决策和 purge
-耗时通过 JUL 的 `Level.FINEST` 记录。
-
-取消信号按执行器合并。purge 任务提交后，直到该任务结束，取消 callback
-只推进内部序列，不读取队列，也不重复提交 purge。维护任务使用固定 50ms
-合并延迟，扫描期间到达的取消会保留到下一轮；首次 purge 失败时会延迟重试一次。
-
-Purge 只能移除仍被工作队列持有的已取消任务，不能停止忽略中断或阻塞在不可中断操作中的运行任务。
-
-### 协作式取消
+任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用 livelock listener。
 
 ```java
-// 父任务中
-CancellationToken parentToken = CancellationToken.create();
-CancellationToken childToken = new CancellationToken(parentToken);
-
-// 取消父任务 → 自动级联到子任务
-parentToken.cancel(false);
-// childToken 状态也会变为 PROPAGATING_CANCELED
-
-// 在子任务代码中设置检查点
-Checkpoints.checkpoint("myTask", true);  // 如果已取消，抛出 LeanCancellationException
-```
-
-### 注册监控回调
-
-```java
-ParConfig config = ParConfig.builder()
-    .executor("io-pool", Executors.newFixedThreadPool(10))
-    .taskListener(event -> {
-        System.out.printf("Task [%s] completed in %dms (waited %dms in queue)%n",
-            event.getTaskName(),
-            event.executionTime().toMillis(),
-            event.waitTime().toMillis());
-
-        if (event.getException() != null) {
-            System.err.println("Task failed: " + event.getException().getMessage());
-        }
-    })
-    .build();
-```
-
-### 死锁检测
-
-```java
-// 通过 Builder 构建包含死锁检测的配置
-ParConfig config = ParConfig.builder()
-    .executor("shared-pool", pool)
-    .livelockDetectionEnabled(true)
-    .livelockListener(event -> {
-        if (event.hasExecutorSelfLoop()) {
-            log.warn("Potential deadlock: executor self-loop detected! {}",
-                event.getExecutorEdges());
-        }
-    })
-    .build();
-
-// 在请求入口初始化
-TaskGraph.initOnRequest();
-try {
-    // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
-} finally {
-    // 请求结束时自动检测并通知
-    TaskGraph.destroyAfterRequest(config);
+try (GlobalParObservationContext observation = global.openObservation()) {
+    // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
+    service.handleRequest();
 }
 ```
 
-### CPU-Bound 任务调度
+在构建拓扑时配置策略：
 
 ```java
-// CPU 密集型任务：拒绝入队，宁可同步执行也不阻塞工作线程
-ParOptions cpuOptions = ParOptions.cpuTask("compute")
-    .parallelism(Runtime.getRuntime().availableProcessors())
-    .build();
-
-// IO 密集型任务：允许入队等待
-ParOptions ioOptions = ParOptions.ioTask("fetchRemote")
-    .parallelism(20)
-    .timeout(5000)
-    .build();
+GlobalParLivelockPolicy livelock = GlobalParLivelockPolicy.builder()
+        .enabled(true)
+        .listener(event -> log.warn("Potential livelock: {}", event))
+        .build();
 ```
 
----
+不同 `GlobalPar` 的观测作用域不会合并任务图。
 
-## 执行时序
+## 清理已取消的排队任务
 
-```mermaid
-sequenceDiagram
-    participant U as 用户代码
-    participant P as Par
-    participant O as ParOptions
-    participant G as TaskGraph
-    participant T as CancellationToken
-    participant S as ScopedCallable
-    participant E as ConcurrentLimitExecutor
-    participant R as AsyncBatchResult
+purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生效。执行前取消会发出 execution phase 信号；`GlobalPar` 按物理执行器 identity 合并维护任务，因此同一线程池的别名或多个 `Par` 不会创建重复协调器。
 
-    U ->> P: map(pool, items, fn, options)
+```java
+GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
+        .enabled(true)
+        .queuePressureThreshold(0.80)
+        .cancelledTaskRatioThreshold(0.05)
+        .build();
 
-    rect rgb(230, 240, 255)
-        Note over P, T: ① 初始化
-        P ->> O: formalized()
-        Note right of O: 规范化配置<br/>封顶并行度 / 填充默认超时
-        P ->> G: logTaskPair()
-        Note right of G: 记录父→子任务依赖<br/>用于活锁检测
-        P ->> T: create & chain
-        Note right of T: 创建子令牌<br/>链接父令牌（via ThreadRelay）
-    end
-
-    rect rgb(230, 255, 230)
-        Note over S, E: ② 包装 & 提交
-        P ->> S: wrap(task)
-        Note right of S: 上下文设置 + 检查点<br/>+ SPI 回调 + 清理
-        P ->> E: submitAll(wrappedTasks)
-        Note right of E: 滑动窗口提交<br/>先提交 parallelism 个<br/>后续完成一个补一个
-    end
-
-    rect rgb(255, 235, 230)
-        Note over T, R: ③ 后绑定（Late Binding）
-        P ->> T: lateBind(futures, timeout)
-        Note right of T: 绑定超时（withTimeout）<br/>绑定快速失败（allAsList）<br/>绑定父级取消传播
-        E -->> R: return futures
-        Note right of R: futures + report()
-    end
-
-    P -->> U: AsyncBatchResult
+GlobalPar global = GlobalPar.builder()
+        .purgePolicy(purge)
+        .register("io", ioThreadPool)
+        .build();
 ```
 
----
+两个阈值都达到后才会请求 `ThreadPoolExecutor.purge()`。purge 只能删除仍留在队列里的已取消任务，无法停止忽略中断的任务体。
 
-## 核心依赖
+## 生命周期队列
 
-| 依赖 | 版本 | 用途 |
-|------|------|------|
-| Guava | 33.6.0-jre | ListenableFuture, FluentFuture, Graph API |
-| TransmittableThreadLocal | 2.14.5 | 跨线程上下文传播 |
+`ClosableBlockingQueue` 是一个独立的有界 `BlockingQueue` 实现，用于 producer/consumer 生命周期。关闭会在不 interrupt 调用方线程的前提下释放阻塞调用，拒绝新的生产和集合变更，并将已排队元素移交给恢复流程。
 
----
+```java
+ClosableBlockingQueue<Job> queue = new ClosableBlockingQueue<>(100);
+queue.put(job);
+queue.close();
+queue.awaitTerminated();
 
-## 兼容性（Compatibility）
-
-| 项目 | 说明 |
-|------|------|
-| JDK | Java 8+（生产代码使用 `maven.compiler.release = 8`） |
-| 构建工具 | Maven 3.x（推荐） |
-| 发布产物 | `parallel-in-scope`（核心库） |
-| 示例工程 | `demo/`（不参与发布） |
-
----
-
-## 构建
-
-```bash
-# 编译
-mvn clean compile
-
-# 运行测试
-mvn test
-
-# 打包
-mvn clean package
-
-# 运行默认示例（需先把核心库安装到本地 Maven 仓库）
-mvn install -DskipTests -Dmaven.javadoc.skip=true
-mvn -f demo/pom.xml exec:java
+List<Job> recovery = new ArrayList<>();
+queue.drainTo(recovery); // 关闭后允许，按 FIFO 转移
 ```
 
----
+未配置 poison object 时，关闭后的消费操作抛出 `QueueShutdownException`；配置后返回该 poison object。`drainTo` 是关闭后拒绝变更规则的刻意例外：它从已分离的 recovery list 按 FIFO 转移元素。完整契约见 [ADR 0004](../../adr/0004-lifecycle-blocking-queue-recovery.md)。
 
-## License
+## 运行规则
 
-Apache License 2.0
+- `GlobalPar` 应覆盖应用生命周期，并在应用关闭时关闭它。
+- 注册执行器的所有权在库外；由拥有它的组件负责关闭。
+- 为每批任务提供稳定 task name，并在长 CPU 任务中设置 checkpoint。
+- 需要隔离的资源应使用不同 `Par`，即使它们同为 IO。
+- `BatchExecutionContext`、`ExecutorRuntime` 和 `ExecutorIdentity` 是运行时/内部概念，不应由应用构造或缓存。

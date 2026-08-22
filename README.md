@@ -52,6 +52,7 @@ AsyncBatchResult<User> result = execution.par("io")
 | Entry | Contents |
 |---|---|
 | [English documentation](docs/en/index.md) | User guides, API references, design notes, and case studies |
+| [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |
 | [Demo project](demo/README.en.md) | Runnable examples and the article catalog |
 | [Chinese documentation](docs/zh/index.md) | Complete Chinese documentation set |

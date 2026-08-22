@@ -11,7 +11,7 @@
 ```java
 FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
         .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-        .withTimeout(timeout, ParConfig.getTimer());
+        .withTimeout(timeout, timerService);
 ```
 
 AI 的判断是：
