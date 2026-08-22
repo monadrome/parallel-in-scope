@@ -11,6 +11,7 @@ import io.github.huatalk.parallelinscope.spi.*;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Futures;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -415,6 +416,49 @@ public class ConcurrentLimitExecutorTest {
         }
         // The submission loop itself returned normally after abandoning the batch.
         assertThat(result.getSubmitCanceller().get(5, TimeUnit.SECONDS)).isEqualTo(0);
+
+        singleSubmitterPool.shutdownNow();
+    }
+
+    @Test
+    public void testSubmitAll_submitterFutureCancellation_completesRemainingFutures() throws Exception {
+        // Cancelling the public submitter Future must not leave placeholders pending forever.
+        ExecutorService singleSubmitter = Executors.newSingleThreadExecutor();
+        ListeningExecutorService singleSubmitterPool = MoreExecutors.listeningDecorator(singleSubmitter);
+        CountDownLatch started = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+
+        ParOptions options = ParOptions.of("test")
+                .parallelism(2)
+                .timeout(5000)
+                .taskType(TaskType.IO_BOUND)
+                .rejectEnqueue(false)
+                .build();
+        ConcurrentLimitExecutor<Integer> executor = ConcurrentLimitExecutor.create(pool, options, singleSubmitterPool);
+        List<Callable<Integer>> tasks = IntStream.range(0, 6)
+                .mapToObj(i -> (Callable<Integer>) () -> {
+                    started.countDown();
+                    release.await(10, TimeUnit.SECONDS);
+                    return i;
+                })
+                .collect(Collectors.toList());
+
+        AsyncBatchResult<Integer> result = executor.submitAll(tasks);
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(result.getSubmitCanceller().cancel(true)).isTrue();
+        release.countDown();
+
+        await().atMost(10, TimeUnit.SECONDS).until(() ->
+                result.getResults().stream().allMatch(ListenableFuture::isDone));
+        assertThat(result.getSubmitCanceller()).isCancelled();
+        assertThat(Futures.allAsList(result.getResults()).isDone()).isTrue();
+        for (int i = 2; i < 6; i++) {
+            final int taskIndex = i;
+            assertThatThrownBy(() -> result.getResults().get(taskIndex).get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(InterruptedException.class);
+        }
 
         singleSubmitterPool.shutdownNow();
     }
