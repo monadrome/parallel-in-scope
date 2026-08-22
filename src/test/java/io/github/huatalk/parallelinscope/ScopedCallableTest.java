@@ -38,6 +38,10 @@ public class ScopedCallableTest {
     @AfterEach
     public void tearDown() {
         TaskScopeTl.remove();
+        // call() leaves ThreadRelay's current maps populated; clear them so
+        // later tests (e.g. ThreadRelayTest) observe a clean thread state.
+        ThreadRelay.setCurrentTaskName(null);
+        ThreadRelay.setCurrentExecutorName(null);
     }
 
     @Test
@@ -177,5 +181,128 @@ public class ScopedCallableTest {
         assertThatThrownBy(callable::call)
                 .isInstanceOf(RuntimeException.class);
         assertThat(ScopedCallable.current()).isNull();
+    }
+
+    // ==================== executor name & toString ====================
+
+    @Test
+    public void testGetExecutorName_preservesExplicitName() {
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", config,
+                ParOptions.of("task").build(), CancellationToken.create(), "query-pool");
+        assertThat(callable.getExecutorName()).isEqualTo("query-pool");
+    }
+
+    @Test
+    public void testGetExecutorName_nullFallsBackToNA() {
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok", config,
+                ParOptions.of("task").build(), CancellationToken.create());
+        assertThat(callable.getExecutorName()).isEqualTo("NA");
+    }
+
+    @Test
+    public void testToString_containsTaskMetadata() {
+        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", config,
+                ParOptions.of("task").build(), CancellationToken.create(), "query-pool");
+        assertThat(callable.toString())
+                .contains("myTask")
+                .contains("ScopedCallable{");
+    }
+
+    // ==================== ThreadRelay context during call ====================
+
+    @Test
+    public void testThreadRelay_contextFilledDuringCall() throws Exception {
+        AtomicReference<String> taskNameSeen = new AtomicReference<>();
+        AtomicReference<String> executorNameSeen = new AtomicReference<>();
+
+        CancellationToken token = CancellationToken.create();
+        ParOptions options = ParOptions.of("nested").build();
+
+        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> {
+            taskNameSeen.set(ThreadRelay.getCurrentTaskName());
+            executorNameSeen.set(ThreadRelay.getCurrentExecutorName());
+            return "ok";
+        }, config, options, token, "query-pool");
+
+        callable.call();
+
+        assertThat(taskNameSeen.get()).isEqualTo("myTask");
+        assertThat(executorNameSeen.get()).isEqualTo("query-pool");
+    }
+
+    @Test
+    public void testCancelledToken_checkpointThrowsLeanCancellation() {
+        CancellationToken token = CancellationToken.create();
+        token.cancel(false);
+
+        // The checkpoint only fires when the callable's taskName matches the current options'
+        // task name, mirroring the "named task" cancellation contract.
+        ScopedCallable<String> callable = new ScopedCallable<>("myTask", () -> "ok", config,
+                ParOptions.of("myTask").build(), token, "query-pool");
+
+        assertThatThrownBy(callable::call)
+                .isInstanceOf(LeanCancellationException.class);
+    }
+
+    // ==================== enqueued classification ====================
+
+    @Test
+    public void testEnqueuedFlag_waitedTask_classifiedAsEnqueued() throws Exception {
+        AtomicLong nanos = new AtomicLong(1_000_000); // submit at 1ms
+        Ticker fakeTicker = ticker(nanos);
+
+        CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
+        ParConfig listenerConfig = ParConfig.builder().taskListener(events::add).build();
+
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok",
+                listenerConfig, fakeTicker, ParOptions.of("task").build(), CancellationToken.create(), "NA");
+
+        nanos.addAndGet(4_000_000); // wait 4ms > 3ms threshold -> enqueued
+        callable.call();
+
+        assertThat(events.get(0).isEnqueued()).isTrue();
+    }
+
+    @Test
+    public void testEnqueuedFlag_fastTask_notClassifiedAsEnqueued() throws Exception {
+        AtomicLong nanos = new AtomicLong(1_000_000);
+        Ticker fakeTicker = ticker(nanos);
+
+        CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
+        ParConfig listenerConfig = ParConfig.builder().taskListener(events::add).build();
+
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok",
+                listenerConfig, fakeTicker, ParOptions.of("task").build(), CancellationToken.create(), "NA");
+
+        nanos.addAndGet(2_000_000); // wait 2ms <= 3ms threshold -> not enqueued
+        callable.call();
+
+        assertThat(events.get(0).isEnqueued()).isFalse();
+    }
+
+    @Test
+    public void testEnqueuedFlag_fractionalWaitNotEnqueued() throws Exception {
+        AtomicLong nanos = new AtomicLong(1_000_000);
+        Ticker fakeTicker = ticker(nanos);
+
+        CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
+        ParConfig listenerConfig = ParConfig.builder().taskListener(events::add).build();
+
+        ScopedCallable<String> callable = new ScopedCallable<>("task", () -> "ok",
+                listenerConfig, fakeTicker, ParOptions.of("task").build(), CancellationToken.create(), "NA");
+
+        nanos.addAndGet(3_500_000); // wait 3.5ms -> waitMs = 3 (integer division) -> not enqueued
+        callable.call();
+
+        assertThat(events.get(0).isEnqueued()).isFalse();
+    }
+
+    private static Ticker ticker(AtomicLong nanos) {
+        return new Ticker() {
+            @Override
+            public long read() {
+                return nanos.get();
+            }
+        };
     }
 }

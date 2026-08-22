@@ -216,19 +216,25 @@
                         <configuration>
                             <testPlugin>junit5</testPlugin>
                             <targetClasses>
-                                <param>io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue</param>
+                                <param>io.github.huatalk.parallelinscope.*</param>
                             </targetClasses>
                             <targetTests>
-                                <param>io.github.huatalk.parallelinscope.queue.ClosableBlockingQueueTest</param>
+                                <param>io.github.huatalk.parallelinscope.*</param>
                             </targetTests>
                             <outputFormats>
                                 <param>HTML</param>
+                                <param>XML</param>
                             </outputFormats>
                             <threads>8</threads>
+                            <!-- Concurrency tests may legitimately wait up to 10s (awaitility TIMEOUT_SECONDS);
+                                 keep the per-mutation timeout above that so slow tests are not
+                                 misjudged as killed by timeout. -->
+                            <timeoutConstant>20000</timeoutConstant>
+                            <timeoutFactor>1.25</timeoutFactor>
+                            <!-- Coverage phase must fit the whole suite; the 10s default kills
+                                 the minion mid-run and misreports the running test as failing. -->
+                            <coverageTimeout>300</coverageTimeout>
                             <timestampedReports>false</timestampedReports>
-                            <withHistory>true</withHistory>
-                            <historyInputFile>target/pit-history/pitest.xml</historyInputFile>
-                            <historyOutputFile>target/pit-history/pitest.xml</historyOutputFile>
                         </configuration>
                     </plugin>
                 </plugins>

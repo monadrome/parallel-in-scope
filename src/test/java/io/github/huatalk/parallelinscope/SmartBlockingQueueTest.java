@@ -87,6 +87,23 @@ public class SmartBlockingQueueTest {
     }
 
     @Test
+    public void testSmartBlockingQueue_constructor_nonPositiveCapacity_rejected() {
+        assertThatThrownBy(() -> new SmartBlockingQueue<>(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new SmartBlockingQueue<>(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testSmartBlockingQueue_fullQueue_offerReturnsFalse() {
+        SmartBlockingQueue<String> queue = new SmartBlockingQueue<>(1);
+        assertThat(queue.offer("a")).isTrue();
+        // Full queue must report false to trigger the pool's RejectedExecutionHandler,
+        // for non-CPU-bound tasks too.
+        assertThat(queue.offer("b")).isFalse();
+    }
+
+    @Test
     public void testCreate_positiveCapacity_returnsSmartQueue() {
         BlockingQueue<String> queue = SmartBlockingQueue.create(10);
         assertThat(queue).isInstanceOf(SmartBlockingQueue.class);

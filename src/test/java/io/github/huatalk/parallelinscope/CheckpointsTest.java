@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,6 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
@@ -347,5 +349,229 @@ public class CheckpointsTest {
         assertThatThrownBy(executable::execute)
                 .isInstanceOf(LeanCancellationException.class)
                 .hasMessage("Cancel during running");
+    }
+
+    // ==================== timed waits: success vs timeout return values ====================
+
+    @Test
+    public void testCheckAwait_timed_countedDown_returnsTrue() {
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.countDown();
+        assertThat(Checkpoints.checkAwait(latch, Duration.ofSeconds(5))).isTrue();
+        assertThat(Checkpoints.checkAwait(latch, 5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    public void testCheckAwait_timed_notCountedDown_returnsFalse() {
+        CountDownLatch latch = new CountDownLatch(1);
+        assertThat(Checkpoints.checkAwait(latch, Duration.ofMillis(50))).isFalse();
+        assertThat(Checkpoints.checkAwait(latch, 50, TimeUnit.MILLISECONDS)).isFalse();
+    }
+
+    @Test
+    public void testCheckAwait_condition_signalled_returnsTrue() throws Exception {
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Boolean> wait = pool.submit(() -> {
+                lock.lock();
+                try {
+                    return Checkpoints.checkAwait(condition, 5, TimeUnit.SECONDS);
+                } finally {
+                    lock.unlock();
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).until(() -> wait.isDone() == false);
+            lock.lock();
+            try {
+                condition.signal();
+            } finally {
+                lock.unlock();
+            }
+            assertThat(wait.get(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCheckAwait_condition_signalled_durationOverload_returnsTrue() throws Exception {
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Boolean> wait = pool.submit(() -> {
+                lock.lock();
+                try {
+                    return Checkpoints.checkAwait(condition, Duration.ofSeconds(5));
+                } finally {
+                    lock.unlock();
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).until(() -> wait.isDone() == false);
+            lock.lock();
+            try {
+                condition.signal();
+            } finally {
+                lock.unlock();
+            }
+            assertThat(wait.get(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCheckAwait_condition_notSignalled_returnsFalse() throws Exception {
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        lock.lock();
+        try {
+            assertThat(Checkpoints.checkAwait(condition, 50, TimeUnit.MILLISECONDS)).isFalse();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Test
+    public void testCheckTryAcquire_noPermit_returnsFalse() {
+        Semaphore empty = new Semaphore(0);
+        assertThat(Checkpoints.checkTryAcquire(empty, Duration.ofMillis(50))).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(empty, 50, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(empty, 1, Duration.ofMillis(50))).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(empty, 1, 50, TimeUnit.MILLISECONDS)).isFalse();
+    }
+
+    @Test
+    public void testCheckTryAcquire_withPermit_returnsTrue() {
+        // One permit per call: a successful acquire consumes it.
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(1), Duration.ofSeconds(5))).isTrue();
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(1), 1, Duration.ofSeconds(5))).isTrue();
+    }
+
+    @Test
+    public void testCheckTryLock_heldByOtherThread_returnsFalse() throws Exception {
+        // ReentrantLock is reentrant, so the held state must come from another thread;
+        // the probe runs on the main thread, which does not hold the lock.
+        ReentrantLock lock = new ReentrantLock();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            CountDownLatch holderLocked = new CountDownLatch(1);
+            Future<?> holder = pool.submit(() -> {
+                lock.lock();
+                try {
+                    holderLocked.countDown();
+                    Thread.sleep(500);
+                } catch (InterruptedException ignored) {
+                } finally {
+                    lock.unlock();
+                }
+                return null;
+            });
+            assertThat(holderLocked.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(Checkpoints.checkTryLock(lock, Duration.ofMillis(50))).isFalse();
+            assertThat(Checkpoints.checkTryLock(lock, 50, TimeUnit.MILLISECONDS)).isFalse();
+            holder.get(5, TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCheckTryLock_free_returnsTrue() {
+        assertThat(Checkpoints.checkTryLock(new ReentrantLock(), Duration.ofSeconds(5))).isTrue();
+    }
+
+    @Test
+    public void testCheckAwaitTermination_runningExecutor_returnsFalse() throws Exception {
+        ExecutorService running = Executors.newSingleThreadExecutor();
+        try {
+            running.submit(() -> {
+                try {
+                    Thread.sleep(2_000);
+                } catch (InterruptedException ignored) {
+                    // expected when shut down
+                }
+                return null;
+            });
+            assertThat(Checkpoints.checkAwaitTermination(running, Duration.ofMillis(50))).isFalse();
+            assertThat(Checkpoints.checkAwaitTermination(running, 50, TimeUnit.MILLISECONDS)).isFalse();
+        } finally {
+            running.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCheckAwaitTermination_terminatedExecutor_returnsTrue() throws Exception {
+        ExecutorService done = Executors.newSingleThreadExecutor();
+        done.shutdown();
+        assertThat(Checkpoints.checkAwaitTermination(done, Duration.ofSeconds(5))).isTrue();
+    }
+
+    // ==================== waits actually block ====================
+
+    @Test
+    public void testCheckAwait_blocksUntilCountedDown() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> wait = pool.submit(() -> {
+                started.countDown();
+                Checkpoints.checkAwait(latch);
+                finished.countDown();
+                return null;
+            });
+            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+            // The call is genuinely parked: it must not complete until the latch is counted down.
+            // A mutation dropping latch.await() makes the call complete immediately.
+            assertThat(finished.await(100, TimeUnit.MILLISECONDS))
+                    .as("checkAwait must not complete before the latch is counted down")
+                    .isFalse();
+            latch.countDown();
+            wait.get(10, TimeUnit.SECONDS);
+            assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCheckJoin_waitsForThreadTermination() throws Exception {
+        Thread target = new Thread(() -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {
+            }
+        });
+        target.start();
+        long start = System.nanoTime();
+        Checkpoints.checkJoin(target);
+        assertThat((System.nanoTime() - start) / 1_000_000).isGreaterThanOrEqualTo(250);
+        assertThat(target.isAlive()).isFalse();
+    }
+
+    @Test
+    public void testCheckJoin_timed_waitsForThreadTermination() throws Exception {
+        Thread target = new Thread(() -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {
+            }
+        });
+        target.start();
+        long start = System.nanoTime();
+        Checkpoints.checkJoin(target, Duration.ofSeconds(5));
+        assertThat((System.nanoTime() - start) / 1_000_000).isGreaterThanOrEqualTo(250);
+        assertThat(target.isAlive()).isFalse();
+    }
+
+    @Test
+    public void testCheckSleep_actuallySleeps() {
+        long start = System.nanoTime();
+        Checkpoints.checkSleep(Duration.ofMillis(300));
+        assertThat((System.nanoTime() - start) / 1_000_000).isGreaterThanOrEqualTo(250);
     }
 }

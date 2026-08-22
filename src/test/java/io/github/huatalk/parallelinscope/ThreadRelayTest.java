@@ -61,4 +61,73 @@ public class ThreadRelayTest {
         assertThat(tokenInChild.get()).isSameAs(token);
     }
 
+    // ==================== task name relay ====================
+
+    @Test
+    public void testTaskName_default_isNA() throws Exception {
+        // Assert on a fresh thread so the relay map is guaranteed empty:
+        // earlier tests leave an Optional.empty entry which takes a different code path.
+        AtomicReference<String> seen = new AtomicReference<>();
+        Thread fresh = new Thread(() -> seen.set(ThreadRelay.getCurrentTaskName()));
+        fresh.start();
+        fresh.join();
+        assertThat(seen.get()).isEqualTo("NA");
+    }
+
+    @Test
+    public void testTaskName_setThenGet_roundTrip() {
+        ThreadRelay.setCurrentTaskName("orders-task");
+        assertThat(ThreadRelay.getCurrentTaskName()).isEqualTo("orders-task");
+    }
+
+    @Test
+    public void testTaskName_setNull_fallsBackToNA() {
+        ThreadRelay.setCurrentTaskName(null);
+        assertThat(ThreadRelay.getCurrentTaskName()).isEqualTo("NA");
+    }
+
+    @Test
+    public void testTaskName_setNull_clearsPreviousValue() {
+        ThreadRelay.setCurrentTaskName("orders-task");
+        ThreadRelay.setCurrentTaskName(null);
+        assertThat(ThreadRelay.getCurrentTaskName()).isEqualTo("NA");
+    }
+
+    // ==================== executor name relay ====================
+
+    @Test
+    public void testExecutorName_default_isNA() throws Exception {
+        AtomicReference<String> seen = new AtomicReference<>();
+        Thread fresh = new Thread(() -> seen.set(ThreadRelay.getCurrentExecutorName()));
+        fresh.start();
+        fresh.join();
+        assertThat(seen.get()).isEqualTo("NA");
+    }
+
+    @Test
+    public void testExecutorName_setThenGet_roundTrip() {
+        ThreadRelay.setCurrentExecutorName("query-pool");
+        assertThat(ThreadRelay.getCurrentExecutorName()).isEqualTo("query-pool");
+    }
+
+    @Test
+    public void testExecutorName_setNull_fallsBackToNA() {
+        ThreadRelay.setCurrentExecutorName(null);
+        assertThat(ThreadRelay.getCurrentExecutorName()).isEqualTo("NA");
+    }
+
+    @Test
+    public void testExecutorName_setNull_clearsPreviousValue() {
+        ThreadRelay.setCurrentExecutorName("query-pool");
+        ThreadRelay.setCurrentExecutorName(null);
+        assertThat(ThreadRelay.getCurrentExecutorName()).isEqualTo("NA");
+    }
+
+    // ==================== relay identity ====================
+
+    @Test
+    public void testGetThreadRelay_neverNull() {
+        assertThat(ThreadRelay.getThreadRelay()).isNotNull();
+    }
+
 }

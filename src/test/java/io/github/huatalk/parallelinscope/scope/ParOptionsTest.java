@@ -68,6 +68,16 @@ public class ParOptionsTest {
     }
 
     @Test
+    public void testFormalized_zeroParallelism() {
+        // Zero is not a legal parallelism; it must be normalized to the task size.
+        ParOptions original = ParOptions.of("test")
+                .parallelism(0)
+                .build();
+        ParOptions formalized = ParOptions.formalized(original, 5, 60_000L);
+        assertThat(formalized.getParallelism()).isEqualTo(5);
+    }
+
+    @Test
     public void testWithTimeout() {
         ParOptions options = ParOptions.of("test").timeout(1000).build();
         ParOptions updated = options.withTimeout(5000);
