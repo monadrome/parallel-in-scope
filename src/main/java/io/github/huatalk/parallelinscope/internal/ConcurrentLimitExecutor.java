@@ -6,8 +6,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -17,6 +17,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
@@ -42,52 +43,18 @@ public class ConcurrentLimitExecutor<V> {
 
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
-    private final ParOptions options;
+    private final BatchExecutionContext batchContext;
     private final ListeningExecutorService submitterPool;
 
-    /**
-     * Creates a sliding-window task submitter.
-     *
-     * @param pool          the executor that runs task bodies
-     * @param options       the execution options
-     * @param submitterPool the executor that runs the submission loop
-     */
-    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
-        this(pool, options, submitterPool, NOOP);
-    }
-
-    /**
-     * Creates a sliding-window task submitter with execution-phase observation.
-     *
-     * @param pool                       the executor that runs task bodies
-     * @param options                    the execution options
-     * @param submitterPool              the executor that runs the submission loop
-     * @param phaseObserver              callback for execution-phase hints
-     */
+    /** Creates a submitter for the new immutable batch runtime context. */
     public ConcurrentLimitExecutor(
             ListeningExecutorService pool,
-            ParOptions options,
+            BatchExecutionContext batchContext,
             ListeningExecutorService submitterPool,
             Consumer<? super ExecutionPhase> phaseObserver) {
-        this.options = options;
-        this.submitterPool = submitterPool;
+        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
+        this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.cs = new ListenableCompletionService<>(pool, blockingQueue, phaseObserver);
-    }
-
-    /**
-     * Creates a submitter with the legacy queued-cancellation callback.
-     *
-     * @param pool                       executor that runs task bodies
-     * @param options                    execution options
-     * @param submitterPool              executor that runs the submission loop
-     * @param queuedCancellationObserver callback for cancellations before {@code run()}
-     */
-    public ConcurrentLimitExecutor(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Runnable queuedCancellationObserver) {
-        this(pool, options, submitterPool, phaseObserverFor(queuedCancellationObserver));
     }
 
     /**
@@ -99,10 +66,6 @@ public class ConcurrentLimitExecutor<V> {
      * @param submitterPool the executor that runs the submission loop
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
-        return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
-    }
-
     /**
      * Creates a new executor that reports execution-phase hints.
      *
@@ -113,15 +76,6 @@ public class ConcurrentLimitExecutor<V> {
      * @param phaseObserver              callback for execution-phase hints
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Consumer<? super ExecutionPhase> phaseObserver) {
-        return new ConcurrentLimitExecutor<>(
-                pool, options, submitterPool, phaseObserver);
-    }
-
     /**
      * Creates an executor with the legacy queued-cancellation callback.
      *
@@ -132,24 +86,6 @@ public class ConcurrentLimitExecutor<V> {
      * @param queuedCancellationObserver callback for cancellations before {@code run()}
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Runnable queuedCancellationObserver) {
-        return new ConcurrentLimitExecutor<>(
-                pool, options, submitterPool, queuedCancellationObserver);
-    }
-
-    private static Consumer<ExecutionPhase> phaseObserverFor(Runnable observer) {
-        Objects.requireNonNull(observer);
-        return phase -> {
-            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
-                observer.run();
-            }
-        };
-    }
-
     /**
      * Submits all tasks and returns the batch result immediately.
      *
@@ -164,11 +100,19 @@ public class ConcurrentLimitExecutor<V> {
         ImmutableList.Builder<ListenableFuture<V>> resultBuilder =
                 ImmutableList.builderWithExpectedSize(tasks.size());
 
-        int start = Math.min(tasks.size(), options.getParallelism());
+        int start = Math.min(tasks.size(), parallelism());
 
         // Submit initial batch
         for (int i = 0; i < start; i++) {
-            resultBuilder.add(fallbackSubmit(tasks, i));
+            try {
+                resultBuilder.add(fallbackSubmit(tasks, i));
+            } catch (RuntimeException failure) {
+                resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                for (int pending = i + 1; pending < tasks.size(); pending++) {
+                    resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                }
+                return AsyncBatchResult.of(resultBuilder.build());
+            }
         }
 
         int remaining = tasks.size() - start;
@@ -183,8 +127,20 @@ public class ConcurrentLimitExecutor<V> {
                 .collect(toImmutableList());
 
         ImmutableList<ListenableFuture<V>> results = resultBuilder.addAll(others).build();
+        AtomicInteger nextIndex = new AtomicInteger(start);
         ListenableFuture<?> submittingFuture = submitterPool
-                .submit(() -> submitRemaining(tasks, results, start));
+                .submit(() -> submitRemaining(tasks, results, nextIndex));
+        // A cancellation may win before the submitter thread starts. In that case the callable
+        // never gets a chance to abandon its placeholders, so close them from the cancellation
+        // callback as well. The submitter loop remains responsible for normal interruption.
+        submittingFuture.addListener(
+                () -> {
+                    if (submittingFuture.isCancelled()) {
+                        abandonRemaining(results, nextIndex.get(),
+                                new InterruptedException("remaining task submission cancelled"));
+                    }
+                },
+                directExecutor());
 
         return AsyncBatchResult.of(submittingFuture, results);
     }
@@ -194,7 +150,7 @@ public class ConcurrentLimitExecutor<V> {
         try {
             submitted = cs.submit(tasks.get(i));
         } catch (RejectedExecutionException e) {
-            if (TaskType.CPU_BOUND == options.getTaskType()) {
+            if (TaskType.CPU_BOUND == taskType()) {
                 submitted = Futures.submit(tasks.get(i), directExecutor());
             } else {
                 throw e;
@@ -203,11 +159,23 @@ public class ConcurrentLimitExecutor<V> {
         return submitted;
     }
 
-    private int submitRemaining(List<? extends Callable<V>> tasks, List<ListenableFuture<V>> result, int start) {
-        int index = start;
+    private int parallelism() {
+        return batchContext.effectiveParallelism();
+    }
+
+    private TaskType taskType() {
+        return batchContext.taskType();
+    }
+
+    private int submitRemaining(
+            List<? extends Callable<V>> tasks,
+            List<ListenableFuture<V>> result,
+            AtomicInteger nextIndex) {
+        int index = nextIndex.get();
         int size = tasks.size();
         int submitted = 0;
         while (index < size) {
+            nextIndex.set(index);
             ListenableFuture<V> completed;
             try {
                 completed = blockingQueue.take();
@@ -234,6 +202,7 @@ public class ConcurrentLimitExecutor<V> {
             }
             submitted++;
             index++;
+            nextIndex.set(index);
         }
         return submitted;
     }
