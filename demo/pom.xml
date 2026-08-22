@@ -64,6 +64,19 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.5</version>
             </plugin>
+            <!-- Code formatting: `mvn spotless:apply` formats all sources -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat>
+                            <version>1.28.0</version>
+                        </googleJavaFormat>
+                    </java>
+                </configuration>
+            </plugin>
             <!-- exec-maven-plugin for running demos -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

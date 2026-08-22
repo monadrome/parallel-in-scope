@@ -8,20 +8,20 @@ package io.github.huatalk.parallelinscope.cancel;
  */
 public class LeanCancellationException extends java.util.concurrent.CancellationException {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    /**
-     * Creates a cancellation exception without retaining a stack trace.
-     *
-     * @param message the detail message
-     */
-    public LeanCancellationException(String message) {
-        super(message);
-        setStackTrace(new StackTraceElement[0]);
-    }
+  /**
+   * Creates a cancellation exception without retaining a stack trace.
+   *
+   * @param message the detail message
+   */
+  public LeanCancellationException(String message) {
+    super(message);
+    setStackTrace(new StackTraceElement[0]);
+  }
 
-    @Override
-    public synchronized Throwable fillInStackTrace() {
-        return this;
-    }
+  @Override
+  public synchronized Throwable fillInStackTrace() {
+    return this;
+  }
 }
