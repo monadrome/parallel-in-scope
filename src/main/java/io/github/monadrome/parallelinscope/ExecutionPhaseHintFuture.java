@@ -110,11 +110,15 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         } catch (Throwable failure) {
             // Settle unclaimed tasks even on Error so waiters are not stranded.
             if (failure instanceof Error) {
-                LOGGER.log(
-                        Level.SEVERE,
-                        failure,
-                        () -> "executor handoff threw an Error; task '" + taskLabel()
-                                + "' never reached a worker and is failed as a submission failure");
+                try {
+                    LOGGER.log(
+                            Level.SEVERE,
+                            failure,
+                            () -> "executor handoff threw an Error; task '" + taskLabel()
+                                    + "' never reached a worker and is failed as a submission failure");
+                } catch (Throwable ignored) {
+                    // A user-installed log handler must not skip the terminal publication.
+                }
             }
             reject(failure);
         }
