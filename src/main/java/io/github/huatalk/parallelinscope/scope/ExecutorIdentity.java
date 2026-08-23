@@ -6,7 +6,7 @@ import java.util.concurrent.ExecutorService;
 /**
  * Identity key for one exact supplied executor object.
  *
- * <p>Equality deliberately uses reference equality, not {@link ExecutorService#equals(Object)}.
+ * <p>Equality deliberately uses reference equality, not {@link Object#equals(Object)}.
  * This prevents independent wrappers or value-like executors from being merged as one resource. The
  * textual form is diagnostics only and must not be persisted or used as a graph key.
  */
