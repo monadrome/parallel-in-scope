@@ -1,6 +1,7 @@
 package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
@@ -8,18 +9,23 @@ import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
 /**
@@ -48,8 +54,11 @@ public final class GlobalPar implements AutoCloseable {
     private final GlobalParPurgePolicy purgePolicy;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock();
+    private final AtomicInteger activeAdmissions = new AtomicInteger();
+    private final AtomicInteger activeBatches = new AtomicInteger();
+    private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final ScheduledExecutorService timerService;
+    private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
 
     private GlobalPar(Builder builder) {
@@ -68,7 +77,8 @@ public final class GlobalPar implements AutoCloseable {
             return thread;
         };
         this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
-        this.submitterPool = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(factory));
+        this.timeoutActionPool = Executors.newCachedThreadPool(factory);
+        this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
         this.defaultName = builder.defaultName;
         Map<String, Par> builtPars = new LinkedHashMap<>();
         Map<String, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
@@ -203,27 +213,124 @@ public final class GlobalPar implements AutoCloseable {
      */
     @Override
     public void close() {
-        lifecycleLock.writeLock().lock();
-        try {
-            if (closed.compareAndSet(false, true)) {
-                purger.close();
-                timerService.shutdown();
-                submitterPool.shutdown();
-            }
-        } finally {
-            lifecycleLock.writeLock().unlock();
+        if (closed.compareAndSet(false, true)) {
+            purger.close();
+            shutdownServicesWhenAdmissionsComplete();
         }
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
     <T> T whileOpen(Supplier<T> action) {
         Objects.requireNonNull(action, "action cannot be null");
-        lifecycleLock.readLock().lock();
+        enterAdmission();
         try {
-            if (closed.get()) throw new IllegalStateException("GlobalPar is closed");
             return action.get();
         } finally {
-            lifecycleLock.readLock().unlock();
+            if (activeAdmissions.decrementAndGet() == 0) {
+                shutdownServicesWhenAdmissionsComplete();
+            }
+        }
+    }
+
+    private void enterAdmission() {
+        while (true) {
+            if (closed.get()) throw new IllegalStateException("GlobalPar is closed");
+            activeAdmissions.incrementAndGet();
+            if (!closed.get()) return;
+            if (activeAdmissions.decrementAndGet() == 0) {
+                shutdownServicesWhenAdmissionsComplete();
+            }
+        }
+    }
+
+    private void shutdownServicesWhenAdmissionsComplete() {
+        if (closed.get()
+                && activeAdmissions.get() == 0
+                && activeBatches.get() == 0
+                && servicesShutdown.compareAndSet(false, true)) {
+            timerService.shutdown();
+            timeoutActionPool.shutdown();
+            submitterPool.shutdown();
+        }
+    }
+
+    <T> void retainUntilComplete(List<com.google.common.util.concurrent.ListenableFuture<T>> results) {
+        if (results.isEmpty()) return;
+        activeBatches.incrementAndGet();
+        Futures.successfulAsList(results)
+                .addListener(
+                        () -> {
+                            activeBatches.decrementAndGet();
+                            shutdownServicesWhenAdmissionsComplete();
+                        },
+                        MoreExecutors.directExecutor());
+    }
+
+    /** Scheduler adapter that keeps deadline detection separate from timeout actions. */
+    ScheduledExecutorService timeoutScheduler() {
+        return new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
+    }
+
+    private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
+            implements ScheduledExecutorService {
+        private final ScheduledExecutorService scheduler;
+        private final ExecutorService actions;
+
+        private DispatchingScheduledExecutorService(ScheduledExecutorService scheduler, ExecutorService actions) {
+            this.scheduler = scheduler;
+            this.actions = actions;
+        }
+
+        @Override
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            return scheduler.schedule(() -> actions.execute(command), delay, unit);
+        }
+
+        @Override
+        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+            throw new UnsupportedOperationException("timeout scheduler only supports Runnable deadlines");
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+            throw new UnsupportedOperationException("timeout scheduler does not support periodic tasks");
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleWithFixedDelay(
+                Runnable command, long initialDelay, long delay, TimeUnit unit) {
+            throw new UnsupportedOperationException("timeout scheduler does not support periodic tasks");
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            if (scheduler.isShutdown()) throw new RejectedExecutionException("Timer scheduler is shut down");
+            actions.execute(command);
+        }
+
+        @Override
+        public void shutdown() {
+            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by GlobalPar");
+        }
+
+        @Override
+        public java.util.List<Runnable> shutdownNow() {
+            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by GlobalPar");
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return scheduler.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return scheduler.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return scheduler.awaitTermination(timeout, unit);
         }
     }
 

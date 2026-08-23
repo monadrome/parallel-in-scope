@@ -175,6 +175,67 @@ class GlobalParTest {
     }
 
     @Test
+    void nestedSlidingWindowsDoNotSerializeTheirSubmitterLoops() throws Exception {
+        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
+        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
+        GlobalPar global = GlobalPar.builder()
+                .register("outer", outerExecutor)
+                .register("inner", innerExecutor)
+                .build();
+        try {
+            AsyncBatchResult<Integer> outer = global.par("outer")
+                    .map(
+                            java.util.Arrays.asList(1, 99),
+                            ignored -> {
+                                AsyncBatchResult<Integer> inner = global.par("inner")
+                                        .map(
+                                                java.util.Arrays.asList(1, 2),
+                                                value -> value + 1,
+                                                ExecutionOptions.of("inner")
+                                                        .parallelism(1)
+                                                        .build());
+                                try {
+                                    return inner.getResults().get(1).get(2, TimeUnit.SECONDS);
+                                } catch (Exception failure) {
+                                    throw new RuntimeException(failure);
+                                }
+                            },
+                            ExecutionOptions.of("outer").parallelism(1).build());
+
+            assertThat(outer.getResults().get(0).get(3, TimeUnit.SECONDS)).isEqualTo(3);
+        } finally {
+            global.close();
+            outerExecutor.shutdownNow();
+            innerExecutor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeFromCpuFallbackTaskDoesNotDeadlockBatchAdmission() throws Exception {
+        ExecutorService rejectedExecutor = Executors.newSingleThreadExecutor();
+        rejectedExecutor.shutdown();
+        GlobalPar global = GlobalPar.builder().register("cpu", rejectedExecutor).build();
+        try {
+            AsyncBatchResult<Integer> result = global.par("cpu")
+                    .map(
+                            Collections.singletonList(1),
+                            value -> {
+                                global.close();
+                                return value + 1;
+                            },
+                            ExecutionOptions.of("cpu")
+                                    .taskType(TaskType.CPU_BOUND)
+                                    .build());
+
+            assertThat(result.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(global.isClosed()).isTrue();
+        } finally {
+            global.close();
+            rejectedExecutor.shutdownNow();
+        }
+    }
+
+    @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
@@ -257,7 +318,7 @@ class GlobalParTest {
     }
 
     @Test
-    void closeWaitsForAnAdmittedBatchSetupBeforeRejectingNewWork() throws Exception {
+    void closeRejectsNewWorkWhileAnAdmittedBatchCompletesSetup() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService callers = Executors.newFixedThreadPool(2);
         GlobalPar global = GlobalPar.builder().register("io", executor).build();
@@ -277,7 +338,7 @@ class GlobalParTest {
                 global.close();
             });
             assertThat(closeStarted.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(global.isClosed()).isFalse();
+            assertThat(global.isClosed()).isTrue();
 
             releaseSetup.countDown();
             setup.get(5, TimeUnit.SECONDS);

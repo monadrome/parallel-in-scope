@@ -145,7 +145,8 @@ public final class Par {
                         result.getResults(),
                         batchContext.remaining(),
                         result.getSubmitCanceller(),
-                        globalPar.timerService());
+                        globalPar.timeoutScheduler());
+        globalPar.retainUntilComplete(result.getResults());
         return result;
     }
 
