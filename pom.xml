@@ -218,7 +218,7 @@
                     <plugin>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-maven</artifactId>
-                        <version>1.19.1</version>
+                        <version>1.25.9</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.pitest</groupId>
@@ -234,6 +234,11 @@
                             <targetTests>
                                 <param>io.github.huatalk.parallelinscope.*</param>
                             </targetTests>
+                            <!-- Demonstration programs are executable examples, not library
+                                 contract code; keep them out of the mutation score denominator. -->
+                            <excludedClasses>
+                                <param>io.github.huatalk.parallelinscope.queue.*Demo*</param>
+                            </excludedClasses>
                             <outputFormats>
                                 <param>HTML</param>
                                 <param>XML</param>

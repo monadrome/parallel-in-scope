@@ -1,6 +1,8 @@
 package io.github.huatalk.parallelinscope.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -16,6 +18,113 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ConcurrentLimitExecutorBatchContextTest {
+    @Test
+    void emptyBatchCompletesWithoutSubmitting() {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(workers, context(0, 1, TaskType.IO_BOUND), submitter, phase -> {});
+            assertThat(executor.submitAll(Arrays.asList()).getResults()).isEmpty();
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void submitsEveryTaskWhenWindowIsLarge() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(workers, context(3, 3, TaskType.IO_BOUND), submitter, phase -> {});
+            assertThat(executor.submitAll(Arrays.asList(() -> 1, () -> 2, () -> 3))
+                            .getResults())
+                    .extracting(f -> f.get(1, TimeUnit.SECONDS))
+                    .containsExactly(1, 2, 3);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void cancellingSubmitterAbandonsRemainingPlaceholders() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(workers, context(3, 1, TaskType.IO_BOUND), submitter, phase -> {});
+            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(Arrays.asList(
+                    () -> {
+                        release.await(2, TimeUnit.SECONDS);
+                        return 1;
+                    },
+                    () -> 2,
+                    () -> 3));
+            assertThat(batch.getSubmitCanceller().cancel(true)).isTrue();
+            release.countDown();
+            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.getResults()) {
+                try {
+                    result.get(2, TimeUnit.SECONDS);
+                } catch (java.util.concurrent.ExecutionException | java.util.concurrent.CancellationException ignored) {
+                    // Abandoned placeholders may fail or cancel, but must not remain pending.
+                }
+                assertThat(result.isDone()).isTrue();
+            }
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void ioBatchReportsEveryInitialSubmissionRejection() {
+        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        rejected.shutdownNow();
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter, phase -> {});
+            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
+                    executor.submitAll(Arrays.asList(() -> 1, () -> 2, () -> 3));
+            assertThat(batch.getResults()).hasSize(3);
+            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.getResults()) {
+                assertThatThrownBy(result::get).isInstanceOf(java.util.concurrent.ExecutionException.class);
+            }
+        } finally {
+            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void cancelledPlaceholderStopsSlidingWindowAndCancelsLaterPlaceholders() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(workers, context(3, 1, TaskType.IO_BOUND), submitter, phase -> {});
+            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(Arrays.asList(
+                    () -> {
+                        release.await(2, TimeUnit.SECONDS);
+                        return 1;
+                    },
+                    () -> 2,
+                    () -> 3));
+            assertThat(batch.getResults().get(1).cancel(true)).isTrue();
+            release.countDown();
+            assertThat(batch.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
+            await().atMost(2, TimeUnit.SECONDS).until(batch.getResults().get(2)::isDone);
+            assertThat(batch.getResults().get(2).isCancelled()).isTrue();
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @Test
     void honorsBatchParallelism() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3));

@@ -103,6 +103,23 @@ class ActionGateTest {
         assertThrows(IllegalArgumentException.class, () -> ActionGate.whenBoth(-1, Duration.ofSeconds(1)));
         assertThrows(NullPointerException.class, () -> ActionGate.every((Duration) null));
         assertThrows(NullPointerException.class, () -> ActionGate.every(1, null));
+        assertThrows(NullPointerException.class, () -> ActionGate.whenBoth(1, Duration.ofMillis(1), null));
+    }
+
+    @Test
+    void suppliedActionMustNotBeNull() {
+        assertThrows(NullPointerException.class, () -> ActionGate.every(1).runIfDue(null));
+    }
+
+    @Test
+    void timeAndCombinedGatesCanRunBoundActions() {
+        AtomicInteger actions = new AtomicInteger();
+        ActionGate timed = ActionGate.every(Duration.ofMillis(1), actions::incrementAndGet);
+        await().atMost(Duration.ofSeconds(1)).until(timed::runIfDue);
+
+        ActionGate combined = ActionGate.whenBoth(1, Duration.ofMillis(1), actions::incrementAndGet);
+        await().atMost(Duration.ofSeconds(1)).until(combined::runIfDue);
+        assertEquals(2, actions.get());
     }
 
     @Test

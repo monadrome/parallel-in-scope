@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -117,6 +119,27 @@ public class HeuristicPurgerExpiryTest {
         observer.run();
         await().atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
+    }
+
+    @Test
+    public void finestDiagnosticsCanBeEnabledForPurgeDecisions() throws Exception {
+        Logger logger = Logger.getLogger(HeuristicPurger.class.getName());
+        Level previous = logger.getLevel();
+        logger.setLevel(Level.FINEST);
+        try {
+            AtomicInteger purgeCount = new AtomicInteger();
+            executor = countingExecutor(purgeCount);
+            HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.05));
+            Runnable observer = purger.cancellationObserverFor(executor);
+            enqueue(8);
+            cancelOne(observer);
+            await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
+            purger.clearPendingCancellations();
+            purger.close();
+        } finally {
+            logger.setLevel(previous);
+        }
     }
 
     /** Creates an executor that counts normal purge scans. */

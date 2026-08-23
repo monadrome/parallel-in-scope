@@ -103,6 +103,17 @@ class VariableLinkedBlockingQueueTest {
         assertEquals(2, queue.size());
     }
 
+    @Test
+    void containsNullIsFalseAndPollPreservesFifoForMultipleElements() {
+        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
+        queue.offer("first");
+        queue.offer("second");
+
+        assertFalse(queue.contains(null));
+        assertEquals("first", queue.poll());
+        assertEquals("second", queue.poll());
+    }
+
     // ==================== blocking put/take signalling ====================
 
     /**

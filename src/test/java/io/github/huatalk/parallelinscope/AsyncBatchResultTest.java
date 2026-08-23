@@ -78,4 +78,14 @@ public class AsyncBatchResultTest {
         assertThatThrownBy(() -> report.getStateCounts().put(FutureState.CANCELLED, 1))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Test
+    public void batchReport_acceptsNullStateCountsAndFormatsItsContents() {
+        RuntimeException failure = new RuntimeException("failure");
+        AsyncBatchResult.BatchReport report = new AsyncBatchResult.BatchReport(null, failure);
+
+        assertThat(report.getStateCounts()).isNull();
+        assertThat(report.getFirstException()).isSameAs(failure);
+        assertThat(report.toString()).contains("stateCounts=null", "firstException=");
+    }
 }

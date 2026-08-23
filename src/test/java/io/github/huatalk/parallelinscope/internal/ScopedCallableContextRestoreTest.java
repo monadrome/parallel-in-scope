@@ -7,10 +7,50 @@ import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
+import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class ScopedCallableContextRestoreTest {
+    @Test
+    void listenerReceivesSuccessfulTaskTimingAndMetadata() throws Exception {
+        BatchExecutionContext context = context("listener");
+        AtomicReference<TaskEvent> captured = new AtomicReference<>();
+        ScopedCallable<String> callable =
+                new ScopedCallable<>("listener", () -> "value", context, Collections.singletonList(captured::set));
+
+        assertThat(callable.call()).isEqualTo("value");
+        TaskEvent event = captured.get();
+        assertThat(event).isNotNull();
+        assertThat(event.getTaskName()).isEqualTo("listener");
+        assertThat(event.getException()).isNull();
+        assertThat(event.getEndTimeNanos()).isGreaterThanOrEqualTo(event.getStartTimeNanos());
+        assertThat(callable.executionTime()).isGreaterThanOrEqualTo(0L);
+        assertThat(callable.waitTime()).isGreaterThanOrEqualTo(0L);
+        assertThat(callable.totalTime()).isGreaterThanOrEqualTo(callable.executionTime());
+        assertThat(callable.getCancellationToken()).isSameAs(context.cancellationToken());
+        assertThat(callable.getExecutorName()).isEqualTo("NA");
+        assertThat(callable.toString()).contains("listener", "submitTime", "startTime", "endTime");
+    }
+
+    @Test
+    void listenerReceivesFailureWhileOriginalFailureEscapes() {
+        BatchExecutionContext context = context("failed");
+        AtomicReference<TaskEvent> captured = new AtomicReference<>();
+        IllegalStateException failure = new IllegalStateException("boom");
+        ScopedCallable<String> callable = new ScopedCallable<>(
+                "failed",
+                () -> {
+                    throw failure;
+                },
+                context,
+                Collections.singletonList(captured::set));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
+        assertThat(captured.get().getException()).isSameAs(failure);
+    }
+
     @Test
     void nestedCallRestoresOuterBatchRelayAndCurrentCallable() throws Exception {
         ThreadRelay.clearCurrent();

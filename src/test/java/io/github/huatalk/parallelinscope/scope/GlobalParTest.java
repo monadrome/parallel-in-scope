@@ -71,6 +71,32 @@ class GlobalParTest {
     }
 
     @Test
+    void nullAndEmptyInputsProduceUsableEmptyBatchResults() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            GlobalPar global = GlobalPar.builder().register("io", executor).build();
+
+            assertThat(global.par("io")
+                            .map(
+                                    null,
+                                    value -> value,
+                                    ExecutionOptions.of("empty").build())
+                            .getResults())
+                    .isEmpty();
+            assertThat(global.par("io")
+                            .map(
+                                    Collections.<Integer>emptyList(),
+                                    value -> value,
+                                    ExecutionOptions.of("empty").build())
+                            .getResults())
+                    .isEmpty();
+            global.close();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void nestedBatchesAcrossExecutorsShareCancellationContextAndObservationGraph() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
@@ -254,6 +280,7 @@ class GlobalParTest {
             assertThat(global.pars()).containsOnlyKeys("one");
             assertThat(global.runtimes()).containsOnlyKeys("one");
             assertThat(global.runtimesByIdentity()).hasSize(1);
+            assertThat(global.purger()).isNotNull();
             assertThatThrownBy(() -> global.pars().clear()).isInstanceOf(UnsupportedOperationException.class);
         } finally {
             executor.shutdownNow();

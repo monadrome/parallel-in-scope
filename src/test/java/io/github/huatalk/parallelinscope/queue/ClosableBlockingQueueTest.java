@@ -1048,6 +1048,25 @@ class ClosableBlockingQueueTest {
         assertEquals(Arrays.asList("a", "b", "n", "m", "X", "c", "d"), new ArrayList<>(queue));
     }
 
+    @Test
+    void reverseViewStandardBulkOperationsWriteThroughToTheQueue() {
+        ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>(8);
+        queue.addAll(Arrays.asList("a", "c", "b", "c"));
+        List<String> reversed = queue.reversed();
+
+        assertEquals("b", reversed.set(1, "z"));
+        assertTrue(reversed.remove("z"));
+        assertTrue(reversed.removeAll(Arrays.asList("a", "missing")));
+        reversed.replaceAll(String::toUpperCase);
+        reversed.sort(String::compareTo);
+        assertEquals(Arrays.asList("C", "C"), reversed);
+        assertEquals(Arrays.asList("C", "C"), new ArrayList<>(queue));
+
+        reversed.clear();
+        assertTrue(reversed.isEmpty());
+        assertTrue(queue.isEmpty());
+    }
+
     /** Verifies caller iteration for reverse endpoint batches cannot hold shutdown monitors. */
     @Test
     void blockingReverseAddAllSourceCannotDelayShutdown() throws Exception {
