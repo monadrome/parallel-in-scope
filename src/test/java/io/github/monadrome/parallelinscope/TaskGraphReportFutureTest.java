@@ -18,6 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -181,6 +182,36 @@ class TaskGraphReportFutureTest {
             assertThat(TaskGraphObservationScope.current()).isNull();
         } finally {
             observationLogger.removeHandler(throwing);
+            observationLogger.setUseParentHandlers(parentHandlers);
+        }
+    }
+
+    @Test
+    void issueReportSurvivesAnErrorThrowingDiagnosticHandler() {
+        ParRuntime global = runtimeWithDetection(true);
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        Handler throwing = errorThrowingHandler();
+        Level previousLevel = observationLogger.getLevel();
+        boolean parentHandlers = observationLogger.getUseParentHandlers();
+        observationLogger.addHandler(throwing);
+        observationLogger.setUseParentHandlers(false);
+        observationLogger.setLevel(Level.ALL);
+        try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
+            TaskGraphObservationScope inner = global.openTaskGraphObservation();
+            recordTaskCycle();
+
+            // A handler Error on the real-ISSUE path must not replace the computed report with the
+            // logging failure, and must not escape close().
+            assertThatCode(inner::close).doesNotThrowAnyException();
+
+            TaskGraphReport report = doneReport(inner.reportFuture());
+            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
+            assertThat(report.anyIssue()).isTrue();
+            // The inner scope was restored even though detection diagnostics threw an Error.
+            assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
+        } finally {
+            observationLogger.removeHandler(throwing);
+            observationLogger.setLevel(previousLevel);
             observationLogger.setUseParentHandlers(parentHandlers);
         }
     }
@@ -484,6 +515,22 @@ class TaskGraphReportFutureTest {
             @Override
             public void publish(LogRecord record) {
                 throw new IllegalStateException("handler boom");
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+    }
+
+    /** A handler whose failure is an {@link Error}, which the quiet-logging guards must also absorb. */
+    private static Handler errorThrowingHandler() {
+        return new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                throw new AssertionError("handler boom");
             }
 
             @Override
