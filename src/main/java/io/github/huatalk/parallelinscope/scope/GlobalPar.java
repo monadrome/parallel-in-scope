@@ -19,13 +19,22 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Supplier;
 
 /**
  * Immutable application execution topology containing logical {@link Par} entries.
  *
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
- * policies, and executor bindings cannot change. A registered executor is borrowed; closing this
- * object releases only framework-owned timer and maintenance resources, never a supplied executor.
+ * policies, and executor bindings cannot change. This is an application-scoped resource, normally
+ * created at the composition root and closed during application or container shutdown. It owns its
+ * timer, submission, and maintenance services; registered executors are borrowed and are never
+ * shut down by this object.
+ *
+ * <p>{@link #close()} immediately rejects all new {@link Par#map(List, Function, ExecutionOptions)}
+ * calls. Batches admitted before closing retain their submission, timeout, and cancellation
+ * processing while the framework-owned services drain; {@code close()} itself does not wait for
+ * those batches to finish.
  */
 public final class GlobalPar implements AutoCloseable {
     private static final AtomicReference<GlobalPar> INSTALLED = new AtomicReference<>();
@@ -39,6 +48,7 @@ public final class GlobalPar implements AutoCloseable {
     private final GlobalParPurgePolicy purgePolicy;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock();
     private final ScheduledExecutorService timerService;
     private final ListeningExecutorService submitterPool;
 
@@ -166,18 +176,54 @@ public final class GlobalPar implements AutoCloseable {
      *
      * <p>The caller must close the returned context. Only nested batches belonging to this same
      * {@code GlobalPar} join it; crossing to another topology deliberately starts no shared graph.
+     *
+     * @throws IllegalStateException if this GlobalPar has begun shutdown
      */
     public GlobalParObservationContext openObservation() {
-        return new GlobalParObservationContext(this);
+        return whileOpen(() -> new GlobalParObservationContext(this));
     }
 
-    /** Does not shut down borrowed supplied executors. */
+    /**
+     * Returns whether shutdown has begun.
+     *
+     * <p>A {@code true} result means new batch submissions and observation scopes are rejected.
+     */
+    public boolean isClosed() {
+        return closed.get();
+    }
+
+    /**
+     * Rejects new work and begins releasing framework-owned resources.
+     *
+     * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
+     * a {@link Par#map(List, Function, ExecutionOptions)} call already setting up a batch, so that
+     * call either completes setup and returns its result or is rejected before any task is
+     * submitted. Services drain batches admitted before shutdown; this method does not wait for
+     * their task bodies to finish.
+     */
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            purger.close();
-            timerService.shutdownNow();
-            submitterPool.shutdownNow();
+        lifecycleLock.writeLock().lock();
+        try {
+            if (closed.compareAndSet(false, true)) {
+                purger.close();
+                timerService.shutdown();
+                submitterPool.shutdown();
+            }
+        } finally {
+            lifecycleLock.writeLock().unlock();
+        }
+    }
+
+    /** Runs one synchronous batch setup while this topology remains open. */
+    <T> T whileOpen(Supplier<T> action) {
+        Objects.requireNonNull(action, "action cannot be null");
+        lifecycleLock.readLock().lock();
+        try {
+            if (closed.get()) throw new IllegalStateException("GlobalPar is closed");
+            return action.get();
+        } finally {
+            lifecycleLock.readLock().unlock();
         }
     }
 

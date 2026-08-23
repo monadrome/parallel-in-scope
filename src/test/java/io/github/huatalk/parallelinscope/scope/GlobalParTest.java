@@ -7,8 +7,10 @@ import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -228,6 +230,115 @@ class GlobalParTest {
         } finally {
             global.close();
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void rejectsNewBatchesAndObservationsAfterCloseWithoutClosingBorrowedExecutor() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        try {
+            global.close();
+
+            assertThat(global.isClosed()).isTrue();
+            assertThat(executor.isShutdown()).isFalse();
+            assertThatThrownBy(() -> global.openObservation()).isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> global.par("io")
+                            .map(
+                                    Collections.singletonList(1),
+                                    value -> value + 1,
+                                    ExecutionOptions.of("closed").build()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("GlobalPar is closed");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeWaitsForAnAdmittedBatchSetupBeforeRejectingNewWork() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ExecutorService callers = Executors.newFixedThreadPool(2);
+        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        CountDownLatch setupEntered = new CountDownLatch(1);
+        CountDownLatch releaseSetup = new CountDownLatch(1);
+        CountDownLatch closeStarted = new CountDownLatch(1);
+        try {
+            Future<?> setup = callers.submit(() -> global.whileOpen(() -> {
+                setupEntered.countDown();
+                awaitLatch(releaseSetup);
+                return null;
+            }));
+            assertThat(setupEntered.await(5, TimeUnit.SECONDS)).isTrue();
+
+            Future<?> close = callers.submit(() -> {
+                closeStarted.countDown();
+                global.close();
+            });
+            assertThat(closeStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(global.isClosed()).isFalse();
+
+            releaseSetup.countDown();
+            setup.get(5, TimeUnit.SECONDS);
+            close.get(5, TimeUnit.SECONDS);
+            assertThat(global.isClosed()).isTrue();
+            assertThatThrownBy(() -> global.par("io")
+                            .map(
+                                    Collections.singletonList(1),
+                                    value -> value + 1,
+                                    ExecutionOptions.of("closed").build()))
+                    .isInstanceOf(IllegalStateException.class);
+        } finally {
+            releaseSetup.countDown();
+            global.close();
+            callers.shutdownNow();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeLetsAnAdmittedBatchDrainWithoutClosingItsBorrowedExecutor() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        CountDownLatch firstTaskStarted = new CountDownLatch(1);
+        CountDownLatch releaseFirstTask = new CountDownLatch(1);
+        try {
+            AsyncBatchResult<Integer> result = global.par("io")
+                    .map(
+                            java.util.Arrays.asList(1, 2, 3),
+                            value -> {
+                                if (value == 1) {
+                                    firstTaskStarted.countDown();
+                                    awaitLatch(releaseFirstTask);
+                                }
+                                return value + 1;
+                            },
+                            ExecutionOptions.of("drain").parallelism(1).build());
+            assertThat(firstTaskStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            global.close();
+            releaseFirstTask.countDown();
+
+            assertThat(executor.isShutdown()).isFalse();
+            assertThat(result.getResults().get(0).get(5, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(result.getResults().get(1).get(5, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(result.getResults().get(2).get(5, TimeUnit.SECONDS)).isEqualTo(4);
+        } finally {
+            releaseFirstTask.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    private static void awaitLatch(CountDownLatch latch) {
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("timed out waiting for test latch");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while waiting for test latch", e);
         }
     }
 

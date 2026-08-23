@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
  * Main facade for parallel execution.
  *
  * <p>Each {@code Par} is created by one {@link GlobalPar} and remains bound to its executor
- * runtime.
+ * runtime. Calls are rejected once its owner begins shutdown.
  *
  * <p>Provides the {@link #map} instance method that wires together the entire parallel execution
  * pipeline:
@@ -74,15 +74,22 @@ public final class Par {
      * structurally mutate it while this method runs. A {@code null} or empty list returns an empty
      * result without submitting work. When invoked within another scoped task, the child batch
      * inherits cancellation and cannot outlive its parent's deadline. The selected executor never
-     * changes per call and is not owned by this {@code Par}.
+     * changes per call and is not owned by this {@code Par}. Once the owning {@link GlobalPar} is
+     * closed, this method throws {@link IllegalStateException} before submitting any task.
      *
      * @param list input elements, or {@code null} for an empty batch
      * @param function synchronous mapping function, run at most once for each submitted element
      * @param options immutable per-batch request; it cannot select an executor
+     * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
     public <T, R> AsyncBatchResult<R> map(
             @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
+        return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
+    }
+
+    private <T, R> AsyncBatchResult<R> mapWhileOpen(
+            @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
         int taskCount = list == null ? 0 : list.size();
         BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
         io.github.huatalk.parallelinscope.context.GlobalParObservationContext observation = parent != null
