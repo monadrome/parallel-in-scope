@@ -170,6 +170,52 @@ class ConcurrentLimitExecutorBatchContextTest {
         }
     }
 
+    @Test
+    void cpuInlineFallbackPublishesCompletionForSlidingWindow() throws Exception {
+        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        rejected.shutdownNow();
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter, phase -> {});
+
+            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
+                    executor.submitAll(Arrays.asList(() -> 1, () -> 2));
+
+            assertThat(batch.getResults())
+                    .extracting(future -> future.get(1, TimeUnit.SECONDS))
+                    .containsExactly(1, 2);
+            assertThat(batch.getSubmitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void failedCpuInlineFallbackStillAdvancesSlidingWindow() throws Exception {
+        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        rejected.shutdownNow();
+        try {
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter, phase -> {});
+
+            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(Arrays.asList(
+                    () -> {
+                        throw new IllegalStateException("expected failure");
+                    },
+                    () -> 2));
+
+            assertThatThrownBy(() -> batch.getResults().get(0).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(IllegalStateException.class);
+            assertThat(batch.getResults().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(batch.getSubmitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            submitter.shutdownNow();
+        }
+    }
+
     private static BatchExecutionContext context(int tasks, int parallelism, TaskType type) {
         return BatchExecutionContext.resolve(
                 GlobalExecutionPolicy.builder().defaultTimeoutMillis(5_000).build(),

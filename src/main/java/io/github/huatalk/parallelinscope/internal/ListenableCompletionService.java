@@ -10,6 +10,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -98,6 +99,27 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     @Override
     public ListenableFuture<V> submit(Callable<V> task) {
         return submitTask(ExecutionPhaseHintFuture.create(task, phaseObserver));
+    }
+
+    /**
+     * Submits a value-producing task and runs it inline when the executor rejects it.
+     *
+     * <p>The returned future is registered with the completion queue before either execution path
+     * begins. This preserves the completion-service contract for callers that use completion
+     * events to drive a sliding submission window.
+     *
+     * @param task task to execute
+     * @return the submitted or inline-executed listenable future
+     */
+    ListenableFuture<V> submitOrRunInline(Callable<V> task) {
+        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(task, phaseObserver);
+        future.addListener(() -> completionQueue.add(future), directExecutor());
+        try {
+            executor.execute(future);
+        } catch (RejectedExecutionException rejected) {
+            directExecutor().execute(future);
+        }
+        return future;
     }
 
     /**

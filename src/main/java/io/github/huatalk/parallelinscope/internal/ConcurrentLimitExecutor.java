@@ -17,7 +17,6 @@ import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -148,17 +147,8 @@ public class ConcurrentLimitExecutor<V> {
     }
 
     private ListenableFuture<V> fallbackSubmit(List<? extends Callable<V>> tasks, int i) {
-        ListenableFuture<V> submitted;
-        try {
-            submitted = cs.submit(tasks.get(i));
-        } catch (RejectedExecutionException e) {
-            if (TaskType.CPU_BOUND == taskType()) {
-                submitted = Futures.submit(tasks.get(i), directExecutor());
-            } else {
-                throw e;
-            }
-        }
-        return submitted;
+        Callable<V> task = tasks.get(i);
+        return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
     }
 
     private int parallelism() {
