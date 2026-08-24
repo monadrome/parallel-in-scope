@@ -244,10 +244,9 @@
                                 <param>XML</param>
                             </outputFormats>
                             <threads>8</threads>
-                            <!-- Concurrency tests may legitimately wait up to 10s (awaitility TIMEOUT_SECONDS);
-                                 keep the per-mutation timeout above that so slow tests are not
-                                 misjudged as killed by timeout. -->
-                            <timeoutConstant>20000</timeoutConstant>
+                            <!-- Shutdown-contract mutants can release several independent waiters;
+                                 keep the per-mutation timeout above their combined bounded waits. -->
+                            <timeoutConstant>60000</timeoutConstant>
                             <timeoutFactor>1.25</timeoutFactor>
                             <!-- Coverage phase must fit the whole suite; the 10s default kills
                                  the minion mid-run and misreports the running test as failing. -->
