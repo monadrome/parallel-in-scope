@@ -1,11 +1,11 @@
 package demo.advanced;
 
+import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -13,12 +13,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.google.common.util.concurrent.Futures;
-
 /**
  * 死锁检测示例：演示线程池嵌套调用导致的死锁
  *
  * <p>场景：同一个固定大小线程池（4 线程）被嵌套调用占用，导致循环等待：
+ *
  * <pre>
  *   task-A [1,2,3,4] 占满 4 个线程
  *     └── 每个 task-A 子任务内部调用 task-B [x,y]
@@ -27,10 +26,11 @@ import com.google.common.util.concurrent.Futures;
  * </pre>
  *
  * <p>解决方案：
+ *
  * <ul>
- *   <li>拆分线程池 — 内外层使用不同池（推荐）</li>
- *   <li>增大线程池 — 确保线程数 > 嵌套层总并发数</li>
- *   <li>使用 CachedThreadPool — 框架自动排除死锁检测</li>
+ *   <li>拆分线程池 — 内外层使用不同池（推荐）
+ *   <li>增大线程池 — 确保线程数 > 嵌套层总并发数
+ *   <li>使用 CachedThreadPool — 框架自动排除死锁检测
  * </ul>
  */
 public class DeadlockDetectionDemo {
@@ -42,9 +42,7 @@ public class DeadlockDetectionDemo {
         // 故意使用小线程池（4 线程），嵌套调用时会死锁
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
-        ParConfig config = ParConfig.builder()
-                .executor("shared-pool", pool)
-                .build();
+        ParConfig config = ParConfig.builder().executor("shared-pool", pool).build();
         Par par = new Par(config);
 
         try {
@@ -62,12 +60,16 @@ public class DeadlockDetectionDemo {
             long start = System.currentTimeMillis();
 
             // task-A: 占满 4 个线程，每个子任务内部调用 task-B
-            AsyncBatchResult<Void> result = par.map("shared-pool",
-                    Arrays.asList(1, 2, 3, 4), item -> {
-                        System.out.println("[task-A-" + item + "] 启动于 " + Thread.currentThread().getName());
+            AsyncBatchResult<Void> result = par.map(
+                    "shared-pool",
+                    Arrays.asList(1, 2, 3, 4),
+                    item -> {
+                        System.out.println("[task-A-" + item + "] 启动于 "
+                                + Thread.currentThread().getName());
                         callTaskB(par, item);
                         return null;
-                    }, optionsA);
+                    },
+                    optionsA);
 
             // 等待完成 — 由于死锁，会超时
             try {
@@ -95,9 +97,7 @@ public class DeadlockDetectionDemo {
         }
     }
 
-    /**
-     * task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁
-     */
+    /** task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁 */
     private static void callTaskB(Par par, int parentItem) {
         ParOptions optionsB = ParOptions.of("task-B")
                 .parallelism(2)
@@ -106,15 +106,25 @@ public class DeadlockDetectionDemo {
                 .build();
 
         List<String> items = Arrays.asList("x", "y");
-        AsyncBatchResult<String> resultB = par.map("shared-pool", items, sub -> {
-            System.out.println("  [task-B-" + parentItem + "-" + sub + "] 启动于 " + Thread.currentThread().getName());
-            return "B-" + parentItem + "-" + sub;
-        }, optionsB);
+        AsyncBatchResult<String> resultB = par.map(
+                "shared-pool",
+                items,
+                sub -> {
+                    System.out.println("  [task-B-"
+                            + parentItem
+                            + "-"
+                            + sub
+                            + "] 启动于 "
+                            + Thread.currentThread().getName());
+                    return "B-" + parentItem + "-" + sub;
+                },
+                optionsB);
 
         try {
             Futures.allAsList(resultB.getResults()).get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            System.out.println("  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());
+            System.out.println(
+                    "  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());
         }
     }
 }

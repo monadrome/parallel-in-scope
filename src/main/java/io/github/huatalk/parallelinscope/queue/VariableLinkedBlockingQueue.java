@@ -15,40 +15,49 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A clone of JDK's {@code LinkedBlockingQueue} with dynamically adjustable capacity.
- * <p>
- * Uses the classic two-lock queue algorithm (separate {@code putLock} and {@code takeLock}
- * with {@link AtomicInteger} count) for high concurrency.
- * <p>
- * Key addition: {@link #setCapacity(int)} allows runtime capacity adjustment.
+ *
+ * <p>Uses the classic two-lock queue algorithm (separate {@code putLock} and {@code takeLock} with
+ * {@link AtomicInteger} count) for high concurrency.
+ *
+ * <p>Key addition: {@link #setCapacity(int)} allows runtime capacity adjustment.
  *
  * @param <E> the type of elements held in this queue
  * @author Doug Lea
  */
-public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E>
-        implements BlockingQueue<E>, Serializable {
+public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, Serializable {
 
     private static final long serialVersionUID = 1L;
 
     static class Node<E> {
         E item;
         Node<E> next;
-        Node(E x) { item = x; }
+
+        Node(E x) {
+            item = x;
+        }
     }
 
     /** Configured queue capacity. */
     private volatile int capacity;
+
     /** Element count shared by the put and take locks. */
     private final AtomicInteger count = new AtomicInteger();
+
     /** Sentinel node at the head of the linked queue. */
     transient Node<E> head;
+
     /** Last node in the linked queue. */
     private transient Node<E> last;
+
     /** Lock protecting dequeue operations. */
     private final ReentrantLock takeLock = new ReentrantLock();
+
     /** Condition signalled when the queue becomes non-empty. */
     private final Condition notEmpty = takeLock.newCondition();
+
     /** Lock protecting enqueue operations. */
     private final ReentrantLock putLock = new ReentrantLock();
+
     /** Condition signalled when the queue has available capacity. */
     private final Condition notFull = putLock.newCondition();
 
@@ -458,7 +467,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E>
         }
 
         private Node<E> nextNode(Node<E> p) {
-            for (;;) {
+            for (; ; ) {
                 Node<E> s = p.next;
                 if (s == p) return head.next;
                 if (s == null || s.item != null) return s;

@@ -1,6 +1,10 @@
 package io.github.huatalk.parallelinscope.control;
 
-import org.junit.jupiter.api.Test;
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -10,12 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 class ActionGateTest {
 
@@ -82,9 +81,11 @@ class ActionGateTest {
         assertFalse(gate.runIfDue(() -> {
             throw new AssertionError("not due");
         }));
-        assertThrows(IllegalStateException.class, () -> gate.runIfDue(() -> {
-            throw new IllegalStateException("action failed");
-        }));
+        assertThrows(
+                IllegalStateException.class,
+                () -> gate.runIfDue(() -> {
+                    throw new IllegalStateException("action failed");
+                }));
         assertFalse(gate.isDue());
     }
 
@@ -99,11 +100,26 @@ class ActionGateTest {
     void invalidBoundariesAndActionsAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> ActionGate.every(0));
         assertThrows(IllegalArgumentException.class, () -> ActionGate.every(Duration.ZERO));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> ActionGate.whenBoth(-1, Duration.ofSeconds(1)));
+        assertThrows(IllegalArgumentException.class, () -> ActionGate.whenBoth(-1, Duration.ofSeconds(1)));
         assertThrows(NullPointerException.class, () -> ActionGate.every((Duration) null));
         assertThrows(NullPointerException.class, () -> ActionGate.every(1, null));
+        assertThrows(NullPointerException.class, () -> ActionGate.whenBoth(1, Duration.ofMillis(1), null));
+    }
+
+    @Test
+    void suppliedActionMustNotBeNull() {
+        assertThrows(NullPointerException.class, () -> ActionGate.every(1).runIfDue(null));
+    }
+
+    @Test
+    void timeAndCombinedGatesCanRunBoundActions() {
+        AtomicInteger actions = new AtomicInteger();
+        ActionGate timed = ActionGate.every(Duration.ofMillis(1), actions::incrementAndGet);
+        await().atMost(Duration.ofSeconds(1)).until(timed::runIfDue);
+
+        ActionGate combined = ActionGate.whenBoth(1, Duration.ofMillis(1), actions::incrementAndGet);
+        await().atMost(Duration.ofSeconds(1)).until(combined::runIfDue);
+        assertEquals(2, actions.get());
     }
 
     @Test

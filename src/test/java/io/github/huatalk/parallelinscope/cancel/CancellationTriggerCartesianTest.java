@@ -1,16 +1,12 @@
 package io.github.huatalk.parallelinscope.cancel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -20,8 +16,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises cancellation triggers across pending, cooperative, and non-cooperative workloads. */
 public class CancellationTriggerCartesianTest {
@@ -43,15 +42,14 @@ public class CancellationTriggerCartesianTest {
     private static Stream<Arguments> triggerCases() {
         return Stream.of(Trigger.values())
                 .flatMap(trigger -> Stream.of(Workload.values())
-                        .map(workload -> Arguments.of(
-                                Named.of(caseId(trigger, workload), trigger), workload)));
+                        .map(workload -> Arguments.of(Named.of(caseId(trigger, workload), trigger), workload)));
     }
 
     /** Verifies token, Future, interrupt, liveness, and submitter-cancellation planes. */
     @ParameterizedTest(name = "{0};workload={1}")
     @MethodSource("triggerCases")
-    public void triggerCancelsEveryWorkloadWithItsExpectedLivenessBoundary(
-            Trigger trigger, Workload workload) throws Exception {
+    public void triggerCancelsEveryWorkloadWithItsExpectedLivenessBoundary(Trigger trigger, Workload workload)
+            throws Exception {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         WorkFixture fixture = WorkFixture.create(workload);
         SettableFuture<Void> submitter = SettableFuture.create();
@@ -192,10 +190,9 @@ public class CancellationTriggerCartesianTest {
             CountDownLatch release = new CountDownLatch(1);
             CountDownLatch exited = new CountDownLatch(1);
             AtomicBoolean interrupted = new AtomicBoolean();
-            ListenableFuture<Integer> future = listening.submit(
-                    () -> runWorkload(workload, entered, release, exited, interrupted));
-            return new WorkFixture(
-                    workload, raw, listening, entered, release, exited, interrupted, future);
+            ListenableFuture<Integer> future =
+                    listening.submit(() -> runWorkload(workload, entered, release, exited, interrupted));
+            return new WorkFixture(workload, raw, listening, entered, release, exited, interrupted, future);
         }
 
         /** Runs the selected workload until release or cooperative interruption. */

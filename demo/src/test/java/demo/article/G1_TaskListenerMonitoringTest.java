@@ -1,16 +1,13 @@
 package demo.article;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,13 +17,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * G1: 任务执行看不见——接入监控
  *
  * <p>演示问题：标准 ExecutorService 没有任务监控钩子，只能在 lambda 里手动埋点。
+ *
  * <p>演示解决：Par.map() 配合 TaskListener SPI，零侵入地捕获每个任务的执行事件。
  */
 public class G1_TaskListenerMonitoringTest {
@@ -46,8 +45,7 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * 问题复现：标准 ExecutorService 没有监控钩子。
      *
-     * <p>只能在 lambda 内部手动埋点，且拿不到等待时间（提交到开始执行的间隔）。
-     * 监控逻辑和业务逻辑耦合，容易遗漏。
+     * <p>只能在 lambda 内部手动埋点，且拿不到等待时间（提交到开始执行的间隔）。 监控逻辑和业务逻辑耦合，容易遗漏。
      */
     @Test
     void vanillaExecutorService_hasNoMonitoringHook() throws Exception {
@@ -69,8 +67,7 @@ public class G1_TaskListenerMonitoringTest {
                     throw e;
                 } finally {
                     // 手动记录执行耗时——但拿不到等待时间！
-                    manualTimings.add(TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - start));
+                    manualTimings.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
                 }
             }));
         }
@@ -92,9 +89,8 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * 解决方法：Par.map() 配合 TaskListener，零侵入监控。
      *
-     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskEvent)，
-     * 包含 taskName、executionTime()、totalTime()、exception 等完整信息。
-     * 业务 lambda 无需任何监控代码。
+     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskEvent)， 包含
+     * taskName、executionTime()、totalTime()、exception 等完整信息。 业务 lambda 无需任何监控代码。
      */
     @Test
     void parMap_withTaskListener_capturesSuccessfulTaskEvents() throws Exception {
@@ -116,12 +112,18 @@ public class G1_TaskListenerMonitoringTest {
                 .build();
 
         // 业务代码：纯逻辑，不碰监控
-        AsyncBatchResult<String> result = par.map("test-pool", input, x -> {
-            // 模拟 50ms 业务计算（忙等待，不响应中断）
-            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
-            while (System.nanoTime() < deadline) { /* busy wait */ }
-            return "result-" + x;
-        }, opts);
+        AsyncBatchResult<String> result = par.map(
+                "test-pool",
+                input,
+                x -> {
+                    // 模拟 50ms 业务计算（忙等待，不响应中断）
+                    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+                    while (System.nanoTime() < deadline) {
+                        /* busy wait */
+                    }
+                    return "result-" + x;
+                },
+                opts);
 
         // 等待所有任务完成
         Thread.sleep(2000);
@@ -163,8 +165,7 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * TaskListener 同样能捕获失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskEvent.getException() 返回对应的 Throwable，
-     * 无需在业务代码中手动 try-catch。
+     * <p>当任务抛出异常时，TaskEvent.getException() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
      */
     @Test
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
@@ -184,14 +185,20 @@ public class G1_TaskListenerMonitoringTest {
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
-        AsyncBatchResult<String> result = par.map("test-pool", input, x -> {
-            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
-            while (System.nanoTime() < deadline) { /* busy wait */ }
-            if (x == 2) {
-                throw new RuntimeException("item " + x + " failed");
-            }
-            return "result-" + x;
-        }, opts);
+        AsyncBatchResult<String> result = par.map(
+                "test-pool",
+                input,
+                x -> {
+                    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+                    while (System.nanoTime() < deadline) {
+                        /* busy wait */
+                    }
+                    if (x == 2) {
+                        throw new RuntimeException("item " + x + " failed");
+                    }
+                    return "result-" + x;
+                },
+                opts);
 
         Thread.sleep(2000);
 
@@ -209,9 +216,8 @@ public class G1_TaskListenerMonitoringTest {
         assertThat(failedEvent.getTaskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
-        long successCount = events.stream()
-                .filter(e -> e.getException() == null)
-                .count();
+        long successCount =
+                events.stream().filter(e -> e.getException() == null).count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果

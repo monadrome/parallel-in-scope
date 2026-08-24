@@ -4,10 +4,13 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
+> Demo code currently targets the `0.1.x` artifact. Its `ParConfig`/`ParOptions` examples are historical; the v0.2 contract is defined by the main user guide and migration guide.
+
 ## Start Here
 
 - [Demo README](../../README.en.md)
 - [Full English user guide](../../../docs/en/user-guide.md)
+- [v0.2 migration guide](../../../docs/en/migration-v0.2.md)
 - [Chinese article catalog](../zh-CN/README.md)
 
 ## Example Groups

@@ -1,5 +1,10 @@
 package io.github.huatalk.parallelinscope;
 
+import static org.assertj.core.api.Assertions.*;
+
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.cancel.*;
 import io.github.huatalk.parallelinscope.context.*;
 import io.github.huatalk.parallelinscope.context.graph.*;
@@ -7,13 +12,9 @@ import io.github.huatalk.parallelinscope.internal.*;
 import io.github.huatalk.parallelinscope.queue.*;
 import io.github.huatalk.parallelinscope.scope.*;
 import io.github.huatalk.parallelinscope.spi.*;
-
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for Future state inspection via FutureInspector.
@@ -57,8 +58,62 @@ public class FutureInspectorTest {
     @Test
     public void testExceptionNow_success() {
         ListenableFuture<String> future = Futures.immediateFuture("ok");
-        assertThatThrownBy(() -> FutureInspector.exceptionNow(future))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(future)).isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    public void testExceptionNow_pendingAndCanceledAreRejected() {
+        SettableFuture<String> pending = SettableFuture.create();
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(pending))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not completed");
+
+        ListenableFuture<String> canceled = Futures.immediateCancelledFuture();
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(canceled))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cancelled");
+    }
+
+    @Test
+    public void interruptedFutureInspectionRestoresInterruptStatus() {
+        Future<Object> interrupted = new Future<Object>() {
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                return false;
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return false;
+            }
+
+            @Override
+            public boolean isDone() {
+                return true;
+            }
+
+            @Override
+            public Object get() throws InterruptedException {
+                throw new InterruptedException("test");
+            }
+
+            @Override
+            public Object get(long timeout, TimeUnit unit) throws InterruptedException {
+                throw new InterruptedException("test");
+            }
+        };
+        try {
+            Thread.currentThread().interrupt();
+            assertThat(FutureInspector.state(interrupted)).isEqualTo(FutureState.FAILED);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+            Thread.interrupted();
+
+            Thread.currentThread().interrupt();
+            assertThatThrownBy(() -> FutureInspector.exceptionNow(interrupted))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
 }

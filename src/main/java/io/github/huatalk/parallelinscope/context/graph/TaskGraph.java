@@ -7,11 +7,10 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -19,27 +18,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Task dependency graph for livelock/deadlock detection.
- * <p>
- * Uses a composed {@link TransmittableThreadLocal} to share a directed {@link ValueGraph} of task
- * dependencies across all threads within a single request. Records parent-child task
+ *
+ * <p>Uses a composed {@link TransmittableThreadLocal} to share a directed {@link ValueGraph} of
+ * task dependencies across all threads within a single request. Records parent-child task
  * relationships as edges with {@link TaskEdge} metadata (parallelism, task type, executor name,
  * task count, timeout).
- * <p>
- * At request end, builds directed graphs at both task level and executor level,
- * checking for cycles (potential deadlocks) and self-loops.
- * <p>
- * Lifecycle:
+ *
+ * <p>At request end, builds directed graphs at both task level and executor level, checking for
+ * cycles (potential deadlocks) and self-loops.
+ *
+ * <p>Lifecycle:
+ *
  * <ul>
- *   <li>Request start: {@link #initOnRequest()} creates a new Data instance</li>
- *   <li>During request: {@link #logTaskPair(String, String, TaskEdge)} records fork relationships</li>
- *   <li>Request end: {@link #destroyAfterRequest(ParConfig)} checks for cycles and notifies listeners</li>
+ *   <li>Request start: {@link GlobalParObservationContext} creates a new Data instance
+ *   <li>During request: the GlobalPar execution path records batch-instance relationships
+ *   <li>Request end: {@link #destroyAfterRequest(GlobalParObservationContext)} checks for cycles
+ *       and notifies listeners
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -61,22 +64,19 @@ public final class TaskGraph {
         }
     };
 
-    private TaskGraph() {
-    }
+    private TaskGraph() {}
 
-    /**
-     * Task graph data (thread-safe, shared across all threads within a request).
-     */
+    /** Task graph data (thread-safe, shared across all threads within a request). */
     public static class Data {
         final BlockingQueue<TaskEdgeEntry> subTaskList = new LinkedTransferQueue<>();
+        private final Map<String, String> nodeLabels = new ConcurrentHashMap<>();
 
         private volatile ValueGraph<String, List<TaskEdge>> graph;
         private volatile Boolean taskCycle;
         private volatile Boolean selfLoop;
 
         /** Creates an empty request-scoped graph. */
-        public Data() {
-        }
+        public Data() {}
 
         /**
          * Returns the task dependency graph.
@@ -133,8 +133,12 @@ public final class TaskGraph {
          * @return {@code true} when an executor cycle exists
          */
         public boolean isExecutorCycle() {
-            ValueGraph<String, List<TaskEdge>> g = getExecutorGraph();
-            return g != null && Graphs.hasCycle(g.asGraph());
+            ValueGraph<ExecutorIdentity, List<TaskEdge>> g = generateExecutorIdentityGraph();
+            if (g != null && !g.nodes().isEmpty()) {
+                return Graphs.hasCycle(g.asGraph());
+            }
+            ValueGraph<String, List<TaskEdge>> legacy = getExecutorGraph();
+            return legacy != null && Graphs.hasCycle(legacy.asGraph());
         }
 
         /**
@@ -143,20 +147,20 @@ public final class TaskGraph {
          * @return {@code true} when an executor self-loop exists
          */
         public boolean isExecutorSelfLoop() {
-            return getExecutorGraph().edges().stream()
-                    .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+            ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = generateExecutorIdentityGraph();
+            if (identityGraph != null && !identityGraph.nodes().isEmpty()) {
+                return identityGraph.edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+            }
+            return getExecutorGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
         ValueGraph<String, List<TaskEdge>> generateGraph() {
             Map<EndpointPair<String>, List<TaskEdge>> edgeMap = new LinkedHashMap<>();
             for (TaskEdgeEntry entry : subTaskList) {
-                edgeMap.computeIfAbsent(entry.getEdge(), k -> new ArrayList<>())
-                        .add(entry.getValue());
+                edgeMap.computeIfAbsent(entry.getEdge(), k -> new ArrayList<>()).add(entry.getValue());
             }
             ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
-                    ValueGraphBuilder.directed()
-                            .allowsSelfLoops(true)
-                            .<String, List<TaskEdge>>immutable();
+                    ValueGraphBuilder.directed().allowsSelfLoops(true).<String, List<TaskEdge>>immutable();
             for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : edgeMap.entrySet()) {
                 graphBuilder.putEdgeValue(
                         entry.getKey().source(),
@@ -166,22 +170,27 @@ public final class TaskGraph {
             return graphBuilder.build();
         }
 
+        String displayNode(String node) {
+            String label = nodeLabels.get(node);
+            return label == null ? node : label + "[" + node + "]";
+        }
+
         boolean checkTaskCycle() {
             ValueGraph<String, List<TaskEdge>> g = getGraph();
             return g != null && Graphs.hasCycle(g.asGraph());
         }
 
         boolean checkSelfLoop() {
-            return getGraph().edges().stream()
-                    .anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+            return getGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
 
         ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
             Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
-                List<TaskEdge> edges = getGraph().edgeValueOrDefault(
-                        taskEdgePair.source(), taskEdgePair.target(), Collections.<TaskEdge>emptyList());
+                List<TaskEdge> edges = getGraph()
+                        .edgeValueOrDefault(
+                                taskEdgePair.source(), taskEdgePair.target(), Collections.<TaskEdge>emptyList());
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();
@@ -189,15 +198,16 @@ public final class TaskGraph {
                         continue;
                     }
                     EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
-                    executorEdges.computeIfAbsent(executorPair, k -> new ArrayList<>()).add(taskEdge);
+                    executorEdges
+                            .computeIfAbsent(executorPair, k -> new ArrayList<>())
+                            .add(taskEdge);
                 }
             }
 
-            ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
-                    ValueGraphBuilder.directed()
-                            .allowsSelfLoops(true)
-                            .incidentEdgeOrder(ElementOrder.stable())
-                            .<String, List<TaskEdge>>immutable();
+            ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder = ValueGraphBuilder.directed()
+                    .allowsSelfLoops(true)
+                    .incidentEdgeOrder(ElementOrder.stable())
+                    .<String, List<TaskEdge>>immutable();
             for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : executorEdges.entrySet()) {
                 graphBuilder.putEdgeValue(
                         entry.getKey().source(),
@@ -206,42 +216,100 @@ public final class TaskGraph {
             }
             return graphBuilder.build();
         }
+
+        private ValueGraph<ExecutorIdentity, List<TaskEdge>> generateExecutorIdentityGraph() {
+            Map<EndpointPair<ExecutorIdentity>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
+            for (TaskEdgeEntry entry : subTaskList) {
+                TaskEdge edge = entry.getValue();
+                if (!edge.isExecutorDeadlockProne()
+                        || edge.getExecutorIdentity() == null
+                        || edge.getSourceExecutorIdentity() == null) {
+                    continue;
+                }
+                EndpointPair<ExecutorIdentity> pair =
+                        EndpointPair.ordered(edge.getSourceExecutorIdentity(), edge.getExecutorIdentity());
+                executorEdges.computeIfAbsent(pair, k -> new ArrayList<>()).add(edge);
+            }
+            ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder = ValueGraphBuilder.directed()
+                    .allowsSelfLoops(true)
+                    .incidentEdgeOrder(ElementOrder.stable())
+                    .<ExecutorIdentity, List<TaskEdge>>immutable();
+            for (Map.Entry<EndpointPair<ExecutorIdentity>, List<TaskEdge>> entry : executorEdges.entrySet()) {
+                builder.putEdgeValue(
+                        entry.getKey().source(),
+                        entry.getKey().target(),
+                        Collections.unmodifiableList(entry.getValue()));
+            }
+            return builder.build();
+        }
     }
 
     // ==================== Request lifecycle ====================
 
-    /**
-     * Initializes task graph at request entry.
-     */
-    public static void initOnRequest() {
+    /** Initializes a graph owned by one GlobalPar observation scope. */
+    public static Data initOnRequest(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
+        if (context.isClosed()) {
+            throw new IllegalStateException("observation context is already closed");
+        }
+        Data previous = TTL.get();
         TTL.set(new Data());
+        return previous;
     }
 
-    /**
-     * Destroys task graph at request end. Runs livelock detection and notifies listeners.
-     *
-     * @param config the ParConfig instance for livelock detection settings and listeners
-     */
-    public static void destroyAfterRequest(ParConfig config) {
+    /** Installs the graph owned by an observation scope on the current worker thread. */
+    public static void install(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
+        TTL.set(context.data());
+    }
+
+    /** Restores a graph captured before entering a scoped worker task. */
+    public static void restore(@Nullable Data data) {
+        if (data == null) TTL.remove();
+        else TTL.set(data);
+    }
+
+    /** Destroys a GlobalPar-owned graph using the GlobalPar livelock policy. */
+    public static void destroyAfterRequest(GlobalParObservationContext context) {
+        Objects.requireNonNull(context, "context cannot be null");
         try {
             Data data = TTL.get();
-            if (data != null && !data.subTaskList.isEmpty()) {
-                if (config.isLivelockDetectionEnabled()) {
-                    LivelockEvent event = buildDetectionEvent(data, config);
-                    if (event != null && event.hasAnyIssue()) {
-                        logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
-                        notifyLivelockListeners(config, event);
+            if (data != null
+                    && !data.subTaskList.isEmpty()
+                    && context.owner().livelockPolicy().enabled()) {
+                LivelockEvent event = buildDetectionEvent(data);
+                if (event != null && event.hasAnyIssue()) {
+                    logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
+                    for (LivelockListener listener :
+                            context.owner().livelockPolicy().listeners()) {
+                        try {
+                            listener.onDetection(event);
+                        } catch (Exception e) {
+                            logger.log(
+                                    Level.WARNING,
+                                    "LivelockListener callback failed: "
+                                            + listener.getClass().getName(),
+                                    e);
+                        }
                     }
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "[[title=TaskGraph,function=destroyAfterRequest]]Failed to run livelock detection", e);
+            logger.log(
+                    Level.WARNING,
+                    "[[title=TaskGraph,function=destroyAfterRequest]]" + "Failed to run GlobalPar livelock detection",
+                    e);
         } finally {
-            TTL.remove();
+            if (context.previousData() == null) {
+                TTL.remove();
+            } else {
+                TTL.set(context.previousData());
+            }
+            context.complete();
         }
     }
 
-    private static LivelockEvent buildDetectionEvent(Data data, ParConfig config) {
+    private static LivelockEvent buildDetectionEvent(Data data) {
         boolean hasTaskCycle = data.isTaskCycle();
         boolean hasSelfLoop = data.isSelfLoop();
         boolean hasExecutorCycle = data.isExecutorCycle();
@@ -253,15 +321,15 @@ public final class TaskGraph {
 
         String taskEdges = data.getGraph().edges().stream()
                 .map(p -> {
-                    List<TaskEdge> edges = data.getGraph().edgeValueOrDefault(
-                            p.source(), p.target(), Collections.<TaskEdge>emptyList());
-                    return p.source() + " -> " + p.target() + " " + edges;
+                    List<TaskEdge> edges = data.getGraph()
+                            .edgeValueOrDefault(p.source(), p.target(), Collections.<TaskEdge>emptyList());
+                    return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
         String executorEdges = data.getExecutorGraph().edges().stream()
                 .map(p -> {
-                    List<TaskEdge> edges = data.getExecutorGraph()
-                            .edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
+                    List<TaskEdge> edges =
+                            data.getExecutorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
@@ -270,17 +338,6 @@ public final class TaskGraph {
                 hasTaskCycle, hasSelfLoop,
                 hasExecutorCycle, hasExecutorSelfLoop,
                 taskEdges, executorEdges);
-    }
-
-    private static void notifyLivelockListeners(ParConfig config, LivelockEvent event) {
-        List<LivelockListener> listeners = config.getLivelockListeners();
-        for (LivelockListener listener : listeners) {
-            try {
-                listener.onDetection(event);
-            } catch (Exception e) {
-                logger.log(Level.WARNING, "LivelockListener callback failed: " + listener.getClass().getName(), e);
-            }
-        }
     }
 
     // ==================== Data access ====================
@@ -294,20 +351,15 @@ public final class TaskGraph {
         return TTL.get();
     }
 
-    /**
-     * Records a parent-child task relationship with edge metadata.
-     *
-     * @param parent parent task name
-     * @param child  child task name
-     * @param edge   edge metadata (parallelism, task type, executor, etc.)
-     */
-    public static void logTaskPair(@Nullable String parent, String child, TaskEdge edge) {
+    /** Records a new-model edge using unique batch identities and display labels. */
+    public static void logTaskPair(
+            @Nullable String parentId, @Nullable String parentLabel, String childId, String childLabel, TaskEdge edge) {
         Data data = TTL.get();
-        if (data == null) {
-            return;
-        }
-        parent = parent != null ? parent : "NA";
-        data.subTaskList.add(new TaskEdgeEntry(EndpointPair.ordered(parent, child), edge));
+        if (data == null) return;
+        String source = parentId == null ? "root" : parentId;
+        data.nodeLabels.put(source, parentLabel == null ? "NA" : parentLabel);
+        data.nodeLabels.put(childId, childLabel == null ? "NA" : childLabel);
+        data.subTaskList.add(new TaskEdgeEntry(EndpointPair.ordered(source, childId), edge));
     }
 
     /**

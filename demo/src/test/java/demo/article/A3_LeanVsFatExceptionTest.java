@@ -1,15 +1,12 @@
 package demo.article;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -17,14 +14,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * A3: 取消异常太重 — 轻量级取消异常 vs 标准异常
  *
- * <p>演示 Exception.fillInStackTrace() 的性能开销，
- * 以及 parallel-in-scope 内部使用轻量级异常处理高频取消的优化效果。
+ * <p>演示 Exception.fillInStackTrace() 的性能开销， 以及 parallel-in-scope 内部使用轻量级异常处理高频取消的优化效果。
  */
 public class A3_LeanVsFatExceptionTest {
 
@@ -34,9 +31,7 @@ public class A3_LeanVsFatExceptionTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
-                .build();
+        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
         par = new Par(config);
     }
 
@@ -111,15 +106,19 @@ public class A3_LeanVsFatExceptionTest {
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());
 
         long start = System.currentTimeMillis();
-        AsyncBatchResult<String> result = par.map("test-pool", items, id -> {
-            try {
-                // 模拟慢操作，超过 200ms 超时
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return "done-" + id;
-        }, opts);
+        AsyncBatchResult<String> result = par.map(
+                "test-pool",
+                items,
+                id -> {
+                    try {
+                        // 模拟慢操作，超过 200ms 超时
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return "done-" + id;
+                },
+                opts);
 
         // 等待超时取消生效
         try {

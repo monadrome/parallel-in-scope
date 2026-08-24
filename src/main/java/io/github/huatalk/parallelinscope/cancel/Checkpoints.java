@@ -2,8 +2,7 @@ package io.github.huatalk.parallelinscope.cancel;
 
 import com.google.common.base.Throwables;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-
+import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -20,45 +19,45 @@ import java.util.function.Supplier;
 
 /**
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
- * <p>
- * Every public method checks the current scope's {@link CancellationToken} before starting
- * its operation. A canceled token produces a {@link LeanCancellationException}, except that
- * {@link #checkpoint(String, boolean)} produces the lean or fat form selected by its argument.
- * <p>
- * Blocking-operation adapters restore the interrupt flag and translate
- * {@link InterruptedException} into {@link LeanCancellationException}.
- * <p>
- * {@link #checkRunnable(Runnable, Class)} and {@link #checkSupplier(Supplier, Class)}
- * instead translate a matching failure into {@link FatCancellationException}, retaining
- * the original failure as its cause.
+ *
+ * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
+ * operation. A canceled token produces a {@link LeanCancellationException}, except that {@link
+ * #checkpoint(String, boolean)} produces the lean or fat form selected by its argument.
+ *
+ * <p>Blocking-operation adapters restore the interrupt flag and translate {@link
+ * InterruptedException} into {@link LeanCancellationException}.
+ *
+ * <p>{@link #checkRunnable(Runnable, Class)} and {@link #checkSupplier(Supplier, Class)} instead
+ * translate a matching failure into {@link FatCancellationException}, retaining the original
+ * failure as its cause.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class Checkpoints {
 
-    private Checkpoints() {
-    }
+    private Checkpoints() {}
 
     /**
      * Checks whether the named task has been canceled in the current scope.
      *
      * @param taskName the task expected in the current scope
-     * @param lean     whether to omit the cancellation stack trace
+     * @param lean whether to omit the cancellation stack trace
      * @throws LeanCancellationException if the matching task is canceled and {@code lean} is true
      * @throws FatCancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
-        ParOptions options = TaskScopeTl.getParallelOptions();
-        if (taskName == null || options == null
-                || !taskName.equals(options.getTaskName())) {
+        BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
+        if (batch != null) {
+            if (taskName == null || !taskName.equals(batch.taskName())) return;
+            checkCancellationToken(lean);
             return;
         }
-        checkCancellationToken(lean);
+        return;
     }
 
     /**
-     * Checks the current cancellation token and the current thread's interrupt status.
-     * A token is not required when this method is used as a raw interrupt checkpoint.
+     * Checks the current cancellation token and the current thread's interrupt status. A token is not
+     * required when this method is used as a raw interrupt checkpoint.
      *
      * @throws LeanCancellationException if the current scope is canceled or the thread is interrupted
      */
@@ -89,14 +88,14 @@ public final class Checkpoints {
         try {
             latch.await();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during latch await by interruption");
+            throw interrupted("Cancel during latch await by interruption", e);
         }
     }
 
     /**
      * Waits up to the given duration for the latch to reach zero.
      *
-     * @param latch   the latch to await
+     * @param latch the latch to await
      * @param timeout the maximum time to wait
      * @return {@code true} if the latch reached zero, or {@code false} on timeout
      */
@@ -108,9 +107,9 @@ public final class Checkpoints {
     /**
      * Waits up to the given timeout for the latch to reach zero.
      *
-     * @param latch   the latch to await
+     * @param latch the latch to await
      * @param timeout the maximum time to wait
-     * @param unit    the unit of {@code timeout}
+     * @param unit the unit of {@code timeout}
      * @return {@code true} if the latch reached zero, or {@code false} on timeout
      */
     public static boolean checkAwait(CountDownLatch latch, long timeout, TimeUnit unit) {
@@ -118,7 +117,7 @@ public final class Checkpoints {
         try {
             return latch.await(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during latch await by interruption");
+            throw interrupted("Cancel during latch await by interruption", e);
         }
     }
 
@@ -126,7 +125,7 @@ public final class Checkpoints {
      * Waits up to the given duration for the condition to be signalled.
      *
      * @param condition the condition to await
-     * @param timeout   the maximum time to wait
+     * @param timeout the maximum time to wait
      * @return {@code false} if the wait elapsed before being signalled; otherwise {@code true}
      */
     public static boolean checkAwait(Condition condition, Duration timeout) {
@@ -138,8 +137,8 @@ public final class Checkpoints {
      * Waits up to the given timeout for the condition to be signalled.
      *
      * @param condition the condition to await
-     * @param timeout   the maximum time to wait
-     * @param unit      the unit of {@code timeout}
+     * @param timeout the maximum time to wait
+     * @param unit the unit of {@code timeout}
      * @return {@code false} if the wait elapsed before being signalled; otherwise {@code true}
      */
     public static boolean checkAwait(Condition condition, long timeout, TimeUnit unit) {
@@ -147,7 +146,7 @@ public final class Checkpoints {
         try {
             return condition.await(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during condition await by interruption");
+            throw interrupted("Cancel during condition await by interruption", e);
         }
     }
 
@@ -161,14 +160,14 @@ public final class Checkpoints {
         try {
             thread.join();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during thread join by interruption");
+            throw interrupted("Cancel during thread join by interruption", e);
         }
     }
 
     /**
      * Waits up to the given duration for the thread to terminate.
      *
-     * @param thread  the thread whose termination to await
+     * @param thread the thread whose termination to await
      * @param timeout the maximum time to wait
      */
     public static void checkJoin(Thread thread, Duration timeout) {
@@ -179,23 +178,23 @@ public final class Checkpoints {
     /**
      * Waits up to the given timeout for the thread to terminate.
      *
-     * @param thread  the thread whose termination to await
+     * @param thread the thread whose termination to await
      * @param timeout the maximum time to wait
-     * @param unit    the unit of {@code timeout}
+     * @param unit the unit of {@code timeout}
      */
     public static void checkJoin(Thread thread, long timeout, TimeUnit unit) {
         checkCancellationToken(true);
         try {
             unit.timedJoin(thread, timeout);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during thread join by interruption");
+            throw interrupted("Cancel during thread join by interruption", e);
         }
     }
 
     /**
      * Waits for and returns the future result.
      *
-     * @param <V>    the future result type
+     * @param <V> the future result type
      * @param future the future to await
      * @return the completed future value
      * @throws ExecutionException if the future completed exceptionally
@@ -205,22 +204,21 @@ public final class Checkpoints {
         try {
             return future.get();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during future get by interruption");
+            throw interrupted("Cancel during future get by interruption", e);
         }
     }
 
     /**
      * Waits up to the given duration for the future result.
      *
-     * @param <V>     the future result type
-     * @param future  the future to await
+     * @param <V> the future result type
+     * @param future the future to await
      * @param timeout the maximum time to wait
      * @return the completed future value
      * @throws ExecutionException if the future completed exceptionally
      * @throws TimeoutException if the wait timed out
      */
-    public static <V> V checkGet(Future<V> future, Duration timeout)
-            throws ExecutionException, TimeoutException {
+    public static <V> V checkGet(Future<V> future, Duration timeout) throws ExecutionException, TimeoutException {
         checkCancellationToken(true);
         return checkGet(future, timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
@@ -228,10 +226,10 @@ public final class Checkpoints {
     /**
      * Waits up to the given timeout for the future result.
      *
-     * @param <V>     the future result type
-     * @param future  the future to await
+     * @param <V> the future result type
+     * @param future the future to await
      * @param timeout the maximum time to wait
-     * @param unit    the unit of {@code timeout}
+     * @param unit the unit of {@code timeout}
      * @return the completed future value
      * @throws ExecutionException if the future completed exceptionally
      * @throws TimeoutException if the wait timed out
@@ -242,14 +240,14 @@ public final class Checkpoints {
         try {
             return future.get(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during future get by interruption");
+            throw interrupted("Cancel during future get by interruption", e);
         }
     }
 
     /**
      * Takes the head of the queue, waiting if necessary.
      *
-     * @param <E>   the queue element type
+     * @param <E> the queue element type
      * @param queue the queue from which to take an element
      * @return the head of the queue
      */
@@ -258,15 +256,15 @@ public final class Checkpoints {
         try {
             return queue.take();
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during queue take by interruption");
+            throw interrupted("Cancel during queue take by interruption", e);
         }
     }
 
     /**
      * Adds an element to the queue, waiting for capacity if necessary.
      *
-     * @param <E>     the queue element type
-     * @param queue   the queue to receive the element
+     * @param <E> the queue element type
+     * @param queue the queue to receive the element
      * @param element the element to enqueue
      */
     public static <E> void checkPut(BlockingQueue<E> queue, E element) {
@@ -274,7 +272,7 @@ public final class Checkpoints {
         try {
             queue.put(element);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during queue put by interruption");
+            throw interrupted("Cancel during queue put by interruption", e);
         }
     }
 
@@ -292,14 +290,14 @@ public final class Checkpoints {
      * Sleeps for the given duration and unit.
      *
      * @param duration the duration to sleep
-     * @param unit     the unit of {@code duration}
+     * @param unit the unit of {@code duration}
      */
     public static void checkSleep(long duration, TimeUnit unit) {
         checkCancellationToken(true);
         try {
             unit.sleep(duration);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during sleep by interruption");
+            throw interrupted("Cancel during sleep by interruption", e);
         }
     }
 
@@ -307,7 +305,7 @@ public final class Checkpoints {
      * Attempts to acquire one permit within the given duration.
      *
      * @param semaphore the semaphore from which to acquire
-     * @param timeout   the maximum time to wait
+     * @param timeout the maximum time to wait
      * @return {@code true} if a permit was acquired, or {@code false} on timeout
      */
     public static boolean checkTryAcquire(Semaphore semaphore, Duration timeout) {
@@ -319,8 +317,8 @@ public final class Checkpoints {
      * Attempts to acquire one permit within the given timeout.
      *
      * @param semaphore the semaphore from which to acquire
-     * @param timeout   the maximum time to wait
-     * @param unit      the unit of {@code timeout}
+     * @param timeout the maximum time to wait
+     * @param unit the unit of {@code timeout}
      * @return {@code true} if a permit was acquired, or {@code false} on timeout
      */
     public static boolean checkTryAcquire(Semaphore semaphore, long timeout, TimeUnit unit) {
@@ -332,8 +330,8 @@ public final class Checkpoints {
      * Attempts to acquire the permits within the given duration.
      *
      * @param semaphore the semaphore from which to acquire
-     * @param permits   the number of permits to acquire
-     * @param timeout   the maximum time to wait
+     * @param permits the number of permits to acquire
+     * @param timeout the maximum time to wait
      * @return {@code true} if the permits were acquired, or {@code false} on timeout
      */
     public static boolean checkTryAcquire(Semaphore semaphore, int permits, Duration timeout) {
@@ -345,25 +343,24 @@ public final class Checkpoints {
      * Attempts to acquire the permits within the given timeout.
      *
      * @param semaphore the semaphore from which to acquire
-     * @param permits   the number of permits to acquire
-     * @param timeout   the maximum time to wait
-     * @param unit      the unit of {@code timeout}
+     * @param permits the number of permits to acquire
+     * @param timeout the maximum time to wait
+     * @param unit the unit of {@code timeout}
      * @return {@code true} if the permits were acquired, or {@code false} on timeout
      */
-    public static boolean checkTryAcquire(
-            Semaphore semaphore, int permits, long timeout, TimeUnit unit) {
+    public static boolean checkTryAcquire(Semaphore semaphore, int permits, long timeout, TimeUnit unit) {
         checkCancellationToken(true);
         try {
             return semaphore.tryAcquire(permits, timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during semaphore acquisition by interruption");
+            throw interrupted("Cancel during semaphore acquisition by interruption", e);
         }
     }
 
     /**
      * Attempts to acquire the lock within the given duration.
      *
-     * @param lock    the lock to acquire
+     * @param lock the lock to acquire
      * @param timeout the maximum time to wait
      * @return {@code true} if the lock was acquired, or {@code false} on timeout
      */
@@ -375,9 +372,9 @@ public final class Checkpoints {
     /**
      * Attempts to acquire the lock within the given timeout.
      *
-     * @param lock    the lock to acquire
+     * @param lock the lock to acquire
      * @param timeout the maximum time to wait
-     * @param unit    the unit of {@code timeout}
+     * @param unit the unit of {@code timeout}
      * @return {@code true} if the lock was acquired, or {@code false} on timeout
      */
     public static boolean checkTryLock(Lock lock, long timeout, TimeUnit unit) {
@@ -385,7 +382,7 @@ public final class Checkpoints {
         try {
             return lock.tryLock(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during lock acquisition by interruption");
+            throw interrupted("Cancel during lock acquisition by interruption", e);
         }
     }
 
@@ -403,7 +400,7 @@ public final class Checkpoints {
      * Waits up to the given duration for the executor to terminate.
      *
      * @param executor the executor whose termination to await
-     * @param timeout  the maximum time to wait
+     * @param timeout the maximum time to wait
      * @return {@code true} if the executor terminated, or {@code false} on timeout
      */
     public static boolean checkAwaitTermination(ExecutorService executor, Duration timeout) {
@@ -415,26 +412,25 @@ public final class Checkpoints {
      * Waits up to the given timeout for the executor to terminate.
      *
      * @param executor the executor whose termination to await
-     * @param timeout  the maximum time to wait
-     * @param unit     the unit of {@code timeout}
+     * @param timeout the maximum time to wait
+     * @param unit the unit of {@code timeout}
      * @return {@code true} if the executor terminated, or {@code false} on timeout
      */
-    public static boolean checkAwaitTermination(
-            ExecutorService executor, long timeout, TimeUnit unit) {
+    public static boolean checkAwaitTermination(ExecutorService executor, long timeout, TimeUnit unit) {
         checkCancellationToken(true);
         try {
             return executor.awaitTermination(timeout, unit);
         } catch (InterruptedException e) {
-            throw interrupted("Cancel during executor termination wait by interruption");
+            throw interrupted("Cancel during executor termination wait by interruption", e);
         }
     }
 
     /**
-     * Runs an action, translating a matching failure into fat cancellation.
-     * Other unchecked failures are propagated unchanged.
+     * Runs an action, translating a matching failure into fat cancellation. Other unchecked failures
+     * are propagated unchanged.
      *
-     * @param <X>          the exception type that triggers cancellation
-     * @param action       the action to execute
+     * @param <X> the exception type that triggers cancellation
+     * @param action the action to execute
      * @param declaredType the exception class that triggers cancellation
      * @throws LeanCancellationException if the current scope is canceled before the action runs
      * @throws FatCancellationException if the action throws an instance of {@code declaredType}
@@ -443,8 +439,7 @@ public final class Checkpoints {
      * @throws AssertionError if the action unexpectedly throws a checked throwable
      * @throws NullPointerException if {@code action} or {@code declaredType} is null
      */
-    public static <X extends Throwable> void checkRunnable(
-            Runnable action, Class<X> declaredType) {
+    public static <X extends Throwable> void checkRunnable(Runnable action, Class<X> declaredType) {
         checkCancellationToken(true);
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(declaredType, "declaredType");
@@ -457,12 +452,12 @@ public final class Checkpoints {
     }
 
     /**
-     * Gets a value, translating a matching failure into fat cancellation.
-     * Other unchecked failures are propagated unchanged.
+     * Gets a value, translating a matching failure into fat cancellation. Other unchecked failures
+     * are propagated unchanged.
      *
-     * @param <T>          the supplied value type
-     * @param <X>          the exception type that triggers cancellation
-     * @param supplier     the value supplier to execute
+     * @param <T> the supplied value type
+     * @param <X> the exception type that triggers cancellation
+     * @param supplier the value supplier to execute
      * @param declaredType the exception class that triggers cancellation
      * @return the value produced by {@code supplier}
      * @throws LeanCancellationException if the current scope is canceled before the supplier runs
@@ -472,8 +467,7 @@ public final class Checkpoints {
      * @throws AssertionError if the supplier unexpectedly throws a checked throwable
      * @throws NullPointerException if {@code supplier} or {@code declaredType} is null
      */
-    public static <T, X extends Throwable> T checkSupplier(
-            Supplier<? extends T> supplier, Class<X> declaredType) {
+    public static <T, X extends Throwable> T checkSupplier(Supplier<? extends T> supplier, Class<X> declaredType) {
         checkCancellationToken(true);
         Objects.requireNonNull(supplier, "supplier");
         Objects.requireNonNull(declaredType, "declaredType");
@@ -486,13 +480,13 @@ public final class Checkpoints {
     }
 
     /**
-     * Propagates cancellation exceptions produced by this package. A cancellation exception
-     * supplied as {@code ex} takes precedence over the current token's state.
+     * Propagates cancellation exceptions produced by this package. A cancellation exception supplied
+     * as {@code ex} takes precedence over the current token's state.
      *
      * @param ex the exception to check
      * @throws FatCancellationException if {@code ex} is a fat cancellation exception
-     * @throws LeanCancellationException if {@code ex} is a lean cancellation exception or the
-     *         current scope is canceled
+     * @throws LeanCancellationException if {@code ex} is a lean cancellation exception or the current
+     *     scope is canceled
      */
     public static void propagateCancellation(Throwable ex) {
         Throwables.throwIfInstanceOf(ex, FatCancellationException.class);
@@ -501,7 +495,8 @@ public final class Checkpoints {
     }
 
     private static void checkCancellationToken(boolean lean) {
-        CancellationToken cancelToken = TaskScopeTl.getCancellationToken();
+        BatchExecutionContext batch = TaskScopeTl.getBatchExecutionContext();
+        CancellationToken cancelToken = batch == null ? null : batch.cancellationToken();
         if (cancelToken != null && cancelToken.getState().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")
@@ -509,9 +504,11 @@ public final class Checkpoints {
         }
     }
 
-    private static LeanCancellationException interrupted(String message) {
+    private static LeanCancellationException interrupted(String message, InterruptedException cause) {
         Thread.currentThread().interrupt();
-        return cancellation(message);
+        LeanCancellationException cancellation = cancellation(message);
+        cancellation.initCause(cause);
+        return cancellation;
     }
 
     private static LeanCancellationException cancellation(String message) {

@@ -2,7 +2,7 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章仍以 `0.1.x` 兼容 API 为主；它们不能作为 v0.2 API 参考，新的调用方式见主项目使用指南。
 
 ## 快速开始
 
@@ -63,7 +63,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.huatalk.parallelinscope.scope` (Par, ParOptions, AsyncBatchResult, ParConfig)
+- `io.github.huatalk.parallelinscope.scope` (GlobalPar, Par, ExecutionOptions, AsyncBatchResult)
 - `io.github.huatalk.parallelinscope.spi` (TaskListener, LivelockListener)
 
 **禁止访问**：

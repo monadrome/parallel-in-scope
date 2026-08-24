@@ -1,9 +1,9 @@
 package io.github.huatalk.parallelinscope.scope;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.JdkFutureAdapters;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
@@ -11,228 +11,160 @@ import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
-
-import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 import java.util.function.Function;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import javax.annotation.Nullable;
 
 /**
  * Main facade for parallel execution.
- * <p>
- * Instance-based: each {@code Par} holds a reference to a {@link ParConfig}.
- * Use {@link #getInstance()} for the default shared singleton backed by
- * {@link GlobalParConfig#get()}, or create custom instances via
- * {@link #Par(ParConfig)} for isolated configurations.
- * <p>
- * Provides the {@link #map} instance method that wires together
- * the entire parallel execution pipeline:
+ *
+ * <p>Each {@code Par} is created by one {@link GlobalPar} and remains bound to its executor
+ * runtime. Calls are rejected once its owner begins shutdown.
+ *
+ * <p>Provides the {@link #map} instance method that wires together the entire parallel execution
+ * pipeline:
+ *
  * <ul>
- *   <li>Normalization of {@link ParOptions}</li>
- *   <li>Creation of {@link ScopedCallable} wrappers with lifecycle instrumentation</li>
- *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}</li>
- *   <li>Parent-child {@link CancellationToken} chaining</li>
- *   <li>Late binding for timeout and fail-fast cancellation</li>
- *   <li>Heuristic cleanup of cancelled queued tasks</li>
+ *   <li>Resolution of {@link ExecutionOptions} into a batch context
+ *   <li>Creation of {@link ScopedCallable} wrappers with lifecycle instrumentation
+ *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}
+ *   <li>Parent-child {@link CancellationToken} chaining
+ *   <li>Late binding for timeout and fail-fast cancellation
+ *   <li>Heuristic cleanup of cancelled queued tasks
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class Par {
 
-    private final ParConfig config;
+    private final GlobalPar globalPar;
+    private final ExecutorRuntime runtime;
+    private final String displayName;
 
-    // ==================== Lazy Singleton ====================
+    private Par(GlobalPar globalPar, String displayName, ExecutorRuntime runtime) {
+        this.globalPar = Objects.requireNonNull(globalPar, "globalPar cannot be null");
+        this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
+        this.displayName = Objects.requireNonNull(displayName, "displayName cannot be null");
+    }
 
-    private static final class Holder {
-        static final Par INSTANCE = new Par(ParConfig.getDefault());
+    static Par forGlobal(GlobalPar globalPar, String displayName, ExecutorRuntime runtime) {
+        return new Par(globalPar, displayName, runtime);
+    }
+
+    /** Returns the owning immutable GlobalPar. */
+    public GlobalPar getGlobalPar() {
+        return globalPar;
+    }
+
+    /** Returns this Par's diagnostic label. */
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    ExecutorRuntime getRuntimeForTest() {
+        return runtime;
     }
 
     /**
-     * Returns the default shared singleton instance backed by {@link ParConfig#getDefault()}.
+     * Executes a batch using the executor bound when the owning {@link GlobalPar} was built.
      *
-     * @return the default Par instance
-     */
-    public static Par getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    /**
-     * Creates a new Par instance with the given configuration.
+     * <p>The supplied list is snapshotted only as task callables are created; callers must not
+     * structurally mutate it while this method runs. A {@code null} or empty list returns an empty
+     * result without submitting work. When invoked within another scoped task, the child batch
+     * inherits cancellation and cannot outlive its parent's deadline. The selected executor never
+     * changes per call and is not owned by this {@code Par}. Once the owning {@link GlobalPar} is
+     * closed, this method throws {@link IllegalStateException} before submitting any task.
      *
-     * @param config the ParConfig instance to use
-     * @throws NullPointerException if config is null
-     */
-    public Par(ParConfig config) {
-        this.config = Objects.requireNonNull(config, "config cannot be null");
-    }
-
-    /**
-     * Returns the ParConfig associated with this Par instance.
-     *
-     * @return the ParConfig
-     */
-    public ParConfig getConfig() {
-        return config;
-    }
-
-    /**
-     * Executes a function in parallel for each element, returning mapped results.
-     * The executor is resolved from the registry by name.
-     *
-     * @param <T>          the input element type
-     * @param <R>          the mapped result type
-     * @param executorName registered executor name
-     * @param list         collection to process
-     * @param function     mapping function
-     * @param options      execution parameters
-     * @return batch result containing futures for each mapped result
-     * @throws IllegalArgumentException if no executor is registered with the given name
+     * @param list input elements, or {@code null} for an empty batch
+     * @param function synchronous mapping function, run at most once for each submitted element
+     * @param options immutable per-batch request; it cannot select an executor
+     * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
     public <T, R> AsyncBatchResult<R> map(
-            String executorName,
-            @Nullable List<T> list,
-            Function<? super T, ? extends R> function,
-            ParOptions options) {
-
-        ExecutorBinding binding = resolveExecutor(executorName);
-        return executeParallel(list, item -> () -> function.apply(item), options, binding);
+            @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
+        Objects.requireNonNull(options, "options cannot be null");
+        return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
     }
 
-    /**
-     * Binds already-submitted futures to this task scope.
-     * <p>
-     * The supplied futures are not submitted or otherwise scheduled by this method. Ordinary
-     * JDK futures are adapted to {@link ListenableFuture} values, while existing Guava
-     * {@code ListenableFuture} instances are reused directly. Parent cancellation, timeout, and
-     * fail-fast behavior are wired through the same cancellation token used by {@link #map}.
-     * Cancellation is best effort and depends on the supplied future implementation. In
-     * particular, {@link java.util.concurrent.CompletableFuture#cancel(boolean)} does not use the
-     * {@code mayInterruptIfRunning} argument to interrupt an underlying running task, so the
-     * future may be marked cancelled while its computation continues.
-     *
-     * @param <T>     the result type
-     * @param futures  already-submitted futures in the desired result order
-     * @param options  execution parameters, including timeout behavior
-     * @return batch result containing the bound futures
-     * @throws NullPointerException if an element in a non-null list is null
-     */
-    public <T> AsyncBatchResult<T> bind(
-            @Nullable List<? extends Future<? extends T>> futures,
-            ParOptions options) {
-
-        if (futures == null || futures.isEmpty()) {
-            return emptyBatchResult();
-        }
-
-        for (Future<? extends T> future : futures) {
-            Objects.requireNonNull(future, "future element cannot be null");
-        }
-
-        ParOptions normalizedOptions = ParOptions.formalized(options, futures.size(), config.getDefaultTimeoutMillis());
-        List<ListenableFuture<T>> adapted = futures.stream()
-                .map(Par::<T>adaptFuture)
-                .collect(toImmutableList());
-
-        CancellationToken parentToken = TaskScopeTl.getCancellationToken();
-        if (parentToken == null) {
-            parentToken = ThreadRelay.getParentCancellationToken();
-        }
-        CancellationToken cancellationToken = new CancellationToken(parentToken);
-        ListenableFuture<?> submitCanceller = Futures.immediateVoidFuture();
-        AsyncBatchResult<T> result = AsyncBatchResult.of(submitCanceller, adapted);
-        cancellationToken.lateBind(
-                adapted, normalizedOptions.forTimeout(), submitCanceller, config.getTimerService());
-        return result;
+    private <T, R> AsyncBatchResult<R> mapWhileOpen(
+            @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
+        int taskCount = list == null ? 0 : list.size();
+        BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
+        io.github.huatalk.parallelinscope.context.GlobalParObservationContext observation = parent != null
+                        && parent.observationContext() != null
+                        && parent.observationContext().owner() == globalPar
+                ? parent.observationContext()
+                : parent == null
+                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                                        != null
+                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                                                .owner()
+                                        == globalPar
+                        ? io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                        : null;
+        BatchExecutionContext batchContext = BatchExecutionContext.resolve(
+                globalPar.executionPolicyFor(displayName),
+                options,
+                taskCount,
+                parent,
+                observation,
+                runtime.identity(),
+                displayName);
+        return executeGlobal(list, item -> () -> function.apply(item), batchContext);
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> ListenableFuture<T> adaptFuture(Future<? extends T> future) {
-        Objects.requireNonNull(future, "future element cannot be null");
-        if (future instanceof ListenableFuture<?>) {
-            return (ListenableFuture<T>) future;
-        }
-        return JdkFutureAdapters.listenInPoolThread((Future<T>) future);
-    }
-
-    private ExecutorBinding resolveExecutor(String executorName) {
-        ExecutorBinding binding = config.getExecutorBinding(executorName);
-        if (binding == null) {
-            throw new IllegalArgumentException("No executor registered with name '" + executorName + "'");
-        }
-        return binding;
-    }
-
-    private <T, R> AsyncBatchResult<R> executeParallel(
-            List<T> list,
-            Function<T, Callable<R>> callableMapper,
-            ParOptions options,
-            ExecutorBinding binding) {
-
-        if (list == null || list.isEmpty()) {
-            return emptyBatchResult();
-        }
-
-        ParOptions normalizedOptions = ParOptions.formalized(options, list.size(), config.getDefaultTimeoutMillis());
-        String taskName = normalizedOptions.getTaskName();
-
-        // Record task pair for livelock detection
-        String sourceExecutorName = ThreadRelay.getCurrentExecutorName();
+    private <T, R> AsyncBatchResult<R> executeGlobal(
+            List<T> list, Function<T, Callable<R>> callableMapper, BatchExecutionContext batchContext) {
+        if (list == null || list.isEmpty()) return emptyBatchResult();
         TaskEdge edge = new TaskEdge(
-                normalizedOptions.getParallelism(),
-                normalizedOptions.getTaskType(),
-                binding.getName(),
-                sourceExecutorName,
+                batchContext.effectiveParallelism(),
+                batchContext.taskType(),
+                batchContext.executorIdentity(),
+                batchContext.parent() == null ? null : batchContext.parent().executorIdentity(),
+                batchContext.parLabel(),
+                batchContext.parent() == null ? "NA" : batchContext.parent().parLabel(),
                 list.size(),
-                normalizedOptions.timeoutMillis(),
-                binding.isDeadlockProne());
-        logForking(taskName, edge);
-
-        // Build parent-child CancellationToken chain
-        CancellationToken parentToken = TaskScopeTl.getCancellationToken();
-        if (parentToken == null) {
-            parentToken = ThreadRelay.getParentCancellationToken();
-        }
-        CancellationToken cancellationToken = new CancellationToken(parentToken);
-
-        // Create ScopedCallable list with context fields
+                batchContext.remaining().toMillis(),
+                runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+        logForking(batchContext, edge);
         List<Callable<R>> tasks = list.stream()
-                .map(item -> {
-                    ScopedCallable<R> scopedCallable = new ScopedCallable<>(taskName, callableMapper.apply(item), config,
-                            normalizedOptions, cancellationToken, binding.getName());
-                    return (Callable<R>) scopedCallable;
-                })
+                .map(item -> (Callable<R>) new ScopedCallable<>(
+                        batchContext.taskName(),
+                        callableMapper.apply(item),
+                        batchContext,
+                        globalPar.executionPolicyFor(displayName).taskListeners()))
                 .collect(toImmutableList());
-
-        AsyncBatchResult<R> result = ConcurrentLimitExecutor.<R>create(
-                        binding.getExecutor(),
-                        normalizedOptions,
-                        ParConfig.getSubmitterPool(),
-                        binding.getPhaseObserver())
+        AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
+                        runtime.submissionExecutor(), batchContext, globalPar.submitterPool(), runtime.phaseObserver())
                 .submitAll(tasks);
-
-        // Late bind: wire up cancellation, timeout, fail-fast
-        cancellationToken.lateBind(
-                result.getResults(), normalizedOptions.forTimeout(), result.getSubmitCanceller(),
-                config.getTimerService());
-
+        batchContext
+                .cancellationToken()
+                .lateBind(
+                        result.getResults(),
+                        batchContext.remaining(),
+                        result.getSubmitCanceller(),
+                        globalPar.timeoutScheduler());
+        globalPar.retainUntilComplete(result.getResults());
         return result;
     }
 
     /**
-     * Records a fork relationship for livelock detection.
+     * Records one parent-to-child batch edge. Batch IDs, rather than reusable task names, preserve
+     * graph correctness when the same named operation is invoked concurrently.
      */
-    private static void logForking(String taskName, TaskEdge edge) {
-        TaskGraph.logTaskPair(ThreadRelay.getCurrentTaskName(), taskName, edge);
+    private static void logForking(BatchExecutionContext context, TaskEdge edge) {
+        BatchExecutionContext parent = context.parent();
+        TaskGraph.logTaskPair(
+                parent == null ? null : parent.batchId(),
+                parent == null ? ThreadRelay.getCurrentTaskName() : parent.taskName(),
+                context.batchId(),
+                context.taskName(),
+                edge);
     }
 
     private static <T> AsyncBatchResult<T> emptyBatchResult() {
         return AsyncBatchResult.of(ImmutableList.<ListenableFuture<T>>of());
     }
-
 }

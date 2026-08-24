@@ -1,15 +1,12 @@
 package demo.article;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -18,14 +15,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * D1: get(timeout) 后任务还在跑
  *
- * <p>演示标准 Future.get(timeout) 超时后任务仍在运行的问题，
- * 以及 parallel-in-scope Par.map() 超时自动取消的解决方案。
+ * <p>演示标准 Future.get(timeout) 超时后任务仍在运行的问题， 以及 parallel-in-scope Par.map() 超时自动取消的解决方案。
  */
 public class D1_GetTimeoutStillRunningTest {
 
@@ -35,9 +32,7 @@ public class D1_GetTimeoutStillRunningTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(2);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
-                .build();
+        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
         par = new Par(config);
     }
 
@@ -113,20 +108,24 @@ public class D1_GetTimeoutStillRunningTest {
                 .build();
 
         List<Integer> input = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> result = par.map("test-pool", input, x -> {
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                // 被中断，记录状态后退出
-                if (x == 1) task1Completed.set(false);
-                else task2Completed.set(false);
-                throw new RuntimeException("Task cancelled", e);
-            }
-            if (x == 1) task1Completed.set(true);
-            else task2Completed.set(true);
-            return x;
-        }, opts);
+        AsyncBatchResult<Integer> result = par.map(
+                "test-pool",
+                input,
+                x -> {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        // 被中断，记录状态后退出
+                        if (x == 1) task1Completed.set(false);
+                        else task2Completed.set(false);
+                        throw new RuntimeException("Task cancelled", e);
+                    }
+                    if (x == 1) task1Completed.set(true);
+                    else task2Completed.set(true);
+                    return x;
+                },
+                opts);
 
         // 等待超时取消生效
         Thread.sleep(2000);

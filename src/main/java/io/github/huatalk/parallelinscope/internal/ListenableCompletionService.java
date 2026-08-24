@@ -1,9 +1,9 @@
 package io.github.huatalk.parallelinscope.internal;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -12,13 +12,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link CompletionService} implementation backed by Guava {@link ListenableFutureTask} instances.
- * <p>
- * Each submitted task is both the future returned to the caller and the runnable passed to the
+ *
+ * <p>Each submitted task is both the future returned to the caller and the runnable passed to the
  * executor. Completion listeners add that same object to the completion queue, so cancellation is
  * directly visible to queue maintenance such as {@code ThreadPoolExecutor.purge()}.
  *
@@ -26,7 +25,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 final class ListenableCompletionService<V> implements CompletionService<V> {
 
-    private static final Consumer<ExecutionPhase> NOOP = phase -> { };
+    private static final Consumer<ExecutionPhase> NOOP = phase -> {};
 
     private final Executor executor;
     private final BlockingQueue<ListenableFuture<V>> completionQueue;
@@ -44,19 +43,17 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     /**
      * Creates a completion service using the supplied completion queue.
      *
-     * @param executor        executor used to run submitted tasks
+     * @param executor executor used to run submitted tasks
      * @param completionQueue queue that receives completed futures
      */
-    ListenableCompletionService(
-            Executor executor,
-            BlockingQueue<ListenableFuture<V>> completionQueue) {
+    ListenableCompletionService(Executor executor, BlockingQueue<ListenableFuture<V>> completionQueue) {
         this(executor, completionQueue, NOOP);
     }
 
     /**
      * Creates a completion service that observes execution-phase hints.
      *
-     * @param executor      executor used to run submitted tasks
+     * @param executor executor used to run submitted tasks
      * @param completionQueue queue that receives completed futures
      * @param phaseObserver phase hint consumer
      */
@@ -72,8 +69,8 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     /**
      * Creates a completion service that reports cancellation of submitted tasks.
      *
-     * @param executor                   executor used to run submitted tasks
-     * @param completionQueue            queue that receives completed futures
+     * @param executor executor used to run submitted tasks
+     * @param completionQueue queue that receives completed futures
      * @param queuedCancellationObserver callback for tasks cancelled before run
      */
     ListenableCompletionService(
@@ -83,8 +80,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
         this(executor, completionQueue, phaseObserverFor(queuedCancellationObserver));
     }
 
-    private static Consumer<ExecutionPhase> phaseObserverFor(
-            Runnable queuedCancellationObserver) {
+    private static Consumer<ExecutionPhase> phaseObserverFor(Runnable queuedCancellationObserver) {
         Objects.requireNonNull(queuedCancellationObserver);
         return phase -> {
             if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
@@ -107,7 +103,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     /**
      * Submits a runnable and returns the exact future passed to the executor.
      *
-     * @param task   task to execute
+     * @param task task to execute
      * @param result value returned after successful execution, possibly {@code null}
      * @return the submitted listenable future
      */
@@ -141,7 +137,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      * Waits up to the supplied timeout for the next completed future.
      *
      * @param timeout maximum time to wait
-     * @param unit    unit of the timeout
+     * @param unit unit of the timeout
      * @return the next completed future, or {@code null} when the timeout expires
      * @throws InterruptedException if interrupted while waiting
      */

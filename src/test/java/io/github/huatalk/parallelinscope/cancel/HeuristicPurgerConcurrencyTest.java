@@ -1,21 +1,19 @@
 package io.github.huatalk.parallelinscope.cancel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 /** Proves the per-executor purge state machine under deterministic races. */
 public class HeuristicPurgerConcurrencyTest {
@@ -28,7 +26,9 @@ public class HeuristicPurgerConcurrencyTest {
         executors.forEach(ThreadPoolExecutor::shutdownNow);
     }
 
-    /** Active callbacks increment sequence state but do not inspect the queue or submit duplicates. */
+    /**
+     * Active callbacks increment sequence state but do not inspect the queue or submit duplicates.
+     */
     @Test
     public void callbacksAreLogicalNoopWhilePurgeIsRunning() throws Exception {
         CountingQueue queue = new CountingQueue(20);
@@ -47,11 +47,12 @@ public class HeuristicPurgerConcurrencyTest {
         CountDownLatch done = new CountDownLatch(32);
         for (int i = 0; i < 32; i++) {
             new Thread(() -> {
-                ready.countDown();
-                awaitLatch(start);
-                observer.run();
-                done.countDown();
-            }).start();
+                        ready.countDown();
+                        awaitLatch(start);
+                        observer.run();
+                        done.countDown();
+                    })
+                    .start();
         }
         assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
         start.countDown();
@@ -150,8 +151,7 @@ public class HeuristicPurgerConcurrencyTest {
     }
 
     /** Cancels a task range and emits one matching cancellation signal per task. */
-    private static void cancel(
-            List<ListenableFutureTask<Void>> tasks, int from, int to, Runnable observer) {
+    private static void cancel(List<ListenableFutureTask<Void>> tasks, int from, int to, Runnable observer) {
         for (int i = from; i < to; i++) {
             assertThat(tasks.get(i).cancel(false)).isTrue();
             observer.run();

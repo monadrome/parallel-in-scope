@@ -3,7 +3,6 @@ package io.github.huatalk.parallelinscope.cancel;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
-
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -19,8 +18,8 @@ import java.util.logging.Logger;
 
 /**
  * Coalesces cleanup of cancelled tasks retained by {@link SmartBlockingQueue} instances.
- * <p>
- * Queue pressure and cancelled-task ratio are concurrent snapshots used as advisory signals;
+ *
+ * <p>Queue pressure and cancelled-task ratio are concurrent snapshots used as advisory signals;
  * neither value is an exact queue accounting guarantee.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -31,7 +30,7 @@ public final class HeuristicPurger {
     private static final long COALESCING_DELAY_MILLIS = 50L;
     private static final long FAILURE_RETRY_DELAY_MILLIS = 1_000L;
     private static final long CANCELLATION_ESTIMATE_EXPIRY_NANOS = TimeUnit.MINUTES.toNanos(1);
-    private static final Runnable NOOP = () -> { };
+    private static final Runnable NOOP = () -> {};
 
     private enum MaintenanceState {
         IDLE,
@@ -52,14 +51,6 @@ public final class HeuristicPurger {
         }
     }
 
-    private static final class PurgeExecutorHolder {
-        private static final ScheduledExecutorService INSTANCE = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder()
-                        .setDaemon(true)
-                        .setNameFormat("ThreadPoolPurger-%d")
-                        .build());
-    }
-
     private final AtomicBoolean enabled;
     private final AtomicDouble queuePressureThreshold;
     private final AtomicDouble cancelledTaskRatioThreshold;
@@ -67,32 +58,33 @@ public final class HeuristicPurger {
     private final long estimateExpiryNanos;
     private final AtomicLong resetGeneration = new AtomicLong();
     private final ConcurrentHashMap<ThreadPoolExecutor, PoolState> states = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService maintenanceExecutor;
 
     /**
      * Creates a purger backed by atomically adjustable thresholds.
      *
-     * @param queuePressureThreshold       minimum queue-size-to-capacity ratio
+     * @param queuePressureThreshold minimum queue-size-to-capacity ratio
      * @param cancelledTaskRatioThreshold minimum estimated cancelled-task ratio
      */
-    public HeuristicPurger(
-            AtomicDouble queuePressureThreshold,
-            AtomicDouble cancelledTaskRatioThreshold) {
+    public HeuristicPurger(AtomicDouble queuePressureThreshold, AtomicDouble cancelledTaskRatioThreshold) {
         this(new AtomicBoolean(true), queuePressureThreshold, cancelledTaskRatioThreshold);
     }
 
     /**
      * Creates a purger backed by atomically adjustable enablement and thresholds.
      *
-     * @param enabled                     whether automatic purge is enabled
-     * @param queuePressureThreshold       minimum queue-size-to-capacity ratio
+     * @param enabled whether automatic purge is enabled
+     * @param queuePressureThreshold minimum queue-size-to-capacity ratio
      * @param cancelledTaskRatioThreshold minimum estimated cancelled-task ratio
      */
     public HeuristicPurger(
-            AtomicBoolean enabled,
-            AtomicDouble queuePressureThreshold,
-            AtomicDouble cancelledTaskRatioThreshold) {
-        this(enabled, queuePressureThreshold, cancelledTaskRatioThreshold,
-                System::nanoTime, CANCELLATION_ESTIMATE_EXPIRY_NANOS);
+            AtomicBoolean enabled, AtomicDouble queuePressureThreshold, AtomicDouble cancelledTaskRatioThreshold) {
+        this(
+                enabled,
+                queuePressureThreshold,
+                cancelledTaskRatioThreshold,
+                System::nanoTime,
+                CANCELLATION_ESTIMATE_EXPIRY_NANOS);
     }
 
     /** Creates a purger with an injectable monotonic clock for expiry tests. */
@@ -110,19 +102,41 @@ public final class HeuristicPurger {
             throw new IllegalArgumentException("estimateExpiryNanos must be positive");
         }
         this.estimateExpiryNanos = estimateExpiryNanos;
+        this.maintenanceExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("ThreadPoolPurger-%d")
+                .build());
     }
 
-    /** Discards cancellation estimates issued before this reset generation. */
+    /**
+     * Discards cancellation estimates issued before this reset generation.
+     *
+     * <p>Already running maintenance is not interrupted. The generation check instead prevents stale
+     * cancellation observations from scheduling a later purge after the reset.
+     */
     public void clearPendingCancellations() {
         resetGeneration.incrementAndGet();
         states.values().forEach(PoolState::settleCurrentGeneration);
     }
 
     /**
-     * Returns the queued-cancellation callback bound to the submitted task's executor.
-     * Unsupported queue implementations receive a static no-op callback.
+     * Stops this purger's scheduler and releases its pool-level state. This method never shuts down
+     * or otherwise mutates an observed application executor.
+     */
+    public void close() {
+        maintenanceExecutor.shutdownNow();
+        states.clear();
+    }
+
+    /**
+     * Returns the queued-cancellation callback bound to the submitted task's executor. Unsupported
+     * queue implementations receive a static no-op callback.
      *
-     * @param executor actual executor used to run the task
+     * <p>The returned callback must be invoked only when a submitted task is cancelled before it
+     * starts. It is safe to invoke more than once: accounting is heuristic and maintenance is
+     * coalesced. The executor is keyed by object identity, not by its display name.
+     *
+     * @param executor actual supplied executor used to run the task
      * @return executor-bound cancellation callback
      */
     public Runnable cancellationObserverFor(ThreadPoolExecutor executor) {
@@ -141,8 +155,7 @@ public final class HeuristicPurger {
         private final AtomicLong issuedSequence = new AtomicLong();
         private final AtomicLong settledThrough = new AtomicLong();
         private final AtomicLong lastFailedSequence = new AtomicLong(-1L);
-        private final AtomicReference<MaintenanceState> maintenanceState =
-                new AtomicReference<>(MaintenanceState.IDLE);
+        private final AtomicReference<MaintenanceState> maintenanceState = new AtomicReference<>(MaintenanceState.IDLE);
         private final AtomicReference<CancellationMarker> lastCancellation =
                 new AtomicReference<>(new CancellationMarker(0L, 0L, 0L));
         private final AtomicReference<String> lastLoggedDecision = new AtomicReference<>();
@@ -152,8 +165,8 @@ public final class HeuristicPurger {
         private PoolState(ThreadPoolExecutor executor, SmartBlockingQueue<?> queue) {
             this.executor = executor;
             this.queue = queue;
-            this.executorId = executor.getClass().getSimpleName() + "@"
-                    + Integer.toHexString(System.identityHashCode(executor));
+            this.executorId =
+                    executor.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(executor));
         }
 
         /** Records one possible queued cancellation and evaluates maintenance only while idle. */
@@ -214,11 +227,9 @@ public final class HeuristicPurger {
             if (maintenanceState.compareAndSet(MaintenanceState.IDLE, MaintenanceState.SUBMITTED)) {
                 logCurrentDecision("submitted", estimatedCancelled);
                 try {
-                    PurgeExecutorHolder.INSTANCE.schedule(this::runMaintenance, delayMillis,
-                            TimeUnit.MILLISECONDS);
+                    maintenanceExecutor.schedule(this::runMaintenance, delayMillis, TimeUnit.MILLISECONDS);
                 } catch (RuntimeException e) {
-                    maintenanceState.compareAndSet(
-                            MaintenanceState.SUBMITTED, MaintenanceState.IDLE);
+                    maintenanceState.compareAndSet(MaintenanceState.SUBMITTED, MaintenanceState.IDLE);
                     logCurrentDecision("failed-submit", estimatedCancelled());
                     LOGGER.log(Level.WARNING, "Unable to schedule cancelled-task purge", e);
                 }
@@ -227,16 +238,14 @@ public final class HeuristicPurger {
 
         /** Rechecks the latest snapshots and calls {@link ThreadPoolExecutor#purge()} when eligible. */
         private void runMaintenance() {
-            if (!maintenanceState.compareAndSet(
-                    MaintenanceState.SUBMITTED, MaintenanceState.RUNNING)) {
+            if (!maintenanceState.compareAndSet(MaintenanceState.SUBMITTED, MaintenanceState.RUNNING)) {
                 return;
             }
             long claimThrough = issuedSequence.get();
             boolean retry = false;
             try {
                 long estimatedCancelled = estimatedCancelled();
-                if (!enabled.get() || estimatedCancelled <= 0L
-                        || !thresholdsMet(estimatedCancelled, true)) {
+                if (!enabled.get() || estimatedCancelled <= 0L || !thresholdsMet(estimatedCancelled, true)) {
                     return;
                 }
                 int beforeSize = queue.size();
@@ -245,8 +254,7 @@ public final class HeuristicPurger {
                     executor.purge();
                     settleThrough(claimThrough);
                     lastFailedSequence.set(-1L);
-                    logPurge(estimatedCancelled, beforeSize, queue.size(),
-                            System.nanoTime() - started);
+                    logPurge(estimatedCancelled, beforeSize, queue.size(), System.nanoTime() - started);
                 } catch (RuntimeException e) {
                     retry = claimThrough > lastFailedSequence.getAndSet(claimThrough);
                     logCurrentDecision("failed", estimatedCancelled());
@@ -286,8 +294,7 @@ public final class HeuristicPurger {
             long generation = resetGeneration.get();
             CancellationMarker marker = lastCancellation.get();
             while (marker.generation < generation
-                    && !lastCancellation.compareAndSet(
-                            marker, new CancellationMarker(generation, 0L, 0L))) {
+                    && !lastCancellation.compareAndSet(marker, new CancellationMarker(generation, 0L, 0L))) {
                 marker = lastCancellation.get();
             }
             logCurrentDecision("disabled", 0L);
@@ -306,15 +313,29 @@ public final class HeuristicPurger {
             double ratioThreshold = cancelledTaskRatioThreshold.get();
             if (queuePressure < pressureThreshold) {
                 if (logSkip) {
-                    logDecisionOnce("skip-pressure", cancelled, queueSize, capacity,
-                            queuePressure, pressureThreshold, cancelledRatio, ratioThreshold);
+                    logDecisionOnce(
+                            "skip-pressure",
+                            cancelled,
+                            queueSize,
+                            capacity,
+                            queuePressure,
+                            pressureThreshold,
+                            cancelledRatio,
+                            ratioThreshold);
                 }
                 return false;
             }
             if (cancelledRatio < ratioThreshold) {
                 if (logSkip) {
-                    logDecisionOnce("skip-ratio", cancelled, queueSize, capacity,
-                            queuePressure, pressureThreshold, cancelledRatio, ratioThreshold);
+                    logDecisionOnce(
+                            "skip-ratio",
+                            cancelled,
+                            queueSize,
+                            capacity,
+                            queuePressure,
+                            pressureThreshold,
+                            cancelledRatio,
+                            ratioThreshold);
                 }
                 return false;
             }
@@ -333,8 +354,7 @@ public final class HeuristicPurger {
                 double ratioThreshold) {
             String previous = lastLoggedDecision.getAndSet(action);
             if (!action.equals(previous)) {
-                logDecision(action, cancelled, queueSize, capacity,
-                        pressure, pressureThreshold, ratio, ratioThreshold);
+                logDecision(action, cancelled, queueSize, capacity, pressure, pressureThreshold, ratio, ratioThreshold);
             }
         }
 
@@ -347,8 +367,15 @@ public final class HeuristicPurger {
             int capacity = queue.getCapacity();
             double pressure = (double) queueSize / capacity;
             double ratio = (double) Math.min(cancelled, queueSize) / capacity;
-            logDecision(action, cancelled, queueSize, capacity, pressure,
-                    queuePressureThreshold.get(), ratio, cancelledTaskRatioThreshold.get());
+            logDecision(
+                    action,
+                    cancelled,
+                    queueSize,
+                    capacity,
+                    pressure,
+                    queuePressureThreshold.get(),
+                    ratio,
+                    cancelledTaskRatioThreshold.get());
         }
 
         /** Writes one structured threshold decision without claiming exact queue accounting. */
@@ -362,23 +389,34 @@ public final class HeuristicPurger {
                 double ratio,
                 double ratioThreshold) {
             if (LOGGER.isLoggable(Level.FINEST)) {
-                LOGGER.log(Level.FINEST,
+                LOGGER.log(
+                        Level.FINEST,
                         "purge action={0} executor={1} queueSize={2} capacity={3} "
                                 + "pressure={4} pressureThreshold={5} estimatedCancelled={6} "
                                 + "cancelledRatio={7} cancelledRatioThreshold={8}",
-                        new Object[] {action, executorId, queueSize, capacity, pressure,
-                                pressureThreshold, cancelled, ratio, ratioThreshold});
+                        new Object[] {
+                            action,
+                            executorId,
+                            queueSize,
+                            capacity,
+                            pressure,
+                            pressureThreshold,
+                            cancelled,
+                            ratio,
+                            ratioThreshold
+                        });
             }
         }
 
         /** Writes approximate queue change and elapsed purge time at FINEST level. */
         private void logPurge(long claimed, int beforeSize, int afterSize, long durationNanos) {
             if (LOGGER.isLoggable(Level.FINEST)) {
-                LOGGER.log(Level.FINEST,
+                LOGGER.log(
+                        Level.FINEST,
                         "purge action=purged executor={0} estimatedCancelled={1} beforeSize={2} "
                                 + "afterSize={3} approximateSizeChange={4} durationNanos={5}",
-                        new Object[] {executorId, claimed, beforeSize, afterSize,
-                                beforeSize - afterSize, durationNanos});
+                        new Object[] {executorId, claimed, beforeSize, afterSize, beforeSize - afterSize, durationNanos
+                        });
             }
         }
     }

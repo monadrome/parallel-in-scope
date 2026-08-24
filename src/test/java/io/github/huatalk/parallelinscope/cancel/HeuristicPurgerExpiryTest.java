@@ -1,20 +1,21 @@
 package io.github.huatalk.parallelinscope.cancel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 /** Tests lazy expiry of historical cancellation estimates. */
 public class HeuristicPurgerExpiryTest {
@@ -34,8 +35,7 @@ public class HeuristicPurgerExpiryTest {
     public void expiredCancellationEstimateDoesNotTriggerPurge() throws Exception {
         AtomicLong now = new AtomicLong(1L);
         AtomicInteger purgeCount = new AtomicInteger();
-        executor = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(10)) {
+        executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(10)) {
             @Override
             public void purge() {
                 purgeCount.incrementAndGet();
@@ -43,8 +43,7 @@ public class HeuristicPurgerExpiryTest {
             }
         };
         HeuristicPurger purger = new HeuristicPurger(
-                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.20),
-                now::get, 100L);
+                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.20), now::get, 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         for (int i = 0; i < 8; i++) {
             executor.getQueue().put(ListenableFutureTask.create(() -> null));
@@ -54,7 +53,8 @@ public class HeuristicPurgerExpiryTest {
         now.set(102L);
         cancelOne(observer);
 
-        await().during(100, TimeUnit.MILLISECONDS).atMost(1, TimeUnit.SECONDS)
+        await().during(100, TimeUnit.MILLISECONDS)
+                .atMost(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(0));
 
         cancelOne(observer);
@@ -69,8 +69,7 @@ public class HeuristicPurgerExpiryTest {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
         HeuristicPurger purger = new HeuristicPurger(
-                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.30),
-                clock::getAsLong, 100L);
+                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.30), clock::getAsLong, 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
@@ -82,7 +81,8 @@ public class HeuristicPurgerExpiryTest {
         clock.release.countDown();
         delayed.join(5_000L);
 
-        await().during(100, TimeUnit.MILLISECONDS).atMost(1, TimeUnit.SECONDS)
+        await().during(100, TimeUnit.MILLISECONDS)
+                .atMost(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(0));
 
         observer.run();
@@ -97,9 +97,8 @@ public class HeuristicPurgerExpiryTest {
         AtomicInteger purgeCount = new AtomicInteger();
         AtomicBoolean enabled = new AtomicBoolean(true);
         executor = countingExecutor(purgeCount);
-        HeuristicPurger purger = new HeuristicPurger(
-                enabled, new AtomicDouble(0.80), new AtomicDouble(0.20),
-                clock::getAsLong, 100L);
+        HeuristicPurger purger =
+                new HeuristicPurger(enabled, new AtomicDouble(0.80), new AtomicDouble(0.20), clock::getAsLong, 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
@@ -113,7 +112,8 @@ public class HeuristicPurgerExpiryTest {
         paused.join(5_000L);
 
         observer.run();
-        await().during(100, TimeUnit.MILLISECONDS).atMost(1, TimeUnit.SECONDS)
+        await().during(100, TimeUnit.MILLISECONDS)
+                .atMost(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(0));
 
         observer.run();
@@ -121,10 +121,30 @@ public class HeuristicPurgerExpiryTest {
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
     }
 
+    @Test
+    public void finestDiagnosticsCanBeEnabledForPurgeDecisions() throws Exception {
+        Logger logger = Logger.getLogger(HeuristicPurger.class.getName());
+        Level previous = logger.getLevel();
+        logger.setLevel(Level.FINEST);
+        try {
+            AtomicInteger purgeCount = new AtomicInteger();
+            executor = countingExecutor(purgeCount);
+            HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.05));
+            Runnable observer = purger.cancellationObserverFor(executor);
+            enqueue(8);
+            cancelOne(observer);
+            await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
+            purger.clearPendingCancellations();
+            purger.close();
+        } finally {
+            logger.setLevel(previous);
+        }
+    }
+
     /** Creates an executor that counts normal purge scans. */
     private ThreadPoolExecutor countingExecutor(AtomicInteger purgeCount) {
-        return new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(10)) {
+        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(10)) {
             @Override
             public void purge() {
                 purgeCount.incrementAndGet();

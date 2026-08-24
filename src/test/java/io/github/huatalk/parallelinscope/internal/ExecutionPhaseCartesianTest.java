@@ -1,12 +1,9 @@
 package io.github.huatalk.parallelinscope.internal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -15,8 +12,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Named;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises the full lifecycle-timing by interrupt-policy Cartesian surface. */
 public class ExecutionPhaseCartesianTest {
@@ -31,15 +30,14 @@ public class ExecutionPhaseCartesianTest {
     private static Stream<Arguments> lifecycleCases() {
         return Stream.of(Timing.values())
                 .flatMap(timing -> Stream.of(false, true)
-                        .map(interrupt -> Arguments.of(
-                                Named.of(caseId(timing, interrupt), timing), interrupt)));
+                        .map(interrupt -> Arguments.of(Named.of(caseId(timing, interrupt), timing), interrupt)));
     }
 
     /** Verifies Future, phase, body-entry, completion, and interrupt planes for each combination. */
     @ParameterizedTest(name = "{0};mayInterrupt={1}")
     @MethodSource("lifecycleCases")
-    public void cancellationLifecycleMatchesTimingAndInterruptPolicy(
-            Timing timing, boolean mayInterrupt) throws Exception {
+    public void cancellationLifecycleMatchesTimingAndInterruptPolicy(Timing timing, boolean mayInterrupt)
+            throws Exception {
         AtomicReference<Runnable> submitted = new AtomicReference<>();
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
         List<ExecutionPhase> phases = new CopyOnWriteArrayList<>();
@@ -47,8 +45,8 @@ public class ExecutionPhaseCartesianTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch exited = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
-        ListenableCompletionService<Integer> service = new ListenableCompletionService<>(
-                submitted::set, completions, phases::add);
+        ListenableCompletionService<Integer> service =
+                new ListenableCompletionService<>(submitted::set, completions, phases::add);
         ListenableFuture<Integer> future = service.submit(() -> {
             entered.countDown();
             try {
@@ -87,10 +85,9 @@ public class ExecutionPhaseCartesianTest {
 
         if (timing == Timing.RUNNING) {
             assertThat(exited.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(phases).containsExactly(
-                    ExecutionPhase.RUNNING,
-                    ExecutionPhase.CANCEL_REQUESTED_RUNNING,
-                    ExecutionPhase.TERMINAL);
+            assertThat(phases)
+                    .containsExactly(
+                            ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING, ExecutionPhase.TERMINAL);
         }
     }
 
@@ -113,7 +110,8 @@ public class ExecutionPhaseCartesianTest {
             ListenableFuture<Integer> future,
             List<ExecutionPhase> phases,
             CountDownLatch entered,
-            AtomicBoolean interrupted) throws Exception {
+            AtomicBoolean interrupted)
+            throws Exception {
         if (timing == Timing.BEFORE_RUN) {
             assertThat(future.isCancelled()).isTrue();
             assertThat(entered.getCount()).isOne();
@@ -126,8 +124,7 @@ public class ExecutionPhaseCartesianTest {
             } else {
                 assertThat(interrupted).isFalse();
             }
-            assertThat(phases).containsExactly(
-                    ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
+            assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
         } else {
             assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo(7);
             assertThat(interrupted).isFalse();
@@ -146,7 +143,6 @@ public class ExecutionPhaseCartesianTest {
 
     /** Returns a stable generated-case identity. */
     private static String caseId(Timing timing, boolean interrupt) {
-        return "surface=future-lifecycle;timing=" + timing
-                + ";mayInterrupt=" + interrupt;
+        return "surface=future-lifecycle;timing=" + timing + ";mayInterrupt=" + interrupt;
     }
 }

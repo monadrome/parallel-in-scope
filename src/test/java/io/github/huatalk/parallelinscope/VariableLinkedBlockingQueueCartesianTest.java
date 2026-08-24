@@ -1,11 +1,8 @@
 package io.github.huatalk.parallelinscope;
 
-import io.github.huatalk.parallelinscope.queue.VariableLinkedBlockingQueue;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.huatalk.parallelinscope.queue.VariableLinkedBlockingQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -13,8 +10,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Named;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises producer/consumer waiters by counterpart, interrupt, and timeout release modes. */
 public class VariableLinkedBlockingQueueCartesianTest {
@@ -42,8 +41,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
     private static Stream<Arguments> waiterCases() {
         return Stream.of(Waiter.values())
                 .flatMap(waiter -> Stream.of(Release.values())
-                        .map(release -> Arguments.of(
-                                Named.of(caseId(waiter, release), waiter), release)));
+                        .map(release -> Arguments.of(Named.of(caseId(waiter, release), waiter), release)));
     }
 
     /** Verifies wake-up, interruption, timeout, and queue-state invariants for each case. */
@@ -85,8 +83,8 @@ public class VariableLinkedBlockingQueueCartesianTest {
     /** Builds every queue mutation that should release a producer waiting on a full queue. */
     private static Stream<Arguments> producerReleaseCases() {
         return Stream.of(ProducerRelease.values())
-                .map(release -> Arguments.of(Named.of(
-                        "surface=producer-condition-release;mutation=" + release, release)));
+                .map(release ->
+                        Arguments.of(Named.of("surface=producer-condition-release;mutation=" + release, release)));
     }
 
     /** Verifies every capacity-creating mutation signals a producer without losing its element. */
@@ -97,15 +95,17 @@ public class VariableLinkedBlockingQueueCartesianTest {
         queue.put(0);
         CountDownLatch invoked = new CountDownLatch(1);
         AtomicBoolean completed = new AtomicBoolean();
-        Thread producer = new Thread(() -> {
-            invoked.countDown();
-            try {
-                queue.put(1);
-                completed.set(true);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }, "queue-producer-release-" + release);
+        Thread producer = new Thread(
+                () -> {
+                    invoked.countDown();
+                    try {
+                        queue.put(1);
+                        completed.set(true);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                },
+                "queue-producer-release-" + release);
 
         producer.start();
         assertThat(invoked.await(5, TimeUnit.SECONDS)).isTrue();
@@ -150,8 +150,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
     }
 
     /** Applies one mutation that creates room in a previously full queue. */
-    private static void createCapacity(
-            VariableLinkedBlockingQueue<Integer> queue, ProducerRelease release)
+    private static void createCapacity(VariableLinkedBlockingQueue<Integer> queue, ProducerRelease release)
             throws InterruptedException {
         if (release == ProducerRelease.TAKE) {
             assertThat(queue.take()).isZero();
@@ -176,8 +175,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
                 && System.nanoTime() < deadline) {
             Thread.yield();
         }
-        assertThat(thread.getState())
-                .isIn(Thread.State.WAITING, Thread.State.TIMED_WAITING);
+        assertThat(thread.getState()).isIn(Thread.State.WAITING, Thread.State.TIMED_WAITING);
     }
 
     /** Asserts the result and queue mutation allowed by the selected release mode. */

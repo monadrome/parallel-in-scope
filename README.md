@@ -24,29 +24,18 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 ```
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("io-pool", Executors.newFixedThreadPool(8))
+GlobalPar execution = GlobalPar.builder()
+        .register("io", Executors.newFixedThreadPool(8))
         .build();
 
-ParOptions options = ParOptions.ioTask("fetch-user")
+ExecutionOptions options = ExecutionOptions.of("fetch-user")
         .parallelism(4)
-        .timeout(3_000)
+        .timeout(Duration.ofSeconds(3))
         .build();
 
-AsyncBatchResult<User> result = new Par(config)
-        .map("io-pool", userIds, userService::findById, options);
+AsyncBatchResult<User> result = execution.par("io")
+        .map(userIds, userService::findById, options);
 ```
-
-For timeout isolation, configure a dedicated scheduler with `.timer(yourScheduledExecutor)`. It only tracks deadlines; timeout/cancel actions run on the framework's cached timer-task pool. The caller owns and shuts down the supplied scheduler.
-
-For a compatibility-style global entry point, initialize it once during application bootstrap, before calling `Par.getInstance()`:
-
-```java
-GlobalParConfig.initializeDefault(config);
-Par par = Par.getInstance();
-```
-
-Explicit `new Par(config)` remains the preferred dependency-injection form. The first global read freezes the built-in default when no configuration was initialized, and any later initialization attempt fails.
 
 ## Core Capabilities
 
@@ -63,6 +52,7 @@ Explicit `new Par(config)` remains the preferred dependency-injection form. The 
 | Entry | Contents |
 |---|---|
 | [English documentation](docs/en/index.md) | User guides, API references, design notes, and case studies |
+| [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |
 | [Demo project](demo/README.en.md) | Runnable examples and the article catalog |
 | [Chinese documentation](docs/zh/index.md) | Complete Chinese documentation set |

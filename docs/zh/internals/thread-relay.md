@@ -9,12 +9,12 @@
 
 ## 为什么需要跨线程上下文传播
 
-parallel-in-scope 的核心 API 是实例方法 `Par.map()`。调用者配置 `ParOptions` 后，框架创建 `CancellationToken` 并将任务分发到线程池执行。问题在于：
+parallel-in-scope 的核心 API 是实例方法 `Par.map()`。调用者传入 `ExecutionOptions` 后，框架创建 `BatchExecutionContext` 和 `CancellationToken` 并将任务分发到绑定的线程池执行。问题在于：
 
 ```
 父线程 (Thread-Main)
   ├── CancellationToken: token-A
-  ├── ParOptions: parallelism=8, timeout=5s
+  ├── ExecutionOptions: parallelism=8, timeout=5s
   └── 提交任务 → 线程池
         ├── Worker-1: 需要知道 token-A（用于取消传播）
         ├── Worker-2: 需要知道 parallelism=8（用于嵌套并行）
@@ -172,7 +172,7 @@ Worker 线程
 
 ## 复制的是条目，共享的是值对象
 
-`parentMap.putAll(parentContext)` 会复制 Map 条目，但不会深拷贝 `CancellationToken`、`ParOptions` 等值对象；`parentMap` 和父线程的 `curMap` 持有相同的对象引用。
+`parentMap.putAll(parentContext)` 会复制 Map 条目，但不会深拷贝 `CancellationToken` 等值对象；`parentMap` 和父线程的 `curMap` 持有相同的对象引用。批次选项和运行状态现在由 `BatchExecutionContext` 管理。
 
 ```
 父线程 curMap                         子线程 parentMap
@@ -188,7 +188,7 @@ Worker 线程
 - 不存在序列化/反序列化开销
 - 不存在深拷贝带来的内存翻倍
 
-对于 `ConcurrentHashMap` 中存储的不可变或线程安全对象（`CancellationToken` 内部以 `AtomicReference` 保存状态，`ParOptions` 是不可变对象），共享引用是安全的。
+对于 `ConcurrentHashMap` 中存储的不可变或线程安全对象（`CancellationToken` 内部以 `AtomicReference` 保存状态），共享引用是安全的。
 
 ## 与 TTL 的配合
 

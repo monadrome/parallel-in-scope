@@ -1,14 +1,12 @@
 package io.github.huatalk.parallelinscope;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -17,9 +15,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
-import static org.awaitility.Awaitility.await;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Named;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises purge pressure, cancellation ratio, and enablement as a full boundary matrix. */
 public class HeuristicPurgerCartesianTest {
@@ -36,20 +35,17 @@ public class HeuristicPurgerCartesianTest {
                 .flatMap(pressure -> Stream.of(Boundary.values())
                         .flatMap(ratio -> Stream.of(false, true)
                                 .map(enabled -> Arguments.of(
-                                        Named.of(caseId(pressure, ratio, enabled), pressure),
-                                        ratio,
-                                        enabled))));
+                                        Named.of(caseId(pressure, ratio, enabled), pressure), ratio, enabled))));
     }
 
     /** Verifies purge scheduling only when both boundaries and enablement permit it. */
     @ParameterizedTest(name = "{0};ratio={1};enabled={2}")
     @MethodSource("thresholdCases")
-    public void purgeRequiresBothThresholdsAndEnablement(
-            Boundary pressure, Boundary ratio, boolean enabled) throws Exception {
-        CountingThreadPoolExecutor executor = new CountingThreadPoolExecutor(
-                new SmartBlockingQueue<>(10));
-        HeuristicPurger purger = new HeuristicPurger(
-                new AtomicBoolean(enabled), new AtomicDouble(0.80), new AtomicDouble(0.20));
+    public void purgeRequiresBothThresholdsAndEnablement(Boundary pressure, Boundary ratio, boolean enabled)
+            throws Exception {
+        CountingThreadPoolExecutor executor = new CountingThreadPoolExecutor(new SmartBlockingQueue<>(10));
+        HeuristicPurger purger =
+                new HeuristicPurger(new AtomicBoolean(enabled), new AtomicDouble(0.80), new AtomicDouble(0.20));
         Runnable observer = purger.cancellationObserverFor(executor);
         int queueSize = valueFor(pressure, 7, 8, 9);
         int cancellations = valueFor(ratio, 1, 2, 3);
@@ -57,16 +53,15 @@ public class HeuristicPurgerCartesianTest {
         try {
             List<ListenableFutureTask<Void>> tasks = enqueue(executor, queueSize);
             cancel(tasks, cancellations, observer);
-            boolean expectedPurge = enabled
-                    && pressure != Boundary.BELOW
-                    && ratio != Boundary.BELOW;
+            boolean expectedPurge = enabled && pressure != Boundary.BELOW && ratio != Boundary.BELOW;
             if (expectedPurge) {
                 await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                     assertThat(executor.purgeCount).hasValue(1);
                     assertThat(executor.getQueue()).hasSize(queueSize - cancellations);
                 });
             } else {
-                await().during(100, TimeUnit.MILLISECONDS).atMost(1, TimeUnit.SECONDS)
+                await().during(100, TimeUnit.MILLISECONDS)
+                        .atMost(1, TimeUnit.SECONDS)
                         .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(0));
                 assertThat(executor.getQueue()).hasSize(queueSize);
             }
@@ -76,8 +71,8 @@ public class HeuristicPurgerCartesianTest {
     }
 
     /** Adds dormant Future tasks directly to the controlled smart queue. */
-    private static List<ListenableFutureTask<Void>> enqueue(
-            CountingThreadPoolExecutor executor, int count) throws InterruptedException {
+    private static List<ListenableFutureTask<Void>> enqueue(CountingThreadPoolExecutor executor, int count)
+            throws InterruptedException {
         List<ListenableFutureTask<Void>> tasks = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             ListenableFutureTask<Void> task = ListenableFutureTask.create(() -> null);
@@ -88,8 +83,7 @@ public class HeuristicPurgerCartesianTest {
     }
 
     /** Cancels an exact prefix and emits one advisory signal per successful cancellation. */
-    private static void cancel(
-            List<ListenableFutureTask<Void>> tasks, int count, Runnable observer) {
+    private static void cancel(List<ListenableFutureTask<Void>> tasks, int count, Runnable observer) {
         for (int i = 0; i < count; i++) {
             assertThat(tasks.get(i).cancel(false)).isTrue();
             observer.run();
@@ -106,8 +100,7 @@ public class HeuristicPurgerCartesianTest {
 
     /** Returns a stable generated-case identity. */
     private static String caseId(Boundary pressure, Boundary ratio, boolean enabled) {
-        return "surface=purge-threshold;pressure=" + pressure
-                + ";ratio=" + ratio + ";enabled=" + enabled;
+        return "surface=purge-threshold;pressure=" + pressure + ";ratio=" + ratio + ";enabled=" + enabled;
     }
 
     /** Counts purge calls while retaining normal ThreadPoolExecutor removal behavior. */

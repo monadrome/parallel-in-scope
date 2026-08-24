@@ -1,6 +1,6 @@
 package demo;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,37 +10,31 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * 架构约束测试
  *
  * <p>验证 demo 子项目符合架构约束：
+ *
  * <ul>
- *   <li>不访问禁止的内部包</li>
- *   <li>使用正确的包命名空间</li>
+ *   <li>不访问禁止的内部包
+ *   <li>使用正确的包命名空间
  * </ul>
  */
 class ArchitectureConstraintsTest {
 
-    /**
-     * 禁止访问的内部包列表
-     */
+    /** 禁止访问的内部包列表 */
     private static final List<String> FORBIDDEN_PACKAGES = Arrays.asList(
             "io.github.huatalk.parallelinscope.internal",
             "io.github.huatalk.parallelinscope.cancel",
             "io.github.huatalk.parallelinscope.context",
             "io.github.huatalk.parallelinscope.context.graph",
-            "io.github.huatalk.parallelinscope.queue"
-    );
+            "io.github.huatalk.parallelinscope.queue");
 
-    /**
-     * 允许的例外类（来自禁止包的白名单）
-     */
-    private static final List<String> ALLOWED_EXCEPTIONS = Arrays.asList(
-            "io.github.huatalk.parallelinscope.cancel.Checkpoints"
-    );
+    /** 允许的例外类（来自禁止包的白名单） */
+    private static final List<String> ALLOWED_EXCEPTIONS =
+            Arrays.asList("io.github.huatalk.parallelinscope.cancel.Checkpoints");
 
     @Test
     void testNoForbiddenPackageImports() throws IOException {
@@ -51,16 +45,13 @@ class ArchitectureConstraintsTest {
             return;
         }
 
-        try (Stream<Path> javaFiles = Files.walk(sourceRoot)
-                .filter(path -> path.toString().endsWith(".java"))) {
+        try (Stream<Path> javaFiles =
+                Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
 
-            List<String> violations = javaFiles
-                    .flatMap(this::checkFileForForbiddenImports)
-                    .collect(Collectors.toList());
+            List<String> violations =
+                    javaFiles.flatMap(this::checkFileForForbiddenImports).collect(Collectors.toList());
 
-            assertThat(violations)
-                    .as("Should not import forbidden packages")
-                    .isEmpty();
+            assertThat(violations).as("Should not import forbidden packages").isEmpty();
         }
     }
 
@@ -72,17 +63,15 @@ class ArchitectureConstraintsTest {
             return;
         }
 
-        try (Stream<Path> javaFiles = Files.walk(sourceRoot)
-                .filter(path -> path.toString().endsWith(".java"))) {
+        try (Stream<Path> javaFiles =
+                Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
 
             List<String> violations = javaFiles
                     .filter(path -> !isTestFile(path))
                     .flatMap(this::checkFilePackageDeclaration)
                     .collect(Collectors.toList());
 
-            assertThat(violations)
-                    .as("Should use demo package namespace")
-                    .isEmpty();
+            assertThat(violations).as("Should use demo package namespace").isEmpty();
         }
     }
 
@@ -93,14 +82,9 @@ class ArchitectureConstraintsTest {
 
             return lines.stream()
                     .filter(line -> line.trim().startsWith("import "))
-                    .filter(line -> FORBIDDEN_PACKAGES.stream()
-                            .anyMatch(pkg -> line.contains(pkg)))
-                    .filter(line -> ALLOWED_EXCEPTIONS.stream()
-                            .noneMatch(ex -> line.contains(ex)))
-                    .map(line -> String.format(
-                            "%s: forbidden import: %s",
-                            fileName,
-                            line.trim()));
+                    .filter(line -> FORBIDDEN_PACKAGES.stream().anyMatch(pkg -> line.contains(pkg)))
+                    .filter(line -> ALLOWED_EXCEPTIONS.stream().noneMatch(ex -> line.contains(ex)))
+                    .map(line -> String.format("%s: forbidden import: %s", fileName, line.trim()));
         } catch (IOException e) {
             return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
         }
@@ -114,17 +98,13 @@ class ArchitectureConstraintsTest {
             return lines.stream()
                     .filter(line -> line.trim().startsWith("package "))
                     .filter(line -> !line.trim().startsWith("package demo"))
-                    .map(line -> String.format(
-                            "%s: should use demo package, found: %s",
-                            fileName,
-                            line.trim()));
+                    .map(line -> String.format("%s: should use demo package, found: %s", fileName, line.trim()));
         } catch (IOException e) {
             return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
         }
     }
 
     private boolean isTestFile(Path path) {
-        return path.toString().contains("/test/") ||
-               path.toString().contains("\\test\\");
+        return path.toString().contains("/test/") || path.toString().contains("\\test\\");
     }
 }

@@ -98,7 +98,7 @@ Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 | `INITIAL_REJECTED` | reject during the caller's initial loop |
 | `LATER_REJECTED` | reject from the submitter after a completion event |
 | `DIRECT_FALLBACK` | combine rejection with `CPU_BOUND` |
-| `ABANDONED_PLACEHOLDER` | cancel a placeholder or submission loop before admission |
+| `ABANDONED_PLACEHOLDER` | cancel a placeholder or submission loop before admission; direct placeholder cancellation is `CANCELLED`, submitter interruption records its cause |
 
 #### L4. Task outcome
 

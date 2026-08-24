@@ -1,10 +1,9 @@
 package demo.integration;
 
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
-
+import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -15,11 +14,12 @@ import java.util.concurrent.TimeUnit;
  * 集成示例：演示批量数据处理
  *
  * <p>这个示例展示了如何使用 parallel-in-scope 进行批量数据处理：
+ *
  * <ul>
- *   <li>大数据集分批处理</li>
- *   <li>并行度控制</li>
- *   <li>错误处理</li>
- *   <li>性能监控</li>
+ *   <li>大数据集分批处理
+ *   <li>并行度控制
+ *   <li>错误处理
+ *   <li>性能监控
  * </ul>
  */
 public class BatchProcessingDemo {
@@ -33,17 +33,13 @@ public class BatchProcessingDemo {
         System.out.println("数据集大小: " + largeDataset.size() + " 个元素");
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("batch-demo", pool)
-                .build();
+        ParConfig config = ParConfig.builder().executor("batch-demo", pool).build();
         Par par = new Par(config);
 
         try {
             // 2. 配置批处理参数
-            ParOptions options = ParOptions.of("batch-demo")
-                    .parallelism(4)
-                    .timeout(30000)
-                    .build();
+            ParOptions options =
+                    ParOptions.of("batch-demo").parallelism(4).timeout(30000).build();
 
             System.out.println("并行度: " + options.getParallelism());
             System.out.println("超时: 30秒\n");
@@ -52,19 +48,22 @@ public class BatchProcessingDemo {
             System.out.println("开始批量处理...");
             long startTime = System.currentTimeMillis();
 
-            AsyncBatchResult<Integer> result = par.map("batch-demo", largeDataset, n -> {
-                // 模拟复杂计算
-                return expensiveComputation(n);
-            }, options);
+            AsyncBatchResult<Integer> result = par.map(
+                    "batch-demo",
+                    largeDataset,
+                    n -> {
+                        // 模拟复杂计算
+                        return expensiveComputation(n);
+                    },
+                    options);
 
             long endTime = System.currentTimeMillis();
 
             // 4. 统计结果
             System.out.println("\n处理完成!");
             System.out.println("耗时: " + (endTime - startTime) + " 毫秒");
-            System.out.println("平均每个任务: " +
-                    String.format("%.2f", (double)(endTime - startTime) / largeDataset.size()) +
-                    " 毫秒");
+            System.out.println(
+                    "平均每个任务: " + String.format("%.2f", (double) (endTime - startTime) / largeDataset.size()) + " 毫秒");
 
             // 5. 查看结果
             System.out.println("执行报告: " + result.reportString());
@@ -85,9 +84,7 @@ public class BatchProcessingDemo {
         }
     }
 
-    /**
-     * 生成测试数据集
-     */
+    /** 生成测试数据集 */
     private static List<Integer> generateDataset(int size) {
         List<Integer> dataset = new ArrayList<>();
         for (int i = 1; i <= size; i++) {
@@ -96,9 +93,7 @@ public class BatchProcessingDemo {
         return dataset;
     }
 
-    /**
-     * 模拟复杂计算
-     */
+    /** 模拟复杂计算 */
     private static Integer expensiveComputation(int n) {
         // 模拟计算密集型任务
         try {
@@ -110,9 +105,7 @@ public class BatchProcessingDemo {
         return n * n + n;
     }
 
-    /**
-     * 分析性能
-     */
+    /** 分析性能 */
     private static void analyzePerformance(List<Integer> results) {
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;

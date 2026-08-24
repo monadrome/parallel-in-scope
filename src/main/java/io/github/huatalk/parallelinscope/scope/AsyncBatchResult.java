@@ -4,20 +4,18 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.internal.FutureInspector;
 import io.github.huatalk.parallelinscope.internal.FutureState;
-
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Immutable result wrapper for a batch of parallel tasks.
- * <p>
- * Bundles the list of individual {@link ListenableFuture} results together
- * with a {@code submitCanceller} future used to cancel ongoing submission.
+ *
+ * <p>Bundles the list of individual {@link ListenableFuture} results together with a {@code
+ * submitCanceller} future used to cancel ongoing submission.
  *
  * @param <T> the result type of individual tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -33,8 +31,9 @@ public final class AsyncBatchResult<T> {
     }
 
     /**
-     * Provides the future running the sliding-window submission loop.
-     * Cancelling it stops further submissions.
+     * Provides the future running the sliding-window submission loop. Cancelling it stops further
+     * submissions and interrupts the submitter. Any unsubmitted placeholders then fail with the
+     * interruption cause; cancelling a placeholder directly completes it as {@code CANCELLED}.
      *
      * @return the submission-loop future
      */
@@ -54,9 +53,9 @@ public final class AsyncBatchResult<T> {
     /**
      * Creates a result for a batch whose submissions may still be running.
      *
-     * @param <T>             the element result type
+     * @param <T> the element result type
      * @param submitCanceller the future running the remaining submissions
-     * @param results         the individual result futures
+     * @param results the individual result futures
      * @return a new batch result
      */
     public static <T> AsyncBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
@@ -66,7 +65,7 @@ public final class AsyncBatchResult<T> {
     /**
      * Creates a result for a fully submitted batch.
      *
-     * @param <T>     the element result type
+     * @param <T> the element result type
      * @param results the individual result futures
      * @return a new batch result
      */
@@ -80,8 +79,9 @@ public final class AsyncBatchResult<T> {
      * @return a BatchReport containing state counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<FutureState, Integer> stateMap = results.stream().collect(Collectors.toMap(
-                FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(FutureState.class)));
+        Map<FutureState, Integer> stateMap = results.stream()
+                .collect(Collectors.toMap(
+                        FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(FutureState.class)));
         Throwable firstException = null;
         if (stateMap.containsKey(FutureState.FAILED)) {
             firstException = results.stream()
@@ -95,8 +95,8 @@ public final class AsyncBatchResult<T> {
 
     /**
      * Returns a human-readable summary string of the execution report.
-     * <p>
-     * Format: {@code STATE1:count,STATE2:count | firstException=message}
+     *
+     * <p>Format: {@code STATE1:count,STATE2:count | firstException=message}
      *
      * @return formatted report string
      */
@@ -115,9 +115,7 @@ public final class AsyncBatchResult<T> {
         return sb.toString();
     }
 
-    /**
-     * Immutable report of batch task execution state.
-     */
+    /** Immutable report of batch task execution state. */
     public static final class BatchReport {
         private final @Nullable Map<FutureState, Integer> stateCounts;
         private final Throwable firstException;
@@ -125,7 +123,7 @@ public final class AsyncBatchResult<T> {
         /**
          * Creates a batch report.
          *
-         * @param stateCounts    counts keyed by terminal or current future state
+         * @param stateCounts counts keyed by terminal or current future state
          * @param firstException the first observed failure, or {@code null}
          */
         public BatchReport(@Nullable Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
@@ -139,7 +137,9 @@ public final class AsyncBatchResult<T> {
          * @return the immutable state count map, or {@code null} when unavailable
          */
         @Nullable
-        public Map<FutureState, Integer> getStateCounts() { return stateCounts; }
+        public Map<FutureState, Integer> getStateCounts() {
+            return stateCounts;
+        }
 
         /**
          * Returns the first exception from failed tasks.
@@ -147,7 +147,9 @@ public final class AsyncBatchResult<T> {
          * @return the first failure, or {@code null} if no task failed
          */
         @Nullable
-        public Throwable getFirstException() { return firstException; }
+        public Throwable getFirstException() {
+            return firstException;
+        }
 
         @Override
         public String toString() {

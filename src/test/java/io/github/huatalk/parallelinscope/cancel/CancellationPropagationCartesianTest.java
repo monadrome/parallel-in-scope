@@ -1,17 +1,12 @@
 package io.github.huatalk.parallelinscope.cancel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -21,8 +16,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises parent cancellation timing across pending and running child work. */
 public class CancellationPropagationCartesianTest {
@@ -41,15 +39,14 @@ public class CancellationPropagationCartesianTest {
     private static Stream<Arguments> propagationCases() {
         return Stream.of(ParentTiming.values())
                 .flatMap(timing -> Stream.of(ChildWork.values())
-                        .map(work -> Arguments.of(
-                                Named.of(caseId(timing, work), timing), work)));
+                        .map(work -> Arguments.of(Named.of(caseId(timing, work), timing), work)));
     }
 
     /** Verifies parent-to-child cancellation effects independently from state classification. */
     @ParameterizedTest(name = "{0};childWork={1}")
     @MethodSource("propagationCases")
-    public void parentCancellationReachesPendingAndRunningChildWork(
-            ParentTiming timing, ChildWork childWork) throws Exception {
+    public void parentCancellationReachesPendingAndRunningChildWork(ParentTiming timing, ChildWork childWork)
+            throws Exception {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         ChildFixture fixture = ChildFixture.create(childWork);
         CancellationToken parent = CancellationToken.create();
@@ -83,7 +80,6 @@ public class CancellationPropagationCartesianTest {
     }
 
     /** Specifies consistent propagation classification when the parent was already cancelled. */
-    @Disabled("Production issue: already-cancelled parent is misclassified as FAIL_FAST_CANCELED")
     @Test
     public void alreadyCancelledParentClassifiesChildAsPropagatingCancellation() {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();

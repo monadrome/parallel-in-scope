@@ -1,35 +1,38 @@
 package io.github.huatalk.parallelinscope.internal;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Sliding-window concurrency limiter for task execution.
- * <p>
- * Implements a "submit one when one completes" pattern:
+ *
+ * <p>Implements a "submit one when one completes" pattern:
+ *
  * <ol>
- *   <li>Submits an initial batch equal to {@code parallelism}</li>
- *   <li>Uses a blocking queue populated by {@link ListenableCompletionService} to detect completion events</li>
- *   <li>Fills freed slots incrementally with remaining tasks</li>
+ *   <li>Submits an initial batch equal to {@code parallelism}
+ *   <li>Uses a blocking queue populated by {@link ListenableCompletionService} to detect completion
+ *       events
+ *   <li>Fills freed slots incrementally with remaining tasks
  * </ol>
  *
  * @param <V> the result type of tasks
@@ -37,118 +40,53 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
  */
 public class ConcurrentLimitExecutor<V> {
 
-    private static final Consumer<ExecutionPhase> NOOP = phase -> { };
+    private static final Consumer<ExecutionPhase> NOOP = phase -> {};
 
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
-    private final ParOptions options;
+    private final BatchExecutionContext batchContext;
     private final ListeningExecutorService submitterPool;
 
-    /**
-     * Creates a sliding-window task submitter.
-     *
-     * @param pool          the executor that runs task bodies
-     * @param options       the execution options
-     * @param submitterPool the executor that runs the submission loop
-     */
-    public ConcurrentLimitExecutor(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
-        this(pool, options, submitterPool, NOOP);
-    }
-
-    /**
-     * Creates a sliding-window task submitter with execution-phase observation.
-     *
-     * @param pool                       the executor that runs task bodies
-     * @param options                    the execution options
-     * @param submitterPool              the executor that runs the submission loop
-     * @param phaseObserver              callback for execution-phase hints
-     */
+    /** Creates a submitter for the new immutable batch runtime context. */
     public ConcurrentLimitExecutor(
             ListeningExecutorService pool,
-            ParOptions options,
+            BatchExecutionContext batchContext,
             ListeningExecutorService submitterPool,
             Consumer<? super ExecutionPhase> phaseObserver) {
-        this.options = options;
-        this.submitterPool = submitterPool;
+        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
+        this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.cs = new ListenableCompletionService<>(pool, blockingQueue, phaseObserver);
-    }
-
-    /**
-     * Creates a submitter with the legacy queued-cancellation callback.
-     *
-     * @param pool                       executor that runs task bodies
-     * @param options                    execution options
-     * @param submitterPool              executor that runs the submission loop
-     * @param queuedCancellationObserver callback for cancellations before {@code run()}
-     */
-    public ConcurrentLimitExecutor(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Runnable queuedCancellationObserver) {
-        this(pool, options, submitterPool, phaseObserverFor(queuedCancellationObserver));
     }
 
     /**
      * Creates a new executor with the given pool and options.
      *
-     * @param <V>           the task result type
-     * @param pool          the executor that runs task bodies
-     * @param options       the execution options
+     * @param <V> the task result type
+     * @param pool the executor that runs task bodies
+     * @param options the execution options
      * @param submitterPool the executor that runs the submission loop
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(ListeningExecutorService pool, ParOptions options, ListeningExecutorService submitterPool) {
-        return new ConcurrentLimitExecutor<>(pool, options, submitterPool);
-    }
-
     /**
      * Creates a new executor that reports execution-phase hints.
      *
-     * @param <V>                        the task result type
-     * @param pool                       the executor that runs task bodies
-     * @param options                    the execution options
-     * @param submitterPool              the executor that runs the submission loop
-     * @param phaseObserver              callback for execution-phase hints
+     * @param <V> the task result type
+     * @param pool the executor that runs task bodies
+     * @param options the execution options
+     * @param submitterPool the executor that runs the submission loop
+     * @param phaseObserver callback for execution-phase hints
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Consumer<? super ExecutionPhase> phaseObserver) {
-        return new ConcurrentLimitExecutor<>(
-                pool, options, submitterPool, phaseObserver);
-    }
-
     /**
      * Creates an executor with the legacy queued-cancellation callback.
      *
-     * @param <V>                        the task result type
-     * @param pool                       the executor that runs task bodies
-     * @param options                    the execution options
-     * @param submitterPool              the executor that runs the submission loop
+     * @param <V> the task result type
+     * @param pool the executor that runs task bodies
+     * @param options the execution options
+     * @param submitterPool the executor that runs the submission loop
      * @param queuedCancellationObserver callback for cancellations before {@code run()}
      * @return a new concurrency-limited executor
      */
-    public static <V> ConcurrentLimitExecutor<V> create(
-            ListeningExecutorService pool,
-            ParOptions options,
-            ListeningExecutorService submitterPool,
-            Runnable queuedCancellationObserver) {
-        return new ConcurrentLimitExecutor<>(
-                pool, options, submitterPool, queuedCancellationObserver);
-    }
-
-    private static Consumer<ExecutionPhase> phaseObserverFor(Runnable observer) {
-        Objects.requireNonNull(observer);
-        return phase -> {
-            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
-                observer.run();
-            }
-        };
-    }
-
     /**
      * Submits all tasks and returns the batch result immediately.
      *
@@ -160,14 +98,21 @@ public class ConcurrentLimitExecutor<V> {
             return AsyncBatchResult.of(ImmutableList.<ListenableFuture<V>>of());
         }
 
-        ImmutableList.Builder<ListenableFuture<V>> resultBuilder =
-                ImmutableList.builderWithExpectedSize(tasks.size());
+        ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
 
-        int start = Math.min(tasks.size(), options.getParallelism());
+        int start = Math.min(tasks.size(), parallelism());
 
         // Submit initial batch
         for (int i = 0; i < start; i++) {
-            resultBuilder.add(fallbackSubmit(tasks, i));
+            try {
+                resultBuilder.add(fallbackSubmit(tasks, i));
+            } catch (RuntimeException failure) {
+                resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                for (int pending = i + 1; pending < tasks.size(); pending++) {
+                    resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                }
+                return AsyncBatchResult.of(resultBuilder.build());
+            }
         }
 
         int remaining = tasks.size() - start;
@@ -181,9 +126,23 @@ public class ConcurrentLimitExecutor<V> {
                 .mapToObj(ignore -> SettableFuture.<V>create())
                 .collect(toImmutableList());
 
-        ImmutableList<ListenableFuture<V>> results = resultBuilder.addAll(others).build();
-        ListenableFuture<?> submittingFuture = submitterPool
-                .submit(() -> submitRemaining(tasks, results, start));
+        ImmutableList<ListenableFuture<V>> results =
+                resultBuilder.addAll(others).build();
+        AtomicInteger nextIndex = new AtomicInteger(start);
+        ListenableFuture<?> submittingFuture = submitterPool.submit(() -> submitRemaining(tasks, results, nextIndex));
+        // A cancellation may win before the submitter thread starts. In that case the callable
+        // never gets a chance to abandon its placeholders, so close them from the cancellation
+        // callback as well. The submitter loop remains responsible for normal interruption.
+        submittingFuture.addListener(
+                () -> {
+                    if (submittingFuture.isCancelled()) {
+                        abandonRemaining(
+                                results,
+                                nextIndex.get(),
+                                new InterruptedException("remaining task submission cancelled"));
+                    }
+                },
+                directExecutor());
 
         return AsyncBatchResult.of(submittingFuture, results);
     }
@@ -193,7 +152,7 @@ public class ConcurrentLimitExecutor<V> {
         try {
             submitted = cs.submit(tasks.get(i));
         } catch (RejectedExecutionException e) {
-            if (TaskType.CPU_BOUND == options.getTaskType()) {
+            if (TaskType.CPU_BOUND == taskType()) {
                 submitted = Futures.submit(tasks.get(i), directExecutor());
             } else {
                 throw e;
@@ -202,25 +161,74 @@ public class ConcurrentLimitExecutor<V> {
         return submitted;
     }
 
-    private int submitRemaining(List<? extends Callable<V>> tasks, List<ListenableFuture<V>> result, int start) {
-        int index = start;
+    private int parallelism() {
+        return batchContext.effectiveParallelism();
+    }
+
+    private TaskType taskType() {
+        return batchContext.taskType();
+    }
+
+    private int submitRemaining(
+            List<? extends Callable<V>> tasks, List<ListenableFuture<V>> result, AtomicInteger nextIndex) {
+        int index = nextIndex.get();
         int size = tasks.size();
         int submitted = 0;
         while (index < size) {
+            nextIndex.set(index);
             ListenableFuture<V> completed;
             try {
                 completed = blockingQueue.take();
             } catch (InterruptedException e) {
+                abandonRemaining(result, index, e);
                 Thread.currentThread().interrupt();
                 return submitted;
             }
-            if (completed.isCancelled() || result.get(index).isCancelled() || Thread.interrupted()) {
+            if (completed.isCancelled() || result.get(index).isCancelled()) {
+                abandonRemaining(result, index, null);
                 return submitted;
             }
-            ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+            if (Thread.currentThread().isInterrupted()) {
+                abandonRemaining(
+                        result,
+                        index,
+                        new InterruptedException("submitter thread interrupted while scheduling remaining tasks"));
+                Thread.currentThread().interrupt();
+                return submitted;
+            }
+            try {
+                ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+            } catch (RuntimeException e) {
+                abandonRemaining(result, index, e);
+                throw e;
+            }
             submitted++;
             index++;
+            nextIndex.set(index);
         }
         return submitted;
+    }
+
+    /**
+     * Completes every future that will never receive a submission so the batch always reaches a
+     * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
+     * submitter or rejected submission records its cause. Without this cleanup, {@link
+     * Futures#allAsList} could wait forever and hide the reason in {@link AsyncBatchResult#report()}.
+     *
+     * @param result the batch futures
+     * @param fromIndex the first never-submitted future index (inclusive)
+     * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
+     *     when the batch is already being cancelled
+     */
+    private static <V> void abandonRemaining(
+            List<ListenableFuture<V>> result, int fromIndex, @Nullable Throwable reason) {
+        for (int i = fromIndex; i < result.size(); i++) {
+            SettableFuture<V> future = (SettableFuture<V>) result.get(i);
+            if (reason != null) {
+                future.setException(reason);
+            } else {
+                future.cancel(true);
+            }
+        }
     }
 }

@@ -1,18 +1,17 @@
 package io.github.huatalk.parallelinscope;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.internal.FutureState;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import org.junit.jupiter.api.Test;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 /** Contract tests for {@link AsyncBatchResult} reporting. */
 public class AsyncBatchResultTest {
@@ -35,15 +34,14 @@ public class AsyncBatchResultTest {
                 .containsEntry(FutureState.CANCELLED, 1)
                 .hasSize(3);
         assertThat(report.getFirstException()).isSameAs(firstFailure);
-        assertThat(batch.reportString()).isEqualTo(
-                "SUCCESS:1,FAILED:2,CANCELLED:1 | firstException=first failure");
+        assertThat(batch.reportString()).isEqualTo("SUCCESS:1,FAILED:2,CANCELLED:1 | firstException=first failure");
     }
 
     @Test
     public void report_isSnapshotAndReflectsLaterCompletionOnlyInNewReport() {
         SettableFuture<String> pending = SettableFuture.create();
-        AsyncBatchResult<String> batch = AsyncBatchResult.of(Arrays.asList(
-                pending, Futures.immediateFuture("already done")));
+        AsyncBatchResult<String> batch =
+                AsyncBatchResult.of(Arrays.asList(pending, Futures.immediateFuture("already done")));
 
         AsyncBatchResult.BatchReport beforeCompletion = batch.report();
         pending.set("now done");
@@ -59,8 +57,7 @@ public class AsyncBatchResultTest {
 
     @Test
     public void report_emptyBatchHasNoStatesOrException() {
-        AsyncBatchResult<String> batch = AsyncBatchResult.of(
-                Collections.<ListenableFuture<String>>emptyList());
+        AsyncBatchResult<String> batch = AsyncBatchResult.of(Collections.<ListenableFuture<String>>emptyList());
 
         assertThat(batch.report().getStateCounts()).isEmpty();
         assertThat(batch.report().getFirstException()).isNull();
@@ -80,5 +77,15 @@ public class AsyncBatchResultTest {
                 .containsEntry(FutureState.SUCCESS, 1);
         assertThatThrownBy(() -> report.getStateCounts().put(FutureState.CANCELLED, 1))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void batchReport_acceptsNullStateCountsAndFormatsItsContents() {
+        RuntimeException failure = new RuntimeException("failure");
+        AsyncBatchResult.BatchReport report = new AsyncBatchResult.BatchReport(null, failure);
+
+        assertThat(report.getStateCounts()).isNull();
+        assertThat(report.getFirstException()).isSameAs(failure);
+        assertThat(report.toString()).contains("stateCounts=null", "firstException=");
     }
 }

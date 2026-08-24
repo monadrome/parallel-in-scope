@@ -2,8 +2,8 @@ package io.github.huatalk.parallelinscope.spi;
 
 /**
  * A best-effort execution phase reported by a submitted future.
- * <p>
- * These values describe which lifecycle transition won inside the future. They do not prove
+ *
+ * <p>These values describe which lifecycle transition won inside the future. They do not prove
  * executor queue membership or that user code has started running.
  */
 public enum ExecutionPhase {

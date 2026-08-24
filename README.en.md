@@ -7,9 +7,9 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/HuaTalk/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/HuaTalk/parallel-in-scope)](LICENSE)
 
-> Current version: `v0.2.0`. APIs may still change in future `0.x` releases.
+> Current development version: `0.2.0-SNAPSHOT`. The `0.2.0` line is a breaking API migration from `0.1.x`.
 
-A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, sliding-window scheduling, and thread-pool deadlock diagnostics.
+A structured-concurrency toolkit for Java 8+ with bounded batch submission, cooperative cancellation, context propagation, and task-graph diagnostics.
 
 ## Quick Start
 
@@ -21,45 +21,59 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 </dependency>
 ```
 
+Create the application execution topology once. A named `Par` is bound to its executor at build time; choose it before calling `map`, not per invocation.
+
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("io-pool", Executors.newFixedThreadPool(8))
+GlobalPar global = GlobalPar.builder()
+        .register("io", Executors.newFixedThreadPool(8))
+        .defaultPar("io")
         .build();
 
-ParOptions options = ParOptions.ioTask("fetch-user")
+ExecutionOptions options = ExecutionOptions.of("fetch-user")
+        .taskType(TaskType.IO_BOUND)
         .parallelism(4)
-        .timeout(3_000)
+        .timeout(Duration.ofSeconds(3))
         .build();
 
-AsyncBatchResult<User> result = new Par(config)
-        .map("io-pool", userIds, userService::findById, options);
+AsyncBatchResult<User> result = global.par("io")
+        .map(userIds, userService::findById, options);
 ```
+
+`GlobalPar.close()` releases framework-owned timer and submitter resources. It deliberately does not shut down the executor services supplied to `register`; their owner must do that.
+
+## v0.2 Migration
+
+`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `ExecutionOptions`, and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md) before upgrading an existing application.
 
 ## Core Capabilities
 
-- Fail-fast cancellation within a task batch
-- Timeout, explicit, and parent-to-child cancellation propagation
-- Sliding-window submission with bounded concurrency
-- Cross-thread `ThreadLocal` context propagation
-- CPU / IO task-aware scheduling
-- Monitoring SPI for execution, queueing, and failures
-- Cycle detection across task and executor graphs
+- Immutable application topology with multiple named, executor-bound `Par` entries
+- Per-batch `ExecutionOptions` resolved into a `BatchExecutionContext`
+- Fail-fast, timeout, manual, and parent-to-child cooperative cancellation
+- Sliding-window submission with terminal results for tasks that were never submitted
+- Cross-`Par` nested calls with task/executor identity graph recording
+- Optional, threshold-driven cancellation purge per physical `ThreadPoolExecutor`
+- Lifecycle-aware `ClosableBlockingQueue` with post-close recovery transfer
 
 ## Documentation
 
 | Entry | Contents |
 |---|---|
-| [English documentation](docs/en/index.md) | User guides and the bilingual documentation map |
-| [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |
-| [Demo project](demo/README.en.md) | Runnable examples and the article catalog |
-| [Chinese documentation](docs/zh/index.md) | Complete set of current deep-dive documents |
+| [English documentation](docs/en/index.md) | Current user guide, migration, API contracts, and internals |
+| [Chinese documentation](docs/zh/index.md) | Chinese-language documentation set |
+| [Demo project](demo/README.en.md) | Runnable `0.1.x` compatibility examples; not a v0.2 API reference |
 
 ## Compatibility and Build
 
 - Runtime: Java 8+
 - Build tool: Maven 3.x
 - Published artifact: root `parallel-in-scope` project
-- Examples: independent `demo/` project, not published
+- The lifecycle queue also exposes Java 21 sequenced/reverse-view behavior when running on Java 21+
+
+```bash
+mvn clean verify
+mvn install -DskipTests -Dmaven.javadoc.skip=true
+```
 
 ## License
 

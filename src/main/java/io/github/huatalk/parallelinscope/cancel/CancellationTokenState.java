@@ -2,8 +2,8 @@ package io.github.huatalk.parallelinscope.cancel;
 
 /**
  * Lifecycle state of a {@link CancellationToken}.
- * <p>
- * Negative values indicate cancellation states where the task should be interrupted.
+ *
+ * <p>Negative values indicate cancellation states where the task should be interrupted.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -39,9 +39,7 @@ public enum CancellationTokenState {
         return code;
     }
 
-    /**
-     * Returns whether this state requires interruption.
-     */
+    /** Returns whether this state requires interruption. */
     boolean shouldInterruptCurrentThread() {
         return code < 0;
     }

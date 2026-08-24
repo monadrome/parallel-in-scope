@@ -1,14 +1,12 @@
 package demo.article;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.ParConfig;
 import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -18,13 +16,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * E1. 一次性提交打满队列
  *
  * <p>演示问题：一次性向 FixedThreadPool 提交大量任务导致队列堆积。
+ *
  * <p>演示解决：Par.map() 滑动窗口调度，队列深度始终受控。
  */
 class E1_QueueFloodingTest {
@@ -34,8 +33,7 @@ class E1_QueueFloodingTest {
     /**
      * 问题复现：一次性提交大量任务，队列瞬间被打满。
      *
-     * <p>使用 FixedThreadPool(2) 提交 100 个任务，所有任务立即入队，
-     * 队列深度接近 taskCount - poolSize。
+     * <p>使用 FixedThreadPool(2) 提交 100 个任务，所有任务立即入队， 队列深度接近 taskCount - poolSize。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -79,9 +77,8 @@ class E1_QueueFloodingTest {
     /**
      * 解决方法：Par.map() 滑动窗口调度，并发度始终受控。
      *
-     * <p>使用 parallelism=2 提交 100 个任务，通过滑动窗口机制，
-     * 每次只有 parallelism 个任务在线程池中执行，其余等待前一个完成后才提交。
-     * 最大并发度不超过 parallelism (+1 调度开销)。
+     * <p>使用 parallelism=2 提交 100 个任务，通过滑动窗口机制， 每次只有 parallelism 个任务在线程池中执行，其余等待前一个完成后才提交。 最大并发度不超过
+     * parallelism (+1 调度开销)。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -90,9 +87,7 @@ class E1_QueueFloodingTest {
         int parallelism = 2;
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
-                .build();
+        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
         Par par = new Par(config);
 
         try {
@@ -102,9 +97,7 @@ class E1_QueueFloodingTest {
             // Gate blocks all tasks so we can observe peak concurrency
             CountDownLatch gate = new CountDownLatch(1);
 
-            List<Integer> input = IntStream.range(0, TASK_COUNT)
-                    .boxed()
-                    .collect(Collectors.toList());
+            List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
             ParOptions options = ParOptions.of("queue-flood-test")
                     .parallelism(parallelism)
@@ -112,18 +105,22 @@ class E1_QueueFloodingTest {
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
-            AsyncBatchResult<Void> result = par.map("test-pool", input, item -> {
-                int cur = concurrency.incrementAndGet();
-                maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
-                try {
-                    gate.await(30, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    concurrency.decrementAndGet();
-                }
-                return null;
-            }, options);
+            AsyncBatchResult<Void> result = par.map(
+                    "test-pool",
+                    input,
+                    item -> {
+                        int cur = concurrency.incrementAndGet();
+                        maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
+                        try {
+                            gate.await(30, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            concurrency.decrementAndGet();
+                        }
+                        return null;
+                    },
+                    options);
 
             // Wait for initial batch to start running
             Thread.sleep(500);

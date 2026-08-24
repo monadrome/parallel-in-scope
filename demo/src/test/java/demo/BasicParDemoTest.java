@@ -1,10 +1,9 @@
 package demo;
 
 import demo.basic.BasicParDemo;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * BasicParDemo 的基本测试
@@ -18,6 +17,6 @@ class BasicParDemoTest {
     void testBasicParDemoRunsSuccessfully() {
         // 验证 BasicParDemo 的 main 方法能够正常执行
         // 这里不捕获输出，只验证不抛出异常
-        BasicParDemo.main(new String[]{});
+        BasicParDemo.main(new String[] {});
     }
 }

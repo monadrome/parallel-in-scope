@@ -7,9 +7,9 @@ import java.util.Objects;
  * Controls when an action is due based on invocation count, elapsed time, or both.
  *
  * <p>The gate can either bind an action at construction or report when an action is due. It does
- * not block, reject, delay, or schedule invocations. Gate state is safe for concurrent callers,
- * but actions run outside the state lock and may overlap when a later boundary opens before an
- * earlier action completes.
+ * not block, reject, delay, or schedule invocations. Gate state is safe for concurrent callers, but
+ * actions run outside the state lock and may overlap when a later boundary opens before an earlier
+ * action completes.
  *
  * <pre>{@code
  * ActionGate purgeGate = ActionGate.whenBoth(100, Duration.ofSeconds(1));
@@ -26,8 +26,7 @@ public final class ActionGate {
     private int remainingInvocations;
     private long lastOpenTimeNanos;
 
-    private ActionGate(
-            int minInvocations, Duration minInterval, Runnable action) {
+    private ActionGate(int minInvocations, Duration minInterval, Runnable action) {
         if (minInterval != null && (minInterval.isZero() || minInterval.isNegative())) {
             throw new IllegalArgumentException("minInterval must be positive");
         }
@@ -58,8 +57,7 @@ public final class ActionGate {
      */
     public static ActionGate every(int invocations, Runnable action) {
         requirePositive(invocations, "invocations");
-        return new ActionGate(
-                invocations, null, Objects.requireNonNull(action, "action"));
+        return new ActionGate(invocations, null, Objects.requireNonNull(action, "action"));
     }
 
     /**
@@ -69,8 +67,7 @@ public final class ActionGate {
      * @return a time-based gate
      */
     public static ActionGate every(Duration interval) {
-        return new ActionGate(
-                0, Objects.requireNonNull(interval, "interval"), null);
+        return new ActionGate(0, Objects.requireNonNull(interval, "interval"), null);
     }
 
     /**
@@ -82,9 +79,7 @@ public final class ActionGate {
      */
     public static ActionGate every(Duration interval, Runnable action) {
         return new ActionGate(
-                0,
-                Objects.requireNonNull(interval, "interval"),
-                Objects.requireNonNull(action, "action"));
+                0, Objects.requireNonNull(interval, "interval"), Objects.requireNonNull(action, "action"));
     }
 
     /**
@@ -96,8 +91,7 @@ public final class ActionGate {
      */
     public static ActionGate whenBoth(int minInvocations, Duration minInterval) {
         requirePositive(minInvocations, "minInvocations");
-        return new ActionGate(
-                minInvocations, Objects.requireNonNull(minInterval, "minInterval"), null);
+        return new ActionGate(minInvocations, Objects.requireNonNull(minInterval, "minInterval"), null);
     }
 
     /**
@@ -108,8 +102,7 @@ public final class ActionGate {
      * @param action action to run
      * @return a gate using both boundaries
      */
-    public static ActionGate whenBoth(
-            int minInvocations, Duration minInterval, Runnable action) {
+    public static ActionGate whenBoth(int minInvocations, Duration minInterval, Runnable action) {
         requirePositive(minInvocations, "minInvocations");
         return new ActionGate(
                 minInvocations,
@@ -145,8 +138,8 @@ public final class ActionGate {
     }
 
     /**
-     * Runs the action bound at construction when the configured boundaries are reached.
-     * The boundary is consumed before the action runs and is not restored when the action fails.
+     * Runs the action bound at construction when the configured boundaries are reached. The boundary
+     * is consumed before the action runs and is not restored when the action fails.
      *
      * @return {@code true} when the bound action ran
      * @throws IllegalStateException if no action was bound at construction
@@ -160,8 +153,8 @@ public final class ActionGate {
     }
 
     /**
-     * Runs the supplied action when the configured boundaries are reached.
-     * The boundary is consumed before the action runs and is not restored when the action fails.
+     * Runs the supplied action when the configured boundaries are reached. The boundary is consumed
+     * before the action runs and is not restored when the action fails.
      *
      * @param candidate action to run
      * @return {@code true} when the supplied action ran

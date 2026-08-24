@@ -2,186 +2,117 @@ package io.github.huatalk.parallelinscope.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
+import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Cross-thread context relay using {@link TransmittableThreadLocal.Transmitter}.
- * <p>
- * Implements a two-map design ({@code parentMap} and {@code curMap}):
- * when a child thread is spawned, the parent thread's {@code curMap} becomes
- * the child thread's {@code parentMap}. This enables parent-to-child propagation of:
- * <ul>
- *   <li>{@link CancellationToken} - for cascading cancellation</li>
- *   <li>{@link ParOptions} - for context awareness</li>
- *   <li>Task name - for task graph / livelock detection</li>
- * </ul>
- * <p>
- * Uses {@link TransmittableThreadLocal.Transmitter#registerThreadLocal} to register
- * a plain {@link ThreadLocal} for TTL propagation, following the recommended
- * third-party library integration pattern.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
- */
-public class ThreadRelay {
-
-    /** Keys stored in the parent and current relay maps. */
-    public enum RelayItem {
-        /** Cooperative cancellation token. */
-        CANCELLATION_TOKEN,
-        /** Parallel execution options. */
-        PARALLEL_OPTIONS,
-        /** Logical task name. */
-        TASK_NAME,
-        /** Logical executor name. */
-        EXECUTOR_NAME
+/** Relays task cancellation and diagnostic identity across TTL boundaries. */
+public final class ThreadRelay {
+    private enum Item {
+        TOKEN,
+        TASK,
+        EXECUTOR,
+        IDENTITY
     }
 
-    private static final ThreadLocal<ThreadRelay> THREAD_RELAY_TL =
-            ThreadLocal.withInitial(ThreadRelay::new);
+    private static final ThreadLocal<ThreadRelay> TL = ThreadLocal.withInitial(ThreadRelay::new);
 
     static {
-        TransmittableThreadLocal.Transmitter.registerThreadLocal(
-                THREAD_RELAY_TL, tr -> new ThreadRelay(tr.curMap));
+        TransmittableThreadLocal.Transmitter.registerThreadLocal(TL, relay -> new ThreadRelay(relay.current));
     }
 
-    /**
-     * Returns the relay associated with the current thread.
-     *
-     * @return the current thread's relay
-     */
+    private final Map<Item, Object> parent = new ConcurrentHashMap<>();
+    private final Map<Item, Object> current = new ConcurrentHashMap<>();
+
+    public ThreadRelay() {}
+
+    private ThreadRelay(Map<Item, Object> inherited) {
+        if (inherited != null) parent.putAll(inherited);
+    }
+
     public static ThreadRelay getThreadRelay() {
-        return THREAD_RELAY_TL.get();
+        return TL.get();
     }
 
-    private final Map<RelayItem, Object> parentMap = new ConcurrentHashMap<>();
-    private final Map<RelayItem, Object> curMap = new ConcurrentHashMap<>();
-
-    /** Creates an empty relay for a root thread. */
-    public ThreadRelay() {
-    }
-
-    /**
-     * Creates a relay with an inherited parent context.
-     *
-     * @param parentContext values inherited from the parent thread
-     */
-    public ThreadRelay(Map<RelayItem, Object> parentContext) {
-        if (parentContext != null) {
-            this.parentMap.putAll(parentContext);
-        }
-    }
-
-    // ==================== CancellationToken relay ====================
-
-    /**
-     * Returns the cancellation token inherited from the parent task.
-     *
-     * @return the parent token, or {@code null} when none was propagated
-     */
     public static @Nullable CancellationToken getParentCancellationToken() {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay == null) {
-            return null;
-        }
-        Object token = relay.parentMap.get(RelayItem.CANCELLATION_TOKEN);
-        return token instanceof CancellationToken ? (CancellationToken) token : null;
+        return token(TL.get().parent.get(Item.TOKEN));
     }
 
-    /**
-     * Stores the current task's cancellation token for child propagation.
-     *
-     * @param token the current cancellation token
-     */
-    public static void setCurrentCancellationToken(CancellationToken token) {
-        if (token == null) {
-            return;
-        }
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay != null) {
-            relay.curMap.put(RelayItem.CANCELLATION_TOKEN, token);
-        }
+    public static void setCurrentCancellationToken(@Nullable CancellationToken value) {
+        put(Item.TOKEN, value);
     }
 
-    // ==================== ParOptions relay ====================
-
-    /**
-     * Stores the current task's execution options for child propagation.
-     *
-     * @param options the current execution options
-     */
-    public static void setCurrentParallelOptions(ParOptions options) {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay != null) {
-            relay.curMap.put(RelayItem.PARALLEL_OPTIONS, Optional.ofNullable(options));
-        }
+    public static @Nullable CancellationToken getCurrentCancellationToken() {
+        return token(TL.get().current.get(Item.TOKEN));
     }
 
-    // ==================== TaskName relay ====================
+    public static void setCurrentTaskName(@Nullable String value) {
+        TL.get().current.put(Item.TASK, Optional.ofNullable(value));
+    }
 
-    /**
-     * Returns the current logical task name.
-     *
-     * @return the task name, or {@code "NA"} when unavailable
-     */
-    @SuppressWarnings("unchecked")
     public static String getCurrentTaskName() {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay == null) {
-            return "NA";
-        }
-        Object wrapped = relay.curMap.get(RelayItem.TASK_NAME);
-        if (wrapped instanceof Optional) {
-            return ((Optional<String>) wrapped).orElse("NA");
-        }
-        return "NA";
+        return string(TL.get().current.get(Item.TASK));
     }
 
-    /**
-     * Stores the current logical task name for child propagation.
-     *
-     * @param taskName the current task name
-     */
-    public static void setCurrentTaskName(String taskName) {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay != null) {
-            relay.curMap.put(RelayItem.TASK_NAME, Optional.ofNullable(taskName));
-        }
+    public static void setCurrentExecutorName(@Nullable String value) {
+        TL.get().current.put(Item.EXECUTOR, Optional.ofNullable(value));
     }
 
-    // ==================== ExecutorName relay ====================
-
-    /**
-     * Returns the current logical executor name.
-     *
-     * @return the executor name, or {@code "NA"} when unavailable
-     */
-    @SuppressWarnings("unchecked")
     public static String getCurrentExecutorName() {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay == null) {
-            return "NA";
-        }
-        Object wrapped = relay.curMap.get(RelayItem.EXECUTOR_NAME);
-        if (wrapped instanceof Optional) {
-            return ((Optional<String>) wrapped).orElse("NA");
-        }
-        return "NA";
+        return string(TL.get().current.get(Item.EXECUTOR));
     }
 
-    /**
-     * Stores the current logical executor name for child propagation.
-     *
-     * @param executorName the current executor name
-     */
-    public static void setCurrentExecutorName(String executorName) {
-        ThreadRelay relay = THREAD_RELAY_TL.get();
-        if (relay != null) {
-            relay.curMap.put(RelayItem.EXECUTOR_NAME, Optional.ofNullable(executorName));
+    public static void setCurrentExecutorIdentity(@Nullable ExecutorIdentity value) {
+        TL.get().current.put(Item.IDENTITY, Optional.ofNullable(value));
+    }
+
+    public static @Nullable ExecutorIdentity getCurrentExecutorIdentity() {
+        return identity(TL.get().current.get(Item.IDENTITY));
+    }
+
+    public static @Nullable ExecutorIdentity getParentExecutorIdentity() {
+        return identity(TL.get().parent.get(Item.IDENTITY));
+    }
+
+    public static void restoreCurrent(
+            @Nullable CancellationToken token,
+            @Nullable String task,
+            @Nullable String executor,
+            @Nullable ExecutorIdentity identity) {
+        setCurrentCancellationToken(token);
+        setCurrentTaskName(task);
+        setCurrentExecutorName(executor);
+        setCurrentExecutorIdentity(identity);
+    }
+
+    public static void clearCurrent() {
+        TL.get().current.clear();
+    }
+
+    private static void put(Item item, @Nullable Object value) {
+        if (value == null) TL.get().current.remove(item);
+        else TL.get().current.put(item, value);
+    }
+
+    private static @Nullable CancellationToken token(Object value) {
+        return value instanceof CancellationToken ? (CancellationToken) value : null;
+    }
+
+    private static String string(Object value) {
+        if (value instanceof Optional) {
+            Object v = ((Optional<?>) value).orElse(null);
+            return v instanceof String ? (String) v : "NA";
         }
+        return value instanceof String ? (String) value : "NA";
+    }
+
+    private static @Nullable ExecutorIdentity identity(Object value) {
+        if (value instanceof Optional) {
+            Object v = ((Optional<?>) value).orElse(null);
+            return v instanceof ExecutorIdentity ? (ExecutorIdentity) v : null;
+        }
+        return value instanceof ExecutorIdentity ? (ExecutorIdentity) value : null;
     }
 }

@@ -12,13 +12,13 @@ Every package declares `@ParametersAreNonnullByDefault` in `package-info.java`. 
 
 | Area | Annotation source | Examples |
 |---|---|---|
-| Public API | JSR-305 | `Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints` |
+| Public API | JSR-305 | `GlobalPar`, `Par`, `ExecutionOptions`, `AsyncBatchResult`, `Checkpoints` |
 | SPI | JSR-305 | `TaskListener`, `LivelockListener` |
 | Internal implementation | Checker Framework | Executor, queue, context, and graph internals |
 
 ## When to use `@Nullable`
 
-Use it when a return value can be absent, when a constructor explicitly accepts `null`, or when a parameter has an optional value. Examples include `ParConfig.getExecutor(name)` when no executor is registered, a nullable parent `CancellationToken`, and an optional `submitCanceller` in `AsyncBatchResult`.
+Use it when a return value can be absent, when a constructor explicitly accepts `null`, or when a parameter has an optional value. Examples include a nullable parent `BatchExecutionContext`, a nullable parent `CancellationToken`, and an optional `submitCanceller` in `AsyncBatchResult`.
 
 Do not add redundant annotations to non-null parameters covered by the package default or to non-null return values guaranteed by the implementation.
 
