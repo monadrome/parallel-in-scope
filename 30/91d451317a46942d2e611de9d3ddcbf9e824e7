@@ -1,0 +1,352 @@
+src/main/java/io/github/huatalk/parallelinscope/internal/ScopedCallable.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5,8-9,17,21-23,25-28,30-35,50-51,61,66,71-76,79-83,87,91,94-96,100,103-105,109,112-114,139-146,150-154,159-161,175-177,182-183,188,194,200-203,210-222
+.github/workflows/release.yml
+  s_58f6dab728cdf3::t_1b2bd84243821d 6,9,38-42
+demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,6,13,18,22,30,82,106-111
+src/test/java/io/github/huatalk/parallelinscope/FutureInspectorTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-7,15-16,61,64-118
+src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,18,22-28,30-35,42-44,46-49,52-53,56-58,61-63,66-67,71,73-83,85-88,91-115,118-120,122-127,129-131,133-137,139-140,142-149,154-155,157-164
+docs/en/migration-v0.2.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-19
+demo/src/test/java/demo/BasicParDemoTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4,20
+src/test/java/io/github/huatalk/parallelinscope/queue/SmartBlockingQueueTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3-4,6-11,15,17,22-27,31-37,42-54,57-65
+src/main/java/io/github/huatalk/parallelinscope/spi/LivelockListener.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 6-7,33-35,37-38,40-46,60-63,69-72,78-81,87-90,96-99,105-107,120-123
+demo/src/main/java/demo/basic/CancellationDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 18,20-23,26,35,42-43,50-54,56,58-62
+demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4,6,17,19-22,36,41-42,51-58,65-66,87,96,108
+adr/0001-layered-cartesian-concurrency-testing.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 101
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-6,13-15,23,55-66,80,97,114,131,152,170
+src/test/java/io/github/huatalk/parallelinscope/spi/LivelockListenerTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,5,8-9,12-18,22-27,31-34,38-42,46-51
+README.zh-CN.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 10,12,24-25,27-29,32-33,35,38-39,42,44,46,50-56,62-64,71
+demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,14-15,21,29-30,37,45,67,80-81,88,96,114-122,125-133,138,144
+src/test/java/io/github/huatalk/parallelinscope/cancel/LeanCancellationExceptionTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-32
+todo/ConcurrentHashMap迭代器总结.md
+  s_58f6dab728cdf3::t_54c7ecd4e9f78a 1-330
+todo/FutureTask.java
+  s_58f6dab728cdf3::t_cc268282d36936 1-122,125-136,139-153,156-157,160-161,164-182,185-192,195-206,209-234,237-251,253,255-259,261-275,277-284,288-303,305-313,315-322,324,327-346,349-357,360-381,383-386,389-404,406-411,413-429,433-461,466-482,485
+todo/ChmIteratorMissProbe.java
+  s_58f6dab728cdf3::t_cc268282d36936 1-88
+docs/zh/case-studies/ai-concurrency-review-false-positive.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 14
+docs/zh/reference/cooperative-cancellation.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 22-34,47,49,52,65,160
+demo/articles/E3-closable-blocking-queue.md
+  s_9ee3e69bd76a49::t_ea8d3ce531cdd6 1,3,5,7,9,11-17,19,21,23-29,31,33,35-45,47,49,51,53,55,57-62,64,66,68,71-73,75-78,80,83-85,87,90-91,93-101,103,108,110-111,113,115,118-119,122-123,125,127,129,132-136,139,141,143,145-147,149,165-166,168-169,171,174-178,183,185-188,191,193,195-199,202-205,208-213,220-225,228,232,234-242,244,248-252
+  s_289bf50fb54a83::t_7d7f1591a70bdc 34,70,74,81-82,86,88-89,92,102,104-107,109,112,114,116-117,120-121,124,128,130-131,137-138,140,142,144,148,150-155,164,167,170,172-173,179-181,190,192,194,200-201,207,215-219,226-227,229-231,233,243,245-247,253-256
+  s_9ee3e69bd76a49::t_d4917cec58583e 156-163
+todo/futuretask-state-machine.md
+  s_58f6dab728cdf3::t_cc268282d36936 1-395
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 21-22,33,61,66,69,76-77,81-87,105-108,111-116,123-137,139,158,168-169,230,232,241,248,257,297,316-324,330-338,357,370-378,392-393,397-407,414-415,418-419
+src/main/java/io/github/huatalk/parallelinscope/scope/AsyncBatchResult.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 12,16-18,34-36,56,58,68,82-84,98-99,118,126,140-142,150-152
+demo/README.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 5,66
+src/main/java/io/github/huatalk/parallelinscope/queue/MonitorDiningPhilosophersDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,10,13-14,16-17,19,21-22,24-25,28-30,32-39,46-47,49,55-131
+docs/zh/index.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 10
+src/main/java/io/github/huatalk/parallelinscope/cancel/Checkpoints.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5,22-32,38,44,49-52,55,59-60,91,98,110,112,120,128,140-141,149,163,170,181,183,190,197,207,214-215,221,229-230,232,243,250,259,266-267,275,293,300,308,320-321,333-334,346-348,351,356,363,375,377,385,403,415-416,419,424,429-430,432-433,442,455-456,458-460,470,483-484,488-489,498-499,507,509-511
+pom.xml
+  s_58f6dab728cdf3::t_1b2bd84243821d 146-158,199,214,221,232,235,237-241,244,247-254
+  s_289bf50fb54a83::t_130caaae708d8f 222-228
+  s_289bf50fb54a83::t_294b871ebd0196 215-220,229-231,233-234,236,242-243,245-246,255-260
+src/main/java/io/github/huatalk/parallelinscope/queue/PooledMonitorDiningPhilosophersDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,7,9,11,13-14,16-18,20,22-29,31-43,45-51,53-57,59-60,64-75,77-112,116-120,123-131,133,135-137,139-141,143-145,147-154,158-162,165-178,180-181,184-186,188-189,192-194,197-203,205-206,208-213,215-217,221-231
+demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,19-20,26,36,80-81,90,100,108-123
+src/main/java/io/github/huatalk/parallelinscope/context/GlobalParObservationContext.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-74
+demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,18-20,25,35,111-128
+src/test/java/io/github/huatalk/parallelinscope/control/ActionGateTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-7,17,84-88,103,106-122
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTriggerCartesianTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,19-23,45,51-52,193-195
+demo/src/main/java/demo/basic/BasicParDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4,6,16,18-21,34,45,51-59
+.gitignore
+  s_58f6dab728cdf3::t_1b2bd84243821d 14
+src/main/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutor.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,12,21,24,28-30,32-35,43,47,50,53,56-57,64-66,73-77,83-86,101,103,107-115,129-145,155,164-174,178,183,187-196,199-204,207,211-232
+src/test/java/io/github/huatalk/parallelinscope/scope/ExecutionOptionsTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,6-7,9,11-16,18-21,25-29,33-37,39-42,46-56,58-61,65-70,72-73
+docs/en/reference/nullability-annotations.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 15,21
+src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-10,22,26-29,65-67,69,80,83-91,101-118
+todo/chm-iterator-no-duplicate.html
+  s_58f6dab728cdf3::t_cc268282d36936 1-488
+README.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 27-28,31,33,36-37,55
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3,20,29,31-33,45,63-68,71-72,100,109-121,126-127
+docs/zh/visuals/parallel-in-scope-architecture.html
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-27
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskEdge.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3,7-11,24-25,30-32,34-35,37-44,50-52,54-55,58-65,73-96,101,104-107,110,113-116,119,122-125,128,131-134,137,140-143,146,149-152,158-170,174-175
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,20-21,26,28,36,49,100-101,110-111,120,127,135-148,161
+src/main/java/io/github/huatalk/parallelinscope/scope/ExecutorIdentity.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4-19,22-23,26-28,31-33,36-38
+src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenState.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 6,42
+todo/wait-notify-and-guava-monitor.md
+  s_58f6dab728cdf3::t_cc268282d36936 1-356
+demo/pom.xml
+  s_58f6dab728cdf3::t_1b2bd84243821d 67-79
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalParLivelockPolicy.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-54
+src/main/java/io/github/huatalk/parallelinscope/scope/BlockingRisk.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-9
+src/main/java/io/github/huatalk/parallelinscope/context/TaskScopeTl.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3,6,8,10,12-14,17-19,22-24,27-30
+src/test/java/io/github/huatalk/parallelinscope/spi/TaskListenerTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-32
+docs/zh/visuals/parallel-in-scope-user-guide.html
+  s_58f6dab728cdf3::t_1b2bd84243821d 4-13,15-19,22-30
+todo/chm-sizectl.html
+  s_58f6dab728cdf3::t_cc268282d36936 1-480
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationPropagationCartesianTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,19-23,42,48-49
+src/test/java/io/github/huatalk/parallelinscope/queue/ClosableBlockingQueueTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 2-41,43-1320,1322-1340,1342-1360,1362-1370,1373-1374,1376-1377,1379-1394,1397-1401,1403-1418,1421-1422,1424-1425,1427-1432,1434-1458,1460-1475,1477-1545,1547-1579,1581-1616,1619-1629,1631-1640,1643-1651,1653
+  s_289bf50fb54a83::t_bd876ba57f7c12 1617-1618
+  s_289bf50fb54a83::t_a339f5d0649cfd 1580,1630,1652
+  s_289bf50fb54a83::t_4dadf218c61989 1641-1642
+  s_9ee3e69bd76a49::t_dd171e2df3621f 1,42
+  s_289bf50fb54a83::t_5889833685ac2e 1321,1341,1361,1371-1372,1375,1378,1395-1396,1402,1419-1420,1423,1426,1433,1459,1476,1546
+todo/interrupted-exception-handling.md
+  s_58f6dab728cdf3::t_cc268282d36936 1-105
+todo/chm-lock-mechanism.html
+  s_58f6dab728cdf3::t_cc268282d36936 1-177
+docs/en/user-guide.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,5,7,9,12-24,27-29,32-33,36,38,40,43-55,58,60,62,64,67-73,76,79-83,86,88,90,93-97,100,103-106,109,111,113,116-125,128,130,132,134-138,140-141,144,146,148-152
+docs/zh/migration-v0.2.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-19
+src/main/java/io/github/huatalk/parallelinscope/queue/SmartBlockingQueue.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5,12-16,61-62,66-69,75-76,78
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-4,6-8,13,16,18-21,25-41,45-53,58-59,61,63-67,69,71,76-77,79-95,97,102-107,109-133,138-144,146-175,177-211,213-236,238-259,264-267,269-275,277-295,297-318,320-357,359,361-393,395-403,407-413,415-427,429-460,462-485,489-495
+src/test/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutorBatchContextTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-5,9-11,14,18,20-32,35-49,52-56,59-75,77-81,83-95,102-125,128-151,155-170,173-181,184-192,194,196-199
+demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,18-19,25,34,90-91,96,103-104,108-134,136-138,140,142-144
+src/main/java/io/github/huatalk/parallelinscope/context/ThreadRelay.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5,9-18,20,23,26-27,29,31-32,35-36,40,43-45,47-48,51-53,56,59-61,64-106,108-114,116
+README.en.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 10,12,24-25,27-29,32-33,35,38-39,42-47,50-56,62-64,71-76
+demo/README.en.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 7-8
+demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,16-18,23-24,34,45-46,60-68,89,98,112-113,116,120-127,147-148,152-166
+src/main/java/io/github/huatalk/parallelinscope/control/ActionGate.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 10-12,29,60,70,82,94,105,141-142,156-157
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskEdgeEntry.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 6-7,21-27
+CHANGELOG.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 5-9,15-16,24-26
+src/test/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueueTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-799
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 167-173
+src/main/java/io/github/huatalk/parallelinscope/internal/ExecutionPhaseHintFuture.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 19,22,25-27,54-55,68,72,103,109
+src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContext.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-196
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,17-19,24,34,43,50-55,58,70,76,84,90,96,102
+src/test/java/io/github/huatalk/parallelinscope/internal/ExecutionPhaseCartesianTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,15-18,33,39-40,48-49,88-90,113-114,127,146
+demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,17-20,25,27,42,51,58,61,73,78-79,99,106-107,114-115,128-134,155,158,164-165,177-189,202
+src/main/java/io/github/huatalk/parallelinscope/scope/ExecutorRuntime.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5-6,9,11-24,26-28,30-39,43-45,47-48,51-53,55-56,59-75
+demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,17-19,24,34,109-121
+src/main/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionService.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,15,19-20,28,46,49,56,72-73,83,106,140
+docs/en/design/idea-graveyard.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,25
+src/test/java/io/github/huatalk/parallelinscope/VariableLinkedBlockingQueueCartesianTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3,5,13-16,44,86-87,98-108,153,178
+docs/en/reference/cooperative-cancellation.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 15-23,29,31,34,45
+demo/src/test/java/demo/article/B1_MdcContextLostTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,16-18,23,36,51,87-88,90,95,103-111,131-137,143-144,146,150-151,158-167,180
+demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,20,25,29,53,64,71,77,80,85-96
+todo/chm-forwarding-node.html
+  s_58f6dab728cdf3::t_cc268282d36936 1-334
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalExecutionPolicy.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-6,9-13,15-17,19-22,24-25,28-29,33-34,36-37,40-57
+src/main/java/io/github/huatalk/parallelinscope/scope/TaskType.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5-8
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,18-21,26-27,37,51,57-69,73-91,97,101-102,110,120-121,138-150,164,168,176,184-185,189-207,213,217-218
+todo/sizeCtl状态机.md
+  s_58f6dab728cdf3::t_54c7ecd4e9f78a 1-248
+docs/zh/design/philosophy.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 13-14
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,17-20,31,44,63-65,79-80,88,92
+demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,25-26,31-32,35,47-48,51,59,86-87,127-128,131,133-135,146,150,164-176,195
+src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContextTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,6-8,10,12-27,31-48,52-58,62-84,87-89,91-93,95-96,99-101,103-105,107-109
+demo/src/test/java/demo/article/QuickStartTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,15-18,34,59,69-70,87-88
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,8,10,15,27-29,32,34-38,40-43,45-100,102-104,107,109-111,113-117,120-123,126-128,131-134,137-139,141-142,145-148,150-152,154-156,158-160,162-165,167-170,172-174,176-178,180-182,184-218,220,222-230,233,235-242,246-253,257-271,274-275,277,279-281,286,291,295-296,302,307-308,313,317-318,337-342,345-358,361-364,366-367,370-372,375-377,380-390,393-397,400-402,404-407,409
+todo/CHM的锁机制.md
+  s_58f6dab728cdf3::t_54c7ecd4e9f78a 1-258
+adr/0004-lifecycle-blocking-queue-recovery.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-200
+src/main/java/io/github/huatalk/parallelinscope/internal/FutureInspector.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 9,15
+src/main/java/io/github/huatalk/parallelinscope/queue/QueueShutdownException.java
+  s_9ee3e69bd76a49::t_dd171e2df3621f 1,16
+  s_58f6dab728cdf3::t_1b2bd84243821d 2-15,17-30
+src/main/java/io/github/huatalk/parallelinscope/internal/FutureState.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5-6
+src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,20,22,24-26,35-36,58-60,93,126-128,168,172,175,178,188-189,198-200,206-208,214-216,241,273,276-277,295
+src/main/java/io/github/huatalk/parallelinscope/queue/ClosableBlockingQueue.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-1722
+src/main/java/io/github/huatalk/parallelinscope/scope/ExecutionOptions.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4,6-7,10,14-15,17-19,21,25-26,29-30,33-34,37-38,41-42,45-46,49-50,56,60-75,78-86,88-89
+src/main/java/io/github/huatalk/parallelinscope/queue/ClosableQueueLifecycleDemo.java
+  s_9ee3e69bd76a49::t_7c0720a6068c0d 10-11,60,68
+  s_58f6dab728cdf3::t_1b2bd84243821d 12-14,18,20-25,27-32,34,36-40,42-48,50-59,61-67,69-74,76-82,84-104
+  s_9ee3e69bd76a49::t_037e839f4a8db9 1-9,15-17,19,26,33,35,41,49,75,83,105
+todo/codex-blocking-queue-iterative-refactoring.md
+  s_58f6dab728cdf3::t_cc268282d36936 1-221
+todo/futuretask-state-machine.html
+  s_58f6dab728cdf3::t_cc268282d36936 1-553
+src/test/java/io/github/huatalk/parallelinscope/internal/ScopedCallableContextRestoreTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,5-9,11,13,15,17-26,28-34,38-51,55-99,102-107
+demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,20-22,27,37,91-99
+src/main/java/io/github/huatalk/parallelinscope/spi/TaskListener.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 4,8-13,39,42-44,46-52,63,66-69,75-78,84-87,93-96,102-105,112-114,121-123,130-132,139-141
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerConcurrencyTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,15-16,29-31,50-55,154
+todo/并发集合有哪些反直觉的行为.md
+  s_58f6dab728cdf3::t_54c7ecd4e9f78a 1-201
+src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerCartesianTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,18-21,38,44-48,56,63-64,74-75,86,103
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,20-22,27,29-30,40,52-53,111-112,116,121-134,141,156,161,165,171-172,176-177,182-197,204,208
+demo/docs/zh-CN/README.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 5
+demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-6,20,25,28,36-37,65,87-95,97-104,106-118,122-127
+adr/0005-globalpar-executor-binding.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-1228
+src/test/java/io/github/huatalk/parallelinscope/AsyncBatchResultTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,14,37,43-44,60,81-89
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalParPurgePolicy.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-68
+src/main/java/io/github/huatalk/parallelinscope/spi/ExecutionPhase.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 5-6
+docs/zh/user-guide.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,5,7,9,12-24,27-29,32-33,36,38,40,43-55,58,60,62,64,67-73,76,79-83,86,88,90,93-96,99,102-105,108,110,112,115-124,127,129,131,133-137,139-140,143,145,147-151
+src/test/java/io/github/huatalk/parallelinscope/ThreadRelayTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,12,19-21,63-196
+demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,20-22,28,48,70,92-93,115-126,168,188-201,219-220
+src/test/java/io/github/huatalk/parallelinscope/cancel/CheckpointsTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3-4,6-9,16,19,22-24,26,28,30,34-41,45-47,49-51,55-63,67,70-77,79-81,83-86,90-93,95-104,108-117,119-124,126,128-131,133-152,156-177,179-185,189,191-211,213,215,218-220,222-226,228,230-262,265-269,272-277
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraph.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 10-11,21,26,30-32,35-40,42-45,67,69,72,79,136-141,150-154,160,163,173-177,184,191-193,201-203,207-210,219-244,249-255,257,260-274,277-293,298-301,303-308,312,324-326,331-332,354-356,358-362
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 9,13,15-16
+  s_9ee3e69bd76a49::t_b1a6ab01948210 2,4,6,8,10,18,20,22,30,32,34,46,48,50,52,54,56,63,65,67,69-70,74,79,81-82,84,88-89,92,102,104-107,109,112,114,116-117,120-121,124,126,128,130-131,137-138,140,142,144,148,150,152-156,159,162,164-165,171-174,176,181-182,184,186,192-193,198,206-211,218-219,221-223,225,235,237-239,245-248
+  s_289bf50fb54a83::t_9912a3d6df4bb9 1,3,5,7,11-12,14,17,19,21,23-29,31,33,35-45,47,49,51,53,55,57-62,64,66,68,71-73,75-78,80,83,85-87,90-91,93-101,103,108,110-111,113,115,118-119,122-123,125,127,129,132-136,139,141,143,145-147,149,151,157-158,160-161,163,166-170,175,177-180,183,185,187-191,194-197,199-205,212-217,220,224,226-234,236,240-244
+demo/src/test/java/demo/ArchitectureConstraintsTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3,13,19,21-22,27,33,35-37,48-49,51-52,54,66-67,74,85-87,101,108
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-5,9,15-18,38,46,56-57,72,84-85,100-101,115-116,124-144,147
+todo/ChmIteratorProbe.java
+  s_58f6dab728cdf3::t_cc268282d36936 1-100
+src/main/java/io/github/huatalk/parallelinscope/queue/package-info.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-3
+docs/en/index.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 10
+demo/docs/en/README.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 7-8,13
+docs/zh/reference/nullability-annotations.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 47,55
+guava-monitor-code-reading-report.html
+  s_6064adf08b3cab::t_e323583edc1e93 1-76,82-547
+  s_6064adf08b3cab::t_09c72851d96084 77-81
+docs/zh/internals/thread-relay.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 12,17,175,191
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskEdgeTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 1,3,5-6,9-24,27-30,32-38,40-41
+todo/ForwardingNode的完整一生.md
+  s_58f6dab728cdf3::t_54c7ecd4e9f78a 1-187
+reports/mutation-testing-2026-08-21.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 1-85
+docs/zh/design/idea-graveyard.md
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphBatchIdentityTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-11,16,18,20-32,34,39-52,54,59-64,67,70-72,74,76,81-90,92-93,95-97,102-108,112-128,130,135-145,147,150-190
+src/main/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 19-22,27,34-37,42,45,48,51,54,57,60,470
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  s_58f6dab728cdf3::t_1b2bd84243821d 3-4,18-21,27,47,54-63,69-85,94,117,119,125,129-138,148-166,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3091d451317a46942d2e611de9d3ddcbf9e824e7",
+  "prompts": {},
+  "sessions": {
+    "s_289bf50fb54a83": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bdf4c786-329c-4e2f-9f7a-cf4db44a5b17",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_58f6dab728cdf3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8c561bf-a609-4627-ae54-e53b724769c5",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_6064adf08b3cab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fcb16-e037-7e53-8673-f70e5264dc23",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_9ee3e69bd76a49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fba01601-7909-4b6e-bbbc-21e35aaa0d76",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
