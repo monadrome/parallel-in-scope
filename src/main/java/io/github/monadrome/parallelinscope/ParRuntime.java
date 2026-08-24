@@ -369,18 +369,23 @@ public final class ParRuntime implements AutoCloseable {
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *
-     * <p>A non-positive timeout performs a single check without waiting: the call reports the
-     * topology's current state.
+     * <p>Validation order: argument checks run before the interrupt check, which runs before the
+     * quiescence state check. A non-positive timeout performs a single check without waiting: the
+     * call reports the topology's current state.
      *
      * @param timeout the maximum time to wait
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
-     * @throws InterruptedException if the calling thread is interrupted while waiting
+     * @throws InterruptedException if the calling thread is interrupted before or while waiting;
+     *     the interrupt flag is cleared per Java interruption convention
      */
     public boolean awaitQuiescence(Duration timeout) throws InterruptedException {
         Objects.requireNonNull(timeout, "timeout cannot be null");
         long remainingNanos = Deadlines.saturatedNanos(timeout);
         // Saturates to the sentinel when the requested wait is astronomical.
         long deadline = Deadlines.after(System.nanoTime(), remainingNanos);
+        if (Thread.interrupted()) {
+            throw new InterruptedException();
+        }
         synchronized (quiescenceMonitor) {
             while (!servicesShutdown.get() || !liveBodySignals.isEmpty()) {
                 if (remainingNanos <= 0) return false;

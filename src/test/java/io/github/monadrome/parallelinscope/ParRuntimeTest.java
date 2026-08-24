@@ -580,6 +580,31 @@ class ParRuntimeTest {
     }
 
     @Test
+    void awaitQuiescenceThrowsBeforeAnsweringStateWhenTheCallerIsInterrupted() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        try {
+            global.close();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+
+            // The interrupt check runs before the state check: an already-quiescent runtime must
+            // not convert a pre-interrupted caller into a true return value.
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(() -> global.awaitQuiescence(Duration.ZERO))
+                        .isInstanceOf(InterruptedException.class);
+                assertThat(Thread.currentThread().isInterrupted()).isFalse();
+            } finally {
+                Thread.interrupted();
+            }
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
