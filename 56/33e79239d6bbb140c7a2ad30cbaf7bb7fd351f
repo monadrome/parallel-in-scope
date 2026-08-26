@@ -1,0 +1,21 @@
+docs/zh/design/draining-blocking-queue-contract.md
+  s_c43c289a770b54::t_d5e2103fa8aea9 217,219-220,222,226,241-242
+src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueTest.java
+  s_c43c289a770b54::t_1bfe4b0599ebcf 124,157,270,400,403,477,520-522,551-555,623-626,646
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5633e79239d6bbb140c7a2ad30cbaf7bb7fd351f",
+  "prompts": {},
+  "sessions": {
+    "s_c43c289a770b54": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03d06-bfab-70b2-814c-6eaf1f121394",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
