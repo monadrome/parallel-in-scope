@@ -20,14 +20,30 @@ import javax.annotation.Nullable;
 /**
  * A bounded FIFO blocking queue with a one-way draining close.
  *
- * <p>Closing rejects new producers while consumers continue to drain existing elements. Once the
- * queue is closed and empty, value-returning consumers observe the configured terminal signal.
+ * <p>Lifecycle is a one-way three-state machine: {@code OPEN → DRAINING → DRAINED}. {@link
+ * #close()} moves {@code OPEN} to {@code DRAINING}: producers are permanently rejected, while
+ * consumers keep receiving real elements until the queue is empty. The transition to {@code
+ * DRAINED} happens the moment the last element is taken, after which consumer methods return the
+ * configured poison value, or {@code null} / {@link QueueClosedForReadException} when no poison is
+ * configured.
+ *
+ * <p>After {@link #close()}: the {@code add}/{@code put}/{@code offer} family throws {@link
+ * QueueClosedForWriteException} or returns {@code false} without storing anything; consumer
+ * methods keep returning real elements while any remain and only expose the terminal signal once
+ * {@code DRAINED}; collection mutations ({@code clear}/{@code remove}/{@code removeIf}/{@code
+ * removeAll}/{@code retainAll}) remain legal while draining and are governed by {@link
+ * DrainingShutdownPolicy}'s {@code mutations} strategy after {@code DRAINED}; {@code drainTo}
+ * stays available in every state to discard remaining work. Use {@link #isShutdown()} to ask
+ * whether producers were rejected and {@link #isDrained()} to ask whether the queue is empty and
+ * terminal; a closed but non-empty queue is in the {@link #isDraining()} state.
  *
  * <p>Implementation follows {@link java.util.concurrent.LinkedBlockingQueue}'s two-lock structure
  * with Guava {@link Monitor monitors}: a producer monitor guards enqueue and capacity, a consumer
  * monitor guards dequeue and emptiness, and an {@link AtomicInteger} count publishes size across
  * both monitors. Lifecycle state is volatile so that close and drained publication release waiters
  * on either side through the monitors' rolling guard re-evaluation.
+ *
+ * <p>Behavioral contract: {@code docs/zh/design/draining-blocking-queue-contract.md}.
  */
 public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, AutoCloseable {
 
@@ -257,23 +273,42 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region Lifecycle
 
+    /** Returns {@code true} once {@link #close()} has been called, whether or not elements remain. */
     public boolean isShutdown() {
         return lifecycle != Lifecycle.OPEN;
     }
 
+    /**
+     * Returns {@code true} while the queue is closed but not yet empty. Consumers can still take
+     * real elements in this state; {@link #isShutdown()} and {@link #isDrained()} are both {@code
+     * false}.
+     */
     public boolean isDraining() {
         return lifecycle == Lifecycle.DRAINING;
     }
 
+    /**
+     * Returns {@code true} once the queue is closed and empty. This is the terminal state: no
+     * element will ever be returned again, and consumer methods expose the configured terminal
+     * signal (poison, {@code null}, or {@link QueueClosedForReadException}).
+     */
     public boolean isDrained() {
         return lifecycle == Lifecycle.DRAINED;
     }
 
+    /**
+     * Blocks until the queue is {@link #isDrained() drained} (closed and empty), returning
+     * immediately when the terminal state has already been reached.
+     */
     public void awaitDrained() throws InterruptedException {
         takeMonitor.enterWhen(drainedGuard);
         takeMonitor.leave();
     }
 
+    /**
+     * Waits at most the given timeout for the {@link #isDrained() drained} terminal state and
+     * reports whether it was reached.
+     */
     public boolean awaitDrained(long timeout, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(unit, "unit");
         if (!takeMonitor.enterWhen(drainedGuard, timeout, unit)) {
@@ -283,7 +318,16 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return true;
     }
 
-    /** Closes production, transitions to DRAINING, and immediately publishes DRAINED when empty. */
+    /**
+     * Closes the queue to producers and begins the draining phase. Idempotent and non-blocking.
+     *
+     * <p>After this call, the {@code add}/{@code put}/{@code offer} family rejects new elements
+     * (throwing {@link QueueClosedForWriteException} or returning {@code false}), while consumers
+     * keep receiving real elements until the queue is empty, at which point the queue immediately
+     * transitions to the {@link #isDrained() DRAINED} terminal state. Waiting producers and
+     * consumers are released promptly and observe the state change without needing the queue to be
+     * touched again.
+     */
     @Override
     public void close() {
         closeAdmission();
@@ -305,6 +349,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region Producer side
 
+    /**
+     * Inserts the element when capacity is immediately available, returning {@code false}
+     * otherwise. Once {@link #close()} has been called this always returns {@code false} and never
+     * stores an element.
+     */
     @Override
     public boolean offer(E element) {
         requireElement(element);
@@ -324,6 +373,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return oldCount >= 0;
     }
 
+    /**
+     * Inserts the element, waiting until capacity is available. Once {@link #close()} has been
+     * called this throws {@link QueueClosedForWriteException} immediately without waiting and
+     * without storing the element.
+     */
     @Override
     public void put(E element) throws InterruptedException {
         requireElement(element);
@@ -351,6 +405,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Inserts the element before the timeout expires, returning {@code false} on timeout. Once
+     * {@link #close()} has been called this returns {@code false} immediately without waiting and
+     * without storing the element.
+     */
     @Override
     public boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException {
         requireElement(element);
@@ -386,6 +445,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region Consumer side
 
+    /**
+     * Removes and returns the head, or {@code null} when the queue is open and empty. After
+     * {@link #close()} this keeps returning real elements while any remain; once drained it
+     * returns the configured poison value, or {@code null} when no poison is configured.
+     */
     @Override
     @Nullable
     public E poll() {
@@ -411,6 +475,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return item;
     }
 
+    /**
+     * Removes and returns the head, waiting until an element is available. After {@link #close()}
+     * this keeps returning real elements while any remain; once drained it returns the configured
+     * poison value or throws {@link QueueClosedForReadException} without waiting.
+     */
     @Override
     public E take() throws InterruptedException {
         boolean admitted = beginBlockingCall();
@@ -438,6 +507,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Removes and returns the head before the timeout expires, or {@code null} on timeout. After
+     * {@link #close()} this keeps returning real elements while any remain; once drained it
+     * returns the configured poison value, or {@code null} when no poison is configured, without
+     * waiting for the remainder of the timeout.
+     */
     @Override
     @Nullable
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
@@ -469,6 +544,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Returns the head without removing it. Returns {@code null} when the queue is open and empty;
+     * after {@link #close()} it keeps returning real elements while any remain, then the poison
+     * value, or {@code null} without poison, once drained.
+     */
     @Override
     @Nullable
     public E peek() {
@@ -488,6 +568,10 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region Collection operations
 
+    /**
+     * Inserts the element, throwing {@link IllegalStateException} when the queue is full. After
+     * {@link #close()} this throws {@link QueueClosedForWriteException} without storing anything.
+     */
     @Override
     public boolean add(E element) {
         requireElement(element);
@@ -511,6 +595,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return true;
     }
 
+    /**
+     * Removes and returns the head, throwing {@link NoSuchElementException} when the queue is open
+     * and empty. After {@link #close()} this keeps returning real elements while any remain; once
+     * drained it returns the configured poison value or throws {@link QueueClosedForReadException}.
+     */
     @Override
     public E remove() {
         E item;
@@ -535,6 +624,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return item;
     }
 
+    /**
+     * Returns the head without removing it, throwing {@link NoSuchElementException} when the queue
+     * is open and empty. After {@link #close()} this keeps returning real elements while any
+     * remain; once drained it returns the configured poison value or throws {@link
+     * QueueClosedForReadException}.
+     */
     @Override
     public E element() {
         takeMonitor.enter();
@@ -552,6 +647,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Atomically inserts all elements as one batch, validating them before any queue state is
+     * touched (user-supplied elements are never inspected inside a queue monitor). Throws {@link
+     * IllegalStateException} when the batch exceeds the remaining capacity. After {@link #close()}
+     * this throws {@link QueueClosedForWriteException} without storing anything.
+     */
     @Override
     public boolean addAll(Collection<? extends E> source) {
         Objects.requireNonNull(source, "source");
@@ -581,6 +682,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return true;
     }
 
+    /**
+     * Discards every element. While the queue is draining this is legal and moves it straight to
+     * the {@link #isDrained() DRAINED} terminal state; once drained it follows the policy's
+     * {@code mutations} strategy (no-op or {@link QueueClosedForWriteException}).
+     */
     @Override
     public void clear() {
         fullyLock();
@@ -604,6 +710,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         signalPutReady();
     }
 
+    /**
+     * Removes one element equal to the target, evaluating {@code target.equals} outside the queue
+     * monitors. While the queue is draining this is legal; once drained it follows the policy's
+     * {@code mutations} strategy (no-op returning {@code false}, or {@link
+     * QueueClosedForWriteException}).
+     */
     @Override
     public boolean remove(@Nullable Object target) {
         if (target == null) {
@@ -671,6 +783,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Removes every element matching the predicate, evaluating the predicate outside the queue
+     * monitors. While the queue is draining this is legal; once drained it follows the policy's
+     * {@code mutations} strategy (no-op returning {@code false}, or {@link
+     * QueueClosedForWriteException}).
+     */
     @Override
     public boolean removeIf(Predicate<? super E> filter) {
         Objects.requireNonNull(filter, "filter");
@@ -724,23 +842,42 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /**
+     * Removes every element contained in the source collection; equivalent to {@code removeIf}
+     * with {@code source::contains}, evaluated outside the queue monitors. See {@link
+     * #removeIf(Predicate)} for the draining/closed behavior.
+     */
     @Override
     public boolean removeAll(Collection<?> source) {
         Objects.requireNonNull(source, "source");
         return removeIf(source::contains);
     }
 
+    /**
+     * Retains only the elements contained in the source collection. See {@link #removeIf(Predicate)}
+     * for the draining/closed behavior.
+     */
     @Override
     public boolean retainAll(Collection<?> source) {
         Objects.requireNonNull(source, "source");
         return removeIf(value -> !source.contains(value));
     }
 
+    /**
+     * Removes every element into the target collection. Unlike every other mutation, this remains
+     * available in every lifecycle state: after {@link #close()} it drains the remaining elements
+     * and once drained it returns {@code 0}. The target collection receives the elements after
+     * they are removed from this queue and outside its monitors.
+     */
     @Override
     public int drainTo(Collection<? super E> target) {
         return drainTo(target, Integer.MAX_VALUE);
     }
 
+    /**
+     * Removes up to {@code maxElements} elements into the target collection. See {@link
+     * #drainTo(Collection)} for the lifecycle behavior.
+     */
     @Override
     public int drainTo(Collection<? super E> target, int maxElements) {
         Objects.requireNonNull(target, "target");
@@ -825,11 +962,16 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region Queries and iteration
 
+    /** Returns the current number of queued elements; always honest, including while draining. */
     @Override
     public int size() {
         return count.get();
     }
 
+    /**
+     * Returns the number of elements that can be inserted without waiting, or {@code 0} once
+     * {@link #close()} has been called (production is permanently closed).
+     */
     @Override
     public int remainingCapacity() {
         return isOpen() ? capacity - count.get() : 0;
@@ -838,8 +980,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Returns a weakly consistent FIFO iterator over the live node chain, shaped after {@link
      * java.util.concurrent.LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
-     * iterator is created may or may not be reflected, and {@link Iterator#remove()} removes the
-     * last returned element from the queue itself.
+     * iterator is created may or may not be reflected. While the queue is draining the iterator
+     * observes the remaining elements; once drained it observes none (the poison value is a
+     * virtual signal, never an element). {@link Iterator#remove()} removes the last returned
+     * element from the queue itself and follows the same draining/closed mutation rules as {@link
+     * #remove(Object)}.
      */
     @Override
     public Iterator<E> iterator() {
@@ -940,6 +1085,11 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     // region SequencedCollection support (removable)
 
+    /**
+     * Inserts the element at the head. Throws {@link IllegalStateException} when the queue is full;
+     * after {@link #close()} it throws {@link QueueClosedForWriteException} without storing
+     * anything, matching {@link #add(Object)}.
+     */
     public void addFirst(E element) {
         requireElement(element);
         fullyLock();
@@ -955,14 +1105,21 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         signalTakeReady();
     }
 
+    /** Inserts the element at the tail; equivalent to {@link #add(Object)}. */
     public void addLast(E element) {
         add(element);
     }
 
+    /** Removes and returns the head; equivalent to {@link #remove()}. */
     public E removeFirst() {
         return remove();
     }
 
+    /**
+     * Removes and returns the tail, throwing {@link NoSuchElementException} when the queue is open
+     * and empty. After {@link #close()} this keeps returning real elements while any remain; once
+     * drained it returns the configured poison value or throws {@link QueueClosedForReadException}.
+     */
     public E removeLast() {
         fullyLock();
         try {
@@ -980,10 +1137,17 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
+    /** Returns the head without removing it; equivalent to {@link #element()}. */
     public E getFirst() {
         return element();
     }
 
+    /**
+     * Returns the tail without removing it, throwing {@link NoSuchElementException} when the queue
+     * is open and empty. After {@link #close()} this keeps returning real elements while any
+     * remain; once drained it returns the configured poison value or throws {@link
+     * QueueClosedForReadException}.
+     */
     public E getLast() {
         takeMonitor.enter();
         try {
