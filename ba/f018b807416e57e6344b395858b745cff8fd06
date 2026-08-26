@@ -1,0 +1,23 @@
+demo/articles/E3-closable-blocking-queue.md
+  s_c43c289a770b54::t_cd4eefa41061ba 36-37,160
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  s_c43c289a770b54::t_cd4eefa41061ba 36-37,160
+docs/zh/design/draining-blocking-queue-contract.md
+  s_c43c289a770b54::t_3072867aa03156 43-44,148,185,191,219-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "baf018b807416e57e6344b395858b745cff8fd06",
+  "prompts": {},
+  "sessions": {
+    "s_c43c289a770b54": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03d06-bfab-70b2-814c-6eaf1f121394",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
