@@ -128,19 +128,18 @@ GlobalPar global = GlobalPar.builder()
 
 ## 生命周期队列
 
-`ClosableBlockingQueue` 是一个独立的有界 `BlockingQueue` 实现，用于 producer/consumer 生命周期。关闭会在不 interrupt 调用方线程的前提下释放阻塞调用，拒绝新的生产和集合变更，并将已排队元素移交给恢复流程。
+`DrainingBlockingQueue` 是一个有界 `BlockingQueue` 实现，提供单向排干式关闭：`close()` 永久拒绝新生产（写操作抛 `IllegalStateException` 或返回 `false`），消费端继续取走存量，直到排空进入终态后暴露终结信号（配置的 poison 对象，或 `NoSuchElementException` / `null`）。
 
 ```java
-ClosableBlockingQueue<Job> queue = new ClosableBlockingQueue<>(100);
+DrainingBlockingQueue<Job> queue = new DrainingBlockingQueue<>(100, poison);
 queue.put(job);
-queue.close();
-queue.awaitTerminated();
+queue.close();          // 生产端关闭，不丢任何已入队元素
+queue.awaitDrained();   // 可选：等待排空
 
-List<Job> recovery = new ArrayList<>();
-queue.drainTo(recovery); // 关闭后允许，按 FIFO 转移
+Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
-未配置 poison object 时，关闭后的消费操作抛出 `QueueShutdownException`；配置后返回该 poison object。`drainTo` 是关闭后拒绝变更规则的刻意例外：它从已分离的 recovery list 按 FIFO 转移元素。完整契约见 [ADR 0004](../../adr/0004-lifecycle-blocking-queue-recovery.md)。
+关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `isShutdown()` 判断"生产端已关"，用 `isDrained()` 判断"已排空"。完整契约见 [排干式关闭契约](design/draining-blocking-queue-contract.md)。
 
 ## 运行规则
 

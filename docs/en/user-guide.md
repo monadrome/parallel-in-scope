@@ -129,19 +129,18 @@ Both thresholds must be reached before `ThreadPoolExecutor.purge()` is requested
 
 ## Lifecycle-aware queues
 
-`ClosableBlockingQueue` is a separate bounded `BlockingQueue` implementation for producer/consumer lifecycles. Closing it releases blocked callers without interrupting them, rejects new production and collection mutation, and detaches queued values for recovery.
+`DrainingBlockingQueue` is a bounded `BlockingQueue` implementation with a one-way draining close: `close()` permanently rejects new production (write operations throw `IllegalStateException` or return `false`), while consumers keep taking existing elements until the queue is empty and reaches its terminal state, after which they observe the configured poison object, `null`, or `NoSuchElementException`.
 
 ```java
-ClosableBlockingQueue<Job> queue = new ClosableBlockingQueue<>(100);
+DrainingBlockingQueue<Job> queue = new DrainingBlockingQueue<>(100, poison);
 queue.put(job);
-queue.close();
-queue.awaitTerminated();
+queue.close();          // producers are closed; queued elements are never dropped
+queue.awaitDrained();   // optional: wait until drained
 
-List<Job> recovery = new ArrayList<>();
-queue.drainTo(recovery); // allowed after close, in FIFO order
+Job job = queue.take(); // real element before drained; poison after drained
 ```
 
-With no poison object, closed consumer operations throw `QueueShutdownException`; with a configured poison object they return that object. `drainTo` is the deliberate exception to post-close mutation rejection: it transfers items from the detached recovery list in FIFO order. See [ADR 0004](../../adr/0004-lifecycle-blocking-queue-recovery.md) for the full contract.
+Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `isShutdown()` for "production is closed" and `isDrained()` for "the queue is empty and terminal". Full contract: [draining-close contract](../../zh/design/draining-blocking-queue-contract.md).
 
 ## Operational rules
 

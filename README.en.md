@@ -53,7 +53,7 @@ AsyncBatchResult<User> result = global.par("io")
 - Sliding-window submission with terminal results for tasks that were never submitted
 - Cross-`Par` nested calls with task/executor identity graph recording
 - Optional, threshold-driven cancellation purge per physical `ThreadPoolExecutor`
-- Lifecycle-aware `ClosableBlockingQueue` with post-close recovery transfer
+- Draining-close lifecycle queue `DrainingBlockingQueue` (consumers keep draining after close)
 
 ## Documentation
 

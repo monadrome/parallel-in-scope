@@ -53,7 +53,7 @@ AsyncBatchResult<User> result = global.par("io")
 - 滑动窗口提交；未提交任务也会获得终态结果
 - 跨 `Par` 的嵌套调用及以执行器 identity 为基础的任务图记录
 - 基于阈值、按物理 `ThreadPoolExecutor` 合并的取消任务 purge
-- 支持关闭后恢复转移的生命周期队列 `ClosableBlockingQueue`
+- 排干式关闭的生命周期队列 `DrainingBlockingQueue`（关闭后消费端继续取走存量直到排空）
 
 ## 文档
 

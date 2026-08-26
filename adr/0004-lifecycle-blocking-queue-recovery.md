@@ -1,9 +1,15 @@
 # ADR 0004: Lifecycle Blocking Queue Recovery Contract
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-22
 - Decision scope: `ClosableBlockingQueue` shutdown and recovery semantics
 - Supersedes: None
+- Superseded by: [Draining close contract](../docs/zh/design/draining-blocking-queue-contract.md)
+
+> This ADR recorded the abrupt-close recovery model (`OPEN -> CLOSING -> CLOSED` with
+> `remainingList()`). That model was removed and replaced by the draining-close model
+> (`OPEN -> DRAINING -> DRAINED`, no recovery channel) recorded in the draining close contract.
+> Kept for history; do not treat it as the current shutdown contract.
 
 ## Context
 

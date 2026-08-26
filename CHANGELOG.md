@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking changes
+
+- Replace the abrupt-close `ClosableBlockingQueue` (recovery lists, `remainingList()`) with `DrainingBlockingQueue`: `close()` rejects producers while consumers keep draining queued elements until the `DRAINED` terminal state. No custom shutdown exception types are introduced: write rejections throw `IllegalStateException`, drained reads throw `NoSuchElementException`.
+
 ## [0.2.0] - 2026-07-22
 
 ### Breaking changes
