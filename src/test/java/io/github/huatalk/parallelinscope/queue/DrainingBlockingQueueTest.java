@@ -130,51 +130,6 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
-    void getLastReturnsTailWhenNonEmptyAndThrowsWhenEmpty() {
-        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(3);
-        assertThrows(NoSuchElementException.class, queue::getLast);
-        queue.add(1);
-        queue.add(2);
-        assertEquals(2, queue.getLast());
-    }
-
-    @Test
-    void getLastOnDrainedQueueReturnsPoisonOrThrows() {
-        Object poison = new Object();
-        DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(1, poison);
-        queue.close();
-        assertSame(poison, queue.getLast());
-    }
-
-    @Test
-    void removeLastReturnsTailAndPublishesDrainedAfterClose() {
-        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(3);
-        queue.add(1);
-        queue.add(2);
-        queue.close();
-        assertEquals(2, queue.removeLast());
-        assertEquals(1, queue.removeLast());
-        assertThrows(NoSuchElementException.class, queue::removeLast);
-    }
-
-    @Test
-    void removeLastOnDrainedQueueReturnsPoisonOrThrows() {
-        Object poison = new Object();
-        DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(1, poison);
-        queue.close();
-        assertSame(poison, queue.removeLast());
-    }
-
-    @Test
-    void removeLastOnOpenEmptyQueueThrowsWithoutLeakingPoison() {
-        Object poison = new Object();
-        DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(1, poison);
-        assertThrows(NoSuchElementException.class, queue::removeLast);
-        assertFalse(queue.isDrained());
-        assertTrue(queue.isEmpty());
-    }
-
-    @Test
     void removeIfDoesNotHoldTheLockWhileEvaluatingThePredicate() throws Exception {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(5);
         queue.addAll(Arrays.asList(1, 2, 3));
@@ -468,17 +423,6 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
-    void removeLastPublishesDrainedAndNoopMutationDoesNotAffectTerminalReads() throws Exception {
-        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
-        queue.add(1);
-        queue.close();
-        assertEquals(1, queue.removeLast());
-        assertTrue(queue.isDrained());
-        assertThrows(NoSuchElementException.class, queue::removeLast);
-        assertFalse(queue.removeIf(value -> true));
-    }
-
-    @Test
     void blockedConsumersReceiveStoredElementsThenTerminalSignal() throws Exception {
         Object poison = new Object();
         DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(1, poison);
@@ -608,23 +552,6 @@ class DrainingBlockingQueueTest {
         assertTrue(failure.get() instanceof InterruptedException);
     }
 
-
-    @Test
-    void endpointMethodsFollowDrainingRules() {
-        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(3);
-        queue.addFirst(2);
-        queue.addLast(3);
-        assertEquals(2, queue.getFirst());
-        assertEquals(3, queue.getLast());
-        assertEquals(2, queue.removeFirst());
-        assertEquals(3, queue.removeLast());
-        assertThrows(NoSuchElementException.class, queue::getLast);
-        queue.close();
-        assertThrows(IllegalStateException.class, () -> queue.addFirst(1));
-        assertThrows(IllegalStateException.class, () -> queue.addLast(1));
-        assertThrows(NoSuchElementException.class, queue::removeLast);
-        assertThrows(NoSuchElementException.class, queue::getLast);
-    }
 
     @Test
     void addAllAtomicValidationAndQueryMethodsRemainHonest() {

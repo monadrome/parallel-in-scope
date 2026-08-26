@@ -33,8 +33,8 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 | 时机 | 行为 |
 |---|---|
 | 正常操作 | 标准 BlockingQueue 语义：FIFO、有界、put/take 双管程并发 |
-| `close()` 后生产（put / offer(t) / add / addAll / addFirst ...） | 拒绝，抛 `IllegalStateException`（消息含 "queue is closed"）或返回 `false`，不等待 |
-| DRAINING 消费（take / poll / remove / element / 端点） | 有存量立即返回真实元素 |
+| `close()` 后生产（put / offer(t) / add / addAll ...） | 拒绝，抛 `IllegalStateException`（消息含 "queue is closed"）或返回 `false`，不等待 |
+| DRAINING 消费（take / poll / remove / element） | 有存量立即返回真实元素 |
 | DRAINED 消费，配置了毒丸 | 返回毒丸对象（仅终结信号，不是元素） |
 | DRAINED 消费，未配置毒丸 | 抛 `NoSuchElementException`（消息含 "queue is drained"）；`poll` / `peek` 返回 `null` |
 | DRAINING 集合变更（clear / remove / removeIf ...） | 照常执行，可用来主动放弃存量 |
@@ -57,7 +57,6 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 - **队列核心**：四种阻塞方法（put / take / offer(t) / poll(t)）、非阻塞 offer / poll / peek、`drainTo`（锁内摘除、锁外回调）、`clear`、`remove`、`removeIf` / `removeAll` / `retainAll`、弱一致迭代器（Java 8 LinkedBlockingQueue 形状，支持基于身份移除）。
 - **生命周期**：`close()`（幂等）、`isShutdown()` / `isDraining()` / `isDrained()`、`awaitDrained()`（带超时版本）。
 - **关闭语义**：`DrainingShutdownPolicy` 两个维度——毒丸（poison）与排空后的集合变更策略（NOOP / THROW）。
-- **Sequenced 面**：`addFirst` / `addLast` / `getFirst` / `getLast` / `removeFirst` / `removeLast`（独立区域，可整体移除）。
 - **双管程并行**：put 与 take 各自独立 Monitor，生产和消费并发不互斥。
 
 ## 技术设计
@@ -158,13 +157,12 @@ post-close put -> queue is closed: put
 
 ## 测试验证
 
-`DrainingBlockingQueueTest` 覆盖 54 个用例，与本设计直接相关的关键项：
+`DrainingBlockingQueueTest` 覆盖 47 个用例，与本设计直接相关的关键项：
 
 - `closeEmptyQueuePublishesDrainedImmediately`：空队列关闭立即达终态
 - `blockedConsumersReceiveStoredElementsThenTerminalSignal`：关闭后阻塞消费者先取真实元素再收终结信号
 - `poisonOnlyAppearsAfterTheLastRealElement`：毒丸只在最后一个真实元素之后出现
 - `producersAreRejectedAfterClose`：关闭后生产端全部拒绝
-- `removeLastOnOpenEmptyQueueThrowsWithoutLeakingPoison`：OPEN 空队列不会泄漏毒丸
 - `iteratorRemoveRemovesFromLiveQueue`：迭代器 remove 作用于真实队列
 - `removeIfDoesNotHoldTheLockWhileEvaluatingThePredicate`：谓词在锁外执行，不阻塞并发操作
 - `mutationsDrainNormallyWhileDrainingAndAreConfiguredAfterDrained`：DRAINING 变更照常、DRAINED 按策略

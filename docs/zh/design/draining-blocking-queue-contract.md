@@ -40,8 +40,8 @@ DRAINED   : DRAINING 且队列已空。终态，不可回退。
 |---|---|---|---|---|
 | `SPECIAL_VALUE` | `offer(e)` | 满 false | `false` | `false` |
 | | `poll()`/`peek()` | 空 null | 真实元素 | poison；无 poison 时 `null` |
-| `THROWS` | `add(e)`/`addFirst`/`addLast` | 满抛 ISE | `IllegalStateException`(closed 子类) | 同左 |
-| | `remove()`/`element()`/端点 remove | 空抛 NSE | 真实元素 | poison；无 poison 时 `NoSuchElementException`(closed 子类) |
+| `THROWS` | `add(e)` | 满抛 ISE | `IllegalStateException` | 同左 |
+| | `remove()`/`element()` | 空抛 NSE | 真实元素 | poison；无 poison 时 `NoSuchElementException` |
 | `BLOCKING` | `put(e)` | 满则阻塞 | `IllegalStateException`(closed 子类)，**不阻塞** | 同左 |
 | | `take()` | 空则阻塞 | 有存量立即返回；无存量阻塞至 DRAINED(见 §4.2) | poison 或 NSE，**不阻塞** |
 | `TIMED_BLOCKING` | `offer(e,t,u)` | 阻塞至成功/超时 | `false`，**不等待** | `false` |
@@ -145,7 +145,7 @@ DRAINING 且仍有存量时，`take()` 应立即返回真实元素；不应返�
 
 ### 6.1 `poison`
 
-关闭后**且 DRAINED 之后**，值返回型取出方法返回该对象：`poll`、`poll(timeout)`、`peek`、`take`、`element`、`remove()` 及端点 remove 方法。未配置时，Special-value 方法返回 `null`，Throws/Blocks 方法抛 `NoSuchElementException`(closed 子类)。
+关闭后**且 DRAINED 之后**，值返回型取出方法返回该对象：`poll`、`poll(timeout)`、`peek`、`take`、`element`、`remove()`。未配置时，Special-value 方法返回 `null`，Throws/Blocks 方法抛 `NoSuchElementException`(closed 子类)。
 
 与突然关闭契约的差异：poison 的生效时机从"close 之后"推迟到"DRAINED 之后"。DRAINING 有存量时 poison 绝不出现——这是优先级 1(存量优先)的直接推论。
 
@@ -182,13 +182,13 @@ DrainingShutdownPolicy.builder()
 |---|---|
 | `offer(e)` / `offer(e,t,u)` | `false` |
 | `put(e)` | `IllegalStateException`(closed 子类) |
-| `add(e)` / `addFirst` / `addLast` / `addAll` | `IllegalStateException`(closed 子类) |
+| `add(e)` / `addAll` | `IllegalStateException` |
 | `poll()` | `null` |
 | `poll(t,u)` | `null`，不等待 |
 | `take()` | `NoSuchElementException`(closed 子类)，不阻塞 |
 | `peek()` | `null` |
 | `element()` | `NoSuchElementException`(closed 子类) |
-| `remove()` / `removeFirst` / `removeLast` | `NoSuchElementException`(closed 子类) |
+| `remove()` | `NoSuchElementException` |
 | `remove(Object)` | `false`(NOOP) |
 | `clear()` | no-op |
 | `removeIf` / `removeAll` / `retainAll` | `false` |
@@ -216,8 +216,8 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 
 本契约不引入自定义异常类型，关闭行为复用 JDK 方法族的既有异常：
 
-- 生产端被关闭时（`put`/`add`/`addAll`/`addFirst`/`addLast` 等）抛 `IllegalStateException`，消息以 "queue is closed" 开头
-- 消费端在 DRAINED 且未配置 poison 时（`take`/`remove`/`element`/端点 remove 等）抛 `NoSuchElementException`，消息以 "queue is drained" 开头
+- 生产端被关闭时（`put`/`add`/`addAll` 等）抛 `IllegalStateException`，消息以 "queue is closed" 开头
+- 消费端在 DRAINED 且未配置 poison 时（`take`/`remove`/`element` 等）抛 `NoSuchElementException`，消息以 "queue is drained" 开头
 
 两者都是 `RuntimeException` 子类，不改变 `BlockingQueue` 方法签名。调用方按各自方法族的 JDK 异常约定 catch 即可，无需感知生命周期专用类型：写关闭意味着"重试无用"，读关闭(无 poison)意味着"队列已空且永不再有"。
 
