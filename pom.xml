@@ -244,6 +244,22 @@
                                 <param>XML</param>
                             </outputFormats>
                             <threads>8</threads>
+                            <!-- VoidMethodCallMutator mostly produces equivalent mutants on
+                                 concurrent queue code (Monitor.enter/leave/signal removals that
+                                 do not alter observable single-threaded behavior). The mutators
+                                 list below replaces PIT's default set, omitting VOID_METHOD_CALLS
+                                 to focus the score on behavior-detectable mutations. -->
+                            <mutators>
+                                <param>CONDITIONALS_BOUNDARY</param>
+                                <param>NEGATE_CONDITIONALS</param>
+                                <param>INCREMENTS</param>
+                                <param>INVERT_NEGS</param>
+                                <param>NULL_RETURNS</param>
+                                <param>FALSE_RETURNS</param>
+                                <param>TRUE_RETURNS</param>
+                                <param>PRIMITIVE_RETURNS</param>
+                                <param>EMPTY_RETURNS</param>
+                            </mutators>
                             <!-- Shutdown-contract mutants can release several independent waiters;
                                  keep the per-mutation timeout above their combined bounded waits. -->
                             <timeoutConstant>60000</timeoutConstant>
