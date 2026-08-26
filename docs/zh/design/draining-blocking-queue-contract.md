@@ -214,20 +214,16 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 
 ## 9. 异常类型
 
-定义 `QueueShutdownException` 标记接口，并让两个具体异常分别保留 JDK 方法族的异常类型：
+本契约不引入自定义异常类型，关闭行为复用 JDK 方法族的既有异常：
 
-```
-QueueClosedForWriteException extends IllegalStateException
-    implements QueueShutdownException  // put/add/addAll/addFirst/addLast
-QueueClosedForReadException extends NoSuchElementException
-    implements QueueShutdownException  // take/remove/element/端点 remove (无 poison 时)
-```
+- 生产端被关闭时（`put`/`add`/`addAll`/`addFirst`/`addLast` 等）抛 `IllegalStateException`，消息以 "queue is closed" 开头
+- 消费端在 DRAINED 且未配置 poison 时（`take`/`remove`/`element`/端点 remove 等）抛 `NoSuchElementException`，消息以 "queue is drained" 开头
 
-Java 单继承无法让一个异常同时成为 `IllegalStateException` 和 `NoSuchElementException`，因此这里使用标记接口而不是公共异常父类。旧代码 `catch (IllegalStateException)` / `catch (NoSuchElementException)` 不受影响；新代码可 `catch (QueueShutdownException)` 识别任一生命周期异常。两个具体类型语义不同：写关闭意味着"重试无用"，读关闭(无 poison)意味着"队列已空且永不再有"，但都属于"队列生命周期终结"这一共同范畴。
+两者都是 `RuntimeException` 子类，不改变 `BlockingQueue` 方法签名。调用方按各自方法族的 JDK 异常约定 catch 即可，无需感知生命周期专用类型：写关闭意味着"重试无用"，读关闭(无 poison)意味着"队列已空且永不再有"。
 
 ## 10. 调用约定
 
-- **优雅关闭生产-消费循环**：`close()` 后消费者继续 `take()`，直到拿到 poison(或捕获 `QueueClosedForReadException`)退出。不需要 `remainingList()`，不存在隐藏存量。
+- **优雅关闭生产-消费循环**：`close()` 后消费者继续 `take()`，直到拿到 poison(或捕获 `NoSuchElementException`)退出。不需要 `remainingList()`，不存在隐藏存量。
 - **判定关闭与暂时空队列**：`poll()` 返回 null 时，若需区分"DRAINING 暂时空"和"DRAINED 永久空"，调用 `isDrained()`。`isShutdown()` 只说明生产端关了，不说明存量排干。
 - **size/isEmpty 全程可信**：任何状态下都反映真实存量，`while (!q.isEmpty()) process(q.poll())` 在所有生命周期阶段都是安全的(尽管并发下 size 只是弱一致)。
 - **中断语义**：阻塞方法观察到外部中断时优先抛 `InterruptedException`；关闭结果不得吞掉中断，上层取消框架可依赖中断标志。
@@ -242,8 +238,8 @@ Java 单继承无法让一个异常同时成为 `IllegalStateException` 和 `NoS
 |---|---|---|
 | `close()` 后调 `remainingList()` 找回剩余 | 不需要——继续 `take()` 直到 poison/NSE | 删除 remainingList 调用，改为消费循环 |
 | `close()` 后 `size()==0` 判断"已关" | `isDrained()` | `isShutdown()` 不等于排干 |
-| `catch (NoSuchElementException)` 判断关闭 | `catch (QueueClosedForReadException)`(仍是 NSE 子类，旧 catch 兼容) | 可逐步迁移 |
-| `catch (IllegalStateException)` 判断关闭 | `catch (QueueClosedForWriteException)`(仍是 ISE 子类) | 可逐步迁移 |
+| `catch (NoSuchElementException)` 判断关闭 | 直接 `catch (NoSuchElementException)`(消息含 "queue is drained") | 无需迁移 |
+| `catch (IllegalStateException)` 判断关闭 | 直接 `catch (IllegalStateException)`(消息含 "queue is closed") | 无需迁移 |
 | 依赖 `Service` 状态机 | `isShutdown()`/`isDrained()` + 可选 listener | Service 集成是独立适配层，不在本契约 |
 
 ## 12. 实现参考：借鉴当前 `ClosableBlockingQueue` 的关闭技巧

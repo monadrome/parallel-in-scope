@@ -121,7 +121,7 @@ class DrainingBlockingQueueTest {
     void elementOnDrainedQueueReturnsPoisonOrThrows() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>();
         queue.close();
-        assertThrows(QueueClosedForReadException.class, queue::element);
+        assertThrows(NoSuchElementException.class, queue::element);
 
         Object poison = new Object();
         DrainingBlockingQueue<Object> poisoned = new DrainingBlockingQueue<>(1, poison);
@@ -154,7 +154,7 @@ class DrainingBlockingQueueTest {
         queue.close();
         assertEquals(2, queue.removeLast());
         assertEquals(1, queue.removeLast());
-        assertThrows(QueueClosedForReadException.class, queue::removeLast);
+        assertThrows(NoSuchElementException.class, queue::removeLast);
     }
 
     @Test
@@ -267,7 +267,7 @@ class DrainingBlockingQueueTest {
     void removeOnDrainedQueueReturnsPoisonOrThrows() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>();
         queue.close();
-        assertThrows(QueueClosedForReadException.class, queue::remove);
+        assertThrows(NoSuchElementException.class, queue::remove);
 
         Object poison = new Object();
         DrainingBlockingQueue<Object> poisoned = new DrainingBlockingQueue<>(1, poison);
@@ -397,10 +397,10 @@ class DrainingBlockingQueueTest {
         producer.join(1000);
 
         assertFalse(producer.isAlive());
-        assertTrue(failure.get() instanceof QueueClosedForWriteException);
+        assertTrue(failure.get() instanceof IllegalStateException);
         assertFalse(queue.offer(2));
         assertFalse(queue.offer(2, 1, TimeUnit.DAYS));
-        assertThrows(QueueClosedForWriteException.class, () -> queue.add(2));
+        assertThrows(IllegalStateException.class, () -> queue.add(2));
         assertFalse(queue.offer(2));
     }
 
@@ -474,7 +474,7 @@ class DrainingBlockingQueueTest {
         queue.close();
         assertEquals(1, queue.removeLast());
         assertTrue(queue.isDrained());
-        assertThrows(QueueClosedForReadException.class, queue::removeLast);
+        assertThrows(NoSuchElementException.class, queue::removeLast);
         assertFalse(queue.removeIf(value -> true));
     }
 
@@ -517,9 +517,9 @@ class DrainingBlockingQueueTest {
         assertNull(queue.poll());
         assertNull(queue.poll(1, TimeUnit.MILLISECONDS));
         assertNull(queue.peek());
-        assertThrows(QueueClosedForReadException.class, queue::take);
-        assertThrows(QueueClosedForReadException.class, queue::remove);
-        assertThrows(QueueClosedForReadException.class, queue::element);
+        assertThrows(NoSuchElementException.class, queue::take);
+        assertThrows(NoSuchElementException.class, queue::remove);
+        assertThrows(NoSuchElementException.class, queue::element);
     }
 
     @Test
@@ -548,11 +548,11 @@ class DrainingBlockingQueueTest {
                 .build();
         DrainingBlockingQueue<Integer> throwing = new DrainingBlockingQueue<>(2, policy);
         throwing.close();
-        assertThrows(QueueClosedForWriteException.class, throwing::clear);
-        assertThrows(QueueClosedForWriteException.class, () -> throwing.remove(1));
-        assertThrows(QueueClosedForWriteException.class, () -> throwing.removeIf(value -> true));
-        assertThrows(QueueClosedForWriteException.class, () -> throwing.removeAll(Collections.singletonList(1)));
-        assertThrows(QueueClosedForWriteException.class, () -> throwing.retainAll(Collections.singletonList(1)));
+        assertThrows(IllegalStateException.class, throwing::clear);
+        assertThrows(IllegalStateException.class, () -> throwing.remove(1));
+        assertThrows(IllegalStateException.class, () -> throwing.removeIf(value -> true));
+        assertThrows(IllegalStateException.class, () -> throwing.removeAll(Collections.singletonList(1)));
+        assertThrows(IllegalStateException.class, () -> throwing.retainAll(Collections.singletonList(1)));
     }
 
     @Test
@@ -620,10 +620,10 @@ class DrainingBlockingQueueTest {
         assertEquals(3, queue.removeLast());
         assertThrows(NoSuchElementException.class, queue::getLast);
         queue.close();
-        assertThrows(QueueClosedForWriteException.class, () -> queue.addFirst(1));
-        assertThrows(QueueClosedForWriteException.class, () -> queue.addLast(1));
-        assertThrows(QueueClosedForReadException.class, queue::removeLast);
-        assertThrows(QueueClosedForReadException.class, queue::getLast);
+        assertThrows(IllegalStateException.class, () -> queue.addFirst(1));
+        assertThrows(IllegalStateException.class, () -> queue.addLast(1));
+        assertThrows(NoSuchElementException.class, queue::removeLast);
+        assertThrows(NoSuchElementException.class, queue::getLast);
     }
 
     @Test
@@ -643,7 +643,7 @@ class DrainingBlockingQueueTest {
         queue.close();
         assertEquals(0, queue.remainingCapacity());
         assertEquals(3, queue.size());
-        assertThrows(QueueClosedForWriteException.class, () -> queue.addAll(Collections.singletonList(4)));
+        assertThrows(IllegalStateException.class, () -> queue.addAll(Collections.singletonList(4)));
     }
 
     @Test

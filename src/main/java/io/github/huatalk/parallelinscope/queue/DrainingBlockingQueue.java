@@ -24,11 +24,11 @@ import javax.annotation.Nullable;
  * #close()} moves {@code OPEN} to {@code DRAINING}: producers are permanently rejected, while
  * consumers keep receiving real elements until the queue is empty. The transition to {@code
  * DRAINED} happens the moment the last element is taken, after which consumer methods return the
- * configured poison value, or {@code null} / {@link QueueClosedForReadException} when no poison is
+ * configured poison value, or {@code null} / {@link NoSuchElementException} when no poison is
  * configured.
  *
  * <p>After {@link #close()}: the {@code add}/{@code put}/{@code offer} family throws {@link
- * QueueClosedForWriteException} or returns {@code false} without storing anything; consumer
+ * IllegalStateException} or returns {@code false} without storing anything; consumer
  * methods keep returning real elements while any remain and only expose the terminal signal once
  * {@code DRAINED}; collection mutations ({@code clear}/{@code remove}/{@code removeIf}/{@code
  * removeAll}/{@code retainAll}) remain legal while draining and are governed by {@link
@@ -166,12 +166,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return element;
     }
 
-    private QueueClosedForWriteException closedWrite(String operation) {
-        return new QueueClosedForWriteException("queue is closed: " + operation);
+    private IllegalStateException closedWrite(String operation) {
+        return new IllegalStateException("queue is closed: " + operation);
     }
 
-    private QueueClosedForReadException closedRead(String operation) {
-        return new QueueClosedForReadException("queue is drained: " + operation);
+    private NoSuchElementException closedRead(String operation) {
+        return new NoSuchElementException("queue is drained: " + operation);
     }
 
     @Nullable
@@ -290,7 +290,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Returns {@code true} once the queue is closed and empty. This is the terminal state: no
      * element will ever be returned again, and consumer methods expose the configured terminal
-     * signal (poison, {@code null}, or {@link QueueClosedForReadException}).
+     * signal (poison, {@code null}, or {@link NoSuchElementException}).
      */
     public boolean isDrained() {
         return lifecycle == Lifecycle.DRAINED;
@@ -322,7 +322,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Closes the queue to producers and begins the draining phase. Idempotent and non-blocking.
      *
      * <p>After this call, the {@code add}/{@code put}/{@code offer} family rejects new elements
-     * (throwing {@link QueueClosedForWriteException} or returning {@code false}), while consumers
+     * (throwing {@link IllegalStateException} or returning {@code false}), while consumers
      * keep receiving real elements until the queue is empty, at which point the queue immediately
      * transitions to the {@link #isDrained() DRAINED} terminal state. Waiting producers and
      * consumers are released promptly and observe the state change without needing the queue to be
@@ -375,7 +375,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Inserts the element, waiting until capacity is available. Once {@link #close()} has been
-     * called this throws {@link QueueClosedForWriteException} immediately without waiting and
+     * called this throws {@link IllegalStateException} immediately without waiting and
      * without storing the element.
      */
     @Override
@@ -478,7 +478,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Removes and returns the head, waiting until an element is available. After {@link #close()}
      * this keeps returning real elements while any remain; once drained it returns the configured
-     * poison value or throws {@link QueueClosedForReadException} without waiting.
+     * poison value or throws {@link NoSuchElementException} without waiting.
      */
     @Override
     public E take() throws InterruptedException {
@@ -570,7 +570,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Inserts the element, throwing {@link IllegalStateException} when the queue is full. After
-     * {@link #close()} this throws {@link QueueClosedForWriteException} without storing anything.
+     * {@link #close()} this throws {@link IllegalStateException} without storing anything.
      */
     @Override
     public boolean add(E element) {
@@ -598,7 +598,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Removes and returns the head, throwing {@link NoSuchElementException} when the queue is open
      * and empty. After {@link #close()} this keeps returning real elements while any remain; once
-     * drained it returns the configured poison value or throws {@link QueueClosedForReadException}.
+     * drained it returns the configured poison value or throws {@link NoSuchElementException}.
      */
     @Override
     public E remove() {
@@ -628,7 +628,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Returns the head without removing it, throwing {@link NoSuchElementException} when the queue
      * is open and empty. After {@link #close()} this keeps returning real elements while any
      * remain; once drained it returns the configured poison value or throws {@link
-     * QueueClosedForReadException}.
+     * NoSuchElementException}.
      */
     @Override
     public E element() {
@@ -651,7 +651,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Atomically inserts all elements as one batch, validating them before any queue state is
      * touched (user-supplied elements are never inspected inside a queue monitor). Throws {@link
      * IllegalStateException} when the batch exceeds the remaining capacity. After {@link #close()}
-     * this throws {@link QueueClosedForWriteException} without storing anything.
+     * this throws {@link IllegalStateException} without storing anything.
      */
     @Override
     public boolean addAll(Collection<? extends E> source) {
@@ -685,7 +685,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Discards every element. While the queue is draining this is legal and moves it straight to
      * the {@link #isDrained() DRAINED} terminal state; once drained it follows the policy's
-     * {@code mutations} strategy (no-op or {@link QueueClosedForWriteException}).
+     * {@code mutations} strategy (no-op or {@link IllegalStateException}).
      */
     @Override
     public void clear() {
@@ -714,7 +714,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Removes one element equal to the target, evaluating {@code target.equals} outside the queue
      * monitors. While the queue is draining this is legal; once drained it follows the policy's
      * {@code mutations} strategy (no-op returning {@code false}, or {@link
-     * QueueClosedForWriteException}).
+     * IllegalStateException}).
      */
     @Override
     public boolean remove(@Nullable Object target) {
@@ -787,7 +787,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Removes every element matching the predicate, evaluating the predicate outside the queue
      * monitors. While the queue is draining this is legal; once drained it follows the policy's
      * {@code mutations} strategy (no-op returning {@code false}, or {@link
-     * QueueClosedForWriteException}).
+     * IllegalStateException}).
      */
     @Override
     public boolean removeIf(Predicate<? super E> filter) {
@@ -1087,7 +1087,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Inserts the element at the head. Throws {@link IllegalStateException} when the queue is full;
-     * after {@link #close()} it throws {@link QueueClosedForWriteException} without storing
+     * after {@link #close()} it throws {@link IllegalStateException} without storing
      * anything, matching {@link #add(Object)}.
      */
     public void addFirst(E element) {
@@ -1118,7 +1118,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /**
      * Removes and returns the tail, throwing {@link NoSuchElementException} when the queue is open
      * and empty. After {@link #close()} this keeps returning real elements while any remain; once
-     * drained it returns the configured poison value or throws {@link QueueClosedForReadException}.
+     * drained it returns the configured poison value or throws {@link NoSuchElementException}.
      */
     public E removeLast() {
         fullyLock();
@@ -1146,7 +1146,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Returns the tail without removing it, throwing {@link NoSuchElementException} when the queue
      * is open and empty. After {@link #close()} this keeps returning real elements while any
      * remain; once drained it returns the configured poison value or throws {@link
-     * QueueClosedForReadException}.
+     * NoSuchElementException}.
      */
     public E getLast() {
         takeMonitor.enter();
