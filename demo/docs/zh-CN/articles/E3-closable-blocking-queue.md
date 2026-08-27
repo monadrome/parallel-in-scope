@@ -86,9 +86,9 @@ private final Monitor.Guard putReady = new Monitor.Guard(putMonitor) {
 
 ```java
 public void close() {
-    closeAdmission();                       // 拒绝后续阻塞调用
     fullyLock();                            // 固定锁序 putMonitor → takeMonitor
     try {
+        closeAdmission();                   // 双锁内关闭后续阻塞调用
         if (lifecycle != Lifecycle.OPEN) {
             return;                         // 幂等
         }

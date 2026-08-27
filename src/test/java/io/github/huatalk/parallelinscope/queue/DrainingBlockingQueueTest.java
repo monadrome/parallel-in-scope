@@ -14,8 +14,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Spliterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -87,6 +89,43 @@ class DrainingBlockingQueueTest {
         assertTrue(queue.removeIf(value -> value % 2 == 1));
         assertEquals(1, queue.size());
         assertEquals(2, queue.peek());
+    }
+
+    @Test
+    void bulkRemoveProcessesMoreThanOneBatch() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(130);
+        ArrayList<Integer> values = new ArrayList<>();
+        for (int value = 0; value < 130; value++) {
+            values.add(value);
+        }
+        queue.addAll(values);
+
+        assertTrue(queue.removeIf(value -> value % 2 == 0));
+        assertEquals(65, queue.size());
+        for (int value = 1; value < 130; value += 2) {
+            assertEquals(value, queue.poll());
+        }
+    }
+
+    @Test
+    void bulkRemoveKeepsEarlierCommittedBatchesWhenPredicateThrows() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(128);
+        ArrayList<Integer> values = new ArrayList<>();
+        for (int value = 0; value < 128; value++) {
+            values.add(value);
+        }
+        queue.addAll(values);
+        AtomicInteger evaluations = new AtomicInteger();
+
+        assertThrows(IllegalArgumentException.class, () -> queue.removeIf(value -> {
+            if (evaluations.getAndIncrement() == 64) {
+                throw new IllegalArgumentException("second batch");
+            }
+            return true;
+        }));
+
+        assertEquals(64, queue.size());
+        assertEquals(64, queue.poll());
     }
 
     @Test
@@ -192,6 +231,42 @@ class DrainingBlockingQueueTest {
         remover.join(2000);
         assertFalse(remover.isAlive());
         assertTrue(queue.isEmpty());
+    }
+
+    @Test
+    void toStringDoesNotHoldQueueMonitorsWhileFormattingElements() throws Exception {
+        DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(1);
+        CountDownLatch inside = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Object slow = new Object() {
+            @Override
+            public String toString() {
+                inside.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException error) {
+                    throw new AssertionError(error);
+                }
+                return "slow";
+            }
+        };
+        queue.add(slow);
+        AtomicReference<String> rendered = new AtomicReference<>();
+        Thread formatter = new Thread(() -> rendered.set(queue.toString()));
+        formatter.start();
+        assertTrue(inside.await(2, TimeUnit.SECONDS));
+
+        AtomicReference<Object> polled = new AtomicReference<>();
+        Thread consumer = new Thread(() -> polled.set(queue.poll()));
+        consumer.start();
+        consumer.join(1000);
+        assertFalse(consumer.isAlive(), "poll() must not wait for element.toString()");
+        assertSame(slow, polled.get());
+
+        release.countDown();
+        formatter.join(2000);
+        assertFalse(formatter.isAlive());
+        assertEquals("[slow]", rendered.get());
     }
 
     @Test
@@ -599,6 +674,44 @@ class DrainingBlockingQueueTest {
         assertEquals("one", queue.take());
         assertEquals("two", queue.take());
         assertFalse(queue.iterator().hasNext());
+    }
+
+    @Test
+    void spliteratorIsLateBindingAndWeaklyConsistent() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
+        Spliterator<Integer> traversal = queue.spliterator();
+        queue.add(1);
+        AtomicReference<Integer> observed = new AtomicReference<>();
+
+        assertTrue(traversal.tryAdvance(observed::set));
+        assertEquals(1, observed.get());
+        assertTrue((traversal.characteristics() & Spliterator.ORDERED) != 0);
+        assertTrue((traversal.characteristics() & Spliterator.NONNULL) != 0);
+        assertTrue((traversal.characteristics() & Spliterator.CONCURRENT) != 0);
+    }
+
+    @Test
+    void forEachTraversesMultipleBatchesAndLeavesIteratorOnLastElement() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(130);
+        ArrayList<Integer> values = new ArrayList<>();
+        for (int value = 0; value < 130; value++) {
+            values.add(value);
+        }
+        queue.addAll(values);
+
+        ArrayList<Integer> observed = new ArrayList<>();
+        queue.forEach(observed::add);
+        assertEquals(values, observed);
+
+        Iterator<Integer> iterator = queue.iterator();
+        assertEquals(0, iterator.next());
+        ArrayList<Integer> remaining = new ArrayList<>();
+        iterator.forEachRemaining(remaining::add);
+        assertEquals(values.subList(1, values.size()), remaining);
+        iterator.remove();
+        assertEquals(129, queue.size());
+        assertEquals(0, queue.peek());
+        assertEquals(128, queue.toArray()[128]);
     }
 
     @Test

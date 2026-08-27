@@ -49,9 +49,12 @@ DRAINED   : DRAINING 且队列已空。终态，不可回退。
 | `MUTATION` | `clear`/`remove(Object)`/`removeIf`/`removeAll`/`retainAll` | 修改内容 | **照常执行**——DRAINING 下允许清理存量(见 §4.3) | NOOP 或 THROW，由 `mutations` 配置 |
 | `QUERY` | `size`/`isEmpty`/`remainingCapacity`/`contains` | 反映真实状态 | 反映真实存量；`remainingCapacity` 返回 0(生产端已关) | `size` 0 / `isEmpty` true |
 | `RECOVERY` | `drainTo` | 排空当前元素 | 排空当前存量 | 返回 0 |
-| `ITERATOR` | `iterator`/`toArray`/`stream` | 弱一致遍历(LBQ 风格，`remove()` 作用于队列) | 弱一致观察剩余存量 | 空 |
+| `ITERATOR` | `iterator`/`spliterator`/`stream` | 弱一致、late-binding 遍历(LBQ 风格，`Iterator.remove()` 作用于队列) | 弱一致观察剩余存量 | 空 |
+| `QUERY` | `toArray`/`toString` | FIFO 引用快照 | FIFO 剩余元素引用快照 | 空快照 |
 
 `offer(timeout)`/`poll(timeout)` 虽返回 `false`/`null`，仍属 `TIMED_BLOCKING`。`remove()`(无参)属 `THROWS`，`remove(Object)` 属 `MUTATION`。与突然关闭契约的分组划分完全相同。
+
+`spliterator()` 以及由它创建的 `stream()`/`parallelStream()` 为弱一致、late-binding：首次遍历前后并发入队或出队的元素可以被观察到、跳过或只观察一次，不承诺精确快照，也绝不把 poison 当作元素交付。`toArray()` 则在持锁时复制一次 FIFO 元素引用；`toString()` 先取得同样的引用快照，再在锁外调用各元素的 `toString()`。
 
 ## 3. 设计原则
 
@@ -271,17 +274,11 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 2. **再检查**：获得队列锁/Monitor 后，在提交前再次确认状态；因为等待期间可能发生了关闭
 3. **提交**：最后一步才执行 `enqueue`/`dequeue` 或状态迁移，确保元素转移与状态判断原子一致
 
-这对应现有实现里的 `beginBlockingCall` → `enterWhen` → `allowBlockingCommit` → `enqueue/dequeue`，可以封闭"先通过等待谓词、后被关闭截断"的竞态。
+这对应现有实现里的 `beginBlockingCall` → `enterWhen` → 生命周期复查 → `enqueue/dequeue`，可以封闭"先通过等待谓词、后被关闭截断"的竞态。
 
-### 12.4 准入计数器支撑增强诊断
+### 12.4 监控边界
 
-`awaitDrained()` 的主契约只等待 `DRAINED` 状态到达，不要求等待已准入调用退出。若实现想提供更强的增强诊断能力，例如“返回时不会再有迟到的提交或返回”，可额外维护准入计数：
-
-- 关闭位 + 活跃阻塞调用数可放在同一个原子字中，避免额外线程注册表
-- `close()` 设置关闭位；每个阻塞调用进入时 +1，退出时 -1
-- 增强诊断只有在“关闭位已置位、队列为空且活跃调用数为 0”后才宣告完成
-
-这类能力属于实现参考，不改变 `awaitDrained()` 只等待 DRAINED 的公开承诺。
+`awaitDrained()` 的主契约只等待 `DRAINED` 状态到达，不要求等待阻塞调用退出。队列不维护也不暴露历史活跃调用计数；调用方若需要调用耗时、并发数或等待量等指标，应在自身的调用包装层采集。
 
 ### 12.5 关闭不使用线程中断
 
@@ -289,9 +286,17 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 
 ### 12.6 用户代码移出临界区
 
-`drainTo` 的目标集合、`removeIf` 的谓词等用户代码不要在持有生命周期锁或队列锁时执行。推荐模式是：
+`drainTo` 的目标集合、`removeIf` 谓词、`removeAll`/`retainAll` 的 `contains`、`remove(Object)` 的 `equals`、`addAll` 的 poison 校验，以及 `toString`/`forEach` 的用户回调，都不得在持有队列 Monitor 时执行。推荐模式是：
 
 1. 先在临界区内把要交付的元素摘下
 2. 出锁后再调用用户集合或谓词
 
 这能避免用户回调拖慢关闭、阻塞唤醒，或在回调里重入队列造成死锁。
+
+### 12.7 批量删除与观察的一致性边界
+
+`removeIf`、`removeAll` 和 `retainAll` 每批最多处理 64 个节点：锁内抓取节点引用，锁外执行谓词/`contains`，再锁内确认节点仍在队列后摘除。这样避免为整条队列创建快照，也避免用户代码占用队列 Monitor。
+
+这三个操作不是全调用原子事务：前一批已经摘除后，后一批用户代码抛异常，前一批不会回滚；尚未进入摘除阶段的当前批不会删除。并发消费者可能在重锁前取走候选节点，此时该节点被跳过；并发生产者在遍历期间加入的节点也可能被观察到或跳过。`remove(Object)` 同样是“锁内取候选、锁外 equals、锁内按身份确认”的两阶段操作；候选被并发取走时会继续寻找下一个匹配项。
+
+若两阶段操作之间队列到达 `DRAINED`，`mutations=THROW` 可以使重锁阶段抛出 `IllegalStateException`，即使较早快照中存在候选元素；`mutations=NOOP` 则不再摘除节点。这是终态 mutation 策略在线性化边界上的正常结果，调用方不应把先前快照视作删除承诺。

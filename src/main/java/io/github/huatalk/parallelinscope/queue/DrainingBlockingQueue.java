@@ -5,15 +5,16 @@ import java.util.AbstractQueue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
@@ -47,16 +48,16 @@ import javax.annotation.Nullable;
  */
 public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, AutoCloseable {
 
+    private static final int TRAVERSAL_BATCH_SIZE = 64;
+    private static final int MAX_SPLITERATOR_BATCH = 1 << 25;
+
     private enum Lifecycle {
         OPEN,
         DRAINING,
         DRAINED
     }
 
-    private static final int ADMISSION_CLOSED = Integer.MIN_VALUE;
-    private static final int ACTIVE_CALL_MASK = Integer.MAX_VALUE;
-
-    /** Singly linked storage cell, mirroring Java 8 LinkedBlockingQueue. */
+    /** Singly linked storage cell, including LBQ's self-link convention for detached heads. */
     private static final class Node<E> {
         @Nullable
         E item;
@@ -112,8 +113,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     private Node<E> head = new Node<>(null);
     private Node<E> last = head;
 
-    /** Packed admission word: closed bit + active blocking-call count. */
-    private final AtomicInteger admission = new AtomicInteger();
+    /** Volatile gate that rejects blocking calls once close reaches the queue lock. */
+    private volatile boolean admissionClosed;
 
     public DrainingBlockingQueue() {
         this(Integer.MAX_VALUE, Collections.<E>emptyList(), DrainingShutdownPolicy.<E>empty());
@@ -216,37 +217,15 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     private boolean beginBlockingCall() {
-        for (; ; ) {
-            int observed = admission.get();
-            if ((observed & ADMISSION_CLOSED) != 0) {
-                return false;
-            }
-            if ((observed & ACTIVE_CALL_MASK) == ACTIVE_CALL_MASK) {
-                throw new IllegalStateException("too many active blocking calls");
-            }
-            if (admission.compareAndSet(observed, observed + 1)) {
-                return true;
-            }
-        }
+        return !admissionClosed;
     }
 
-    private void endBlockingCall(boolean admitted) {
-        if (admitted) {
-            admission.decrementAndGet();
-        }
-    }
-
-    /** Atomically prevents future blocking calls from acquiring an admission lease. */
+    /**
+     * Prevents future blocking calls from passing the pre-admission check; caller holds both
+     * monitors.
+     */
     private void closeAdmission() {
-        for (; ; ) {
-            int observed = admission.get();
-            if ((observed & ADMISSION_CLOSED) != 0) {
-                return;
-            }
-            if (admission.compareAndSet(observed, observed | ADMISSION_CLOSED)) {
-                return;
-            }
-        }
+        admissionClosed = true;
     }
 
     /**
@@ -280,8 +259,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Returns {@code true} while the queue is closed but not yet empty. Consumers can still take
-     * real elements in this state; {@link #isShutdown()} and {@link #isDrained()} are both {@code
-     * false}.
+     * real elements in this state; {@link #isShutdown()} is {@code true} and {@link #isDrained()} is
+     * {@code false}.
      */
     public boolean isDraining() {
         return lifecycle == Lifecycle.DRAINING;
@@ -301,6 +280,9 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * immediately when the terminal state has already been reached.
      */
     public void awaitDrained() throws InterruptedException {
+        if (isDrained()) {
+            return;
+        }
         takeMonitor.enterWhen(drainedGuard);
         takeMonitor.leave();
     }
@@ -311,6 +293,9 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      */
     public boolean awaitDrained(long timeout, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(unit, "unit");
+        if (isDrained()) {
+            return true;
+        }
         if (!takeMonitor.enterWhen(drainedGuard, timeout, unit)) {
             return false;
         }
@@ -330,9 +315,9 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      */
     @Override
     public void close() {
-        closeAdmission();
         fullyLock();
         try {
+            closeAdmission();
             if (lifecycle != Lifecycle.OPEN) {
                 return;
             }
@@ -381,27 +366,22 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Override
     public void put(E element) throws InterruptedException {
         requireElement(element);
-        boolean admitted = beginBlockingCall();
+        if (!beginBlockingCall()) {
+            throw closedWrite("put");
+        }
+        int oldCount;
+        putMonitor.enterWhen(putReady);
         try {
-            if (!admitted) {
+            if (!isOpen()) {
                 throw closedWrite("put");
             }
-            int oldCount;
-            putMonitor.enterWhen(putReady);
-            try {
-                if (!isOpen()) {
-                    throw closedWrite("put");
-                }
-                last = last.next = new Node<>(element);
-                oldCount = count.getAndIncrement();
-            } finally {
-                putMonitor.leave();
-            }
-            if (oldCount == 0) {
-                signalTakeReady();
-            }
+            last = last.next = new Node<>(element);
+            oldCount = count.getAndIncrement();
         } finally {
-            endBlockingCall(admitted);
+            putMonitor.leave();
+        }
+        if (oldCount == 0) {
+            signalTakeReady();
         }
     }
 
@@ -414,31 +394,26 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     public boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException {
         requireElement(element);
         Objects.requireNonNull(unit, "unit");
-        boolean admitted = beginBlockingCall();
-        try {
-            if (!admitted) {
-                return false;
-            }
-            int oldCount;
-            if (!putMonitor.enterWhen(putReady, timeout, unit)) {
-                return false;
-            }
-            try {
-                if (!isOpen()) {
-                    return false;
-                }
-                last = last.next = new Node<>(element);
-                oldCount = count.getAndIncrement();
-            } finally {
-                putMonitor.leave();
-            }
-            if (oldCount == 0) {
-                signalTakeReady();
-            }
-            return true;
-        } finally {
-            endBlockingCall(admitted);
+        if (!beginBlockingCall()) {
+            return false;
         }
+        int oldCount;
+        if (!putMonitor.enterWhen(putReady, timeout, unit)) {
+            return false;
+        }
+        try {
+            if (!isOpen()) {
+                return false;
+            }
+            last = last.next = new Node<>(element);
+            oldCount = count.getAndIncrement();
+        } finally {
+            putMonitor.leave();
+        }
+        if (oldCount == 0) {
+            signalTakeReady();
+        }
+        return true;
     }
 
     // endregion
@@ -482,29 +457,24 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      */
     @Override
     public E take() throws InterruptedException {
-        boolean admitted = beginBlockingCall();
+        E item;
+        int oldCount = -1;
+        takeMonitor.enterWhen(takeReady);
         try {
-            E item;
-            int oldCount = -1;
-            takeMonitor.enterWhen(takeReady);
-            try {
-                if (count.get() > 0) {
-                    item = dequeue();
-                    oldCount = count.getAndDecrement();
-                    publishDrainedIfEmptyLocked();
-                } else {
-                    return drainedRequiredValue("take");
-                }
-            } finally {
-                takeMonitor.leave();
+            if (count.get() > 0) {
+                item = dequeue();
+                oldCount = count.getAndDecrement();
+                publishDrainedIfEmptyLocked();
+            } else {
+                return drainedRequiredValue("take");
             }
-            if (oldCount == capacity) {
-                signalPutReady();
-            }
-            return item;
         } finally {
-            endBlockingCall(admitted);
+            takeMonitor.leave();
         }
+        if (oldCount == capacity) {
+            signalPutReady();
+        }
+        return item;
     }
 
     /**
@@ -517,31 +487,26 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Nullable
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(unit, "unit");
-        boolean admitted = beginBlockingCall();
-        try {
-            E item;
-            int oldCount = -1;
-            if (!takeMonitor.enterWhen(takeReady, timeout, unit)) {
-                return null;
-            }
-            try {
-                if (count.get() > 0) {
-                    item = dequeue();
-                    oldCount = count.getAndDecrement();
-                    publishDrainedIfEmptyLocked();
-                } else {
-                    return drainedSpecialValue();
-                }
-            } finally {
-                takeMonitor.leave();
-            }
-            if (oldCount == capacity) {
-                signalPutReady();
-            }
-            return item;
-        } finally {
-            endBlockingCall(admitted);
+        E item;
+        int oldCount = -1;
+        if (!takeMonitor.enterWhen(takeReady, timeout, unit)) {
+            return null;
         }
+        try {
+            if (count.get() > 0) {
+                item = dequeue();
+                oldCount = count.getAndDecrement();
+                publishDrainedIfEmptyLocked();
+            } else {
+                return drainedSpecialValue();
+            }
+        } finally {
+            takeMonitor.leave();
+        }
+        if (oldCount == capacity) {
+            signalPutReady();
+        }
+        return item;
     }
 
     /**
@@ -657,6 +622,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     public boolean addAll(Collection<? extends E> source) {
         Objects.requireNonNull(source, "source");
         List<E> additions = new ArrayList<>(source.size());
+        // Element validation can invoke user equality code through the poison check; keep it out of
+        // the producer monitor so an arbitrary collection cannot stall queue progress.
         for (E element : source) {
             additions.add(requireElement(element));
         }
@@ -764,6 +731,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Unlinks a snapshot node by identity if it is still part of the live queue. */
     private boolean unlinkIfPresent(Node<E> candidate) {
+        boolean changed = false;
         fullyLock();
         try {
             requireMutationAllowed("remove");
@@ -774,72 +742,117 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                 if (node == candidate) {
                     unlink(trail, node);
                     publishDrainedIfEmptyLocked();
-                    return true;
+                    changed = true;
+                    break;
                 }
             }
-            return false;
         } finally {
             fullyUnlock();
         }
+        return changed;
     }
 
     /**
-     * Removes every element matching the predicate, evaluating the predicate outside the queue
-     * monitors. While the queue is draining this is legal; once drained it follows the policy's
-     * {@code mutations} strategy (no-op returning {@code false}, or {@link
-     * IllegalStateException}).
+     * Removes every element matching the predicate in batches of at most 64 nodes. Each batch is
+     * snapshotted under both queue monitors, tested outside the monitors, and then revalidated and
+     * unlinked under both monitors. This bounds lock hold time and keeps user code out of critical
+     * sections. The operation is deliberately not globally atomic: if a later predicate call
+     * throws, earlier committed batches remain removed.
      */
     @Override
     public boolean removeIf(Predicate<? super E> filter) {
         Objects.requireNonNull(filter, "filter");
-        List<Node<E>> nodes = new ArrayList<>();
-        List<E> items = new ArrayList<>();
-        fullyLock();
-        try {
-            requireMutationAllowed("removeIf");
-            if (isDrainedNoopMutation()) {
-                return false;
+        return bulkRemove(filter, "removeIf");
+    }
+
+    private boolean bulkRemove(Predicate<? super E> filter, String operation) {
+        boolean removed = false;
+        Node<E> cursor = null;
+        Node<E> ancestor = head;
+        @SuppressWarnings("unchecked")
+        Node<E>[] nodes = (Node<E>[]) new Node<?>[TRAVERSAL_BATCH_SIZE];
+        int length;
+        do {
+            fullyLock();
+            try {
+                requireMutationAllowed(operation);
+                if (isDrainedNoopMutation()) {
+                    return removed;
+                }
+                if (cursor == null) {
+                    cursor = head.next;
+                }
+                for (length = 0; cursor != null && length < nodes.length; cursor = successor(cursor)) {
+                    nodes[length++] = cursor;
+                }
+            } finally {
+                fullyUnlock();
             }
-            for (Node<E> node = head.next; node != null; node = node.next) {
-                nodes.add(node);
-                items.add(node.item);
-            }
-        } finally {
-            fullyUnlock();
-        }
-        Set<Node<E>> matched = new HashSet<>();
-        for (int index = 0; index < items.size(); index++) {
-            if (filter.test(items.get(index))) {
-                matched.add(nodes.get(index));
-            }
-        }
-        if (matched.isEmpty()) {
-            return false;
-        }
-        fullyLock();
-        try {
-            requireMutationAllowed("removeIf");
-            if (isDrainedNoopMutation()) {
-                return false;
-            }
-            boolean changed = false;
-            for (Node<E> trail = head, node = trail.next; node != null; ) {
-                if (matched.contains(node)) {
-                    unlink(trail, node);
-                    node = trail.next;
-                    changed = true;
-                } else {
-                    trail = node;
-                    node = node.next;
+
+            long matched = 0L;
+            for (int index = 0; index < length; index++) {
+                E item = nodes[index].item;
+                if (item != null && filter.test(item)) {
+                    matched |= 1L << index;
                 }
             }
-            if (changed) {
-                publishDrainedIfEmptyLocked();
+
+            boolean changed = false;
+            if (matched != 0L) {
+                fullyLock();
+                try {
+                    requireMutationAllowed(operation);
+                    if (isDrainedNoopMutation()) {
+                        return removed;
+                    }
+                    for (int index = 0; index < length; index++) {
+                        Node<E> node = nodes[index];
+                        if ((matched & (1L << index)) != 0L && node.item != null) {
+                            ancestor = findPredecessor(node, ancestor);
+                            unlink(ancestor, node);
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        publishDrainedIfEmptyLocked();
+                    }
+                } finally {
+                    fullyUnlock();
+                }
             }
-            return changed;
-        } finally {
-            fullyUnlock();
+            clearBatch(nodes, length);
+            if (changed) {
+                removed = true;
+                if (isDrained()) {
+                    return true;
+                }
+            }
+        } while (length > 0 && cursor != null);
+        return removed;
+    }
+
+    private void clearBatch(Node<E>[] nodes, int length) {
+        for (int index = 0; index < length; index++) {
+            nodes[index] = null;
         }
+    }
+
+    /** Returns the node after {@code node}, following LBQ's self-link convention. */
+    @Nullable
+    private Node<E> successor(Node<E> node) {
+        Node<E> next = node.next;
+        return next == node ? head.next : next;
+    }
+
+    /** Finds a live node's predecessor, reusing an earlier ancestor when possible. */
+    private Node<E> findPredecessor(Node<E> node, Node<E> ancestor) {
+        if (ancestor.item == null) {
+            ancestor = head;
+        }
+        for (Node<E> candidate; (candidate = ancestor.next) != node; ancestor = candidate) {
+            // The node is known live and linked while both monitors are held.
+        }
+        return ancestor;
     }
 
     /**
@@ -850,7 +863,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Override
     public boolean removeAll(Collection<?> source) {
         Objects.requireNonNull(source, "source");
-        return removeIf(source::contains);
+        return bulkRemove(source::contains, "removeAll");
     }
 
     /**
@@ -860,7 +873,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Override
     public boolean retainAll(Collection<?> source) {
         Objects.requireNonNull(source, "source");
-        return removeIf(value -> !source.contains(value));
+        return bulkRemove(value -> !source.contains(value), "retainAll");
     }
 
     /**
@@ -978,6 +991,217 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /**
+     * Returns a FIFO snapshot of the elements that were live while both queue monitors were held.
+     * The returned array is independent of subsequent queue changes.
+     */
+    @Override
+    public Object[] toArray() {
+        fullyLock();
+        try {
+            Object[] elements = new Object[count.get()];
+            int index = 0;
+            for (Node<E> node = head.next; node != null; node = node.next) {
+                elements[index++] = node.item;
+            }
+            return elements;
+        } finally {
+            fullyUnlock();
+        }
+    }
+
+    /**
+     * Returns a FIFO snapshot in the requested array type. The queue is only locked while element
+     * references are copied; user-owned array operations happen after that snapshot is complete.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T[] toArray(T[] destination) {
+        Objects.requireNonNull(destination, "destination");
+        Object[] snapshot = toArray();
+        T[] result = destination.length >= snapshot.length
+                ? destination
+                : (T[]) java.lang.reflect.Array.newInstance(
+                        destination.getClass().getComponentType(), snapshot.length);
+        for (int index = 0; index < snapshot.length; index++) {
+            result[index] = (T) snapshot[index];
+        }
+        if (result.length > snapshot.length) {
+            result[snapshot.length] = null;
+        }
+        return result;
+    }
+
+    /**
+     * Formats a point-in-time element-reference snapshot. Element {@code toString()} methods run
+     * after the queue monitors have been released and therefore cannot delay queue operations.
+     */
+    @Override
+    public String toString() {
+        Object[] snapshot = toArray();
+        if (snapshot.length == 0) {
+            return "[]";
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append('[');
+        for (int index = 0; index < snapshot.length; index++) {
+            if (index > 0) {
+                builder.append(", ");
+            }
+            Object element = snapshot[index];
+            builder.append(element == this ? "(this Collection)" : element);
+        }
+        return builder.append(']').toString();
+    }
+
+    /**
+     * Runs the action on elements observed during a weakly consistent traversal. At most 64
+     * element references are copied while holding the queue monitors; the action is always invoked
+     * after they are released.
+     */
+    @Override
+    public void forEach(Consumer<? super E> action) {
+        Objects.requireNonNull(action, "action");
+        forEachFrom(action, null);
+    }
+
+    private void forEachFrom(Consumer<? super E> action, @Nullable Node<E> cursor) {
+        Object[] elements = null;
+        int length = 0;
+        do {
+            int amount = 0;
+            fullyLock();
+            try {
+                if (elements == null) {
+                    if (cursor == null) {
+                        cursor = head.next;
+                    }
+                    for (Node<E> node = cursor; node != null; node = successor(node)) {
+                        if (node.item != null && ++length == TRAVERSAL_BATCH_SIZE) {
+                            break;
+                        }
+                    }
+                    elements = new Object[length];
+                }
+                while (cursor != null && amount < length) {
+                    E item = cursor.item;
+                    cursor = successor(cursor);
+                    if (item != null) {
+                        elements[amount++] = item;
+                    }
+                }
+            } finally {
+                fullyUnlock();
+            }
+            for (int index = 0; index < amount; index++) {
+                @SuppressWarnings("unchecked")
+                E item = (E) elements[index];
+                action.accept(item);
+            }
+        } while (length > 0 && cursor != null);
+    }
+
+    /**
+     * Returns a weakly consistent, late-binding spliterator with the same characteristics as
+     * {@link java.util.concurrent.LinkedBlockingQueue}. Streams obtained from this queue inherit
+     * those weakly consistent traversal semantics.
+     */
+    @Override
+    public Spliterator<E> spliterator() {
+        return new QueueSpliterator();
+    }
+
+    private final class QueueSpliterator implements Spliterator<E> {
+        @Nullable
+        private Node<E> current;
+
+        private int batch;
+        private boolean exhausted;
+        private long estimatedSize = size();
+
+        @Override
+        public long estimateSize() {
+            return estimatedSize;
+        }
+
+        @Override
+        public Spliterator<E> trySplit() {
+            if (exhausted) {
+                return null;
+            }
+            int splitSize = batch = Math.min(batch + 1, MAX_SPLITERATOR_BATCH);
+            Object[] elements = new Object[splitSize];
+            int amount = 0;
+            fullyLock();
+            try {
+                Node<E> node = current == null ? head.next : current;
+                while (node != null && amount < splitSize) {
+                    E item = node.item;
+                    node = successor(node);
+                    if (item != null) {
+                        elements[amount++] = item;
+                    }
+                }
+                current = node;
+                if (node == null) {
+                    exhausted = true;
+                    estimatedSize = 0L;
+                } else if ((estimatedSize -= amount) < 0L) {
+                    estimatedSize = 0L;
+                }
+            } finally {
+                fullyUnlock();
+            }
+            return amount == 0
+                    ? null
+                    : Spliterators.spliterator(elements, 0, amount, characteristics());
+        }
+
+        @Override
+        public boolean tryAdvance(Consumer<? super E> action) {
+            Objects.requireNonNull(action, "action");
+            if (exhausted) {
+                return false;
+            }
+            E item = null;
+            fullyLock();
+            try {
+                Node<E> node = current == null ? head.next : current;
+                while (node != null && item == null) {
+                    item = node.item;
+                    node = successor(node);
+                }
+                current = node;
+                if (node == null) {
+                    exhausted = true;
+                }
+            } finally {
+                fullyUnlock();
+            }
+            if (item == null) {
+                return false;
+            }
+            action.accept(item);
+            return true;
+        }
+
+        @Override
+        public void forEachRemaining(Consumer<? super E> action) {
+            Objects.requireNonNull(action, "action");
+            if (!exhausted) {
+                exhausted = true;
+                Node<E> cursor = current;
+                current = null;
+                forEachFrom(action, cursor);
+            }
+        }
+
+        @Override
+        public int characteristics() {
+            return Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.CONCURRENT;
+        }
+    }
+
+    /**
      * Returns a weakly consistent FIFO iterator over the live node chain, shaped after {@link
      * java.util.concurrent.LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
      * iterator is created may or may not be reflected. While the queue is draining the iterator
@@ -994,21 +1218,25 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /** Weakly consistent iterator over the live node chain; see {@link #iterator()}. */
     private final class Itr implements Iterator<E> {
         @Nullable
-        private Node<E> current;
+        private Node<E> next;
+
+        @Nullable
+        private E nextItem;
 
         @Nullable
         private Node<E> lastReturned;
 
+        /** Lazily maintained predecessor for expected constant-time consecutive removals. */
         @Nullable
-        private E currentElement;
+        private Node<E> ancestor;
 
         /** Captures the current first node while both storage monitors are occupied. */
         Itr() {
             fullyLock();
             try {
-                current = head.next;
-                if (current != null) {
-                    currentElement = current.item;
+                next = head.next;
+                if (next != null) {
+                    nextItem = next.item;
                 }
             } finally {
                 fullyUnlock();
@@ -1017,63 +1245,103 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
         @Override
         public boolean hasNext() {
-            return current != null;
-        }
-
-        /** Finds the next live successor, recovering from self-linked dequeued nodes. */
-        @Nullable
-        private Node<E> nextNode(Node<E> node) {
-            for (; ; ) {
-                Node<E> successor = node.next;
-                if (successor == node) {
-                    return head.next;
-                }
-                if (successor == null || successor.item != null) {
-                    return successor;
-                }
-                node = successor;
-            }
+            return next != null;
         }
 
         @Override
         public E next() {
+            Node<E> node = next;
+            if (node == null) {
+                throw new NoSuchElementException();
+            }
+            E item = nextItem;
+            lastReturned = node;
             fullyLock();
             try {
-                if (current == null) {
-                    throw new NoSuchElementException();
+                E successorItem = null;
+                for (node = node.next;
+                        node != null && (successorItem = node.item) == null;
+                        node = successor(node)) {
+                    // Skip nodes concurrently removed before this traversal step.
                 }
-                E value = currentElement;
-                lastReturned = current;
-                current = nextNode(current);
-                currentElement = current == null ? null : current.item;
-                return value;
+                next = node;
+                nextItem = successorItem;
             } finally {
                 fullyUnlock();
             }
+            return item;
+        }
+
+        @Override
+        public void forEachRemaining(Consumer<? super E> action) {
+            Objects.requireNonNull(action, "action");
+            Node<E> cursor = next;
+            if (cursor == null) {
+                return;
+            }
+            lastReturned = cursor;
+            next = null;
+            Object[] elements = null;
+            int length = 1;
+            int amount;
+            do {
+                fullyLock();
+                try {
+                    if (elements == null) {
+                        cursor = cursor.next;
+                        for (Node<E> node = cursor; node != null; node = successor(node)) {
+                            if (node.item != null && ++length == TRAVERSAL_BATCH_SIZE) {
+                                break;
+                            }
+                        }
+                        elements = new Object[length];
+                        elements[0] = nextItem;
+                        nextItem = null;
+                        amount = 1;
+                    } else {
+                        amount = 0;
+                    }
+                    while (cursor != null && amount < length) {
+                        E item = cursor.item;
+                        Node<E> node = cursor;
+                        cursor = successor(cursor);
+                        if (item != null) {
+                            elements[amount++] = item;
+                            lastReturned = node;
+                        }
+                    }
+                } finally {
+                    fullyUnlock();
+                }
+                for (int index = 0; index < amount; index++) {
+                    @SuppressWarnings("unchecked")
+                    E item = (E) elements[index];
+                    action.accept(item);
+                }
+            } while (amount > 0 && cursor != null);
         }
 
         /** Removes the last returned node by identity when it remains linked to the live queue. */
         @Override
         public void remove() {
-            if (lastReturned == null) {
+            Node<E> node = lastReturned;
+            if (node == null) {
                 throw new IllegalStateException();
             }
+            lastReturned = null;
             fullyLock();
             try {
-                Node<E> node = lastReturned;
-                lastReturned = null;
                 requireMutationAllowed("iterator remove");
                 if (isDrainedNoopMutation()) {
                     return;
                 }
-                for (Node<E> trail = head, candidate = trail.next;
-                        candidate != null;
-                        trail = candidate, candidate = candidate.next) {
-                    if (candidate == node) {
-                        unlink(trail, candidate);
-                        publishDrainedIfEmptyLocked();
-                        break;
+                if (node.item != null) {
+                    if (ancestor == null) {
+                        ancestor = head;
                     }
+                    ancestor = findPredecessor(node, ancestor);
+                    unlink(ancestor, node);
+                    publishDrainedIfEmptyLocked();
                 }
             } finally {
                 fullyUnlock();
