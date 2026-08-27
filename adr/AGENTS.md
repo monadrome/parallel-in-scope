@@ -40,6 +40,4 @@ future maintainers apply or revisit the decision.
 ## Validation
 
 - Check relative links and referenced files.
-- Run `git diff --check` before finishing ADR-only changes.
-- Java tests are not required for documentation-only edits unless the ADR
-  change accompanies executable code changes.
+- Java tests are not required for documentation-only ADR edits.

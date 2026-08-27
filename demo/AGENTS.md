@@ -2,59 +2,41 @@
 
 ## Project
 
-This directory is a standalone Java 8 example project that consumes the published
-`parallel-in-scope` artifact. It must remain buildable independently from the
-repository's root Maven project.
+Standalone Java 8 example project consuming the published `parallel-in-scope`
+artifact. Must build independently from the repository's root Maven project.
 
 ## Commands
 
-Run commands from `demo/`.
+Run from `demo/`.
 
 ```bash
-# Compile
-mvn clean compile
-
-# Run all tests
-mvn test
-
-# Run one test class
-mvn test -Dtest=<TestClass>
-
-# Dependency audit
-mvn dependency:tree
-
-# Run one demo
-mvn exec:java -Dexec.mainClass=demo.basic.BasicParDemo
-
-# Run all demos
-mvn verify -Prun-all-demos
+mvn test                       # all tests
+mvn test -Dtest=<TestClass>    # targeted test
+mvn dependency:tree            # dependency audit
+mvn exec:java -Dexec.mainClass=demo.basic.BasicParDemo   # run one demo
+mvn verify -Prun-all-demos                               # run all demos
 ```
-
-## Structure
-
-- `src/main/java/demo/basic/` - introductory examples.
-- `src/main/java/demo/advanced/` - diagnostics and advanced behavior.
-- `src/main/java/demo/integration/` - end-to-end usage scenarios.
-- `src/test/java/demo/article/` - executable tests linked from articles.
-- `docs/zh-CN/articles/` - problem-oriented articles backed by tests.
-- `scripts/run-demos.sh` - convenience runner for supported demos.
 
 ## Critical Rules
 
-- Keep demo packages under `demo.*`.
-- Depend on the published library artifact; never reference the root project's source tree.
+- Depend on the published library artifact; never reference the root project's
+  source tree.
 - Use only the public APIs allowed by `architecture-constraints.md`.
-- Add or update an executable test when an article changes observable behavior.
-- Keep article snippets focused; do not repeat imports when the linked complete test contains them.
+- Tests in `src/test/java/demo/article/` back the articles in
+  `docs/zh-CN/articles/`; add or update a test when an article changes
+  observable behavior.
+- Keep article snippets focused; do not repeat imports when the linked complete
+  test contains them.
 - Update `scripts/run-demos.sh` when adding a runnable main class.
 
 ## Done Criteria
 
-- Run the targeted test for changed examples or articles.
-- Run `mvn test` before finishing changes that affect the demo module.
-- Run `mvn dependency:tree` when changing dependencies or plugin configuration.
+- Run `mvn test` before finishing changes that affect the demo module (a
+  targeted test suffices while iterating).
 
 ## Reference Documents
 
-- `architecture-constraints.md` - Read before changing dependencies, package names, imports, or module boundaries.
-- `README.en.md` - Read when adding a runnable demo or changing user-facing demo navigation.
+- `architecture-constraints.md` - Read before changing dependencies, package
+  names, imports, or module boundaries.
+- `README.en.md` - Read when adding a runnable demo or changing user-facing demo
+  navigation.
