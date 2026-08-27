@@ -38,7 +38,7 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 | DRAINED 消费，配置了毒丸 | 返回毒丸对象（仅终结信号，不是元素） |
 | DRAINED 消费，未配置毒丸 | 抛 `NoSuchElementException`（消息含 "queue is drained"）；`poll` / `peek` 返回 `null` |
 | DRAINING 集合变更（clear / remove / removeIf ...） | 照常执行，可用来主动放弃存量 |
-| DRAINED 集合变更 | 按 `DrainingShutdownPolicy.mutations` 策略：NOOP 返回 false，或抛 `IllegalStateException` |
+| DRAINED 集合变更 | 按 `DrainingBlockingQueue.ShutdownPolicy.mutations` 策略：NOOP 返回 false，或抛 `IllegalStateException` |
 | `drainTo` | 任何状态下可用；排空后返回 0 |
 | `iterator()` | 弱一致 live 遍历，`remove()` 作用于队列，遵循同一变更策略 |
 | 外部 `interrupt()` 等待中 | 抛 `InterruptedException`（与关闭正交，原样传播） |
@@ -56,7 +56,7 @@ JDK BlockingQueue 没有关闭语义。任务队列排空后 `take()` 永久阻�
 
 - **队列核心**：四种阻塞方法（put / take / offer(t) / poll(t)）、非阻塞 offer / poll / peek、`drainTo`（锁内摘除、锁外回调）、`clear`、`remove`、`removeIf` / `removeAll` / `retainAll`、弱一致迭代器（Java 8 LinkedBlockingQueue 形状，支持基于身份移除）。
 - **生命周期**：`close()`（幂等）、`isShutdown()` / `isDraining()` / `isDrained()`、`awaitDrained()`（带超时版本）。
-- **关闭语义**：`DrainingShutdownPolicy` 两个维度——毒丸（poison）与排空后的集合变更策略（NOOP / THROW）。
+- **关闭语义**：`DrainingBlockingQueue.ShutdownPolicy` 两个维度——毒丸（poison）与排空后的集合变更策略（NOOP / THROW）。
 - **双管程并行**：put 与 take 各自独立 Monitor，生产和消费并发不互斥。
 
 ## 技术设计

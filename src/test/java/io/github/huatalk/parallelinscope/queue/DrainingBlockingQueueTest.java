@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,18 +31,18 @@ class DrainingBlockingQueueTest {
 
     @Test
     void shutdownPolicyFactoriesAndBuilderReturnConfiguredInstances() {
-        DrainingShutdownPolicy<String> empty = DrainingShutdownPolicy.empty();
+        DrainingBlockingQueue.ShutdownPolicy<String> empty = DrainingBlockingQueue.ShutdownPolicy.empty();
         assertNull(empty.poison());
-        assertEquals(DrainingShutdownPolicy.MutationsStrategy.NOOP, empty.mutationsStrategy());
-        DrainingShutdownPolicy<String> throwing = DrainingShutdownPolicy.throwing();
-        assertEquals(DrainingShutdownPolicy.MutationsStrategy.THROW, throwing.mutationsStrategy());
-        DrainingShutdownPolicy.Builder<String> builder = DrainingShutdownPolicy.builder();
+        assertEquals(DrainingBlockingQueue.MutationsStrategy.NOOP, empty.mutationsStrategy());
+        DrainingBlockingQueue.ShutdownPolicy<String> throwing = DrainingBlockingQueue.ShutdownPolicy.throwing();
+        assertEquals(DrainingBlockingQueue.MutationsStrategy.THROW, throwing.mutationsStrategy());
+        DrainingBlockingQueue.ShutdownPolicy.Builder<String> builder = DrainingBlockingQueue.ShutdownPolicy.builder();
         assertSame(builder, builder.poison("stop"));
-        assertSame(builder, builder.mutations(DrainingShutdownPolicy.MutationsStrategy.THROW));
-        DrainingShutdownPolicy<String> built = builder.build();
+        assertSame(builder, builder.mutations(DrainingBlockingQueue.MutationsStrategy.THROW));
+        DrainingBlockingQueue.ShutdownPolicy<String> built = builder.build();
         assertEquals("stop", built.poison());
-        assertEquals(DrainingShutdownPolicy.MutationsStrategy.THROW, built.mutationsStrategy());
-        assertThrows(NullPointerException.class, () -> DrainingShutdownPolicy.poison(null));
+        assertEquals(DrainingBlockingQueue.MutationsStrategy.THROW, built.mutationsStrategy());
+        assertThrows(NullPointerException.class, () -> DrainingBlockingQueue.ShutdownPolicy.poison(null));
     }
 
     @Test
@@ -191,12 +191,14 @@ class DrainingBlockingQueueTest {
         queue.addAll(values);
         AtomicInteger evaluations = new AtomicInteger();
 
-        assertThrows(IllegalArgumentException.class, () -> queue.removeIf(value -> {
-            if (evaluations.getAndIncrement() == 64) {
-                throw new IllegalArgumentException("second batch");
-            }
-            return true;
-        }));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> queue.removeIf(value -> {
+                    if (evaluations.getAndIncrement() == 64) {
+                        throw new IllegalArgumentException("second batch");
+                    }
+                    return true;
+                }));
 
         assertEquals(64, queue.size());
         assertEquals(64, queue.poll());
@@ -434,8 +436,13 @@ class DrainingBlockingQueueTest {
     void constructorValidationCoversCapacityAndPolicyBoundaries() {
         assertThrows(IllegalArgumentException.class, () -> new DrainingBlockingQueue<Integer>(0));
         assertThrows(IllegalArgumentException.class, () -> new DrainingBlockingQueue<Integer>(-1));
-        assertThrows(IllegalArgumentException.class, () -> new DrainingBlockingQueue<>(1, Arrays.asList(1, 2), DrainingShutdownPolicy.empty()));
-        assertThrows(NullPointerException.class, () -> new DrainingBlockingQueue<Integer>(1, (DrainingShutdownPolicy<Integer>) null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new DrainingBlockingQueue<>(
+                        1, Arrays.asList(1, 2), DrainingBlockingQueue.ShutdownPolicy.empty()));
+        assertThrows(
+                NullPointerException.class,
+                () -> new DrainingBlockingQueue<Integer>(1, (DrainingBlockingQueue.ShutdownPolicy<Integer>) null));
         assertThrows(NullPointerException.class, () -> new DrainingBlockingQueue<Integer>(1, (Integer) null));
         assertThrows(NullPointerException.class, () -> new DrainingBlockingQueue<Integer>(1).offer(null));
         assertThrows(NullPointerException.class, () -> new DrainingBlockingQueue<Integer>(1).offer(1, 1, null));
@@ -636,8 +643,8 @@ class DrainingBlockingQueueTest {
         assertFalse(queue.removeIf(value -> true));
         assertFalse(queue.remove(2));
 
-        DrainingShutdownPolicy<Integer> policy = DrainingShutdownPolicy.<Integer>builder()
-                .mutations(DrainingShutdownPolicy.MutationsStrategy.THROW)
+        DrainingBlockingQueue.ShutdownPolicy<Integer> policy = DrainingBlockingQueue.ShutdownPolicy.<Integer>builder()
+                .mutations(DrainingBlockingQueue.MutationsStrategy.THROW)
                 .build();
         DrainingBlockingQueue<Integer> throwing = new DrainingBlockingQueue<>(2, policy);
         throwing.close();
@@ -700,7 +707,6 @@ class DrainingBlockingQueueTest {
         queue.close();
         assertTrue(failure.get() instanceof InterruptedException);
     }
-
 
     @Test
     void addAllAtomicValidationAndQueryMethodsRemainHonest() {

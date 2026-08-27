@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  * {@link IllegalStateException} or return {@code false}, without storing or waiting; consumers
  * still receive real elements while any remain; collection mutations ({@code clear}/{@code
  * remove}/{@code removeIf}/{@code removeAll}/{@code retainAll}) remain legal while draining and
- * are governed by {@link DrainingShutdownPolicy}'s {@code mutations} strategy only after
+ * are governed by {@link ShutdownPolicy}'s {@code mutations} strategy only after
  * {@code DRAINED}; and {@code drainTo} stays available in every state to remove remaining work.
  * Use {@link #isShutdown()} to ask whether producers were rejected and {@link #isDrained()} to ask
  * whether the queue is empty and terminal; a closed but non-empty queue is in the {@link
@@ -90,7 +90,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     private final int capacity;
-    private final DrainingShutdownPolicy<E> policy;
+    private final ShutdownPolicy<E> policy;
 
     /** Consumer monitor; guards consumer-side waits and the drained publication. */
     private final Monitor takeMonitor = new Monitor();
@@ -139,6 +139,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Head and tail of the linked queue; head.item is always null. */
     private Node<E> head = new Node<>(null);
+
     private Node<E> last = head;
 
     /**
@@ -149,7 +150,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Creates an effectively unbounded queue with the default empty terminal policy. */
     public DrainingBlockingQueue() {
-        this(Integer.MAX_VALUE, Collections.<E>emptyList(), DrainingShutdownPolicy.<E>empty());
+        this(Integer.MAX_VALUE, Collections.<E>emptyList(), ShutdownPolicy.<E>empty());
     }
 
     /**
@@ -158,7 +159,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws IllegalArgumentException if {@code capacity} is not positive
      */
     public DrainingBlockingQueue(int capacity) {
-        this(capacity, Collections.<E>emptyList(), DrainingShutdownPolicy.<E>empty());
+        this(capacity, Collections.<E>emptyList(), ShutdownPolicy.<E>empty());
     }
 
     /**
@@ -169,7 +170,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws NullPointerException if {@code poison} is null
      */
     public DrainingBlockingQueue(int capacity, E poison) {
-        this(capacity, Collections.<E>emptyList(), DrainingShutdownPolicy.poison(poison));
+        this(capacity, Collections.<E>emptyList(), ShutdownPolicy.poison(poison));
     }
 
     /**
@@ -178,7 +179,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws IllegalArgumentException if {@code capacity} is not positive
      * @throws NullPointerException if {@code policy} is null
      */
-    public DrainingBlockingQueue(int capacity, DrainingShutdownPolicy<E> policy) {
+    public DrainingBlockingQueue(int capacity, ShutdownPolicy<E> policy) {
         this(capacity, Collections.<E>emptyList(), policy);
     }
 
@@ -190,7 +191,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws NullPointerException if the collection or an element is null
      */
     public DrainingBlockingQueue(Collection<? extends E> initialElements) {
-        this(Integer.MAX_VALUE, initialElements, DrainingShutdownPolicy.<E>empty());
+        this(Integer.MAX_VALUE, initialElements, ShutdownPolicy.<E>empty());
     }
 
     /**
@@ -202,8 +203,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      *     it, or an initial element equals the configured poison
      * @throws NullPointerException if {@code initialElements}, {@code policy}, or an element is null
      */
-    public DrainingBlockingQueue(
-            int capacity, Collection<? extends E> initialElements, DrainingShutdownPolicy<E> policy) {
+    public DrainingBlockingQueue(int capacity, Collection<? extends E> initialElements, ShutdownPolicy<E> policy) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be positive");
         }
@@ -331,14 +331,14 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * allowed because they are another valid way to finish draining stored work.
      */
     private void requireMutationAllowed(String operation) {
-        if (isDrained() && policy.mutationsStrategy() == DrainingShutdownPolicy.MutationsStrategy.THROW) {
+        if (isDrained() && policy.mutationsStrategy() == MutationsStrategy.THROW) {
             throw closedWrite(operation);
         }
     }
 
     /** Identifies the terminal no-op branch after policy validation has allowed a mutation to run. */
     private boolean isDrainedNoopMutation() {
-        return isDrained() && policy.mutationsStrategy() == DrainingShutdownPolicy.MutationsStrategy.NOOP;
+        return isDrained() && policy.mutationsStrategy() == MutationsStrategy.NOOP;
     }
 
     // endregion
@@ -1313,9 +1313,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             } finally {
                 fullyUnlock();
             }
-            return amount == 0
-                    ? null
-                    : Spliterators.spliterator(elements, 0, amount, characteristics());
+            return amount == 0 ? null : Spliterators.spliterator(elements, 0, amount, characteristics());
         }
 
         @Override
@@ -1421,9 +1419,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             fullyLock();
             try {
                 E successorItem = null;
-                for (node = node.next;
-                        node != null && (successorItem = node.item) == null;
-                        node = successor(node)) {
+                for (node = node.next; node != null && (successorItem = node.item) == null; node = successor(node)) {
                     // Skip nodes concurrently removed before this traversal step.
                 }
                 next = node;
@@ -1512,6 +1508,116 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             }
             if (changed) {
                 signalPutReady();
+            }
+        }
+    }
+
+    // endregion
+
+    // region Shutdown policy
+
+    /** Behavior of ordinary collection mutations after the queue has drained. */
+    public enum MutationsStrategy {
+        /** Terminal mutations report no change and leave the already empty queue untouched. */
+        NOOP,
+
+        /** Terminal mutations throw {@link IllegalStateException} to make a stale mutation visible. */
+        THROW
+    }
+
+    /**
+     * Immutable terminal-state behavior for the enclosing queue.
+     *
+     * <p>The dimensions are independent: {@code poison} controls what value-returning consumer
+     * methods observe only after the queue is {@code DRAINED}; {@link MutationsStrategy} controls
+     * {@code clear}, {@code remove}, {@code removeIf}, {@code removeAll}, and {@code retainAll} only
+     * after that same terminal state. Neither setting changes the rule that consumers receive all real
+     * queued elements while the queue is {@code DRAINING}. The poison is a virtual signal, never a
+     * stored element, and queue write paths reject elements equal to it.
+     */
+    public static final class ShutdownPolicy<E> {
+
+        @Nullable
+        private final E poison;
+
+        private final MutationsStrategy mutationsStrategy;
+
+        private ShutdownPolicy(@Nullable E poison, MutationsStrategy mutationsStrategy) {
+            this.poison = poison;
+            this.mutationsStrategy = Objects.requireNonNull(mutationsStrategy, "mutationsStrategy");
+        }
+
+        /**
+         * Returns the default: no poison, with terminal mutations as no-ops. At {@code DRAINED},
+         * special-value reads return {@code null}, required-value reads throw, and ordinary mutations
+         * report no change.
+         */
+        public static <E> ShutdownPolicy<E> empty() {
+            return new ShutdownPolicy<>(null, MutationsStrategy.NOOP);
+        }
+
+        /**
+         * Returns a policy that emits {@code poison} from every value-returning consumer method after
+         * {@code DRAINED}, while terminal mutations remain no-ops. The poison must be non-null.
+         */
+        public static <E> ShutdownPolicy<E> poison(E poison) {
+            return new ShutdownPolicy<>(Objects.requireNonNull(poison, "poison"), MutationsStrategy.NOOP);
+        }
+
+        /**
+         * Returns a policy with no poison that rejects ordinary mutations after {@code DRAINED}.
+         * Required-value consumers still throw {@link java.util.NoSuchElementException}, and
+         * special-value consumers still return {@code null}.
+         */
+        public static <E> ShutdownPolicy<E> throwing() {
+            return new ShutdownPolicy<>(null, MutationsStrategy.THROW);
+        }
+
+        /** Returns a builder for independently choosing the terminal signal and mutation behavior. */
+        public static <E> Builder<E> builder() {
+            return new Builder<>();
+        }
+
+        @Nullable
+        E poison() {
+            return poison;
+        }
+
+        MutationsStrategy mutationsStrategy() {
+            return mutationsStrategy;
+        }
+
+        /**
+         * Builder for independent poison and mutation choices. Unset choices use the same defaults as
+         * {@link ShutdownPolicy#empty()}: no poison and {@link MutationsStrategy#NOOP}.
+         */
+        public static final class Builder<E> {
+            @Nullable
+            private E poison;
+
+            private MutationsStrategy mutationsStrategy = MutationsStrategy.NOOP;
+
+            /**
+             * Configures the non-null virtual signal returned only after {@code DRAINED}. It does not
+             * cause {@code DRAINING} consumers to stop receiving real queued elements.
+             */
+            public Builder<E> poison(E poison) {
+                this.poison = Objects.requireNonNull(poison, "poison");
+                return this;
+            }
+
+            /**
+             * Configures the behavior of ordinary collection mutations only after {@code DRAINED};
+             * mutations remain valid while {@code DRAINING} regardless of this choice.
+             */
+            public Builder<E> mutations(MutationsStrategy mutationsStrategy) {
+                this.mutationsStrategy = Objects.requireNonNull(mutationsStrategy, "mutationsStrategy");
+                return this;
+            }
+
+            /** Returns the immutable policy represented by the current independent choices. */
+            public ShutdownPolicy<E> build() {
+                return new ShutdownPolicy<>(poison, mutationsStrategy);
             }
         }
     }

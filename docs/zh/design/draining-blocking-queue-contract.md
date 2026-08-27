@@ -165,13 +165,13 @@ DRAINING 且仍有存量时，`take()` 应立即返回真实元素；不应返�
 ### 6.4 预设
 
 ```java
-DrainingShutdownPolicy.empty()       // 无 poison + NOOP mutations
-DrainingShutdownPolicy.poison(p)     // poison + NOOP
-DrainingShutdownPolicy.throwing()    // 无 poison + THROW
+DrainingBlockingQueue.ShutdownPolicy.empty()       // 无 poison + NOOP mutations
+DrainingBlockingQueue.ShutdownPolicy.poison(p)     // poison + NOOP
+DrainingBlockingQueue.ShutdownPolicy.throwing()    // 无 poison + THROW
 
-DrainingShutdownPolicy.builder()
+DrainingBlockingQueue.ShutdownPolicy.builder()
     .poison(p)
-    .mutations(MutationsStrategy.THROW)
+    .mutations(DrainingBlockingQueue.MutationsStrategy.THROW)
     .build();
 ```
 
