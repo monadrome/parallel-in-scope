@@ -82,6 +82,80 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
+    void removeFindsAMatchBeyondTheFirstTraversalBatch() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(130);
+        for (int value = 0; value < 130; value++) {
+            queue.add(value);
+        }
+
+        assertTrue(queue.remove(Integer.valueOf(129)));
+        assertEquals(129, queue.size());
+        assertFalse(queue.contains(129));
+        assertEquals(0, queue.peek());
+    }
+
+    @Test
+    void collectionRemovalsReleaseBlockedProducer() throws Exception {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
+        queue.addAll(Arrays.asList(1, 2));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread producer = new Thread(() -> {
+            try {
+                queue.put(3);
+            } catch (Throwable error) {
+                failure.set(error);
+            }
+        });
+        producer.start();
+        waitUntilBlocked(producer);
+
+        assertTrue(queue.remove(Integer.valueOf(1)));
+        producer.join(1000);
+        assertFalse(producer.isAlive());
+        assertNull(failure.get());
+        assertEquals(Arrays.asList(2, 3), new ArrayList<>(queue));
+    }
+
+    @Test
+    void bulkAndIteratorRemovalsReleaseBlockedProducers() throws Exception {
+        DrainingBlockingQueue<Integer> bulkQueue = new DrainingBlockingQueue<>(2);
+        bulkQueue.addAll(Arrays.asList(1, 2));
+        AtomicReference<Throwable> bulkFailure = new AtomicReference<>();
+        Thread bulkProducer = new Thread(() -> {
+            try {
+                bulkQueue.put(3);
+            } catch (Throwable error) {
+                bulkFailure.set(error);
+            }
+        });
+        bulkProducer.start();
+        waitUntilBlocked(bulkProducer);
+        assertTrue(bulkQueue.removeIf(value -> value == 1));
+        bulkProducer.join(1000);
+        assertFalse(bulkProducer.isAlive());
+        assertNull(bulkFailure.get());
+
+        DrainingBlockingQueue<Integer> iteratorQueue = new DrainingBlockingQueue<>(2);
+        iteratorQueue.addAll(Arrays.asList(1, 2));
+        AtomicReference<Throwable> iteratorFailure = new AtomicReference<>();
+        Thread iteratorProducer = new Thread(() -> {
+            try {
+                iteratorQueue.put(3);
+            } catch (Throwable error) {
+                iteratorFailure.set(error);
+            }
+        });
+        iteratorProducer.start();
+        waitUntilBlocked(iteratorProducer);
+        Iterator<Integer> iterator = iteratorQueue.iterator();
+        assertEquals(1, iterator.next());
+        iterator.remove();
+        iteratorProducer.join(1000);
+        assertFalse(iteratorProducer.isAlive());
+        assertNull(iteratorFailure.get());
+    }
+
+    @Test
     void removeIfReturnsFalseWhenNoMatchAndTrueWhenMatched() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(5);
         queue.addAll(Arrays.asList(1, 2, 3));
