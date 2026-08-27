@@ -68,7 +68,6 @@ AsyncBatchResult<User> result = global.par("io")
 - Runtime: Java 8+
 - Build tool: Maven 3.x
 - Published artifact: root `parallel-in-scope` project
-- The lifecycle queue also exposes Java 21 sequenced/reverse-view behavior when running on Java 21+
 
 ```bash
 mvn clean verify

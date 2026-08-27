@@ -118,7 +118,7 @@ void traverse(TreeNode node) {
 当你的任务代码中有 try-catch 时，需要注意不要意外吞掉取消异常：
 
 ```java
-par.map("myExecutor", items, item -> {
+global.par("myExecutor").map(items, item -> {
     try {
         riskyOperation(item);
     } catch (Exception e) {

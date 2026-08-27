@@ -68,7 +68,6 @@ AsyncBatchResult<User> result = global.par("io")
 - 运行时：Java 8+
 - 构建工具：Maven 3.x
 - 发布产物：根项目 `parallel-in-scope`
-- 生命周期队列在 Java 21+ 运行时还暴露 sequenced/reverse-view 语义
 
 ```bash
 mvn clean verify

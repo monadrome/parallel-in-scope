@@ -58,7 +58,7 @@ Add checkpoints at a reasonable granularity: every N iterations of a long loop, 
 ## Do not swallow cancellation
 
 ```java
-par.map("myExecutor", items, item -> {
+global.par("myExecutor").map(items, item -> {
     try {
         riskyOperation(item);
     } catch (Exception ex) {
