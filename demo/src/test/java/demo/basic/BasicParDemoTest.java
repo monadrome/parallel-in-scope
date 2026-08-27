@@ -1,4 +1,4 @@
-package demo;
+package demo.basic;
 
 import demo.basic.BasicParDemo;
 import java.util.concurrent.TimeUnit;

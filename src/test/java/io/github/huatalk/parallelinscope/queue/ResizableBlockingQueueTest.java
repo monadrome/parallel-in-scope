@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope;
+package io.github.huatalk.parallelinscope.queue;
 
 import io.github.huatalk.parallelinscope.queue.SimpleResizableBlockingQueue;
 import io.github.huatalk.parallelinscope.queue.SimpleResizableBlockingQueueV2;

@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope;
+package io.github.huatalk.parallelinscope.cancel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;

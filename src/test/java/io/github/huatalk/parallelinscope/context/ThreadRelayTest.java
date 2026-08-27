@@ -1,4 +1,4 @@
-package io.github.huatalk.parallelinscope;
+package io.github.huatalk.parallelinscope.context;
 
 import static org.assertj.core.api.Assertions.*;
 
