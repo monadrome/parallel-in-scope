@@ -968,9 +968,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             if (changed) {
                 removed = true;
                 signalPutReady();
-                if (isDrained()) {
-                    return true;
-                }
             }
         } while (length > 0 && cursor != null);
         return removed;
