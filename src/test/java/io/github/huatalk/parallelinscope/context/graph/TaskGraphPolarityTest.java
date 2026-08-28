@@ -1,0 +1,196 @@
+package io.github.huatalk.parallelinscope.context.graph;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
+import io.github.huatalk.parallelinscope.scope.TaskType;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Polarity complements to {@link TaskGraphBatchIdentityTest}: clean graphs must evaluate every
+ * detection predicate {@code false}, unknown nodes pass through {@code displayNode} unformatted,
+ * missing labels fall back to {@code NA}, and a benign graph publishes no livelock event.
+ */
+class TaskGraphPolarityTest {
+
+    @AfterEach
+    void clearThreadState() {
+        TaskGraph.restore(null);
+    }
+
+    /** Non-deadlock-prone edge so executor-level detection stays clean in polarity tests. */
+    private static TaskEdge plainEdge() {
+        return new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, 1_000L, false);
+    }
+
+    @Test
+    void acyclicEdgesEvaluateEveryDetectionPredicateFalse() {
+        GlobalPar global = GlobalPar.builder().build();
+        try (GlobalParObservationContext ignored = global.openObservation()) {
+            TaskGraph.logTaskPair("root", "root-label", "a", "task-a", plainEdge());
+            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
+
+            assertThat(TaskGraph.hasTaskCycle()).isFalse();
+            assertThat(TaskGraph.hasSelfLoop()).isFalse();
+            assertThat(TaskGraph.hasExecutorCycle()).isFalse();
+            assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
+
+            TaskGraph.Data data = TaskGraph.data();
+            assertThat(data).isNotNull();
+            assertThat(data.isExecutorCycle()).isFalse();
+            assertThat(data.isExecutorSelfLoop()).isFalse();
+
+            TaskGraph.restore(null);
+            assertThat(TaskGraph.data()).isNull();
+            assertThat(TaskGraph.hasTaskCycle()).isFalse();
+        } finally {
+            global.close();
+        }
+    }
+
+    @Test
+    void displayNodeFormatsLabelledNodesAndPassesUnknownNodesThrough() throws Exception {
+        TaskGraph.Data data = new TaskGraph.Data();
+        Map<String, String> labels = labelsOf(data);
+        labels.put("t1", "OrderService");
+        assertThat(data.displayNode("t1")).isEqualTo("OrderService[t1]");
+        assertThat(data.displayNode("unknown")).isEqualTo("unknown");
+        assertThat(labels.get("never-added")).isNull();
+    }
+
+    @Test
+    void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() throws Exception {
+        GlobalPar global = GlobalPar.builder().build();
+        try (GlobalParObservationContext ignored = global.openObservation()) {
+            TaskGraph.logTaskPair(null, null, "child", null, plainEdge());
+
+            TaskGraph.Data data = TaskGraph.data();
+            assertThat(data).isNotNull();
+            Map<String, String> labels = labelsOf(data);
+            assertThat(labels).containsEntry("root", "NA");
+            assertThat(labels).containsEntry("child", "NA");
+
+            List<TaskEdgeEntry> entries = new java.util.ArrayList<>();
+            data.subTaskList.drainTo(entries);
+            assertThat(entries).hasSize(1);
+            assertThat(entries.get(0).getEdge().source()).isEqualTo("root");
+            assertThat(entries.get(0).getEdge().target()).isEqualTo("child");
+            TaskGraph.restore(null);
+        } finally {
+            global.close();
+        }
+    }
+
+    @Test
+    void benignGraphPublishesNoDetectionEventOnObservationClose() {
+        AtomicInteger detections = new AtomicInteger();
+        GlobalPar global = GlobalPar.builder()
+                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                        .enabled(true)
+                        .listener(event -> detections.incrementAndGet())
+                        .build())
+                .build();
+        try (GlobalParObservationContext outer = global.openObservation()) {
+            // Acyclic chain only: no cycle, no self-loop anywhere.
+            TaskGraph.logTaskPair("r", "r", "x", "x", plainEdge());
+            assertThat(detections.get()).isZero();
+        }
+        assertThat(detections.get()).isZero();
+    }
+
+    @Test
+    void taskCycleWithoutExecutorRiskPublishesEventWithFalseExecutorFlags() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent>
+                        captured = new java.util.concurrent.atomic.AtomicReference<>();
+        GlobalPar global = GlobalPar.builder()
+                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                        .enabled(true)
+                        .listener(captured::set)
+                        .build())
+                .build();
+        try (GlobalParObservationContext ignored = global.openObservation()) {
+            // Task-level cycle a -> b -> a using NON-deadlock-prone edges: the task cycle is real,
+            // but no executor dependency edges exist at all.
+            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
+            TaskGraph.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
+        }
+
+        io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent event = captured.get();
+        assertThat(event).isNotNull();
+        assertThat(event.hasTaskCycle()).isTrue();
+        assertThat(event.hasSelfLoop()).isFalse();
+        assertThat(event.hasExecutorCycle()).isFalse();
+        assertThat(event.hasExecutorSelfLoop()).isFalse();
+        assertThat(event.hasAnyIssue()).isTrue();
+        assertThat(event.getTaskEdges()).contains("task-a[a] -> task-b[b]");
+        assertThat(String.valueOf(event)).isNotEmpty();
+    }
+
+    @Test
+    void distinctExecutorIdentitiesFormNoSelfLoopEvenWhenTheTaskGraphCycles() {
+        java.util.concurrent.ExecutorService firstPool =
+                java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.ExecutorService secondPool =
+                java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
+            ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);
+            GlobalPar global = GlobalPar.builder().build();
+            try (GlobalParObservationContext ignored = global.openObservation()) {
+                TaskEdge forward = new TaskEdge(
+                        1,
+                        TaskType.IO_BOUND,
+                        firstIdentity,
+                        secondIdentity,
+                        "first",
+                        "second",
+                        1,
+                        10L,
+                        true);
+                TaskEdge back = new TaskEdge(
+                        1,
+                        TaskType.IO_BOUND,
+                        secondIdentity,
+                        firstIdentity,
+                        "second",
+                        "first",
+                        1,
+                        10L,
+                        true);
+
+                TaskGraph.logTaskPair("a", "a", "b", "b", forward);
+                TaskGraph.logTaskPair("b", "b", "a", "a", back);
+
+                TaskGraph.Data data = TaskGraph.data();
+                assertThat(data).isNotNull();
+                assertThat(data.isExecutorCycle()).isTrue(); // Real pool-to-pool cycle.
+                assertThat(data.isExecutorSelfLoop()).isFalse(); // But no single-pool loop.
+                assertThat(data.getExecutorGraph().nodes()).isNotEmpty();
+            } finally {
+                global.close();
+            }
+        } finally {
+            firstPool.shutdownNow();
+            secondPool.shutdownNow();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> labelsOf(TaskGraph.Data data) {
+        try {
+            Field field = TaskGraph.Data.class.getDeclaredField("nodeLabels");
+            field.setAccessible(true);
+            return (Map<String, String>) field.get(data);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+}
