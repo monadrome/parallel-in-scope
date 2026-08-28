@@ -16,6 +16,12 @@ mvn -f demo/pom.xml test
 mvn -f demo/pom.xml exec:java
 ```
 
+The demo resolves `io.github.monadrome:parallel-in-scope` at the version pinned by
+`parallel-in-scope.version` in its `pom.xml`. Override it on the command line with
+`-Dparallel-in-scope.version=<version>`; CI passes the version it just built from the
+repository root, so the demo verifies the current source tree instead of a possibly stale
+pinned default.
+
 Run a specific example:
 
 ```bash
