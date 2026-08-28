@@ -60,6 +60,9 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: Check Java formatting
+        run: mvn -B -ntp spotless:check
+
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
 
