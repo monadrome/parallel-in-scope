@@ -2,6 +2,14 @@
 set -euo pipefail
 
 version="${1:-0.3.0-SNAPSHOT}"
+# The version selects the artifact directory the cleanup below removes and is passed
+# through to the consumer build; accept only a plain Maven version so it can never be
+# a path that escapes that directory.
+if [[ ! "$version" =~ ^[0-9A-Za-z]+([.-][0-9A-Za-z]+)*$ ]]; then
+  echo "error: refusing version '$version': expected a plain Maven version such as 0.3.0-SNAPSHOT" >&2
+  exit 2
+fi
+
 # The repository root .mvn/jvm.config carries the --add-exports/--add-opens flags Error Prone
 # needs on the build JDK; a JDK 8 JVM refuses to start with them, and this script exists
 # precisely to exercise the artifact on a Java 8 runtime. Point Maven's jvm.config lookup at
@@ -9,10 +17,14 @@ version="${1:-0.3.0-SNAPSHOT}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 consumer_dir="$(cd "$script_dir/../verification/maven-central-consumer" && pwd)"
 export MAVEN_BASEDIR="$consumer_dir"
-# The local repository is configurable, so ask Maven for it: a hardcoded ~/.m2 path makes the
-# removal below a silent no-op and lets the build pass against a locally installed copy.
-local_repo="$(mvn -q -DforceStdout help:evaluate -Dexpression=settings.localRepository)"
-artifact_dir="$local_repo/io/github/monadrome/parallel-in-scope/$version"
+
+# Resolve into a throwaway repository instead of the developer's shared ~/.m2. A locally
+# installed copy must not satisfy the dependency — this check exists to prove Maven Central
+# serves the artifact — and the cleanup below must never reach outside the artifact
+# directory; an empty per-run repository gives both guarantees by construction.
+tmp_repo="$(mktemp -d "${TMPDIR:-/tmp}/verify-maven-central.XXXXXX")"
+trap 'rm -rf "$tmp_repo"' EXIT
+artifact_dir="$tmp_repo/io/github/monadrome/parallel-in-scope/$version"
 
 # Remove the local copy so this check proves Maven Central can serve the artifact.
 rm -rf "$artifact_dir"
@@ -20,6 +32,7 @@ rm -rf "$artifact_dir"
 for attempt in $(seq 1 12); do
   if mvn -B -ntp -U \
       -f "$consumer_dir/pom.xml" \
+      -Dmaven.repo.local="$tmp_repo" \
       -Dparallel-in-scope.version="$version" \
       -Dtest=MavenCentralConsumerTest#publishedArtifactCanBeResolvedAndUsed \
       clean verify; then
