@@ -18,6 +18,14 @@ cat > "$fakebin/mvn" <<'EOF'
 #!/usr/bin/env bash
 echo "MAVEN_BASEDIR=${MAVEN_BASEDIR:-}" >> "$FAKE_MVN_LOG"
 echo "args:$*" >> "$FAKE_MVN_LOG"
+# In hang mode the script under test blocks here so a termination signal can arrive
+# while it is waiting; the test then signals this process too and checks the cleanup.
+if [ -n "${FAKE_MVN_HANG:-}" ]; then
+  echo "$$" > "$FAKE_MVN_PIDFILE"
+  # exec keeps this PID, so the test can TERM the blocking process directly and no
+  # orphaned sleep survives.
+  exec /bin/sleep 300
+fi
 exit "${FAKE_MVN_EXIT:-0}"
 EOF
 cat > "$fakebin/sleep" <<'EOF'
@@ -111,6 +119,42 @@ elif [ -n "$(leftover_repos)" ]; then
   fail "failing mvn: throwaway repository leaked past exit"
 else
   pass "all 12 attempts run and give up with exit 1, repository cleaned up"
+fi
+
+# Catchable termination: SIGTERM must remove the throwaway repository and exit 128+15.
+# The fake mvn blocks so the signal lands while the script is waiting on it (bash runs a
+# trap only once the foreground child has gone), so the test signals the script and then
+# the blocking mvn process before waiting for the script.
+: > "$FAKE_MVN_LOG"
+mvn_pidfile="$work/mvn.pid"
+rm -f "$mvn_pidfile"
+set +e
+FAKE_MVN_HANG=1 FAKE_MVN_PIDFILE="$mvn_pidfile" bash "$target" "0.3.0-SNAPSHOT" > "$work/out" 2>&1 &
+script_pid=$!
+set -e
+for _ in $(seq 1 100); do
+  [ -s "$mvn_pidfile" ] && break
+  /bin/sleep 0.05
+done
+if [ ! -s "$mvn_pidfile" ]; then
+  fail "SIGTERM: fake mvn never started"
+  kill -TERM "$script_pid" 2>/dev/null || true
+  wait "$script_pid" 2>/dev/null || true
+else
+  mvn_pid="$(cat "$mvn_pidfile")"
+  kill -TERM "$script_pid" 2>/dev/null || true
+  kill -TERM "$mvn_pid" 2>/dev/null || true
+  set +e
+  wait "$script_pid"
+  code=$?
+  set -e
+  if [ "$code" -ne 143 ]; then
+    fail "SIGTERM: expected exit 143, got $code"
+  elif [ -n "$(leftover_repos)" ]; then
+    fail "SIGTERM: throwaway repository leaked past the termination"
+  else
+    pass "SIGTERM removes the throwaway repository and exits 143"
+  fi
 fi
 
 if [ "$failures" -gt 0 ]; then
