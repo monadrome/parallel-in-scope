@@ -2,7 +2,7 @@
 
 > **Note (v0.3).** The `0.2.x` API described in this guide has itself been replaced in `0.3.0`:
 > `ParName`, `TaskKey`, `TaskGroupOptions`, and the rest of the task-group surface were removed
-> or redesigned around the one-shot chain `runtime.group(name, timeout).par(...).submitAll()`.
+> or redesigned around the one-shot chain `runtime.group(name, timeout).par(...).runAll()`.
 > Applications on `0.2.x`
 > should continue on to [Migrating to v0.3](migration-v0.3.md).
 

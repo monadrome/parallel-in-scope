@@ -73,11 +73,13 @@ CompletionException. Single ImmediateResult Left reads uniformly throw Execution
 stored cause, including cancellation.
 
 `asFuture()` is done and cannot be cancelled, and `isCancelled()` is always false. It returns
-a successful value or throws ExecutionException with the stored failure. Cancellation from `map`
-or `runAll` uses a CancellationException cause, replacing a formerly cancelled TaskFuture's
-unchecked cancellation. The `failed(outcome, failure)` factory keeps its throwable regardless of
-the outcome label. Both get overloads preserve interruption; their static Future signatures still
-declare checked exceptions. Consumer listeners are outside the business scope/resource lifetime.
+a successful value or throws ExecutionException with the stored failure. A cancellation that
+recorded no member/combine failure uses a cancellation-exception cause, replacing a formerly
+cancelled TaskFuture's unchecked cancellation; a group that recorded a member or combine failure
+keeps that stored failure as the cause, even when the group outcome is cancellation-shaped.
+The `failed(outcome, failure)` factory keeps its throwable regardless of the outcome label. Both
+get overloads preserve interruption; their static Future signatures still declare checked
+exceptions. Consumer listeners are outside the business scope/resource lifetime.
 
 `BatchOptions` parallelism no longer uses a `-1` sentinel for "unbounded": the default is
 `Integer.MAX_VALUE` (resolution still caps it by the task count, so default behaviour is unchanged),

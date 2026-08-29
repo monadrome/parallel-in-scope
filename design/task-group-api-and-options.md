@@ -199,7 +199,8 @@ group token 是否已提交 `FAIL_FAST`）组沿用失败任务自己的 outcome
 要求：
 
 - Map 按声明顺序稳定输出且不可修改；
-- `failure` 仅用于 `USER_FAILURE` 和 `SUBMISSION_FAILURE`；
+- 非成功成员结果一律携带 throwable，成功结果可为 null；归因、取消归一化与组 valuesResult 的
+  记录失败优先规则见[同步出口契约 §3](synchronous-scope-exit.md)（本文不复述）；
 - 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
 - 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `runAll()` 正常返回 `TaskGroupResult`：组的非 `SUCCESS` outcome 是结果数据，不通过异常

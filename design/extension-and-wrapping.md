@@ -151,7 +151,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 
 | 编号 | 守则 |
 |---|---|
-| R1 | **提交线程捕获**：需要传播的 MDC/普通 `ThreadLocal` MUST 在调用 `map`/`submitGroup` 之前捕获进闭包；在 body 内读取拿到的是 worker 残留值（P3） |
+| R1 | **提交线程捕获**：需要传播的 MDC/普通 `ThreadLocal` MUST 在调用 `map`/`runAll` 之前捕获进闭包；在 body 内读取拿到的是 worker 残留值（P3） |
 | R2 | **精确恢复**：`finally` 里 MUST 还原为捕获到的原值，而非清空（P5） |
 | R3 | **快照逐提交独立**：MUST NOT 跨提交共享同一捕获对象（P6） |
 | R4 | **不得逃逸**：横切逻辑只覆盖本次 body 的同步动态范围；MUST NOT 指望逃逸到其它线程的代码看到回放（P4） |
@@ -191,37 +191,43 @@ par.map(elements, item -> {
 }, options);
 ```
 
-group 成员与 terminal combine 同理：在 `Bindings` 里绑定的 `Callable` 内自行包装。
+group 成员与 terminal combine 同理：在 `par(...)` 的 `Callable` 内自行包装。
 
 ### 5.4 指标：优先用观测快照，不要包 body
 
-库已为每个任务计时并归因。消费 `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` 的终态快照即可拿到全部指标原语（`TaskCompletion`：`taskName()`、`unitId()`、`taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、`enqueued()`），callback 运行在你自己选择的 executor 上：
+库已为每个任务计时并归因。同步返回的 `TaskBatchResult.completions()` / `TaskGroupResult.members()`
+直接给出终态快照，不需要再注册 callback；`TaskCompletion` 暴露 `taskName()`、`unitId()`、
+`taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、
+`enqueued()`：
 
 ```java
-Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<T>>>() {
-    @Override public void onSuccess(List<TaskCompletion<T>> completions) {
-        for (TaskCompletion<T> event : completions) {
-            metrics.timer("par.task", "par", event.unitId(), "outcome", event.outcome().name())
-                   .record(event.executionTime());
-        }
+for (TaskCompletion<T> event : batch.completions()) {
+    if (event == null) {                 // 最终发布未确认；缺失项省略
+        continue;
     }
-    @Override public void onFailure(Throwable failure) { /* 实现缺陷；上报 */ }
-}, callbackExecutor);
+    metrics.timer("par.task", "par", event.unitId(), "outcome", event.outcome().name())
+           .record(event.executionTime());
+}
 ```
+
+需要跨线程组合时才对 `ImmediateResult.asFuture()` 自行注册 callback；同步出口本身不提供运行中回调。
 
 ### 5.5 重试
 
 ```java
-par.submit("flaky", () -> {
-    for (int attempt = 1; ; attempt++) {
-        Checkpoints.checkpoint();        // 协作式取消：已取消则在此抛出（R5）
-        try {
-            return callRemote();
-        } catch (TransientException e) {
-            if (attempt == 3) throw e;
-        }
-    }
-}, options);
+global.group("retry", Duration.ofSeconds(5))
+        .par("flaky", httpPar, Result.class, () -> {
+            for (int attempt = 1; ; attempt++) {
+                Checkpoints.checkpoint();        // 协作式取消：已取消则在此抛出（R5）
+                try {
+                    return callRemote();
+                } catch (TransientException e) {
+                    if (attempt == 3) throw e;
+                }
+            }
+        })
+        .runAll()
+        .terminalValueOrThrow();
 ```
 
 ## 6. TTL 包装器检测（已落地 2026-09-25，见下方落地记录）
