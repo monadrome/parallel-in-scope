@@ -121,6 +121,17 @@ public class CancellationToken {
     }
 
     /**
+     * Cancels this token and its linked work, interrupting running threads.
+     *
+     * <p>This is the common case; it is equivalent to {@link #cancel(boolean) cancel(true)}. Use
+     * {@link #cancel(boolean)} with {@code false} only when running tasks must be allowed to
+     * complete without interruption.
+     */
+    public void cancel() {
+        cancel(true);
+    }
+
+    /**
      * Cancels this token and its linked work.
      *
      * @param useInterrupt whether to interrupt running threads
