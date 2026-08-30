@@ -181,10 +181,12 @@ public enum TaskOutcome {
 
 `TaskOutcome` 是全库统一的单任务终态词汇，同时服务批量报告、组成员结果与组级结果；`RUNNING`
 表示尚未终态，不会出现在完成后的结果快照中。组级只会出现 `SUCCESS`、`USER_FAILURE`、
-`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELLED`、`GROUP_CANCELLED`：有失败记录时（无论
-group token 是否已提交 `FAIL_FAST`）组沿用失败任务自己的 outcome
-（`USER_FAILURE`/`SUBMISSION_FAILURE`），`MEMBER_CANCELLED` 表示取消源自
-组员或直接作用于组员，`GROUP_CANCELLED` 表示组被整体取消或取消自上传播。
+`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELLED`、`GROUP_CANCELLED`。有失败记录且 group token
+未提交取消态（`RUNNING`/`SUCCESS`/`FAIL_FAST`）时，组沿用失败任务自己的 outcome
+（`USER_FAILURE`/`SUBMISSION_FAILURE`）；token 一旦提交取消态（如 `TIMEOUT`），组级 outcome
+保持该取消归因，已记录的业务失败仍保留在 `valuesResult` 的 throwable 中。`MEMBER_CANCELLED`
+表示取消源自组员或直接作用于组员，`GROUP_CANCELLED` 表示组被整体取消或取消自上传播。
+完整 token→outcome 映射见[取消与归因 §8.4.1](task-group-cancellation.md)（本文不复述）。
 
 `TaskGroupResult<V, R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
