@@ -265,8 +265,8 @@ public final class Par {
                                 new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
                                 callableMapper.apply(list.get(index))))
                         .collect(toImmutableList()));
-        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
-                executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace);
+        SlidingWindowSubmitter<R> submitter =
+                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         // Bind before submitting, for the same reason Par.submit does: submission can run user code
         // on this very thread. The batch's initial window hands off synchronously here, and on a

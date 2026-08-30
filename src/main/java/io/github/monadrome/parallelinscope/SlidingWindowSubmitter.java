@@ -2,16 +2,15 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,10 +22,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Implements a "submit one when one completes" pattern:
  *
  * <ol>
- *   <li>Submits an initial batch equal to {@code parallelism}
- *   <li>Uses a blocking queue populated by completion listeners on the submitted futures to detect
- *       completion events
- *   <li>Fills freed slots incrementally with remaining tasks
+ *   <li>Submits an initial batch equal to {@code parallelism} on the calling thread
+ *   <li>Claims the next element for every completion event of a submitted element — the completion
+ *       listener itself performs the refill, so no framework thread parks waiting for work
+ *   <li>Stops claiming when the batch is cancelled, a handoff fails, or every element is claimed
  * </ol>
  *
  * <p>Each submitted future is also the exact runnable handed to the worker pool, so cancelling it
@@ -40,16 +39,13 @@ final class SlidingWindowSubmitter<V> {
     private static final Logger LOGGER = Logger.getLogger(SlidingWindowSubmitter.class.getName());
 
     private final ListeningExecutorService pool;
-    private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final MultiTaskContext unit;
-    private final ListeningExecutorService submitterPool;
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
-    public SlidingWindowSubmitter(
-            ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
-        this(pool, unit, submitterPool, BodyCompletionTracker.empty(), null);
+    public SlidingWindowSubmitter(ListeningExecutorService pool, MultiTaskContext unit) {
+        this(pool, unit, BodyCompletionTracker.empty(), null);
     }
 
     /**
@@ -60,11 +56,9 @@ final class SlidingWindowSubmitter<V> {
     public SlidingWindowSubmitter(
             ListeningExecutorService pool,
             MultiTaskContext unit,
-            ListeningExecutorService submitterPool,
             BodyCompletionTracker bodyCompletion,
             @Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
-        this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.closeGrace = closeGrace;
         this.pool = Objects.requireNonNull(pool, "pool cannot be null");
@@ -114,49 +108,33 @@ final class SlidingWindowSubmitter<V> {
                     closeGrace);
         }
 
-        int start = Math.min(tasks.size(), parallelism());
+        RefillDriver driver = new RefillDriver(tasks, results);
+        // The initial window is claimed on this thread; on a direct executor or a saturated
+        // CallerRunsPolicy pool the completions arrive inline, and the guard inside the driver
+        // turns those nested completion events into iterations of its claim loop rather than
+        // recursion.
+        driver.drain();
 
-        for (int i = 0; i < start; i++) {
-            try {
-                fallbackSubmit(tasks, i);
-            } catch (Throwable failure) {
-                // Catching Throwable, not only RuntimeException | Error: execute(Runnable) declares
-                // no checked exceptions, but a hostile executor can still throw one through
-                // generics erasure, and any handoff failure must terminate the batch the same way.
-                // A handoff failure — rejection or the executor throwing mid-handoff — is the
-                // batch's shared verdict for every element; wrapping it keeps each element
-                // attributed as a submission failure rather than a user one.
-                logHandoffError(failure, i, "the initial window");
-                failRemainingAsSubmissionFailures(tasks, i, failure);
-                return TaskBatch.of(
-                        bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
-            }
-        }
-
-        int remaining = tasks.size() - start;
-        if (remaining <= 0) {
+        int remaining = tasks.size() - Math.min(tasks.size(), parallelism());
+        if (remaining <= 0 || driver.initialHandoffFailure()) {
             return TaskBatch.of(
                     bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
         }
 
-        AtomicInteger nextIndex = new AtomicInteger(start);
-        ListenableFuture<?> submittingFuture = submitterPool.submit(() -> submitRemaining(tasks, results, nextIndex));
-        // A cancellation may win before the submitter thread starts. In that case the callable
-        // never gets a chance to abandon its placeholders, so close them from the cancellation
-        // callback as well. The submitter loop remains responsible for normal interruption.
-        submittingFuture.addListener(
+        ListenableFuture<Integer> signal = driver.signal();
+        // A cancellation may win while a completion-triggered refill is between claiming an index
+        // and handing it off. The listener claims every unclaimed index first, so the refill sees
+        // the settled signal and disposes of its claimed index itself; the loop remains responsible
+        // for normal completion.
+        signal.addListener(
                 () -> {
-                    if (submittingFuture.isCancelled()) {
-                        abandonRemaining(
-                                tasks,
-                                results,
-                                nextIndex.get(),
-                                new InterruptedException("remaining task submission cancelled"));
+                    if (signal.isCancelled()) {
+                        driver.abandonUnclaimed(new InterruptedException("remaining task submission cancelled"));
                     }
                 },
                 directExecutor());
 
-        return TaskBatch.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
+        return TaskBatch.of(bodyCompletion, signal, results, unit.cancellationToken(), closeGrace);
     }
 
     /**
@@ -164,8 +142,8 @@ final class SlidingWindowSubmitter<V> {
      *
      * <p>A handoff failure is the batch's shared verdict: the element that hit it never reached the
      * executor, and neither will any element after it. Every one of them must report {@code
-     * SUBMISSION_FAILURE} with the original throwable as cause, which is the contract in
-     * {@code design/archive/batch-submission-failure-semantics.md}.
+     * SUBMISSION_FAILURE} with the original throwable as cause, which is the contract in {@code
+     * design/archive/batch-submission-failure-semantics.md}.
      *
      * <p>Two passes, because the token is already bound by the time this runs. Settling any element
      * exceptionally fires the token's fail-fast cascade synchronously, on this thread, and that
@@ -193,33 +171,31 @@ final class SlidingWindowSubmitter<V> {
         }
     }
 
-    private void fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
+    private void fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i, Runnable onComplete) {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            submit(task);
+            submit(task, onComplete);
         } finally {
             SubmissionScope.restore(previous);
         }
     }
 
     /**
-     * Submits a prepared future to the worker pool and returns it. The listener is registered
-     * before the handoff, so a task rejected or cancelled before it runs still reaches the
-     * completion queue that drives the sliding window.
+     * Submits a prepared future to the worker pool. The listener is registered before the handoff,
+     * so a task rejected or cancelled before it runs still releases its window slot when it
+     * settles.
      *
      * <p>A task already terminal when its turn comes — cancelled by the deadline cascade while
      * the window was still filling, for example — is not handed to the pool at all: its {@code
-     * run()} would CAS-fail and no-op, so the handoff is pure waste. The listener fires
-     * immediately for a done future, so the window accounting is unchanged. A task cancelled
-     * between the check and the handoff still takes the old no-op path, which stays correct.
+     * run()} would CAS-fail and no-op, so the handoff is pure waste. The listener fires immediately
+     * for a done future, releasing the slot for the next claim.
      */
-    private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
-        task.addListener(() -> blockingQueue.add(task), directExecutor());
+    private void submit(ExecutionPhaseHintFuture<V> task, Runnable onComplete) {
+        task.addListener(onComplete, directExecutor());
         if (!task.isDone()) {
             pool.execute(task);
         }
-        return task;
     }
 
     /**
@@ -249,54 +225,166 @@ final class SlidingWindowSubmitter<V> {
         return unit.effectiveParallelism();
     }
 
-    private int submitRemaining(
-            List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> result, AtomicInteger nextIndex) {
-        int index = nextIndex.get();
-        int size = tasks.size();
-        int submitted = 0;
-        while (index < size) {
-            ListenableFuture<V> completed;
+    /**
+     * Event-driven sliding-window refill for one batch.
+     *
+     * <p>Instead of a framework thread parked in a completion queue (one per concurrently refilling
+     * batch), every submitted element's completion listener claims and hands off the next element
+     * itself. Claims are serialized by a single non-reentrant guard so that an inline completion —
+     * a direct executor or a saturated CallerRunsPolicy pool running the next body on the
+     * completing thread — extends the guard holder's loop instead of recursing.
+     *
+     * <p>The slot invariant: a claim consumes one window slot, the element's completion releases it
+     * exactly once, and at most {@code start} claims are outstanding, so no more than {@code
+     * parallelism} elements of this batch are ever in flight. Cancellation claims every unclaimed
+     * index first ({@link #abandonUnclaimed}), so a refill that already claimed an index disposes
+     * of it locally and never hands a cancelled batch's element to the pool.
+     */
+    private final class RefillDriver {
+
+        private final List<? extends ExecutionPhaseHintFuture<V>> tasks;
+        private final List<Task<V>> results;
+        private final int size;
+        private final int start;
+        private final AtomicInteger nextIndex = new AtomicInteger();
+        private final AtomicInteger freeSlots;
+        private final AtomicBoolean draining = new AtomicBoolean();
+        private final AtomicBoolean settled = new AtomicBoolean();
+        private final AtomicInteger refillCount = new AtomicInteger();
+        private final SettableFuture<Integer> signal = SettableFuture.create();
+        private @Nullable Throwable initialFailure;
+
+        RefillDriver(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
+            this.tasks = tasks;
+            this.results = results;
+            this.size = tasks.size();
+            this.start = Math.min(size, parallelism());
+            this.freeSlots = new AtomicInteger(start);
+        }
+
+        ListenableFuture<Integer> signal() {
+            return signal;
+        }
+
+        /** Whether an initial-window handoff failed; the caller then mirrors the pre-refill shape. */
+        boolean initialHandoffFailure() {
+            return initialFailure != null;
+        }
+
+        /**
+         * Claims and hands off elements while a window slot is free and elements remain. Runs on
+         * the submitter for the initial window and afterwards on whichever thread completes an
+         * element; concurrent completion events lose the guard and rely on the holder's loop.
+         */
+        void drain() {
+            while (true) {
+                if (!draining.compareAndSet(false, true)) {
+                    return;
+                }
+                try {
+                    while (nextIndex.get() < size && freeSlots.get() > 0) {
+                        if (!handoff(nextIndex.getAndIncrement())) {
+                            return;
+                        }
+                    }
+                    if (nextIndex.get() >= size) {
+                        settleSuccess();
+                    }
+                } finally {
+                    draining.set(false);
+                }
+                // A completion may have released its slot just before the guard dropped; that
+                // event's own drain attempt lost the guard and returned, so retake it when
+                // claimable work is still left.
+                if (settled.get() || nextIndex.get() >= size || freeSlots.get() <= 0) {
+                    return;
+                }
+            }
+        }
+
+        /**
+         * Hands off one claimed element. Initial-window claims skip a terminal element without
+         * disturbing live siblings; refill claims treat one as the batch winding down and abandon
+         * the rest. Returns {@code false} when the batch is settled and the drain must stop.
+         */
+        private boolean handoff(int index) {
+            freeSlots.decrementAndGet();
+            ExecutionPhaseHintFuture<V> task = tasks.get(index);
+            if (index < start) {
+                try {
+                    // PROTOTYPE: no bind step — the view already wraps this prepared future.
+                    fallbackSubmit(tasks, index, this::onComplete);
+                } catch (Throwable failure) {
+                    // Catching Throwable, not only RuntimeException | Error: execute(Runnable)
+                    // declares no checked exceptions, but a hostile executor can still throw one
+                    // through generics erasure, and any handoff failure must terminate the batch
+                    // the same way. A handoff failure — rejection or the executor throwing
+                    // mid-handoff — is the batch's shared verdict for every element; wrapping it
+                    // keeps each element attributed as a submission failure rather than a user one.
+                    logHandoffError(failure, index, "the initial window");
+                    failRemainingAsSubmissionFailures(tasks, index, failure);
+                    initialFailure = failure;
+                    settleFailure(failure);
+                    return false;
+                }
+                return true;
+            }
+            if (settled.get() || task.isDone()) {
+                // Cancelled between the claim and the handoff, or already settled by the deadline
+                // cascade: never submitted, so abandon from this index on and stop claiming.
+                abandonRemaining(tasks, results, index, null);
+                settleSuccess();
+                return false;
+            }
             try {
-                completed = blockingQueue.take();
-            } catch (InterruptedException e) {
-                abandonRemaining(tasks, result, index, e);
-                Thread.currentThread().interrupt();
-                return submitted;
-            }
-            // Claim the index as soon as a slot is taken, before the completion check: the
-            // cancellation callback abandons only indexes strictly beyond nextIndex, so it can
-            // never overwrite an index this iteration already claimed. The cancelled/done branch
-            // below still abandons from index locally, covering this iteration as well.
-            nextIndex.set(index + 1);
-            if (completed.isCancelled() || result.get(index).isDone()) {
-                abandonRemaining(tasks, result, index, null);
-                return submitted;
-            }
-            if (Thread.currentThread().isInterrupted()) {
-                abandonRemaining(
-                        tasks,
-                        result,
-                        index,
-                        new InterruptedException("submitter thread interrupted while scheduling remaining tasks"));
-                Thread.currentThread().interrupt();
-                return submitted;
-            }
-            try {
-                // PROTOTYPE: no bind step — the view already wraps this prepared future.
-                fallbackSubmit(tasks, index);
+                fallbackSubmit(tasks, index, this::onComplete);
+                refillCount.incrementAndGet();
+                return true;
             } catch (Throwable failure) {
                 // Same Throwable audit as the initial window: a sneaky checked throwable must not
-                // escape this loop either. The submission future retains the failure for
-                // diagnostics; unchecked types keep their identity, a checked one is wrapped.
+                // escape into the completing thread that ran this listener. The signal retains the
+                // failure for diagnostics; unchecked types keep their identity, a checked one is
+                // wrapped.
                 logHandoffError(failure, index, "the sliding-window refill");
-                abandonRemaining(tasks, result, index, failure);
-                Throwables.throwIfUnchecked(failure);
-                throw new RuntimeException(failure);
+                abandonRemaining(tasks, results, index, failure);
+                settleFailure(failure);
+                return false;
             }
-            submitted++;
-            index++;
         }
-        return submitted;
+
+        /** Releases the claimed element's window slot and claims the next element if one is free. */
+        private void onComplete() {
+            freeSlots.incrementAndGet();
+            drain();
+        }
+
+        /**
+         * Abandons every element from the first unclaimed index on, then marks the signal settled
+         * so an in-flight refill disposes of its own claimed index instead of handing it off. The
+         * claim-first ordering mirrors the old claim-before-completion-check discipline: an index
+         * is owned by exactly one path, and abandoning is idempotent when both overlap.
+         */
+        void abandonUnclaimed(Throwable reason) {
+            if (!settled.compareAndSet(false, true)) {
+                return;
+            }
+            abandonRemaining(tasks, results, nextIndex.getAndSet(size), reason);
+        }
+
+        private void settleSuccess() {
+            if (settled.compareAndSet(false, true)) {
+                signal.set(refillCount.get());
+            }
+        }
+
+        private void settleFailure(Throwable failure) {
+            if (settled.compareAndSet(false, true)) {
+                signal.setException(
+                        failure instanceof RuntimeException || failure instanceof Error
+                                ? failure
+                                : new RuntimeException(failure));
+            }
+        }
     }
 
     /**

@@ -19,7 +19,8 @@ import org.jspecify.annotations.Nullable;
  * only invokes the rejection handler when the pool is already at its maximum size. So the refusal
  * converts queueing into thread growth first, and into rejection handling only under genuine
  * saturation. With a {@code CallerRunsPolicy} pool, that last case executes the task body on
- * whichever thread called {@code execute} — for a batch refill, a library submitter thread.
+ * whichever thread called {@code execute} — for a batch refill, the thread completing the element
+ * whose slot the refill claims.
  *
  * <p>Because the refusal triggers on {@code CPU_BOUND} <em>or</em> {@code rejectEnqueue}, both of
  * which must therefore be opt-in for the capacity to mean anything, the defaults on {@link
