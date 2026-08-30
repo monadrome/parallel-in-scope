@@ -131,6 +131,23 @@ public class HeuristicPurgerConcurrencyTest {
         });
     }
 
+    /** A second failure for an unchanged cancellation sequence does not retry forever. */
+    @Test
+    public void repeatedPurgeFailureStopsAfterOneRetry() throws Exception {
+        CountingQueue queue = new CountingQueue(20);
+        BlockingPurgeExecutor executor = executor(queue);
+        executor.failAlways = true;
+        List<ListenableFutureTask<Void>> tasks = enqueue(queue, 16);
+        HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.05));
+        Runnable observer = purger.cancellationObserverFor(executor);
+
+        cancel(tasks, 0, 2, observer);
+
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(2));
+        await().during(1_500, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(2));
+    }
+
     /** Creates and tracks a dormant executor backed by the supplied queue. */
     private BlockingPurgeExecutor executor(CountingQueue queue) {
         BlockingPurgeExecutor executor = new BlockingPurgeExecutor(queue);
@@ -212,6 +229,7 @@ public class HeuristicPurgerConcurrencyTest {
         private volatile boolean blockBeforeSuper;
         private volatile boolean blockAfterSuper;
         private volatile boolean failFirst;
+        private volatile boolean failAlways;
 
         /** Creates a dormant one-worker executor. */
         private BlockingPurgeExecutor(CountingQueue queue) {
@@ -222,6 +240,9 @@ public class HeuristicPurgerConcurrencyTest {
         @Override
         public void purge() {
             int call = purgeCount.incrementAndGet();
+            if (failAlways) {
+                throw new IllegalStateException("test purge failure");
+            }
             if (call == 1 && failFirst) {
                 throw new IllegalStateException("test purge failure");
             }

@@ -243,6 +243,7 @@ public final class HeuristicPurger {
             }
             long claimThrough = issuedSequence.get();
             boolean retry = false;
+            boolean failed = false;
             try {
                 long estimatedCancelled = estimatedCancelled();
                 if (!enabled.get() || estimatedCancelled <= 0L || !thresholdsMet(estimatedCancelled, true)) {
@@ -256,6 +257,7 @@ public final class HeuristicPurger {
                     lastFailedSequence.set(-1L);
                     logPurge(estimatedCancelled, beforeSize, queue.size(), System.nanoTime() - started);
                 } catch (RuntimeException e) {
+                    failed = true;
                     retry = claimThrough > lastFailedSequence.getAndSet(claimThrough);
                     logCurrentDecision("failed", estimatedCancelled());
                     LOGGER.log(Level.WARNING, "Unable to purge cancelled tasks", e);
@@ -266,7 +268,7 @@ public final class HeuristicPurger {
                 if (enabled.get() && remaining > 0L) {
                     if (retry) {
                         submitMaintenance(FAILURE_RETRY_DELAY_MILLIS, remaining);
-                    } else {
+                    } else if (!failed || issuedSequence.get() > claimThrough) {
                         evaluateAndSubmit(COALESCING_DELAY_MILLIS);
                     }
                 }
