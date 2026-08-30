@@ -22,7 +22,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 | 包名 | 说明 |
 |------|------|
-| `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, ParOptions, AsyncBatchResult, ParConfig） |
+| `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, ExecutionOptions, AsyncBatchResult, GlobalPar） |
 | `io.github.huatalk.parallelinscope.spi` | 扩展点（TaskListener, LivelockListener） |
 
 #### 允许访问的类（例外）
@@ -105,7 +105,7 @@ mvn test
 │  ┌─────────────────────────────────────────────────┐   │
 │  │                scope (公共 API)                   │   │
 │  │  ┌─────┐ ┌──────────┐ ┌──────────────┐         │   │
-│  │  │ Par │ │ ParOptions│ │AsyncBatchResult│         │   │
+│  │  │ Par │ │ ExecutionOptions│ │AsyncBatchResult│         │   │
 │  │  └─────┘ └──────────┘ └──────────────┘         │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
@@ -144,7 +144,7 @@ package io.github.huatalk.parallelinscope.demo;  // 应该是 demo.basic
 ```java
 // 正确 1: 只访问公共 API
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
 
 // 正确 2: 使用独立包名
 package demo.basic;

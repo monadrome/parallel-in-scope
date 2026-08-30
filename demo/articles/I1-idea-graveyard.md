@@ -16,7 +16,7 @@
 
 ### 1. 重试机制
 
-**提议：** 内置 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**提议：** 内置 `ExecutionOptions.retry(3).backoff(100, MILLISECONDS)`。
 
 **为什么拒绝：** 重试看起来只有一行配置，背后却是一个策略密集型问题。重试哪些异常？指数退避还是固定间隔？重试时占不占并发窗口？幂等性怎么保证？更致命的是，**重试和 fail-fast 语义冲突**——我们承诺"任一任务失败立即取消整批"，如果引入重试，这两个语义会打架。
 
@@ -36,7 +36,7 @@ Par.map("io-pool", urls, url -> {
 
 **提议：** 提供 `parallel-in-scope-spring-boot-starter`，自动注入线程池，用 `@Parallel` 注解声明并行任务。
 
-**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`ParConfig.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
+**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`GlobalPar.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
 
 **替代方案：** 在 Spring 项目里写一个约 10 行的 `@Configuration` 类：
 
@@ -45,9 +45,9 @@ Par.map("io-pool", urls, url -> {
 public CommandLineRunner registerExecutors(
         @Qualifier("ioPool") ExecutorService ioPool) {
     return args -> {
-        // ParConfig 构建时注册，运行时不可变
-        ParConfig config = ParConfig.builder()
-                .executor("io-pool", ioPool)
+        // GlobalPar 构建时注册，运行时不可变
+        GlobalPar config = GlobalPar.builder()
+                .register("io-pool", ioPool)
                 .build();
         // 注入到 Spring 容器供全局使用
     };
@@ -105,7 +105,7 @@ Par.map("io-pool", urls, url -> {
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
+ExecutionOptions opts = ExecutionOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency).build();
 ```
 
 ---

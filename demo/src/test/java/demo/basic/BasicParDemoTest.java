@@ -1,6 +1,5 @@
 package demo.basic;
 
-import demo.basic.BasicParDemo;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;

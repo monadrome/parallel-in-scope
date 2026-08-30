@@ -45,23 +45,23 @@ for (int i = 0; i < 3; i++) {
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("biz-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("biz-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 主线程设置 MDC（使用 TTL 版本的 MDC 适配器）
 MDC.put("traceId", "abc-123");
 
 // 配置并行选项
-ParOptions opts = ParOptions.of("process-orders")
+ExecutionOptions opts = ExecutionOptions.of("process-orders")
         .parallelism(4)
-        .timeout(5000)
+        .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 // 并行处理订单
 List<Order> orders = orderRepository.findPending();
-AsyncBatchResult<ProcessResult> result = par.map("biz-pool", orders, order -> {
+AsyncBatchResult<ProcessResult> result = par.map( orders, order -> {
     // 工作线程中 MDC.get("traceId") 返回 "abc-123"
     // 框架通过 TTL 自动传播，无需手动设置
     log.info("处理订单: {}", order.getId());

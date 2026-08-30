@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -93,29 +93,32 @@ class A2_NestedCancelPropagationTest {
     @Test
     void testParNestedCancelPropagatesViaTimeout() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        Par par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        Par par = config.defaultPar();
         AtomicInteger innerCompletedNormally = new AtomicInteger(0);
         CountDownLatch innerStarted = new CountDownLatch(6);
 
         try {
             // 外层配置：500ms 超时
-            ParOptions outerOptions =
-                    ParOptions.of("outer").parallelism(2).timeout(500).build();
+            ExecutionOptions outerOptions = ExecutionOptions.of("outer")
+                    .parallelism(2)
+                    .timeout(java.time.Duration.ofMillis(500))
+                    .build();
 
             List<Integer> items = Arrays.asList(1, 2);
 
             AsyncBatchResult<String> result = par.map(
-                    "test-pool",
                     items,
                     outerItem -> {
                         // 内层并行处理
-                        ParOptions innerOptions =
-                                ParOptions.of("inner").parallelism(3).build();
+                        ExecutionOptions innerOptions =
+                                ExecutionOptions.of("inner").parallelism(3).build();
 
                         List<Integer> innerItems = Arrays.asList(10, 20, 30);
                         AsyncBatchResult<Integer> innerResult = par.map(
-                                "test-pool",
                                 innerItems,
                                 innerItem -> {
                                     innerStarted.countDown();

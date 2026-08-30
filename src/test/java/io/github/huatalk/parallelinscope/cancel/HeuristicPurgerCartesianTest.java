@@ -5,7 +5,6 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
-import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
 import java.util.ArrayList;
 import java.util.List;

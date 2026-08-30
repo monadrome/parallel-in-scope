@@ -1,9 +1,9 @@
 package demo.basic;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>创建并配置 Par 实例
- *   <li>使用 ParOptions 设置并行度
+ *   <li>使用 ExecutionOptions 设置并行度
  *   <li>使用 Par.map() 并行处理集合
  *   <li>获取和处理结果
  * </ul>
@@ -30,11 +30,14 @@ public class BasicParDemo {
         // 1. 创建线程池
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
-        // 2. 创建 ParConfig 并注册执行器
-        ParConfig config = ParConfig.builder().executor("demo-pool", pool).build();
+        // 2. 创建 GlobalPar 并注册执行器
+        GlobalPar global = GlobalPar.builder()
+                .register("demo-pool", pool)
+                .defaultPar("demo-pool")
+                .build();
 
         // 3. 创建 Par 实例
-        Par par = new Par(config);
+        Par par = global.par("demo-pool");
 
         try {
             // 4. 准备数据
@@ -42,14 +45,14 @@ public class BasicParDemo {
             System.out.println("输入数据: " + numbers);
 
             // 5. 配置并行选项
-            ParOptions options = ParOptions.of("basic-demo").parallelism(3).build();
+            ExecutionOptions options =
+                    ExecutionOptions.of("basic-demo").parallelism(3).build();
 
-            System.out.println("并行度: " + options.getParallelism());
+            System.out.println("并行度: " + options.parallelism());
 
             // 6. 执行并行处理
             System.out.println("\n开始并行处理...");
             AsyncBatchResult<Integer> result = par.map(
-                    "demo-pool",
                     numbers,
                     n -> {
                         String threadName = Thread.currentThread().getName();
@@ -64,6 +67,7 @@ public class BasicParDemo {
 
         } finally {
             // 8. 清理资源
+            global.close();
             pool.shutdownNow();
         }
     }

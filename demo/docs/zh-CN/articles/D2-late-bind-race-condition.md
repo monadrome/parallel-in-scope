@@ -36,23 +36,23 @@ for (int i = 0; i < taskCount; i++) {
 3. `FluentFuture.withTimeout()` 只为这个聚合 Future 设置一次超时，形成整个批次共享的截止时间。
 4. 截止时间到达或任一任务失败时，提交循环和所有未完成任务一起取消。
 
-这种设计让 `ParOptions.timeout()` 成为清晰的批次级契约：计时从批次调度建立完成后开始，后续任务不会因为提交较晚而延长整个批次的期限。
+这种设计让 `ExecutionOptions.timeout()` 成为清晰的批次级契约：计时从批次调度建立完成后开始，后续任务不会因为提交较晚而延长整个批次的期限。
 
 ## 代码
 
 ```java
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
 
-ParOptions options = ParOptions.of("data-task")
+ExecutionOptions options = ExecutionOptions.of("data-task")
         .parallelism(10)
-        .timeout(5000)
+        .timeout(java.time.Duration.ofMillis(5000))
         .taskType(TaskType.IO_BOUND)
         .build();
 
-AsyncBatchResult<Result> result = new Par(config).map(
+AsyncBatchResult<Result> result = config.defaultPar().map(
         "my-pool",
         loadLargeDataset(),
         this::process,

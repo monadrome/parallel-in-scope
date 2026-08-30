@@ -71,18 +71,18 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 
 ```java
 // parallel-in-scope：并发控制 + 超时取消 + fail-fast + 上下文传播
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("batch-api")
+ExecutionOptions opts = ExecutionOptions.of("batch-api")
         .parallelism(4)           // 最多 4 个并发
-        .timeout(5000)            // 5 秒超时
+        .timeout(java.time.Duration.ofMillis(5000))            // 5 秒超时
         .taskType(TaskType.IO_BOUND)
         .build();
 
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+AsyncBatchResult<String> result = par.map( urls, url -> {
     MDC.put("traceId", traceId); // TTL 自动传播到子线程
     return fetch(url);
 }, opts);

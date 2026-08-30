@@ -2,7 +2,7 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章仍以 `0.1.x` 兼容 API 为主；它们不能作为 v0.2 API 参考，新的调用方式见主项目使用指南。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.2.0-SNAPSHOT` API，可作为外部消费者示例。
 
 ## 快速开始
 

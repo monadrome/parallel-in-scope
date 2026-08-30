@@ -17,19 +17,19 @@
 
 ### 1. 重试机制
 
-**提议：** 内置 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**提议：** 内置 `ExecutionOptions.retry(3).backoff(100, MILLISECONDS)`。
 
 **为什么拒绝：** 重试看起来只有一行配置，背后却是一个策略密集型问题。重试哪些异常？指数退避还是固定间隔？重试时占不占并发窗口？幂等性怎么保证？更致命的是，**重试和 fail-fast 语义冲突**——我们承诺"任一任务失败立即取消整批"，如果引入重试，这两个语义会打架。
 
 **替代方案：** 在任务函数内部自己做重试，或者用 Resilience4j、Failsafe、Spring Retry 等专业库：
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("io-pool", ioPool)
+GlobalPar config = GlobalPar.builder()
+        .register("io-pool", ioPool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-par.map("io-pool", urls, url -> {
+par.map( urls, url -> {
     return retryPolicy.execute(() -> httpClient.fetch(url));
 }, options);
 ```
@@ -42,7 +42,7 @@ par.map("io-pool", urls, url -> {
 
 **提议：** 提供 `parallel-in-scope-spring-boot-starter`，自动注入线程池，用 `@Parallel` 注解声明并行任务。
 
-**为什么拒绝：** 三个原因。第一，核心运行时依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，通过 `ParConfig.builder().executor("name", executor)` 构建配置，再创建 `Par` 实例已经足够简单，不值得为此增加 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
+**为什么拒绝：** 三个原因。第一，核心运行时依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，通过 `GlobalPar.builder().register("name", executor)` 构建配置，再创建 `Par` 实例已经足够简单，不值得为此增加 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
 
 **替代方案：** 在 Spring 项目里写一个约 10 行的 `@Configuration` 类：
 
@@ -50,10 +50,10 @@ par.map("io-pool", urls, url -> {
 @Bean
 public Par parallelInScope(
         @Qualifier("ioPool") ExecutorService ioPool) {
-    ParConfig config = ParConfig.builder()
-            .executor("io-pool", ioPool)
+    GlobalPar config = GlobalPar.builder()
+            .register("io-pool", ioPool)
             .build();
-    return new Par(config);
+    return config.defaultPar();
 }
 ```
 
@@ -87,7 +87,7 @@ Futures.addCallback(lf, new FutureCallback<String>() {
 **替代方案：** 在任务函数内部 catch 异常，返回包装类型：
 
 ```java
-par.map("io-pool", urls, url -> {
+par.map( urls, url -> {
     try {
         return Optional.of(httpClient.fetch(url));
     } catch (Exception e) {
@@ -108,7 +108,7 @@ par.map("io-pool", urls, url -> {
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
+ExecutionOptions opts = ExecutionOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency).build();
 ```
 
 ---

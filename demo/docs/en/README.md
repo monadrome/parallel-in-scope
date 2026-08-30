@@ -4,7 +4,7 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
-> Demo code currently targets the `0.1.x` artifact. Its `ParConfig`/`ParOptions` examples are historical; the v0.2 contract is defined by the main user guide and migration guide.
+> Demo code targets the `0.2.0-SNAPSHOT` artifact and uses the current `GlobalPar`/`ExecutionOptions` API.
 
 ## Start Here
 

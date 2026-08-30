@@ -62,18 +62,18 @@ SUCCESS:6
 ```java
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("batch-task")
+ExecutionOptions opts = ExecutionOptions.of("batch-task")
         .parallelism(4)
-        .timeout(5000)
+        .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6);
-AsyncBatchResult<Integer> result = par.map("my-pool", items, x -> {
+AsyncBatchResult<Integer> result = par.map( items, x -> {
     return x * 2;
 }, opts);
 

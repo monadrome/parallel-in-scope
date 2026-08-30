@@ -3,9 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -39,8 +40,11 @@ class G6_BatchDbQueryTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
-        ParConfig config = ParConfig.builder().executor("db-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("db-pool", pool)
+                .defaultPar("db-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -117,16 +121,16 @@ class G6_BatchDbQueryTest {
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
         assertThat(shards).hasSize(SHARD_COUNT);
 
-        ParOptions options = ParOptions.ioTask("db-batch-query")
+        ExecutionOptions options = ExecutionOptions.of("db-batch-query")
+                .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
-                .timeout(30000)
+                .timeout(java.time.Duration.ofMillis(30000))
                 .build();
 
         long start = System.currentTimeMillis();
 
         // 并行查询：最多 parallelism 个分片同时执行
         AsyncBatchResult<List<User>> result = par.map(
-                "db-pool",
                 shards,
                 shard -> {
                     return simulateDbQuery(shard);
@@ -169,13 +173,13 @@ class G6_BatchDbQueryTest {
         AtomicInteger concurrency = new AtomicInteger(0);
         AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-        ParOptions options = ParOptions.ioTask("db-batch-query")
+        ExecutionOptions options = ExecutionOptions.of("db-batch-query")
+                .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
-                .timeout(30000)
+                .timeout(java.time.Duration.ofMillis(30000))
                 .build();
 
         AsyncBatchResult<List<User>> result = par.map(
-                "db-pool",
                 shards,
                 shard -> {
                     int cur = concurrency.incrementAndGet();

@@ -1,9 +1,9 @@
 package demo.integration;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -33,15 +33,20 @@ public class BatchProcessingDemo {
         System.out.println("数据集大小: " + largeDataset.size() + " 个元素");
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder().executor("batch-demo", pool).build();
-        Par par = new Par(config);
+        GlobalPar global = GlobalPar.builder()
+                .register("batch-demo", pool)
+                .defaultPar("batch-demo")
+                .build();
+        Par par = global.par("batch-demo");
 
         try {
             // 2. 配置批处理参数
-            ParOptions options =
-                    ParOptions.of("batch-demo").parallelism(4).timeout(30000).build();
+            ExecutionOptions options = ExecutionOptions.of("batch-demo")
+                    .parallelism(4)
+                    .timeout(java.time.Duration.ofMillis(30000))
+                    .build();
 
-            System.out.println("并行度: " + options.getParallelism());
+            System.out.println("并行度: " + options.parallelism());
             System.out.println("超时: 30秒\n");
 
             // 3. 执行批量处理
@@ -49,7 +54,6 @@ public class BatchProcessingDemo {
             long startTime = System.currentTimeMillis();
 
             AsyncBatchResult<Integer> result = par.map(
-                    "batch-demo",
                     largeDataset,
                     n -> {
                         // 模拟复杂计算
@@ -80,6 +84,7 @@ public class BatchProcessingDemo {
             analyzePerformance(computedResults);
 
         } finally {
+            global.close();
             pool.shutdownNow();
         }
     }

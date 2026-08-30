@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -32,8 +32,11 @@ public class D1_GetTimeoutStillRunningTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(2);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -100,16 +103,14 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task1Completed = new AtomicBoolean(false);
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-        ParOptions opts = ParOptions.of("cancel-demo")
+        ExecutionOptions opts = ExecutionOptions.of("cancel-demo")
                 .parallelism(2)
-                .timeout(500)
-                .timeUnit(TimeUnit.MILLISECONDS)
+                .timeout(java.time.Duration.ofMillis(500))
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         List<Integer> input = Arrays.asList(1, 2);
         AsyncBatchResult<Integer> result = par.map(
-                "test-pool",
                 input,
                 x -> {
                     try {

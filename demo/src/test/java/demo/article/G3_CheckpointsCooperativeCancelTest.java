@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,8 +37,11 @@ public class G3_CheckpointsCooperativeCancelTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -113,13 +116,15 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_parMapTimeoutCancelsIoTasks() throws Exception {
-        ParOptions opts = ParOptions.of("io-task").parallelism(4).timeout(500).build();
+        ExecutionOptions opts = ExecutionOptions.of("io-task")
+                .parallelism(4)
+                .timeout(java.time.Duration.ofMillis(500))
+                .build();
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 input,
                 x -> {
                     // Thread.sleep 响应中断——cancel(true) 对 IO 操作天然有效
@@ -173,14 +178,15 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_checkpointsCancelCpuIntensiveLoop() throws Exception {
-        ParOptions opts =
-                ParOptions.of("cpu-checkpoint").parallelism(4).timeout(500).build();
+        ExecutionOptions opts = ExecutionOptions.of("cpu-checkpoint")
+                .parallelism(4)
+                .timeout(java.time.Duration.ofMillis(500))
+                .build();
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
 
         AsyncBatchResult<Integer> result = par.map(
-                "test-pool",
                 input,
                 x -> {
                     int iterations = 0;

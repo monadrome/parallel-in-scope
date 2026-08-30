@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>演示问题：CompletableFuture.allOf() 没有并发控制、没有 fail-fast、超时后任务还在跑。
  *
- * <p>演示解决：Par.map() + ParOptions 一行搞定 parallelism + timeout + fail-fast。
+ * <p>演示解决：Par.map() + ExecutionOptions 一行搞定 parallelism + timeout + fail-fast。
  */
 public class G5_BatchHttpCallsTest {
 
@@ -111,7 +111,7 @@ public class G5_BatchHttpCallsTest {
     }
 
     /**
-     * 解决方法：Par.map() + ParOptions，并发控制 + fail-fast。
+     * 解决方法：Par.map() + ExecutionOptions，并发控制 + fail-fast。
      *
      * <p>parallelism=4 限制最多 4 个并发，滑动窗口调度。
      *
@@ -122,8 +122,11 @@ public class G5_BatchHttpCallsTest {
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void parMap_batchHttpCalls_failFastCancelsSiblings() throws Exception {
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        Par par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        Par par = config.defaultPar();
 
         List<String> services = Arrays.asList(
                 "order",
@@ -137,16 +140,15 @@ public class G5_BatchHttpCallsTest {
                 "recommendation",
                 "analytics");
 
-        ParOptions opts = ParOptions.of("batch-http")
+        ExecutionOptions opts = ExecutionOptions.of("batch-http")
                 .parallelism(4)
-                .timeout(5000)
+                .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 services,
                 svc -> {
                     try {

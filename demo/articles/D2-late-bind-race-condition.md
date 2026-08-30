@@ -56,22 +56,22 @@ for (int i = 0; i < taskCount; i++) {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 100 个任务，并行度 10，统一超时 5 秒
-ParOptions options = ParOptions.of("data-task")
+ExecutionOptions options = ExecutionOptions.of("data-task")
         .parallelism(10)
-        .timeout(5000)
+        .timeout(java.time.Duration.ofMillis(5000))
         .taskType(TaskType.IO_BOUND)
         .build();
 
@@ -79,7 +79,7 @@ List<Data> items = loadLargeDataset(); // 100+ items
 
 // Par.map() 内部先通过滑动窗口提交所有任务，
 // 然后调用 lateBind() 统一绑定超时
-AsyncBatchResult<Result> result = par.map("my-pool", items, item -> {
+AsyncBatchResult<Result> result = par.map( items, item -> {
     return process(item); // 每个任务公平享有 5 秒超时
 }, options);
 

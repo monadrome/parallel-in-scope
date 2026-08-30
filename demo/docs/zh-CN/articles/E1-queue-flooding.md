@@ -54,20 +54,20 @@ for (int i = 0; i < taskCount; i++) {
 
 // 餐厅只有 4 张桌（4 线程）
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 并行度 2：一轮最多 2 桌同时就餐，队列深度最多 2
-ParOptions options = ParOptions.of("data-process")
+ExecutionOptions options = ExecutionOptions.of("data-process")
         .parallelism(2)
-        .timeout(30000)
+        .timeout(java.time.Duration.ofMillis(30000))
         .build();
 
 // 100 个任务——但队列深度始终 <= 2，餐厅内部不堵
 List<Data> items = loadLargeDataset();
-AsyncBatchResult<Result> result = par.map("my-pool", items, item -> {
+AsyncBatchResult<Result> result = par.map( items, item -> {
     return process(item);
 }, options);
 

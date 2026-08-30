@@ -42,25 +42,25 @@ outer.cancel(true); // 取消外层任务
 ## 代码
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("pool", Executors.newFixedThreadPool(8))
+GlobalPar config = GlobalPar.builder()
+        .register("pool", Executors.newFixedThreadPool(8))
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 外层配置：500ms 超时
-ParOptions outerOptions = ParOptions.of("outer")
-        .timeout(500)
+ExecutionOptions outerOptions = ExecutionOptions.of("outer")
+        .timeout(java.time.Duration.ofMillis(500))
         .build();
 
 List<String> orders = Arrays.asList("ORD-001", "ORD-002", "ORD-003");
 
-AsyncBatchResult<String> result = par.map("pool", orders, order -> {
+AsyncBatchResult<String> result = par.map( orders, order -> {
     // 内层并行调用多个下游服务
-    ParOptions innerOptions = ParOptions.of("inner").build();
+    ExecutionOptions innerOptions = ExecutionOptions.of("inner").build();
     List<String> services = Arrays.asList("inventory", "payment", "shipping");
 
     AsyncBatchResult<String> innerResult =
-            par.map("pool", services, svc -> callDownstream(svc, order), innerOptions);
+            par.map( services, svc -> callDownstream(svc, order), innerOptions);
 
     // 等待内层结果
     return aggregate(innerResult);

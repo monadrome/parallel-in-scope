@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,8 +31,11 @@ public class B2_FunctionSignatureBloatTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -109,8 +112,10 @@ public class B2_FunctionSignatureBloatTest {
     @Test
     void parMap_cleanSignature_onlyBusinessParam() throws Exception {
         // 解决方案：Par.map() 隐式传播上下文，lambda 只需业务参数
-        ParOptions opts =
-                ParOptions.of("fetch-data").parallelism(3).timeout(5000).build();
+        ExecutionOptions opts = ExecutionOptions.of("fetch-data")
+                .parallelism(3)
+                .timeout(java.time.Duration.ofMillis(5000))
+                .build();
 
         List<String> urls = Arrays.asList(
                 "http://api.example.com/users", "http://api.example.com/orders", "http://api.example.com/products");
@@ -118,7 +123,6 @@ public class B2_FunctionSignatureBloatTest {
         // lambda 只需要 url 这一个业务参数
         // CancellationToken、超时、并发控制全部由框架隐式处理
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 urls,
                 url -> {
                     // 只关注业务逻辑，无需关心 traceId、timeout、cancelFlag
@@ -144,13 +148,14 @@ public class B2_FunctionSignatureBloatTest {
         // 验证：即使有多种上下文需求，Par.map() 的 lambda 签名依然干净
         AtomicInteger processedCount = new AtomicInteger(0);
 
-        ParOptions opts =
-                ParOptions.of("complex-task").parallelism(2).timeout(3000).build();
+        ExecutionOptions opts = ExecutionOptions.of("complex-task")
+                .parallelism(2)
+                .timeout(java.time.Duration.ofMillis(3000))
+                .build();
 
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104);
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 orderIds,
                 orderId -> {
                     // 框架已自动处理以下所有基础设施需求：

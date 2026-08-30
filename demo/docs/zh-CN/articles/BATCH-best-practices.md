@@ -13,21 +13,21 @@
 - 一个挂了就取消其余（fail-fast）
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("http-pool", Executors.newFixedThreadPool(8))
+GlobalPar config = GlobalPar.builder()
+        .register("http-pool", Executors.newFixedThreadPool(8))
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 List<String> services = Arrays.asList(
         "order", "user", "payment", "inventory", "notification",
         "billing", "shipping", "review", "recommendation", "analytics");
 
-ParOptions opts = ParOptions.ioTask("batch-http")
+ExecutionOptions opts = ExecutionOptions.of("batch-http").taskType(TaskType.IO_BOUND)
         .parallelism(5)        // 最多 5 个并发，保护下游
-        .timeout(3000)         // 3 秒超时
+        .timeout(java.time.Duration.ofMillis(3000))         // 3 秒超时
         .build();
 
-AsyncBatchResult<String> result = par.map("http-pool", services, svc -> {
+AsyncBatchResult<String> result = par.map( services, svc -> {
     return callDownstream(svc);  // 你的 HTTP 调用逻辑
 }, opts);
 
@@ -60,12 +60,12 @@ for (int i = 0; i < allIds.size(); i += 1000) {
 }
 // shards.size() == 10
 
-ParOptions opts = ParOptions.ioTask("db-batch-query")
+ExecutionOptions opts = ExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(3)        // DB 连接池就 3 个，别超了
-        .timeout(30000)        // 查询可能慢，30 秒超时
+        .timeout(java.time.Duration.ofMillis(30000))        // 查询可能慢，30 秒超时
         .build();
 
-AsyncBatchResult<List<User>> result = par.map("db-pool", shards, shard -> {
+AsyncBatchResult<List<User>> result = par.map( shards, shard -> {
     return userMapper.selectByIds(shard);  // 你的 DAO 调用
 }, opts);
 
@@ -89,12 +89,12 @@ System.out.println("查询到 " + allUsers.size() + " 条记录");
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-ParOptions opts = ParOptions.ioTask("mixed-io")
+ExecutionOptions opts = ExecutionOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
         .parallelism(6)
-        .timeout(5000)         // 统一 5 秒超时
+        .timeout(java.time.Duration.ofMillis(5000))         // 统一 5 秒超时
         .build();
 
-AsyncBatchResult<Object> result = par.map("mixed-pool", tasks, task -> {
+AsyncBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
         return httpClient.execute((HttpRequest) task);   // HTTP 调用
     } else if (task instanceof DbQuery) {
@@ -109,10 +109,10 @@ Thread.sleep(5500);
 String report = result.reportString();
 ```
 
-关于超时：用统一的 `ParOptions.timeout` 即可，不需要每个任务设不同超时。原因：
+关于超时：用统一的 `ExecutionOptions.timeout` 即可，不需要每个任务设不同超时。原因：
 - 框架级超时是"兜底"，防止任务永远挂起
 - 如果某个调用需要更细粒度的超时，在任务内部自己处理（比如 HTTP client 的 connectTimeout/readTimeout）
-- 这样保持 `ParOptions` 简洁，任务逻辑自包含
+- 这样保持 `ExecutionOptions` 简洁，任务逻辑自包含
 
 ---
 
@@ -124,13 +124,13 @@ String report = result.reportString();
 
 ```java
 // 快速 HTTP 调用
-ParOptions.ioTask("http").timeout(3000).build();
+ExecutionOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
 
 // 数据库查询
-ParOptions.ioTask("db").timeout(30000).build();
+ExecutionOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
 
 // 文件处理
-ParOptions.ioTask("file").timeout(120000).build();
+ExecutionOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
 ```
 
 ### 2. 并行度要匹配资源
@@ -165,7 +165,7 @@ Throwable firstError = r.getFirstException();
 
 ```java
 // 错误: 吞掉了异常，report 永远显示 SUCCESS:10
-par.map("pool", items, item -> {
+par.map( items, item -> {
     try {
         return riskyCall(item);
     } catch (Exception e) {
@@ -184,7 +184,7 @@ par.map("pool", items, item -> {
 
 ```java
 // 错误: 等于没有并发控制
-ParOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
+ExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 ```
 
 正确做法：设一个合理的值，匹配下游资源。
@@ -193,7 +193,7 @@ ParOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 
 ```java
 // 错误: 任务可能永远挂起
-ParOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
+ExecutionOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
 ```
 
 正确做法：根据场景显式设超时。
@@ -202,7 +202,7 @@ ParOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
 
 ```java
 // 错误: 隐藏失败，report 永远是 SUCCESS
-par.map("pool", items, item -> {
+par.map( items, item -> {
     try {
         return call(item);
     } catch (Exception e) {

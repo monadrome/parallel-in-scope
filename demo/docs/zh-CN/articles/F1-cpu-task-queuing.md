@@ -33,7 +33,7 @@ for (int i = 0; i < 20; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `ParOptions.cpuTask()` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
+`parallel-in-scope` 提供了 `ExecutionOptions.cpuTask()` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
 
 这意味着 CPU 任务总是尽可能快地得到执行：
 - 线程池有空闲线程？立即在池线程上执行
@@ -45,19 +45,19 @@ for (int i = 0; i < 20; i++) {
 ```java
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("cpu-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("cpu-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // cpuTask() 标记 CPU 密集任务，触发 CallerRunsPolicy
-ParOptions options = ParOptions.cpuTask("heavy-computation")
+ExecutionOptions options = ExecutionOptions.of("heavy-computation").taskType(TaskType.CPU_BOUND)
         .parallelism(2)
-        .timeout(10000)
+        .timeout(java.time.Duration.ofMillis(10000))
         .build();
 
 List<Data> items = loadDataset();
-AsyncBatchResult<Result> result = par.map("cpu-pool", items, item -> {
+AsyncBatchResult<Result> result = par.map( items, item -> {
     // CPU 密集计算——不会在队列中白等
     return heavyComputation(item);
 }, options);

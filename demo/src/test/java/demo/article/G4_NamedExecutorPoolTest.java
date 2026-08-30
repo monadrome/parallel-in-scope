@@ -3,9 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,7 +20,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>问题：多个 ExecutorService 实例类型相同，传错池编译器不报错，运行时才发现。
  *
- * <p>解决：ParConfig.builder().executor("name", pool) 命名注册，par.map("name", ...) 按名引用。
+ * <p>解决：GlobalPar.builder().register("name", pool) 命名注册，par.map(...) 按名引用。
  */
 class G4_NamedExecutorPoolTest {
 
@@ -75,10 +76,9 @@ class G4_NamedExecutorPoolTest {
     }
 
     /**
-     * 解决方案：ParConfig 命名注册，按名引用，不可能传错。
+     * 解决方案：GlobalPar 命名注册，按名引用，不可能传错。
      *
-     * <p>IO 池和 CPU 池分别注册为 "io-pool" 和 "cpu-pool"， 通过 par.map("io-pool", ...) 和 par.map("cpu-pool",
-     * ...) 按名引用。 名字不匹配会直接抛出 IllegalArgumentException，而不是静默地跑在错误的池上。
+     * <p>IO 池和 CPU 池分别注册为 "io-pool" 和 "cpu-pool"，通过不同的 Par 实例调用 map。名字不匹配会直接抛出 IllegalArgumentException，而不是静默地跑在错误的池上。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -101,20 +101,24 @@ class G4_NamedExecutorPoolTest {
         });
 
         try {
-            // 命名注册：一个 ParConfig 统一管理多个线程池
-            ParConfig config = ParConfig.builder()
-                    .executor("io-pool", ioPool)
-                    .executor("cpu-pool", cpuPool)
+            // 命名注册：一个 GlobalPar 统一管理多个线程池
+            GlobalPar config = GlobalPar.builder()
+                    .register("io-pool", ioPool)
+                    .register("cpu-pool", cpuPool)
+                    .defaultPar("io-pool")
                     .build();
-            Par par = new Par(config);
+            Par par = config.par("io-pool");
+            Par cpuPar = config.par("cpu-pool");
 
             List<String> items = Arrays.asList("a", "b", "c", "d", "e");
 
             // IO 任务：按名引用 io-pool
-            ParOptions ioOpts =
-                    ParOptions.ioTask("fetch-data").parallelism(4).timeout(5000).build();
+            ExecutionOptions ioOpts = ExecutionOptions.of("fetch-data")
+                    .taskType(TaskType.IO_BOUND)
+                    .parallelism(4)
+                    .timeout(java.time.Duration.ofMillis(5000))
+                    .build();
             AsyncBatchResult<String> ioResult = par.map(
-                    "io-pool",
                     items,
                     item -> {
                         return "io:" + Thread.currentThread().getName() + ":" + item;
@@ -122,10 +126,12 @@ class G4_NamedExecutorPoolTest {
                     ioOpts);
 
             // CPU 任务：按名引用 cpu-pool
-            ParOptions cpuOpts =
-                    ParOptions.cpuTask("compute").parallelism(4).timeout(5000).build();
-            AsyncBatchResult<String> cpuResult = par.map(
-                    "cpu-pool",
+            ExecutionOptions cpuOpts = ExecutionOptions.of("compute")
+                    .taskType(TaskType.CPU_BOUND)
+                    .parallelism(4)
+                    .timeout(java.time.Duration.ofMillis(5000))
+                    .build();
+            AsyncBatchResult<String> cpuResult = cpuPar.map(
                     items,
                     item -> {
                         return "cpu:" + Thread.currentThread().getName() + ":" + item;
@@ -150,7 +156,7 @@ class G4_NamedExecutorPoolTest {
 
             // 验证名字不匹配时直接报错，而不是静默地跑在错误的池上
             try {
-                par.map("nonexistent-pool", items, item -> item, ioOpts);
+                config.par("nonexistent-pool").map(items, item -> item, ioOpts);
                 // 应该抛异常，不会走到这里
                 assertThat(false).as("应抛出 IllegalArgumentException").isTrue();
             } catch (IllegalArgumentException e) {

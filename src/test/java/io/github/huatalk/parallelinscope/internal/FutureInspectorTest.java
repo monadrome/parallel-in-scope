@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.cancel.*;
 import io.github.huatalk.parallelinscope.context.*;
 import io.github.huatalk.parallelinscope.context.graph.*;
-import io.github.huatalk.parallelinscope.internal.*;
 import io.github.huatalk.parallelinscope.queue.*;
 import io.github.huatalk.parallelinscope.scope.*;
 import io.github.huatalk.parallelinscope.spi.*;

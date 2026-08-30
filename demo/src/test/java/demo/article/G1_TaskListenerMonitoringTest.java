@@ -3,9 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import java.util.ArrayList;
@@ -97,23 +98,25 @@ public class G1_TaskListenerMonitoringTest {
         // 注册 TaskListener，收集所有事件
         CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
 
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
-                .taskListener(events::add)
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .executionPolicy(GlobalExecutionPolicy.builder()
+                        .taskListener(events::add)
+                        .build())
+                .defaultPar("test-pool")
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         // parallelism=5 确保所有任务同时启动，避免被取消
-        ParOptions opts = ParOptions.of("monitor-demo")
+        ExecutionOptions opts = ExecutionOptions.of("monitor-demo")
                 .parallelism(5)
-                .timeout(5000)
+                .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         // 业务代码：纯逻辑，不碰监控
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 input,
                 x -> {
                     // 模拟 50ms 业务计算（忙等待，不响应中断）
@@ -171,22 +174,24 @@ public class G1_TaskListenerMonitoringTest {
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
         CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
 
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
-                .taskListener(events::add)
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .executionPolicy(GlobalExecutionPolicy.builder()
+                        .taskListener(events::add)
+                        .build())
+                .defaultPar("test-pool")
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
-        ParOptions opts = ParOptions.of("fail-demo")
+        ExecutionOptions opts = ExecutionOptions.of("fail-demo")
                 .parallelism(2)
-                .timeout(5000)
+                .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 input,
                 x -> {
                     long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);

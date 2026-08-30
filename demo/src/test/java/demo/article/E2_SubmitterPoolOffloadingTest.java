@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -74,16 +74,19 @@ public class E2_SubmitterPoolOffloadingTest {
         // 同样使用 1 个线程的业务线程池
         ExecutorService pool = Executors.newFixedThreadPool(1);
         try {
-            ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-            Par par = new Par(config);
+            GlobalPar config = GlobalPar.builder()
+                    .register("test-pool", pool)
+                    .defaultPar("test-pool")
+                    .build();
+            Par par = config.defaultPar();
 
-            ParOptions opts = ParOptions.of("offload-demo").parallelism(1).build();
+            ExecutionOptions opts =
+                    ExecutionOptions.of("offload-demo").parallelism(1).build();
 
             List<Integer> input = Arrays.asList(1, 2, 3);
 
             // Par.map() 不会死锁，因为提交循环运行在 Par-Submitter 线程上
             AsyncBatchResult<Integer> result = par.map(
-                    "test-pool",
                     input,
                     x -> {
                         try {

@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -28,8 +28,11 @@ class G2_BatchResultReportTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -41,7 +44,7 @@ class G2_BatchResultReportTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void report_allSuccessfulTasksHasExactCountAndNoException() throws Exception {
         List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6);
-        AsyncBatchResult<Integer> result = par.map("test-pool", items, value -> value * 2, options("all-success", 3));
+        AsyncBatchResult<Integer> result = par.map(items, value -> value * 2, options("all-success", 3));
 
         awaitTerminalStates(result);
         AsyncBatchResult.BatchReport report = result.report();
@@ -60,7 +63,6 @@ class G2_BatchResultReportTest {
         RuntimeException rootFailure = new RuntimeException("root failure");
 
         AsyncBatchResult<Integer> result = par.map(
-                "test-pool",
                 Arrays.asList(0, 1, 2, 3, 4, 5),
                 value -> {
                     if (value == 0) {
@@ -88,8 +90,11 @@ class G2_BatchResultReportTest {
         assertThat(reportString).contains("FAILED:").contains("CANCELLED:").contains("firstException=root failure");
     }
 
-    private static ParOptions options(String taskName, int parallelism) {
-        return ParOptions.of(taskName).parallelism(parallelism).timeout(5000).build();
+    private static ExecutionOptions options(String taskName, int parallelism) {
+        return ExecutionOptions.of(taskName)
+                .parallelism(parallelism)
+                .timeout(java.time.Duration.ofMillis(5000))
+                .build();
     }
 
     private static void awaitStartedSibling(CountDownLatch siblingStarted) {

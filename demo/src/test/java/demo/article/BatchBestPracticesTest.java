@@ -3,9 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,8 +35,11 @@ public class BatchBestPracticesTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -65,13 +69,15 @@ public class BatchBestPracticesTest {
                 "recommendation",
                 "analytics");
 
-        ParOptions opts =
-                ParOptions.ioTask("batch-http").parallelism(5).timeout(3000).build();
+        ExecutionOptions opts = ExecutionOptions.of("batch-http")
+                .taskType(TaskType.IO_BOUND)
+                .parallelism(5)
+                .timeout(java.time.Duration.ofMillis(3000))
+                .build();
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 services,
                 svc -> {
                     if ("payment".equals(svc)) {
@@ -127,16 +133,16 @@ public class BatchBestPracticesTest {
         }
         assertThat(shards).hasSize(10);
 
-        ParOptions opts = ParOptions.ioTask("db-batch-query")
+        ExecutionOptions opts = ExecutionOptions.of("db-batch-query")
+                .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
-                .timeout(30000)
+                .timeout(java.time.Duration.ofMillis(30000))
                 .build();
 
         long start = System.currentTimeMillis();
 
         // 并行分片查询
         AsyncBatchResult<List<Long>> result = par.map(
-                "test-pool",
                 shards,
                 shard -> {
                     // 模拟 DB 查询耗时 50ms
@@ -181,13 +187,15 @@ public class BatchBestPracticesTest {
         // 模拟混合任务：0=DB, 1=Cache, 2=HTTP(会失败), 3=DB, 4=Cache
         List<String> tasks = Arrays.asList("db-1", "cache-1", "http-1", "db-2", "cache-2");
 
-        ParOptions opts =
-                ParOptions.ioTask("mixed-io").parallelism(3).timeout(5000).build();
+        ExecutionOptions opts = ExecutionOptions.of("mixed-io")
+                .taskType(TaskType.IO_BOUND)
+                .parallelism(3)
+                .timeout(java.time.Duration.ofMillis(5000))
+                .build();
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
         AsyncBatchResult<String> result = par.map(
-                "test-pool",
                 tasks,
                 task -> {
                     if (task.startsWith("http")) {

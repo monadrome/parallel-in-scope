@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,8 +31,11 @@ public class H1_NullEmptyInputTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -70,10 +73,10 @@ public class H1_NullEmptyInputTest {
     /** 解决方案：Par.map() 对 null 列表做了防御处理，直接返回空的 AsyncBatchResult。 调用方无需任何 null 检查，不会 NPE，不会提交任何任务。 */
     @Test
     void parMap_nullList_returnsEmptyResult() {
-        ParOptions opts = ParOptions.of("null-demo").build();
+        ExecutionOptions opts = ExecutionOptions.of("null-demo").build();
 
         List<String> nullList = null;
-        AsyncBatchResult<String> result = par.map("test-pool", nullList, item -> item.toUpperCase(), opts);
+        AsyncBatchResult<String> result = par.map(nullList, item -> item.toUpperCase(), opts);
 
         // 安全返回，结果列表为空
         assertThat(result.getResults()).isEmpty();
@@ -84,10 +87,10 @@ public class H1_NullEmptyInputTest {
     /** 解决方案：Par.map() 对空列表同样安全返回，零开销。 */
     @Test
     void parMap_emptyList_returnsEmptyResult() {
-        ParOptions opts = ParOptions.of("empty-demo").build();
+        ExecutionOptions opts = ExecutionOptions.of("empty-demo").build();
 
         List<String> emptyList = Collections.emptyList();
-        AsyncBatchResult<String> result = par.map("test-pool", emptyList, item -> item.toUpperCase(), opts);
+        AsyncBatchResult<String> result = par.map(emptyList, item -> item.toUpperCase(), opts);
 
         assertThat(result.getResults()).isEmpty();
         assertThat(result.report().getStateCounts()).isEmpty();
@@ -96,10 +99,10 @@ public class H1_NullEmptyInputTest {
     /** 正常输入不受影响：Par.map() 对非空列表正常并行执行。 */
     @Test
     void parMap_normalList_worksAsExpected() {
-        ParOptions opts = ParOptions.of("normal-demo").build();
+        ExecutionOptions opts = ExecutionOptions.of("normal-demo").build();
 
         List<String> input = Arrays.asList("hello", "world", "java");
-        AsyncBatchResult<String> result = par.map("test-pool", input, item -> item.toUpperCase(), opts);
+        AsyncBatchResult<String> result = par.map(input, item -> item.toUpperCase(), opts);
 
         // 3 个任务全部提交
         assertThat(result.getResults()).hasSize(3);

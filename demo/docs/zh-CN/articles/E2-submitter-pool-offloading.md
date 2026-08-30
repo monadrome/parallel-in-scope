@@ -48,18 +48,18 @@ pool.submit(() -> {
 
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("offload-demo")
+ExecutionOptions opts = ExecutionOptions.of("offload-demo")
         .parallelism(1)
         .build();
 
 // Par.map() 不会死锁——提交循环运行在 Par-Submitter 线程上
 List<Integer> input = Arrays.asList(1, 2, 3);
-AsyncBatchResult<Integer> result = par.map("my-pool", input, x -> {
+AsyncBatchResult<Integer> result = par.map( input, x -> {
     Thread.sleep(100);
     return x * 2;
 }, opts);

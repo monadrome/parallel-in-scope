@@ -54,26 +54,26 @@ for (String item : emptyList) {
 
 // 配置 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("user-query").build();
+ExecutionOptions opts = ExecutionOptions.of("user-query").build();
 
 // 无需防御，null 列表安全返回
 List<String> nullList = null;
-AsyncBatchResult<String> r1 = par.map("my-pool", nullList, id -> queryUser(id), opts);
+AsyncBatchResult<String> r1 = par.map( nullList, id -> queryUser(id), opts);
 assert r1.getResults().isEmpty();  // true
 
 // 空列表同样安全
 List<String> emptyList = Collections.emptyList();
-AsyncBatchResult<String> r2 = par.map("my-pool", emptyList, id -> queryUser(id), opts);
+AsyncBatchResult<String> r2 = par.map( emptyList, id -> queryUser(id), opts);
 assert r2.getResults().isEmpty();  // true
 
 // 正常列表不受影响
 List<String> ids = Arrays.asList("user-1", "user-2", "user-3");
-AsyncBatchResult<String> r3 = par.map("my-pool", ids, id -> queryUser(id), opts);
+AsyncBatchResult<String> r3 = par.map( ids, id -> queryUser(id), opts);
 assert r3.getResults().size() == 3;  // true
 ```
 

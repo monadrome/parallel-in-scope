@@ -2,7 +2,7 @@
 
 # Demo 文章索引
 
-这些文章是问题导向的 `0.1.x` 示例说明；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)、[v0.2 迁移指南](../../../docs/zh/migration-v0.2.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。文章中的 `ParConfig`、`ParOptions` 与按名称 `map` 调用不能直接用于 v0.2。
+这些文章是基于 `0.2.0-SNAPSHOT` API 的问题导向示例；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
 
 ## 推荐起点
 

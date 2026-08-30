@@ -11,7 +11,7 @@
 <dependency>
     <groupId>io.github.huatalk</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -22,17 +22,17 @@
 ```java
 // 1. 准备线程池和配置（应用启动时做一次即可）
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 2. 定义任务选项
-ParOptions options = ParOptions.of("square").build();
+ExecutionOptions options = ExecutionOptions.of("square").build();
 
 // 3. 并行执行
 List<Integer> numbers = Arrays.asList(1, 2, 3);
-AsyncBatchResult<Integer> result = par.map("my-pool", numbers, n -> n * n, options);
+AsyncBatchResult<Integer> result = par.map( numbers, n -> n * n, options);
 
 // 4. 获取结果
 for (Future<Integer> future : result.getResults()) {
@@ -44,14 +44,14 @@ for (Future<Integer> future : result.getResults()) {
 
 ## 3. 设置超时
 
-生产环境必须设置超时，防止任务无限挂起。在 `ParOptions` 中通过 `.timeout()` 指定毫秒数：
+生产环境必须设置超时，防止任务无限挂起。在 `ExecutionOptions` 中通过 `.timeout()` 指定毫秒数：
 
 ```java
-ParOptions options = ParOptions.of("square")
-        .timeout(500)   // 500ms 超时
+ExecutionOptions options = ExecutionOptions.of("square")
+        .timeout(java.time.Duration.ofMillis(500))   // 500ms 超时
         .build();
 
-AsyncBatchResult<Integer> result = par.map("my-pool", numbers, n -> {
+AsyncBatchResult<Integer> result = par.map( numbers, n -> {
     // 模拟耗时操作
     Thread.sleep(100);
     return n * n;
@@ -65,13 +65,13 @@ AsyncBatchResult<Integer> result = par.map("my-pool", numbers, n -> {
 当任务数量很大或下游服务有速率限制时，通过 `.parallelism()` 控制同时执行的任务数：
 
 ```java
-ParOptions options = ParOptions.of("process")
+ExecutionOptions options = ExecutionOptions.of("process")
         .parallelism(2)   // 最多同时执行 2 个任务
-        .timeout(5000)
+        .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
-AsyncBatchResult<Integer> result = par.map("my-pool", bigList, n -> n * 2, options);
+AsyncBatchResult<Integer> result = par.map( bigList, n -> n * 2, options);
 ```
 
 框架采用滑动窗口策略：每完成一个任务才提交下一个，始终保持最多 `parallelism` 个任务在执行，避免线程池被打满。
@@ -81,7 +81,7 @@ AsyncBatchResult<Integer> result = par.map("my-pool", bigList, n -> n * 2, optio
 `AsyncBatchResult` 提供两种结果查看方式：
 
 ```java
-AsyncBatchResult<Integer> result = par.map("my-pool", numbers, n -> n * n, options);
+AsyncBatchResult<Integer> result = par.map( numbers, n -> n * n, options);
 
 // 方式一：快速概览——一行代码看全貌
 String report = result.reportString();
@@ -101,7 +101,7 @@ Throwable firstError = batchReport.getFirstException();          // null if all 
 
 ## 下一步
 
-- **TaskType**：通过 `ParOptions.ioTask()` 或 `ParOptions.cpuTask()` 区分 IO/CPU 任务，框架会自动选择最优调度策略
+- **TaskType**：通过 `ExecutionOptions.ioTask()` 或 `ExecutionOptions.cpuTask()` 区分 IO/CPU 任务，框架会自动选择最优调度策略
 - **TaskListener**：注册 SPI 监听器，获取每个任务的执行时间、排队时间等指标
 - **Checkpoints**：在长任务中插入 `Checkpoints.checkpoint()`，实现细粒度的协作式取消
 - **嵌套并行**：`par.map()` 支持嵌套调用，`CancellationToken` 会自动从外层传播到内层

@@ -32,7 +32,7 @@ try {
 
 ## 解决方法
 
-`Par.map()` + `ParOptions` 一行搞定：
+`Par.map()` + `ExecutionOptions` 一行搞定：
 - `parallelism(4)` — 最多 4 个并发，滑动窗口调度，队列深度始终受控
 - `timeout(3000)` — 本次批量调用最多执行 3 秒，超时后取消所有未完成任务
 - fail-fast — 首个任务失败即取消剩余未完成任务
@@ -42,18 +42,18 @@ try {
 ## 代码
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("http-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("http-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("batch-http")
+ExecutionOptions opts = ExecutionOptions.of("batch-http")
         .parallelism(4)           // 最多 4 个并发
-        .timeout(3000)            // 3 秒超时
+        .timeout(java.time.Duration.ofMillis(3000))            // 3 秒超时
         .taskType(TaskType.IO_BOUND)
         .build();
 
-AsyncBatchResult<String> result = par.map("http-pool", services, svc -> {
+AsyncBatchResult<String> result = par.map( services, svc -> {
     return callService(svc);  // 纯业务逻辑
 }, opts);
 

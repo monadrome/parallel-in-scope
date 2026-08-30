@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -70,33 +70,33 @@ class C1_ThreadPoolDeadlockTest {
         ExecutorService innerPool = Executors.newCachedThreadPool();
 
         try {
-            ParConfig config = ParConfig.builder()
-                    .executor("outer-pool", outerPool)
-                    .executor("inner-pool", innerPool)
+            GlobalPar config = GlobalPar.builder()
+                    .register("outer-pool", outerPool)
+                    .register("inner-pool", innerPool)
+                    .defaultPar("outer-pool")
                     .build();
-            Par par = new Par(config);
+            Par par = config.par("outer-pool");
+            Par innerPar = config.par("inner-pool");
 
             // 外层：4 个任务，滑动窗口并行度 2
-            ParOptions outerOpts = ParOptions.of("outer-task")
+            ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
                     .parallelism(2)
-                    .timeout(10_000)
+                    .timeout(java.time.Duration.ofMillis(10_000))
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4);
             AsyncBatchResult<String> result = par.map(
-                    "outer-pool",
                     items,
                     item -> {
                         // 内层：使用独立的 inner-pool，不会和外层死锁
-                        ParOptions innerOpts = ParOptions.of("inner-task")
+                        ExecutionOptions innerOpts = ExecutionOptions.of("inner-task")
                                 .parallelism(2)
-                                .timeout(5_000)
+                                .timeout(java.time.Duration.ofMillis(5_000))
                                 .build();
 
                         List<String> subItems = Arrays.asList("a", "b");
-                        AsyncBatchResult<String> innerResult = par.map(
-                                "inner-pool",
+                        AsyncBatchResult<String> innerResult = innerPar.map(
                                 subItems,
                                 sub -> {
                                     return item + "-" + sub;

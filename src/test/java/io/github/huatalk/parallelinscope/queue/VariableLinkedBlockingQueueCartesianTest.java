@@ -2,7 +2,6 @@ package io.github.huatalk.parallelinscope.queue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.queue.VariableLinkedBlockingQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;

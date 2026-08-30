@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -87,8 +87,11 @@ class E1_QueueFloodingTest {
         int parallelism = 2;
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
-        ParConfig config = ParConfig.builder().executor("test-pool", pool).build();
-        Par par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
+                .build();
+        Par par = config.defaultPar();
 
         try {
             AtomicInteger concurrency = new AtomicInteger(0);
@@ -99,14 +102,13 @@ class E1_QueueFloodingTest {
 
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            ParOptions options = ParOptions.of("queue-flood-test")
+            ExecutionOptions options = ExecutionOptions.of("queue-flood-test")
                     .parallelism(parallelism)
-                    .timeout(30000)
+                    .timeout(java.time.Duration.ofMillis(30000))
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
             AsyncBatchResult<Void> result = par.map(
-                    "test-pool",
                     input,
                     item -> {
                         int cur = concurrency.incrementAndGet();

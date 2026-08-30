@@ -34,7 +34,7 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 ## 解决方法
 
-`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `ParOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
+`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `ExecutionOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
 
 1. **中断线程**：通过 `CancellationToken` 的 `lateBind` 机制，超时后立即中断所有正在执行的任务线程，释放线程池资源。
 
@@ -46,29 +46,29 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(2);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register("my-pool", pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 设置选项：2 并发，500ms 超时
-ParOptions opts = ParOptions.of("api-call")
+ExecutionOptions opts = ExecutionOptions.of("api-call")
         .parallelism(2)
-        .timeout(500)
+        .timeout(java.time.Duration.ofMillis(500))
         .timeUnit(TimeUnit.MILLISECONDS)
         .taskType(TaskType.IO_BOUND)
         .build();
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2");
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+AsyncBatchResult<String> result = par.map( urls, url -> {
     // 模拟长时间 IO 操作（响应中断）
     Thread.sleep(5000);
     return fetchContent(url);

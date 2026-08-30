@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.internal.FutureState;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;

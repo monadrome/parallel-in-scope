@@ -7,9 +7,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
@@ -143,15 +143,18 @@ class D2_LateBindRaceConditionTest {
         long batchTimeoutMs = 8000;
 
         ExecutorService rawPool = Executors.newFixedThreadPool(PARALLELISM + 1);
-        ParConfig config = ParConfig.builder().executor("test-pool", rawPool).build();
-        Par par = new Par(config);
+        GlobalPar config = GlobalPar.builder()
+                .register("test-pool", rawPool)
+                .defaultPar("test-pool")
+                .build();
+        Par par = config.defaultPar();
 
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            ParOptions options = ParOptions.of("late-bind-test")
+            ExecutionOptions options = ExecutionOptions.of("late-bind-test")
                     .parallelism(PARALLELISM)
-                    .timeout(batchTimeoutMs)
+                    .timeout(java.time.Duration.ofMillis(batchTimeoutMs))
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
@@ -162,7 +165,6 @@ class D2_LateBindRaceConditionTest {
             // 2. Calls CancellationToken.lateBind() on the complete logical batch
             // 3. The aggregate timeout gives the batch one shared deadline
             AsyncBatchResult<String> result = par.map(
-                    "test-pool",
                     items,
                     taskId -> {
                         try {
