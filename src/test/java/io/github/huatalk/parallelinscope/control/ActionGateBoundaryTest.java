@@ -48,8 +48,7 @@ class ActionGateBoundaryTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ActionGate.whenBoth(-1, Duration.ofMillis(1), () -> {}))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ActionGate.whenBoth(1, null, () -> {}))
-                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ActionGate.whenBoth(1, null, () -> {})).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> ActionGate.whenBoth(1, Duration.ofMillis(1), null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> ActionGate.whenBoth(1, Duration.ZERO, () -> {}))

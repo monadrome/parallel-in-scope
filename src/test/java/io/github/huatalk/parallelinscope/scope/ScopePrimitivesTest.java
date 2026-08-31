@@ -38,7 +38,9 @@ class ScopePrimitivesTest {
             } finally {
                 otherPool.shutdownNow();
             }
-            assertThat(identity.toString()).contains("@").contains(pool.getClass().getSimpleName());
+            assertThat(identity.toString())
+                    .contains("@")
+                    .contains(pool.getClass().getSimpleName());
             assertThatThrownBy(() -> new ExecutorIdentity(null)).isInstanceOf(NullPointerException.class);
         } finally {
             pool.shutdownNow();
@@ -53,9 +55,8 @@ class ScopePrimitivesTest {
         assertThat(policy.defaultTimeoutMillis()).isEqualTo(60_000L);
         assertThat(policy.taskListeners()).isEmpty();
 
-        GlobalExecutionPolicy custom = GlobalExecutionPolicy.builder()
-                .defaultTimeoutMillis(250L)
-                .build();
+        GlobalExecutionPolicy custom =
+                GlobalExecutionPolicy.builder().defaultTimeoutMillis(250L).build();
         assertThat(custom.defaultTimeoutMillis()).isEqualTo(250L);
 
         GlobalExecutionPolicy.Builder builder = GlobalExecutionPolicy.builder();
@@ -125,8 +126,8 @@ class ScopePrimitivesTest {
         BatchExecutionOptions options = BatchExecutionOptions.of("x").build();
         assertThatThrownBy(() -> BatchExecutionContext.resolve(null, options, 1, null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> BatchExecutionContext.resolve(GlobalExecutionPolicy.builder().build(), null, 1, null))
+        assertThatThrownBy(() -> BatchExecutionContext.resolve(
+                        GlobalExecutionPolicy.builder().build(), null, 1, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -148,8 +149,7 @@ class ScopePrimitivesTest {
         assertThat(callable.call()).isEqualTo(42);
         assertThat(callable.waitTime()).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(4));
         assertThat(callable.executionTime()).isGreaterThan(0L);
-        assertThat(callable.totalTime())
-                .isEqualTo(callable.waitTime() + callable.executionTime());
+        assertThat(callable.totalTime()).isEqualTo(callable.waitTime() + callable.executionTime());
         assertThat(callable.getCancellationToken()).isNotNull();
 
         ScopedCallable<Integer> unlabelled = new ScopedCallable<>("plain", () -> 1, context, null);
@@ -170,8 +170,8 @@ class ScopePrimitivesTest {
                     null,
                     identity,
                     "par-label");
-            ScopedCallable<String> labelledCall = new ScopedCallable<>(
-                    "t", () -> "ok", labelled, java.util.Collections.emptyList());
+            ScopedCallable<String> labelledCall =
+                    new ScopedCallable<>("t", () -> "ok", labelled, java.util.Collections.emptyList());
             assertThat(labelledCall.getExecutorName()).isEqualTo("par-label");
 
             BatchExecutionContext anonymous = BatchExecutionContext.resolve(
@@ -182,8 +182,8 @@ class ScopePrimitivesTest {
                     null,
                     identity,
                     null);
-            ScopedCallable<String> anonymousCall = new ScopedCallable<>(
-                    "t", () -> "ok", anonymous, java.util.Collections.emptyList());
+            ScopedCallable<String> anonymousCall =
+                    new ScopedCallable<>("t", () -> "ok", anonymous, java.util.Collections.emptyList());
             assertThat(anonymousCall.getExecutorName()).isEqualTo("NA");
 
             assertThatThrownBy(
@@ -204,10 +204,8 @@ class ScopePrimitivesTest {
     void runtimeBindingsExposeTheExactRegisteredExecutorAndStayDistinct() {
         ExecutorService poolA = Executors.newSingleThreadExecutor();
         ExecutorService poolB = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
-                .register("a", poolA)
-                .register("b", poolB)
-                .build();
+        GlobalPar global =
+                GlobalPar.builder().register("a", poolA).register("b", poolB).build();
         try {
             ExecutorRuntime runtimeA = global.par("a").getRuntimeForTest();
             ExecutorRuntime runtimeB = global.par("b").getRuntimeForTest();
@@ -242,7 +240,8 @@ class ScopePrimitivesTest {
         java.util.concurrent.ScheduledExecutorService scheduler = global.timeoutScheduler();
 
         java.util.concurrent.CountDownLatch ran = new java.util.concurrent.CountDownLatch(1);
-        java.util.concurrent.ScheduledFuture<?> scheduled = scheduler.schedule(ran::countDown, 5, TimeUnit.MILLISECONDS);
+        java.util.concurrent.ScheduledFuture<?> scheduled =
+                scheduler.schedule(ran::countDown, 5, TimeUnit.MILLISECONDS);
         org.junit.jupiter.api.Assertions.assertNotNull(scheduled);
         assertThat(scheduler.isShutdown()).isFalse();
         assertThat(scheduler.isTerminated()).isFalse();

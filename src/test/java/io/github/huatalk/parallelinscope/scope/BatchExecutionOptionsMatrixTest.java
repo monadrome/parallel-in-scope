@@ -25,8 +25,7 @@ class BatchExecutionOptionsMatrixTest {
     @Test
     void chainedBuilderCallsKeepReturningTheBuilder() {
         BatchExecutionOptions.Builder builder = BatchExecutionOptions.builder();
-        BatchExecutionOptions options = builder
-                .taskName("chain")
+        BatchExecutionOptions options = builder.taskName("chain")
                 .parallelism(3)
                 .timeout(Duration.ofSeconds(2))
                 .taskType(TaskType.IO_BOUND)

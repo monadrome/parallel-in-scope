@@ -14,12 +14,16 @@ class BatchExecutionContextTest {
                 GlobalExecutionPolicy.builder().defaultTimeoutMillis(5_000).build();
         BatchExecutionContext parent = BatchExecutionContext.resolve(
                 policy,
-                BatchExecutionOptions.of("outer").timeout(Duration.ofMillis(100)).build(),
+                BatchExecutionOptions.of("outer")
+                        .timeout(Duration.ofMillis(100))
+                        .build(),
                 1,
                 null);
         BatchExecutionContext child = BatchExecutionContext.resolve(
                 policy,
-                BatchExecutionOptions.of("inner").timeout(Duration.ofSeconds(10)).build(),
+                BatchExecutionOptions.of("inner")
+                        .timeout(Duration.ofSeconds(10))
+                        .build(),
                 1,
                 parent);
 

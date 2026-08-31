@@ -40,7 +40,8 @@ class HeuristicPurgerQueueCompatibilityTest {
 
         cancel(tasks, 0, 2, observer);
 
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
         assertThat(queue).hasSize(14);
     }
 

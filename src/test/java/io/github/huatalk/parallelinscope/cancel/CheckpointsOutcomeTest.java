@@ -35,7 +35,8 @@ class CheckpointsOutcomeTest {
         Semaphore semaphore = new Semaphore(0);
         holdNothingButAssertBusy(semaphore);
         long start = System.nanoTime();
-        assertThat(Checkpoints.checkTryAcquire(semaphore, Duration.ofMillis(30))).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(semaphore, Duration.ofMillis(30)))
+                .isFalse();
         assertThat(System.nanoTime() - start).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(5));
     }
 
@@ -46,22 +47,26 @@ class CheckpointsOutcomeTest {
     @Test
     void tryAcquireTimeoutOverloadReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(0);
-        assertThat(Checkpoints.checkTryAcquire(semaphore, 25, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(semaphore, 25, TimeUnit.MILLISECONDS))
+                .isFalse();
     }
 
     @Test
     void tryAcquirePermitsAndDurationOverloadReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(0);
-        assertThat(Checkpoints.checkTryAcquire(semaphore, 2, Duration.ofMillis(25))).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(semaphore, 2, Duration.ofMillis(25)))
+                .isFalse();
     }
 
     @Test
     void tryAcquirePermitsTimeoutUnitReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(1);
         holdPermits(semaphore, 1);
-        assertThat(Checkpoints.checkTryAcquire(semaphore, 2, 20, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(semaphore, 2, 20, TimeUnit.MILLISECONDS))
+                .isFalse();
         semaphore.release();
-        assertThat(Checkpoints.checkTryAcquire(semaphore, 1, 20, TimeUnit.MILLISECONDS)).isTrue();
+        assertThat(Checkpoints.checkTryAcquire(semaphore, 1, 20, TimeUnit.MILLISECONDS))
+                .isTrue();
     }
 
     @Test
@@ -70,12 +75,15 @@ class CheckpointsOutcomeTest {
         ExecutorService blocker = Executors.newSingleThreadExecutor();
         try {
             blocker.submit(() -> {
-                heldByOther.lock();
-                return null;
-            }).get(2, TimeUnit.SECONDS);
+                        heldByOther.lock();
+                        return null;
+                    })
+                    .get(2, TimeUnit.SECONDS);
 
-            assertThat(Checkpoints.checkTryLock(heldByOther, Duration.ofMillis(30))).isFalse();
-            assertThat(Checkpoints.checkTryLock(heldByOther, 30, TimeUnit.MILLISECONDS)).isFalse();
+            assertThat(Checkpoints.checkTryLock(heldByOther, Duration.ofMillis(30)))
+                    .isFalse();
+            assertThat(Checkpoints.checkTryLock(heldByOther, 30, TimeUnit.MILLISECONDS))
+                    .isFalse();
 
             ReentrantLock free = new ReentrantLock();
             assertThat(Checkpoints.checkTryLock(free, Duration.ofMillis(20))).isTrue();
@@ -93,11 +101,14 @@ class CheckpointsOutcomeTest {
                 Thread.sleep(300);
                 return null;
             });
-            assertThat(Checkpoints.checkAwaitTermination(busy, 20, TimeUnit.MILLISECONDS)).isFalse();
-            assertThat(Checkpoints.checkAwaitTermination(busy, Duration.ofMillis(20))).isFalse();
+            assertThat(Checkpoints.checkAwaitTermination(busy, 20, TimeUnit.MILLISECONDS))
+                    .isFalse();
+            assertThat(Checkpoints.checkAwaitTermination(busy, Duration.ofMillis(20)))
+                    .isFalse();
 
             busy.shutdown();
-            assertThat(Checkpoints.checkAwaitTermination(busy, Duration.ofSeconds(2))).isTrue();
+            assertThat(Checkpoints.checkAwaitTermination(busy, Duration.ofSeconds(2)))
+                    .isTrue();
         } finally {
             busy.shutdownNow();
         }
@@ -110,8 +121,7 @@ class CheckpointsOutcomeTest {
 
         assertThatThrownBy(() -> Checkpoints.checkSupplier(null, IllegalStateException.class))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> Checkpoints.<Object, IllegalStateException>checkSupplier(() -> new Object(), null))
+        assertThatThrownBy(() -> Checkpoints.<Object, IllegalStateException>checkSupplier(() -> new Object(), null))
                 .isInstanceOf(NullPointerException.class);
     }
 

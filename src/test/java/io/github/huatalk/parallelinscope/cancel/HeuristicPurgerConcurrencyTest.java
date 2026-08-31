@@ -125,7 +125,8 @@ public class HeuristicPurgerConcurrencyTest {
 
         cancel(tasks, 0, 2, observer);
 
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
         await().during(500, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
 
@@ -149,7 +150,8 @@ public class HeuristicPurgerConcurrencyTest {
 
         cancel(tasks, 0, 2, observer);
 
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
         await().during(1_500, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
     }

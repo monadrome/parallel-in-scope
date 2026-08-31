@@ -358,7 +358,7 @@ public final class HeuristicPurger {
                 double ratioThreshold) {
             String previous = lastLoggedDecision.getAndSet(action);
             if (!action.equals(previous)) {
-                    logDecision(action, canceled, queueSize, capacity, pressure, pressureThreshold, ratio, ratioThreshold);
+                logDecision(action, canceled, queueSize, capacity, pressure, pressureThreshold, ratio, ratioThreshold);
             }
         }
 

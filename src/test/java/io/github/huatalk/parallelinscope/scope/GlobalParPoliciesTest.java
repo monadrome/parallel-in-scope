@@ -15,10 +15,8 @@ class GlobalParPoliciesTest {
 
         assertThat(builder.parPolicyOverride("orders", policy)).isSameAs(builder);
 
-        assertThatThrownBy(() -> builder.parPolicyOverride(null, policy))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.parPolicyOverride("", policy))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.parPolicyOverride(null, policy)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.parPolicyOverride("", policy)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> GlobalPar.builder().parPolicyOverride("fresh", null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> builder.parPolicyOverride("orders", policy))
@@ -39,7 +37,8 @@ class GlobalParPoliciesTest {
     @Test
     void policyOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
         assertThatThrownBy(() -> GlobalPar.builder()
-                        .parPolicyOverride("ghost", GlobalExecutionPolicy.builder().build())
+                        .parPolicyOverride(
+                                "ghost", GlobalExecutionPolicy.builder().build())
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not registered");
@@ -64,16 +63,12 @@ class GlobalParPoliciesTest {
         GlobalParPurgePolicy.Builder builder = GlobalParPurgePolicy.builder();
         assertThatThrownBy(() -> builder.queuePressureThreshold(1.0000001))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.queuePressureThreshold(0.0))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.queuePressureThreshold(-0.5))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.queuePressureThreshold(0.0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.queuePressureThreshold(-0.5)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.queuePressureThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(1.5))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(0d))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(1.5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(0d)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
     }

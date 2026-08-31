@@ -38,8 +38,8 @@ class DrainingBlockingQueueContractTest {
 
     @Test
     void constructorStoresInitialElementsInFifoOrderAndValidates() {
-        DrainingBlockingQueue<String> queue =
-                new DrainingBlockingQueue<>(3, Arrays.asList("a", "b", "c"), DrainingBlockingQueue.ShutdownPolicy.empty());
+        DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(
+                3, Arrays.asList("a", "b", "c"), DrainingBlockingQueue.ShutdownPolicy.empty());
         assertEquals(3, queue.size());
         assertEquals("a", queue.poll());
         assertEquals("b", queue.poll());
@@ -53,19 +53,21 @@ class DrainingBlockingQueueContractTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DrainingBlockingQueue<>(2, Arrays.asList("x", "y", "z"), DrainingBlockingQueue.ShutdownPolicy.empty()));
-        assertThrows(NullPointerException.class, () -> new DrainingBlockingQueue<>(
-                2, Arrays.asList("x", null), DrainingBlockingQueue.ShutdownPolicy.empty()));
+                () -> new DrainingBlockingQueue<>(
+                        2, Arrays.asList("x", "y", "z"), DrainingBlockingQueue.ShutdownPolicy.empty()));
+        assertThrows(
+                NullPointerException.class,
+                () -> new DrainingBlockingQueue<>(
+                        2, Arrays.asList("x", null), DrainingBlockingQueue.ShutdownPolicy.empty()));
 
         DrainingBlockingQueue.ShutdownPolicy<String> poisonPolicy =
-                DrainingBlockingQueue.ShutdownPolicy.<String>builder().poison("STOP").build();
+                DrainingBlockingQueue.ShutdownPolicy.<String>builder()
+                        .poison("STOP")
+                        .build();
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new DrainingBlockingQueue<>(2, Arrays.asList("STOP"), poisonPolicy));
-        assertEquals(
-                0,
-                new DrainingBlockingQueue<String>(2, Arrays.asList(), poisonPolicy)
-                        .size());
+        assertEquals(0, new DrainingBlockingQueue<String>(2, Arrays.asList(), poisonPolicy).size());
     }
 
     // ==================== Snapshot queries ====================
@@ -239,8 +241,8 @@ class DrainingBlockingQueueContractTest {
 
     @Test
     void drainingIteratorObservesOnlyRemainingElements() {
-        DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(3, Arrays.asList("p", "q"),
-                DrainingBlockingQueue.ShutdownPolicy.empty());
+        DrainingBlockingQueue<String> queue =
+                new DrainingBlockingQueue<>(3, Arrays.asList("p", "q"), DrainingBlockingQueue.ShutdownPolicy.empty());
         queue.close();
         assertEquals("p", queue.poll());
         assertTrue(queue.isDraining());
@@ -263,9 +265,10 @@ class DrainingBlockingQueueContractTest {
 
     @Test
     void throwingPolicyRejectsMutationAfterDrainedButDeliversPoisonToReaders() throws InterruptedException {
-        DrainingBlockingQueue.ShutdownPolicy<String> policy =
-                DrainingBlockingQueue.ShutdownPolicy.<String>builder().poison("STOP").mutations(
-                        DrainingBlockingQueue.MutationsStrategy.THROW).build();
+        DrainingBlockingQueue.ShutdownPolicy<String> policy = DrainingBlockingQueue.ShutdownPolicy.<String>builder()
+                .poison("STOP")
+                .mutations(DrainingBlockingQueue.MutationsStrategy.THROW)
+                .build();
         DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(3, Arrays.asList("only"), policy);
         queue.close();
         assertTrue(queue.isDraining());
@@ -292,8 +295,8 @@ class DrainingBlockingQueueContractTest {
 
     @Test
     void noopPolicyTreatsMutationsOnDrainedQueueAsSilentNoOps() throws InterruptedException {
-        DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(2, Arrays.asList("one", "two"),
-                DrainingBlockingQueue.ShutdownPolicy.empty());
+        DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(
+                2, Arrays.asList("one", "two"), DrainingBlockingQueue.ShutdownPolicy.empty());
         queue.close();
         queue.clear();
         assertTrue(queue.isDrained());

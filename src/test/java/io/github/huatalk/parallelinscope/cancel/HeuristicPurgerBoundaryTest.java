@@ -61,13 +61,13 @@ class HeuristicPurgerBoundaryTest {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
         // 8 occupied of capacity 10 == 0.80 pressure: equal, not strictly below.
-        HeuristicPurger purger =
-                new HeuristicPurger(new AtomicDouble(0.80), new AtomicDouble(0.10));
+        HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.80), new AtomicDouble(0.10));
         try {
             Runnable observer = purger.cancellationObserverFor(executor);
             enqueue(8);
             cancelOne(observer);
-            await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(purgeCount).hasValue(1));
+            await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
         } finally {
             purger.close();
         }
@@ -77,8 +77,7 @@ class HeuristicPurgerBoundaryTest {
     void pressureBelowThresholdSuppressesPurgeEntirely() throws Exception {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
-        HeuristicPurger purger =
-                new HeuristicPurger(new AtomicDouble(0.80), new AtomicDouble(0.10));
+        HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.80), new AtomicDouble(0.10));
         try {
             Runnable observer = purger.cancellationObserverFor(executor);
             enqueue(2); // Pressure 0.2 << 0.8 despite a high cancelled ratio.
@@ -94,8 +93,7 @@ class HeuristicPurgerBoundaryTest {
     void cancelledRatioBelowThresholdSuppressesPurgeEvenUnderPressure() throws Exception {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
-        HeuristicPurger purger =
-                new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.90));
+        HeuristicPurger purger = new HeuristicPurger(new AtomicDouble(0.50), new AtomicDouble(0.90));
         try {
             Runnable observer = purger.cancellationObserverFor(executor);
             enqueue(9); // Pressure 0.9 >= 0.50
@@ -106,5 +104,4 @@ class HeuristicPurgerBoundaryTest {
             purger.close();
         }
     }
-
 }
