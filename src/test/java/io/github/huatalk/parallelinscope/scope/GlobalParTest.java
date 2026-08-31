@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
-import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
+import io.github.huatalk.parallelinscope.context.graph.TaskGraphData;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -106,7 +106,8 @@ class GlobalParTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+            TaskGraphData expectedGraph = TaskGraphObservationContext.data();
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
@@ -115,7 +116,8 @@ class GlobalParTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner")
+                                                        .build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
@@ -125,8 +127,8 @@ class GlobalParTest {
                             BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(TaskGraph.data()).isSameAs(observation.data());
-            assertThat(observation.data().getGraph().edges()).isNotEmpty();
+            assertThat(TaskGraphObservationContext.data()).isSameAs(expectedGraph);
+            assertThat(expectedGraph.getGraph().edges()).isNotEmpty();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -143,19 +145,21 @@ class GlobalParTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
-            java.util.concurrent.atomic.AtomicReference<TaskGraph.Data> graphOnOuterWorker =
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+            TaskGraphData expectedGraph = TaskGraphObservationContext.data();
+            java.util.concurrent.atomic.AtomicReference<TaskGraphData> graphOnOuterWorker =
                     new java.util.concurrent.atomic.AtomicReference<>();
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                graphOnOuterWorker.set(TaskGraph.data());
+                                graphOnOuterWorker.set(TaskGraphObservationContext.data());
                                 AsyncBatchResult<Integer> inner = global.par("inner")
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner")
+                                                        .build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
@@ -165,8 +169,8 @@ class GlobalParTest {
                             BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(graphOnOuterWorker.get()).isSameAs(observation.data());
-            assertThat(observation.data().getGraph().edges()).hasSize(2);
+            assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
+            assertThat(expectedGraph.getGraph().edges()).hasSize(2);
         } finally {
             global.close();
             outerExecutor.shutdownNow();

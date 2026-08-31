@@ -22,7 +22,7 @@ Submitting every item at once can flood a queue and make nested calls deadlock. 
 
 ## Context relay and deadlock visibility
 
-`ThreadRelay` carries task context across pool boundaries. `TaskGraph` records task and executor relationships so the library can detect cycles that a thread dump would otherwise reveal only after production impact. This is executor deadlock detection, not a replacement for lock analysis.
+`ThreadRelay` carries task context across pool boundaries. `TaskGraphObservationContext` records task and executor relationships in a request-scoped graph so the library can detect cycles that a thread dump would otherwise reveal only after production impact. This is executor deadlock detection, not a replacement for lock analysis.
 
 ## Deliberate boundaries
 

@@ -5,7 +5,6 @@ import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
-import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
@@ -143,14 +142,14 @@ public class ScopedCallable<V> implements Callable<V> {
         String previousExecutorName = ThreadRelay.getCurrentExecutorName();
         io.github.huatalk.parallelinscope.scope.ExecutorIdentity previousIdentity =
                 ThreadRelay.getCurrentExecutorIdentity();
-        TaskGraph.Data previousGraph = TaskGraph.data();
+        TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
         CURRENT.set(this);
 
         CancellationToken currentToken = getCancellationToken();
         if (batchContext != null) {
             TaskScopeTl.setBatchExecutionContext(batchContext);
             TaskGraphObservationContext observation = batchContext.taskGraphObservationContext();
-            if (observation != null) TaskGraph.install(observation);
+            if (observation != null) TaskGraphObservationContext.install(observation);
         }
 
         ThreadRelay.setCurrentCancellationToken(currentToken);
@@ -174,7 +173,7 @@ public class ScopedCallable<V> implements Callable<V> {
             endTime = ticker.read();
             TaskScopeTl.restore(previousBatch);
             ThreadRelay.restoreCurrent(previousRelayToken, previousTaskName, previousExecutorName, previousIdentity);
-            TaskGraph.restore(previousGraph);
+            TaskGraphObservationContext.restore(previousObservation);
 
             // Fire SPI callbacks
             notifyListeners(taskException);

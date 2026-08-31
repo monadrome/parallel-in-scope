@@ -1,38 +1,139 @@
 package io.github.huatalk.parallelinscope.context;
 
-import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
+import com.alibaba.ttl.TransmittableThreadLocal;
+import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
+import io.github.huatalk.parallelinscope.context.graph.TaskGraphData;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener;
+import io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener.DeadlockDetectionEvent;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Explicit request-level task-graph observation scope owned by one {@link GlobalPar}.
  *
- * <p>This context is intentionally not a global collector. It captures and restores the graph data
- * active on the opening thread, and {@link #close()} is idempotent so it can be used with
- * try-with-resources. Tasks submitted under the scope share its graph through the batch context.
+ * <p>The scope is a request-level global object: it is held in a {@link TransmittableThreadLocal}
+ * with identity copy semantics, so every worker thread within the request observes the same
+ * instance and shares its {@link TaskGraphData}. Nested scopes stack on the opening thread, and
+ * {@link #close()} is idempotent so it can be used with try-with-resources. Closing the scope runs
+ * the deadlock detection pass over the recorded graph and notifies the owner's
+ * {@code GlobalParDeadlockPolicy} listeners.
+ *
+ * <p>Lifecycle:
+ *
+ * <ul>
+ *   <li>Request start: {@link GlobalPar#openTaskGraphObservation()} creates the scope and a fresh
+ *       {@link TaskGraphData}
+ *   <li>During request: the GlobalPar execution path records batch-instance relationships via
+ *       {@link #logTaskPair}
+ *   <li>Request end: {@link #close()} checks for cycles and notifies listeners
+ * </ul>
+ *
+ * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class TaskGraphObservationContext implements AutoCloseable {
-    private static final ThreadLocal<TaskGraphObservationContext> CURRENT = new ThreadLocal<>();
+
+    private static final Logger logger = Logger.getLogger(TaskGraphObservationContext.class.getName());
+
+    /** Identity-propagating TTL: the default copy returns the same scope reference to workers. */
+    private static final TransmittableThreadLocal<TaskGraphObservationContext> CURRENT =
+            new TransmittableThreadLocal<TaskGraphObservationContext>() {};
 
     private final GlobalPar owner;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final TaskGraphObservationContext previousContext;
-    private final TaskGraph.Data previousData;
-    private final TaskGraph.Data data;
+    private final @Nullable TaskGraphObservationContext previousContext;
+    private final TaskGraphData data;
 
     public TaskGraphObservationContext(GlobalPar owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
         this.previousContext = CURRENT.get();
         CURRENT.set(this);
-        this.previousData = TaskGraph.initForObservation(this);
-        this.data = TaskGraph.data();
+        this.data = new TaskGraphData();
     }
 
     /** Returns the observation scope active on the calling thread, if any. */
-    public static TaskGraphObservationContext current() {
+    public static @Nullable TaskGraphObservationContext current() {
         TaskGraphObservationContext context = CURRENT.get();
         return context != null && !context.isClosed() ? context : null;
+    }
+
+    /**
+     * Gets the current scope's graph data.
+     *
+     * @return the current request data, or {@code null} outside an observation scope
+     */
+    public static @Nullable TaskGraphData data() {
+        TaskGraphObservationContext context = current();
+        return context == null ? null : context.data;
+    }
+
+    /** Installs an observation scope on the current worker thread. */
+    public static void install(TaskGraphObservationContext context) {
+        CURRENT.set(Objects.requireNonNull(context, "context cannot be null"));
+    }
+
+    /** Restores a scope captured before entering a scoped worker task. */
+    public static void restore(@Nullable TaskGraphObservationContext context) {
+        if (context == null) CURRENT.remove();
+        else CURRENT.set(context);
+    }
+
+    /** Records a new-model edge using unique batch identities and display labels. */
+    public static void logTaskPair(
+            @Nullable String parentId,
+            @Nullable String parentLabel,
+            String childId,
+            @Nullable String childLabel,
+            TaskEdge edge) {
+        TaskGraphData data = data();
+        if (data == null) return;
+        data.logTaskPair(parentId, parentLabel, childId, childLabel, edge);
+    }
+
+    /**
+     * Checks if any task cycle exists.
+     *
+     * @return {@code true} when the current request graph contains a task cycle
+     */
+    public static boolean hasTaskCycle() {
+        TaskGraphData data = data();
+        return data != null && data.isTaskCycle();
+    }
+
+    /**
+     * Checks if any task self-loop exists.
+     *
+     * @return {@code true} when the current request graph contains a task self-loop
+     */
+    public static boolean hasSelfLoop() {
+        TaskGraphData data = data();
+        return data != null && data.isSelfLoop();
+    }
+
+    /**
+     * Returns whether the current request graph contains an executor cycle.
+     *
+     * @return {@code true} when an executor cycle exists
+     */
+    public static boolean hasExecutorCycle() {
+        TaskGraphData data = data();
+        return data != null && data.isExecutorCycle();
+    }
+
+    /**
+     * Returns whether the current request graph contains an executor self-loop.
+     *
+     * @return {@code true} when an executor self-loop exists
+     */
+    public static boolean hasExecutorSelfLoop() {
+        TaskGraphData data = data();
+        return data != null && data.isExecutorSelfLoop();
     }
 
     public GlobalPar owner() {
@@ -47,7 +148,7 @@ public final class TaskGraphObservationContext implements AutoCloseable {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             try {
-                TaskGraph.finishObservation(this);
+                runDeadlockDetection();
             } finally {
                 if (CURRENT.get() == this) {
                     if (previousContext == null) CURRENT.remove();
@@ -57,18 +158,64 @@ public final class TaskGraphObservationContext implements AutoCloseable {
         }
     }
 
-    /** Marks the scope closed after observation finalization without invoking it recursively. */
-    public void complete() {
-        closed.set(true);
+    /** Runs the GlobalPar deadlock policy over this scope's graph and restores the outer scope. */
+    private void runDeadlockDetection() {
+        try {
+            if (!owner.deadlockPolicy().enabled()) {
+                return;
+            }
+            DeadlockDetectionEvent event = buildDetectionEvent(data);
+            if (event != null && event.hasAnyIssue()) {
+                logger.log(Level.WARNING, "[[title=TaskGraph,function=deadlockDetection]]" + event);
+                for (DeadlockDetectionListener listener : owner.deadlockPolicy().listeners()) {
+                    try {
+                        listener.onDetection(event);
+                    } catch (Exception e) {
+                        logger.log(
+                                Level.WARNING,
+                                "DeadlockDetectionListener callback failed: "
+                                        + listener.getClass().getName(),
+                                e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.log(
+                    Level.WARNING,
+                    "[[title=TaskGraph,function=finishObservation]]"
+                            + "Failed to run GlobalPar potential-deadlock detection",
+                    e);
+        }
     }
 
-    /** Returns the graph data that was active before this observation was opened. */
-    public TaskGraph.Data previousData() {
-        return previousData;
-    }
+    private static @Nullable DeadlockDetectionEvent buildDetectionEvent(TaskGraphData data) {
+        boolean hasTaskCycle = data.isTaskCycle();
+        boolean hasSelfLoop = data.isSelfLoop();
+        boolean hasExecutorCycle = data.isExecutorCycle();
+        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop();
 
-    /** Returns the task graph shared by all tasks in this observation scope. */
-    public TaskGraph.Data data() {
-        return data;
+        if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
+            return null;
+        }
+
+        String taskEdges = data.getGraph().edges().stream()
+                .map(p -> {
+                    List<TaskEdge> edges =
+                            data.getGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
+                    return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
+                })
+                .collect(Collectors.joining(", "));
+        String executorEdges = data.getExecutorGraph().edges().stream()
+                .map(p -> {
+                    List<TaskEdge> edges =
+                            data.getExecutorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
+                    return p.source() + " -> " + p.target() + " " + edges;
+                })
+                .collect(Collectors.joining(", "));
+
+        return new DeadlockDetectionEvent(
+                hasTaskCycle, hasSelfLoop,
+                hasExecutorCycle, hasExecutorSelfLoop,
+                taskEdges, executorEdges);
     }
 }

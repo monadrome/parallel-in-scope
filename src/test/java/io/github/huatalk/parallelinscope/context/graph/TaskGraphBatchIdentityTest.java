@@ -22,10 +22,10 @@ class TaskGraphBatchIdentityTest {
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             BatchExecutionContext first = context();
             BatchExecutionContext second = context();
-            TaskGraph.logTaskPair(null, "root", first.batchId(), first.taskName(), edge());
-            TaskGraph.logTaskPair(null, "root", second.batchId(), second.taskName(), edge());
+            TaskGraphObservationContext.logTaskPair(null, "root", first.batchId(), first.taskName(), edge());
+            TaskGraphObservationContext.logTaskPair(null, "root", second.batchId(), second.taskName(), edge());
 
-            TaskGraph.Data data = TaskGraph.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data.getGraph().nodes()).contains(first.batchId(), second.batchId());
             assertThat(first.batchId()).isNotEqualTo(second.batchId());
             assertThat(data.getGraph().edges()).hasSize(2);
@@ -39,14 +39,14 @@ class TaskGraphBatchIdentityTest {
     void detectsTaskCyclesSelfLoopsAndPreservesParallelEdges() {
         GlobalPar global = GlobalPar.builder().build();
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", edge());
-            TaskGraph.logTaskPair("b", "task-b", "a", "task-a", edge());
-            TaskGraph.logTaskPair("a", "task-a", "a", "task-a", edge());
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", edge());
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", edge());
+            TaskGraphObservationContext.logTaskPair("b", "task-b", "a", "task-a", edge());
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "a", "task-a", edge());
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", edge());
 
-            TaskGraph.Data data = TaskGraph.data();
-            assertThat(TaskGraph.hasTaskCycle()).isTrue();
-            assertThat(TaskGraph.hasSelfLoop()).isTrue();
+            TaskGraphData data = TaskGraphObservationContext.data();
+            assertThat(TaskGraphObservationContext.hasTaskCycle()).isTrue();
+            assertThat(TaskGraphObservationContext.hasSelfLoop()).isTrue();
             assertThat(data.getGraph().edgeValueOrDefault("a", "b", java.util.Collections.emptyList()))
                     .hasSize(2);
             assertThat(data.getGraph()).isSameAs(data.getGraph());
@@ -59,19 +59,19 @@ class TaskGraphBatchIdentityTest {
     void detectsExecutorCyclesAndSkipsNonRiskyEdges() {
         GlobalPar global = GlobalPar.builder().build();
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraph.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
-            assertThat(TaskGraph.hasExecutorCycle()).isTrue();
-            assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationContext.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
+            assertThat(TaskGraphObservationContext.hasExecutorCycle()).isTrue();
+            assertThat(TaskGraphObservationContext.hasExecutorSelfLoop()).isFalse();
         } finally {
             global.close();
         }
 
         GlobalPar nonRisky = GlobalPar.builder().build();
         try (TaskGraphObservationContext ignored = nonRisky.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool", "pool", false));
-            assertThat(TaskGraph.hasExecutorCycle()).isFalse();
-            assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool", "pool", false));
+            assertThat(TaskGraphObservationContext.hasExecutorCycle()).isFalse();
+            assertThat(TaskGraphObservationContext.hasExecutorSelfLoop()).isFalse();
         } finally {
             nonRisky.close();
         }
@@ -85,12 +85,15 @@ class TaskGraphBatchIdentityTest {
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity));
-            TaskGraph.logTaskPair("b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity));
-            TaskGraph.logTaskPair("self", "self", "self", "self", identityEdge(firstIdentity, firstIdentity));
+            TaskGraphObservationContext.logTaskPair(
+                    "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity));
+            TaskGraphObservationContext.logTaskPair(
+                    "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity));
+            TaskGraphObservationContext.logTaskPair(
+                    "self", "self", "self", "self", identityEdge(firstIdentity, firstIdentity));
 
-            assertThat(TaskGraph.hasExecutorCycle()).isTrue();
-            assertThat(TaskGraph.hasExecutorSelfLoop()).isTrue();
+            assertThat(TaskGraphObservationContext.hasExecutorCycle()).isTrue();
+            assertThat(TaskGraphObservationContext.hasExecutorSelfLoop()).isTrue();
         } finally {
             global.close();
             first.shutdownNow();
@@ -100,12 +103,12 @@ class TaskGraphBatchIdentityTest {
 
     @Test
     void absentOrRestoredGraphHasNoIssues() {
-        TaskGraph.restore(null);
-        assertThat(TaskGraph.data()).isNull();
-        assertThat(TaskGraph.hasTaskCycle()).isFalse();
-        assertThat(TaskGraph.hasSelfLoop()).isFalse();
-        assertThat(TaskGraph.hasExecutorCycle()).isFalse();
-        assertThat(TaskGraph.hasExecutorSelfLoop()).isFalse();
+        TaskGraphObservationContext.restore(null);
+        assertThat(TaskGraphObservationContext.data()).isNull();
+        assertThat(TaskGraphObservationContext.hasTaskCycle()).isFalse();
+        assertThat(TaskGraphObservationContext.hasSelfLoop()).isFalse();
+        assertThat(TaskGraphObservationContext.hasExecutorCycle()).isFalse();
+        assertThat(TaskGraphObservationContext.hasExecutorSelfLoop()).isFalse();
     }
 
     @Test
@@ -118,14 +121,15 @@ class TaskGraphBatchIdentityTest {
                         .build())
                 .build();
         try (TaskGraphObservationContext outer = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("outer", "outer", "outer", "outer", edge());
+            TaskGraphData outerData = TaskGraphObservationContext.data();
+            TaskGraphObservationContext.logTaskPair("outer", "outer", "outer", "outer", edge());
             try (TaskGraphObservationContext inner = global.openTaskGraphObservation()) {
-                TaskGraph.logTaskPair("inner", "inner", "inner", "inner", edge());
+                TaskGraphObservationContext.logTaskPair("inner", "inner", "inner", "inner", edge());
             }
             assertThat(event.get()).isNotNull();
             assertThat(event.get().hasSelfLoop()).isTrue();
             assertThat(TaskGraphObservationContext.current()).isSameAs(outer);
-            assertThat(TaskGraph.data()).isSameAs(outer.data());
+            assertThat(TaskGraphObservationContext.data()).isSameAs(outerData);
         } finally {
             global.close();
         }
@@ -141,8 +145,8 @@ class TaskGraphBatchIdentityTest {
                         .build())
                 .build();
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraph.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
+            TaskGraphObservationContext.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationContext.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
         } finally {
             global.close();
         }

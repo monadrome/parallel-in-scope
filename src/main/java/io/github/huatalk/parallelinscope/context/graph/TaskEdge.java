@@ -5,7 +5,7 @@ import io.github.huatalk.parallelinscope.scope.TaskType;
 
 /**
  * Value object representing metadata associated with a task dependency edge in the {@link
- * TaskGraph}.
+ * TaskGraphData}.
  *
  * <p>Captures the execution parameters that were active when a parent task forked a child task
  * batch.

@@ -3,12 +3,11 @@ package io.github.huatalk.parallelinscope.scope;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
-import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
 import java.util.List;
@@ -92,9 +91,8 @@ public final class Par {
             @Nullable List<T> list, Function<? super T, ? extends R> function, BatchExecutionOptions options) {
         int taskCount = list == null ? 0 : list.size();
         BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
-        io.github.huatalk.parallelinscope.context.TaskGraphObservationContext currentObservation =
-                io.github.huatalk.parallelinscope.context.TaskGraphObservationContext.current();
-        io.github.huatalk.parallelinscope.context.TaskGraphObservationContext observation = parent != null
+        TaskGraphObservationContext currentObservation = TaskGraphObservationContext.current();
+        TaskGraphObservationContext observation = parent != null
                         && parent.taskGraphObservationContext() != null
                         && parent.taskGraphObservationContext().owner() == globalPar
                 ? parent.taskGraphObservationContext()
@@ -153,7 +151,7 @@ public final class Par {
      */
     private static void logForking(BatchExecutionContext context, TaskEdge edge) {
         BatchExecutionContext parent = context.parent();
-        TaskGraph.logTaskPair(
+        TaskGraphObservationContext.logTaskPair(
                 parent == null ? null : parent.batchId(),
                 parent == null ? ThreadRelay.getCurrentTaskName() : parent.taskName(),
                 context.batchId(),

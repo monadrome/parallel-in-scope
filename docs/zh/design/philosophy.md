@@ -343,15 +343,11 @@ parallel-in-scope 的解决方案是 **请求级 DAG 图**（DAG = Directed Acyc
 
 ```java
 // 请求入口
-TaskGraph.initForObservation();
-try {
+try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
     // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
     // 例如上面的嵌套调用会记录两条边：
     //   "processOrder" → "fetchItem"  (executor: shared-pool → shared-pool)
-} finally {
-    // 请求结束时自动检测
-    TaskGraph.finishObservation(config);
-}
+} // 请求结束时 close() 自动检测
 ```
 
 请求结束时执行两层检测：

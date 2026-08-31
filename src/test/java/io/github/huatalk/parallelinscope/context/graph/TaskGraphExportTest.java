@@ -31,7 +31,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies the three graph views built by {@link TaskGraph.Data} (task graph, executor-name graph,
+ * Verifies the three graph views built by {@link TaskGraphData} (task graph, executor-name graph,
  * executor-identity graph) across representative scenarios, and exports each scenario as JSON to
  * {@code target/graph-export/} for offline visualization.
  */
@@ -41,19 +41,21 @@ class TaskGraphExportTest {
 
     @AfterEach
     void clearThreadState() {
-        TaskGraph.restore(null);
+        TaskGraphObservationContext.restore(null);
     }
 
     @Test
     void acyclicChainAndBranchExportCleanGraph() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair(null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraph.logTaskPair("b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
-            TaskGraph.logTaskPair("a", "task-a", "d", "task-d", legacyEdge("pool-a", "pool-d", true));
+            TaskGraphObservationContext.logTaskPair(
+                    null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationContext.logTaskPair(
+                    "b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "d", "task-d", legacyEdge("pool-a", "pool-d", true));
 
-            TaskGraph.Data data = TaskGraph.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data.isTaskCycle()).isFalse();
             assertThat(data.isSelfLoop()).isFalse();
             assertThat(data.isExecutorCycle()).isFalse();
@@ -75,19 +77,20 @@ class TaskGraphExportTest {
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraph.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
-            TaskGraph.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationContext.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
             // Parallel edge: same endpoint pair as the first entry, kept as a second TaskEdge.
-            TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
 
-            TaskGraph.Data data = TaskGraph.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data.isTaskCycle()).isTrue();
             assertThat(data.isSelfLoop()).isTrue();
             assertThat(data.isExecutorCycle()).isTrue();
             assertThat(data.isExecutorSelfLoop()).isTrue();
             assertThat(data.getGraph().edges()).hasSize(3);
-            assertThat(data.getGraph().edgeValueOrDefault("a", "b", Collections.emptyList())).hasSize(2);
+            assertThat(data.getGraph().edgeValueOrDefault("a", "b", Collections.emptyList()))
+                    .hasSize(2);
 
             exportScenario("task-cycle", data);
         } finally {
@@ -103,12 +106,12 @@ class TaskGraphExportTest {
         try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
-            TaskGraph.logTaskPair(
+            TaskGraphObservationContext.logTaskPair(
                     "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity, "pool-b", "pool-a"));
-            TaskGraph.logTaskPair(
+            TaskGraphObservationContext.logTaskPair(
                     "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity, "pool-a", "pool-b"));
 
-            TaskGraph.Data data = TaskGraph.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data.isTaskCycle()).isTrue();
             assertThat(data.isExecutorCycle()).isTrue();
             assertThat(data.isExecutorSelfLoop()).isFalse();
@@ -136,12 +139,12 @@ class TaskGraphExportTest {
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
             // Same executor NAME on both ends, but two distinct executor objects and a single
             // direction: the name graph must not be mistaken for a real resource cycle.
-            TaskGraph.logTaskPair(
+            TaskGraphObservationContext.logTaskPair(
                     "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity, "pool", "pool"));
-            TaskGraph.logTaskPair(
+            TaskGraphObservationContext.logTaskPair(
                     "b", "task-b", "c", "task-c", identityEdge(firstIdentity, secondIdentity, "pool", "pool"));
 
-            TaskGraph.Data data = TaskGraph.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data.isTaskCycle()).isFalse();
             assertThat(data.isExecutorCycle()).isFalse();
             assertThat(data.isExecutorSelfLoop()).isFalse();
@@ -166,10 +169,10 @@ class TaskGraphExportTest {
     void realNestedParMapPathIsRecordedAndExported() throws Exception {
         // Raw ThreadPoolExecutors: ExecutorRuntime.detectRisk only recognizes the concrete class,
         // so bounded pools are marked deadlock-prone and identities land in the identity graph.
-        ExecutorService outerExecutor = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
-        ExecutorService innerExecutor = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        ExecutorService outerExecutor =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        ExecutorService innerExecutor =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
         GlobalPar global = GlobalPar.builder()
                 .register("outer", outerExecutor)
@@ -179,7 +182,7 @@ class TaskGraphExportTest {
                         .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
-        TaskGraph.Data captured;
+        TaskGraphData captured;
         try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
@@ -189,7 +192,8 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner")
+                                                        .build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
@@ -200,7 +204,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            captured = observation.data();
+            captured = TaskGraphObservationContext.data();
             // root -> outer batch, outer batch -> inner batch.
             assertThat(captured.getGraph().nodes()).hasSize(3);
             assertThat(captured.getGraph().edges()).hasSize(2);
@@ -244,7 +248,8 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner")
+                                                        .build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
@@ -255,7 +260,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            TaskGraph.Data data = observation.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             // Task graph is still recorded, but executor-level detection sees nothing.
             assertThat(data.getGraph().edges()).hasSize(2);
             assertThat(data.getExecutorGraph().edges()).isEmpty();
@@ -287,7 +292,7 @@ class TaskGraphExportTest {
 
             assertThat(batch.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 
-            TaskGraph.Data data = observation.data();
+            TaskGraphData data = TaskGraphObservationContext.data();
             // Fork edge is recorded regardless of executor implementation.
             assertThat(data.getGraph().nodes()).hasSize(2);
             assertThat(data.getGraph().edges()).hasSize(1);
@@ -305,7 +310,7 @@ class TaskGraphExportTest {
 
     // ==================== JSON export ====================
 
-    private static void exportScenario(String scenario, TaskGraph.Data data) throws IOException {
+    private static void exportScenario(String scenario, TaskGraphData data) throws IOException {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "scenario", quote(scenario));
@@ -328,8 +333,7 @@ class TaskGraphExportTest {
         Files.write(EXPORT_DIR.resolve(scenario + ".json"), json.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static String graphJson(
-            ValueGraph<String, List<TaskEdge>> graph, Map<String, String> labels, int level) {
+    private static String graphJson(ValueGraph<String, List<TaskEdge>> graph, Map<String, String> labels, int level) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         indent(json, level).append("\"nodes\": [");
@@ -338,7 +342,11 @@ class TaskGraphExportTest {
             if (!first) json.append(", ");
             first = false;
             String label = labels == null ? node : labels.getOrDefault(node, "NA");
-            json.append("{\"id\": ").append(quote(node)).append(", \"label\": ").append(quote(label)).append('}');
+            json.append("{\"id\": ")
+                    .append(quote(node))
+                    .append(", \"label\": ")
+                    .append(quote(label))
+                    .append('}');
         }
         json.append("],\n");
         indent(json, level).append("\"edges\": [");
@@ -401,11 +409,15 @@ class TaskGraphExportTest {
             json.append(", \"timeoutMillis\": ").append(edge.getTimeoutMillis());
             json.append(", \"deadlockProne\": ").append(edge.isExecutorDeadlockProne());
             json.append(", \"executorIdentity\": ")
-                    .append(quote(edge.getExecutorIdentity() == null ? null : edge.getExecutorIdentity().toString()));
+                    .append(quote(
+                            edge.getExecutorIdentity() == null
+                                    ? null
+                                    : edge.getExecutorIdentity().toString()));
             json.append(", \"sourceExecutorIdentity\": ")
-                    .append(quote(edge.getSourceExecutorIdentity() == null
-                            ? null
-                            : edge.getSourceExecutorIdentity().toString()));
+                    .append(quote(
+                            edge.getSourceExecutorIdentity() == null
+                                    ? null
+                                    : edge.getSourceExecutorIdentity().toString()));
             json.append('}');
         }
         json.append(']');
@@ -461,9 +473,9 @@ class TaskGraphExportTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraphOf(TaskGraph.Data data) {
+    private static ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraphOf(TaskGraphData data) {
         try {
-            Method method = TaskGraph.Data.class.getDeclaredMethod("generateExecutorIdentityGraph");
+            Method method = TaskGraphData.class.getDeclaredMethod("generateExecutorIdentityGraph");
             method.setAccessible(true);
             return (ValueGraph<ExecutorIdentity, List<TaskEdge>>) method.invoke(data);
         } catch (ReflectiveOperationException e) {
@@ -472,9 +484,9 @@ class TaskGraphExportTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, String> labelsOf(TaskGraph.Data data) {
+    private static Map<String, String> labelsOf(TaskGraphData data) {
         try {
-            Field field = TaskGraph.Data.class.getDeclaredField("nodeLabels");
+            Field field = TaskGraphData.class.getDeclaredField("nodeLabels");
             field.setAccessible(true);
             return (Map<String, String>) field.get(data);
         } catch (ReflectiveOperationException e) {

@@ -27,8 +27,8 @@ Base package: `io.github.huatalk.parallelinscope`.
 |---|---|
 | `scope` | API facade |
 | `cancel` | Cancellation subsystem |
-| `context` | TTL/TL context propagation |
-| `context.graph` | Livelock and cycle detection |
+| `context` | TTL/TL context propagation and the observation scope lifecycle |
+| `context.graph` | Task graph data (`TaskGraphData`) and edge metadata |
 | `internal` | Execution engine |
 | `queue` | Scheduling queues |
 | `spi` | Extension points (listeners, phases) |
