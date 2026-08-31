@@ -14,6 +14,6 @@ public enum FutureState {
     SUCCESS,
     /** Task completed with an exception */
     FAILED,
-    /** Task was cancelled */
+    /** Task was canceled */
     CANCELLED
 }

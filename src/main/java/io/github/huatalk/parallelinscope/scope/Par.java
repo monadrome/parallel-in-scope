@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
  *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}
  *   <li>Parent-child {@link CancellationToken} chaining
  *   <li>Late binding for timeout and fail-fast cancellation
- *   <li>Heuristic cleanup of cancelled queued tasks
+ *   <li>Heuristic cleanup of canceled queued tasks
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)

@@ -52,13 +52,13 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     /** Lock protecting dequeue operations. */
     private final ReentrantLock takeLock = new ReentrantLock();
 
-    /** Condition signalled when the queue becomes non-empty. */
+    /** Condition signaled when the queue becomes non-empty. */
     private final Condition notEmpty = takeLock.newCondition();
 
     /** Lock protecting enqueue operations. */
     private final ReentrantLock putLock = new ReentrantLock();
 
-    /** Condition signalled when the queue has available capacity. */
+    /** Condition signaled when the queue has available capacity. */
     private final Condition notFull = putLock.newCondition();
 
     /** Creates an effectively unbounded queue. */

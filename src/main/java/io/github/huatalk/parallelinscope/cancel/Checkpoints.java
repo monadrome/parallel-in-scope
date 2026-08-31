@@ -122,11 +122,11 @@ public final class Checkpoints {
     }
 
     /**
-     * Waits up to the given duration for the condition to be signalled.
+     * Waits up to the given duration for the condition to be signaled.
      *
      * @param condition the condition to await
      * @param timeout the maximum time to wait
-     * @return {@code false} if the wait elapsed before being signalled; otherwise {@code true}
+     * @return {@code false} if the wait elapsed before being signaled; otherwise {@code true}
      */
     public static boolean checkAwait(Condition condition, Duration timeout) {
         checkCancellationToken(true);
@@ -134,12 +134,12 @@ public final class Checkpoints {
     }
 
     /**
-     * Waits up to the given timeout for the condition to be signalled.
+     * Waits up to the given timeout for the condition to be signaled.
      *
      * @param condition the condition to await
      * @param timeout the maximum time to wait
      * @param unit the unit of {@code timeout}
-     * @return {@code false} if the wait elapsed before being signalled; otherwise {@code true}
+     * @return {@code false} if the wait elapsed before being signaled; otherwise {@code true}
      */
     public static boolean checkAwait(Condition condition, long timeout, TimeUnit unit) {
         checkCancellationToken(true);

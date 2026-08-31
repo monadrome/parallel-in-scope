@@ -18,9 +18,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Coalesces cleanup of cancelled tasks retained by bounded {@link BlockingQueue} instances.
+ * Coalesces cleanup of canceled tasks retained by bounded {@link BlockingQueue} instances.
  *
- * <p>Queue pressure and cancelled-task ratio are concurrent snapshots used as advisory signals;
+ * <p>Queue pressure and canceled-task ratio are concurrent snapshots used as advisory signals;
  * neither value is an exact queue accounting guarantee.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -63,7 +63,7 @@ public final class HeuristicPurger {
      * Creates a purger backed by atomically adjustable thresholds.
      *
      * @param queuePressureThreshold minimum queue-size-to-capacity ratio
-     * @param cancelledTaskRatioThreshold minimum estimated cancelled-task ratio
+     * @param cancelledTaskRatioThreshold minimum estimated canceled-task ratio
      */
     public HeuristicPurger(AtomicDouble queuePressureThreshold, AtomicDouble cancelledTaskRatioThreshold) {
         this(new AtomicBoolean(true), queuePressureThreshold, cancelledTaskRatioThreshold);
@@ -74,7 +74,7 @@ public final class HeuristicPurger {
      *
      * @param enabled whether automatic purge is enabled
      * @param queuePressureThreshold minimum queue-size-to-capacity ratio
-     * @param cancelledTaskRatioThreshold minimum estimated cancelled-task ratio
+     * @param cancelledTaskRatioThreshold minimum estimated canceled-task ratio
      */
     public HeuristicPurger(
             AtomicBoolean enabled, AtomicDouble queuePressureThreshold, AtomicDouble cancelledTaskRatioThreshold) {
@@ -132,7 +132,7 @@ public final class HeuristicPurger {
      * without a finite positive capacity — {@link java.util.concurrent.SynchronousQueue} and
      * unbounded queues such as {@code new LinkedBlockingQueue()} — receive a static no-op callback.
      *
-     * <p>The returned callback must be invoked only when a submitted task is cancelled before it
+     * <p>The returned callback must be invoked only when a submitted task is canceled before it
      * starts. It is safe to invoke more than once: accounting is heuristic and maintenance is
      * coalesced. The executor is keyed by object identity, not by its display name.
      *
@@ -244,7 +244,7 @@ public final class HeuristicPurger {
                 } catch (RuntimeException e) {
                     maintenanceState.compareAndSet(MaintenanceState.BUSY, MaintenanceState.IDLE);
                     logCurrentDecision("failed-submit", estimatedCancelled());
-                    LOGGER.log(Level.WARNING, "Unable to schedule cancelled-task purge", e);
+                    LOGGER.log(Level.WARNING, "Unable to schedule canceled-task purge", e);
                 }
             }
         }
@@ -268,7 +268,7 @@ public final class HeuristicPurger {
                     logPurge(estimatedCancelled, beforeSize, queue.size(), System.nanoTime() - started);
                 } catch (RuntimeException e) {
                     logCurrentDecision("failed", estimatedCancelled());
-                    LOGGER.log(Level.WARNING, "Unable to purge cancelled tasks", e);
+                    LOGGER.log(Level.WARNING, "Unable to purge canceled tasks", e);
                 }
             } finally {
                 maintenanceState.set(MaintenanceState.IDLE);

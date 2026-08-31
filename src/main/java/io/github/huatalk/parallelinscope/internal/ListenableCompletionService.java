@@ -3,6 +3,7 @@ package io.github.huatalk.parallelinscope.internal;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableFutureTask;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -72,7 +73,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      *
      * @param executor executor used to run submitted tasks
      * @param completionQueue queue that receives completed futures
-     * @param queuedCancellationObserver callback for tasks cancelled before run
+     * @param queuedCancellationObserver callback for tasks canceled before run
      */
     ListenableCompletionService(
             Executor executor,

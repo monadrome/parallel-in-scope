@@ -208,7 +208,7 @@ public class ConcurrentLimitExecutor<V> {
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
-     *     when the batch is already being cancelled
+     *     when the batch is already being canceled
      */
     private static <V> void abandonRemaining(
             List<ListenableFuture<V>> result, int fromIndex, @Nullable Throwable reason) {
