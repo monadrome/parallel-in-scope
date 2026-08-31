@@ -75,7 +75,7 @@ class ScopePrimitivesTest {
 
     private static BatchExecutionContext resolve(
             int parallelism, Duration timeout, int taskCount, BatchExecutionContext parent) {
-        ExecutionOptions.Builder options = ExecutionOptions.of("batch");
+        BatchExecutionOptions.Builder options = BatchExecutionOptions.of("batch");
         if (parallelism > 0) {
             options.parallelism(parallelism);
         }
@@ -122,7 +122,7 @@ class ScopePrimitivesTest {
 
     @Test
     void resolveRejectsNullPolicyAndOptions() {
-        ExecutionOptions options = ExecutionOptions.of("x").build();
+        BatchExecutionOptions options = BatchExecutionOptions.of("x").build();
         assertThatThrownBy(() -> BatchExecutionContext.resolve(null, options, 1, null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
@@ -164,7 +164,7 @@ class ScopePrimitivesTest {
             ExecutorIdentity identity = new ExecutorIdentity(supplied);
             BatchExecutionContext labelled = BatchExecutionContext.resolve(
                     GlobalExecutionPolicy.builder().build(),
-                    ExecutionOptions.of("n").build(),
+                    BatchExecutionOptions.of("n").build(),
                     1,
                     null,
                     null,
@@ -176,7 +176,7 @@ class ScopePrimitivesTest {
 
             BatchExecutionContext anonymous = BatchExecutionContext.resolve(
                     GlobalExecutionPolicy.builder().build(),
-                    ExecutionOptions.of("n").build(),
+                    BatchExecutionOptions.of("n").build(),
                     1,
                     null,
                     null,
@@ -233,7 +233,7 @@ class ScopePrimitivesTest {
         assertThat(global.isClosed()).isTrue();
         global.close(); // idempotent
         assertThat(global.isClosed()).isTrue();
-        assertThatThrownBy(global::openObservation).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(global::openTaskGraphObservation).isInstanceOf(IllegalStateException.class);
     }
 
     @Test

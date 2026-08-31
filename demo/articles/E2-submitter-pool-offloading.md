@@ -46,7 +46,7 @@ pool.submit(() -> {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 
@@ -57,7 +57,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("offload-demo")
+BatchExecutionOptions opts = BatchExecutionOptions.of("offload-demo")
         .parallelism(1)
         .build();
 

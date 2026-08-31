@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.ArrayList;
@@ -80,8 +80,8 @@ public class E2_SubmitterPoolOffloadingTest {
                     .build();
             Par par = config.defaultPar();
 
-            ExecutionOptions opts =
-                    ExecutionOptions.of("offload-demo").parallelism(1).build();
+            BatchExecutionOptions opts =
+                    BatchExecutionOptions.of("offload-demo").parallelism(1).build();
 
             List<Integer> input = Arrays.asList(1, 2, 3);
 

@@ -4,14 +4,14 @@ import java.time.Duration;
 import java.util.Objects;
 
 /** Immutable per-batch execution request. */
-public final class ExecutionOptions {
+public final class BatchExecutionOptions {
     private final String taskName;
     private final int parallelism;
     private final Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
 
-    private ExecutionOptions(Builder builder) {
+    private BatchExecutionOptions(Builder builder) {
         this.taskName = Objects.requireNonNull(builder.taskName, "taskName cannot be null");
         this.parallelism = builder.parallelism;
         if (builder.timeout != null && (builder.timeout.isNegative() || builder.timeout.isZero())) {
@@ -85,8 +85,8 @@ public final class ExecutionOptions {
             return this;
         }
 
-        public ExecutionOptions build() {
-            return new ExecutionOptions(this);
+        public BatchExecutionOptions build() {
+            return new BatchExecutionOptions(this);
         }
     }
 }

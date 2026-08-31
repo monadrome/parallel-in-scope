@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -152,7 +152,7 @@ class D2_LateBindRaceConditionTest {
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            ExecutionOptions options = ExecutionOptions.of("late-bind-test")
+            BatchExecutionOptions options = BatchExecutionOptions.of("late-bind-test")
                     .parallelism(PARALLELISM)
                     .timeout(java.time.Duration.ofMillis(batchTimeoutMs))
                     .taskType(TaskType.IO_BOUND)

@@ -9,7 +9,7 @@
 1. `docs/en/reference/cooperative-cancellation.md:61` 与
    `docs/zh/reference/cooperative-cancellation.md:121` 的“不要吞掉取消”示例仍调用
    `par.map("myExecutor", items, ...)`。当前 `Par` 只提供
-   `map(List, Function, ExecutionOptions)`（`src/main/java/io/github/huatalk/parallelinscope/scope/Par.java:85`），
+   `map(List, Function, BatchExecutionOptions)`（`src/main/java/io/github/huatalk/parallelinscope/scope/Par.java:85`），
    执行器名参数已在 v0.2 移除。因此两段示例无法编译。
    应改为已选定、绑定执行器的 `Par`（例如 `global.par("myExecutor").map(items, ...)`），或在示例前声明该 `Par`。
 
@@ -21,7 +21,7 @@
 ## 已排除
 
 - `docs/en/user-guide.md` 和 `docs/zh/user-guide.md` 的 v0.2 主路径、取消、队列说明与当前
-  `GlobalPar`、`Par`、`ExecutionOptions`、`DrainingBlockingQueue` 实现一致。
+  `GlobalPar`、`Par`、`BatchExecutionOptions`、`DrainingBlockingQueue` 实现一致。
 - `docs/zh/design/philosophy.md`、`docs/zh/design/idea-graveyard.md` 以及 demo 文章中的旧
   `ParConfig`/`ParOptions`/按名称 `map` 示例已经明确标为历史 API，不作为当前 API 文档错误报告。
 - 英文用户指南的“完整契约”链接指向中文设计文档，但路径可解析；这是语言选择，不是断链。

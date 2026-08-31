@@ -28,7 +28,7 @@ GlobalPar execution = GlobalPar.builder()
         .register("io", Executors.newFixedThreadPool(8))
         .build();
 
-ExecutionOptions options = ExecutionOptions.of("fetch-user")
+BatchExecutionOptions options = BatchExecutionOptions.of("fetch-user")
         .parallelism(4)
         .timeout(Duration.ofSeconds(3))
         .build();

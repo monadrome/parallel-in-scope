@@ -52,7 +52,7 @@ for (int i = 0; i < taskCount; i++) {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 
@@ -64,7 +64,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 并行度 2：一轮最多 2 桌同时就餐，队列深度最多 2
-ExecutionOptions options = ExecutionOptions.of("data-process")
+BatchExecutionOptions options = BatchExecutionOptions.of("data-process")
         .parallelism(2)
         .timeout(java.time.Duration.ofMillis(30000))
         .build();

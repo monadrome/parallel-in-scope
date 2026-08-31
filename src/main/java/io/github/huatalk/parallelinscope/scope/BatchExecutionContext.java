@@ -1,7 +1,7 @@
 package io.github.huatalk.parallelinscope.scope;
 
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
@@ -24,7 +24,7 @@ public final class BatchExecutionContext {
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
     private final BatchExecutionContext parent;
-    private final GlobalParObservationContext observationContext;
+    private final TaskGraphObservationContext taskGraphObservationContext;
     private final ExecutorIdentity executorIdentity;
     private final String parLabel;
     private final TaskType taskType;
@@ -37,7 +37,7 @@ public final class BatchExecutionContext {
             long deadlineNanos,
             CancellationToken cancellationToken,
             BatchExecutionContext parent,
-            GlobalParObservationContext observationContext,
+            TaskGraphObservationContext taskGraphObservationContext,
             ExecutorIdentity executorIdentity,
             String parLabel,
             TaskType taskType,
@@ -49,7 +49,7 @@ public final class BatchExecutionContext {
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.parent = parent;
-        this.observationContext = observationContext;
+        this.taskGraphObservationContext = taskGraphObservationContext;
         this.executorIdentity = executorIdentity;
         this.parLabel = parLabel;
         this.taskType = taskType;
@@ -62,7 +62,7 @@ public final class BatchExecutionContext {
      */
     public static BatchExecutionContext resolve(
             GlobalExecutionPolicy policy,
-            ExecutionOptions options,
+            BatchExecutionOptions options,
             int taskCount,
             @Nullable BatchExecutionContext parent) {
         return resolve(policy, options, taskCount, parent, null);
@@ -70,10 +70,10 @@ public final class BatchExecutionContext {
 
     public static BatchExecutionContext resolve(
             GlobalExecutionPolicy policy,
-            ExecutionOptions options,
+            BatchExecutionOptions options,
             int taskCount,
             @Nullable BatchExecutionContext parent,
-            @Nullable GlobalParObservationContext observationContext) {
+            @Nullable TaskGraphObservationContext taskGraphObservationContext) {
         Objects.requireNonNull(policy);
         Objects.requireNonNull(options);
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
@@ -99,8 +99,8 @@ public final class BatchExecutionContext {
         long requestedDeadline = timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
         long deadline = parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
         CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken);
-        GlobalParObservationContext effectiveObservation =
-                observationContext != null ? observationContext : parent == null ? null : parent.observationContext;
+        TaskGraphObservationContext effectiveObservation =
+                taskGraphObservationContext != null ? taskGraphObservationContext : parent == null ? null : parent.taskGraphObservationContext;
         return new BatchExecutionContext(
                 options.taskName(),
                 taskCount,
@@ -122,13 +122,13 @@ public final class BatchExecutionContext {
      */
     public static BatchExecutionContext resolve(
             GlobalExecutionPolicy policy,
-            ExecutionOptions options,
+            BatchExecutionOptions options,
             int taskCount,
             @Nullable BatchExecutionContext parent,
-            @Nullable GlobalParObservationContext observationContext,
+            @Nullable TaskGraphObservationContext taskGraphObservationContext,
             ExecutorIdentity executorIdentity,
             String parLabel) {
-        BatchExecutionContext context = resolve(policy, options, taskCount, parent, observationContext);
+        BatchExecutionContext context = resolve(policy, options, taskCount, parent, taskGraphObservationContext);
         return new BatchExecutionContext(
                 context.taskName,
                 context.taskCount,
@@ -136,7 +136,7 @@ public final class BatchExecutionContext {
                 context.deadlineNanos,
                 context.cancellationToken,
                 context.parent,
-                context.observationContext,
+                context.taskGraphObservationContext,
                 executorIdentity,
                 parLabel,
                 context.taskType,
@@ -178,8 +178,8 @@ public final class BatchExecutionContext {
         return parent;
     }
 
-    public GlobalParObservationContext observationContext() {
-        return observationContext;
+    public TaskGraphObservationContext taskGraphObservationContext() {
+        return taskGraphObservationContext;
     }
 
     public ExecutorIdentity executorIdentity() {

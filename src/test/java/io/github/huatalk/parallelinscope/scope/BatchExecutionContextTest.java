@@ -3,7 +3,7 @@ package io.github.huatalk.parallelinscope.scope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -14,12 +14,12 @@ class BatchExecutionContextTest {
                 GlobalExecutionPolicy.builder().defaultTimeoutMillis(5_000).build();
         BatchExecutionContext parent = BatchExecutionContext.resolve(
                 policy,
-                ExecutionOptions.of("outer").timeout(Duration.ofMillis(100)).build(),
+                BatchExecutionOptions.of("outer").timeout(Duration.ofMillis(100)).build(),
                 1,
                 null);
         BatchExecutionContext child = BatchExecutionContext.resolve(
                 policy,
-                ExecutionOptions.of("inner").timeout(Duration.ofSeconds(10)).build(),
+                BatchExecutionOptions.of("inner").timeout(Duration.ofSeconds(10)).build(),
                 1,
                 parent);
 
@@ -31,7 +31,7 @@ class BatchExecutionContextTest {
     void resolvesParallelismAndRuntimeMetadata() {
         GlobalExecutionPolicy policy =
                 GlobalExecutionPolicy.builder().defaultTimeoutMillis(1000).build();
-        ExecutionOptions options = ExecutionOptions.of("io")
+        BatchExecutionOptions options = BatchExecutionOptions.of("io")
                 .parallelism(99)
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false)
@@ -52,7 +52,7 @@ class BatchExecutionContextTest {
     void rejectsNegativeTaskCount() {
         assertThatThrownBy(() -> BatchExecutionContext.resolve(
                         GlobalExecutionPolicy.builder().build(),
-                        ExecutionOptions.of("x").build(),
+                        BatchExecutionOptions.of("x").build(),
                         -1,
                         null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -61,20 +61,20 @@ class BatchExecutionContextTest {
     @Test
     void inheritsParentObservationAndCreatesLinkedCancellationToken() {
         GlobalPar global = GlobalPar.builder().build();
-        GlobalParObservationContext observation = global.openObservation();
+        TaskGraphObservationContext observation = global.openTaskGraphObservation();
         try {
             GlobalExecutionPolicy policy =
                     GlobalExecutionPolicy.builder().defaultTimeoutMillis(1_000).build();
             BatchExecutionContext parent = BatchExecutionContext.resolve(
-                    policy, ExecutionOptions.of("parent").build(), 2, null, observation);
+                    policy, BatchExecutionOptions.of("parent").build(), 2, null, observation);
             BatchExecutionContext child = BatchExecutionContext.resolve(
-                    policy, ExecutionOptions.of("child").build(), 1, parent);
+                    policy, BatchExecutionOptions.of("child").build(), 1, parent);
 
             assertThat(parent.taskName()).isEqualTo("parent");
             assertThat(parent.taskCount()).isEqualTo(2);
             assertThat(parent.parent()).isNull();
             assertThat(child.parent()).isSameAs(parent);
-            assertThat(child.observationContext()).isSameAs(observation);
+            assertThat(child.taskGraphObservationContext()).isSameAs(observation);
             assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
             assertThat(child.executorIdentity()).isNull();
             assertThat(child.parLabel()).isNull();

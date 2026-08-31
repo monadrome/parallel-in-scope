@@ -49,7 +49,13 @@ Two invariants to respect:
   internal code (both provided scope).
 - Logging goes through JUL (`java.util.logging.Logger`).
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
-  compatibility shims.
+  compatibility shims. During the `0.x` phase, a breaking change is acceptable
+  when it provides a meaningful improvement and has a sufficiently documented
+  rationale; do not preserve an awkward API solely for compatibility.
+- For public API renames or signature changes, update the implementation,
+  tests, user documentation, and migration notes as one change. Keep the
+  rationale explicit so future maintainers can distinguish intentional API
+  evolution from accidental breakage.
 
 ## Testing
 

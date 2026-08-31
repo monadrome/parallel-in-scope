@@ -44,7 +44,7 @@ for (Future<List<User>> f : futures) {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 
@@ -64,7 +64,7 @@ for (int i = 0; i < allIds.size(); i += shardSize) {
 }
 
 // 3. 并行查询，parallelism=5 表示最多同时 5 个分片在执行
-ExecutionOptions options = ExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions options = BatchExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(5)
         .timeout(java.time.Duration.ofMillis(30000))
         .build();

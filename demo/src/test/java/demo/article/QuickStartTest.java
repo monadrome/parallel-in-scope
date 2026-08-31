@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.Arrays;
@@ -49,7 +49,7 @@ class QuickStartTest {
         List<Integer> numbers = Arrays.asList(1, 2, 3);
 
         // ---- 步骤 2：最小示例 ----
-        ExecutionOptions minimalOpts = ExecutionOptions.of("square").build();
+        BatchExecutionOptions minimalOpts = BatchExecutionOptions.of("square").build();
         AsyncBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
@@ -59,7 +59,7 @@ class QuickStartTest {
         assertThat(result1.getResults().get(2).get()).isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
-        ExecutionOptions timeoutOpts = ExecutionOptions.of("square")
+        BatchExecutionOptions timeoutOpts = BatchExecutionOptions.of("square")
                 .timeout(java.time.Duration.ofMillis(500))
                 .build();
         AsyncBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
@@ -71,7 +71,7 @@ class QuickStartTest {
         }
 
         // ---- 步骤 4：控制并发度 ----
-        ExecutionOptions limitedOpts = ExecutionOptions.of("process")
+        BatchExecutionOptions limitedOpts = BatchExecutionOptions.of("process")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();

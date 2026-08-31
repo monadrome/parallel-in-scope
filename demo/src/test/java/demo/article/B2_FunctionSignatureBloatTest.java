@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.ArrayList;
@@ -112,7 +112,7 @@ public class B2_FunctionSignatureBloatTest {
     @Test
     void parMap_cleanSignature_onlyBusinessParam() throws Exception {
         // 解决方案：Par.map() 隐式传播上下文，lambda 只需业务参数
-        ExecutionOptions opts = ExecutionOptions.of("fetch-data")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("fetch-data")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -148,7 +148,7 @@ public class B2_FunctionSignatureBloatTest {
         // 验证：即使有多种上下文需求，Par.map() 的 lambda 签名依然干净
         AtomicInteger processedCount = new AtomicInteger(0);
 
-        ExecutionOptions opts = ExecutionOptions.of("complex-task")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("complex-task")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(3000))
                 .build();

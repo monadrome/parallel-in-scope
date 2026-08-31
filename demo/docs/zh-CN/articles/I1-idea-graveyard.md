@@ -17,7 +17,7 @@
 
 ### 1. 重试机制
 
-**提议：** 内置 `ExecutionOptions.retry(3).backoff(100, MILLISECONDS)`。
+**提议：** 内置 `BatchExecutionOptions.retry(3).backoff(100, MILLISECONDS)`。
 
 **为什么拒绝：** 重试看起来只有一行配置，背后却是一个策略密集型问题。重试哪些异常？指数退避还是固定间隔？重试时占不占并发窗口？幂等性怎么保证？更致命的是，**重试和 fail-fast 语义冲突**——我们承诺"任一任务失败立即取消整批"，如果引入重试，这两个语义会打架。
 
@@ -108,7 +108,7 @@ par.map( urls, url -> {
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ExecutionOptions opts = ExecutionOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency).build();
+BatchExecutionOptions opts = BatchExecutionOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency).build();
 ```
 
 ---

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -83,7 +83,7 @@ public class A1_CancelTrueInvalidTest {
     @Test
     void parMap_withTimeout_cancelsTasks() throws Exception {
         // 解决方案：Par.map() 配合超时自动取消
-        ExecutionOptions opts = ExecutionOptions.of("cancel-demo")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("cancel-demo")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(500))
                 .taskType(TaskType.IO_BOUND)

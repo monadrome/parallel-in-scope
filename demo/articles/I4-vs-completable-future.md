@@ -75,7 +75,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("batch-api")
+BatchExecutionOptions opts = BatchExecutionOptions.of("batch-api")
         .parallelism(4)           // 最多 4 个并发
         .timeout(java.time.Duration.ofMillis(5000))            // 5 秒超时
         .taskType(TaskType.IO_BOUND)

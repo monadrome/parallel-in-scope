@@ -42,13 +42,13 @@ for (int i = 0; i < 1_000_000; i++) {
 
 此外，`Checkpoints.sleep(ms)` 替代 `Thread.sleep()`，自动将中断信号转化为协作式取消异常，统一了取消语义。
 
-配合 `ExecutionOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.check()` 即可实现同样的及时取消效果。
+配合 `BatchExecutionOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.check()` 即可实现同样的及时取消效果。
 
 ## 代码
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -61,7 +61,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // IO 任务：Thread.sleep 响应中断，超时取消自然生效
-ExecutionOptions ioOpts = ExecutionOptions.of("api-call").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions ioOpts = BatchExecutionOptions.of("api-call").taskType(TaskType.IO_BOUND)
         .parallelism(3)
         .timeout(java.time.Duration.ofMillis(500))
         .build();

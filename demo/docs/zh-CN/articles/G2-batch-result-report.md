@@ -67,7 +67,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("batch-task")
+BatchExecutionOptions opts = BatchExecutionOptions.of("batch-task")
         .parallelism(4)
         .timeout(java.time.Duration.ofMillis(5000))
         .build();

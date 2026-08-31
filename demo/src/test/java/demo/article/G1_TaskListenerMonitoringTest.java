@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
@@ -109,7 +109,7 @@ public class G1_TaskListenerMonitoringTest {
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         // parallelism=5 确保所有任务同时启动，避免被取消
-        ExecutionOptions opts = ExecutionOptions.of("monitor-demo")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("monitor-demo")
                 .parallelism(5)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)
@@ -185,7 +185,7 @@ public class G1_TaskListenerMonitoringTest {
 
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
-        ExecutionOptions opts = ExecutionOptions.of("fail-demo")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("fail-demo")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)

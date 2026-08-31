@@ -37,10 +37,10 @@ Prefer explicit injection in tests and libraries. `installGlobal` is one-time an
 
 ## Execute a batch
 
-`ExecutionOptions` is immutable input for one call. The library resolves it with `GlobalExecutionPolicy`, the item count, any parent batch, and the bound executor identity into an internal `BatchExecutionContext`.
+`BatchExecutionOptions` is immutable input for one call. The library resolves it with `GlobalExecutionPolicy`, the item count, any parent batch, and the bound executor identity into an internal `BatchExecutionContext`.
 
 ```java
-ExecutionOptions options = ExecutionOptions.of("fetch-account")
+BatchExecutionOptions options = BatchExecutionOptions.of("fetch-account")
         .taskType(TaskType.IO_BOUND)
         .parallelism(16)
         .timeout(Duration.ofSeconds(5))
@@ -90,7 +90,7 @@ Use an [observation scope](#observe-nested-work) when the request needs graph di
 Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes livelock listeners at the end of the request.
 
 ```java
-try (GlobalParObservationContext observation = global.openObservation()) {
+try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
     // Calls made below this scope, including nested calls on other Pars in global,
     // are recorded in the same graph.
     service.handleRequest();

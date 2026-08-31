@@ -1,7 +1,7 @@
 package demo.basic;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.Arrays;
@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>创建并配置 Par 实例
- *   <li>使用 ExecutionOptions 设置并行度
+ *   <li>使用 BatchExecutionOptions 设置并行度
  *   <li>使用 Par.map() 并行处理集合
  *   <li>获取和处理结果
  * </ul>
@@ -45,8 +45,8 @@ public class BasicParDemo {
             System.out.println("输入数据: " + numbers);
 
             // 5. 配置并行选项
-            ExecutionOptions options =
-                    ExecutionOptions.of("basic-demo").parallelism(3).build();
+            BatchExecutionOptions options =
+                    BatchExecutionOptions.of("basic-demo").parallelism(3).build();
 
             System.out.println("并行度: " + options.parallelism());
 

@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.Arrays;
@@ -95,7 +95,7 @@ public class B1_MdcContextLostTest {
     @Test
     void parMap_executesAllTasksWithCleanResult() throws Exception {
         // 设置并行选项
-        ExecutionOptions opts = ExecutionOptions.of("mdc-demo")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("mdc-demo")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -104,7 +104,7 @@ public class B1_MdcContextLostTest {
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104, 105);
 
         // 使用 Par.map() 并行处理
-        // 框架内部通过 TTL 传播 CancellationToken、ExecutionOptions、taskName 等上下文
+        // 框架内部通过 TTL 传播 CancellationToken、BatchExecutionOptions、taskName 等上下文
         // 开发者无需手动传递任何基础设施参数
         AsyncBatchResult<String> result = par.map(
                 orderIds,
@@ -145,28 +145,28 @@ public class B1_MdcContextLostTest {
     /**
      * 解决方案核心验证：Par.map() 内部通过 TTL + ThreadRelay 自动传播上下文。
      *
-     * <p>框架内部使用 TransmittableThreadLocal 传播 CancellationToken、 ExecutionOptions、taskName
+     * <p>框架内部使用 TransmittableThreadLocal 传播 CancellationToken、 BatchExecutionOptions、taskName
      * 等基础设施上下文。用户侧的业务上下文（如 MDC） 需要配合 TTL 版本的 MDC 适配器（如 log4j2-ttl-thread-context-map） 才能享受自动传播。
      *
      * <p>此测试验证：即使没有手动传递任何参数，Par.map() 内部的 取消、超时、任务名等上下文依然正确传播——这就是 TTL 的价值。
      */
     @Test
     void parMap_frameworkContextAutoPropagated() throws Exception {
-        ExecutionOptions opts = ExecutionOptions.of("ttl-verify")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("ttl-verify")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
 
         List<Integer> orderIds = Arrays.asList(1, 2, 3, 4, 5);
 
-        // Par.map() 内部通过 TTL 传播 CancellationToken、ExecutionOptions 等上下文
+        // Par.map() 内部通过 TTL 传播 CancellationToken、BatchExecutionOptions 等上下文
         // 开发者只传业务参数，框架自动处理所有基础设施
         CopyOnWriteArrayList<String> taskNames = new CopyOnWriteArrayList<>();
         AsyncBatchResult<String> result = par.map(
                 orderIds,
                 orderId -> {
                     // 框架内部上下文已自动传播——无需手动传递 taskName
-                    // TaskScopeTl.getParallelOptions() 在工作线程中可以获取到 ExecutionOptions
+                    // TaskScopeTl.getParallelOptions() 在工作线程中可以获取到 BatchExecutionOptions
                     taskNames.add("order-" + orderId);
                     return "order-" + orderId + "-processed";
                 },

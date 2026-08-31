@@ -31,7 +31,7 @@ try {
 
 ## 解决方法
 
-`Par.map()` + `ExecutionOptions` 一行搞定：
+`Par.map()` + `BatchExecutionOptions` 一行搞定：
 - `parallelism(4)` — 最多 4 个并发，滑动窗口调度，队列深度始终受控
 - `timeout(3000)` — 3 秒超时，超时后自动中断 + 协作式取消兄弟任务
 - fail-fast — 首个任务失败即取消剩余未完成任务
@@ -46,7 +46,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("batch-http")
+BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http")
         .parallelism(4)           // 最多 4 个并发
         .timeout(java.time.Duration.ofMillis(3000))            // 3 秒超时
         .taskType(TaskType.IO_BOUND)

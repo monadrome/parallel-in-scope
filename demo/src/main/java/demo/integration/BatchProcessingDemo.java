@@ -1,7 +1,7 @@
 package demo.integration;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ public class BatchProcessingDemo {
 
         try {
             // 2. 配置批处理参数
-            ExecutionOptions options = ExecutionOptions.of("batch-demo")
+            BatchExecutionOptions options = BatchExecutionOptions.of("batch-demo")
                     .parallelism(4)
                     .timeout(java.time.Duration.ofMillis(30000))
                     .build();

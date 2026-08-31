@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -79,7 +79,7 @@ class C1_ThreadPoolDeadlockTest {
             Par innerPar = config.par("inner-pool");
 
             // 外层：4 个任务，滑动窗口并行度 2
-            ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
+            BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
                     .parallelism(2)
                     .timeout(java.time.Duration.ofMillis(10_000))
                     .taskType(TaskType.IO_BOUND)
@@ -90,7 +90,7 @@ class C1_ThreadPoolDeadlockTest {
                     items,
                     item -> {
                         // 内层：使用独立的 inner-pool，不会和外层死锁
-                        ExecutionOptions innerOpts = ExecutionOptions.of("inner-task")
+                        BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
                                 .parallelism(2)
                                 .timeout(java.time.Duration.ofMillis(5_000))
                                 .build();

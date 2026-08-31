@@ -22,7 +22,7 @@ List<String> services = Arrays.asList(
         "order", "user", "payment", "inventory", "notification",
         "billing", "shipping", "review", "recommendation", "analytics");
 
-ExecutionOptions opts = ExecutionOptions.of("batch-http").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http").taskType(TaskType.IO_BOUND)
         .parallelism(5)        // 最多 5 个并发，保护下游
         .timeout(java.time.Duration.ofMillis(3000))         // 3 秒超时
         .build();
@@ -60,7 +60,7 @@ for (int i = 0; i < allIds.size(); i += 1000) {
 }
 // shards.size() == 10
 
-ExecutionOptions opts = ExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions opts = BatchExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(3)        // DB 连接池就 3 个，别超了
         .timeout(java.time.Duration.ofMillis(30000))        // 查询可能慢，30 秒超时
         .build();
@@ -89,7 +89,7 @@ System.out.println("查询到 " + allUsers.size() + " 条记录");
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-ExecutionOptions opts = ExecutionOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions opts = BatchExecutionOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
         .parallelism(6)
         .timeout(java.time.Duration.ofMillis(5000))         // 统一 5 秒超时
         .build();
@@ -109,10 +109,10 @@ Thread.sleep(5500);
 String report = result.reportString();
 ```
 
-关于超时：用统一的 `ExecutionOptions.timeout` 即可，不需要每个任务设不同超时。原因：
+关于超时：用统一的 `BatchExecutionOptions.timeout` 即可，不需要每个任务设不同超时。原因：
 - 框架级超时是"兜底"，防止任务永远挂起
 - 如果某个调用需要更细粒度的超时，在任务内部自己处理（比如 HTTP client 的 connectTimeout/readTimeout）
-- 这样保持 `ExecutionOptions` 简洁，任务逻辑自包含
+- 这样保持 `BatchExecutionOptions` 简洁，任务逻辑自包含
 
 ---
 
@@ -124,13 +124,13 @@ String report = result.reportString();
 
 ```java
 // 快速 HTTP 调用
-ExecutionOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
+BatchExecutionOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
 
 // 数据库查询
-ExecutionOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
+BatchExecutionOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
 
 // 文件处理
-ExecutionOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
+BatchExecutionOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
 ```
 
 ### 2. 并行度要匹配资源
@@ -184,7 +184,7 @@ par.map( items, item -> {
 
 ```java
 // 错误: 等于没有并发控制
-ExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
+BatchExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 ```
 
 正确做法：设一个合理的值，匹配下游资源。
@@ -193,7 +193,7 @@ ExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 
 ```java
 // 错误: 任务可能永远挂起
-ExecutionOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
+BatchExecutionOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
 ```
 
 正确做法：根据场景显式设超时。

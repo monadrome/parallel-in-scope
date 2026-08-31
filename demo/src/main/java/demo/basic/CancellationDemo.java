@@ -3,7 +3,7 @@ package demo.basic;
 import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.Arrays;
@@ -18,7 +18,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>使用 {@link Checkpoints#sleep(long)} 替代 Thread.sleep — 可被取消中断
- *   <li>配置 {@link ExecutionOptions} 超时时间触发取消
+ *   <li>配置 {@link BatchExecutionOptions} 超时时间触发取消
  *   <li>被取消的任务抛出 {@code LeanCancellationException}
  *   <li>通过 {@code reportString()} 查看最终状态
  * </ul>
@@ -42,7 +42,7 @@ public class CancellationDemo {
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
             // 1. 配置并行选项（设置超时）
-            ExecutionOptions options = ExecutionOptions.of("cancel-demo")
+            BatchExecutionOptions options = BatchExecutionOptions.of("cancel-demo")
                     .parallelism(3)
                     .timeout(java.time.Duration.ofMillis(2000))
                     .build();

@@ -32,7 +32,7 @@ Future<String> future = pool.submit(() -> {
 `parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `GlobalPar.builder().executionPolicy(GlobalExecutionPolicy.builder().taskListener(listener).build())` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskEvent)`，无需侵入业务代码。
 
 `TaskEvent` 包含完整的任务生命周期信息：
-- `getTaskName()` — 任务名称（来自 `ExecutionOptions.of("taskName")`）
+- `getTaskName()` — 任务名称（来自 `BatchExecutionOptions.of("taskName")`）
 - `executionTime()` — 实际执行耗时，返回 `Duration`
 - `waitTime()` — 等待耗时（从提交到开始执行的间隔），返回 `Duration`
 - `totalTime()` — 总耗时（等待 + 执行），返回 `Duration`
@@ -44,7 +44,7 @@ Future<String> future = pool.submit(() -> {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
@@ -70,7 +70,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 业务代码无需任何监控逻辑
-ExecutionOptions opts = ExecutionOptions.of("order-query").parallelism(5).timeout(java.time.Duration.ofMillis(3000)).build();
+BatchExecutionOptions opts = BatchExecutionOptions.of("order-query").parallelism(5).timeout(java.time.Duration.ofMillis(3000)).build();
 AsyncBatchResult<Order> result = par.map( orderIds, id -> {
     return orderService.query(id);  // 纯业务逻辑，不碰监控
 }, opts);

@@ -53,7 +53,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("offload-demo")
+BatchExecutionOptions opts = BatchExecutionOptions.of("offload-demo")
         .parallelism(1)
         .build();
 

@@ -61,7 +61,7 @@ for (int i = 0; i < allIds.size(); i += shardSize) {
 }
 
 // 3. 并行查询，parallelism=5 表示最多同时 5 个分片在执行
-ExecutionOptions options = ExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
+BatchExecutionOptions options = BatchExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(5)
         .timeout(java.time.Duration.ofMillis(30000))
         .build();

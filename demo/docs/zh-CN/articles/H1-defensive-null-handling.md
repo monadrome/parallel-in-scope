@@ -59,7 +59,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("user-query").build();
+BatchExecutionOptions opts = BatchExecutionOptions.of("user-query").build();
 
 // 无需防御，null 列表安全返回
 List<String> nullList = null;

@@ -3,7 +3,7 @@ package io.github.huatalk.parallelinscope.scope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
@@ -64,7 +64,7 @@ class GlobalParTest {
                     .map(
                             Collections.singletonList(2),
                             value -> value + 1,
-                            ExecutionOptions.of("increment").build());
+                            BatchExecutionOptions.of("increment").build());
 
             assertThat(result.getResults().get(0).get()).isEqualTo(3);
         } finally {
@@ -82,14 +82,14 @@ class GlobalParTest {
                             .map(
                                     null,
                                     value -> value,
-                                    ExecutionOptions.of("empty").build())
+                                    BatchExecutionOptions.of("empty").build())
                             .getResults())
                     .isEmpty();
             assertThat(global.par("io")
                             .map(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
-                                    ExecutionOptions.of("empty").build())
+                                    BatchExecutionOptions.of("empty").build())
                             .getResults())
                     .isEmpty();
             global.close();
@@ -106,7 +106,7 @@ class GlobalParTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (GlobalParObservationContext observation = global.openObservation()) {
+        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
@@ -115,14 +115,14 @@ class GlobalParTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                ExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner").build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            ExecutionOptions.of("outer").build());
+                            BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(TaskGraph.data()).isSameAs(observation.data());
@@ -143,7 +143,7 @@ class GlobalParTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (GlobalParObservationContext observation = global.openObservation()) {
+        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             java.util.concurrent.atomic.AtomicReference<TaskGraph.Data> graphOnOuterWorker =
                     new java.util.concurrent.atomic.AtomicReference<>();
             AsyncBatchResult<Integer> outer = global.par("outer")
@@ -155,14 +155,14 @@ class GlobalParTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                ExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner").build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            ExecutionOptions.of("outer").build());
+                            BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(graphOnOuterWorker.get()).isSameAs(observation.data());
@@ -191,7 +191,7 @@ class GlobalParTest {
                                         .map(
                                                 java.util.Arrays.asList(1, 2),
                                                 value -> value + 1,
-                                                ExecutionOptions.of("inner")
+                                                BatchExecutionOptions.of("inner")
                                                         .parallelism(1)
                                                         .build());
                                 try {
@@ -200,7 +200,7 @@ class GlobalParTest {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            ExecutionOptions.of("outer").parallelism(1).build());
+                            BatchExecutionOptions.of("outer").parallelism(1).build());
 
             assertThat(outer.getResults().get(0).get(3, TimeUnit.SECONDS)).isEqualTo(3);
         } finally {
@@ -223,7 +223,7 @@ class GlobalParTest {
                                 global.close();
                                 return value + 1;
                             },
-                            ExecutionOptions.of("cpu")
+                            BatchExecutionOptions.of("cpu")
                                     .taskType(TaskType.CPU_BOUND)
                                     .build());
 
@@ -279,15 +279,15 @@ class GlobalParTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().register("io", executor).build();
         try {
-            io.github.huatalk.parallelinscope.context.GlobalParObservationContext observation =
-                    global.openObservation();
+            io.github.huatalk.parallelinscope.context.TaskGraphObservationContext observation =
+                    global.openTaskGraphObservation();
             assertThat(observation.owner()).isSameAs(global);
             assertThat(observation.isClosed()).isFalse();
-            assertThat(GlobalParObservationContext.current()).isSameAs(observation);
+            assertThat(TaskGraphObservationContext.current()).isSameAs(observation);
             observation.close();
             observation.close();
             assertThat(observation.isClosed()).isTrue();
-            assertThat(GlobalParObservationContext.current()).isNull();
+            assertThat(TaskGraphObservationContext.current()).isNull();
         } finally {
             global.close();
             executor.shutdownNow();
@@ -303,12 +303,12 @@ class GlobalParTest {
 
             assertThat(global.isClosed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
-            assertThatThrownBy(() -> global.openObservation()).isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> global.par("io")
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
-                                    ExecutionOptions.of("closed").build()))
+                                    BatchExecutionOptions.of("closed").build()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("GlobalPar is closed");
         } finally {
@@ -348,7 +348,7 @@ class GlobalParTest {
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
-                                    ExecutionOptions.of("closed").build()))
+                                    BatchExecutionOptions.of("closed").build()))
                     .isInstanceOf(IllegalStateException.class);
         } finally {
             releaseSetup.countDown();
@@ -375,7 +375,7 @@ class GlobalParTest {
                                 }
                                 return value + 1;
                             },
-                            ExecutionOptions.of("drain").parallelism(1).build());
+                            BatchExecutionOptions.of("drain").parallelism(1).build());
             assertThat(firstTaskStarted.await(5, TimeUnit.SECONDS)).isTrue();
 
             global.close();

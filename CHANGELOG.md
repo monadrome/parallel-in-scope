@@ -4,13 +4,14 @@
 
 ### Breaking changes
 
+- Rename `ExecutionOptions` to `BatchExecutionOptions` to make its per-`Par.map` scope explicit.
 - Replace the abrupt-close `ClosableBlockingQueue` (recovery lists, `remainingList()`) with `DrainingBlockingQueue`: `close()` rejects producers while consumers keep draining queued elements until the `DRAINED` terminal state. No custom shutdown exception types are introduced: write rejections throw `IllegalStateException`, drained reads throw `NoSuchElementException`.
 
 ## [0.2.0] - 2026-07-22
 
 ### Breaking changes
 
-- Replace `ParConfig`, `ParOptions`, `ExecutorResolver`, and legacy `Par` entry points with immutable `GlobalPar`, executor-bound `Par`, and per-batch `ExecutionOptions`.
+- Replace `ParConfig`, `ParOptions`, `ExecutorResolver`, and legacy `Par` entry points with immutable `GlobalPar`, executor-bound `Par`, and per-batch `BatchExecutionOptions`.
 - Make `BatchExecutionContext` the source of task scope state, including cancellation, deadlines, nested batches, and executor identity.
 
 ### Features

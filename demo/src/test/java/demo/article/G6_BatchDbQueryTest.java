@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -121,7 +121,7 @@ class G6_BatchDbQueryTest {
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
         assertThat(shards).hasSize(SHARD_COUNT);
 
-        ExecutionOptions options = ExecutionOptions.of("db-batch-query")
+        BatchExecutionOptions options = BatchExecutionOptions.of("db-batch-query")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(30000))
@@ -173,7 +173,7 @@ class G6_BatchDbQueryTest {
         AtomicInteger concurrency = new AtomicInteger(0);
         AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-        ExecutionOptions options = ExecutionOptions.of("db-batch-query")
+        BatchExecutionOptions options = BatchExecutionOptions.of("db-batch-query")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(30000))

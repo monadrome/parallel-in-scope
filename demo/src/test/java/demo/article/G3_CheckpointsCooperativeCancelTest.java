@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.ArrayList;
@@ -116,7 +116,7 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_parMapTimeoutCancelsIoTasks() throws Exception {
-        ExecutionOptions opts = ExecutionOptions.of("io-task")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("io-task")
                 .parallelism(4)
                 .timeout(java.time.Duration.ofMillis(500))
                 .build();
@@ -178,7 +178,7 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_checkpointsCancelCpuIntensiveLoop() throws Exception {
-        ExecutionOptions opts = ExecutionOptions.of("cpu-checkpoint")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("cpu-checkpoint")
                 .parallelism(4)
                 .timeout(java.time.Duration.ofMillis(500))
                 .build();

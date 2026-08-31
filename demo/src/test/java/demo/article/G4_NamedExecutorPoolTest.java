@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -113,7 +113,7 @@ class G4_NamedExecutorPoolTest {
             List<String> items = Arrays.asList("a", "b", "c", "d", "e");
 
             // IO 任务：按名引用 io-pool
-            ExecutionOptions ioOpts = ExecutionOptions.of("fetch-data")
+            BatchExecutionOptions ioOpts = BatchExecutionOptions.of("fetch-data")
                     .taskType(TaskType.IO_BOUND)
                     .parallelism(4)
                     .timeout(java.time.Duration.ofMillis(5000))
@@ -126,7 +126,7 @@ class G4_NamedExecutorPoolTest {
                     ioOpts);
 
             // CPU 任务：按名引用 cpu-pool
-            ExecutionOptions cpuOpts = ExecutionOptions.of("compute")
+            BatchExecutionOptions cpuOpts = BatchExecutionOptions.of("compute")
                     .taskType(TaskType.CPU_BOUND)
                     .parallelism(4)
                     .timeout(java.time.Duration.ofMillis(5000))

@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -69,7 +69,7 @@ public class BatchBestPracticesTest {
                 "recommendation",
                 "analytics");
 
-        ExecutionOptions opts = ExecutionOptions.of("batch-http")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(5)
                 .timeout(java.time.Duration.ofMillis(3000))
@@ -133,7 +133,7 @@ public class BatchBestPracticesTest {
         }
         assertThat(shards).hasSize(10);
 
-        ExecutionOptions opts = ExecutionOptions.of("db-batch-query")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("db-batch-query")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(30000))
@@ -187,7 +187,7 @@ public class BatchBestPracticesTest {
         // 模拟混合任务：0=DB, 1=Cache, 2=HTTP(会失败), 3=DB, 4=Cache
         List<String> tasks = Arrays.asList("db-1", "cache-1", "http-1", "db-2", "cache-2");
 
-        ExecutionOptions opts = ExecutionOptions.of("mixed-io")
+        BatchExecutionOptions opts = BatchExecutionOptions.of("mixed-io")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))

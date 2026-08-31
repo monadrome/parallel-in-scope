@@ -9,12 +9,12 @@
 
 ## 为什么需要跨线程上下文传播
 
-parallel-in-scope 的核心 API 是实例方法 `Par.map()`。调用者传入 `ExecutionOptions` 后，框架创建 `BatchExecutionContext` 和 `CancellationToken` 并将任务分发到绑定的线程池执行。问题在于：
+parallel-in-scope 的核心 API 是实例方法 `Par.map()`。调用者传入 `BatchExecutionOptions` 后，框架创建 `BatchExecutionContext` 和 `CancellationToken` 并将任务分发到绑定的线程池执行。问题在于：
 
 ```
 父线程 (Thread-Main)
   ├── CancellationToken: token-A
-  ├── ExecutionOptions: parallelism=8, timeout=5s
+  ├── BatchExecutionOptions: parallelism=8, timeout=5s
   └── 提交任务 → 线程池
         ├── Worker-1: 需要知道 token-A（用于取消传播）
         ├── Worker-2: 需要知道 parallelism=8（用于嵌套并行）

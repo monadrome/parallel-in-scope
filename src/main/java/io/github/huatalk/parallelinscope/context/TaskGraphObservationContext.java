@@ -12,26 +12,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * active on the opening thread, and {@link #close()} is idempotent so it can be used with
  * try-with-resources. Tasks submitted under the scope share its graph through the batch context.
  */
-public final class GlobalParObservationContext implements AutoCloseable {
-    private static final ThreadLocal<GlobalParObservationContext> CURRENT = new ThreadLocal<>();
+public final class TaskGraphObservationContext implements AutoCloseable {
+    private static final ThreadLocal<TaskGraphObservationContext> CURRENT = new ThreadLocal<>();
 
     private final GlobalPar owner;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final GlobalParObservationContext previousContext;
+    private final TaskGraphObservationContext previousContext;
     private final TaskGraph.Data previousData;
     private final TaskGraph.Data data;
 
-    public GlobalParObservationContext(GlobalPar owner) {
+    public TaskGraphObservationContext(GlobalPar owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
         this.previousContext = CURRENT.get();
         CURRENT.set(this);
-        this.previousData = TaskGraph.initOnRequest(this);
+        this.previousData = TaskGraph.initForObservation(this);
         this.data = TaskGraph.data();
     }
 
     /** Returns the observation scope active on the calling thread, if any. */
-    public static GlobalParObservationContext current() {
-        GlobalParObservationContext context = CURRENT.get();
+    public static TaskGraphObservationContext current() {
+        TaskGraphObservationContext context = CURRENT.get();
         return context != null && !context.isClosed() ? context : null;
     }
 
@@ -47,7 +47,7 @@ public final class GlobalParObservationContext implements AutoCloseable {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             try {
-                TaskGraph.destroyAfterRequest(this);
+                TaskGraph.finishObservation(this);
             } finally {
                 if (CURRENT.get() == this) {
                     if (previousContext == null) CURRENT.remove();
@@ -57,7 +57,7 @@ public final class GlobalParObservationContext implements AutoCloseable {
         }
     }
 
-    /** Marks the scope closed after graph destruction without recursively invoking destruction. */
+    /** Marks the scope closed after observation finalization without invoking it recursively. */
     public void complete() {
         closed.set(true);
     }
@@ -67,7 +67,7 @@ public final class GlobalParObservationContext implements AutoCloseable {
         return previousData;
     }
 
-    /** Returns the request graph shared by all tasks in this observation scope. */
+    /** Returns the task graph shared by all tasks in this observation scope. */
     public TaskGraph.Data data() {
         return data;
     }

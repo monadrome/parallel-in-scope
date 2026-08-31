@@ -53,7 +53,7 @@ for (String item : emptyList) {
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 
 // 配置 Par 实例
@@ -63,7 +63,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-ExecutionOptions opts = ExecutionOptions.of("user-query").build();
+BatchExecutionOptions opts = BatchExecutionOptions.of("user-query").build();
 
 // 无需防御，null 列表安全返回
 List<String> nullList = null;

@@ -37,10 +37,10 @@ Par defaultPar = GlobalPar.global().defaultPar();
 
 ## 执行批次
 
-`ExecutionOptions` 是单次调用的不可变输入。库将它与 `GlobalExecutionPolicy`、任务数量、父批次和绑定的执行器 identity 解析为内部 `BatchExecutionContext`。
+`BatchExecutionOptions` 是单次调用的不可变输入。库将它与 `GlobalExecutionPolicy`、任务数量、父批次和绑定的执行器 identity 解析为内部 `BatchExecutionContext`。
 
 ```java
-ExecutionOptions options = ExecutionOptions.of("fetch-account")
+BatchExecutionOptions options = BatchExecutionOptions.of("fetch-account")
         .taskType(TaskType.IO_BOUND)
         .parallelism(16)
         .timeout(Duration.ofSeconds(5))
@@ -90,7 +90,7 @@ databasePar.map(ids, id -> {
 任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用 livelock listener。
 
 ```java
-try (GlobalParObservationContext observation = global.openObservation()) {
+try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
     // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
     service.handleRequest();
 }

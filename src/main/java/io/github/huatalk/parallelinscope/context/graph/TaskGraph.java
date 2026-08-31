@@ -7,7 +7,7 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.spi.LivelockListener;
 import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
@@ -39,9 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Lifecycle:
  *
  * <ul>
- *   <li>Request start: {@link GlobalParObservationContext} creates a new Data instance
+ *   <li>Request start: {@link TaskGraphObservationContext} creates a new Data instance
  *   <li>During request: the GlobalPar execution path records batch-instance relationships
- *   <li>Request end: {@link #destroyAfterRequest(GlobalParObservationContext)} checks for cycles
+ *   <li>Request end: {@link #finishObservation(TaskGraphObservationContext)} checks for cycles
  *       and notifies listeners
  * </ul>
  *
@@ -247,7 +247,7 @@ public final class TaskGraph {
     // ==================== Request lifecycle ====================
 
     /** Initializes a graph owned by one GlobalPar observation scope. */
-    public static Data initOnRequest(GlobalParObservationContext context) {
+    public static Data initForObservation(TaskGraphObservationContext context) {
         Objects.requireNonNull(context, "context cannot be null");
         if (context.isClosed()) {
             throw new IllegalStateException("observation context is already closed");
@@ -258,7 +258,7 @@ public final class TaskGraph {
     }
 
     /** Installs the graph owned by an observation scope on the current worker thread. */
-    public static void install(GlobalParObservationContext context) {
+    public static void install(TaskGraphObservationContext context) {
         Objects.requireNonNull(context, "context cannot be null");
         TTL.set(context.data());
     }
@@ -269,8 +269,8 @@ public final class TaskGraph {
         else TTL.set(data);
     }
 
-    /** Destroys a GlobalPar-owned graph using the GlobalPar livelock policy. */
-    public static void destroyAfterRequest(GlobalParObservationContext context) {
+    /** Finishes a GlobalPar-owned observation using the GlobalPar livelock policy. */
+    public static void finishObservation(TaskGraphObservationContext context) {
         Objects.requireNonNull(context, "context cannot be null");
         try {
             Data data = TTL.get();
@@ -297,7 +297,7 @@ public final class TaskGraph {
         } catch (Exception e) {
             logger.log(
                     Level.WARNING,
-                    "[[title=TaskGraph,function=destroyAfterRequest]]" + "Failed to run GlobalPar livelock detection",
+                    "[[title=TaskGraph,function=finishObservation]]" + "Failed to run GlobalPar livelock detection",
                     e);
         } finally {
             if (context.previousData() == null) {

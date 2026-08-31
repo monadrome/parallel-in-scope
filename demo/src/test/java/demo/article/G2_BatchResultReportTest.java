@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.Arrays;
@@ -90,8 +90,8 @@ class G2_BatchResultReportTest {
         assertThat(reportString).contains("FAILED:").contains("CANCELLED:").contains("firstException=root failure");
     }
 
-    private static ExecutionOptions options(String taskName, int parallelism) {
-        return ExecutionOptions.of(taskName)
+    private static BatchExecutionOptions options(String taskName, int parallelism) {
+        return BatchExecutionOptions.of(taskName)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();

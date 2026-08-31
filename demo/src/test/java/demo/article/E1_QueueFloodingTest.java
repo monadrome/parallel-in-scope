@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -102,7 +102,7 @@ class E1_QueueFloodingTest {
 
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            ExecutionOptions options = ExecutionOptions.of("queue-flood-test")
+            BatchExecutionOptions options = BatchExecutionOptions.of("queue-flood-test")
                     .parallelism(parallelism)
                     .timeout(java.time.Duration.ofMillis(30000))
                     .taskType(TaskType.IO_BOUND)

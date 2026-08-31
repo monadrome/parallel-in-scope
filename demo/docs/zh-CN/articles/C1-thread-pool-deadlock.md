@@ -30,7 +30,7 @@ for (int i = 0; i < 2; i++) {
 
 此外，`parallel-in-scope` 通过滑动窗口调度（`ConcurrentLimitExecutor`）和超时控制双管齐下：
 - 滑动窗口确保不会一次性向池中灌入过多任务，降低死锁概率
-- `ExecutionOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
+- `BatchExecutionOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
 
 ## 代码
 
@@ -47,7 +47,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
+BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
         .parallelism(2)
         .timeout(java.time.Duration.ofMillis(10_000))
         .taskType(TaskType.IO_BOUND)
@@ -56,7 +56,7 @@ ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
 AsyncBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用不同线程池，不会死锁
-    ExecutionOptions innerOpts = ExecutionOptions.of("inner-task")
+    BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
             .parallelism(2)
             .timeout(java.time.Duration.ofMillis(5_000))
             .build();

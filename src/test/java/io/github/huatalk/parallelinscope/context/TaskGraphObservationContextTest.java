@@ -9,8 +9,8 @@ import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** Lifecycle semantics of {@link GlobalParObservationContext}: ownership, polarity, idempotence. */
-class GlobalParObservationContextTest {
+/** Lifecycle semantics of {@link TaskGraphObservationContext}: ownership, polarity, idempotence. */
+class TaskGraphObservationContextTest {
 
     private GlobalPar global;
 
@@ -23,23 +23,23 @@ class GlobalParObservationContextTest {
     }
 
     @Test
-    void openObservationExposesOwnerPreviousDataAndCurrentPolarity() {
+    void openTaskGraphObservationExposesOwnerPreviousDataAndCurrentPolarity() {
         global = GlobalPar.builder().build();
-        GlobalParObservationContext context = global.openObservation();
+        TaskGraphObservationContext context = global.openTaskGraphObservation();
         try {
             assertThat(context.owner()).isSameAs(global);
             assertThat(context.isClosed()).isFalse();
-            assertThat(GlobalParObservationContext.current()).isSameAs(context);
+            assertThat(TaskGraphObservationContext.current()).isSameAs(context);
             assertThat(context.previousData()).isNull(); // No outer graph was active.
         } finally {
             context.close();
         }
 
         assertThat(context.isClosed()).isTrue();
-        assertThat(GlobalParObservationContext.current()).isNull();
+        assertThat(TaskGraphObservationContext.current()).isNull();
 
         // current() stays null after closing even without a fresh thread-local reset.
-        assertThat(GlobalParObservationContext.current()).isNull();
+        assertThat(TaskGraphObservationContext.current()).isNull();
     }
 
     @Test
@@ -47,19 +47,19 @@ class GlobalParObservationContextTest {
         global = GlobalPar.builder()
                 .register("io", Executors.newSingleThreadExecutor())
                 .build();
-        try (GlobalParObservationContext outer = global.openObservation()) {
+        try (TaskGraphObservationContext outer = global.openTaskGraphObservation()) {
             outer.previousData(); // outer has no earlier data
             TaskGraph.Data outerData = TaskGraph.data();
             assertThat(outerData).isNotNull();
 
-            GlobalParObservationContext inner = global.openObservation();
+            TaskGraphObservationContext inner = global.openTaskGraphObservation();
             assertThat(inner.previousData()).isSameAs(outerData);
             inner.close();
 
-            assertThat(GlobalParObservationContext.current()).isSameAs(outer);
+            assertThat(TaskGraphObservationContext.current()).isSameAs(outer);
             assertThat(TaskGraph.data()).isSameAs(outerData);
         }
-        assertThat(GlobalParObservationContext.current()).isNull();
+        assertThat(TaskGraphObservationContext.current()).isNull();
     }
 
     @Test
@@ -73,7 +73,7 @@ class GlobalParObservationContextTest {
                         .build())
                 .build();
 
-        GlobalParObservationContext context = global.openObservation();
+        TaskGraphObservationContext context = global.openTaskGraphObservation();
         TaskGraph.logTaskPair("a", "a", "b", "b", new io.github.huatalk.parallelinscope.context.graph.TaskEdge(
                 1, io.github.huatalk.parallelinscope.scope.TaskType.IO_BOUND, "e1", "e2", 1, 10L));
         TaskGraph.logTaskPair("b", "b", "a", "a", new io.github.huatalk.parallelinscope.context.graph.TaskEdge(
@@ -87,14 +87,14 @@ class GlobalParObservationContextTest {
     }
 
     @Test
-    void initOnRequestRejectsClosedObservationContexts() throws Exception {
+    void initForObservationRejectsClosedObservationContexts() throws Exception {
         global = GlobalPar.builder().build();
-        GlobalParObservationContext context = global.openObservation();
+        TaskGraphObservationContext context = global.openTaskGraphObservation();
         context.close();
-        assertThatThrownBy(() -> TaskGraph.initOnRequest(context))
+        assertThatThrownBy(() -> TaskGraph.initForObservation(context))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already closed");
-        assertThatThrownBy(() -> new GlobalParObservationContext(null))
+        assertThatThrownBy(() -> new TaskGraphObservationContext(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -108,7 +108,7 @@ class GlobalParObservationContextTest {
                         .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
-        GlobalParObservationContext context = global.openObservation();
+        TaskGraphObservationContext context = global.openTaskGraphObservation();
         context.complete();
         assertThat(context.isClosed()).isTrue();
         assertThat(detections.get()).isZero();

@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.context.graph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
@@ -34,7 +34,7 @@ class TaskGraphPolarityTest {
     @Test
     void acyclicEdgesEvaluateEveryDetectionPredicateFalse() {
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             TaskGraph.logTaskPair("root", "root-label", "a", "task-a", plainEdge());
             TaskGraph.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
 
@@ -69,7 +69,7 @@ class TaskGraphPolarityTest {
     @Test
     void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             TaskGraph.logTaskPair(null, null, "child", null, plainEdge());
 
             TaskGraph.Data data = TaskGraph.data();
@@ -98,7 +98,7 @@ class TaskGraphPolarityTest {
                         .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
-        try (GlobalParObservationContext outer = global.openObservation()) {
+        try (TaskGraphObservationContext outer = global.openTaskGraphObservation()) {
             // Acyclic chain only: no cycle, no self-loop anywhere.
             TaskGraph.logTaskPair("r", "r", "x", "x", plainEdge());
             assertThat(detections.get()).isZero();
@@ -116,7 +116,7 @@ class TaskGraphPolarityTest {
                         .listener(captured::set)
                         .build())
                 .build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             // Task-level cycle a -> b -> a using NON-deadlock-prone edges: the task cycle is real,
             // but no executor dependency edges exist at all.
             TaskGraph.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
@@ -144,7 +144,7 @@ class TaskGraphPolarityTest {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);
             GlobalPar global = GlobalPar.builder().build();
-            try (GlobalParObservationContext ignored = global.openObservation()) {
+            try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
                 TaskEdge forward = new TaskEdge(
                         1,
                         TaskType.IO_BOUND,

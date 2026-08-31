@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import java.util.ArrayList;
@@ -103,7 +103,7 @@ class A2_NestedCancelPropagationTest {
 
         try {
             // 外层配置：500ms 超时
-            ExecutionOptions outerOptions = ExecutionOptions.of("outer")
+            BatchExecutionOptions outerOptions = BatchExecutionOptions.of("outer")
                     .parallelism(2)
                     .timeout(java.time.Duration.ofMillis(500))
                     .build();
@@ -114,8 +114,8 @@ class A2_NestedCancelPropagationTest {
                     items,
                     outerItem -> {
                         // 内层并行处理
-                        ExecutionOptions innerOptions =
-                                ExecutionOptions.of("inner").parallelism(3).build();
+                        BatchExecutionOptions innerOptions =
+                                BatchExecutionOptions.of("inner").parallelism(3).build();
 
                         List<Integer> innerItems = Arrays.asList(10, 20, 30);
                         AsyncBatchResult<Integer> innerResult = par.map(

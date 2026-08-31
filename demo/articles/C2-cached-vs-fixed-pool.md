@@ -52,7 +52,7 @@ for (int i = 0; i < 2; i++) {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 
@@ -70,7 +70,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
+BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
         .parallelism(4)
         .timeout(java.time.Duration.ofMillis(10_000))
         .build();
@@ -78,7 +78,7 @@ ExecutionOptions outerOpts = ExecutionOptions.of("outer-task")
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
 AsyncBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用同一个 CachedThreadPool，不会死锁
-    ExecutionOptions innerOpts = ExecutionOptions.of("inner-task")
+    BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
             .parallelism(2)
             .timeout(java.time.Duration.ofMillis(5_000))
             .build();

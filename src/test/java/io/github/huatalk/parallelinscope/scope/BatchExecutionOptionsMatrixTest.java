@@ -7,14 +7,14 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 /**
- * Getter/builder matrix over {@link ExecutionOptions}: chained builder calls, default values,
+ * Getter/builder matrix over {@link BatchExecutionOptions}: chained builder calls, default values,
  * per-field round trips, and timeout validation.
  */
-class ExecutionOptionsMatrixTest {
+class BatchExecutionOptionsMatrixTest {
 
     @Test
     void defaultsComeFromTheBuilderFieldInitializers() {
-        ExecutionOptions options = ExecutionOptions.of("n").build();
+        BatchExecutionOptions options = BatchExecutionOptions.of("n").build();
         assertThat(options.taskName()).isEqualTo("n");
         assertThat(options.parallelism()).isEqualTo(-1);
         assertThat(options.timeout()).isNull();
@@ -24,8 +24,8 @@ class ExecutionOptionsMatrixTest {
 
     @Test
     void chainedBuilderCallsKeepReturningTheBuilder() {
-        ExecutionOptions.Builder builder = ExecutionOptions.builder();
-        ExecutionOptions options = builder
+        BatchExecutionOptions.Builder builder = BatchExecutionOptions.builder();
+        BatchExecutionOptions options = builder
                 .taskName("chain")
                 .parallelism(3)
                 .timeout(Duration.ofSeconds(2))
@@ -46,27 +46,27 @@ class ExecutionOptionsMatrixTest {
 
     @Test
     void explicitNullTimeoutStaysUnsetWhileNonPositiveValuesAreRejected() {
-        ExecutionOptions.Builder builder = ExecutionOptions.of("t");
+        BatchExecutionOptions.Builder builder = BatchExecutionOptions.of("t");
         builder.timeout(null);
         assertThat(builder.build().timeout()).isNull();
 
-        assertThatThrownBy(() -> ExecutionOptions.of("t").timeout(Duration.ZERO))
+        assertThatThrownBy(() -> BatchExecutionOptions.of("t").timeout(Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ExecutionOptions.of("t").timeout(Duration.ofMillis(-5)))
+        assertThatThrownBy(() -> BatchExecutionOptions.of("t").timeout(Duration.ofMillis(-5)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void bothRejectEnqueuePolaritiesRoundTrip() {
-        assertThat(ExecutionOptions.of("a").rejectEnqueue(true).build().rejectEnqueue())
+        assertThat(BatchExecutionOptions.of("a").rejectEnqueue(true).build().rejectEnqueue())
                 .isTrue();
-        assertThat(ExecutionOptions.of("b").rejectEnqueue(false).build().rejectEnqueue())
+        assertThat(BatchExecutionOptions.of("b").rejectEnqueue(false).build().rejectEnqueue())
                 .isFalse();
     }
 
     @Test
     void taskNameIsPreservedVerbatim() {
         String longName = "order-pipeline-stage-7";
-        assertThat(ExecutionOptions.of(longName).build().taskName()).isEqualTo(longName);
+        assertThat(BatchExecutionOptions.of(longName).build().taskName()).isEqualTo(longName);
     }
 }

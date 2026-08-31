@@ -14,7 +14,7 @@
 ## Decision
 
 采用不可变 `GlobalPar` 拓扑：每个 `Par` 在构建时绑定一个 supplied executor；单次调用使用
-`ExecutionOptions`，解析为只属于该批次的 `BatchExecutionContext`。`ExecutorRuntime` 仅是包内
+`BatchExecutionOptions`，解析为只属于该批次的 `BatchExecutionContext`。`ExecutorRuntime` 仅是包内
 技术绑定；取消沿显式 parent context 向下传播；跨 Par 的任务图和 purge 观测由
 `GlobalPar`/observation scope 持有。旧 `ParConfig`、`ParOptions`、`ExecutorBinding` 入口不保留。
 
@@ -58,14 +58,14 @@ GlobalParDefinition / GlobalPar
 Par
     └─ ParDefinition + ExecutorRuntime 引用
 
-ExecutionOptions
+BatchExecutionOptions
     └─ 一次 map 调用的不可变用户输入
 
 BatchExecutionContext
     └─ 一次 map 调用的不可变运行时快照
          ├─ normalized parallelism / timeout
          ├─ CancellationToken
-         ├─ GlobalParObservationContext
+         ├─ TaskGraphObservationContext
          └─ batch metadata
 
 TaskExecutionContext
@@ -100,7 +100,7 @@ databasePar.map(ids, repository::load, options);
 | 如何获得 `ListenableFuture` | `Par` 内部运行时 |
 | 全局默认超时和执行参数是什么 | `GlobalExecutionPolicy` |
 | 跨多个 `Par` 的 livelock 检测和线程池 purge 策略是什么 | `GlobalPar` |
-| 一次批量任务的显式设置是什么 | `ExecutionOptions` |
+| 一次批量任务的显式设置是什么 | `BatchExecutionOptions` |
 | 一次批量任务解析后的运行状态是什么 | `BatchExecutionContext` |
 | 单个元素任务如何访问取消和诊断上下文 | `TaskExecutionContext` |
 | 如何识别同一个真实池 | supplied executor identity |
@@ -202,7 +202,7 @@ public final class Par {
     public <T, R> AsyncBatchResult<R> map(
             @Nullable List<T> list,
             Function<? super T, ? extends R> function,
-            ExecutionOptions options);
+            BatchExecutionOptions options);
 
     public GlobalPar getGlobalPar();
 
@@ -233,12 +233,12 @@ map(executorName, ...)
 
 `Par` 是逻辑入口，不是线程池本身，也不是一次批量任务。它只持有所属 `GlobalPar` 和 `ExecutorRuntime` 引用；它不持有某次调用的 list、timeout deadline 或 cancellation token。理想情况下，`Par` 只能由 `GlobalPar.Builder` 创建，避免一个 `Par` 被错误注册到多个 `GlobalPar`。
 
-### 5.3 ExecutionOptions：一次调用的用户输入
+### 5.3 BatchExecutionOptions：一次调用的用户输入
 
-`ExecutionOptions` 只表示调用方对一次 `map` 的显式要求：
+`BatchExecutionOptions` 只表示调用方对一次 `map` 的显式要求：
 
 ```text
-ExecutionOptions
+BatchExecutionOptions
     ├─ taskName                 // 诊断标签
     ├─ requestedParallelism    // 本批次并发上限
     ├─ timeout                 // 本批次 deadline 请求
@@ -255,7 +255,7 @@ ExecutionOptions
 
 ### 5.4 BatchExecutionContext：一次批量任务的运行时上下文
 
-`Par.map` 收到 `ExecutionOptions` 后创建一个短生命周期的 `BatchExecutionContext`，把声明输入解析成可执行计划：
+`Par.map` 收到 `BatchExecutionOptions` 后创建一个短生命周期的 `BatchExecutionContext`，把声明输入解析成可执行计划：
 
 ```text
 BatchExecutionContext
@@ -266,11 +266,11 @@ BatchExecutionContext
     ├─ effectiveTimeout / deadline
     ├─ effective TaskType / queue policy
     ├─ CancellationToken
-    ├─ GlobalParObservationContext
+    ├─ TaskGraphObservationContext
     └─ AsyncBatchResult
 ```
 
-这是解决当前 `ParOptions.formalized(...)` 职责混杂的关键：`ExecutionOptions` 是输入，`BatchExecutionContext` 是本次运行状态。批次结束后，context 可释放；不能把它缓存回 `Par` 或 `GlobalPar`。
+这是解决当前 `ParOptions.formalized(...)` 职责混杂的关键：`BatchExecutionOptions` 是输入，`BatchExecutionContext` 是本次运行状态。批次结束后，context 可释放；不能把它缓存回 `Par` 或 `GlobalPar`。
 
 ### 5.5 CancellationToken 与嵌套批次
 
@@ -436,15 +436,15 @@ GlobalPar
        └─ 注入 Par 到业务组件
 
 一次 map 调用
-  └─ Par.map(ExecutionOptions)
-       ├─ 合并 GlobalExecutionPolicy + ExecutionOptions
+  └─ Par.map(BatchExecutionOptions)
+       ├─ 合并 GlobalExecutionPolicy + BatchExecutionOptions
        ├─ 创建 BatchExecutionContext
-       ├─ 注册到 GlobalParObservationContext
+       ├─ 注册到 TaskGraphObservationContext
        ├─ 创建 N 个 TaskExecutionContext
        └─ 返回 AsyncBatchResult
 
 请求结束
-  └─ GlobalParObservationContext.close()
+  └─ TaskGraphObservationContext.close()
        └─ GlobalParLivelockPolicy 执行一次全图检测
 
 应用关闭
@@ -686,14 +686,14 @@ outer(database@1a2b) -> inner(database@1a2b)
 
 ### 8.4 GlobalPar 级请求观测
 
-任务图可能跨越 `databasePar`、`httpPar` 和 `cpuPar`，因此 livelock 检测不能由任意一个 `ParConfig` 或单个 `Par` 决定。执行上下文绑定一个 `GlobalParObservationContext`，所有注册 `Par` 的边都写入同一张图。
+任务图可能跨越 `databasePar`、`httpPar` 和 `cpuPar`，因此 livelock 检测不能由任意一个 `ParConfig` 或单个 `Par` 决定。执行上下文绑定一个 `TaskGraphObservationContext`，所有注册 `Par` 的边都写入同一张图。
 
 请求结束时：
 
 1. 由 `GlobalParLivelockPolicy` 决定是否构建和检查完整任务图。
 2. 由 GlobalPar 统一执行 task graph cycle、executor cycle 和 self-loop 检测。
 3. listener 集合来自 `GlobalParLivelockPolicy`，按 listener identity 去重。
-4. `TaskGraph.destroyAfterRequest(GlobalParObservationContext)` 是生命周期 API；不再接收 `ParConfig`。
+4. `TaskGraph.finishObservation(TaskGraphObservationContext)` 是生命周期 API；不再接收 `ParConfig`。
 
 如果一个请求需要使用两个独立的 `GlobalPar`，必须显式创建两个 observation context；它们的任务图和 listener 不自动合并。这样“跨多个 Par 追踪”有一个明确的所有权边界：同一个 GlobalPar 内统一追踪，不同 GlobalPar 之间保持隔离。
 
@@ -718,13 +718,13 @@ IO_BOUND  -> httpPar
 CPU_BOUND -> cpuPar
 ```
 
-数据库和 HTTP 都可能是 IO，却需要不同隔离池。执行资源由 `Par` 表达，任务行为由 `ExecutionOptions` 表达。
+数据库和 HTTP 都可能是 IO，却需要不同隔离池。执行资源由 `Par` 表达，任务行为由 `BatchExecutionOptions` 表达。
 
 若未来确实需要动态路由，应设计显式 `ParResolver`：
 
 ```java
 interface ParResolver {
-    Par resolve(ExecutionOptions options, ExecutionContext context);
+    Par resolve(BatchExecutionOptions options, ExecutionContext context);
 }
 ```
 
@@ -760,7 +760,7 @@ Par virtualIoPar = virtualGlobal.defaultPar();
 
 - 非 `ThreadPoolExecutor` 不接入队列 purger。
 - virtual-thread-per-task executor 由 Java 21 provider 返回专门的 `BlockingRisk`。
-- `ExecutionOptions.parallelism` 仍然提供业务级限流。
+- `BatchExecutionOptions.parallelism` 仍然提供业务级限流。
 - 取消、超时、TTL 和任务图行为保持一致。
 
 Java 8 编译门槛只覆盖公共 API 和核心实现；虚拟线程示例与 provider 放在独立的 Java 21 profile/module 中，不能出现在 Java 8 源码编译路径。
@@ -927,7 +927,7 @@ Par cpuPar = global.par("cpu");
 - 明确 `GlobalPar.Builder.register(...)` 的 null、displayName、shutdown executor 行为。
 - 从核心 `Par` API 移除 `bind`；为外部 futures 记录单独的后续提案，不在本次实现中混入。
 - 定义 `ExecutorIdentity` 的 reference-equality、生命周期和诊断格式。
-- 定义 `GlobalExecutionPolicy`、`ExecutionOptions`、`BatchExecutionContext`、`TaskExecutionContext` 的字段白名单和生命周期。
+- 定义 `GlobalExecutionPolicy`、`BatchExecutionOptions`、`BatchExecutionContext`、`TaskExecutionContext` 的字段白名单和生命周期。
 - 将第 18 节不变量转换为实现前置检查清单和回归测试矩阵。
 - 产物：API 草案、迁移清单、禁止事项清单。
 - 验收：所有公共方法都能回答“哪个 executor 执行”和“谁负责关闭”。
@@ -954,7 +954,7 @@ Par cpuPar = global.par("cpu");
 
 - `ThreadRelay` 传播 `ExecutorIdentity` 与 `Par` label；不得传播 runtime/config 对象。
 - `TaskEdge` 保存 source/target identity 和 label，不再保存 `ParConfig` 的 livelock 策略快照。
-- `GlobalPar` 创建并绑定 `GlobalParObservationContext`；`TaskGraph.destroyAfterRequest` 只接收该 context。
+- `GlobalPar` 创建并绑定 `TaskGraphObservationContext`；`TaskGraph.finishObservation` 只接收该 context。
 - 验证跨多个 ExecutorRuntime 的父子 `BatchExecutionContext` 取消传播，以及子 deadline 不超过父 deadline。
 - 产物：任务图迁移、同池不同 label、异池同 label、嵌套自环和跨多个 Par 追踪测试。
 - 验收：图节点只按 supplied identity 合并；同一 GlobalPar 内所有 Par 的边进入同一张图。
@@ -1004,7 +1004,7 @@ Par cpuPar = global.par("cpu");
 - `GlobalPar` 构建后不能修改。
 - 业务组件可以只依赖 `Par`。
 - 核心 `Par` API 不暴露任意外部 future 的 `bind` 语义。
-- `ExecutionOptions` 只包含一次调用的用户输入，不包含 cancellation、executor 或全局策略。
+- `BatchExecutionOptions` 只包含一次调用的用户输入，不包含 cancellation、executor 或全局策略。
 - `Par.map` 为每次调用创建独立的 `BatchExecutionContext`。
 
 ### 执行器边界
@@ -1022,7 +1022,7 @@ Par cpuPar = global.par("cpu");
 - 同一 supplied executor 对应同一任务图资源节点。
 - 不同 supplied executor 即使 Par label 相同也不合并。
 - 嵌套调用使用显式引用的 `Par`。
-- 同一 GlobalPar 内多个 Par 的请求使用同一个 `GlobalParObservationContext`。
+- 同一 GlobalPar 内多个 Par 的请求使用同一个 `TaskGraphObservationContext`。
 
 ### GlobalPar
 
@@ -1054,7 +1054,7 @@ GlobalPar (immutable)
     ├─ GlobalParLivelockPolicy
     ├─ GlobalParPurgePolicy
     │    └─ Map<ExecutorIdentity, ExecutorRuntime>
-    └─ GlobalParObservationContext factory
+    └─ TaskGraphObservationContext factory
               │
               ▼
 Par
@@ -1066,7 +1066,7 @@ Par
           ├─ BlockingRisk
           └─ phaseObserver
 
-ExecutionOptions
+BatchExecutionOptions
     └─ BatchExecutionContext
           ├─ CancellationToken
           ├─ deadline
@@ -1099,7 +1099,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 
 1. `GlobalPar` 是跨 `Par` 的唯一策略和运行时 owner。
 2. `Par` 是稳定的逻辑执行入口，不保存任何单次批量任务状态。
-3. `ExecutionOptions` 只包含一次调用的用户输入，不包含 executor、token、future、listener 或 runtime。
+3. `BatchExecutionOptions` 只包含一次调用的用户输入，不包含 executor、token、future、listener 或 runtime。
 4. `BatchExecutionContext` 只属于一次批量调用；批次结束后必须可释放，不能缓存回 `Par` 或 `GlobalPar`。
 5. `TaskExecutionContext` 只属于一个元素任务；任务结束后必须清理线程本地状态。
 
@@ -1117,7 +1117,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 2. 同一个 `GlobalPar` 内所有注册 `Par` 的任务边进入同一个 observation context。
 3. purge enablement、阈值和 coordinator 只由 `GlobalParPurgePolicy` 管理，状态按 supplied executor 维度维护。
 4. `TaskType` 只能描述任务行为，不能隐式路由到某个 `Par` 或 executor。
-5. 单次 `ExecutionOptions` 不能覆盖或修改 GlobalPar 的 livelock/purge 策略。
+5. 单次 `BatchExecutionOptions` 不能覆盖或修改 GlobalPar 的 livelock/purge 策略。
 
 ### 18.4 取消与 deadline 不变量
 
@@ -1145,7 +1145,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 
 ### 18.7 变更前检查清单
 
-任何涉及 `Par`、`GlobalPar`、`ExecutionOptions`、`CancellationToken`、`ThreadRelay`、`TaskGraph` 或 `HeuristicPurger` 的改动，至少需要回答：
+任何涉及 `Par`、`GlobalPar`、`BatchExecutionOptions`、`CancellationToken`、`ThreadRelay`、`TaskGraph` 或 `HeuristicPurger` 的改动，至少需要回答：
 
 ```text
 □ 是否改变了对象的生命周期或 owner？
@@ -1166,19 +1166,19 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 
 | 改动内容 | 唯一允许的归属 | 不允许的偏移 |
 |---|---|---|
-| 应用默认值、listener、全局开关 | `GlobalExecutionPolicy` / `GlobalPar` | 放入 `Par` 或 `ExecutionOptions` |
-| 某次调用的显式要求 | `ExecutionOptions` | 写回全局策略或长期缓存 |
+| 应用默认值、listener、全局开关 | `GlobalExecutionPolicy` / `GlobalPar` | 放入 `Par` 或 `BatchExecutionOptions` |
+| 某次调用的显式要求 | `BatchExecutionOptions` | 写回全局策略或长期缓存 |
 | 某次调用解析后的 deadline、token、任务数 | `BatchExecutionContext` | 放入 `Par`、`GlobalPar` 或静态变量 |
 | 单个元素的执行信息 | `TaskExecutionContext` | 放入批次对象之外的共享可变状态 |
 | supplied executor 的适配、能力和 identity | `ExecutorRuntime` | 以 adapter 作为资源身份 |
-| 跨 Par 的 livelock 观测 | `GlobalParObservationContext` / `GlobalParLivelockPolicy` | 在单个 `Par` 内独立检测 |
+| 跨 Par 的 livelock 观测 | `TaskGraphObservationContext` / `GlobalParLivelockPolicy` | 在单个 `Par` 内独立检测 |
 | 线程池级 purge 状态和阈值 | `GlobalParPurgePolicy` 的 executor identity registry | 按 Par、调用或 adapter 建立状态 |
 
 如果一个改动同时涉及两个作用域，必须明确两者之间的接口，而不是复制一份状态。复制配置或上下文通常意味着产生了第二个事实来源。
 
 ### 19.2 公共 API 变更规则
 
-1. 新的 per-call 能力只能通过 `ExecutionOptions` 增加；不得重新引入 `ParOptions`、`ExecutionTarget` 或 executor 参数。
+1. 新的 per-call 能力只能通过 `BatchExecutionOptions` 增加；不得重新引入 `ParOptions`、`ExecutionTarget` 或 executor 参数。
 2. 新的运行时状态只能通过 `BatchExecutionContext` / `TaskExecutionContext` 暴露；不得把 token、future、deadline 加到 `Par` 的字段中。
 3. 新增 executor 相关 API 必须说明 supplied executor、submission executor、identity 和 shutdown owner 分别是什么；缺一项不得合入。
 4. `GlobalPar` 的运行期 API 保持只读；任何 `register`、替换或 reset 需求都必须先重新评估不可变拓扑是否仍成立。

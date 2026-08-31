@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
@@ -47,7 +47,7 @@ class TaskGraphExportTest {
     @Test
     void acyclicChainAndBranchExportCleanGraph() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             TaskGraph.logTaskPair(null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
             TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
             TaskGraph.logTaskPair("b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
@@ -74,7 +74,7 @@ class TaskGraphExportTest {
     @Test
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             TaskGraph.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
             TaskGraph.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
             TaskGraph.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
@@ -100,7 +100,7 @@ class TaskGraphExportTest {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
             TaskGraph.logTaskPair(
@@ -131,7 +131,7 @@ class TaskGraphExportTest {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().build();
-        try (GlobalParObservationContext ignored = global.openObservation()) {
+        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
             // Same executor NAME on both ends, but two distinct executor objects and a single
@@ -180,7 +180,7 @@ class TaskGraphExportTest {
                         .build())
                 .build();
         TaskGraph.Data captured;
-        try (GlobalParObservationContext observation = global.openObservation()) {
+        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
@@ -189,14 +189,14 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                ExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner").build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            ExecutionOptions.of("outer").build());
+                            BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -235,7 +235,7 @@ class TaskGraphExportTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (GlobalParObservationContext observation = global.openObservation()) {
+        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             AsyncBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
@@ -244,14 +244,14 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                ExecutionOptions.of("inner").build());
+                                                BatchExecutionOptions.of("inner").build());
                                 try {
                                     return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            ExecutionOptions.of("outer").build());
+                            BatchExecutionOptions.of("outer").build());
 
             assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -278,12 +278,12 @@ class TaskGraphExportTest {
     void directExecutorServiceRecordsTaskGraphButSkipsExecutorGraphs() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global = GlobalPar.builder().register("direct", direct).build();
-        try (GlobalParObservationContext observation = global.openObservation()) {
+        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
             AsyncBatchResult<Integer> batch = global.par("direct")
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,
-                            ExecutionOptions.of("direct").build());
+                            BatchExecutionOptions.of("direct").build());
 
             assertThat(batch.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 

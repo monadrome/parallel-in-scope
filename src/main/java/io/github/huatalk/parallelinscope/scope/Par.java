@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
  * pipeline:
  *
  * <ul>
- *   <li>Resolution of {@link ExecutionOptions} into a batch context
+ *   <li>Resolution of {@link BatchExecutionOptions} into a batch context
  *   <li>Creation of {@link ScopedCallable} wrappers with lifecycle instrumentation
  *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}
  *   <li>Parent-child {@link CancellationToken} chaining
@@ -83,21 +83,21 @@ public final class Par {
      * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
     public <T, R> AsyncBatchResult<R> map(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
+            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchExecutionOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
         return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
     }
 
     private <T, R> AsyncBatchResult<R> mapWhileOpen(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
+            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchExecutionOptions options) {
         int taskCount = list == null ? 0 : list.size();
         BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
-        io.github.huatalk.parallelinscope.context.GlobalParObservationContext currentObservation =
-                io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current();
-        io.github.huatalk.parallelinscope.context.GlobalParObservationContext observation = parent != null
-                        && parent.observationContext() != null
-                        && parent.observationContext().owner() == globalPar
-                ? parent.observationContext()
+        io.github.huatalk.parallelinscope.context.TaskGraphObservationContext currentObservation =
+                io.github.huatalk.parallelinscope.context.TaskGraphObservationContext.current();
+        io.github.huatalk.parallelinscope.context.TaskGraphObservationContext observation = parent != null
+                        && parent.taskGraphObservationContext() != null
+                        && parent.taskGraphObservationContext().owner() == globalPar
+                ? parent.taskGraphObservationContext()
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;

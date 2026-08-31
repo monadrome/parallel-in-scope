@@ -2,7 +2,7 @@ package demo.advanced;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.Par;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -54,7 +54,7 @@ public class DeadlockDetectionDemo {
             System.out.println("每个 task-A 子任务内部调用 task-B，需要同一个池分配线程");
             System.out.println("→ 循环等待，死锁！\n");
 
-            ExecutionOptions optionsA = ExecutionOptions.of("task-A")
+            BatchExecutionOptions optionsA = BatchExecutionOptions.of("task-A")
                     .parallelism(4)
                     .timeout(java.time.Duration.ofSeconds(5))
                     .taskType(TaskType.IO_BOUND)
@@ -102,7 +102,7 @@ public class DeadlockDetectionDemo {
 
     /** task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁 */
     private static void callTaskB(Par par, int parentItem) {
-        ExecutionOptions optionsB = ExecutionOptions.of("task-B")
+        BatchExecutionOptions optionsB = BatchExecutionOptions.of("task-B")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofSeconds(5))
                 .taskType(TaskType.IO_BOUND)

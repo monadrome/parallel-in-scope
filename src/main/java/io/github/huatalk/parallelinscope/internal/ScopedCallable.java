@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
-import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraph;
@@ -149,7 +149,7 @@ public class ScopedCallable<V> implements Callable<V> {
         CancellationToken currentToken = getCancellationToken();
         if (batchContext != null) {
             TaskScopeTl.setBatchExecutionContext(batchContext);
-            GlobalParObservationContext observation = batchContext.observationContext();
+            TaskGraphObservationContext observation = batchContext.taskGraphObservationContext();
             if (observation != null) TaskGraph.install(observation);
         }
 
