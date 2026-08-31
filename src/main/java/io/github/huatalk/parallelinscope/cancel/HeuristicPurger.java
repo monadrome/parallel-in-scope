@@ -29,14 +29,12 @@ public final class HeuristicPurger {
 
     private static final Logger LOGGER = Logger.getLogger(HeuristicPurger.class.getName());
     private static final long COALESCING_DELAY_MILLIS = 50L;
-    private static final long FAILURE_RETRY_DELAY_MILLIS = 1_000L;
     private static final long CANCELLATION_ESTIMATE_EXPIRY_NANOS = TimeUnit.MINUTES.toNanos(1);
     private static final Runnable NOOP = () -> {};
 
     private enum MaintenanceState {
         IDLE,
-        SUBMITTED,
-        RUNNING
+        BUSY
     }
 
     private static final class CancellationMarker {
@@ -170,7 +168,6 @@ public final class HeuristicPurger {
         private final BlockingQueue<?> queue;
         private final AtomicLong issuedSequence = new AtomicLong();
         private final AtomicLong settledThrough = new AtomicLong();
-        private final AtomicLong lastFailedSequence = new AtomicLong(-1L);
         private final AtomicReference<MaintenanceState> maintenanceState = new AtomicReference<>(MaintenanceState.IDLE);
         private final AtomicReference<CancellationMarker> lastCancellation =
                 new AtomicReference<>(new CancellationMarker(0L, 0L, 0L));
@@ -240,26 +237,24 @@ public final class HeuristicPurger {
 
         /** Claims the idle state and submits one maintenance task after a fixed delay. */
         private void submitMaintenance(long delayMillis, long estimatedCancelled) {
-            if (maintenanceState.compareAndSet(MaintenanceState.IDLE, MaintenanceState.SUBMITTED)) {
+            if (maintenanceState.compareAndSet(MaintenanceState.IDLE, MaintenanceState.BUSY)) {
                 logCurrentDecision("submitted", estimatedCancelled);
                 try {
                     maintenanceExecutor.schedule(this::runMaintenance, delayMillis, TimeUnit.MILLISECONDS);
                 } catch (RuntimeException e) {
-                    maintenanceState.compareAndSet(MaintenanceState.SUBMITTED, MaintenanceState.IDLE);
+                    maintenanceState.compareAndSet(MaintenanceState.BUSY, MaintenanceState.IDLE);
                     logCurrentDecision("failed-submit", estimatedCancelled());
                     LOGGER.log(Level.WARNING, "Unable to schedule cancelled-task purge", e);
                 }
             }
         }
 
-        /** Rechecks the latest snapshots and calls {@link ThreadPoolExecutor#purge()} when eligible. */
+        /**
+         * Rechecks the latest snapshots and calls {@link ThreadPoolExecutor#purge()} when eligible.
+         * One submitted task always runs exactly once, so the busy state needs no entry check.
+         */
         private void runMaintenance() {
-            if (!maintenanceState.compareAndSet(MaintenanceState.SUBMITTED, MaintenanceState.RUNNING)) {
-                return;
-            }
             long claimThrough = issuedSequence.get();
-            boolean retry = false;
-            boolean failed = false;
             try {
                 long estimatedCancelled = estimatedCancelled();
                 if (!enabled.get() || estimatedCancelled <= 0L || !thresholdsMet(estimatedCancelled, true)) {
@@ -270,23 +265,15 @@ public final class HeuristicPurger {
                 try {
                     executor.purge();
                     settleThrough(claimThrough);
-                    lastFailedSequence.set(-1L);
                     logPurge(estimatedCancelled, beforeSize, queue.size(), System.nanoTime() - started);
                 } catch (RuntimeException e) {
-                    failed = true;
-                    retry = claimThrough > lastFailedSequence.getAndSet(claimThrough);
                     logCurrentDecision("failed", estimatedCancelled());
                     LOGGER.log(Level.WARNING, "Unable to purge cancelled tasks", e);
                 }
             } finally {
                 maintenanceState.set(MaintenanceState.IDLE);
-                long remaining = estimatedCancelled();
-                if (enabled.get() && remaining > 0L) {
-                    if (retry) {
-                        submitMaintenance(FAILURE_RETRY_DELAY_MILLIS, remaining);
-                    } else if (!failed || issuedSequence.get() > claimThrough) {
-                        evaluateAndSubmit(COALESCING_DELAY_MILLIS);
-                    }
+                if (enabled.get() && issuedSequence.get() > claimThrough) {
+                    evaluateAndSubmit(COALESCING_DELAY_MILLIS);
                 }
             }
         }
@@ -307,7 +294,6 @@ public final class HeuristicPurger {
         /** Settles all signals visible to a disable/reset operation. */
         private void settleCurrentGeneration() {
             settleThrough(issuedSequence.get());
-            lastFailedSequence.set(-1L);
             lastLoggedDecision.set(null);
             long generation = resetGeneration.get();
             CancellationMarker marker = lastCancellation.get();
