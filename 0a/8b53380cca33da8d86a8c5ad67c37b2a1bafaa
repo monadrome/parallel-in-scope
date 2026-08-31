@@ -1,0 +1,53 @@
+docs/zh/design/philosophy.md
+  ai_agent 368,373-374,478
+docs/zh/reference/nullability-annotations.md
+  ai_agent 49
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraph.java
+  ai_agent 12-13,29,272,279-280,282-284,290,300-301,313,338
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  ai_agent 63
+demo/README.md
+  ai_agent 67
+demo/architecture-constraints.md
+  ai_agent 26,115
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  ai_agent 407,409-410,415-416,426,435-436,441,448
+docs/zh/user-guide.md
+  ai_agent 90,102,104
+docs/en/user-guide.md
+  ai_agent 90,103,105
+docs/en/migration-v0.2.md
+  ai_agent 12,21
+src/test/java/io/github/huatalk/parallelinscope/context/TaskGraphObservationContextTest.java
+  ai_agent 70,106
+CHANGELOG.md
+  ai_agent 7,23
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphPolarityTest.java
+  ai_agent 8,20,96,111,114,126
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  ai_agent 54,68,151-152,351-352,371-372
+docs/zh/internals/thread-relay.md
+  ai_agent 21
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParPoliciesTest.java
+  ai_agent 99-102
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphBatchIdentityTest.java
+  ai_agent 11-12,113,115,136,138
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphExportTest.java
+  ai_agent 13,177,220
+docs/en/reference/nullability-annotations.md
+  ai_agent 16
+docs/zh/migration-v0.2.md
+  ai_agent 12,21
+adr/0005-globalpar-executor-binding.md
+  ai_agent 10,53,102,136,375,404,415,426,434,448,689,693,695,861,863,904,956,964,1029,1031,1037,1054,1088,1116,1120,1156,1174,1195,1210,1223
+src/main/java/io/github/huatalk/parallelinscope/context/graph/package-info.java
+  ai_agent 1
+demo/articles/I4-vs-completable-future.md
+  ai_agent 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0a8b53380cca33da8d86a8c5ad67c37b2a1bafaa",
+  "prompts": {}
+}
