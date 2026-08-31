@@ -110,7 +110,7 @@ An observation scope does not merge graphs from separate `GlobalPar` instances.
 
 ## Purge cancelled queue entries
 
-Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor`. Cancellation before execution emits an execution phase signal; `GlobalPar` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
+Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `GlobalPar` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
 
 ```java
 GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()

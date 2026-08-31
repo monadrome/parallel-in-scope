@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.huatalk.parallelinscope.queue.SmartBlockingQueue;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -17,7 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Coalesces cleanup of cancelled tasks retained by {@link SmartBlockingQueue} instances.
+ * Coalesces cleanup of cancelled tasks retained by bounded {@link BlockingQueue} instances.
  *
  * <p>Queue pressure and cancelled-task ratio are concurrent snapshots used as advisory signals;
  * neither value is an exact queue accounting guarantee.
@@ -129,8 +130,9 @@ public final class HeuristicPurger {
     }
 
     /**
-     * Returns the queued-cancellation callback bound to the submitted task's executor. Unsupported
-     * queue implementations receive a static no-op callback.
+     * Returns the queued-cancellation callback bound to the submitted task's executor. Queues
+     * without a finite positive capacity — {@link java.util.concurrent.SynchronousQueue} and
+     * unbounded queues such as {@code new LinkedBlockingQueue()} — receive a static no-op callback.
      *
      * <p>The returned callback must be invoked only when a submitted task is cancelled before it
      * starts. It is safe to invoke more than once: accounting is heuristic and maintenance is
@@ -140,18 +142,32 @@ public final class HeuristicPurger {
      * @return executor-bound cancellation callback
      */
     public Runnable cancellationObserverFor(ThreadPoolExecutor executor) {
-        if (!(executor.getQueue() instanceof SmartBlockingQueue)) {
+        BlockingQueue<Runnable> queue = executor.getQueue();
+        if (!hasFiniteCapacity(queue)) {
             return NOOP;
         }
-        SmartBlockingQueue<?> queue = (SmartBlockingQueue<?>) executor.getQueue();
         PoolState state = states.computeIfAbsent(executor, ignored -> new PoolState(executor, queue));
         return state::onTaskCancelled;
+    }
+
+    /** Reports whether a queue has a finite positive capacity worth monitoring. */
+    private static boolean hasFiniteCapacity(BlockingQueue<?> queue) {
+        int capacity = capacityOf(queue);
+        return capacity > 0 && capacity < Integer.MAX_VALUE;
+    }
+
+    /** Reads one queue's capacity without requiring a concrete queue type. */
+    private static int capacityOf(BlockingQueue<?> queue) {
+        if (queue instanceof SmartBlockingQueue) {
+            return ((SmartBlockingQueue<?>) queue).getCapacity();
+        }
+        return queue.size() + queue.remainingCapacity();
     }
 
     private final class PoolState {
 
         private final ThreadPoolExecutor executor;
-        private final SmartBlockingQueue<?> queue;
+        private final BlockingQueue<?> queue;
         private final AtomicLong issuedSequence = new AtomicLong();
         private final AtomicLong settledThrough = new AtomicLong();
         private final AtomicLong lastFailedSequence = new AtomicLong(-1L);
@@ -162,7 +178,7 @@ public final class HeuristicPurger {
         private final String executorId;
 
         /** Creates cancellation accounting state for one actual executor. */
-        private PoolState(ThreadPoolExecutor executor, SmartBlockingQueue<?> queue) {
+        private PoolState(ThreadPoolExecutor executor, BlockingQueue<?> queue) {
             this.executor = executor;
             this.queue = queue;
             this.executorId =
@@ -308,7 +324,7 @@ public final class HeuristicPurger {
             if (queueSize <= 0) {
                 return false;
             }
-            int capacity = queue.getCapacity();
+            int capacity = capacityOf(queue);
             double queuePressure = (double) queueSize / capacity;
             double cancelledRatio = (double) Math.min(cancelled, queueSize) / capacity;
             double pressureThreshold = queuePressureThreshold.get();
@@ -366,7 +382,7 @@ public final class HeuristicPurger {
                 return;
             }
             int queueSize = queue.size();
-            int capacity = queue.getCapacity();
+            int capacity = capacityOf(queue);
             double pressure = (double) queueSize / capacity;
             double ratio = (double) Math.min(cancelled, queueSize) / capacity;
             logDecision(
