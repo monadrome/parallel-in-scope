@@ -25,14 +25,14 @@ public class CancellationTokenTest {
     @Test
     public void testInitialState() {
         CancellationToken token = CancellationToken.create();
-        assertThat(token.getState()).isEqualTo(CancellationTokenState.RUNNING);
+        assertThat(token.getState()).isEqualTo(CancellationToken.State.RUNNING);
     }
 
     @Test
     public void testManualCancel() {
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
-        assertThat(token.getState()).isEqualTo(CancellationTokenState.MUTUAL_CANCELED);
+        assertThat(token.getState()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
         assertThat(token.getState().shouldInterruptCurrentThread()).isTrue();
     }
 
@@ -41,28 +41,28 @@ public class CancellationTokenTest {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
-        assertThat(parent.getState()).isEqualTo(CancellationTokenState.RUNNING);
-        assertThat(child.getState()).isEqualTo(CancellationTokenState.RUNNING);
+        assertThat(parent.getState()).isEqualTo(CancellationToken.State.RUNNING);
+        assertThat(child.getState()).isEqualTo(CancellationToken.State.RUNNING);
 
         parent.cancel(false);
-        assertThat(parent.getState()).isEqualTo(CancellationTokenState.MUTUAL_CANCELED);
+        assertThat(parent.getState()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
     }
 
     @Test
-    public void testCancellationTokenState_codes() {
-        assertThat(CancellationTokenState.RUNNING.getCode()).isZero();
-        assertThat(CancellationTokenState.SUCCESS.getCode()).isEqualTo(1);
-        assertThat(CancellationTokenState.RUNNING.shouldInterruptCurrentThread())
+    public void testCancellationTokenStateCodes() {
+        assertThat(CancellationToken.State.RUNNING.getCode()).isZero();
+        assertThat(CancellationToken.State.SUCCESS.getCode()).isEqualTo(1);
+        assertThat(CancellationToken.State.RUNNING.shouldInterruptCurrentThread())
                 .isFalse();
-        assertThat(CancellationTokenState.SUCCESS.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.SUCCESS.shouldInterruptCurrentThread())
                 .isFalse();
-        assertThat(CancellationTokenState.FAIL_FAST_CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.FAIL_FAST_CANCELED.shouldInterruptCurrentThread())
                 .isTrue();
-        assertThat(CancellationTokenState.TIMEOUT_CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.TIMEOUT_CANCELED.shouldInterruptCurrentThread())
                 .isTrue();
-        assertThat(CancellationTokenState.MUTUAL_CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.MUTUAL_CANCELED.shouldInterruptCurrentThread())
                 .isTrue();
-        assertThat(CancellationTokenState.PROPAGATING_CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.PROPAGATING_CANCELED.shouldInterruptCurrentThread())
                 .isTrue();
     }
 
@@ -85,7 +85,7 @@ public class CancellationTokenTest {
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertThat(token.getState()).isEqualTo(CancellationTokenState.SUCCESS);
+        assertThat(token.getState()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
     @Test
@@ -98,7 +98,7 @@ public class CancellationTokenTest {
 
         // Wait for timeout to fire
         Thread.sleep(300);
-        assertThat(token.getState()).isEqualTo(CancellationTokenState.TIMEOUT_CANCELED);
+        assertThat(token.getState()).isEqualTo(CancellationToken.State.TIMEOUT_CANCELED);
     }
 
     @Test
@@ -117,7 +117,7 @@ public class CancellationTokenTest {
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertThat(token.getState()).isEqualTo(CancellationTokenState.FAIL_FAST_CANCELED);
+        assertThat(token.getState()).isEqualTo(CancellationToken.State.FAIL_FAST_CANCELED);
     }
 
     @Test
@@ -133,7 +133,7 @@ public class CancellationTokenTest {
         failed.setException(new RuntimeException("boom"));
 
         await().untilAsserted(() -> {
-            assertThat(token.getState()).isEqualTo(CancellationTokenState.FAIL_FAST_CANCELED);
+            assertThat(token.getState()).isEqualTo(CancellationToken.State.FAIL_FAST_CANCELED);
             assertThat(sibling).isCancelled();
             assertThat(submitCanceller).isCancelled();
         });
@@ -155,7 +155,7 @@ public class CancellationTokenTest {
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertThat(child.getState()).isEqualTo(CancellationTokenState.PROPAGATING_CANCELED);
+        assertThat(child.getState()).isEqualTo(CancellationToken.State.PROPAGATING_CANCELED);
     }
 
     @Test
