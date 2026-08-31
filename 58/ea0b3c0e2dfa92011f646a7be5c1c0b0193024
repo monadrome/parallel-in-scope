@@ -1,0 +1,27 @@
+src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java
+  ai_agent 4-9,36,149,152-185
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenLateBindRaceTest.java
+  ai_agent 61,80,88
+docs/zh/reference/nullability-annotations.md
+  ai_agent 47
+blogs/CancellationToken-lateBind-竞态分析翻车记录.md
+  ai_agent 13
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenTest.java
+  ai_agent 52
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationPropagationCartesianTest.java
+  ai_agent 101
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTriggerCartesianTest.java
+  ai_agent 69-71,108,120
+wiki/ai-concurrency-review-false-positive.md
+  ai_agent 60
+docs/zh/design/philosophy.md
+  ai_agent 221
+docs/zh/case-studies/ai-concurrency-review-false-positive.md
+  ai_agent 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "58ea0b3c0e2dfa92011f646a7be5c1c0b0193024",
+  "prompts": {}
+}
