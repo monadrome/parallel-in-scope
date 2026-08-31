@@ -1,0 +1,33 @@
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  s_54b5961f321145::t_b4e4bab52cb7e2 7
+  s_54b5961f321145::t_f28c1fa65575df 21
+  s_54b5961f321145::t_69f9f437340519 181
+  s_54b5961f321145::t_047067d4cd1435 385
+  s_54b5961f321145::t_6857460a14626e 133-135,145-146,153-166,170
+  s_54b5961f321145::t_2ed571a233b2a2 327
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerQueueCompatibilityTest.java
+  s_54b5961f321145::t_9242f78fed5423 1-123
+docs/en/user-guide.md
+  s_54b5961f321145::t_68190b75b26d72 113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6d34de2c9fe0264aecf5e07a6ae3fdef938e730d",
+  "prompts": {},
+  "humans": {
+    "h_a991f50801869b": {
+      "author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_54b5961f321145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cce39c04-10d0-4d8d-b770-545255d0b5d9",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
