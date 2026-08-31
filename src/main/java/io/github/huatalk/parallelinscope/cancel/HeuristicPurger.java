@@ -307,7 +307,7 @@ public final class HeuristicPurger {
         /** Evaluates advisory queue pressure and garbage ratio snapshots. */
         private boolean thresholdsMet(long cancelled, boolean logSkip) {
             int queueSize = queue.size();
-            if (queueSize <= 0) {
+            if (queueSize == 0) {
                 return false;
             }
             int capacity = capacityOf(queue);

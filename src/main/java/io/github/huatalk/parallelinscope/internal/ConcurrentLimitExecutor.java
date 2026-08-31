@@ -94,7 +94,7 @@ public class ConcurrentLimitExecutor<V> {
      */
     public AsyncBatchResult<V> submitAll(List<? extends Callable<V>> tasks) {
         if (tasks.isEmpty()) {
-            return AsyncBatchResult.of(ImmutableList.<ListenableFuture<V>>of());
+            return AsyncBatchResult.of(ImmutableList.of());
         }
 
         ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -106,9 +106,9 @@ public class ConcurrentLimitExecutor<V> {
             try {
                 resultBuilder.add(fallbackSubmit(tasks, i));
             } catch (RuntimeException failure) {
-                resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                resultBuilder.add(Futures.immediateFailedFuture(failure));
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
-                    resultBuilder.add(Futures.<V>immediateFailedFuture(failure));
+                    resultBuilder.add(Futures.immediateFailedFuture(failure));
                 }
                 return AsyncBatchResult.of(resultBuilder.build());
             }

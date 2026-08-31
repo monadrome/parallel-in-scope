@@ -160,7 +160,7 @@ public final class TaskGraph {
                 edgeMap.computeIfAbsent(entry.getEdge(), k -> new ArrayList<>()).add(entry.getValue());
             }
             ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
-                    ValueGraphBuilder.directed().allowsSelfLoops(true).<String, List<TaskEdge>>immutable();
+                    ValueGraphBuilder.directed().allowsSelfLoops(true).immutable();
             for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : edgeMap.entrySet()) {
                 graphBuilder.putEdgeValue(
                         entry.getKey().source(),
@@ -190,7 +190,7 @@ public final class TaskGraph {
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
                 List<TaskEdge> edges = getGraph()
                         .edgeValueOrDefault(
-                                taskEdgePair.source(), taskEdgePair.target(), Collections.<TaskEdge>emptyList());
+                                taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList());
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();
@@ -207,7 +207,7 @@ public final class TaskGraph {
             ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder = ValueGraphBuilder.directed()
                     .allowsSelfLoops(true)
                     .incidentEdgeOrder(ElementOrder.stable())
-                    .<String, List<TaskEdge>>immutable();
+                    .immutable();
             for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : executorEdges.entrySet()) {
                 graphBuilder.putEdgeValue(
                         entry.getKey().source(),
@@ -233,7 +233,7 @@ public final class TaskGraph {
             ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder = ValueGraphBuilder.directed()
                     .allowsSelfLoops(true)
                     .incidentEdgeOrder(ElementOrder.stable())
-                    .<ExecutorIdentity, List<TaskEdge>>immutable();
+                    .immutable();
             for (Map.Entry<EndpointPair<ExecutorIdentity>, List<TaskEdge>> entry : executorEdges.entrySet()) {
                 builder.putEdgeValue(
                         entry.getKey().source(),
@@ -322,7 +322,7 @@ public final class TaskGraph {
         String taskEdges = data.getGraph().edges().stream()
                 .map(p -> {
                     List<TaskEdge> edges = data.getGraph()
-                            .edgeValueOrDefault(p.source(), p.target(), Collections.<TaskEdge>emptyList());
+                            .edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
                 })
                 .collect(Collectors.joining(", "));

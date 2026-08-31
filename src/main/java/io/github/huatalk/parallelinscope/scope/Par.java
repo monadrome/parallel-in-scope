@@ -165,6 +165,6 @@ public final class Par {
     }
 
     private static <T> AsyncBatchResult<T> emptyBatchResult() {
-        return AsyncBatchResult.of(ImmutableList.<ListenableFuture<T>>of());
+        return AsyncBatchResult.of(ImmutableList.of());
     }
 }

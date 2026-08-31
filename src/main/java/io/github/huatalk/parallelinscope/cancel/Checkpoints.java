@@ -475,7 +475,7 @@ public final class Checkpoints {
             return supplier.get();
         } catch (Throwable t) {
             throwIfCancellationTrigger(t, declaredType, "checked supplier");
-            return Checkpoints.<T>rethrowUnchecked(t);
+            return Checkpoints.rethrowUnchecked(t);
         }
     }
 

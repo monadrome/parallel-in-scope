@@ -150,7 +150,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Creates an effectively unbounded queue with the default empty terminal policy. */
     public DrainingBlockingQueue() {
-        this(Integer.MAX_VALUE, Collections.<E>emptyList(), ShutdownPolicy.<E>empty());
+        this(Integer.MAX_VALUE, Collections.emptyList(), ShutdownPolicy.empty());
     }
 
     /**
@@ -159,7 +159,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws IllegalArgumentException if {@code capacity} is not positive
      */
     public DrainingBlockingQueue(int capacity) {
-        this(capacity, Collections.<E>emptyList(), ShutdownPolicy.<E>empty());
+        this(capacity, Collections.emptyList(), ShutdownPolicy.empty());
     }
 
     /**
@@ -170,7 +170,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws NullPointerException if {@code poison} is null
      */
     public DrainingBlockingQueue(int capacity, E poison) {
-        this(capacity, Collections.<E>emptyList(), ShutdownPolicy.poison(poison));
+        this(capacity, Collections.emptyList(), ShutdownPolicy.poison(poison));
     }
 
     /**
@@ -180,7 +180,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws NullPointerException if {@code policy} is null
      */
     public DrainingBlockingQueue(int capacity, ShutdownPolicy<E> policy) {
-        this(capacity, Collections.<E>emptyList(), policy);
+        this(capacity, Collections.emptyList(), policy);
     }
 
     /**
@@ -191,7 +191,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * @throws NullPointerException if the collection or an element is null
      */
     public DrainingBlockingQueue(Collection<? extends E> initialElements) {
-        this(Integer.MAX_VALUE, initialElements, ShutdownPolicy.<E>empty());
+        this(Integer.MAX_VALUE, initialElements, ShutdownPolicy.empty());
     }
 
     /**
@@ -228,7 +228,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Validates every write path before it observes queue state. A poison-equivalent value is
      * rejected by {@link Object#equals(Object)}, rather than identity, so a real element can never
      * be mistaken for the terminal signal. Consumers use the configured poison instance itself as
-     * the signal; this intentionally favours deterministic rejection at write time.
+     * the signal; this intentionally favors deterministic rejection at write time.
      */
     private E requireElement(E element) {
         Objects.requireNonNull(element, "element");
