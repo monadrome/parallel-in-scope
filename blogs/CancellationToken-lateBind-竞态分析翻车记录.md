@@ -10,7 +10,7 @@
 
 ```java
 private final SettableFuture<Object> futureToken = SettableFuture.create();
-private final AtomicReference<CancellationTokenState> state = new AtomicReference<>(RUNNING);
+private final AtomicReference<CancellationToken.State> state = new AtomicReference<>(RUNNING);
 ```
 
 对外暴露两个操作：

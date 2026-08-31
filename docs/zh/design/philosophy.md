@@ -218,7 +218,7 @@ Checkpoints.checkpoint("process-item", false); // 抛出 FatCancellationExceptio
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationTokenState` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS` 和 `NO_OP`）：
+`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS` 和 `NO_OP`）：
 
 | 状态 | Code | 含义 |
 |---|---|---|

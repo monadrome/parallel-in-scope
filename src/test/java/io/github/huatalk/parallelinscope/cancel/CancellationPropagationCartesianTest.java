@@ -98,7 +98,7 @@ public class CancellationPropagationCartesianTest {
             assertThat(childFuture).isCancelled();
             assertThat(child.getState())
                     .as("parent cancellation should have one state regardless of bind timing")
-                    .isEqualTo(CancellationTokenState.PROPAGATING_CANCELED);
+                    .isEqualTo(CancellationToken.State.PROPAGATING_CANCELED);
         } finally {
             timer.shutdownNow();
         }

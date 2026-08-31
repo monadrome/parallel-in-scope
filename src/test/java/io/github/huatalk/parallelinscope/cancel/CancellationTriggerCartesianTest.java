@@ -66,9 +66,9 @@ public class CancellationTriggerCartesianTest {
                 token.cancel(true);
             }
 
-            CancellationTokenState expected = trigger == Trigger.TIMEOUT
-                    ? CancellationTokenState.TIMEOUT_CANCELED
-                    : CancellationTokenState.MUTUAL_CANCELED;
+            CancellationToken.State expected = trigger == Trigger.TIMEOUT
+                    ? CancellationToken.State.TIMEOUT_CANCELED
+                    : CancellationToken.State.MUTUAL_CANCELED;
             awaitState(token, expected);
             assertThat(fixture.future).isCancelled();
             assertThat(submitter).isCancelled();
@@ -105,7 +105,7 @@ public class CancellationTriggerCartesianTest {
                     timer);
             token.cancel(false);
 
-            awaitState(token, CancellationTokenState.MUTUAL_CANCELED);
+            awaitState(token, CancellationToken.State.MUTUAL_CANCELED);
             assertThat(fixture.future).isCancelled();
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")
@@ -117,7 +117,7 @@ public class CancellationTriggerCartesianTest {
     }
 
     /** Waits for one exact token state produced by direct-executor callbacks. */
-    private static void awaitState(CancellationToken token, CancellationTokenState expected)
+    private static void awaitState(CancellationToken token, CancellationToken.State expected)
             throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (token.getState() != expected && System.nanoTime() < deadline) {
