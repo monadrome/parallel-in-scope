@@ -67,7 +67,7 @@ class TaskGraphObservationContextTest {
         java.util.concurrent.atomic.AtomicInteger detections =
                 new java.util.concurrent.atomic.AtomicInteger();
         global = GlobalPar.builder()
-                .livelockPolicy(io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
@@ -103,7 +103,7 @@ class TaskGraphObservationContextTest {
         java.util.concurrent.atomic.AtomicInteger detections =
                 new java.util.concurrent.atomic.AtomicInteger();
         global = GlobalPar.builder()
-                .livelockPolicy(io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())

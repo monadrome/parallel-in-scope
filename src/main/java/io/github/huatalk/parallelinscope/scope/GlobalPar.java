@@ -51,7 +51,7 @@ public final class GlobalPar implements AutoCloseable {
     private final String defaultName;
     private final GlobalExecutionPolicy executionPolicy;
     private final Map<String, GlobalExecutionPolicy> policyOverrides;
-    private final GlobalParLivelockPolicy livelockPolicy;
+    private final GlobalParDeadlockPolicy deadlockPolicy;
     private final GlobalParPurgePolicy purgePolicy;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -65,7 +65,7 @@ public final class GlobalPar implements AutoCloseable {
     private GlobalPar(Builder builder) {
         this.executionPolicy = builder.executionPolicy;
         this.policyOverrides = Collections.unmodifiableMap(new LinkedHashMap<>(builder.policyOverrides));
-        this.livelockPolicy = builder.livelockPolicy;
+        this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
         this.purger = new HeuristicPurger(
                 new AtomicBoolean(purgePolicy.enabled()),
@@ -148,8 +148,8 @@ public final class GlobalPar implements AutoCloseable {
         return override == null ? executionPolicy : override;
     }
 
-    public GlobalParLivelockPolicy livelockPolicy() {
-        return livelockPolicy;
+    public GlobalParDeadlockPolicy deadlockPolicy() {
+        return deadlockPolicy;
     }
 
     public GlobalParPurgePolicy purgePolicy() {
@@ -348,8 +348,8 @@ public final class GlobalPar implements AutoCloseable {
         private GlobalExecutionPolicy executionPolicy =
                 GlobalExecutionPolicy.builder().build();
         private final Map<String, GlobalExecutionPolicy> policyOverrides = new LinkedHashMap<>();
-        private GlobalParLivelockPolicy livelockPolicy =
-                GlobalParLivelockPolicy.builder().build();
+        private GlobalParDeadlockPolicy deadlockPolicy =
+                GlobalParDeadlockPolicy.builder().build();
         private GlobalParPurgePolicy purgePolicy =
                 GlobalParPurgePolicy.builder().build();
         private String defaultName;
@@ -368,8 +368,8 @@ public final class GlobalPar implements AutoCloseable {
             return this;
         }
 
-        public Builder livelockPolicy(GlobalParLivelockPolicy policy) {
-            this.livelockPolicy = Objects.requireNonNull(policy);
+        public Builder deadlockPolicy(GlobalParDeadlockPolicy policy) {
+            this.deadlockPolicy = Objects.requireNonNull(policy);
             return this;
         }
 

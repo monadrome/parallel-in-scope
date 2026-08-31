@@ -8,8 +8,8 @@ import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
-import io.github.huatalk.parallelinscope.spi.LivelockListener;
+import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
+import io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -110,9 +110,9 @@ class TaskGraphBatchIdentityTest {
 
     @Test
     void closingObservationPublishesDetectionEventAndRestoresOuterGraph() {
-        AtomicReference<LivelockListener.LivelockEvent> event = new AtomicReference<>();
+        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
         GlobalPar global = GlobalPar.builder()
-                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event::set)
                         .build())
@@ -133,9 +133,9 @@ class TaskGraphBatchIdentityTest {
 
     @Test
     void closingObservationPublishesExecutorCycleEdges() {
-        AtomicReference<LivelockListener.LivelockEvent> event = new AtomicReference<>();
+        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
         GlobalPar global = GlobalPar.builder()
-                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event::set)
                         .build())

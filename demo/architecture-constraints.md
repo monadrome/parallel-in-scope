@@ -23,7 +23,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 | 包名 | 说明 |
 |------|------|
 | `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, AsyncBatchResult, GlobalPar） |
-| `io.github.huatalk.parallelinscope.spi` | 扩展点（TaskListener, LivelockListener） |
+| `io.github.huatalk.parallelinscope.spi` | 扩展点（TaskListener, DeadlockDetectionListener） |
 
 #### 允许访问的类（例外）
 
@@ -112,7 +112,7 @@ mvn test
 │  ┌─────────────────────────────────────────────────┐   │
 │  │              spi (扩展点)                         │   │
 │  │  ┌─────────────┐ ┌─────────────────┐           │   │
-│  │  │TaskListener │ │LivelockListener │           │   │
+│  │  │TaskListener │ │DeadlockDetectionListener │           │   │
 │  │  └─────────────┘ └─────────────────┘           │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │

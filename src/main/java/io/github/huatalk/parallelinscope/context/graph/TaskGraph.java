@@ -9,8 +9,8 @@ import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
-import io.github.huatalk.parallelinscope.spi.LivelockListener;
-import io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent;
+import io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener;
+import io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener.DeadlockDetectionEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Task dependency graph for livelock/deadlock detection.
+ * Task dependency graph for potential deadlock detection.
  *
  * <p>Uses a composed {@link TransmittableThreadLocal} to share a directed {@link ValueGraph} of
  * task dependencies across all threads within a single request. Records parent-child task
@@ -269,25 +269,25 @@ public final class TaskGraph {
         else TTL.set(data);
     }
 
-    /** Finishes a GlobalPar-owned observation using the GlobalPar livelock policy. */
+    /** Finishes a GlobalPar-owned observation using the GlobalPar deadlock policy. */
     public static void finishObservation(TaskGraphObservationContext context) {
         Objects.requireNonNull(context, "context cannot be null");
         try {
             Data data = TTL.get();
             if (data != null
                     && !data.subTaskList.isEmpty()
-                    && context.owner().livelockPolicy().enabled()) {
-                LivelockEvent event = buildDetectionEvent(data);
+                    && context.owner().deadlockPolicy().enabled()) {
+                DeadlockDetectionEvent event = buildDetectionEvent(data);
                 if (event != null && event.hasAnyIssue()) {
-                    logger.log(Level.WARNING, "[[title=TaskGraph,function=livelockDetection]]" + event);
-                    for (LivelockListener listener :
-                            context.owner().livelockPolicy().listeners()) {
+                    logger.log(Level.WARNING, "[[title=TaskGraph,function=deadlockDetection]]" + event);
+                    for (DeadlockDetectionListener listener :
+                            context.owner().deadlockPolicy().listeners()) {
                         try {
                             listener.onDetection(event);
                         } catch (Exception e) {
                             logger.log(
                                     Level.WARNING,
-                                    "LivelockListener callback failed: "
+                                    "DeadlockDetectionListener callback failed: "
                                             + listener.getClass().getName(),
                                     e);
                         }
@@ -297,7 +297,8 @@ public final class TaskGraph {
         } catch (Exception e) {
             logger.log(
                     Level.WARNING,
-                    "[[title=TaskGraph,function=finishObservation]]" + "Failed to run GlobalPar livelock detection",
+                    "[[title=TaskGraph,function=finishObservation]]"
+                            + "Failed to run GlobalPar potential-deadlock detection",
                     e);
         } finally {
             if (context.previousData() == null) {
@@ -309,7 +310,7 @@ public final class TaskGraph {
         }
     }
 
-    private static LivelockEvent buildDetectionEvent(Data data) {
+    private static DeadlockDetectionEvent buildDetectionEvent(Data data) {
         boolean hasTaskCycle = data.isTaskCycle();
         boolean hasSelfLoop = data.isSelfLoop();
         boolean hasExecutorCycle = data.isExecutorCycle();
@@ -334,7 +335,7 @@ public final class TaskGraph {
                 })
                 .collect(Collectors.joining(", "));
 
-        return new LivelockEvent(
+        return new DeadlockDetectionEvent(
                 hasTaskCycle, hasSelfLoop,
                 hasExecutorCycle, hasExecutorSelfLoop,
                 taskEdges, executorEdges);

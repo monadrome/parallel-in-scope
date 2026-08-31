@@ -7,7 +7,7 @@
 
 ## Context
 
-执行器选择、跨线程取消、批次 deadline 和 livelock/purge 观测原先分散在旧配置与字符串绑定
+执行器选择、跨线程取消、批次 deadline 和 deadlock/purge 观测原先分散在旧配置与字符串绑定
 入口中，导致公共 API 同时暴露多套模型。项目需要在 Java 8 字节码约束下支持多个逻辑执行
 入口、稳定的 supplied-executor identity，以及可验证的嵌套批次语义。
 
@@ -50,7 +50,7 @@ GlobalPar = 应用级、不可变的多个 Par 容器 + 跨 Par/线程池策略
 GlobalParDefinition / GlobalPar
     └─ 应用生命周期：启动时构建，应用关闭时释放框架运行时
          ├─ GlobalParPolicy
-         │    ├─ livelock policy
+         │    ├─ deadlock policy
          │    └─ purge policy
          ├─ Par (多个逻辑执行入口)
          └─ ExecutorRuntime (按 supplied executor identity)
@@ -99,7 +99,7 @@ databasePar.map(ids, repository::load, options);
 | 任务提交到哪个资源 | `Par` |
 | 如何获得 `ListenableFuture` | `Par` 内部运行时 |
 | 全局默认超时和执行参数是什么 | `GlobalExecutionPolicy` |
-| 跨多个 `Par` 的 livelock 检测和线程池 purge 策略是什么 | `GlobalPar` |
+| 跨多个 `Par` 的 deadlock 检测和线程池 purge 策略是什么 | `GlobalPar` |
 | 一次批量任务的显式设置是什么 | `BatchExecutionOptions` |
 | 一次批量任务解析后的运行状态是什么 | `BatchExecutionContext` |
 | 单个元素任务如何访问取消和诊断上下文 | `TaskExecutionContext` |
@@ -133,7 +133,7 @@ String executorName -> ExecutorBinding
 6. 业务组件依赖 `Par` 对象，不依赖 `GlobalPar` service locator。
 7. 明确区分用户传入的 `ExecutorService` 和框架提交使用的 `ListeningExecutorService`。
 8. 真实身份、deadlock 探测和 purge 必须基于 supplied executor，而不是包装对象。
-9. 所有 `Par` 使用同一个 `GlobalExecutionPolicy`；跨 `Par` 的 livelock/purge 配置只由 `GlobalPar` 管理。
+9. 所有 `Par` 使用同一个 `GlobalExecutionPolicy`；跨 `Par` 的 deadlock/purge 配置只由 `GlobalPar` 管理。
 10. `TaskType` 描述任务行为，不决定选择哪个 `Par`。
 11. Java 8 是基础运行时；Java 21 虚拟线程通过同一 `ExecutorService` 抽象接入。
 
@@ -372,7 +372,7 @@ public final class GlobalPar {
 
     public Optional<Par> find(String name);
 
-    public GlobalParLivelockPolicy livelockPolicy();
+    public GlobalParDeadlockPolicy deadlockPolicy();
 
     public GlobalParPurgePolicy purgePolicy();
 
@@ -401,7 +401,7 @@ Builder 规则：
 - `defaultPar` 可选，但最多一个；理想 builder 以名称指定 default。
 - Builder 创建并拥有注册的 `Par`，不接受已属于其他 `GlobalPar` 的 `Par`。
 - build 后复制为不可变 map。
-- `livelockPolicy` 和 `purgePolicy` 在 Builder 中配置，build 后不可变。
+- `deadlockPolicy` 和 `purgePolicy` 在 Builder 中配置，build 后不可变。
 - `GlobalPar` 为每个已注册 supplied executor 建立一个线程池级运行时 coordinator。
 - `GlobalPar` 不负责 executor shutdown。
 
@@ -412,7 +412,7 @@ Builder 规则：
 ```text
 GlobalPar
     ├─ immutable Map<String, Par>
-    ├─ GlobalParLivelockPolicy
+    ├─ GlobalParDeadlockPolicy
     │    ├─ enabled
     │    ├─ listeners
     │    └─ graph retention/reporting rules
@@ -423,7 +423,7 @@ GlobalPar
          └─ Map<ExecutorIdentity, ExecutorRuntime>
 ```
 
-`GlobalParLivelockPolicy` 面向整个 `GlobalPar` 看到的任务图；`GlobalParPurgePolicy` 面向其中注册的物理线程池。它们不是某个 `Par` 的局部属性，也不随单次 `map` 调用变化。
+`GlobalParDeadlockPolicy` 面向整个 `GlobalPar` 看到的任务图；`GlobalParPurgePolicy` 面向其中注册的物理线程池。它们不是某个 `Par` 的局部属性，也不随单次 `map` 调用变化。
 
 ### 5.7 生命周期与状态归属
 
@@ -431,7 +431,7 @@ GlobalPar
 应用启动
   └─ build GlobalPar
        ├─ 校验并冻结 Par 注册表
-       ├─ 创建 GlobalParLivelockPolicy
+       ├─ 创建 GlobalParDeadlockPolicy
        ├─ 为每个 supplied executor 创建/复用 ExecutorRuntime
        └─ 注入 Par 到业务组件
 
@@ -445,7 +445,7 @@ GlobalPar
 
 请求结束
   └─ TaskGraphObservationContext.close()
-       └─ GlobalParLivelockPolicy 执行一次全图检测
+       └─ GlobalParDeadlockPolicy 执行一次全图检测
 
 应用关闭
   └─ GlobalPar.close()
@@ -686,13 +686,13 @@ outer(database@1a2b) -> inner(database@1a2b)
 
 ### 8.4 GlobalPar 级请求观测
 
-任务图可能跨越 `databasePar`、`httpPar` 和 `cpuPar`，因此 livelock 检测不能由任意一个 `ParConfig` 或单个 `Par` 决定。执行上下文绑定一个 `TaskGraphObservationContext`，所有注册 `Par` 的边都写入同一张图。
+任务图可能跨越 `databasePar`、`httpPar` 和 `cpuPar`，因此 deadlock 检测不能由任意一个 `ParConfig` 或单个 `Par` 决定。执行上下文绑定一个 `TaskGraphObservationContext`，所有注册 `Par` 的边都写入同一张图。
 
 请求结束时：
 
-1. 由 `GlobalParLivelockPolicy` 决定是否构建和检查完整任务图。
+1. 由 `GlobalParDeadlockPolicy` 决定是否构建和检查完整任务图。
 2. 由 GlobalPar 统一执行 task graph cycle、executor cycle 和 self-loop 检测。
-3. listener 集合来自 `GlobalParLivelockPolicy`，按 listener identity 去重。
+3. listener 集合来自 `GlobalParDeadlockPolicy`，按 listener identity 去重。
 4. `TaskGraph.finishObservation(TaskGraphObservationContext)` 是生命周期 API；不再接收 `ParConfig`。
 
 如果一个请求需要使用两个独立的 `GlobalPar`，必须显式创建两个 observation context；它们的任务图和 listener 不自动合并。这样“跨多个 Par 追踪”有一个明确的所有权边界：同一个 GlobalPar 内统一追踪，不同 GlobalPar 之间保持隔离。
@@ -858,9 +858,9 @@ Par cpuPar = global.par("cpu");
 ```java
 GlobalPar runtime = GlobalPar.builder()
         .defaultPar("database")
-        .livelockPolicy(GlobalParLivelockPolicy.builder()
+        .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                 .enabled(true)
-                .listener(livelockListener)
+                .listener(deadlockListener)
                 .build())
         .purgePolicy(GlobalParPurgePolicy.builder()
                 .enabled(true)
@@ -901,7 +901,7 @@ Par databasePar = global.par("database");
 Par cpuPar = global.par("cpu");
 ```
 
-`GlobalPar` 内所有 `Par` 使用同一个 `GlobalExecutionPolicy`，必要时使用按 Par 的 override。livelock 和 purge 仍然只由 GlobalPar 统一配置。
+`GlobalPar` 内所有 `Par` 使用同一个 `GlobalExecutionPolicy`，必要时使用按 Par 的 override。deadlock 和 purge 仍然只由 GlobalPar 统一配置。
 
 ## 14. 现有概念的理想处理
 
@@ -953,7 +953,7 @@ Par cpuPar = global.par("cpu");
 ### W3：GlobalPar 级请求上下文与任务图（P0，依赖 W1、W4）
 
 - `ThreadRelay` 传播 `ExecutorIdentity` 与 `Par` label；不得传播 runtime/config 对象。
-- `TaskEdge` 保存 source/target identity 和 label，不再保存 `ParConfig` 的 livelock 策略快照。
+- `TaskEdge` 保存 source/target identity 和 label，不再保存 `ParConfig` 的 deadlock 策略快照。
 - `GlobalPar` 创建并绑定 `TaskGraphObservationContext`；`TaskGraph.finishObservation` 只接收该 context。
 - 验证跨多个 ExecutorRuntime 的父子 `BatchExecutionContext` 取消传播，以及子 deadline 不超过父 deadline。
 - 产物：任务图迁移、同池不同 label、异池同 label、嵌套自环和跨多个 Par 追踪测试。
@@ -961,7 +961,7 @@ Par cpuPar = global.par("cpu");
 
 ### W4：GlobalPar、跨资源策略与依赖注入边界（P0，依赖 W1）
 
-- 实现不可变 `GlobalPar.Builder`、默认项、重复名称校验、`find/par` 错误模型、`GlobalParLivelockPolicy` 和 `GlobalParPurgePolicy`。
+- 实现不可变 `GlobalPar.Builder`、默认项、重复名称校验、`find/par` 错误模型、`GlobalParDeadlockPolicy` 和 `GlobalParPurgePolicy`。
 - 在 build 阶段为所有注册 Par 建立 identity 索引和线程池级 coordinator。
 - 静态 global 仅作为一次安装的可选便利入口；核心示例只在 composition root 查找并注入 `Par`。
 - 明确测试隔离策略，禁止生产 API 提供 reset/replace/clear。
@@ -1026,15 +1026,15 @@ Par cpuPar = global.par("cpu");
 
 ### GlobalPar
 
-- livelock detection 只由 `GlobalParLivelockPolicy` 配置和分发。
+- deadlock detection 只由 `GlobalParDeadlockPolicy` 配置和分发。
 - purge enablement/threshold 只由 `GlobalParPurgePolicy` 配置，状态按 supplied executor 维度维护。
-- `GlobalPar` 内所有注册 Par 的 livelock 边进入同一张请求级任务图。
+- `GlobalPar` 内所有注册 Par 的 deadlock 边进入同一张请求级任务图。
 - 重复名称 build 失败。
 - 不存在的名称查找失败并包含名称。
 - defaultPar 缺失时行为明确。
 - 静态 global 只能安装一次。
 - 显式 `GlobalPar` 不依赖静态全局状态。
-- `GlobalPar` 明确拥有 livelock policy、purge policy、ExecutorRuntime 和 observation context 生命周期。
+- `GlobalPar` 明确拥有 deadlock policy、purge policy、ExecutorRuntime 和 observation context 生命周期。
 - `GlobalPar.close()` 只关闭框架自己创建的运行时资源，不关闭 borrowed executor。
 
 ### 兼容性
@@ -1051,7 +1051,7 @@ Par cpuPar = global.par("cpu");
 GlobalPar (immutable)
     ├─ defaultPar
     └─ Map<String, Par>
-    ├─ GlobalParLivelockPolicy
+    ├─ GlobalParDeadlockPolicy
     ├─ GlobalParPurgePolicy
     │    └─ Map<ExecutorIdentity, ExecutorRuntime>
     └─ TaskGraphObservationContext factory
@@ -1085,7 +1085,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 最终原则：
 
 1. 一个 `Par` 稳定绑定一个执行资源。
-2. `GlobalPar` 只在构建期注册 `Par`，运行期只读，并拥有跨 Par 的 livelock 策略。
+2. `GlobalPar` 只在构建期注册 `Par`，运行期只读，并拥有跨 Par 的 deadlock 策略。
 3. 业务代码依赖 `Par`，不依赖字符串注册表。
 4. supplied executor 是真实资源；submission executor 是技术适配器。
 5. 名称用于查找和诊断，但不用于资源 identity。
@@ -1113,11 +1113,11 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 
 ### 18.3 策略归属不变量
 
-1. livelock detection 只由 `GlobalParLivelockPolicy` 开关和 listener 决定。
+1. deadlock detection 只由 `GlobalParDeadlockPolicy` 开关和 listener 决定。
 2. 同一个 `GlobalPar` 内所有注册 `Par` 的任务边进入同一个 observation context。
 3. purge enablement、阈值和 coordinator 只由 `GlobalParPurgePolicy` 管理，状态按 supplied executor 维度维护。
 4. `TaskType` 只能描述任务行为，不能隐式路由到某个 `Par` 或 executor。
-5. 单次 `BatchExecutionOptions` 不能覆盖或修改 GlobalPar 的 livelock/purge 策略。
+5. 单次 `BatchExecutionOptions` 不能覆盖或修改 GlobalPar 的 deadlock/purge 策略。
 
 ### 18.4 取消与 deadline 不变量
 
@@ -1153,7 +1153,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 □ 是否把 adapter 当成了真实 executor？
 □ 是否破坏了跨 executor 的父子取消链？
 □ 是否让子 deadline 晚于父 deadline？
-□ 是否让 livelock/purge 再次退回 Par 或单个 config？
+□ 是否让 deadlock/purge 再次退回 Par 或单个 config？
 □ 是否引入了隐式字符串路由或静态全局依赖？
 □ 是否需要新增 identity、生命周期、嵌套取消或多 Par 测试？
 ```
@@ -1171,7 +1171,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 | 某次调用解析后的 deadline、token、任务数 | `BatchExecutionContext` | 放入 `Par`、`GlobalPar` 或静态变量 |
 | 单个元素的执行信息 | `TaskExecutionContext` | 放入批次对象之外的共享可变状态 |
 | supplied executor 的适配、能力和 identity | `ExecutorRuntime` | 以 adapter 作为资源身份 |
-| 跨 Par 的 livelock 观测 | `TaskGraphObservationContext` / `GlobalParLivelockPolicy` | 在单个 `Par` 内独立检测 |
+| 跨 Par 的 deadlock 观测 | `TaskGraphObservationContext` / `GlobalParDeadlockPolicy` | 在单个 `Par` 内独立检测 |
 | 线程池级 purge 状态和阈值 | `GlobalParPurgePolicy` 的 executor identity registry | 按 Par、调用或 adapter 建立状态 |
 
 如果一个改动同时涉及两个作用域，必须明确两者之间的接口，而不是复制一份状态。复制配置或上下文通常意味着产生了第二个事实来源。
@@ -1192,7 +1192,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 |---|---|
 | executor 选择或绑定 | identity 规则、adapter 测试、borrowed ownership 说明 |
 | 嵌套 map、取消或超时 | parent/child context 测试、跨 executor 测试、deadline 规则 |
-| livelock 观测 | observation 生命周期、同池/异池图测试、listener 去重规则 |
+| deadlock 观测 | observation 生命周期、同池/异池图测试、listener 去重规则 |
 | purge | supplied identity registry、同池多 Par 测试、close 行为 |
 | 公共 API 或命名 | 迁移表、示例代码、Java 8 编译和 Javadoc |
 
@@ -1207,7 +1207,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 □ 是否新增了第二个配置/状态事实来源？
 □ 是否混淆 supplied executor 与 submission adapter？
 □ 是否改变了父子取消方向或允许子 deadline 延后？
-□ 是否把 GlobalPar 级 livelock/purge 下沉到 Par 或单次调用？
+□ 是否把 GlobalPar 级 deadlock/purge 下沉到 Par 或单次调用？
 □ 是否让业务调用重新依赖字符串查找、静态 global 或隐式路由？
 □ 是否同步更新 API 示例、迁移说明、验收标准和测试矩阵？
 □ 是否通过完整测试、Java 8 编译、Javadoc 和关键并发回归？
@@ -1220,7 +1220,7 @@ GlobalPar：应用组装 + 跨 Par 观测 + 线程池级维护
 以下决策属于稳定架构事实，后续变更必须在文档中留下新的决策记录，并说明被替代的不变量：
 
 - `Par` 是否仍然一对一绑定 supplied executor；
-- `GlobalPar` 是否仍然是 livelock/purge 的唯一跨资源 owner；
+- `GlobalPar` 是否仍然是 deadlock/purge 的唯一跨资源 owner；
 - cancellation 是否仍然沿显式 parent context 向下传播；
 - borrowed executor 的 shutdown owner 是否仍然是创建者；
 - Java 8 核心是否仍然与 Java 21 provider 解耦。

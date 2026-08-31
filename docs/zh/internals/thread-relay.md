@@ -18,7 +18,7 @@ parallel-in-scope 的核心 API 是实例方法 `Par.map()`。调用者传入 `B
   └── 提交任务 → 线程池
         ├── Worker-1: 需要知道 token-A（用于取消传播）
         ├── Worker-2: 需要知道 parallelism=8（用于嵌套并行）
-        └── Worker-3: 需要知道任务名（用于 livelock 检测）
+        └── Worker-3: 需要知道任务名（用于 deadlock 检测）
 ```
 
 Worker 线程拿不到这些信息——它们是独立的执行实体，没有参数传递机制能自动跨越线程边界。

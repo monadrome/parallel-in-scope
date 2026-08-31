@@ -87,7 +87,7 @@ Use an [observation scope](#observe-nested-work) when the request needs graph di
 
 ## Observe nested work
 
-Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes livelock listeners at the end of the request.
+Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
 
 ```java
 try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
@@ -100,9 +100,9 @@ try (TaskGraphObservationContext observation = global.openTaskGraphObservation()
 Configure the policy while building the topology:
 
 ```java
-GlobalParLivelockPolicy livelock = GlobalParLivelockPolicy.builder()
+GlobalParDeadlockPolicy deadlock = GlobalParDeadlockPolicy.builder()
         .enabled(true)
-        .listener(event -> log.warn("Potential livelock: {}", event))
+        .listener(event -> log.warn("Potential deadlock: {}", event))
         .build();
 ```
 

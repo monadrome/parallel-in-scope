@@ -365,13 +365,13 @@ try {
 - `maximumPoolSize` 为 `Integer.MAX_VALUE` 的执行器 → 不会死锁，因为线程数可以无限增长
 - 其他情况（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能死锁**
 
-检测结果通过 `LivelockListener` SPI 回调通知：
+检测结果通过 `DeadlockDetectionListener` SPI 回调通知：
 
 ```java
 ParConfig config = ParConfig.builder()
     .executor("shared-pool", pool)
-    .livelockDetectionEnabled(true)
-    .livelockListener(event -> {
+    .deadlockDetectionEnabled(true)
+    .deadlockListener(event -> {
         if (event.hasExecutorSelfLoop()) {
             log.warn("Potential deadlock: executor self-loop detected! {}",
                 event.getExecutorEdges());
@@ -475,7 +475,7 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 
 潜龙勿用——但如果用了，就用对。
 
-如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `livelockDetectionEnabled(true)`——一行配置，零代码改动。至少，下次卡死的时候你能知道为什么。
+如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `deadlockDetectionEnabled(true)`——一行配置，零代码改动。至少，下次卡死的时候你能知道为什么。
 
 ---
 

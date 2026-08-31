@@ -87,7 +87,7 @@ databasePar.map(ids, id -> {
 
 ## 观测嵌套工作
 
-任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用 livelock listener。
+任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
 
 ```java
 try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
@@ -99,9 +99,9 @@ try (TaskGraphObservationContext observation = global.openTaskGraphObservation()
 在构建拓扑时配置策略：
 
 ```java
-GlobalParLivelockPolicy livelock = GlobalParLivelockPolicy.builder()
+GlobalParDeadlockPolicy deadlock = GlobalParDeadlockPolicy.builder()
         .enabled(true)
-        .listener(event -> log.warn("Potential livelock: {}", event))
+        .listener(event -> log.warn("Potential deadlock: {}", event))
         .build();
 ```
 

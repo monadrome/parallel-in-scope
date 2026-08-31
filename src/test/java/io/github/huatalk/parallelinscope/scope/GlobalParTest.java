@@ -404,16 +404,16 @@ class GlobalParTest {
     }
 
     @Test
-    void purgePolicyAndLivelockListenersAreImmutableAndIdentityDeduplicated() {
+    void purgePolicyAndDeadlockDetectionListenersAreImmutableAndIdentityDeduplicated() {
         AtomicInteger calls = new AtomicInteger();
-        io.github.huatalk.parallelinscope.spi.LivelockListener listener = event -> calls.incrementAndGet();
-        GlobalParLivelockPolicy livelock = GlobalParLivelockPolicy.builder()
+        io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener listener = event -> calls.incrementAndGet();
+        GlobalParDeadlockPolicy deadlock = GlobalParDeadlockPolicy.builder()
                 .enabled(true)
                 .listener(listener)
                 .listener(listener)
                 .build();
-        assertThat(livelock.listeners()).hasSize(1);
-        assertThatThrownBy(() -> livelock.listeners().clear()).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(deadlock.listeners()).hasSize(1);
+        assertThatThrownBy(() -> deadlock.listeners().clear()).isInstanceOf(UnsupportedOperationException.class);
         GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(1.0)
@@ -423,7 +423,7 @@ class GlobalParTest {
         assertThat(purge.queuePressureThreshold()).isEqualTo(1.0);
         assertThat(purge.canceledTaskRatioThreshold()).isEqualTo(0.5);
         assertThat(GlobalParPurgePolicy.builder().build().enabled()).isFalse();
-        assertThat(GlobalParLivelockPolicy.builder().build().enabled()).isFalse();
+        assertThat(GlobalParDeadlockPolicy.builder().build().enabled()).isFalse();
     }
 
     @Test
@@ -432,20 +432,20 @@ class GlobalParTest {
         try {
             GlobalExecutionPolicy policy =
                     GlobalExecutionPolicy.builder().defaultTimeoutMillis(123).build();
-            GlobalParLivelockPolicy livelock =
-                    GlobalParLivelockPolicy.builder().enabled(true).build();
+            GlobalParDeadlockPolicy deadlock =
+                    GlobalParDeadlockPolicy.builder().enabled(true).build();
             GlobalParPurgePolicy purge =
                     GlobalParPurgePolicy.builder().enabled(true).build();
             GlobalPar global = GlobalPar.builder()
                     .executionPolicy(policy)
-                    .livelockPolicy(livelock)
+                    .deadlockPolicy(deadlock)
                     .purgePolicy(purge)
                     .register("one", executor)
                     .build();
 
             assertThat(global.executionPolicy()).isSameAs(policy);
             assertThat(global.executionPolicyFor("one")).isSameAs(policy);
-            assertThat(global.livelockPolicy()).isSameAs(livelock);
+            assertThat(global.deadlockPolicy()).isSameAs(deadlock);
             assertThat(global.purgePolicy()).isSameAs(purge);
             assertThat(global.find("one")).contains(global.par("one"));
             assertThat(global.find("missing")).isEmpty();

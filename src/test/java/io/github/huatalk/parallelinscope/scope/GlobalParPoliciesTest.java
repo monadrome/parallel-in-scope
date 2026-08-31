@@ -96,10 +96,10 @@ class GlobalParPoliciesTest {
     }
 
     @Test
-    void livelockPolicyAndExecutionPolicyBuildersExposeFluentSelfReturns() {
-        GlobalParLivelockPolicy.Builder livelock = GlobalParLivelockPolicy.builder();
-        assertThat(livelock.enabled(true)).isSameAs(livelock);
-        assertThat(livelock.build().enabled()).isTrue();
+    void deadlockPolicyAndExecutionPolicyBuildersExposeFluentSelfReturns() {
+        GlobalParDeadlockPolicy.Builder deadlock = GlobalParDeadlockPolicy.builder();
+        assertThat(deadlock.enabled(true)).isSameAs(deadlock);
+        assertThat(deadlock.build().enabled()).isTrue();
 
         GlobalExecutionPolicy.Builder execution = GlobalExecutionPolicy.builder();
         assertThat(execution.defaultTimeoutMillis(1234L)).isSameAs(execution);

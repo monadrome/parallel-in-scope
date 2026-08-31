@@ -10,7 +10,7 @@ import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
+import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -174,7 +174,7 @@ class TaskGraphExportTest {
         GlobalPar global = GlobalPar.builder()
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
-                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
@@ -217,7 +217,7 @@ class TaskGraphExportTest {
             outerExecutor.shutdownNow();
             innerExecutor.shutdownNow();
         }
-        // The acyclic production path must not raise any livelock event.
+        // The acyclic production path must not raise any deadlock event.
         assertThat(detections.get()).isZero();
     }
 

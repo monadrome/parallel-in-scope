@@ -46,7 +46,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 **Public API 类**：`GlobalPar`, `Par`, `BatchExecutionOptions`, `AsyncBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
 
-**SPI 接口**：`TaskListener`, `LivelockListener`
+**SPI 接口**：`TaskListener`, `DeadlockDetectionListener`
 
 **Internal 类**：其余所有类
 

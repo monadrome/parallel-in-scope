@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.GlobalParLivelockPolicy;
+import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Polarity complements to {@link TaskGraphBatchIdentityTest}: clean graphs must evaluate every
  * detection predicate {@code false}, unknown nodes pass through {@code displayNode} unformatted,
- * missing labels fall back to {@code NA}, and a benign graph publishes no livelock event.
+ * missing labels fall back to {@code NA}, and a benign graph publishes no deadlock event.
  */
 class TaskGraphPolarityTest {
 
@@ -93,7 +93,7 @@ class TaskGraphPolarityTest {
     void benignGraphPublishesNoDetectionEventOnObservationClose() {
         AtomicInteger detections = new AtomicInteger();
         GlobalPar global = GlobalPar.builder()
-                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
@@ -108,10 +108,10 @@ class TaskGraphPolarityTest {
 
     @Test
     void taskCycleWithoutExecutorRiskPublishesEventWithFalseExecutorFlags() throws Exception {
-        java.util.concurrent.atomic.AtomicReference<io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent>
+        java.util.concurrent.atomic.AtomicReference<io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener.DeadlockDetectionEvent>
                         captured = new java.util.concurrent.atomic.AtomicReference<>();
         GlobalPar global = GlobalPar.builder()
-                .livelockPolicy(GlobalParLivelockPolicy.builder()
+                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(captured::set)
                         .build())
@@ -123,7 +123,7 @@ class TaskGraphPolarityTest {
             TaskGraph.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
         }
 
-        io.github.huatalk.parallelinscope.spi.LivelockListener.LivelockEvent event = captured.get();
+        io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener.DeadlockDetectionEvent event = captured.get();
         assertThat(event).isNotNull();
         assertThat(event.hasTaskCycle()).isTrue();
         assertThat(event.hasSelfLoop()).isFalse();

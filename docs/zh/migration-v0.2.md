@@ -9,7 +9,7 @@
 | `ParOptions` | `BatchExecutionOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` 的 timeout/listener 默认值 | `GlobalExecutionPolicy` |
-| `ParConfig` 的 livelock 设置 | `GlobalParLivelockPolicy` |
+| `ParConfig` 的 livelock 设置 | `GlobalParDeadlockPolicy` |
 | `ParConfig` 的 purge 设置 | `GlobalParPurgePolicy` |
 | 调用时按名称解析执行器 | `GlobalPar` 构建期绑定执行器 |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` 作用域 |
@@ -17,5 +17,7 @@
 新的类型边界是刻意设计：`BatchExecutionOptions` 是调用方输入，`BatchExecutionContext` 是单批运行时状态。取消、deadline 和执行器 identity 通过父子批次上下文传播，也支持跨具名 `Par` 的嵌套调用。
 
 早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `BatchExecutionOptions`；在 `0.x` 阶段不保留兼容别名。
+
+早期快照还曾将这套检测命名为 `GlobalParLivelockPolicy` 和 `LivelockListener`。请分别改为 `GlobalParDeadlockPolicy` 和 `DeadlockDetectionListener`；当前检测针对依赖图中的潜在死锁结构，不证明运行时已经死锁，也不检测活锁。
 
 旧的 `ParConfig`、`ParOptions`、`ExecutorResolver`、`GlobalParConfig` 及旧版 `Par` 入口都不是兼容别名。迁移时请同时更新 import、构建方式和调用方式。注册的执行器仍由应用拥有并负责关闭。

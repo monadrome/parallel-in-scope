@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- Rename `GlobalParLivelockPolicy` to `GlobalParDeadlockPolicy` and `LivelockListener` to `DeadlockDetectionListener`; the graph reports potential deadlock structures, not runtime livelock.
 - Rename `ExecutionOptions` to `BatchExecutionOptions` to make its per-`Par.map` scope explicit.
 - Replace the abrupt-close `ClosableBlockingQueue` (recovery lists, `remainingList()`) with `DrainingBlockingQueue`: `close()` rejects producers while consumers keep draining queued elements until the `DRAINED` terminal state. No custom shutdown exception types are introduced: write rejections throw `IllegalStateException`, drained reads throw `NoSuchElementException`.
 
@@ -19,7 +20,7 @@
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
 - Add the public `ActionGate` API for count- and duration-based action gating.
-- Add immutable multi-`Par` `GlobalPar` topology, `GlobalExecutionPolicy`, livelock/purge policies, and explicit observation scopes.
+- Add immutable multi-`Par` `GlobalPar` topology, `GlobalExecutionPolicy`, deadlock/purge policies, and explicit observation scopes.
 - Add `ClosableBlockingQueue` lifecycle shutdown, recovery lists, poison signaling, and post-close FIFO `drainTo` recovery transfer.
 
 ### Fixes

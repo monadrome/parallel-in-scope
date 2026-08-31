@@ -1,25 +1,25 @@
 package io.github.huatalk.parallelinscope.spi;
 
 /**
- * SPI: Livelock/deadlock detection event listener.
+ * SPI: potential deadlock detection event listener.
  *
- * <p>Receives notifications when potential livelock or deadlock situations are detected in the task
- * dependency graph.
+ * <p>Receives notifications when a potential deadlock structure is detected in the task dependency
+ * graph. The event does not prove that threads are currently deadlocked.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @FunctionalInterface
-public interface LivelockListener {
+public interface DeadlockDetectionListener {
 
     /**
-     * Called when livelock detection completes for a request.
+     * Called when deadlock detection completes for a request.
      *
      * @param event the detection result
      */
-    void onDetection(LivelockEvent event);
+    void onDetection(DeadlockDetectionEvent event);
 
-    /** Result of a livelock detection pass. */
-    class LivelockEvent {
+    /** Result of a deadlock detection pass. */
+    class DeadlockDetectionEvent {
         private final boolean taskCycle;
         private final boolean selfLoop;
         private final boolean executorCycle;
@@ -28,7 +28,7 @@ public interface LivelockListener {
         private final String executorEdges;
 
         /**
-         * Creates an immutable livelock detection event.
+         * Creates an immutable deadlock detection event.
          *
          * @param taskCycle whether the task graph contains a cycle
          * @param selfLoop whether the task graph contains a self-loop
@@ -37,7 +37,7 @@ public interface LivelockListener {
          * @param taskEdges the formatted task-edge diagnostics
          * @param executorEdges the formatted executor-edge diagnostics
          */
-        public LivelockEvent(
+        public DeadlockDetectionEvent(
                 boolean taskCycle,
                 boolean selfLoop,
                 boolean executorCycle,
