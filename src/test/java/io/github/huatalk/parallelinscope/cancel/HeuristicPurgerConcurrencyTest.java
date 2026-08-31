@@ -113,9 +113,9 @@ public class HeuristicPurgerConcurrencyTest {
         executor.releasePurge.countDown();
     }
 
-    /** A failed purge preserves demand and receives one delayed retry. */
+    /** A failed purge preserves demand and retries only after a new cancellation signal. */
     @Test
-    public void failedPurgeIsRetriedOnce() throws Exception {
+    public void failedPurgeRetriesOnlyAfterNewSignal() throws Exception {
         CountingQueue queue = new CountingQueue(20);
         BlockingPurgeExecutor executor = executor(queue);
         executor.failFirst = true;
@@ -125,15 +125,21 @@ public class HeuristicPurgerConcurrencyTest {
 
         cancel(tasks, 0, 2, observer);
 
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
+        await().during(500, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
+
+        cancel(tasks, 2, 4, observer);
+
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertThat(executor.purgeCount).hasValue(2);
-            assertThat(queue).hasSize(14);
+            assertThat(queue).hasSize(12);
         });
     }
 
-    /** A second failure for an unchanged cancellation sequence does not retry forever. */
+    /** A failed purge stops without retrying the unchanged cancellation sequence. */
     @Test
-    public void repeatedPurgeFailureStopsAfterOneRetry() throws Exception {
+    public void repeatedPurgeFailureStopsWithoutNewSignals() throws Exception {
         CountingQueue queue = new CountingQueue(20);
         BlockingPurgeExecutor executor = executor(queue);
         executor.failAlways = true;
@@ -143,9 +149,9 @@ public class HeuristicPurgerConcurrencyTest {
 
         cancel(tasks, 0, 2, observer);
 
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(2));
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
         await().during(1_500, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(2));
+                .untilAsserted(() -> assertThat(executor.purgeCount).hasValue(1));
     }
 
     /** Creates and tracks a dormant executor backed by the supplied queue. */
