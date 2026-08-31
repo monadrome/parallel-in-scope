@@ -1,0 +1,24 @@
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraph.java
+  h_a991f50801869b 163,193,210,236,325
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  h_a991f50801869b 310
+src/main/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutor.java
+  h_a991f50801869b 97,109,111
+src/main/java/io/github/huatalk/parallelinscope/cancel/Checkpoints.java
+  h_a991f50801869b 478
+src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  h_a991f50801869b 168
+src/main/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueue.java
+  h_a991f50801869b 153,162,173,183,194,231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0c7c6b6397075562383185c7b0af4590ef10f0cc",
+  "prompts": {},
+  "humans": {
+    "h_a991f50801869b": {
+      "author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
