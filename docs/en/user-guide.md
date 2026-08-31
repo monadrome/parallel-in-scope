@@ -116,7 +116,7 @@ Purge is optional and applies only when a supplied executor is a `ThreadPoolExec
 GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
         .enabled(true)
         .queuePressureThreshold(0.80)
-        .cancelledTaskRatioThreshold(0.05)
+        .canceledTaskRatioThreshold(0.05)
         .build();
 
 GlobalPar global = GlobalPar.builder()

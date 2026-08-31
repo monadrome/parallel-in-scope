@@ -92,17 +92,14 @@ public final class Par {
             @Nullable List<T> list, Function<? super T, ? extends R> function, ExecutionOptions options) {
         int taskCount = list == null ? 0 : list.size();
         BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
+        io.github.huatalk.parallelinscope.context.GlobalParObservationContext currentObservation =
+                io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current();
         io.github.huatalk.parallelinscope.context.GlobalParObservationContext observation = parent != null
                         && parent.observationContext() != null
                         && parent.observationContext().owner() == globalPar
                 ? parent.observationContext()
-                : parent == null
-                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
-                                        != null
-                                && io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
-                                                .owner()
-                                        == globalPar
-                        ? io.github.huatalk.parallelinscope.context.GlobalParObservationContext.current()
+                : parent == null && currentObservation != null && currentObservation.owner() == globalPar
+                        ? currentObservation
                         : null;
         BatchExecutionContext batchContext = BatchExecutionContext.resolve(
                 globalPar.executionPolicyFor(displayName),
@@ -116,7 +113,7 @@ public final class Par {
     }
 
     private <T, R> AsyncBatchResult<R> executeGlobal(
-            List<T> list, Function<T, Callable<R>> callableMapper, BatchExecutionContext batchContext) {
+            @Nullable List<T> list, Function<T, Callable<R>> callableMapper, BatchExecutionContext batchContext) {
         if (list == null || list.isEmpty()) return emptyBatchResult();
         TaskEdge edge = new TaskEdge(
                 batchContext.effectiveParallelism(),

@@ -115,7 +115,7 @@ purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生
 GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
         .enabled(true)
         .queuePressureThreshold(0.80)
-        .cancelledTaskRatioThreshold(0.05)
+        .canceledTaskRatioThreshold(0.05)
         .build();
 
 GlobalPar global = GlobalPar.builder()

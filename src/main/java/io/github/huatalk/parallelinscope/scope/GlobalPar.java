@@ -70,7 +70,7 @@ public final class GlobalPar implements AutoCloseable {
         this.purger = new HeuristicPurger(
                 new AtomicBoolean(purgePolicy.enabled()),
                 new AtomicDouble(purgePolicy.queuePressureThreshold()),
-                new AtomicDouble(purgePolicy.cancelledTaskRatioThreshold()));
+                new AtomicDouble(purgePolicy.canceledTaskRatioThreshold()));
         AtomicInteger threadId = new AtomicInteger();
         ThreadFactory factory = runnable -> {
             Thread thread = new Thread(runnable, "GlobalPar-runtime-" + threadId.incrementAndGet());

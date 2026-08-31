@@ -994,6 +994,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Finds a live node's predecessor, reusing an earlier ancestor when possible. */
     private Node<E> findPredecessor(Node<E> node, Node<E> ancestor) {
+        Objects.requireNonNull(node, "node");
+        Objects.requireNonNull(ancestor, "ancestor");
         if (ancestor.item == null) {
             ancestor = head;
         }
@@ -1085,7 +1087,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /** Removes and returns the first element; caller must hold the consumer monitor. */
     private E dequeue() {
         Node<E> oldHead = head;
-        Node<E> first = oldHead.next;
+        Node<E> first = Objects.requireNonNull(oldHead.next, "queue is empty");
         oldHead.next = oldHead;
         head = first;
         E item = first.item;
@@ -1117,7 +1119,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     /** Unlinks the tail node; caller must hold both monitors. */
     private E unlinkLast() {
         Node<E> trail = head;
-        Node<E> node = trail.next;
+        Node<E> node = Objects.requireNonNull(trail.next, "queue is empty");
         while (node.next != null) {
             trail = node;
             node = node.next;

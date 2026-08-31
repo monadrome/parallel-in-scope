@@ -70,7 +70,7 @@ public class FutureInspectorTest {
         ListenableFuture<String> canceled = Futures.immediateCancelledFuture();
         assertThatThrownBy(() -> FutureInspector.exceptionNow(canceled))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("cancelled");
+                .hasMessageContaining("canceled");
     }
 
     @Test

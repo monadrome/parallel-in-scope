@@ -57,7 +57,7 @@ class GlobalParPoliciesTest {
     void purgePolicyThresholdsAcceptBoundsOnly() {
         GlobalParPurgePolicy policy = GlobalParPurgePolicy.builder()
                 .queuePressureThreshold(1.0)
-                .cancelledTaskRatioThreshold(1.0)
+                .canceledTaskRatioThreshold(1.0)
                 .build();
         assertThat(policy).isNotNull();
 
@@ -70,11 +70,11 @@ class GlobalParPoliciesTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.queuePressureThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(1.5))
+        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(1.5))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(0d))
+        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(0d))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.cancelledTaskRatioThreshold(Double.NaN))
+        assertThatThrownBy(() -> builder.canceledTaskRatioThreshold(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -83,16 +83,16 @@ class GlobalParPoliciesTest {
         GlobalParPurgePolicy defaults = GlobalParPurgePolicy.builder().build();
         assertThat(defaults.enabled()).isFalse();
         assertThat(defaults.queuePressureThreshold()).isEqualTo(0.80d);
-        assertThat(defaults.cancelledTaskRatioThreshold()).isEqualTo(0.05d);
+        assertThat(defaults.canceledTaskRatioThreshold()).isEqualTo(0.05d);
 
         GlobalParPurgePolicy custom = GlobalParPurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(0.5d)
-                .cancelledTaskRatioThreshold(0.25d)
+                .canceledTaskRatioThreshold(0.25d)
                 .build();
         assertThat(custom.enabled()).isTrue();
         assertThat(custom.queuePressureThreshold()).isEqualTo(0.5d);
-        assertThat(custom.cancelledTaskRatioThreshold()).isEqualTo(0.25d);
+        assertThat(custom.canceledTaskRatioThreshold()).isEqualTo(0.25d);
     }
 
     @Test

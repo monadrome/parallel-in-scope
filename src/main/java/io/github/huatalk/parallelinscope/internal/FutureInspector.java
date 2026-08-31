@@ -48,7 +48,7 @@ public final class FutureInspector {
             throw new IllegalStateException("Task has not completed");
         }
         if (future.isCancelled()) {
-            throw new IllegalStateException("Task was cancelled");
+            throw new IllegalStateException("Task was canceled");
         }
         try {
             future.get();

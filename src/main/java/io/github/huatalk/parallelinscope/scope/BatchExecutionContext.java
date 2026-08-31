@@ -5,6 +5,7 @@ import io.github.huatalk.parallelinscope.context.GlobalParObservationContext;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Immutable resolved state for one {@code Par.map} invocation; never cached by a {@code Par} or
@@ -60,7 +61,10 @@ public final class BatchExecutionContext {
      * compatibility and tests; normal execution uses the identity-aware overload below.
      */
     public static BatchExecutionContext resolve(
-            GlobalExecutionPolicy policy, ExecutionOptions options, int taskCount, BatchExecutionContext parent) {
+            GlobalExecutionPolicy policy,
+            ExecutionOptions options,
+            int taskCount,
+            @Nullable BatchExecutionContext parent) {
         return resolve(policy, options, taskCount, parent, null);
     }
 
@@ -68,8 +72,8 @@ public final class BatchExecutionContext {
             GlobalExecutionPolicy policy,
             ExecutionOptions options,
             int taskCount,
-            BatchExecutionContext parent,
-            GlobalParObservationContext observationContext) {
+            @Nullable BatchExecutionContext parent,
+            @Nullable GlobalParObservationContext observationContext) {
         Objects.requireNonNull(policy);
         Objects.requireNonNull(options);
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
@@ -120,8 +124,8 @@ public final class BatchExecutionContext {
             GlobalExecutionPolicy policy,
             ExecutionOptions options,
             int taskCount,
-            BatchExecutionContext parent,
-            GlobalParObservationContext observationContext,
+            @Nullable BatchExecutionContext parent,
+            @Nullable GlobalParObservationContext observationContext,
             ExecutorIdentity executorIdentity,
             String parLabel) {
         BatchExecutionContext context = resolve(policy, options, taskCount, parent, observationContext);

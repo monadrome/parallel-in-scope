@@ -9,12 +9,12 @@ package io.github.huatalk.parallelinscope.scope;
 public final class GlobalParPurgePolicy {
     private final boolean enabled;
     private final double queuePressureThreshold;
-    private final double cancelledTaskRatioThreshold;
+    private final double canceledTaskRatioThreshold;
 
     private GlobalParPurgePolicy(Builder builder) {
         this.enabled = builder.enabled;
         this.queuePressureThreshold = builder.queuePressureThreshold;
-        this.cancelledTaskRatioThreshold = builder.cancelledTaskRatioThreshold;
+        this.canceledTaskRatioThreshold = builder.canceledTaskRatioThreshold;
     }
 
     public static Builder builder() {
@@ -29,14 +29,14 @@ public final class GlobalParPurgePolicy {
         return queuePressureThreshold;
     }
 
-    public double cancelledTaskRatioThreshold() {
-        return cancelledTaskRatioThreshold;
+    public double canceledTaskRatioThreshold() {
+        return canceledTaskRatioThreshold;
     }
 
     public static final class Builder {
         private boolean enabled;
         private double queuePressureThreshold = 0.80;
-        private double cancelledTaskRatioThreshold = 0.05;
+        private double canceledTaskRatioThreshold = 0.05;
 
         public Builder enabled(boolean enabled) {
             this.enabled = enabled;
@@ -49,9 +49,9 @@ public final class GlobalParPurgePolicy {
             return this;
         }
 
-        public Builder cancelledTaskRatioThreshold(double threshold) {
-            validate(threshold, "cancelledTaskRatioThreshold");
-            this.cancelledTaskRatioThreshold = threshold;
+        public Builder canceledTaskRatioThreshold(double threshold) {
+            validate(threshold, "canceledTaskRatioThreshold");
+            this.canceledTaskRatioThreshold = threshold;
             return this;
         }
 

@@ -188,9 +188,9 @@ public final class TaskGraph {
             Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
             for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
-                List<TaskEdge> edges = getGraph()
+                List<TaskEdge> edges = Objects.requireNonNull(getGraph()
                         .edgeValueOrDefault(
-                                taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList());
+                                taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList()));
                 for (TaskEdge taskEdge : edges) {
                     String sourceExecutor = taskEdge.getSourceExecutorName();
                     String targetExecutor = taskEdge.getExecutorName();

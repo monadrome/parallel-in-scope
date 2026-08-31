@@ -417,11 +417,11 @@ class GlobalParTest {
         GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(1.0)
-                .cancelledTaskRatioThreshold(0.5)
+                .canceledTaskRatioThreshold(0.5)
                 .build();
         assertThat(purge.enabled()).isTrue();
         assertThat(purge.queuePressureThreshold()).isEqualTo(1.0);
-        assertThat(purge.cancelledTaskRatioThreshold()).isEqualTo(0.5);
+        assertThat(purge.canceledTaskRatioThreshold()).isEqualTo(0.5);
         assertThat(GlobalParPurgePolicy.builder().build().enabled()).isFalse();
         assertThat(GlobalParLivelockPolicy.builder().build().enabled()).isFalse();
     }

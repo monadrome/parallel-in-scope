@@ -102,9 +102,13 @@ public final class AsyncBatchResult<T> {
      */
     public String reportString() {
         BatchReport r = report();
+        Map<FutureState, Integer> stateCounts = r.getStateCounts();
+        if (stateCounts == null) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<FutureState, Integer> e : r.getStateCounts().entrySet()) {
+        for (Map.Entry<FutureState, Integer> e : stateCounts.entrySet()) {
             if (!first) sb.append(',');
             sb.append(e.getKey()).append(':').append(e.getValue());
             first = false;

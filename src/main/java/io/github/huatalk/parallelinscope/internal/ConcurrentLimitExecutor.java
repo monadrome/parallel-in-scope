@@ -58,35 +58,6 @@ public class ConcurrentLimitExecutor<V> {
     }
 
     /**
-     * Creates a new executor with the given pool and options.
-     *
-     * @param <V> the task result type
-     * @param pool the executor that runs task bodies
-     * @param options the execution options
-     * @param submitterPool the executor that runs the submission loop
-     * @return a new concurrency-limited executor
-     */
-    /**
-     * Creates a new executor that reports execution-phase hints.
-     *
-     * @param <V> the task result type
-     * @param pool the executor that runs task bodies
-     * @param options the execution options
-     * @param submitterPool the executor that runs the submission loop
-     * @param phaseObserver callback for execution-phase hints
-     * @return a new concurrency-limited executor
-     */
-    /**
-     * Creates an executor with the legacy queued-cancellation callback.
-     *
-     * @param <V> the task result type
-     * @param pool the executor that runs task bodies
-     * @param options the execution options
-     * @param submitterPool the executor that runs the submission loop
-     * @param queuedCancellationObserver callback for cancellations before {@code run()}
-     * @return a new concurrency-limited executor
-     */
-    /**
      * Submits all tasks and returns the batch result immediately.
      *
      * @param tasks list of tasks to execute
