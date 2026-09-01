@@ -200,10 +200,10 @@ cancellationToken.lateBind(
 
 `fillInStackTrace()` 是 JVM 里最贵的操作之一——它要收集整个调用栈的栈帧，大约占异常创建总耗时的 90%+，一次调用约 1-5 微秒（取决于栈深度）。如果检查点每秒被调用 100 万次，那就是每秒 1-5 秒的 CPU 时间花在填栈上——这个开销是致命的。
 
-parallel-in-scope 提供了两种取消异常：
+parallel-in-scope 在高频路径提供轻量取消异常，并在诊断场景使用 JDK 标准异常：
 
 - **`LeanCancellationException`：** 覆写 `fillInStackTrace()` 返回 `this`，零开销。用于高频检查点。
-- **`FatCancellationException`：** 保留完整堆栈。用于调试场景。
+- **`CancellationException`：** 保留完整堆栈。用于调试场景。
 
 ```java
 // 典型使用位置：循环体内部或长任务的关键步骤之间
@@ -213,7 +213,7 @@ for (Item item : items) {
 }
 
 // 调试时切换为 false，保留完整堆栈方便排查
-Checkpoints.checkpoint("process-item", false); // 抛出 FatCancellationException
+Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 ```
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。

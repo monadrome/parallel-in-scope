@@ -14,7 +14,7 @@ Cancellation and timeout wiring is completed after all futures have been created
 
 ## Two cancellation exceptions
 
-Normal cancellation is a control-flow event, so `LeanCancellationException` avoids collecting a stack trace. `FatCancellationException` keeps a full stack for diagnostics. The two types preserve the same cancellation semantics while letting production paths avoid unnecessary allocation.
+Normal cancellation is a control-flow event, so `LeanCancellationException` avoids collecting a stack trace. Callers that request diagnostic stack traces receive the standard `CancellationException`; no redundant framework subtype is needed.
 
 ## Sliding-window scheduling
 

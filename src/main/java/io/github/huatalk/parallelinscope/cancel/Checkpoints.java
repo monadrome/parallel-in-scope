@@ -1,11 +1,11 @@
 package io.github.huatalk.parallelinscope.cancel;
 
-import com.google.common.base.Throwables;
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,14 +22,15 @@ import java.util.function.Supplier;
  *
  * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
  * operation. A canceled token produces a {@link LeanCancellationException}, except that {@link
- * #checkpoint(String, boolean)} produces the lean or fat form selected by its argument.
+ * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
+ * trace when requested.
  *
  * <p>Blocking-operation adapters restore the interrupt flag and translate {@link
  * InterruptedException} into {@link LeanCancellationException}.
  *
  * <p>{@link #checkRunnable(Runnable, Class)} and {@link #checkSupplier(Supplier, Class)} instead
- * translate a matching failure into {@link FatCancellationException}, retaining the original
- * failure as its cause.
+ * translate a matching failure into {@link CancellationException}, retaining the original failure
+ * as its cause.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -43,7 +44,7 @@ public final class Checkpoints {
      * @param taskName the task expected in the current scope
      * @param lean whether to omit the cancellation stack trace
      * @throws LeanCancellationException if the matching task is canceled and {@code lean} is true
-     * @throws FatCancellationException if the matching task is canceled and {@code lean} is false
+     * @throws CancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
         BatchExecutionContext batch = currentBatchContext();
@@ -426,14 +427,14 @@ public final class Checkpoints {
     }
 
     /**
-     * Runs an action, translating a matching failure into fat cancellation. Other unchecked failures
-     * are propagated unchanged.
+     * Runs an action, translating a matching failure into a cancellation exception. Other unchecked
+     * failures are propagated unchanged.
      *
      * @param <X> the exception type that triggers cancellation
      * @param action the action to execute
      * @param declaredType the exception class that triggers cancellation
      * @throws LeanCancellationException if the current scope is canceled before the action runs
-     * @throws FatCancellationException if the action throws an instance of {@code declaredType}
+     * @throws CancellationException if the action throws an instance of {@code declaredType}
      * @throws RuntimeException if the action throws a non-matching runtime exception
      * @throws Error if the action throws a non-matching error
      * @throws AssertionError if the action unexpectedly throws a checked throwable
@@ -452,8 +453,8 @@ public final class Checkpoints {
     }
 
     /**
-     * Gets a value, translating a matching failure into fat cancellation. Other unchecked failures
-     * are propagated unchanged.
+     * Gets a value, translating a matching failure into a cancellation exception. Other unchecked
+     * failures are propagated unchanged.
      *
      * @param <T> the supplied value type
      * @param <X> the exception type that triggers cancellation
@@ -461,7 +462,7 @@ public final class Checkpoints {
      * @param declaredType the exception class that triggers cancellation
      * @return the value produced by {@code supplier}
      * @throws LeanCancellationException if the current scope is canceled before the supplier runs
-     * @throws FatCancellationException if the supplier throws an instance of {@code declaredType}
+     * @throws CancellationException if the supplier throws an instance of {@code declaredType}
      * @throws RuntimeException if the supplier throws a non-matching runtime exception
      * @throws Error if the supplier throws a non-matching error
      * @throws AssertionError if the supplier unexpectedly throws a checked throwable
@@ -484,13 +485,11 @@ public final class Checkpoints {
      * as {@code ex} takes precedence over the current token's state.
      *
      * @param ex the exception to check
-     * @throws FatCancellationException if {@code ex} is a fat cancellation exception
-     * @throws LeanCancellationException if {@code ex} is a lean cancellation exception or the current
-     *     scope is canceled
+     * @throws CancellationException if {@code ex} is a cancellation exception or the current scope
+     *     is canceled
      */
     public static void propagateCancellation(Throwable ex) {
-        Throwables.throwIfInstanceOf(ex, FatCancellationException.class);
-        Throwables.throwIfInstanceOf(ex, LeanCancellationException.class);
+        if (ex instanceof CancellationException) throw (CancellationException) ex;
         checkCancellationToken(true);
     }
 
@@ -500,7 +499,7 @@ public final class Checkpoints {
         if (cancelToken != null && cancelToken.getState().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")
-                    : new FatCancellationException("Cancel during running");
+                    : new CancellationException("Cancel during running");
         }
     }
 
@@ -524,7 +523,7 @@ public final class Checkpoints {
             Throwable throwable, Class<X> declaredType, String operation) {
         if (declaredType.isInstance(throwable)) {
             X matched = declaredType.cast(throwable);
-            FatCancellationException cancellation = new FatCancellationException(
+            CancellationException cancellation = new CancellationException(
                     "Cancel during " + operation + ": " + matched.getClass().getSimpleName());
             cancellation.initCause(matched);
             throw cancellation;

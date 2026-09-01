@@ -65,7 +65,7 @@ global.par("myExecutor").map(dataList, item -> {
 - **第一个参数必须与 `BatchExecutionOptions.of(taskName)` 中的 taskName 一致**。这是一个安全守卫——checkpoint 只在 taskName 匹配时才生效，防止被不相关的代码误触发。
 - **第二个参数 `lean`** 控制抛出的异常类型：
   - `true` → `LeanCancellationException`：无堆栈跟踪，零额外开销，适合生产环境。
-  - `false` → `FatCancellationException`：完整堆栈跟踪，适合调试定位取消发生位置。
+  - `false` → 标准 `CancellationException`：完整堆栈跟踪，适合调试定位取消发生位置。
 
 ### Checkpoints API 一览
 
@@ -134,7 +134,7 @@ global.par("myExecutor").map(items, item -> {
 }, options);
 ```
 
-`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `FatCancellationException` 或 `LeanCancellationException`，如果是则重新抛出；如果不是则什么都不做，让后续的异常处理逻辑继续执行。
+`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；如果不是则什么都不做，让后续的异常处理逻辑继续执行。
 
 ## 用 `Checkpoints.sleep()` 替代 `Thread.sleep()`
 

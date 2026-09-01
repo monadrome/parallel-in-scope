@@ -42,7 +42,7 @@ global.par("myExecutor").map(dataList, item -> {
 }, options);
 ```
 
-The checkpoint task name must match `BatchExecutionOptions.of(taskName)`. The `lean` flag selects `LeanCancellationException` without a stack trace for production paths or `FatCancellationException` with a stack trace for diagnostics.
+The checkpoint task name must match `BatchExecutionOptions.of(taskName)`. The `lean` flag selects `LeanCancellationException` without a stack trace for production paths or the standard `CancellationException` with a stack trace for diagnostics.
 
 ## Checkpoints API
 
@@ -69,7 +69,7 @@ global.par("myExecutor").map(items, item -> {
 }, options);
 ```
 
-`propagateCancellation` re-throws both lean and fat cancellation exceptions and leaves ordinary exceptions unchanged.
+`propagateCancellation` re-throws every `CancellationException` and leaves ordinary exceptions unchanged.
 
 ## Cancellation sources
 

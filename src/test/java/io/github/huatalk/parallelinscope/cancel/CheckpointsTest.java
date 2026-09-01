@@ -10,6 +10,7 @@ import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
 import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -48,7 +49,8 @@ class CheckpointsTest {
                     fatContext.cancellationToken().cancel(false);
                     Checkpoints.checkpoint("task", false);
                 }))
-                .isInstanceOf(FatCancellationException.class);
+                .isInstanceOf(CancellationException.class)
+                .isNotInstanceOf(LeanCancellationException.class);
     }
 
     private static Void runInTask(BatchExecutionContext context, Runnable action) throws Exception {
@@ -136,20 +138,20 @@ class CheckpointsTest {
                             throw new IllegalArgumentException("stop");
                         },
                         IllegalArgumentException.class))
-                .isInstanceOf(FatCancellationException.class)
+                .isInstanceOf(CancellationException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> Checkpoints.checkSupplier(
                         () -> {
                             throw new IllegalStateException("stop");
                         },
                         IllegalStateException.class))
-                .isInstanceOf(FatCancellationException.class)
+                .isInstanceOf(CancellationException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
 
         assertThatThrownBy(() -> Checkpoints.propagateCancellation(new LeanCancellationException("stop")))
                 .isInstanceOf(LeanCancellationException.class);
-        assertThatThrownBy(() -> Checkpoints.propagateCancellation(new FatCancellationException("stop")))
-                .isInstanceOf(FatCancellationException.class);
+        assertThatThrownBy(() -> Checkpoints.propagateCancellation(new CancellationException("stop")))
+                .isInstanceOf(CancellationException.class);
 
         IllegalArgumentException unmatched = new IllegalArgumentException("unmatched");
         assertThatThrownBy(() -> Checkpoints.checkRunnable(

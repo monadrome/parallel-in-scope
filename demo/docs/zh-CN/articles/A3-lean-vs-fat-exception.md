@@ -25,10 +25,10 @@ System.out.println("10000 exceptions: " + elapsed / 1_000_000 + " ms");
 
 ## 解决方法
 
-`parallel-in-scope` 内部使用两种取消异常来平衡性能和可调试性：
+`parallel-in-scope` 对高频取消使用轻量异常，并直接复用 JDK 标准异常承载诊断堆栈：
 
 - **`LeanCancellationException`**：重写 `fillInStackTrace()` 为空操作（返回 `this`），同时通过 `setStackTrace(new StackTraceElement[0])` 清空栈追踪。构造开销接近于零，专为高频取消路径设计。
-- **`FatCancellationException`**：保留完整的栈追踪，用于调试阶段追踪取消来源。
+- **`CancellationException`**：保留完整的栈追踪，用于调试阶段追踪取消来源。
 
 `Par.map()` 配合 `BatchExecutionOptions.timeout()` 使用时，框架内部自动使用轻量级异常处理取消流程。开发者无需关心异常类型的选择——超时取消的性能开销已经被框架内部优化到最低。
 

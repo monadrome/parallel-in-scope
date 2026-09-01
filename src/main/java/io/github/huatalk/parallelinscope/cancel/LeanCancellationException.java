@@ -4,7 +4,6 @@ package io.github.huatalk.parallelinscope.cancel;
  * Cancellation exception that omits its stack trace to reduce cancellation overhead.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
- * @see FatCancellationException
  */
 public class LeanCancellationException extends java.util.concurrent.CancellationException {
 
