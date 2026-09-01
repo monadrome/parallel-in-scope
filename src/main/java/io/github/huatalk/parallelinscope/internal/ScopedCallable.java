@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Central task wrapper with full lifecycle instrumentation.
@@ -27,9 +26,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Cleanup on completion
  * </ul>
  *
- * <p>Exposes the currently executing instance via {@link #current()}, allowing inner callables to
- * access the current batch cancellation and diagnostics context. through the enclosing
- * ScopedCallable.
+ * <p>The active {@link TaskExecutionContext} is available to inner callables through {@link
+ * TaskExecutionContext#current()}.
  *
  * <p>Timeline: {@code submitTime -> startTime -> endTime}
  *
@@ -42,18 +40,6 @@ public class ScopedCallable<V> implements Callable<V> {
 
     private static final long NANO_TO_MS = 1_000_000L;
     private static final long QUEUE_THRESHOLD = 3L;
-
-    private static final ThreadLocal<ScopedCallable<?>> CURRENT = new ThreadLocal<>();
-
-    /**
-     * Returns the ScopedCallable currently executing on the calling thread, or {@code null} if no
-     * task is running.
-     *
-     * @return the current scoped callable, or {@code null}
-     */
-    public static @Nullable ScopedCallable<?> current() {
-        return CURRENT.get();
-    }
 
     private final Callable<V> delegate;
     private final com.google.common.base.Ticker ticker;
@@ -75,7 +61,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the execution duration in nanoseconds
      */
     public long executionTime() {
-        return taskContext.endTimeNanos() - taskContext.startTimeNanos();
+        return taskContext.executionTimeNanos();
     }
 
     /**
@@ -84,7 +70,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the queue wait duration in nanoseconds
      */
     public long waitTime() {
-        return taskContext.startTimeNanos() - taskContext.submitTimeNanos();
+        return taskContext.waitTimeNanos();
     }
 
     /**
@@ -93,7 +79,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the total time in nanoseconds
      */
     public long totalTime() {
-        return taskContext.endTimeNanos() - taskContext.submitTimeNanos();
+        return taskContext.totalTimeNanos();
     }
 
     /** Returns the per-task execution context owned by this wrapper. */
@@ -125,7 +111,7 @@ public class ScopedCallable<V> implements Callable<V> {
     @Override
     public V call() throws Exception {
         // ==================== prepareContext ====================
-        ScopedCallable<?> previousCurrent = CURRENT.get();
+        TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
         BatchExecutionContext previousBatch = TaskScopeTl.getBatchExecutionContext();
         CancellationToken previousRelayToken = ThreadRelay.getCurrentCancellationToken();
         String previousTaskName = ThreadRelay.getCurrentTaskName();
@@ -133,7 +119,6 @@ public class ScopedCallable<V> implements Callable<V> {
         io.github.huatalk.parallelinscope.scope.ExecutorIdentity previousIdentity =
                 ThreadRelay.getCurrentExecutorIdentity();
         TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
-        CURRENT.set(this);
 
         BatchExecutionContext batchContext = taskContext.batchContext();
         String taskName = batchContext.taskName();
@@ -170,8 +155,7 @@ public class ScopedCallable<V> implements Callable<V> {
             // Fire SPI callbacks
             notifyListeners(taskException);
 
-            if (previousCurrent == null) CURRENT.remove();
-            else CURRENT.set(previousCurrent);
+            TaskExecutionContext.restore(previousTask);
         }
     }
 

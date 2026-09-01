@@ -2,9 +2,12 @@ package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Per-task state for one element of a batch. */
 public final class TaskExecutionContext {
+
+    private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
     private final BatchExecutionContext batchContext;
     private final int taskIndex;
@@ -39,6 +42,36 @@ public final class TaskExecutionContext {
 
     public long endTimeNanos() {
         return endTimeNanos;
+    }
+
+    public long executionTimeNanos() {
+        return endTimeNanos - startTimeNanos;
+    }
+
+    public long waitTimeNanos() {
+        return startTimeNanos - submitTimeNanos;
+    }
+
+    public long totalTimeNanos() {
+        return endTimeNanos - submitTimeNanos;
+    }
+
+    /** Returns the task currently executing on this thread, or null outside a scoped task. */
+    public static @Nullable TaskExecutionContext current() {
+        return CURRENT.get();
+    }
+
+    /** Installs this task as current and returns the task it replaced. */
+    static @Nullable TaskExecutionContext install(TaskExecutionContext context) {
+        TaskExecutionContext previous = CURRENT.get();
+        CURRENT.set(context);
+        return previous;
+    }
+
+    /** Restores a task previously returned from {@link #install(TaskExecutionContext)}. */
+    static void restore(@Nullable TaskExecutionContext context) {
+        if (context == null) CURRENT.remove();
+        else CURRENT.set(context);
     }
 
     void markStarted(long timeNanos) {

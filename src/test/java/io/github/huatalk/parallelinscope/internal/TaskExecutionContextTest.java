@@ -30,6 +30,9 @@ class TaskExecutionContextTest {
         assertThat(first.submitTimeNanos()).isEqualTo(10L);
         assertThat(first.startTimeNanos()).isEqualTo(30L);
         assertThat(first.endTimeNanos()).isEqualTo(40L);
+        assertThat(first.executionTimeNanos()).isEqualTo(10L);
+        assertThat(first.waitTimeNanos()).isEqualTo(20L);
+        assertThat(first.totalTimeNanos()).isEqualTo(30L);
         assertThat(second.startTimeNanos()).isZero();
         assertThat(second.endTimeNanos()).isZero();
     }
@@ -43,5 +46,33 @@ class TaskExecutionContextTest {
                 null);
 
         assertThatIllegalArgumentException().isThrownBy(() -> new TaskExecutionContext(batch, -1, 0L));
+    }
+
+    @Test
+    void installAndRestorePreserveNestedCurrentTask() {
+        BatchExecutionContext batch = BatchExecutionContext.resolve(
+                GlobalExecutionPolicy.builder().build(),
+                BatchExecutionOptions.of("batch").build(),
+                2,
+                null);
+        TaskExecutionContext outer = new TaskExecutionContext(batch, 0, 0L);
+        TaskExecutionContext inner = new TaskExecutionContext(batch, 1, 0L);
+
+        TaskExecutionContext previousOuter = TaskExecutionContext.install(outer);
+        try {
+            assertThat(previousOuter).isNull();
+            assertThat(TaskExecutionContext.current()).isSameAs(outer);
+            TaskExecutionContext previousInner = TaskExecutionContext.install(inner);
+            try {
+                assertThat(previousInner).isSameAs(outer);
+                assertThat(TaskExecutionContext.current()).isSameAs(inner);
+            } finally {
+                TaskExecutionContext.restore(previousInner);
+            }
+            assertThat(TaskExecutionContext.current()).isSameAs(outer);
+        } finally {
+            TaskExecutionContext.restore(previousOuter);
+        }
+        assertThat(TaskExecutionContext.current()).isNull();
     }
 }

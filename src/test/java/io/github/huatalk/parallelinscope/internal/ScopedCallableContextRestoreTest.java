@@ -51,7 +51,7 @@ class ScopedCallableContextRestoreTest {
     }
 
     @Test
-    void nestedCallRestoresOuterBatchRelayAndCurrentCallable() throws Exception {
+    void nestedCallRestoresOuterBatchRelayAndCurrentTask() throws Exception {
         ThreadRelay.clearCurrent();
         try {
             BatchExecutionContext outer = context("same-name");
@@ -60,20 +60,21 @@ class ScopedCallableContextRestoreTest {
                     BatchExecutionOptions.of("same-name").build(),
                     1,
                     outer);
-            AtomicReference<ScopedCallable<String>> outerReference = new AtomicReference<>();
+            TaskExecutionContext outerTask = task(outer, 0);
             ScopedCallable<String> outerCallable = new ScopedCallable<>(
-                    task(outer, 0),
+                    outerTask,
                     () -> {
                         assertThat(TaskScopeTl.getBatchExecutionContext()).isSameAs(outer);
                         assertThat(ThreadRelay.getCurrentCancellationToken()).isSameAs(outer.cancellationToken());
-                        assertThat(ScopedCallable.current()).isSameAs(outerReference.get());
+                        assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
 
+                        TaskExecutionContext innerTask = task(inner, 0);
                         ScopedCallable<String> innerCallable = new ScopedCallable<>(
-                                task(inner, 0),
+                                innerTask,
                                 () -> {
                                     assertThat(TaskScopeTl.getBatchExecutionContext())
                                             .isSameAs(inner);
-                                    assertThat(ScopedCallable.current()).isNotSameAs(outerReference.get());
+                                    assertThat(TaskExecutionContext.current()).isSameAs(innerTask);
                                     return "inner";
                                 },
                                 null);
@@ -81,16 +82,14 @@ class ScopedCallableContextRestoreTest {
 
                         assertThat(TaskScopeTl.getBatchExecutionContext()).isSameAs(outer);
                         assertThat(ThreadRelay.getCurrentCancellationToken()).isSameAs(outer.cancellationToken());
-                        assertThat(ScopedCallable.current()).isSameAs(outerReference.get());
+                        assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
                         return "outer";
                     },
                     null);
-            outerReference.set(outerCallable);
-
             assertThat(outerCallable.call()).isEqualTo("outer");
             assertThat(TaskScopeTl.getBatchExecutionContext()).isNull();
             assertThat(ThreadRelay.getCurrentCancellationToken()).isNull();
-            assertThat(ScopedCallable.current()).isNull();
+            assertThat(TaskExecutionContext.current()).isNull();
         } finally {
             ThreadRelay.clearCurrent();
         }
