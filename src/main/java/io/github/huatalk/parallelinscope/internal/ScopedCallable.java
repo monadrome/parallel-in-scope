@@ -55,32 +55,16 @@ public class ScopedCallable<V> implements Callable<V> {
         return CURRENT.get();
     }
 
-    private final String taskName;
     private final Callable<V> delegate;
     private final com.google.common.base.Ticker ticker;
-    private final long submitTime;
-
-    private final CancellationToken cancellationToken;
-    private final String executorName;
-    private final @Nullable BatchExecutionContext batchContext;
-
-    private volatile long startTime;
-    private volatile long endTime;
+    private final TaskExecutionContext taskContext;
 
     /** Creates a task wrapper from the batch context owned by one GlobalPar execution. */
-    public ScopedCallable(
-            String taskName,
-            Callable<V> delegate,
-            BatchExecutionContext batchContext,
-            List<TaskListener> taskListeners) {
-        this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
+    public ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
+        this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.ticker = com.google.common.base.Ticker.systemTicker();
-        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
-        this.cancellationToken = batchContext.cancellationToken();
-        this.executorName = batchContext.parLabel() == null ? "NA" : batchContext.parLabel();
         this.newTaskListeners = taskListeners == null ? java.util.Collections.emptyList() : taskListeners;
-        this.submitTime = ticker.read();
     }
 
     private List<TaskListener> newTaskListeners = java.util.Collections.emptyList();
@@ -91,7 +75,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the execution duration in nanoseconds
      */
     public long executionTime() {
-        return endTime - startTime;
+        return taskContext.endTimeNanos() - taskContext.startTimeNanos();
     }
 
     /**
@@ -100,7 +84,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the queue wait duration in nanoseconds
      */
     public long waitTime() {
-        return startTime - submitTime;
+        return taskContext.startTimeNanos() - taskContext.submitTimeNanos();
     }
 
     /**
@@ -109,7 +93,12 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the total time in nanoseconds
      */
     public long totalTime() {
-        return endTime - submitTime;
+        return taskContext.endTimeNanos() - taskContext.submitTimeNanos();
+    }
+
+    /** Returns the per-task execution context owned by this wrapper. */
+    public TaskExecutionContext getTaskExecutionContext() {
+        return taskContext;
     }
 
     // ==================== Context Fields ====================
@@ -120,7 +109,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the task cancellation token
      */
     public CancellationToken getCancellationToken() {
-        return cancellationToken;
+        return taskContext.batchContext().cancellationToken();
     }
 
     /**
@@ -129,7 +118,8 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the executor name
      */
     public String getExecutorName() {
-        return executorName;
+        String parLabel = taskContext.batchContext().parLabel();
+        return parLabel == null ? "NA" : parLabel;
     }
 
     @Override
@@ -145,6 +135,8 @@ public class ScopedCallable<V> implements Callable<V> {
         TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
         CURRENT.set(this);
 
+        BatchExecutionContext batchContext = taskContext.batchContext();
+        String taskName = batchContext.taskName();
         CancellationToken currentToken = getCancellationToken();
         if (batchContext != null) {
             TaskScopeTl.setBatchExecutionContext(batchContext);
@@ -163,14 +155,14 @@ public class ScopedCallable<V> implements Callable<V> {
         try {
             // ==================== doCall ====================
             Checkpoints.checkpoint(taskName, true);
-            startTime = ticker.read();
+            taskContext.markStarted(ticker.read());
             return delegate.call();
         } catch (Throwable t) {
             taskException = t;
             throw t;
         } finally {
             // ==================== cleanup & metrics ====================
-            endTime = ticker.read();
+            taskContext.markEnded(ticker.read());
             TaskScopeTl.restore(previousBatch);
             ThreadRelay.restoreCurrent(previousRelayToken, previousTaskName, previousExecutorName, previousIdentity);
             TaskGraphObservationContext.restore(previousObservation);
@@ -190,7 +182,13 @@ public class ScopedCallable<V> implements Callable<V> {
         }
         long waitMs = waitTime() / NANO_TO_MS;
         boolean enqueued = waitMs > QUEUE_THRESHOLD;
-        TaskEvent event = new TaskEvent(taskName, submitTime, startTime, endTime, enqueued, exception);
+        TaskEvent event = new TaskEvent(
+                taskContext.batchContext().taskName(),
+                taskContext.submitTimeNanos(),
+                taskContext.startTimeNanos(),
+                taskContext.endTimeNanos(),
+                enqueued,
+                exception);
 
         for (TaskListener listener : listeners) {
             try {
@@ -208,16 +206,18 @@ public class ScopedCallable<V> implements Callable<V> {
     public String toString() {
         return "ScopedCallable{"
                 + "taskName='"
-                + taskName
+                + taskContext.batchContext().taskName()
                 + '\''
                 + ", delegate="
                 + delegate
+                + ", taskIndex="
+                + taskContext.taskIndex()
                 + ", submitTime="
-                + submitTime
+                + taskContext.submitTimeNanos()
                 + ", startTime="
-                + startTime
+                + taskContext.startTimeNanos()
                 + ", endTime="
-                + endTime
+                + taskContext.endTimeNanos()
                 + '}';
     }
 }

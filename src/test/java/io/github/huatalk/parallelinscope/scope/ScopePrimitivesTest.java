@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
+import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -137,12 +138,11 @@ class ScopePrimitivesTest {
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
         BatchExecutionContext context = resolve(0, Duration.ofSeconds(30), 1, null);
         ScopedCallable<Integer> callable = new ScopedCallable<>(
-                "timed",
+                task(context, 0),
                 () -> {
                     Thread.sleep(4);
                     return 42;
                 },
-                context,
                 java.util.Collections.emptyList());
 
         Thread.sleep(6); // Simulate queue wait between construction and start.
@@ -152,7 +152,7 @@ class ScopePrimitivesTest {
         assertThat(callable.totalTime()).isEqualTo(callable.waitTime() + callable.executionTime());
         assertThat(callable.getCancellationToken()).isNotNull();
 
-        ScopedCallable<Integer> unlabelled = new ScopedCallable<>("plain", () -> 1, context, null);
+        ScopedCallable<Integer> unlabelled = new ScopedCallable<>(task(context, 0), () -> 1, null);
         unlabelled.call();
         assertThat(unlabelled.getExecutorName()).isNotEmpty();
     }
@@ -171,7 +171,7 @@ class ScopePrimitivesTest {
                     identity,
                     "par-label");
             ScopedCallable<String> labelledCall =
-                    new ScopedCallable<>("t", () -> "ok", labelled, java.util.Collections.emptyList());
+                    new ScopedCallable<>(task(labelled, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(labelledCall.getExecutorName()).isEqualTo("par-label");
 
             BatchExecutionContext anonymous = BatchExecutionContext.resolve(
@@ -183,19 +183,23 @@ class ScopePrimitivesTest {
                     identity,
                     null);
             ScopedCallable<String> anonymousCall =
-                    new ScopedCallable<>("t", () -> "ok", anonymous, java.util.Collections.emptyList());
+                    new ScopedCallable<>(task(anonymous, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(anonymousCall.getExecutorName()).isEqualTo("NA");
 
-            assertThatThrownBy(
-                            () -> new ScopedCallable<>(null, () -> "ok", labelled, java.util.Collections.emptyList()))
+            assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new ScopedCallable<>("t", null, labelled, java.util.Collections.emptyList()))
+            assertThatThrownBy(() -> new ScopedCallable<>(task(labelled, 0), null, java.util.Collections.emptyList()))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new ScopedCallable<>("t", () -> "ok", null, java.util.Collections.emptyList()))
+            assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
                     .isInstanceOf(NullPointerException.class);
         } finally {
             supplied.shutdownNow();
         }
+    }
+
+    private static TaskExecutionContext task(BatchExecutionContext context, int index) {
+        return new TaskExecutionContext(
+                context, index, com.google.common.base.Ticker.systemTicker().read());
     }
 
     // ==================== GlobalPar lifecycle & scheduler adapter ====================

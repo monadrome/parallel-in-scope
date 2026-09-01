@@ -18,7 +18,7 @@ class ScopedCallableContextRestoreTest {
         BatchExecutionContext context = context("listener");
         AtomicReference<TaskEvent> captured = new AtomicReference<>();
         ScopedCallable<String> callable =
-                new ScopedCallable<>("listener", () -> "value", context, Collections.singletonList(captured::set));
+                new ScopedCallable<>(task(context, 0), () -> "value", Collections.singletonList(captured::set));
 
         assertThat(callable.call()).isEqualTo("value");
         TaskEvent event = captured.get();
@@ -40,11 +40,10 @@ class ScopedCallableContextRestoreTest {
         AtomicReference<TaskEvent> captured = new AtomicReference<>();
         IllegalStateException failure = new IllegalStateException("boom");
         ScopedCallable<String> callable = new ScopedCallable<>(
-                "failed",
+                task(context, 0),
                 () -> {
                     throw failure;
                 },
-                context,
                 Collections.singletonList(captured::set));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
@@ -63,21 +62,20 @@ class ScopedCallableContextRestoreTest {
                     outer);
             AtomicReference<ScopedCallable<String>> outerReference = new AtomicReference<>();
             ScopedCallable<String> outerCallable = new ScopedCallable<>(
-                    "outer",
+                    task(outer, 0),
                     () -> {
                         assertThat(TaskScopeTl.getBatchExecutionContext()).isSameAs(outer);
                         assertThat(ThreadRelay.getCurrentCancellationToken()).isSameAs(outer.cancellationToken());
                         assertThat(ScopedCallable.current()).isSameAs(outerReference.get());
 
                         ScopedCallable<String> innerCallable = new ScopedCallable<>(
-                                "inner",
+                                task(inner, 0),
                                 () -> {
                                     assertThat(TaskScopeTl.getBatchExecutionContext())
                                             .isSameAs(inner);
                                     assertThat(ScopedCallable.current()).isNotSameAs(outerReference.get());
                                     return "inner";
                                 },
-                                inner,
                                 null);
                         assertThat(innerCallable.call()).isEqualTo("inner");
 
@@ -86,7 +84,6 @@ class ScopedCallableContextRestoreTest {
                         assertThat(ScopedCallable.current()).isSameAs(outerReference.get());
                         return "outer";
                     },
-                    outer,
                     null);
             outerReference.set(outerCallable);
 
@@ -105,5 +102,10 @@ class ScopedCallableContextRestoreTest {
                 BatchExecutionOptions.of(name).build(),
                 1,
                 null);
+    }
+
+    private static TaskExecutionContext task(BatchExecutionContext context, int index) {
+        return new TaskExecutionContext(
+                context, index, com.google.common.base.Ticker.systemTicker().read());
     }
 }

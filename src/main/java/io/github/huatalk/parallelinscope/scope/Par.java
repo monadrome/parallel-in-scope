@@ -10,6 +10,7 @@ import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
+import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -124,11 +125,11 @@ public final class Par {
                 batchContext.remaining().toMillis(),
                 runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
         logForking(batchContext, edge);
-        List<Callable<R>> tasks = list.stream()
-                .map(item -> (Callable<R>) new ScopedCallable<>(
-                        batchContext.taskName(),
-                        callableMapper.apply(item),
-                        batchContext,
+        com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
+        List<Callable<R>> tasks = java.util.stream.IntStream.range(0, list.size())
+                .mapToObj(index -> (Callable<R>) new ScopedCallable<>(
+                        new TaskExecutionContext(batchContext, index, ticker.read()),
+                        callableMapper.apply(list.get(index)),
                         globalPar.executionPolicyFor(displayName).taskListeners()))
                 .collect(toImmutableList());
         AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
