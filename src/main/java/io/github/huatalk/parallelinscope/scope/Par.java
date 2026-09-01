@@ -2,6 +2,7 @@ package io.github.huatalk.parallelinscope.scope;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.alibaba.ttl.TtlCallable;
 import com.google.common.collect.ImmutableList;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
@@ -126,10 +127,13 @@ public final class Par {
         logForking(batchContext, edge);
         com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
         List<Callable<R>> tasks = java.util.stream.IntStream.range(0, list.size())
-                .mapToObj(index -> (Callable<R>) new ScopedCallable<>(
-                        new TaskExecutionContext(batchContext, index, ticker.read()),
-                        callableMapper.apply(list.get(index)),
-                        globalPar.executionPolicyFor(displayName).taskListeners()))
+                .mapToObj(index -> TtlCallable.get(
+                        new ScopedCallable<>(
+                                new TaskExecutionContext(batchContext, index, ticker.read()),
+                                callableMapper.apply(list.get(index)),
+                                globalPar.executionPolicyFor(displayName).taskListeners()),
+                        true,
+                        false))
                 .collect(toImmutableList());
         AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
                         runtime.submissionExecutor(), batchContext, globalPar.submitterPool(), runtime.phaseObserver())

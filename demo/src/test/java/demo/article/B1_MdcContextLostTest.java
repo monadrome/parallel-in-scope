@@ -104,8 +104,7 @@ public class B1_MdcContextLostTest {
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104, 105);
 
         // 使用 Par.map() 并行处理
-        // 框架内部通过 TTL 传播 CancellationToken、BatchExecutionOptions、taskName 等上下文
-        // 开发者无需手动传递任何基础设施参数
+        // 框架显式管理取消、deadline 和任务身份，并传播用户的 TransmittableThreadLocal。
         AsyncBatchResult<String> result = par.map(
                 orderIds,
                 orderId -> {
@@ -145,10 +144,10 @@ public class B1_MdcContextLostTest {
     /**
      * 验证 Par.map() 显式管理自己的任务上下文。
      *
-     * <p>取消、deadline 和任务名由当前任务上下文提供。用户侧业务上下文（如 MDC）需要由应用自己的
-     * executor 集成传播。
+     * <p>取消、deadline 和任务名由当前任务上下文提供。用户侧业务上下文需要使用
+     * TransmittableThreadLocal（MDC 需要 TTL 兼容适配器）才能被 Par.map() 捕获。
      *
-     * <p>此测试验证任务可在不传递框架内部状态的情况下完成；任意应用上下文不属于该契约。
+     * <p>此测试验证任务可在不传递框架内部状态的情况下完成。
      */
     @Test
     void parMap_frameworkContextAutoPropagated() throws Exception {

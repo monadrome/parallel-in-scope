@@ -35,7 +35,7 @@ List<String> results = urls.parallelStream()
 
 ## 解决方法
 
-`parallel-in-scope` 为 `Par.map()` 任务显式管理取消、deadline、并发限制和 SPI 回调，因此业务 lambda 不需要接收这些框架状态。应用自己的 trace、用户和租户信息不属于任务作用域；它们应由应用显式传参或在应用自己的上下文传播设施中处理。
+`parallel-in-scope` 为 `Par.map()` 任务显式管理取消、deadline、并发限制和 SPI 回调，因此业务 lambda 不需要接收这些框架状态。应用自己的 trace、用户和租户信息可以显式传参；若它们存放在 `TransmittableThreadLocal` 中，也会在 `Par.map()` 边界被捕获并传播。
 
 使用 `Par.map()` 时，函数签名只保留业务参数。需要在任务中响应取消时调用 `Checkpoints`，框架会从当前任务上下文读取对应的取消令牌。
 

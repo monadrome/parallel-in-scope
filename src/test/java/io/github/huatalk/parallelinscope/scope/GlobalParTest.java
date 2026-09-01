@@ -3,6 +3,7 @@ package io.github.huatalk.parallelinscope.scope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.alibaba.ttl.TransmittableThreadLocal;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.context.graph.TaskGraphData;
 import java.lang.reflect.Modifier;
@@ -13,9 +14,39 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class GlobalParTest {
+    @Test
+    void propagatesAndRestoresTransmittableThreadLocalForEveryTask() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        TransmittableThreadLocal<String> context = new TransmittableThreadLocal<>();
+        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        try {
+            executor.submit(() -> {}).get(2, TimeUnit.SECONDS);
+            context.set("request-42");
+
+            AsyncBatchResult<String> result = global.par("worker")
+                    .map(
+                            java.util.Arrays.asList(1, 2),
+                            ignored -> context.get(),
+                            BatchExecutionOptions.of("ttl").parallelism(1).build());
+
+            assertThat(result.getResults())
+                    .extracting(future -> future.get(2, TimeUnit.SECONDS))
+                    .containsExactly("request-42", "request-42");
+
+            AtomicReference<String> workerAfterTasks = new AtomicReference<>();
+            executor.submit(() -> workerAfterTasks.set(context.get())).get(2, TimeUnit.SECONDS);
+            assertThat(workerAfterTasks.get()).isNull();
+        } finally {
+            context.remove();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
     @Test
     void executorRuntimeIsPackagePrivateImplementationDetail() {
         assertThat(Modifier.isPublic(ExecutorRuntime.class.getModifiers())).isFalse();

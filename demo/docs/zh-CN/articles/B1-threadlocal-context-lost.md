@@ -30,9 +30,9 @@ for (int i = 0; i < 3; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 不传播应用自定义的 `ThreadLocal` 或 MDC。它只在每个 `Par.map()` 任务执行期间安装自己的任务上下文，以管理取消、deadline 和嵌套批次关系。
+`parallel-in-scope` 会在 `Par.map()` 边界捕获 `TransmittableThreadLocal`，并在每个任务执行前回放、执行后恢复。普通 `ThreadLocal` 不会传播；MDC 只有采用 TTL 兼容适配器时才会随任务传播。
 
-需要传播 MDC 时，应用必须在自己的 executor 边界使用 TTL wrapper、TTL Agent 或框架集成。这样 MDC 的所有权、捕获时机和清理策略仍由应用明确控制。
+任务包装器在完成后释放捕获快照，避免已结束任务继续持有请求上下文。框架自身的取消、deadline 和嵌套关系仍由显式的任务上下文管理，不依赖 TTL。
 
 ## 代码
 
@@ -45,7 +45,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-// 主线程设置 MDC；应用的 executor 集成负责传播它
+// 主线程设置 MDC（需要 TTL 兼容的 MDC 适配器）
 MDC.put("traceId", "abc-123");
 
 // 配置并行选项
@@ -57,12 +57,12 @@ BatchExecutionOptions opts = BatchExecutionOptions.of("process-orders")
 // 并行处理订单
 List<Order> orders = orderRepository.findPending();
 AsyncBatchResult<ProcessResult> result = par.map( orders, order -> {
-    // 是否可读取 traceId 取决于应用配置的 MDC/TTL 集成
+    // TTL 兼容的 MDC 中可以读取 traceId
     log.info("处理订单: {}", order.getId());
     return processOrder(order);
 }, opts);
 
-// 批次的取消与超时由框架管理；MDC 由应用的传播方案管理
+// 批次取消与超时由任务上下文管理；MDC 通过 TTL 快照传播
 System.out.println(result.reportString());
 ```
 

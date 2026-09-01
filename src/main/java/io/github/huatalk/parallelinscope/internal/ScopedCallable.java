@@ -2,7 +2,6 @@ package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
@@ -110,14 +109,11 @@ public class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         // ==================== prepareContext ====================
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
-        TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
 
         BatchExecutionContext batchContext = taskContext.batchContext();
         String taskName = batchContext.taskName();
-        if (batchContext != null) {
-            TaskGraphObservationContext observation = batchContext.taskGraphObservationContext();
-            if (observation != null) TaskGraphObservationContext.install(observation);
-        }
+        // TaskGraphObservationContext is a TransmittableThreadLocal captured by the TtlCallable
+        // wrapper created at the Par.map boundary.
 
         Throwable taskException = null;
         try {
@@ -131,7 +127,6 @@ public class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             taskContext.markEnded(ticker.read());
-            TaskGraphObservationContext.restore(previousObservation);
 
             // Fire SPI callbacks
             notifyListeners(taskException);
