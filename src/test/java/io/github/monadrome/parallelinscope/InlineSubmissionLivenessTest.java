@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>That rescue leaves an interrupt on a thread the library borrowed rather than owns, so {@code
  * run()} restores the thread's entry state on the way out. Without it the caller's next blocking
- * call throws instead of returning the batch's verdict, and the submitter thread's own {@code
- * take()} throws and abandons every element still unsubmitted.
+ * call throws instead of returning the batch's verdict, and — in the pre-refill design — the
+ * submitter thread's own {@code take()} threw and abandoned every element still unsubmitted.
  */
 class InlineSubmissionLivenessTest {
 
@@ -239,10 +239,11 @@ class InlineSubmissionLivenessTest {
     }
 
     /**
-     * The submitter-thread case, which is the one that silently lost work: the sliding-window refill
-     * calls the handoff on the library's own submitter thread, so a body running inline there left a
-     * dirty flag on a thread the library owns. The refill loop's {@code take()} then threw at once
-     * and abandoned every element still unsubmitted.
+     * The borrowed-thread case, which is the one that silently lost work in the pre-refill design:
+     * the sliding-window refill ran the handoff on the library's own submitter thread, so a body
+     * running inline there left a dirty flag on a thread the library owned, and the refill loop's
+     * {@code take()} then threw at once and abandoned every element still unsubmitted. The refill
+     * is now event-driven and the same borrowed-thread isolation keeps the inline case safe.
      */
     @Test
     void aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {

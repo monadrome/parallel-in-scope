@@ -308,6 +308,13 @@ final class SlidingWindowSubmitter<V> {
          * the rest. Returns {@code false} when the batch is settled and the drain must stop.
          */
         private boolean handoff(int index) {
+            if (index >= size) {
+                // The cancellation path's nextIndex.getAndSet(size) can land between the claim
+                // loop's range check and the increment, so the increment observes the phantom
+                // index size. No element exists for it; the batch is already settled and the claim
+                // loop's next range check exits.
+                return false;
+            }
             freeSlots.decrementAndGet();
             ExecutionPhaseHintFuture<V> task = tasks.get(index);
             if (index < start) {

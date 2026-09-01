@@ -9,13 +9,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 /**
  * Regression tests for the global installation slot. Installing a closed {@link ParRuntime} must
  * fail without occupying the slot, {@link ParRuntime#close()} must always release its own slot, and
  * an install racing {@code close()} must never leave a shut-down instance installed.
  */
+@ResourceLock(ParRuntimeGlobalSlotTest.GLOBAL_SLOT_LOCK)
 class ParRuntimeGlobalSlotTest {
+
+    /** Shared lock with the other tests that reflect on the process-global installation slot. */
+    static final String GLOBAL_SLOT_LOCK = "par-runtime-global-slot";
 
     @AfterEach
     void resetGlobalSlot() {

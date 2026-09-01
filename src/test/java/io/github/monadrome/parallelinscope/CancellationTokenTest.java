@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
@@ -338,10 +339,13 @@ public class CancellationTokenTest {
             public void close() {}
         };
         logger.addHandler(handler);
+        Level previousLevel = logger.getLevel();
+        logger.setLevel(Level.ALL);
         try {
             token.cancel(true);
         } finally {
             logger.removeHandler(handler);
+            logger.setLevel(previousLevel);
         }
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);

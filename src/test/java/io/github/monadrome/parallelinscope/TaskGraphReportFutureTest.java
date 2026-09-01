@@ -167,8 +167,10 @@ class TaskGraphReportFutureTest {
         Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
         Handler throwing = throwingHandler();
         boolean parentHandlers = observationLogger.getUseParentHandlers();
+        Level previousLevel = observationLogger.getLevel();
         observationLogger.addHandler(throwing);
         observationLogger.setUseParentHandlers(false);
+        observationLogger.setLevel(Level.ALL);
         try {
             // The user-replaceable handler must not escape close() nor suppress the failed report.
             assertThatCode(scope::close).doesNotThrowAnyException();
@@ -182,6 +184,7 @@ class TaskGraphReportFutureTest {
             assertThat(TaskGraphObservationScope.current()).isNull();
         } finally {
             observationLogger.removeHandler(throwing);
+            observationLogger.setLevel(previousLevel);
             observationLogger.setUseParentHandlers(parentHandlers);
         }
     }
