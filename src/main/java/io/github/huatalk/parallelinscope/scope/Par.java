@@ -133,7 +133,7 @@ public final class Par {
                                 callableMapper.apply(list.get(index)),
                                 globalPar.executionPolicyFor(displayName).taskListeners()),
                         true,
-                        false))
+                        true))
                 .collect(toImmutableList());
         AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
                         runtime.submissionExecutor(), batchContext, globalPar.submitterPool(), runtime.phaseObserver())
