@@ -16,7 +16,6 @@ nav:
       - Cooperative cancellation: reference/cooperative-cancellation.md
       - Nullability annotations: reference/nullability-annotations.md
   - Implementation & Design:
-      - ThreadRelay internals: internals/thread-relay.md
       - Design philosophy: design/philosophy.md
       - Idea Graveyard: design/idea-graveyard.md
   - Tests & Cases:
@@ -107,7 +106,6 @@ plugins:
         zh-CN/reference/cooperative-cancellation.md: https://huatalk.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/
         zh-CN/reference/nullability-annotations.md: https://huatalk.github.io/parallel-in-scope/zh/reference/nullability-annotations/
         zh-CN/reference/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
-        zh-CN/internals/thread-relay.md: https://huatalk.github.io/parallel-in-scope/zh/internals/thread-relay/
         zh-CN/design/philosophy.md: https://huatalk.github.io/parallel-in-scope/zh/design/philosophy/
         zh-CN/design/idea-graveyard.md: https://huatalk.github.io/parallel-in-scope/zh/design/idea-graveyard/
         zh-CN/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
@@ -133,7 +131,6 @@ plugins:
                 - 协作式取消: reference/cooperative-cancellation.md
                 - 空值注解: reference/nullability-annotations.md
             - 实现与设计:
-                - ThreadRelay 内部机制: internals/thread-relay.md
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:

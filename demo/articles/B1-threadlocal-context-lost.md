@@ -29,14 +29,9 @@ for (int i = 0; i < 3; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 内部集成了阿里巴巴的 `TransmittableThreadLocal`（TTL）来解决跨线程上下文传播问题。框架在 `ThreadRelay` 中注册了 TTL 传播器，当 `Par.map()` 将任务提交到线程池时，TTL 会在提交前自动捕获父线程的上下文，并在工作线程执行前回放。整个过程对开发者透明——你不需要手动 `put`/`get`，也不需要修改 lambda 签名。
+`parallel-in-scope` 不传播应用自定义的 `ThreadLocal` 或 MDC。它只在每个 `Par.map()` 任务执行期间安装自己的任务上下文，以管理取消、deadline 和嵌套批次关系。
 
-关键机制如下：
-- **提交前捕获**：TTL 在 `ExecutorService.execute()` 调用时，自动快照当前线程的所有 `TransmittableThreadLocal` 值
-- **执行前回放**：工作线程开始执行前，TTL 将快照的值注入到工作线程的 `ThreadLocal` 中
-- **执行后清理**：任务结束后，TTL 恢复工作线程原始的 `ThreadLocal` 状态，避免线程复用导致的上下文泄漏
-
-使用 `Par.map()` 时，lambda 中的业务代码可以像在主线程一样访问 `MDC.get("traceId")`，值与主线程一致。开发者只需把 `MDC` 的 `ThreadLocal` 替换为 `TransmittableThreadLocal` 版本（如 Logback 的 `TtlMDCAdapter`），即可与框架无缝配合。
+需要传播 MDC 时，应用必须在自己的 executor 边界使用 TTL wrapper、TTL Agent 或框架集成。这样 MDC 的所有权、捕获时机和清理策略仍由应用明确控制。
 
 ## 代码
 
@@ -53,7 +48,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-// 主线程设置 MDC（使用 TTL 版本的 MDC 适配器）
+// 主线程设置 MDC；应用的 executor 集成负责传播它
 MDC.put("traceId", "abc-123");
 
 // 配置并行选项
@@ -65,13 +60,12 @@ BatchExecutionOptions opts = BatchExecutionOptions.of("process-orders")
 // 并行处理订单
 List<Order> orders = orderRepository.findPending();
 AsyncBatchResult<ProcessResult> result = par.map( orders, order -> {
-    // 工作线程中 MDC.get("traceId") 返回 "abc-123"
-    // 框架通过 TTL 自动传播，无需手动设置
+    // 是否可读取 traceId 取决于应用配置的 MDC/TTL 集成
     log.info("处理订单: {}", order.getId());
     return processOrder(order);
 }, opts);
 
-// 日志链路完整，所有并行任务的日志都携带 traceId
+// 批次的取消与超时由框架管理；MDC 由应用的传播方案管理
 System.out.println(result.reportString());
 ```
 
