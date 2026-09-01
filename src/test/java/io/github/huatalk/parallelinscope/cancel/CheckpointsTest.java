@@ -3,7 +3,8 @@ package io.github.huatalk.parallelinscope.cancel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
+import io.github.huatalk.parallelinscope.internal.ScopedCallable;
+import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
@@ -26,19 +27,39 @@ import org.junit.jupiter.api.Test;
 class CheckpointsTest {
     @AfterEach
     void clearContextAndInterrupt() {
-        TaskScopeTl.remove();
         Thread.interrupted();
     }
 
     @Test
-    void checkpointHonorsTaskNameAndCancellationKind() {
+    void checkpointHonorsTaskNameAndCancellationKind() throws Exception {
         BatchExecutionContext context = context("task");
-        TaskScopeTl.setBatchExecutionContext(context);
-        context.cancellationToken().cancel(false);
+        assertThat(runInTask(context, () -> Checkpoints.checkpoint("other", true)))
+                .isNull();
 
-        Checkpoints.checkpoint("other", true);
-        assertThatThrownBy(() -> Checkpoints.checkpoint("task", true)).isInstanceOf(LeanCancellationException.class);
-        assertThatThrownBy(() -> Checkpoints.checkpoint("task", false)).isInstanceOf(FatCancellationException.class);
+        BatchExecutionContext leanContext = context("task");
+        assertThatThrownBy(() -> runInTask(leanContext, () -> {
+                    leanContext.cancellationToken().cancel(false);
+                    Checkpoints.checkpoint("task", true);
+                }))
+                .isInstanceOf(LeanCancellationException.class);
+
+        BatchExecutionContext fatContext = context("task");
+        assertThatThrownBy(() -> runInTask(fatContext, () -> {
+                    fatContext.cancellationToken().cancel(false);
+                    Checkpoints.checkpoint("task", false);
+                }))
+                .isInstanceOf(FatCancellationException.class);
+    }
+
+    private static Void runInTask(BatchExecutionContext context, Runnable action) throws Exception {
+        return new ScopedCallable<Void>(
+                        new TaskExecutionContext(context, 0, System.nanoTime()),
+                        () -> {
+                            action.run();
+                            return null;
+                        },
+                        null)
+                .call();
     }
 
     @Test

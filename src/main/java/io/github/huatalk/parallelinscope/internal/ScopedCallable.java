@@ -3,8 +3,6 @@ package io.github.huatalk.parallelinscope.internal;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
-import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
@@ -20,7 +18,7 @@ import java.util.logging.Logger;
  * <p>Wraps a {@link Callable} with:
  *
  * <ul>
- *   <li>Context setup (TaskScopeTl, ThreadRelay)
+ *   <li>Context setup (TaskExecutionContext)
  *   <li>Cooperative cancellation checkpoint
  *   <li>Timing metrics via SPI {@link TaskListener} callbacks
  *   <li>Cleanup on completion
@@ -112,28 +110,13 @@ public class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         // ==================== prepareContext ====================
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
-        BatchExecutionContext previousBatch = TaskScopeTl.getBatchExecutionContext();
-        CancellationToken previousRelayToken = ThreadRelay.getCurrentCancellationToken();
-        String previousTaskName = ThreadRelay.getCurrentTaskName();
-        String previousExecutorName = ThreadRelay.getCurrentExecutorName();
-        io.github.huatalk.parallelinscope.scope.ExecutorIdentity previousIdentity =
-                ThreadRelay.getCurrentExecutorIdentity();
         TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
 
         BatchExecutionContext batchContext = taskContext.batchContext();
         String taskName = batchContext.taskName();
-        CancellationToken currentToken = getCancellationToken();
         if (batchContext != null) {
-            TaskScopeTl.setBatchExecutionContext(batchContext);
             TaskGraphObservationContext observation = batchContext.taskGraphObservationContext();
             if (observation != null) TaskGraphObservationContext.install(observation);
-        }
-
-        ThreadRelay.setCurrentCancellationToken(currentToken);
-        ThreadRelay.setCurrentTaskName(taskName);
-        ThreadRelay.setCurrentExecutorName(getExecutorName());
-        if (batchContext != null) {
-            ThreadRelay.setCurrentExecutorIdentity(batchContext.executorIdentity());
         }
 
         Throwable taskException = null;
@@ -148,8 +131,6 @@ public class ScopedCallable<V> implements Callable<V> {
         } finally {
             // ==================== cleanup & metrics ====================
             taskContext.markEnded(ticker.read());
-            TaskScopeTl.restore(previousBatch);
-            ThreadRelay.restoreCurrent(previousRelayToken, previousTaskName, previousExecutorName, previousIdentity);
             TaskGraphObservationContext.restore(previousObservation);
 
             // Fire SPI callbacks

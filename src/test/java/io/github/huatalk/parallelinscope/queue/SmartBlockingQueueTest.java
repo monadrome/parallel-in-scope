@@ -3,7 +3,7 @@ package io.github.huatalk.parallelinscope.queue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
+import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class SmartBlockingQueueTest {
     @AfterEach
     void clearContext() {
-        TaskScopeTl.remove();
+        SubmissionScope.restore(null);
     }
 
     @Test
@@ -41,17 +41,27 @@ class SmartBlockingQueueTest {
     @Test
     void cpuAndRejectEnqueueScopesRejectButIoScopeQueues() {
         SmartBlockingQueue<Integer> queue = new SmartBlockingQueue<>(2);
-        TaskScopeTl.setBatchExecutionContext(context(TaskType.CPU_BOUND, false));
-        assertThat(queue.offer(1)).isFalse();
-        assertThat(queue).isEmpty();
+        assertOfferRejects(queue, context(TaskType.CPU_BOUND, false), 1);
+        assertOfferRejects(queue, context(TaskType.IO_BOUND, true), 2);
 
-        TaskScopeTl.setBatchExecutionContext(context(TaskType.IO_BOUND, true));
-        assertThat(queue.offer(2)).isFalse();
-        assertThat(queue).isEmpty();
+        BatchExecutionContext previous = SubmissionScope.install(context(TaskType.IO_BOUND, false));
+        try {
+            assertThat(queue.offer(3)).isTrue();
+            assertThat(queue.poll()).isEqualTo(3);
+        } finally {
+            SubmissionScope.restore(previous);
+        }
+    }
 
-        TaskScopeTl.setBatchExecutionContext(context(TaskType.IO_BOUND, false));
-        assertThat(queue.offer(3)).isTrue();
-        assertThat(queue.poll()).isEqualTo(3);
+    private static void assertOfferRejects(
+            SmartBlockingQueue<Integer> queue, BatchExecutionContext context, int element) {
+        BatchExecutionContext previous = SubmissionScope.install(context);
+        try {
+            assertThat(queue.offer(element)).isFalse();
+            assertThat(queue).isEmpty();
+        } finally {
+            SubmissionScope.restore(previous);
+        }
     }
 
     private static BatchExecutionContext context(TaskType taskType, boolean rejectEnqueue) {

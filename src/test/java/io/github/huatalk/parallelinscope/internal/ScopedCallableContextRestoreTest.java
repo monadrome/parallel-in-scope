@@ -2,8 +2,6 @@ package io.github.huatalk.parallelinscope.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
-import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
@@ -51,48 +49,35 @@ class ScopedCallableContextRestoreTest {
     }
 
     @Test
-    void nestedCallRestoresOuterBatchRelayAndCurrentTask() throws Exception {
-        ThreadRelay.clearCurrent();
-        try {
-            BatchExecutionContext outer = context("same-name");
-            BatchExecutionContext inner = BatchExecutionContext.resolve(
-                    GlobalExecutionPolicy.builder().build(),
-                    BatchExecutionOptions.of("same-name").build(),
-                    1,
-                    outer);
-            TaskExecutionContext outerTask = task(outer, 0);
-            ScopedCallable<String> outerCallable = new ScopedCallable<>(
-                    outerTask,
-                    () -> {
-                        assertThat(TaskScopeTl.getBatchExecutionContext()).isSameAs(outer);
-                        assertThat(ThreadRelay.getCurrentCancellationToken()).isSameAs(outer.cancellationToken());
-                        assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
+    void nestedCallRestoresOuterCurrentTask() throws Exception {
+        BatchExecutionContext outer = context("same-name");
+        BatchExecutionContext inner = BatchExecutionContext.resolve(
+                GlobalExecutionPolicy.builder().build(),
+                BatchExecutionOptions.of("same-name").build(),
+                1,
+                outer);
+        TaskExecutionContext outerTask = task(outer, 0);
+        ScopedCallable<String> outerCallable = new ScopedCallable<>(
+                outerTask,
+                () -> {
+                    assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
 
-                        TaskExecutionContext innerTask = task(inner, 0);
-                        ScopedCallable<String> innerCallable = new ScopedCallable<>(
-                                innerTask,
-                                () -> {
-                                    assertThat(TaskScopeTl.getBatchExecutionContext())
-                                            .isSameAs(inner);
-                                    assertThat(TaskExecutionContext.current()).isSameAs(innerTask);
-                                    return "inner";
-                                },
-                                null);
-                        assertThat(innerCallable.call()).isEqualTo("inner");
+                    TaskExecutionContext innerTask = task(inner, 0);
+                    ScopedCallable<String> innerCallable = new ScopedCallable<>(
+                            innerTask,
+                            () -> {
+                                assertThat(TaskExecutionContext.current()).isSameAs(innerTask);
+                                return "inner";
+                            },
+                            null);
+                    assertThat(innerCallable.call()).isEqualTo("inner");
 
-                        assertThat(TaskScopeTl.getBatchExecutionContext()).isSameAs(outer);
-                        assertThat(ThreadRelay.getCurrentCancellationToken()).isSameAs(outer.cancellationToken());
-                        assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
-                        return "outer";
-                    },
-                    null);
-            assertThat(outerCallable.call()).isEqualTo("outer");
-            assertThat(TaskScopeTl.getBatchExecutionContext()).isNull();
-            assertThat(ThreadRelay.getCurrentCancellationToken()).isNull();
-            assertThat(TaskExecutionContext.current()).isNull();
-        } finally {
-            ThreadRelay.clearCurrent();
-        }
+                    assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
+                    return "outer";
+                },
+                null);
+        assertThat(outerCallable.call()).isEqualTo("outer");
+        assertThat(TaskExecutionContext.current()).isNull();
     }
 
     private static BatchExecutionContext context(String name) {

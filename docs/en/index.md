@@ -22,7 +22,6 @@ This page is the English entry point for the user guide, API references, design 
 
 | Document | Role |
 |---|---|
-| [ThreadRelay internals](internals/thread-relay.md) | Cross-thread context relay |
 | [Design philosophy](design/philosophy.md) | Design decisions and boundaries |
 | [Idea Graveyard](design/idea-graveyard.md) | Intentionally unsupported features |
 

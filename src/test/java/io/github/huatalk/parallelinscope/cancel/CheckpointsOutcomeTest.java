@@ -3,7 +3,6 @@ package io.github.huatalk.parallelinscope.cancel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,7 +21,6 @@ class CheckpointsOutcomeTest {
 
     @AfterEach
     void clearContextAndInterrupt() {
-        TaskScopeTl.remove();
         Thread.interrupted();
     }
 

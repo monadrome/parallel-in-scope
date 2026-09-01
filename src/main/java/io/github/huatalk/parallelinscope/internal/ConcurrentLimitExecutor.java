@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
+import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.TaskType;
@@ -119,7 +120,12 @@ public class ConcurrentLimitExecutor<V> {
 
     private ListenableFuture<V> fallbackSubmit(List<? extends Callable<V>> tasks, int i) {
         Callable<V> task = tasks.get(i);
-        return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+        BatchExecutionContext previous = SubmissionScope.install(batchContext);
+        try {
+            return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+        } finally {
+            SubmissionScope.restore(previous);
+        }
     }
 
     private int parallelism() {

@@ -262,13 +262,13 @@ ParOptions ioOpts = ParOptions.ioTask("fetchRemote")
 ```java
 @Override
 public boolean offer(E e) {
-    ParOptions opts = TaskScopeTl.getParallelOptions();
+    BatchExecutionContext batch = SubmissionScope.currentBatch();
     // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
-    if (opts != null && opts.getTaskType() == TaskType.CPU_BOUND) {
+    if (batch != null && batch.taskType() == TaskType.CPU_BOUND) {
         return false;
     }
     // 显式拒绝入队的场景
-    if (opts != null && opts.isRejectEnqueue()) {
+    if (batch != null && batch.rejectEnqueue()) {
         return false;
     }
     return delegate.offer(e);  // 组合模式，委托给内部队列
@@ -285,42 +285,11 @@ public boolean offer(E e) {
 
 ---
 
-## 六、两 Map 接力：ThreadLocal 的跨线程传播，零侵入
+## 六、上下文边界：只表达实际执行与实际提交
 
-"ThreadLocal 在线程池中丢失"是 Java 并发编程中最常见的坑之一。
+任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `batchContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SmartBlockingQueue` 读取入队策略。
 
-**传统做法有三种，各有各的问题：**
-
-1. **手动传参** — 把 `traceId`、`userId`、`cancellationToken` 一层层传下去。每多一个上下文，所有调用链都要改。一个真实项目中，我见过函数签名从 `fetch(url)` 膨胀到 7 个参数。
-2. **InheritableThreadLocal** — 只在 `new Thread()` 时复制。线程池复用线程时，第二个请求拿到的还是第一个请求的上下文。
-3. **手动包装 Runnable** — 能解决，但每多传一个上下文就要多包一层，代码变成"包装器套包装器"。
-
-三种做法的共同问题是：**上下文传播的逻辑和业务逻辑纠缠在一起。** 你改一个 `fetch()` 的签名，整个调用链都要跟着动。
-
-parallel-in-scope 的方案是 **两 Map 接力**：
-
-```java
-// ThreadRelay 的核心结构（简化）
-private final ConcurrentHashMap<RelayItem, Object> parentMap;  // 从父线程继承
-private final ConcurrentHashMap<RelayItem, Object> curMap;     // 当前线程设置
-```
-
-通过 Alibaba TTL（TransmittableThreadLocal）的 `Transmitter.registerThreadLocal()` 注册后，TTL 增强的提交链路会将父线程的 `curMap` 捕获为子线程的 `parentMap`。传播的内容包括：`CancellationToken`、`ParOptions`、任务名称、执行器名称。用户提供的执行器需要通过 TTL Wrapper 或 TTL Agent 增强；`ThreadRelay` 本身不包装执行器。
-
-**对比手动传参：**
-
-```java
-// 手动传参：每个任务函数都要加参数
-par.map("io-pool", urls, url -> fetch(url, traceId, userId, cancellationToken), opts);
-
-// 两 Map 接力：业务代码无感知
-par.map("io-pool", urls, url -> fetch(url), opts);
-// fetch() 内部通过 TaskScopeTl.getCancellationToken() 自动获取
-```
-
-**与其他方案的对比：** Spring 的 `RequestContextHolder` 基于 `InheritableThreadLocal`，只在 `new Thread()` 时复制——线程池复用线程时不会更新。手动包装 `Runnable` 传参能解决，但每多传一个上下文就要多改一层调用链。TTL 本身解决了线程池复用的问题，但 `ThreadRelay` 的两 Map 设计在此基础上增加了"继承链"——子线程能区分哪些上下文是从父线程继承的、哪些是自己设置的，清理时不会误删父线程的数据。
-
-**完成 TTL 集成后，上下文传播对业务代码保持透明。** 两 Map 接力让业务函数不必为框架上下文增加参数。
+这两个作用域都不通过任意用户线程池提交传播。结构化的子任务必须由 `Par.map()` 创建，避免任意 `Runnable` 被误认为取消树或任务图中的子节点。
 
 ---
 

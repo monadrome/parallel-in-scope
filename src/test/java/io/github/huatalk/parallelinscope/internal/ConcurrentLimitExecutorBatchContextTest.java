@@ -6,18 +6,53 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
 import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ConcurrentLimitExecutorBatchContextTest {
+    @Test
+    void installsBatchScopeForInitialAndSlidingWindowSubmissions() throws Exception {
+        ConcurrentLinkedQueue<BatchExecutionContext> submittedBatches = new ConcurrentLinkedQueue<>();
+        ThreadPoolExecutor worker =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>()) {
+                    @Override
+                    public void execute(Runnable command) {
+                        submittedBatches.add(SubmissionScope.currentBatch());
+                        super.execute(command);
+                    }
+                };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(worker);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            BatchExecutionContext batch = context(2, 1, TaskType.IO_BOUND);
+            ConcurrentLimitExecutor<Integer> executor =
+                    new ConcurrentLimitExecutor<>(workers, batch, submitter, phase -> {});
+
+            assertThat(executor.submitAll(Arrays.asList(() -> 1, () -> 2)).getResults())
+                    .extracting(future -> future.get(1, TimeUnit.SECONDS))
+                    .containsExactly(1, 2);
+            await().atMost(1, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(submittedBatches).hasSize(2));
+            assertThat(submittedBatches).containsOnly(batch);
+            assertThat(SubmissionScope.currentBatch()).isNull();
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @Test
     void emptyBatchCompletesWithoutSubmitting() {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());

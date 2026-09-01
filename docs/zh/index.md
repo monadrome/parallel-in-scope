@@ -23,7 +23,6 @@
 
 | 文档 | 内容 |
 |---|---|
-| [ThreadRelay 内部机制](internals/thread-relay.md) | 跨线程上下文传播 |
 | [并发库的减法哲学](design/philosophy.md) | 核心取舍与边界 |
 | [Idea Graveyard](design/idea-graveyard.md) | 明确不提供的能力及替代方案 |
 | [架构与数据链路](visuals/parallel-in-scope-architecture.html) | 执行、取消、调度和检测链路 |

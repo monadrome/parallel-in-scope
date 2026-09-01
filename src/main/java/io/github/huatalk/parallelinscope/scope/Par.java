@@ -5,8 +5,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import com.google.common.collect.ImmutableList;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
-import io.github.huatalk.parallelinscope.context.TaskScopeTl;
-import io.github.huatalk.parallelinscope.context.ThreadRelay;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ScopedCallable;
@@ -91,7 +89,8 @@ public final class Par {
     private <T, R> AsyncBatchResult<R> mapWhileOpen(
             @Nullable List<T> list, Function<? super T, ? extends R> function, BatchExecutionOptions options) {
         int taskCount = list == null ? 0 : list.size();
-        BatchExecutionContext parent = TaskScopeTl.getBatchExecutionContext();
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        BatchExecutionContext parent = currentTask == null ? null : currentTask.batchContext();
         TaskGraphObservationContext currentObservation = TaskGraphObservationContext.current();
         TaskGraphObservationContext observation = parent != null
                         && parent.taskGraphObservationContext() != null
@@ -154,7 +153,7 @@ public final class Par {
         BatchExecutionContext parent = context.parent();
         TaskGraphObservationContext.logTaskPair(
                 parent == null ? null : parent.batchId(),
-                parent == null ? ThreadRelay.getCurrentTaskName() : parent.taskName(),
+                parent == null ? null : parent.taskName(),
                 context.batchId(),
                 context.taskName(),
                 edge);

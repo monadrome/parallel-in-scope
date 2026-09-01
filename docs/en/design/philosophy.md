@@ -20,9 +20,15 @@ Normal cancellation is a control-flow event, so `LeanCancellationException` avoi
 
 Submitting every item at once can flood a queue and make nested calls deadlock. `ConcurrentLimitExecutor` keeps only a bounded window of work in flight. CPU and I/O task types can use different scheduling policies, but both remain inside the same structured scope.
 
-## Context relay and deadlock visibility
+## Explicit execution context and deadlock visibility
 
-`ThreadRelay` carries task context across pool boundaries. `TaskGraphObservationContext` records task and executor relationships in a request-scoped graph so the library can detect cycles that a thread dump would otherwise reveal only after production impact. This is executor deadlock detection, not a replacement for lock analysis.
+`TaskExecutionContext` is installed only while a scoped task executes; its batch context defines
+the current task's cancellation and nesting ownership. A separate internal submission scope exists
+only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
+before a task starts. Neither context is relayed through arbitrary user executor submissions.
+`TaskGraphObservationContext` records task and executor relationships in a request-scoped graph so
+the library can detect cycles that a thread dump would otherwise reveal only after production
+impact. This is executor deadlock detection, not a replacement for lock analysis.
 
 ## Deliberate boundaries
 
