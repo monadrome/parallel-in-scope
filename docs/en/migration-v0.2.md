@@ -20,4 +20,9 @@ Earlier `0.2.x` snapshots named this type `ExecutionOptions`. Rename imports, va
 
 Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `LivelockListener`. Rename them to `GlobalParDeadlockPolicy` and `DeadlockDetectionListener`; the detector reports potential dependency-graph deadlocks and does not prove a runtime deadlock or detect livelock.
 
+`TaskListener.TaskEvent` now exposes the completed task through `getTaskContext()` and its outcome
+through `isSuccessful()`, `getResult()`, and `getException()`. A successful task may return null, so
+use `isSuccessful()` rather than testing the result for null. Listener callbacks run outside the
+completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
+
 The old `ParConfig`, `ParOptions`, `ExecutorResolver`, `GlobalParConfig`, and legacy `Par` entry points are not compatibility aliases. Update imports, construction, and method calls together. Registered executors remain borrowed and are still owned and shut down by the application.

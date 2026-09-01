@@ -1,6 +1,8 @@
 package io.github.huatalk.parallelinscope.spi;
 
+import io.github.huatalk.parallelinscope.scope.TaskContext;
 import java.time.Duration;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
@@ -22,40 +24,43 @@ public interface TaskListener {
      *
      * @param event task execution event containing timing and metadata
      */
-    void onTaskComplete(TaskEvent event);
+    void onTaskComplete(TaskEvent<?> event);
 
-    /** Timing and outcome data for a completed task. */
-    class TaskEvent {
-        private final String taskName;
-        private final long submitTimeNanos;
-        private final long startTimeNanos;
-        private final long endTimeNanos;
+    /** Task context and outcome for one completed task. */
+    final class TaskEvent<T> {
+        private final TaskContext taskContext;
+        private final T result;
+        private final boolean successful;
         private final boolean enqueued;
         private final Throwable exception;
 
-        /**
-         * Creates an immutable task lifecycle event.
-         *
-         * @param taskName the logical task name
-         * @param submitTimeNanos ticker reading when the task was submitted
-         * @param startTimeNanos ticker reading when execution started
-         * @param endTimeNanos ticker reading when execution completed
-         * @param enqueued whether the task was classified as queued
-         * @param exception the task failure, or {@code null} on success
-         */
-        public TaskEvent(
-                String taskName,
-                long submitTimeNanos,
-                long startTimeNanos,
-                long endTimeNanos,
+        private TaskEvent(
+                TaskContext taskContext,
+                @Nullable T result,
+                boolean successful,
                 boolean enqueued,
                 @Nullable Throwable exception) {
-            this.taskName = taskName;
-            this.submitTimeNanos = submitTimeNanos;
-            this.startTimeNanos = startTimeNanos;
-            this.endTimeNanos = endTimeNanos;
+            this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
+            this.result = result;
+            this.successful = successful;
             this.enqueued = enqueued;
             this.exception = exception;
+        }
+
+        /** Creates the completion event for a successful task, including a possibly-null result. */
+        public static <T> TaskEvent<T> succeeded(TaskContext taskContext, @Nullable T result, boolean enqueued) {
+            return new TaskEvent<>(taskContext, result, true, enqueued, null);
+        }
+
+        /** Creates the completion event for a failed task. */
+        public static <T> TaskEvent<T> failed(TaskContext taskContext, Throwable exception, boolean enqueued) {
+            return new TaskEvent<>(
+                    taskContext, null, false, enqueued, Objects.requireNonNull(exception, "exception cannot be null"));
+        }
+
+        /** Returns the completed task's context. */
+        public TaskContext getTaskContext() {
+            return taskContext;
         }
 
         /**
@@ -64,7 +69,7 @@ public interface TaskListener {
          * @return the logical task name
          */
         public String getTaskName() {
-            return taskName;
+            return taskContext.batchContext().taskName();
         }
 
         /**
@@ -73,7 +78,7 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long getSubmitTimeNanos() {
-            return submitTimeNanos;
+            return taskContext.submitTimeNanos();
         }
 
         /**
@@ -82,7 +87,7 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long getStartTimeNanos() {
-            return startTimeNanos;
+            return taskContext.startTimeNanos();
         }
 
         /**
@@ -91,7 +96,17 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long getEndTimeNanos() {
-            return endTimeNanos;
+            return taskContext.endTimeNanos();
+        }
+
+        /** Returns whether the task completed successfully, including with a null result. */
+        public boolean isSuccessful() {
+            return successful;
+        }
+
+        /** Returns the task result, or null for a failed task or a successful null result. */
+        public @Nullable T getResult() {
+            return result;
         }
 
         /**
@@ -119,7 +134,7 @@ public interface TaskListener {
          * @return the execution duration
          */
         public Duration executionTime() {
-            return Duration.ofNanos(endTimeNanos - startTimeNanos);
+            return Duration.ofNanos(taskContext.executionTimeNanos());
         }
 
         /**
@@ -128,7 +143,7 @@ public interface TaskListener {
          * @return the queue wait duration
          */
         public Duration waitTime() {
-            return Duration.ofNanos(startTimeNanos - submitTimeNanos);
+            return Duration.ofNanos(taskContext.waitTimeNanos());
         }
 
         /**
@@ -137,7 +152,7 @@ public interface TaskListener {
          * @return the duration from submission to completion
          */
         public Duration totalTime() {
-            return Duration.ofNanos(endTimeNanos - submitTimeNanos);
+            return Duration.ofNanos(taskContext.totalTimeNanos());
         }
     }
 }

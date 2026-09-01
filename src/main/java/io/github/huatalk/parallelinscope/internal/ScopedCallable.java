@@ -115,40 +115,41 @@ public class ScopedCallable<V> implements Callable<V> {
         // TaskGraphObservationContext is a TransmittableThreadLocal captured by the TtlCallable
         // wrapper created at the Par.map boundary.
 
+        V result = null;
         Throwable taskException = null;
         try {
             // ==================== doCall ====================
-            Checkpoints.checkpoint(taskName, true);
             taskContext.markStarted(ticker.read());
-            return delegate.call();
+            Checkpoints.checkpoint(taskName, true);
+            result = delegate.call();
+            return result;
         } catch (Throwable t) {
             taskException = t;
             throw t;
         } finally {
             // ==================== cleanup & metrics ====================
             taskContext.markEnded(ticker.read());
-
-            // Fire SPI callbacks
-            notifyListeners(taskException);
-
-            TaskExecutionContext.restore(previousTask);
+            // Listeners receive the completed task explicitly and never inherit an implicit
+            // current-task identity, even when this callable ran inline inside another task.
+            TaskExecutionContext.restore(null);
+            try {
+                notifyListeners(result, taskException);
+            } finally {
+                TaskExecutionContext.restore(previousTask);
+            }
         }
     }
 
-    private void notifyListeners(Throwable exception) {
+    private void notifyListeners(V result, Throwable exception) {
         List<TaskListener> listeners = newTaskListeners;
         if (listeners.isEmpty()) {
             return;
         }
         long waitMs = waitTime() / NANO_TO_MS;
         boolean enqueued = waitMs > QUEUE_THRESHOLD;
-        TaskEvent event = new TaskEvent(
-                taskContext.batchContext().taskName(),
-                taskContext.submitTimeNanos(),
-                taskContext.startTimeNanos(),
-                taskContext.endTimeNanos(),
-                enqueued,
-                exception);
+        TaskEvent<V> event = exception == null
+                ? TaskEvent.succeeded(taskContext, result, enqueued)
+                : TaskEvent.failed(taskContext, exception, enqueued);
 
         for (TaskListener listener : listeners) {
             try {

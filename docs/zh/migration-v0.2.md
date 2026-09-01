@@ -20,4 +20,9 @@
 
 早期快照还曾将这套检测命名为 `GlobalParLivelockPolicy` 和 `LivelockListener`。请分别改为 `GlobalParDeadlockPolicy` 和 `DeadlockDetectionListener`；当前检测针对依赖图中的潜在死锁结构，不证明运行时已经死锁，也不检测活锁。
 
+`TaskListener.TaskEvent` 现在通过 `getTaskContext()` 暴露已完成任务，并通过
+`isSuccessful()`、`getResult()` 和 `getException()` 表达执行结果。成功任务也可能返回
+null，因此不要用 result 是否为 null 判断成败。监听器回调不属于已完成任务的动态执行作用域，
+应读取 event，而不是依赖 `TaskExecutionContext.current()`。
+
 旧的 `ParConfig`、`ParOptions`、`ExecutorResolver`、`GlobalParConfig` 及旧版 `Par` 入口都不是兼容别名。迁移时请同时更新 import、构建方式和调用方式。注册的执行器仍由应用拥有并负责关闭。

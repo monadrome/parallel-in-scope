@@ -15,12 +15,19 @@ class ScopedCallableContextRestoreTest {
     void listenerReceivesSuccessfulTaskTimingAndMetadata() throws Exception {
         BatchExecutionContext context = context("listener");
         AtomicReference<TaskEvent> captured = new AtomicReference<>();
+        TaskExecutionContext taskContext = task(context, 0);
         ScopedCallable<String> callable =
-                new ScopedCallable<>(task(context, 0), () -> "value", Collections.singletonList(captured::set));
+                new ScopedCallable<>(taskContext, () -> "value", Collections.singletonList(event -> {
+                    assertThat(TaskExecutionContext.current()).isNull();
+                    captured.set(event);
+                }));
 
         assertThat(callable.call()).isEqualTo("value");
         TaskEvent event = captured.get();
         assertThat(event).isNotNull();
+        assertThat(event.getTaskContext()).isSameAs(taskContext);
+        assertThat(event.isSuccessful()).isTrue();
+        assertThat(event.getResult()).isEqualTo("value");
         assertThat(event.getTaskName()).isEqualTo("listener");
         assertThat(event.getException()).isNull();
         assertThat(event.getEndTimeNanos()).isGreaterThanOrEqualTo(event.getStartTimeNanos());
@@ -42,10 +49,15 @@ class ScopedCallableContextRestoreTest {
                 () -> {
                     throw failure;
                 },
-                Collections.singletonList(captured::set));
+                Collections.singletonList(event -> {
+                    assertThat(TaskExecutionContext.current()).isNull();
+                    captured.set(event);
+                }));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
         assertThat(captured.get().getException()).isSameAs(failure);
+        assertThat(captured.get().isSuccessful()).isFalse();
+        assertThat(captured.get().getResult()).isNull();
     }
 
     @Test
@@ -69,7 +81,8 @@ class ScopedCallableContextRestoreTest {
                                 assertThat(TaskExecutionContext.current()).isSameAs(innerTask);
                                 return "inner";
                             },
-                            null);
+                            Collections.singletonList(event ->
+                                    assertThat(TaskExecutionContext.current()).isNull()));
                     assertThat(innerCallable.call()).isEqualTo("inner");
 
                     assertThat(TaskExecutionContext.current()).isSameAs(outerTask);
