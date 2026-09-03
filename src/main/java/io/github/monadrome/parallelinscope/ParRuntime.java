@@ -113,9 +113,10 @@ public final class ParRuntime implements AutoCloseable {
                                     + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
                                     + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
                 } else {
-                    // A discarding policy accepts the task and then drops it without running it
-                    // and without throwing, so the framework would keep waiting on a future that
-                    // can never complete. Refuse to register such a pool at all.
+                    // A discarding policy never reports rejection: DiscardPolicy drops the new
+                    // task outright, and DiscardOldestPolicy drops the oldest queued task to make
+                    // room for it. Either way the framework would keep waiting on a future whose
+                    // body may never run. Refuse to register such a pool at all.
                     RejectedExecutionHandler policy =
                             ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
                     if (policy instanceof ThreadPoolExecutor.DiscardPolicy
