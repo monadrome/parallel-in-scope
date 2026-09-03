@@ -294,11 +294,10 @@ public final class Par {
      * Reports once per Par that a requested enqueue rejection cannot take effect here.
      *
      * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
-     * nothing tells the caller that the protection they selected — on by default, for {@link
-     * TaskOptions#timeout(Duration)} — is not running. The diagnostic belongs on the
-     * submission path rather than at registration because options are per task and per batch:
-     * registration cannot know whether the default will ever be used. It stays a warning: throwing
-     * would fail every caller that legitimately runs on a plain pool.
+     * nothing tells the caller that the protection they opted into is not running. The diagnostic
+     * belongs on the submission path rather than at registration because options are per task and
+     * per batch: registration cannot know whether the option will ever be used. It stays a warning:
+     * throwing would fail every caller that legitimately runs on a plain pool.
      *
      * <p>The message claims only what the library knows. It cannot say what the executor will do
      * with an element that cannot start immediately — an inline executor runs it, a bounded queue

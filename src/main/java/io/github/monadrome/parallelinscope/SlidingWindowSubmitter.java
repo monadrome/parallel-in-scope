@@ -396,15 +396,15 @@ final class SlidingWindowSubmitter<V> {
 
     /**
      * Completes every future that will never receive a submission so the batch always reaches a
-     * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
-     * submitter or rejected submission records its cause. Without this cleanup, {@link
+     * terminal state. Directly cancelling the prepared future produces {@code CANCELLED}; an
+     * interrupted submitter or rejected submission records its cause. Without this cleanup, {@link
      * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatch#report()}.
      *
-     * <p>The prepared futures behind the abandoned placeholders are never submitted and never
-     * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
-     * same atomic state the cancel-before-run path uses. The skip runs before the placeholder is
-     * settled so that a caller observing the abandonment (a thrown {@code valuesOrThrow}, a
-     * report) already finds the prepared body released and its slot published.
+     * <p>The abandoned prepared futures are never submitted, so their body slots are released here
+     * as skipped — exactly once, guarded by the same atomic state the cancel-before-run path uses.
+     * The skip runs before the future is settled so that a caller observing the abandonment (a
+     * thrown {@code valuesOrThrow}, a report) already finds the prepared body released and its slot
+     * published.
      *
      * @param tasks the prepared task futures, positionally aligned with {@code result}
      * @param result the batch futures
