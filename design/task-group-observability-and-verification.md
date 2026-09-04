@@ -30,8 +30,8 @@ Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberNam
 combine）已终态、不可变结果已发布，不存在组完成回调的注册入口。
 
 历史归属：`TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除
-（[group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) §13.1 及
-增补裁定 §19.8）；其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
+（[decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
+增补裁定 §19.8，全文见 git 历史 `db2ab2d`）；其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
 同步返回使"先观察终态再消费"成为结构保证，不再需要回调语义。
 
 ## 11. TaskGraph 规则

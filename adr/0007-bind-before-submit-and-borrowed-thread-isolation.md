@@ -75,8 +75,8 @@ this, since whichever element settles first triggers the cascade against the
 rest. Settlement SHALL therefore claim every affected element — recording its
 attribution and publishing its observation — before settling any of them, and
 an element's recorded submission failure SHALL outrank the Future's own state
-when the two disagree. The externally visible contract in
-[batch submission failure semantics](../design/archive/batch-submission-failure-semantics.md)
+when the two disagree. The externally visible contract recorded in
+[decision-log.md](../design/decision-log.md) (batch submission failure semantics entry)
 is unchanged; only the mechanism that upholds it is.
 
 **Borrowed-thread isolation.** A prepared Future SHALL clear the interrupt flag
@@ -112,7 +112,7 @@ thread.** Rejected as a change of meaning rather than a fix. The option's purpos
 is to run the body on the submitting thread as back-pressure; moving it
 elsewhere deletes the option under the guise of repairing it. Removing the
 option outright remains open, and is tracked in
-[caller-runs support after inline deletion](../design/archive/caller-runs-support-after-inline-deletion.md);
+[decision-log.md](../design/decision-log.md) (caller-runs support after inline deletion entry);
 this decision deliberately holds whether or not that removal lands, because a
 user-configured `CallerRunsPolicy` reaches the same code with no library option
 involved.

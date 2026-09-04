@@ -265,7 +265,8 @@ Load documents when their subject affects the task:
   proposals stay untracked by policy, so check `git status --short design/` too.
   Current `design/` contracts take precedence over historical ADRs, except for
   boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
-  boundary, and the `design/` document on it is an archive copy.
+  boundary (its retired `design/` companion is recoverable from git history via
+  `design/decision-log.md`).
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,

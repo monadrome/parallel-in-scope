@@ -142,8 +142,8 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 - `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
 - `groupInheriting` 声明的组要求提交现场存在外层 scoped task，否则提交
   在运行准备期整体失败（`IllegalArgumentException`，无结果对象，见
-  [group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) 增补裁定
-  §19.1）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
+  [decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，增补裁定
+  §19.1，全文见 git 历史 `db2ab2d`）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取声明名；
 - 成员选项 MAY 省略：不带 options 的 `par(name, par, type, body)` 重载等价于传
