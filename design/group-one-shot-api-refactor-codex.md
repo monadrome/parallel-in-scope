@@ -4,8 +4,8 @@
 > [同步出口契约](synchronous-scope-exit.md)；本文约束组的声明形状与统一准入，
 > 底层取消、直接 body 退出、TTL 与调度不变量仍适用。
 
-> 本文是 TaskGroup 组声明契约；与本文冲突的既有 design 文档一律以本文为准（§9 列出被取代的
-> 内容，取代即删除或归档，按原则 3 不加注解）。实施记录见 §10。
+> 本文是 TaskGroup 组声明契约；与本文冲突的既有 design 文档一律以本文为准。
+> 评审与验证教训见 §9。
 > 本方案取代仅增加整数索引重载的局部提案。目标用法只运行一次，因此不留与三阶段签名的兼容层。
 > 基线说明：被删除的 `defineGroup*`/`TaskGroupDefinition.Member`/`TaskGroup.Bindings` **从未随任何发布版交付**（`pom.xml` 为 `0.3.0-SNAPSHOT`，最近 tag 为 `v0.2.0`），所以这是发布前重塑，不是已发布契约的破坏性变更。真正的成本在仓库内：测试、`docs/`、`demo/`、Maven-Central 消费者，见 §8。
 
@@ -213,84 +213,45 @@ Left 的异常形状、`valuesOrThrow()` 的升级规则与取消归因见同步
 | 结构化语义 | 直消、fail-fast、父/组/成员 deadline、TTL、TaskGraph、body exit 和 close grace 与现行路径一致 |
 | 聚合与 combine | 全组成功才构建 `GroupValues`；失败时 `TaskGroupResult` 仍完整；combine 恰好执行一次或正确跳过，terminal 不占普通成员索引；`terminalResult()` 为 null 与返回 `Void` 的 combine 可区分 |
 
-实施先建立草稿与结果视图并复用现有包私有执行内核，再替换旧公开入口、测试和文档。仓库内的改动面（已实测）：`src/main/java` 5 个文件、`src/test/java` 10 个文件（`TaskGroupBindingsTest` 整体改写为草稿生命周期测试）、`docs/zh|en` 的 `user-guide.md` 与 `migration-v0.3.md`、架构可视化 HTML、`demo/` 3 个文件、`verification/maven-central-consumer`（该消费者在 CI 的 `java8-runtime` job 用真实 JDK 8 编译，应把新链式调用纳入，让最深的泛型推断由真 javac 8 检验）。编译测试应直接覆盖第 2 节的使用示例；最后按仓库要求格式化并运行全量测试。
+实施要求：复用包私有执行内核，不复制 `TaskSubmissions`/`ScopedCallable`；
+`verification/maven-central-consumer` 在 CI 的 `java8-runtime` job 用真实 JDK 8 编译，
+新链式调用必须纳入其中，让最深的泛型推断由真 javac 8 检验；编译测试应直接覆盖第 2 节
+的使用示例。
 
-## 9. 文档取代关系
+## 9. 评审与验证教训
 
-本文定稿后，下列文档中与组 API 签名、声明/绑定两阶段、`submitGroup` 提交契约、terminal combine 绑定入口相关的表述作废，以本文为准；各文档在实施 PR 中同步修订（取代即删除或归档，按原则 3 不加注解）：
+落地后经过三轮独立对抗性评审（逐轮换席位、先读前轮基线）与一轮 PIT 变异测试，16 条
+评审发现全部成立并修复。逐条流水见 git 历史；值得留下的可推广教训：
 
-| 文档 | 被取代的内容 |
-|---|---|
-| `group-api-redesign-v0.3-decision.md` | §核心决策"结构定义与执行绑定分离"、`ParId`/`TaskGroup.Bindings` 相关落地记录 |
-| `task-group-api-and-options.md` | `defineGroup*`/`TaskGroupDefinition`/`Member`/`TaskGroup`/`Bindings` 公共 API 清单与选项类型章节 |
-| `task-group-submission.md` | `ParRuntime.submitGroup` 的冻结与统一提交契约、`Bindings` 配置期校验、两阶段提交内核的调用形状（§9 复用边界仍然有效） |
-| `task-group-terminal-combine.md` | `Builder.combine()` 声明 + `Bindings.combine()` 绑定的入口形状；join/取消/观测机制本身仍然有效 |
+**"调用方监听器不得阻断框架收敛"是一个缺陷家族，不止一处。**
 
-历史 ADR 不改写。
+- Guava 的监听器扇出只捕获 `RuntimeException`，不捕获 `Error`——监听器抛 `Error` 会
+  中断后续监听器，跳过框架自己的完成逻辑（future 永久 pending、屏障永远数不满）。
+  框架持有回调点的收敛代码必须自己兜住 `Throwable`，并在"值已写入"与"值未写入"两条
+  路径上分别保证不变量成立。
+- 日志调用本身也是故障点：恢复路径上的日志要防 JUL handler 抛错（收敛比诊断重要）。
+- 监听器若跑在收敛线程上，阻塞等待完成 future 会死锁——这是调用方自伤型风险，用
+  javadoc 声明，而不是改造发布机制。
 
-## 10. 实施记录
+**校验顺序是契约的一部分。** 名字占坑必须放在全部校验通过之后，否则被拒的声明会吃掉
+名字、让重试误报重名；同类重载之间的校验顺序要一致。
 
-已按 §3 的签名落地（公开终端后随同步出口收敛为 `runAll()`，本节的 `valuesFuture()`/`completionFuture()` 表述是落地当时的历史记录）。落地形态与本文一致的要点，以及实施中定下、值得记录的细节：
+**把不变量做成结构属性，而不是构造器要执行的规则。** "至多一个 combine"靠构造器上的
+两个独立参数表达；此前"打标签的单一 slot 平表 + 构造器分拣"对违约是静默容忍的——传入
+两个 combine 会后者胜出、前者不报错地被丢弃。
 
-- 新增 `GroupStart`/`GroupStep`/`CombinedGroupStep`/`CombineBody`/`GroupValues`/`Tuple2`；`GroupDraft`（包私有）持有唯一一份草稿状态与阶段序号，三个阶段的实现类都由它返回；`TaskGroupDefinition` 降为包私有纯结构，`Member<T>`/`Bindings`/`CombineContext` 删除。
-- 落地后按公开面复查做的一轮纯减法（全部落在包私有类型上，公开面与 §3 签名不变）：`TaskGroupDefinition` 去掉无人读取的 `owner` 字段与 `owner()`、无人调用的 `slots()`，`GroupValues.empty()` 删除；成员与 terminal combine 从"打 `Kind` 标签的单一 slot 平表"改为构造器上的两个独立参数，使"至多一个 combine"成为结构属性而非构造器要执行的规则。原先的 `freeze()` 把本来就分开持有的两者拍平打标、构造器再按标签拆回，而那条不变量此前只在三步之外的 stage 链（`Step.combine` → `CombinedGroupStep`）上成立，类型本身对违约是**静默容忍**的：分拣循环里每个 `COMBINE` 都覆盖前一个，传入两个 combine 会后者胜出、前者不报错地被丢弃。
-- 类型检查落在 prepared callable 的包装层（`TaskGroup.typeChecked`），裸类重载与 `TypeToken` 形式共用同一条路径，因此两者在运行期行为完全一致。
-- `valuesFuture()` 由 `converge()` 在写入 `completionFuture()` **之前**发布，§5 的三态契约由 `publishValues` 的三个分支实现；空组走 `completeEmpty()`，同样先发布值。
-- combine body 收到的是按声明顺序左折叠出的元组，由 `assembleTerminal` 在 join 时从已完成的成员 future 组装；它不再有 `CombineContext`。
-- 裸 `null` 字面量作为第三个实参在重载下不再可编译（原本是运行期 `NullPointerException`）；持有 null 的 `TypeToken`/`Class` 变量仍在声明时抛 `NullPointerException`。`GroupDraftContractTest` 固定这一行为。
-- Guava 自己就拒绝构造顶层为裸类型变量的 `TypeToken`（构造期 `IllegalStateException`），因此 `checkConcreteType` 实际拦截的是**嵌套**未解析变量的 token（如 `List<T>`）；测试覆盖的是后者。
+**测试要咬得住，而不只是绿。**
 
-验证：全量 675 个测试通过（含由 `TaskGroupBindingsTest`/`TaskGroupDefinitionContractTest` 改写而来的 `GroupDraftLifecycleTest`/`GroupDraftContractTest`）；`mvn clean install` 产出 jar、sources 与 javadoc；`verification/maven-central-consumer` 在 **真实 JDK 8（Corretto 1.8.0_412）** 下编译并运行通过，其中新增用例覆盖三成员左嵌套 `Tuple2` 与 combine lambda 解构，即本方案对泛型推断要求最深的一处。`PublicApiSurfaceTest` 已按新公共面固定声明集合。
+- 声明顺序 ≠ 完成顺序：验证"有序"的用例必须强制两者分离（让声明在后的成员先完成），
+  且顺序要由观察建立（先看到 future 终结），不能靠 body 内的时序碰运气。
+- 反向验证（回退修复看测试变红）只覆盖改过的行；关键路径的零覆盖，三轮评审加逐修复
+  反向验证都没有发现，是 PIT 发现的——变异测试问的是另一个问题："这些测试咬不咬得住"。
+  两者互补，都已在根 AGENTS.md 的 Adversarial Review 里成为流程步骤。
+- PIT 幸存者要逐条分类：等价变异体（例如边界条件改向、但 `List.get` 自己会抛）不是
+  缺口；把等价变异体当缺口报，比漏报更损耗读者信任。
+- 手写 stub 可能让被测机制空转甚至挂住（见
+  [interruption-contract.md](interruption-contract.md) §7）；关键路径用真实实现。
 
-### 10.1 外部评审与修复
-
-落地后由 cmux 中的 Codex 席位（GPT-6-Sol xhigh，isolated review seat）对 staged 变更做了一轮对抗性评审，报回 6 条，逐条复核后全部成立并已修复：
-
-| # | 发现 | 性质 | 处置 |
-|---|---|---|---|
-| 1 | `valuesFuture()` 直接返回内部 `SettableFuture`，调用方 `cancel()` 可赢得与收敛的竞争，使成功组的 `get()` 抛 `CancellationException` | 真实缺陷 | 改用既有的 `TaskObservation.readOnly(...)`，与 `TaskGraphObservationScope.reportFuture()` 的只读视图一致 |
-| 2 | `publishValues` 里调用方监听器抛出的 `Error` 会逃出 `converge()`，跳过 `completion.set(...)`，使 `completionFuture()` 永久 pending（Guava 的监听器扇出只捕获 `RuntimeException`，不捕获 `Error`） | 真实缺陷 | `converge()` 包住 `publishValues`，记录 SEVERE 后继续发布完成结果——值在监听器运行前就已写入，吞掉异常不会丢值 |
-| 3 | `checkName` 在校验 foreign `Par` / 非法 token **之前**就把名字写入 `seenNames`，被拒的声明会吃掉名字，使同一阶段上的重试误报重名 | 真实缺陷 | 改为全部校验通过后再占名 |
-| 4 | §5 与 `CombineBody` javadoc 宣称 combine body"不在最后完成成员的回调线程运行"，但 combine 的 `Par` 背后是 direct executor 时它确实会内联在那条线程 | 文档过度声明 | 收窄表述：框架不会**调度**到该线程（caller-thread 回退关闭），direct executor 内联是其通用语义、与本组收敛路径无关 |
-| 5 | 迁移后的测试丢失了两处覆盖：`valuesFuture` 零覆盖，且无 token 不匹配用例，一个忽略 `expectedType` 的实现能全绿 | 测试缺口 | 见下 |
-| 6 | `Class<T>` 重载先查 null、后查线程与阶段，与 `TypeToken` 重载的检查顺序相反 | 一致性缺陷（非违约：文档未定义两类错误同时成立时的优先级） | 调整为先查草稿状态；两个重载现在同序 |
-
-随后同一席位对**修复本身**做了第二轮评审（不让它重打原设计），再报回 6 条，全部成立：
-
-| # | 发现 | 性质 | 处置 |
-|---|---|---|---|
-| 7 | `catch (Throwable)` 默认 `publishValues` 已经把值写入 sink；若失败发生在 `values.set(...)` **之前**（成员未收敛、分配失败），catch 会吞掉它并照常发布 SUCCESS 完成结果，而 `valuesFuture()` 仍 pending——恰好破坏本文档声明的那条蕴含不变量，还把框架故障误标成"监听器失败" | 真实缺陷（本轮修复引入） | catch 里显式补终态：sink 未完成则 `cancel(false)`，两个分支都让不变量成立；日志措辞改为"无法发布值" |
-| 8 | 日志调用本身位于恢复路径且未受保护：JUL handler 若在 `publish` 抛错，异常会逃出 catch 并跳过 `completion.set`，在"日志配置有问题"时重现第 2 条的挂起 | 真实缺陷（本轮修复引入） | 抽出 `logValuesFailure`，内部吞掉日志异常并说明理由——收敛比诊断重要 |
-| 9 | 阻塞式 direct 监听器仍可卡死收敛：监听器跑在收敛线程上，而 `completionFuture()` 在该线程走完监听器之后才发布，于是"监听器等完成、完成等监听器" | 调用方自伤型活性风险 | 不为此改造发布机制，改在 `valuesFuture()` javadoc 写明：监听器在收敛线程上运行，阻塞等待完成 future 会死锁，需换异步 executor |
-| 10 | 测试缺口：只覆盖成员失败。若 `failedTask()` 丢掉 terminal 回退，失败的 combine 会让 `valuesFuture()` 变成取消而非携带 cause 的失败，而 7 个测试全绿 | 测试缺口 | 新增 combine 失败用例，断言 cause 是该 combine 自己的异常 |
-| 11 | 测试缺口："有序值"用例只用一个 worker，完成顺序恰好等于声明顺序，按完成顺序装配的实现也能通过 | 测试缺口 | 新增双 worker 用例：让声明在后的成员先完成，强制两种顺序分离 |
-| 12 | 测试竞态：只读用例持锁 10 秒，若测试线程被拖延到组已收敛，`cancel(true)` 在任何 future 上都会返回 false，未修复的代码也能通过 | 测试缺陷 | 两个监听器用例都先等待 body 确已进入运行，再执行 cancel/注册，消除对时序的依赖 |
-
-第二轮同时确认：只读包装保留了 `addListener` 时机、`isDone` 与 `toString` 的委托（它去读了 Guava `ForwardingObject` 源码），且名字预留与 `Class<T>` 守卫两处修复是实质性的。第 10、11 条的新测试同样做了反向验证：把 `publishValues` 改成逆序装配、把 `failedTask()` 的 terminal 回退删掉后，对应用例分别失败。
-
-第三轮换了**新席位**（`codexyolo2`，0% 上下文）以避免对前两轮结论的锚定，并要求它先读上面两张表作为已知基线、只找基线之外的。再报回 4 条，全部成立：
-
-| # | 发现 | 性质 | 处置 |
-|---|---|---|---|
-| 13 | 调用方挂到**成员 observation future** 上的监听器抛 `Error` 时，异常从 `TaskObservation.signal()` 逃出，而该方法本身是任务 future 的**第一个**监听器（注册在框架的 `memberCompleted` 之前）；Guava 的扇出遇 `Error` 中断后续监听器，于是 `memberCompleted` 从不执行，屏障永远数不满，整个组停在 pending。复现：`member=true, observation=true, group=false, values=false` | 真实缺陷（**先于本次改动存在**，非本次引入） | 在 `TaskObservation.publish` 包住 `sink.set(...)`；快照在 Guava 运行监听器**之前**已提交，故吞掉不会丢数据。日志同样加了防抛守卫 |
-| 14 | `containsTypeVariable` 走查 `ParameterizedType` 时只看原始类型与类型实参，漏了 `getOwnerType()`；`TypeToken<Outer<T>.Inner>` 的 `Inner` 自身没有类型实参，`T` 藏在 owner 里，因此能通过声明期校验 | 真实缺陷（校验漏检） | 补上 owner 递归；测试同时覆盖"owner 未解析被拒"与"owner 已解析被接受" |
-| 15 | 第二轮新加的"完成顺序"用例并未真正强制顺序：闩锁是在第二个成员 **body 内部**释放的，早于它的 future 终结，第一个成员的 future 仍可能先完成 | 测试缺陷 | 改为由测试线程先观察到第二个成员的 **future** 终结再释放第一个，顺序由观察建立而非由 body 的时序碰运气 |
-| 16 | §8 矩阵"擦除边界"一行无测试：没有任何用例通过 raw/未检查代码让 body 违反自己声明的类型。删掉 `TaskGroup.typeChecked` 也不会有断言失败 | 测试缺口 | 新增用例：raw `Callable` 返回 `Integer` 而声明 `String`，断言收敛为 `USER_FAILURE` 且 cause 是 `ClassCastException` |
-
-第 13 条是本轮最有价值的一条：它属于同一个"调用方监听器不得阻断框架"家族，但位置比我前两轮修的更早 —— 在成员自己的完成路径上，而不是在聚合视图上。它先于本次改动存在，本次一并修掉。
-
-第 14–16 条的新测试都做了反向验证：去掉 owner 检查、去掉 `typeChecked` 包装、把值装配改成逆序后，对应用例分别失败。其中去掉 `typeChecked` 的那次尤其说明问题 —— `typedLookupsRequireTheExactlyDeclaredToken` 立刻抛出真实的 `ClassCastException`，正是本文档 §2 声称要消除的"让错误在更远处表现为 `ClassCastException`"那个失败模式，被当场复现。
-
-三轮评审之后又跑了仓库既有的变异测试（`mvn -Ppitest`，目标类限定为 `TaskGroup`/`GroupDraft`/`GroupValues`，全量测试集）：215 个变异体、**Test strength 93%**、行覆盖 93%，13 个存活。逐条甄别后分三类，**只有第二类是真缺口**：
-
-| 类别 | 例子 | 处置 |
-|---|---|---|
-| **等价变异体**（不是缺口） | `memberAt` 的 `index >= size` 改成 `index > size`——`orderedMembers.get()` 自己会抛越界；`memberCompleted` 的 `if (!other.future.isDone())`——取消已完成的 future 本就是 no-op；`converge` 的 `if (!values.isDone())`——只在 `publishValues` 抛出的路径可达 | 不报为缺口。把等价变异体当缺口报，比漏报更损耗读者信任 |
-| **真缺口** | ① `futureAt` 的**成功路径**在全测试集中从未被执行——两处调用都在断言异常；② 观察作用域内**多成员组**的 fork 记录（`memberPars.get(index)` 的循环、combine 的边）从未跑过第二轮；③ `callableReleased` 探针从未被断言为 `false`，恒真实现可以蒙混过关 | 各补一个测试 |
-| **不可观察的诊断路径** | `prepare` 的 `if (observation != null) logForking(...)`、观测作用域的解析三元式 | 不追。测试不检查图内容时，跳过一条诊断日志本就无法观测 |
-
-补测后复跑：**Test strength 93% → 94%**，杀死数 184 → 189，未覆盖 16 → 11，行覆盖 93% → 94%。其中 `memberAt` 的边界变异体我用临时改动 `< 0` → `<= 0` 单独验证过确实被新用例杀死，残留的那个是另一侧的等价变异体。
-
-值得记下的是：**`futureAt` 成功路径零覆盖这件事，三轮对抗性评审和我的逐修复反向验证都没发现** —— 因为反向验证只覆盖"我改过的那些行"。变异测试问的是另一个问题：不是"这段代码对不对"，而是"这些测试咬不咬得住"。两者互补，`AGENTS.md` 的 Adversarial Review 已把后者写成流程的一步。
-
-评审同时暴露了本轮实施的一个真实缺口：**§8 矩阵里"聚合 future"整行与 token 精确匹配规则当时没有任何测试**——`valuesFuture` 在测试中零出现，一个完全忽略 `expectedType` 的实现能全绿通过。已补 `TaskGroupValuesFutureTest`（7 个用例，覆盖三态、read-only、空组、Error 守卫）与 `GroupDraftContractTest` 的 token 匹配/越界/null 用例。两个 P1 的回归测试都做过反向验证：临时回退修复后，一个断言 `cancel()` 返回 `false` 失败、另一个以 `SettableFuture[status=PENDING]` 超时，证明测试确实抓得住这两个缺陷而非空转。
+依赖行为记录：Guava 构造期就拒绝顶层为裸类型变量的 `TypeToken`，因此声明期校验实际
+拦截的是**嵌套**未解析变量的 token（如 `List<T>`，包括藏在 owner type 里的）；测试要
+同时覆盖嵌套与 owner 两种形态。
