@@ -53,11 +53,11 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     private volatile @Nullable SubmissionException submissionFailure;
 
-    public static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable) {
+    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable) {
         return new ExecutionPhaseHintFuture<>(callable, null);
     }
 
-    public static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskBodyState bodyState) {
+    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskBodyState bodyState) {
         return new ExecutionPhaseHintFuture<>(callable, bodyState);
     }
 
@@ -93,7 +93,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * Hands off this future; callers submit once. Handoff failures are recorded if execution has
      * not been claimed. The executor may run inline unless the inline guard rejects that path.
      */
-    public void submitPrepared(Executor executor) {
+    void submitPrepared(Executor executor) {
         try {
             if (inlineForbidden) {
                 submittingThread = Thread.currentThread();
