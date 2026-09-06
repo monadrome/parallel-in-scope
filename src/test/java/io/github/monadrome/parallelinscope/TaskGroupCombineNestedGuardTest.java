@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Locks the inline guard's behaviour when work nests: a combine body that opens another group or
+ * Locks the inline guard's behavior when work nests: a combine body that opens another group or
  * batch, and a combine whose own {@code Par} is the one the nested work runs on.
  *
  * <p>The guard compares the executing thread against the thread still inside {@code

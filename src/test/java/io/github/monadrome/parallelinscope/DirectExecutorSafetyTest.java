@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>{@code MoreExecutors.newDirectExecutorService()} is a legitimate registration — it is how a
  * caller asks for synchronous execution, and this library's own graph export has a case for it. But it
  * makes every task borrow the submitting thread, so the thread state that crosses that boundary is no
- * longer an edge case reachable only under pool saturation: it is the whole behaviour of the executor.
+ * longer an edge case reachable only under pool saturation: it is the whole behavior of the executor.
  *
  * <p>Two things used to cross it. A task body that restores its interrupt flag — the textbook response
  * to {@code InterruptedException} — left that flag on the caller, and the caller's next library call

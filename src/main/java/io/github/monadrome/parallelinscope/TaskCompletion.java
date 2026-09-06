@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Successful observations contain the actual value, including null. Outcomes agree with the
  * enclosing execution's frozen results. A never-started task has zero start/end times and
- * durations; the zero sentinel is recognised before any subtraction, because ticker readings may
+ * durations; the zero sentinel is recognized before any subtraction, because ticker readings may
  * legally be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
  */
