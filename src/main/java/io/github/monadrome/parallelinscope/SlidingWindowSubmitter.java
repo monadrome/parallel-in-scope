@@ -396,9 +396,10 @@ final class SlidingWindowSubmitter<V> {
 
     /**
      * Completes every future that will never receive a submission so the batch always reaches a
-     * terminal state. Directly cancelling the prepared future produces {@code CANCELLED}; an
-     * interrupted submitter or rejected submission records its cause. Without this cleanup, {@link
-     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatch#report()}.
+     * terminal state. Directly cancelling the prepared future produces {@code CANCELLED}; a
+     * cancelled refill signal or a failed handoff records its cause as a submission failure.
+     * Without this cleanup, the batch's synchronous result would wait on elements that no worker
+     * will ever settle, and the recorded cause would be lost.
      *
      * <p>The abandoned prepared futures are never submitted, so their body slots are released here
      * as skipped — exactly once, guarded by the same atomic state the cancel-before-run path uses.

@@ -10,9 +10,8 @@ import org.jspecify.annotations.Nullable;
  * Smart blocking queue that dynamically adjusts enqueue behavior based on task type.
  *
  * <p>For {@link TaskType#CPU_BOUND} tasks or when {@code rejectEnqueue} is set, {@link
- * #offer(Object)} returns {@code false}, forcing the {@code ThreadPoolExecutor}'s {@code
- * RejectedExecutionHandler} to trigger. This prevents CPU-bound tasks from queuing up and causing
- * latency.
+ * #offer(Object)} returns {@code false} instead of queueing the task. This prevents CPU-bound
+ * tasks from queuing up and causing latency.
  *
  * <p>Note what that means for the pool as a whole: a refused {@code offer} does not by itself run
  * anything on the caller. {@code ThreadPoolExecutor.execute} first tries to start a new worker, and
@@ -69,8 +68,8 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
     }
 
     /**
-     * CPU-bound tasks return false directly, triggering thread pool's RejectedExecutionHandler. Other
-     * task types enqueue normally.
+     * Refuses the element when the submitting unit is {@link TaskType#CPU_BOUND} or sets {@code
+     * rejectEnqueue}; otherwise offers it to the bounded queue, which still refuses it when full.
      */
     @Override
     public boolean offer(@Nullable E o) {
