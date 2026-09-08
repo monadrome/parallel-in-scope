@@ -9,28 +9,41 @@
 public <T> void bind(
         List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
     // deadline 存在 token 内部（构造时与 parent 取 min），bind 不再接收 Duration
-    FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
-            .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);
     // 统一取消句柄：successfulAsList 要等全部 input 完成才终态，
     // 所以在「某个成员已失败」的时刻它仍然 pending，取消它能级联到所有 inputs
     ListenableFuture<?> allFutures =
             Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
-    failFastFuture.addCallback(new FutureCallback<>() {
+    // 事件来源必须按来源区分，不能按异常类型猜：业务体可以合法抛 TimeoutException。
+    // allAsList 回调是唯一 FAIL_FAST 来源；显式调度的 timer 任务是唯一 TIMEOUT 来源。
+    ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
+    if (deadlineNanos != Long.MAX_VALUE) {
+        ScheduledFuture<?> timeoutHandle = timer.schedule(() -> {
+            transitionTo(TIMEOUT);
+            allFutures.cancel(true);
+        }, remaining, NANOSECONDS);
+        // token 以任何路径终态都会完成 futureToken，在那里取消已调度的任务，
+        // 避免共享 timer 把一个已终态 token 保留到 deadline。
+        futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+    }
+    Futures.addCallback(businessOutcome, new FutureCallback<>() {
         onSuccess: transitionTo(SUCCESS);
-        onFailure: transitionTo(TIMEOUT 或 FAIL_FAST); allFutures.cancel(true);
+        onFailure: transitionTo(FAIL_FAST); allFutures.cancel(true);   // 取消无条件执行，见 §7.5
     }, directExecutor());
-    futureToken.setFuture(failFastFuture);
+    futureToken.setFuture(businessOutcome);
 }
 ```
 
-两条形状约束决定了这个形态（机制见 §2/§3，规则汇总见 §7）：
+三条形状约束决定了这个形态（机制见 §2/§3，规则汇总见 §7）：
 
 1. **取消动作必须放在 `addCallback` 里**：top-down 取消到达不了 `catchingAsync` 的
    fallback（§2.1），写在 fallback 里的取消逻辑是死代码；`addCallback` 的 `onFailure`
    两个方向都会触发（§2.3）。
 2. **统一取消句柄必须是还 pending 的组合 future（`successfulAsList`）**：`allAsList`
    在第一个失败/取消时就终态，对已完成 future 调 `cancel` 是 no-op，级联不到 inputs（§3）。
+3. **TIMEOUT 的唯一来源是 timer 任务**：历史上用 `withTimeout` 包 `allAsList`，再按
+   `instanceof TimeoutException` 归因；业务 `TimeoutException` 会被误记为框架 TIMEOUT。
+   `withTimeout` 仍在 `Task.withTimeout` 派生视图使用，不再承担 token 归因。
 
 ## 2. 机制一：取消和失败是两条传播路径
 
@@ -114,6 +127,15 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 - `allAsList` 对 cancelled input 的自我取消用 `cancel(false)`——那是「以取消完成」的语义，不是「要求取消」，不该带中断
 - `cancel(false)` 契约：级联照常，但运行中任务不被中断（有测试钉死此行为）
 
+## 5.1 中断意图沿 token 树传播
+
+`CancellationToken` 用 volatile 字段 `cancelInterrupt` 记录终态取消的中断意图（默认
+`true`）：只有显式 `cancel(false)` 记 `false`；TIMEOUT、FAIL_FAST 及升级路径始终保持
+`true`，因为它们的活性依赖中断。`ParentLink.parentFinished()` 读取父的意图、写入子、再
+以同一意图取消子的 `futureToken`——意图必须先于 `futureToken.cancel` 写入，子的终态完成
+是下一代 listener 的观察点。因此 `cancel(false)` 的不中断策略沿整棵树逐代保留；first-wins
+不变：已终态的子不受父取消影响。
+
 ## 6. 速查表
 
 | API | input 被取消 | output 被取消 |
@@ -131,6 +153,9 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 2. **统一取消句柄选还 pending 的组合 future（`successfulAsList`）**，不要选会提前终态的（`allAsList`）。
 3. **归因不靠猜**：`isCancelled()` 事后看不出谁取消的。token 状态机先 CAS 再执行取消动作，观察者读状态即可归因（`CancellationToken.transitionTo` 的 CAS-notify-cancel 顺序）。
 4. 链式简洁是有代价的：每层组合器对取消的处理不同，重写前先核对 §6 的表格。
+5. **onFailure 里的取消动作无条件执行**：转换输掉 first-wins（例如显式 cancel 已先提交
+   CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态 future 的 cancel
+   是 no-op，所以重复级联无害，跳过才会漏取消。
 
 ## 8. 父监听的终态切断（结果保留契约）
 
