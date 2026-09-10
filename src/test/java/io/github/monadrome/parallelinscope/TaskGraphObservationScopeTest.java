@@ -101,6 +101,60 @@ class TaskGraphObservationScopeTest {
     }
 
     @Test
+    void reentrantLoggingHandlerCannotDeadlockClose() throws Exception {
+        // A JUL handler is user-replaceable code: if it re-enters the same scope's close(), the
+        // re-entrant call must observe an already-published report instead of waiting for the
+        // publication the outer close can only make after the handler returns.
+        global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+                .build();
+        TaskGraphObservationScope scope = global.openTaskGraphObservation();
+        TaskGraphObservationScope.logTaskPair(
+                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
+        TaskGraphObservationScope.logTaskPair(
+                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+
+        AtomicReference<Throwable> reentrantFailure = new AtomicReference<>();
+        java.util.logging.Logger scopeLogger =
+                java.util.logging.Logger.getLogger(TaskGraphObservationScope.class.getName());
+        java.util.logging.Handler reentrant = new java.util.logging.Handler() {
+            @Override
+            public void publish(java.util.logging.LogRecord record) {
+                try {
+                    scope.close();
+                } catch (Throwable failure) {
+                    reentrantFailure.compareAndSet(null, failure);
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        scopeLogger.addHandler(reentrant);
+        // Close on a daemon thread with a bounded join: the pre-fix deadlock would otherwise hang
+        // the test thread forever instead of failing.
+        Thread closer = new Thread(scope::close, "reentrant-close");
+        closer.setDaemon(true);
+        closer.start();
+        try {
+            closer.join(TimeUnit.SECONDS.toMillis(10));
+        } finally {
+            scopeLogger.removeHandler(reentrant);
+        }
+
+        assertThat(closer.isAlive())
+                .as("close must not wait on a report its own logging handler is waiting for")
+                .isFalse();
+        assertThat(reentrantFailure.get()).isNull();
+        assertThat(scope.reportFuture().isDone()).isTrue();
+        assertThat(Objects.requireNonNull(Futures.getDone(scope.reportFuture())).status())
+                .isEqualTo(TaskGraphReport.Status.ISSUE);
+    }
+
+    @Test
     void doubleClosePublishesTheReportOnlyOnce() throws Exception {
         global = ParRuntime.builder()
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
