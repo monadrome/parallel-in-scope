@@ -24,6 +24,12 @@ import org.jspecify.annotations.Nullable;
  * the deadlock detection pass over the recorded graph once and publishes the resulting {@link
  * TaskGraphReport} through {@link #reportFuture()}.
  *
+ * <p>A scope may be closed on any thread, not only the one that opened it. A closed scope becomes
+ * transparent wherever its binding survived: reads skip it and observe the nearest still-open
+ * outer scope, and a later close unwinds through closed remnants to that same outer scope. The
+ * binding on threads the closing call cannot reach is repaired on that thread's next read, so a
+ * scope closed elsewhere never stays authoritative and no closed scope keeps recording edges.
+ *
  * <p>Lifecycle:
  *
  * <ul>
@@ -66,7 +72,20 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     /** Returns the observation scope active on the calling thread, if any. */
     static @Nullable TaskGraphObservationScope current() {
         TaskGraphObservationScope scope = CURRENT.get();
-        return scope != null && !scope.closed() ? scope : null;
+        if (scope == null || !scope.closed()) {
+            return scope;
+        }
+        // A scope may be closed on a different thread than the one that opened it; the closed
+        // remnant then stays installed here. Walk past closed scopes to the nearest still-open
+        // outer scope and repair the binding, so later closes on this thread unwind from the open
+        // head instead of the closed remnant.
+        TaskGraphObservationScope open = scope.previousScope;
+        while (open != null && open.closed()) {
+            open = open.previousScope;
+        }
+        if (open == null) CURRENT.remove();
+        else CURRENT.set(open);
+        return open;
     }
 
     /**
@@ -349,12 +368,35 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         }
     }
 
-    /** Restores this thread's outer scope binding when this scope is still installed here. */
+    /**
+     * Restores this thread's binding when this scope's chain heads it: the nearest still-open outer
+     * scope becomes current, skipping closed scopes (an inner scope closed on another thread, or a
+     * non-LIFO close). When an open scope is stacked above this one the binding is left to that
+     * scope's own close.
+     */
     private void restoreCurrentScope() {
-        if (CURRENT.get() == this) {
-            if (previousScope == null) CURRENT.remove();
-            else CURRENT.set(previousScope);
+        TaskGraphObservationScope top = CURRENT.get();
+        if (top == null) {
+            return;
         }
+        if (top != this && !top.closed()) {
+            return;
+        }
+        TaskGraphObservationScope link = top;
+        while (link != null && link != this) {
+            link = link.previousScope;
+        }
+        if (link == null) {
+            // This scope was never installed on the current thread (a close on a different thread
+            // than the one that opened it); there is nothing here to restore.
+            return;
+        }
+        TaskGraphObservationScope restore = previousScope;
+        while (restore != null && restore.closed()) {
+            restore = restore.previousScope;
+        }
+        if (restore == null) CURRENT.remove();
+        else CURRENT.set(restore);
     }
 
     private static String renderTaskEdges(TaskGraphData.Snapshot snapshot) {
