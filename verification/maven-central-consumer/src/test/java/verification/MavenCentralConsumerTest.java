@@ -2,6 +2,7 @@ package verification;
 
 import com.google.common.reflect.TypeToken;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GroupValues;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
@@ -109,6 +110,28 @@ class MavenCentralConsumerTest {
                         "alice:2:2",
                         group.terminalValueOrThrow());
                 assertEquals(TaskOutcome.SUCCESS, group.outcome());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void remainingBudgetReadsTheCurrentTaskToken() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        try {
+            assertEquals(Optional.empty(), Checkpoints.remaining());
+            Par par = runtime.par(CONSUMER);
+            TaskBatchResult<Optional<Duration>> result = par.map(
+                    Arrays.asList(1),
+                    value -> Checkpoints.remaining(),
+                    BatchOptions.timeout("budget", Duration.ofSeconds(30)));
+
+            Optional<Duration> budget = result.results().get(0).valueOrThrow();
+            assertTrue(budget.isPresent(), "a scoped task sees its budget");
+            assertTrue(!budget.get().isNegative());
+            assertTrue(budget.get().compareTo(Duration.ofSeconds(30)) <= 0);
         } finally {
             runtime.close();
             executor.shutdownNow();
