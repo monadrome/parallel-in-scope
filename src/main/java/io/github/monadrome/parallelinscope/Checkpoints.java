@@ -94,11 +94,17 @@ public final class Checkpoints {
      * Checks the current cancellation token and the current thread's interrupt status. A token is not
      * required when this method is used as a raw interrupt checkpoint.
      *
+     * <p>An observed interrupt is translated into {@link LeanCancellationException} with the
+     * interrupt flag restored first: this method is not the sole consumer of the signal, so the
+     * thread owner's interruption policy still observes it afterward — the same treatment every
+     * blocking adapter in this class gives {@link InterruptedException}.
+     *
      * @throws LeanCancellationException if the current scope is cancelled or the thread is interrupted
      */
     public static void rawCheckpoint() {
         checkCancellationToken(true);
         if (Thread.interrupted()) {
+            Thread.currentThread().interrupt();
             throw cancellation("cancel during running by interruption");
         }
     }

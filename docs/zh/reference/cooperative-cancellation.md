@@ -66,6 +66,8 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 | `Checkpoints.checkpoint(taskName, lean)` | 抛 `IllegalStateException` | `lean=true` 抛 `LeanCancellationException`；`lean=false` 抛带堆栈的 `CancellationException` |
 | `Checkpoints.rawCheckpoint()` | 可用——不需要作用域，同时响应线程中断标志 | 抛 `LeanCancellationException` |
 
+`rawCheckpoint()` 响应中断但不消费它：抛出后中断标志保持设置，由线程所有者决定后续策略，与本类的阻塞适配器一致。
+
 另有两个配套工具：
 
 | 方法 | 用途 | 典型场景 |
