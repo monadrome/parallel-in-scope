@@ -63,6 +63,7 @@ public final class TaskGroup implements AutoCloseable {
     private final SettableFuture<TaskGroupResult> completion = SettableFuture.create();
     private final Task<TaskGroupResult> completionTask;
     private final CancellationToken groupToken;
+    private final BodyCompletionTracker bodyCompletion;
 
     private int terminalCount;
     private int successCount;
@@ -78,12 +79,14 @@ public final class TaskGroup implements AutoCloseable {
             List<TaskGroupListener> listeners,
             CancellationToken groupToken,
             Map<String, MemberState> memberStates,
-            @Nullable MemberState terminal) {
+            @Nullable MemberState terminal,
+            BodyCompletionTracker bodyCompletion) {
         this.groupName = groupName;
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.listeners = listeners;
         this.groupToken = groupToken;
+        this.bodyCompletion = bodyCompletion;
         this.memberStates = new LinkedHashMap<>(memberStates);
         this.terminal = terminal;
         // The group's own terminal future is a task like any other: it carries the group name and
@@ -141,14 +144,86 @@ public final class TaskGroup implements AutoCloseable {
         return (TaskFuture<T>) member.view;
     }
 
-    /** Cancels every unfinished member without blocking for user code to stop. */
+    /**
+     * Cancels every unfinished member without waiting for user code to stop.
+     *
+     * <p>This is the cancel-only entry: it issues the cancellation request and returns. Use {@link
+     * #close()} when the calling thread should also wait, within the group's remaining deadline
+     * budget, for task bodies to exit, and {@link #awaitBodyCompletion(Duration)} to wait with an
+     * independently chosen budget.
+     */
     public void cancel() {
         groupToken.cancel();
     }
 
+    /**
+     * Cancels every unfinished member, then waits for task bodies to exit within the group's
+     * remaining deadline budget, and returns.
+     *
+     * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
+     * the deadline is never reset. Cancellation propagation consumes the same budget: when the
+     * deadline is already exhausted — the common case when a timeout triggered this close — or the
+     * group has no finite deadline, this method cancels without waiting. An exhausted budget is a
+     * normal return, not an error. The group's executors are never shut down, and user code that
+     * ignores interruption may keep running after this method returns.
+     *
+     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
+     * is skipped with the interrupt flag preserved; an interruption during the wait likewise
+     * restores the flag and returns. This method adds no checked exception.
+     *
+     * <p>A normal return does not by itself make resources used by task bodies safe to release;
+     * confirm body exit with {@link #awaitBodyCompletion(Duration)} first.
+     *
+     * @throws IllegalStateException if called from within a task body of this group, including a
+     *     nested inline call on the same thread
+     */
     @Override
     public void close() {
+        bodyCompletion.checkNotSelfAwait();
         if (!completion.isDone()) cancel();
+        long deadline = groupToken.deadlineNanos();
+        if (deadline == Long.MAX_VALUE) {
+            return;
+        }
+        long remainingNanos = deadline - System.nanoTime();
+        if (remainingNanos <= 0) {
+            return;
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            return;
+        }
+        try {
+            bodyCompletion.awaitBounded(remainingNanos);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Waits until every task body of this group — all members and the terminal combine — has
+     * exited, or the budget elapses.
+     *
+     * <p>Body exit means the user {@code Callable} returned or threw and its {@code finally}
+     * completed; listener callbacks are not covered. A {@code true} result also covers tasks that
+     * will never be entered (cancelled, rejected, or never submitted) and establishes a
+     * happens-before edge from every task body's writes to this thread; once {@code true}, the
+     * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
+     * while at least one body had not exited, which may include tasks that have not started yet.
+     *
+     * <p>This method never cancels tasks and does not require a prior {@link #close()}; the budget
+     * is an independent cleanup wait that neither extends the group's execution deadline nor
+     * revives cancelled tasks. A zero timeout performs a single check.
+     *
+     * @param timeout the cleanup wait budget
+     * @return {@code true} if all task bodies exited within the budget
+     * @throws NullPointerException if {@code timeout} is null
+     * @throws IllegalArgumentException if {@code timeout} is negative
+     * @throws IllegalStateException if called from within a task body of this group, including a
+     *     nested inline call on the same thread
+     * @throws InterruptedException if the calling thread is interrupted before or during the wait
+     */
+    public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
+        return bodyCompletion.awaitBodyCompletion(timeout);
     }
 
     private void start(GlobalPar global) {
@@ -491,6 +566,10 @@ public final class TaskGroup implements AutoCloseable {
                 groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
         CancellationToken groupToken = new CancellationToken(
                 structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
+        // Every member and the terminal combine registers its body-completion slot here, before
+        // any submission, so the shared signal covers tasks that start late or never start.
+        BodyCompletionTracker bodyCompletion =
+                BodyCompletionTracker.create(definition.tasks().size() + (definition.combine() == null ? 0 : 1));
         Map<String, MemberState> states = new LinkedHashMap<>();
         MemberState terminal = null;
         TaskGraphObservationScope previousObservation = TaskGraphObservationScope.current();
@@ -514,7 +593,8 @@ public final class TaskGroup implements AutoCloseable {
                         observation,
                         par.executorIdentity(),
                         par.name().value());
-                TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
+                TaskExecutionContext taskContext =
+                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 ExecutionPhaseHintFuture<Object> future =
                         par.prepareGroupTask(castCallable(member.callable()), unit, taskContext);
                 states.put(
@@ -556,7 +636,8 @@ public final class TaskGroup implements AutoCloseable {
                         observation,
                         par.executorIdentity(),
                         par.name().value());
-                TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
+                TaskExecutionContext taskContext =
+                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CompletedTaskValues values = new CompletedTaskValues(states, combineDefinition.name());
                 CombineFunction<?> function = combineDefinition.function();
                 ExecutionPhaseHintFuture<Object> future =
@@ -579,8 +660,15 @@ public final class TaskGroup implements AutoCloseable {
         } finally {
             TaskGraphObservationScope.restore(previousObservation);
         }
-        TaskGroup group =
-                new TaskGroup(options.name(), start, groupDeadline, options.listeners(), groupToken, states, terminal);
+        TaskGroup group = new TaskGroup(
+                options.name(),
+                start,
+                groupDeadline,
+                options.listeners(),
+                groupToken,
+                states,
+                terminal,
+                bodyCompletion);
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
         if (terminal != null) {
             retained.add(terminal.future);

@@ -57,6 +57,8 @@ List<TaskFuture<Account>> futures = result.results();
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
+future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——预算耗尽时返回 `false`。它不自动取消任何任务：先经 `submitCanceller()` 或元素 future 取消，再等待。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
+
 ## 执行异构任务组
 
 当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组由 `TaskGroupDefinition` 描述：一个不可变、可复用的纯数据描述。`TaskGroupDefinition.Builder.task` 只记录定义；它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务。`TaskGroup.submit(global, definition)` 在提交时解析调用线程的上下文，冻结完整成员集合，准备全部成员后再统一提交。
@@ -84,7 +86,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 
 `TaskKey` 是以匿名子类创建的类型安全的键，在运行时捕获成员的结果类型；它在配置定义时注册，提交后 `group.future(key)` 解析成员的 future，并拒绝 raw 结果类型不能覆盖注册类型的 key。键仅按 name 值相等，因此声明父类型的 key 与注册 key 是同一个键。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。
 
-组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 和 `close()` 取消未完成成员且不阻塞。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。
+组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 只发出取消请求；`close()` 取消未完成成员后，再用组的剩余 deadline 预算有界等待任务体退出——取消传播消耗同一段预算，因此超时引发的关闭在预算耗尽后直接返回，没有有限 deadline 的组只取消不等待。`close()` 从不关闭 executor，忽略中断的任务体可能在它返回后继续运行；释放任务体使用的资源前，用 `group.awaitBodyCompletion(Duration)` 以独立预算确认任务体退出。在本组成员任务体内（含同线程嵌套 inline 调用）调用这两个等待会被拒绝并抛 `IllegalStateException`。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。
 
 ### 终端汇合
 
