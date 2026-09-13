@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A listenable future and runnable that publishes hints about its execution phase.
@@ -60,13 +61,28 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
 
+    /**
+     * The task-body completion slot, or null when the submission carries no shared tracker (a
+     * single {@code Par.submit} or a non-scoped completion-service task). Driven by the same
+     * claim/cancel race as the phase machine: run() claims it, cancel-before-run and rejection
+     * skip it, and the body-exit publish (inner, with this future's finally as fallback) releases
+     * it — each exactly once.
+     */
+    private final @Nullable TaskBodyState bodyState;
+
     private volatile Consumer<? super ExecutionPhase> phaseObserver;
     private volatile Thread runner;
 
     /** Creates a future with a phase observer. */
     public static <V> ExecutionPhaseHintFuture<V> create(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
-        return new ExecutionPhaseHintFuture<>(callable, phaseObserver);
+        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, null);
+    }
+
+    /** Creates a future with a phase observer and a task-body completion slot. */
+    public static <V> ExecutionPhaseHintFuture<V> create(
+            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
+        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, bodyState);
     }
 
     /** Creates a future with a phase observer for a runnable and fixed result. */
@@ -78,13 +94,16 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                     runnable.run();
                     return result;
                 },
-                phaseObserver);
+                phaseObserver,
+                null);
     }
 
     /** Wraps Guava's future semantics with task-local execution-phase hints. */
-    private ExecutionPhaseHintFuture(Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
+    private ExecutionPhaseHintFuture(
+            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
         this.callable = Objects.requireNonNull(callable, "callable cannot be null");
         this.phaseObserver = Objects.requireNonNull(phaseObserver);
+        this.bodyState = bodyState;
     }
 
     /**
@@ -115,9 +134,41 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     private void reject(Throwable failure) {
         if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.TERMINAL)) {
+            skipBody();
             setException(new SubmissionException(failure));
             notifyPhase(ExecutionPhase.TERMINAL);
             phaseObserver = NOOP;
+        }
+    }
+
+    /**
+     * Marks the task body as never entered, for prepared futures that were never submitted and
+     * never cancelled — the sliding-window abandonment and initial-rejection paths, where only the
+     * caller-facing placeholder is completed. Idempotent against the cancel-before-run path, which
+     * reaches the same transition through {@link #afterDone()}.
+     */
+    void markBodySkipped() {
+        skipBody();
+    }
+
+    /** Claims body execution eligibility; a lost claim means the body must not be entered. */
+    private boolean claimBody() {
+        TaskBodyState body = bodyState;
+        return body == null || body.claimRunning();
+    }
+
+    /** Publishes body exit; no-op when the inner callable already published it. */
+    private void releaseBody() {
+        TaskBodyState body = bodyState;
+        if (body != null) {
+            body.exited();
+        }
+    }
+
+    private void skipBody() {
+        TaskBodyState body = bodyState;
+        if (body != null) {
+            body.skipped();
         }
     }
 
@@ -129,14 +180,22 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         runner = Thread.currentThread();
         notifyPhase(ExecutionPhase.RUNNING);
+        // A task skipped by cancellation or abandonment before this claim must never enter the
+        // user body, even though the executor invoked it.
+        boolean skipped = !claimBody();
         boolean canceled = isCancelled();
         try {
-            if (!canceled) {
+            if (!skipped && !canceled) {
                 set(callable.call());
             }
         } catch (Throwable failure) {
             setException(failure);
         } finally {
+            // Fallback body-exit publish: covers the paths where ScopedCallable never ran (TTL
+            // replay failure, or the body skipped by a cancel that won mid-claim). The normal
+            // publish happens inside ScopedCallable before its listeners; both are guarded by the
+            // same atomic state, so the slot is released exactly once.
+            releaseBody();
             runner = null;
             // A cancel won mid-run if the runner saw it up front (skipped the call) or the
             // set()/setException() above lost the race (isCancelled() now true). Phase reads, CAS,
@@ -185,6 +244,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             if (current == ExecutionPhase.SUBMITTED) {
                 // Cancel won before run(): no worker will emit phases, so report it here and release.
                 if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELED_BEFORE_RUN)) {
+                    skipBody();
                     notifyPhase(ExecutionPhase.CANCELED_BEFORE_RUN);
                     phaseObserver = NOOP;
                 }

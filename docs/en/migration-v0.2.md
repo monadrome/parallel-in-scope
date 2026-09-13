@@ -261,3 +261,18 @@ try {
 `SubmissionException` itself is an internal type: it surfaces only through `getCause()` chains and
 stack traces and cannot be named in a `catch` clause. Classify the outcome through
 `TaskOutcome.SUBMISSION_FAILURE` instead.
+
+## `TaskGroup.close()` waits within the remaining deadline budget (post-0.2.0)
+
+`0.2.0`'s `TaskGroup.close()` only cancelled unfinished members and returned immediately. It now
+cancels and then waits for member and terminal-combine task bodies to exit within the group's
+remaining deadline budget: cancellation propagation consumes the same budget, an exhausted budget
+(or no finite deadline) returns right after cancelling, and an interrupted wait restores the
+interrupt flag and returns. Callers that only want to issue the cancellation request must use
+`cancel()` instead of relying on `close()` being non-blocking.
+
+A normal `close()` return does not prove task bodies have exited. Both `TaskGroup` and
+`TaskBatchResult` now offer `awaitBodyCompletion(Duration)`: a `true` result means every task body
+has exited (or will never be entered) and happens-before the bodies' writes — check it before
+releasing resources the bodies used. Both wait entries reject a call made from within a task body
+of the same scope with `IllegalStateException`.
