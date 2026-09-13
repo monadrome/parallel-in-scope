@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -28,10 +29,15 @@ public final class TaskBatchResult<T> {
 
     private final ListenableFuture<?> submitCanceller;
     private final List<TaskFuture<T>> results;
+    private final BodyCompletionTracker bodyCompletion;
 
-    private TaskBatchResult(ListenableFuture<?> submitCanceller, List<? extends TaskFuture<T>> results) {
+    private TaskBatchResult(
+            ListenableFuture<?> submitCanceller,
+            List<? extends TaskFuture<T>> results,
+            BodyCompletionTracker bodyCompletion) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
+        this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
     }
 
     /**
@@ -91,7 +97,19 @@ public final class TaskBatchResult<T> {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results);
+        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, BodyCompletionTracker.empty());
+    }
+
+    /**
+     * Creates a result for a fully submitted batch carrying its body-completion signal.
+     *
+     * @param <T> the element result type
+     * @param bodyCompletion shared task-body completion signal of this submission
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    static <T> TaskBatchResult<T> of(BodyCompletionTracker bodyCompletion, List<? extends TaskFuture<T>> results) {
+        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, bodyCompletion);
     }
 
     /**
@@ -103,7 +121,49 @@ public final class TaskBatchResult<T> {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(submitCanceller, results);
+        return new TaskBatchResult<>(submitCanceller, results, BodyCompletionTracker.empty());
+    }
+
+    /**
+     * Creates a result for a batch whose submissions may still be running, carrying its
+     * body-completion signal.
+     *
+     * @param <T> the element result type
+     * @param bodyCompletion shared task-body completion signal of this submission
+     * @param submitCanceller the future running the remaining submissions
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    static <T> TaskBatchResult<T> of(
+            BodyCompletionTracker bodyCompletion,
+            ListenableFuture<?> submitCanceller,
+            List<? extends TaskFuture<T>> results) {
+        return new TaskBatchResult<>(submitCanceller, results, bodyCompletion);
+    }
+
+    /**
+     * Waits until every task body of this batch has exited, or the budget elapses.
+     *
+     * <p>Body exit means the user function returned or threw and its {@code finally} completed;
+     * listener callbacks are not covered. A {@code true} result also covers tasks that will never
+     * be entered (cancelled, rejected, or abandoned before execution) and establishes a
+     * happens-before edge from every task body's writes to this thread; once {@code true}, the
+     * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
+     * while at least one body had not exited, which may include tasks that have not started yet.
+     *
+     * <p>This method never cancels tasks and does not require prior cancellation: cancel through
+     * {@link #submitCanceller()} or the element futures first when shutdown is intended, then wait
+     * here. A zero timeout performs a single check.
+     *
+     * @param timeout the cleanup wait budget; independent of the batch's execution deadline
+     * @return {@code true} if all task bodies exited within the budget
+     * @throws NullPointerException if {@code timeout} is null
+     * @throws IllegalArgumentException if {@code timeout} is negative
+     * @throws IllegalStateException if called from within a task body of this batch
+     * @throws InterruptedException if the calling thread is interrupted before or during the wait
+     */
+    public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
+        return bodyCompletion.awaitBodyCompletion(timeout);
     }
 
     /**

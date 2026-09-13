@@ -61,6 +61,8 @@ List<TaskFuture<Account>> futures = result.results();
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
+A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and returns `false` when the budget elapses first. It never cancels anything: cancel through `submitCanceller()` or the element futures first, then wait. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+
 ## Execute a heterogeneous task group
 
 Use a task group when a request has a small fixed set of independent operations that may return
@@ -112,8 +114,15 @@ failure, and cancellation behavior.
 
 Group cancellation is fully structured, matching batch semantics: the first member failure, a
 direct cancellation of any member future or member token, the group deadline, or any single member
-deadline cancels every unfinished member. `group.cancel()` and `close()` cancel unfinished members
-without blocking. Member outcomes are attributed from the cancellation tokens, so a cancelled
+deadline cancels every unfinished member. `group.cancel()` only issues the cancellation request.
+`close()` cancels unfinished members and then waits for their task bodies to exit within the
+group's remaining deadline budget — cancellation propagation consumes the same budget, so a close
+triggered by an expired deadline returns without waiting, and a group without a finite deadline
+only cancels. `close()` never shuts down executors, and a task body that ignores interruption may
+still be running when it returns; call `group.awaitBodyCompletion(Duration)` with an independent
+budget to confirm body exit before releasing resources the bodies used. Calling either wait from
+inside a task body of the same group is rejected with `IllegalStateException`. Member outcomes are
+attributed from the cancellation tokens, so a cancelled
 member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
 cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
 member deadlines start at the submission boundary, and member deadlines are capped by the group

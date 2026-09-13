@@ -244,6 +244,23 @@ null --all success-----------> SUCCESS
 - Group 原因可以先固定，但 completion future 仍必须等所有公开成员 future 达到终态；
 - 空 definition submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
 
+### 6.1 三种终止状态与任务体退出等待
+
+区分三种终止（实现方案见
+[scope-close-and-termination-proposal](scope-close-and-termination-proposal.md)）：
+
+1. **Future 完成**：公开 future 已有不可变终态；`CLOSED`/收敛只承诺到这一层；
+2. **任务体退出**：用户 Callable 已返回或抛出并完成其 finally；由每任务预登记的原子状态机
+   （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享 `CountDownLatch` 等待信号跟踪，
+   名额在任何任务提交之前预登记（含窗口外任务与 terminal combine），正常路径在用户任务体
+   finally 完成后、TaskListener 调用前发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
+   或 `SKIPPED` 各恰好释放一次名额；
+3. **监听器完成**：`TaskListener` 回调执行完毕，不属于任务体退出范围。
+
+`close()` 保证第一层，并在剩余 deadline 预算内尽力等待第二层；第三层不在关闭保证内。嵌套
+作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
+「future 完成」与「任务体退出」，禁止混用「工作终态」。
+
 建议 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作或一把私有 lock。成员 future 的完成 callback 在 lock 内只更新小型状态和决定后续动作，取消 future、触发 listener 等外部调用必须在 lock 外执行，防止重入和长时间占锁。
 
 ## 12. GlobalPar 关闭与资源所有权

@@ -36,12 +36,27 @@ final class SlidingWindowSubmitter<V> {
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
+    private final BodyCompletionTracker bodyCompletion;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
+        this(pool, unit, submitterPool, BodyCompletionTracker.empty());
+    }
+
+    /**
+     * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
+     * body-completion signal. The tracker must have registered one slot per prepared task before
+     * {@link #submitAll(List)} runs.
+     */
+    public SlidingWindowSubmitter(
+            ListeningExecutorService pool,
+            MultiTaskContext unit,
+            ListeningExecutorService submitterPool,
+            BodyCompletionTracker bodyCompletion) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
+        this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 
@@ -58,7 +73,7 @@ final class SlidingWindowSubmitter<V> {
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(ImmutableList.of());
+            return TaskBatchResult.of(bodyCompletion, ImmutableList.of());
         }
 
         ImmutableList.Builder<Task<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -77,13 +92,19 @@ final class SlidingWindowSubmitter<V> {
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
                     resultBuilder.add(rejectedTask(rejected));
                 }
-                return TaskBatchResult.of(resultBuilder.build());
+                // Prepared futures from the rejected element on never reach the executor and are
+                // never cancelled (the token binds the Task views, not these futures), so their
+                // body slots are released here as skipped.
+                for (int pending = i; pending < tasks.size(); pending++) {
+                    tasks.get(pending).markBodySkipped();
+                }
+                return TaskBatchResult.of(bodyCompletion, resultBuilder.build());
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            return TaskBatchResult.of(resultBuilder.build());
+            return TaskBatchResult.of(bodyCompletion, resultBuilder.build());
         }
 
         // Async submit remaining tasks
@@ -101,6 +122,7 @@ final class SlidingWindowSubmitter<V> {
                 () -> {
                     if (submittingFuture.isCancelled()) {
                         abandonRemaining(
+                                tasks,
                                 results,
                                 nextIndex.get(),
                                 new InterruptedException("remaining task submission cancelled"));
@@ -108,7 +130,7 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(submittingFuture, results);
+        return TaskBatchResult.of(bodyCompletion, submittingFuture, results);
     }
 
     private Task<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
@@ -146,16 +168,17 @@ final class SlidingWindowSubmitter<V> {
             try {
                 completed = blockingQueue.take();
             } catch (InterruptedException e) {
-                abandonRemaining(result, index, e);
+                abandonRemaining(tasks, result, index, e);
                 Thread.currentThread().interrupt();
                 return submitted;
             }
             if (completed.isCancelled() || result.get(index).isDone()) {
-                abandonRemaining(result, index, null);
+                abandonRemaining(tasks, result, index, null);
                 return submitted;
             }
             if (Thread.currentThread().isInterrupted()) {
                 abandonRemaining(
+                        tasks,
                         result,
                         index,
                         new InterruptedException("submitter thread interrupted while scheduling remaining tasks"));
@@ -170,7 +193,7 @@ final class SlidingWindowSubmitter<V> {
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
             } catch (RuntimeException e) {
-                abandonRemaining(result, index, e);
+                abandonRemaining(tasks, result, index, e);
                 throw e;
             }
             submitted++;
@@ -185,14 +208,24 @@ final class SlidingWindowSubmitter<V> {
      * submitter or rejected submission records its cause. Without this cleanup, {@link
      * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
      *
+     * <p>The prepared futures behind the abandoned placeholders are never submitted and never
+     * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
+     * same atomic state the cancel-before-run path uses.
+     *
+     * @param tasks the prepared task futures, positionally aligned with {@code result}
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
      *     when the batch is already being canceled
      */
-    private static <V> void abandonRemaining(List<Task<V>> result, int fromIndex, @Nullable Throwable reason) {
+    private static <V> void abandonRemaining(
+            List<? extends ExecutionPhaseHintFuture<V>> tasks,
+            List<Task<V>> result,
+            int fromIndex,
+            @Nullable Throwable reason) {
         for (int i = fromIndex; i < result.size(); i++) {
             result.get(i).abandon(reason);
+            tasks.get(i).markBodySkipped();
         }
     }
 }
