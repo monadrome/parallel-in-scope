@@ -115,6 +115,48 @@ final class TaskBatch<T> implements AutoCloseable {
     }
 
     TaskBatchResult<T> finish() {
+        awaitElementsAndSubmission();
+        long start = System.nanoTime();
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone());
+        awaitBarriers(budget, start);
+        return freezeResults();
+    }
+
+    /**
+     * The {@link #finish()} of a batch carrying a terminal combine: additionally waits out the
+     * combine's future and observation before freezing, and returns the combine's own result and
+     * observation next to the element batch. The combine's body slot is part of the shared tracker,
+     * so the body-exit barrier already covers it.
+     */
+    <C> BatchCombinedResult<T, C> finishCombined(Task<C> terminal) {
+        awaitElementsAndSubmission();
+        try {
+            Uninterruptibles.getUninterruptibly(terminal);
+        } catch (ExecutionException | CancellationException settled) {
+            // The combine's outcome is attribution data, frozen below.
+        }
+        long start = System.nanoTime();
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone());
+        awaitBarriers(budget, start);
+        BodyCompletionTracker.awaitSettledUninterruptibly(
+                terminal.observationView(), budget, start, "terminal observation signal");
+        TaskBatchResult<T> frozen = freezeResults();
+        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, terminal.outcome());
+        TaskCompletion<C> terminalObservation = null;
+        ListenableFuture<TaskCompletion<C>> observation = terminal.observationView();
+        if (observation.isDone()) {
+            try {
+                terminalObservation =
+                        TaskCompletion.withResult(Verify.verifyNotNull(Futures.getDone(observation)), terminalResult);
+            } catch (ExecutionException impossible) {
+                throw new AssertionError("terminal observation cannot fail", impossible);
+            }
+        }
+        return BatchCombinedResult.of(frozen, terminalResult, terminalObservation);
+    }
+
+    /** Waits out every element future and the submission loop, uninterruptibly. */
+    private void awaitElementsAndSubmission() {
         for (TaskFuture<T> result : results) {
             try {
                 Uninterruptibles.getUninterruptibly(result);
@@ -127,10 +169,16 @@ final class TaskBatch<T> implements AutoCloseable {
         } catch (ExecutionException | CancellationException settled) {
             // A cancelled submission loop is already stopped; prepared tasks cannot start late.
         }
-        long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone());
+    }
+
+    /** Waits out the body-exit and element-observation barriers within the cleanup budget. */
+    private void awaitBarriers(long budget, long start) {
         BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
         BodyCompletionTracker.awaitSettledUninterruptibly(completionView, budget, start, "batch observation signal");
+    }
+
+    /** Freezes per-element results and observations; every future is terminal by here. */
+    private TaskBatchResult<T> freezeResults() {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
         List<@Nullable TaskCompletion<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
