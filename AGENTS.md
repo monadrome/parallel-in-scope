@@ -5,18 +5,18 @@
 **parallel-in-scope** is a structured-concurrency toolkit for Java 8+ built on
 Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
 
-- Maven coordinates: `io.github.monadrome:parallel-in-scope:0.2.0`
-- Java source/target 1.8 (tests compiled with release 11); JUnit 5 via Surefire
+- Java release 8 for the library, release 11 for tests; JUnit 5 via Surefire.
+- Dependency and plugin versions live in `pom.xml`.
 
 ## Commands
 
 Run from the repository root.
 
 ```bash
-mvn test                                      # all tests
-mvn test -Dtest=<ClassName>#<methodName>      # targeted test
-mvn spotless:apply                            # format
-mvn clean verify                              # tests + package checks
+mvn test -Dtest='ClassName#methodName' # targeted test; replace class and method
+mvn test                              # all tests
+mvn spotless:apply                    # format Java sources
+mvn clean verify                      # tests + package checks; not a release build
 ```
 
 ## Architecture
@@ -42,15 +42,13 @@ Two invariants to respect:
   tasks beyond the window are returned as `SettableFuture` placeholders
   bridged via `setFuture()` when a slot frees.
 
-## Working Principles
+## Design Decisions
 
-- Analyze every requirement's implementation from first principles by
-  default: start from the project's axioms (structured concurrency;
-  maximize the safety and convenience of user-facing concurrency) in
-  `design/first-principles.md`, apply its evaluation checklist to any new
-  capability or concept, and only then drop into the specific contract
-  documents. Prefer parameterizing existing mechanisms over adding new
-  concepts.
+Optimize for structured concurrency and user safety and convenience. Prefer
+parameterizing existing mechanisms over adding concepts. For a new capability,
+API, or mechanism, use the evaluation checklist in `design/first-principles.md`
+before choosing an implementation. For fixes to existing behavior, consult the
+relevant contract through the document routes below.
 
 ## Key Conventions
 
@@ -79,18 +77,27 @@ Two invariants to respect:
   rationale explicit so future maintainers can distinguish intentional API
   evolution from accidental breakage.
 
-## Testing
+## Verification And Completion
 
 - Add or update tests when changing cancellation, context propagation, executor
   binding, or queue behavior.
-- Run `mvn test` before finishing changes that touch the execution engine or
-  public API.
+- For code changes, use targeted tests while iterating, run `mvn spotless:apply`,
+  and finish with a green `mvn test`. A full suite already passing on the final
+  code satisfies the targeted-test requirement; do not rerun tests solely to
+  satisfy another workflow step.
+- For documentation-only changes, check the diff, referenced paths, and any
+  commands against their source configuration; Java tests and formatting are
+  unnecessary unless executable code or build behavior also changes.
+- Carry implementation through applicable verification and the Git workflow
+  below. Fix failures caused by the change and rerun affected checks without
+  pausing for review of the first implementation. Report unrelated failures or
+  blockers explicitly; do not claim completion while required checks are blocked.
 
 ## Git Workflow
 
-- After implementing a change and verifying it (targeted tests plus `mvn test`
-  green, `mvn spotless:apply` clean), commit and push the current branch
-  automatically — no need to ask.
+- After completing the applicable verification above, commit and push the
+  current branch automatically; no need to ask. This includes documentation
+  maintenance.
 - Exception: do not auto-commit design proposals or analysis documents. They
   usually need several rounds of discussion, so leave them in the working tree
   until the direction is settled; committing early both churns history and
@@ -99,7 +106,10 @@ Two invariants to respect:
   modifications uncommitted. Follow the repository's conventional-commit style
   (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`, lowercase summary).
 
-## Ask Before
+## Permissions
+
+Local tests and Java formatting are authorized with the existing toolchain and
+installed dependencies. Ask before:
 
 - Installing Maven dependencies or upgrading plugin versions.
 - Deleting files or directories.
@@ -114,19 +124,18 @@ main agent; do not proactively delegate implementation to subagents. The only
 exceptions are read-only exploration/analysis subagents and cases where the
 user explicitly asks for subagent delegation.
 
-## Reference Documents
+## Document Routes
 
-- `docs/en/user-guide.md` - Read when changing user-facing behavior.
-- `docs/en/migration-v0.2.md` - Breaking changes from the `0.1.x` API.
+Load documents when their subject affects the task:
 
-## Design Documents
-
-Before changing the execution engine, cancellation, task groups, or queue
-behavior, read `design/AGENTS.md` first and load only the documents whose
-summaries match your task — do not pre-read everything.
-Overview: axioms and new-feature evaluation → `design/first-principles.md`;
-task group contract → `design/task-group-*.md`; cancellation
-propagation mechanics → `design/cancellation-propagation.md`; queue
-lifecycle contract → `design/draining-queue-contract.md`; design rationale
-and rejected ideas → `docs/zh/design/philosophy.md` and
-`docs/zh/design/idea-graveyard.md`; immutable decision records → `adr/`.
+- `design/AGENTS.md` - Entry point for execution-engine, cancellation,
+  task-group, queue, or extension behavior changes. Load only contracts whose
+  summaries match the change. Current `design/` contracts take precedence over
+  historical ADRs.
+- `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
+- `docs/en/user-guide.md` - Update when user-facing behavior changes.
+- `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
+  or other breaking changes from `0.1.x`.
+- `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
+  for design tradeoffs and previously rejected ideas when proposing capabilities.
+- `adr/` - Historical decision rationale; existing records are immutable.
