@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -98,7 +99,7 @@ public final class TaskGroup implements AutoCloseable {
         this.completionTask = Task.of(groupName, groupToken, completion);
         Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) publicMembers.put(member.name, member.view);
-        this.members = Collections.unmodifiableMap(publicMembers);
+        this.members = ImmutableMap.copyOf(publicMembers);
     }
 
     public String groupId() {

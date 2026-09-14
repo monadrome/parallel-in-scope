@@ -1,8 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.collect.ImmutableList;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,7 +35,7 @@ public final class TaskGroupOptions {
 
     /** Returns group options that inherit the enclosing scope's deadline. */
     public static TaskGroupOptions inheritTimeout(String name) {
-        return new TaskGroupOptions(name, null, Collections.emptyList(), null);
+        return new TaskGroupOptions(name, null, ImmutableList.of(), null);
     }
 
     /**
@@ -46,15 +45,17 @@ public final class TaskGroupOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskGroupOptions timeout(String name, Duration timeout) {
-        return new TaskGroupOptions(name, requirePositive(timeout), Collections.emptyList(), null);
+        return new TaskGroupOptions(name, requirePositive(timeout), ImmutableList.of(), null);
     }
 
     /** Returns a copy of these options with one more convergence listener. */
     public TaskGroupOptions listener(TaskGroupListener listener) {
         Objects.requireNonNull(listener, "listener cannot be null");
-        List<TaskGroupListener> extended = new ArrayList<>(listeners);
-        extended.add(listener);
-        return new TaskGroupOptions(name, timeout, Collections.unmodifiableList(extended), closeGrace);
+        ImmutableList<TaskGroupListener> extended = ImmutableList.<TaskGroupListener>builder()
+                .addAll(listeners)
+                .add(listener)
+                .build();
+        return new TaskGroupOptions(name, timeout, extended, closeGrace);
     }
 
     /**

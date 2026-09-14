@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import com.google.common.collect.ImmutableList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
@@ -24,7 +23,7 @@ public final class TaskGroupDefinition {
 
     private TaskGroupDefinition(Builder builder) {
         this.groupOptions = builder.groupOptions;
-        this.tasks = Collections.unmodifiableList(new ArrayList<>(builder.tasks.values()));
+        this.tasks = ImmutableList.copyOf(builder.tasks.values());
         this.combine = builder.combine;
     }
 
