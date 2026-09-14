@@ -262,14 +262,15 @@ try {
 stack traces and cannot be named in a `catch` clause. Classify the outcome through
 `TaskOutcome.SUBMISSION_FAILURE` instead.
 
-## `TaskGroup.close()` and `TaskBatchResult.close()` wait within an independent close grace (post-0.2.0)
+## `TaskGroup.close()` and `TaskBatchResult.close()` wait within a close grace (post-0.2.0)
 
 `0.2.0`'s `TaskGroup.close()` only cancelled unfinished members and returned immediately. It now
 cancels and then waits for member and terminal-combine task bodies to exit within the group's
-**close grace**: a cleanup budget configured with `TaskGroupOptions.closeGrace(Duration)` (default
-`BatchOptions.DEFAULT_CLOSE_GRACE`, five seconds), independent of the execution deadline and
-starting when `close()` is called, so a body that ignores interruption can hold `close()` for at
-most the grace — never for the remaining deadline. `closeGrace(Duration.ZERO)` makes `close()`
+**close grace**: a cleanup budget configured with `TaskGroupOptions.closeGrace(Duration)`; when
+never configured, the wait budget is derived from the group's remaining execution deadline at
+close time, so a close triggered by an expired deadline returns right after cancelling and a body
+that ignores interruption can hold `close()` at most until the deadline.
+`closeGrace(Duration.ZERO)` makes `close()`
 cancel-only; an interrupted wait restores the interrupt flag and returns; a grace elapsed with
 bodies still running is logged at WARN level with the outstanding task names. Callers that only
 want to issue the cancellation request must use `cancel()` instead of relying on `close()` being

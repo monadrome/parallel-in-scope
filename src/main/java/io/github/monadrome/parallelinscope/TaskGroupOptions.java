@@ -24,10 +24,10 @@ public final class TaskGroupOptions {
     private final String name;
     private final @Nullable Duration timeout;
     private final List<TaskGroupListener> listeners;
-    private final Duration closeGrace;
+    private final @Nullable Duration closeGrace;
 
     private TaskGroupOptions(
-            String name, @Nullable Duration timeout, List<TaskGroupListener> listeners, Duration closeGrace) {
+            String name, @Nullable Duration timeout, List<TaskGroupListener> listeners, @Nullable Duration closeGrace) {
         this.name = requireName(name);
         this.timeout = timeout;
         this.listeners = listeners;
@@ -36,7 +36,7 @@ public final class TaskGroupOptions {
 
     /** Returns group options that inherit the enclosing scope's deadline. */
     public static TaskGroupOptions inheritTimeout(String name) {
-        return new TaskGroupOptions(name, null, Collections.emptyList(), BatchOptions.DEFAULT_CLOSE_GRACE);
+        return new TaskGroupOptions(name, null, Collections.emptyList(), null);
     }
 
     /**
@@ -46,8 +46,7 @@ public final class TaskGroupOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskGroupOptions timeout(String name, Duration timeout) {
-        return new TaskGroupOptions(
-                name, requirePositive(timeout), Collections.emptyList(), BatchOptions.DEFAULT_CLOSE_GRACE);
+        return new TaskGroupOptions(name, requirePositive(timeout), Collections.emptyList(), null);
     }
 
     /** Returns a copy of these options with one more convergence listener. */
@@ -62,9 +61,10 @@ public final class TaskGroupOptions {
      * Returns a copy of these options with the given close grace: the bounded wait {@link
      * TaskGroup#close()} performs for member bodies to exit after requesting cancellation.
      *
-     * <p>The grace is a cleanup budget, independent of the group deadline: it starts when {@code
-     * close()} is called, after the members have already been asked to stop. {@link Duration#ZERO}
-     * makes {@code close()} cancel-only.
+     * <p>The grace is a cleanup budget that starts when {@code close()} is called, after the
+     * members have already been asked to stop. {@link Duration#ZERO} makes {@code close()}
+     * cancel-only. When never configured, {@code close()} derives its wait budget from the group's
+     * remaining execution deadline at close time.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
@@ -91,9 +91,12 @@ public final class TaskGroupOptions {
         return listeners;
     }
 
-    /** The close grace used by {@link TaskGroup#close()}; never negative, possibly zero. */
-    public Duration closeGrace() {
-        return closeGrace;
+    /**
+     * The explicit close grace used by {@link TaskGroup#close()}; empty means the wait budget is
+     * derived from the group's remaining deadline at close time.
+     */
+    public Optional<Duration> closeGrace() {
+        return Optional.ofNullable(closeGrace);
     }
 
     private static String requireName(String name) {
