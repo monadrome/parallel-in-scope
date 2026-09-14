@@ -155,8 +155,7 @@ final class SlidingWindowSubmitter<V> {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            ListenableFuture<V> submitted =
-                    TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+            ListenableFuture<V> submitted = unit.runOnCallerThread() ? cs.submitOrRunInline(task) : cs.submit(task);
             return Task.of(unit.name(), unit.cancellationToken(), submitted);
         } finally {
             SubmissionScope.restore(previous);
@@ -170,10 +169,6 @@ final class SlidingWindowSubmitter<V> {
 
     private int parallelism() {
         return unit.effectiveParallelism();
-    }
-
-    private TaskType taskType() {
-        return unit.taskType();
     }
 
     private int submitRemaining(
