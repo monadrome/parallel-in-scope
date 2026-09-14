@@ -114,23 +114,21 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 3. A4 维持"只认物理池"契约 + build() 警告为终态；死锁检测对看不透的 executor
    拒绝启动优于静默降级，这一点已是现状，文档化即可。
 
-## 5. 决策四：`TaskType` 三值枚举的语义（B1）
+## 5. 决策四：`TaskType` 语义与拒绝处置（B1）——**已于 2026-09-14 拍板**
 
-现状：库内 6 处读取全部只判 `== CPU_BOUND`（本次已复核），`IO_BOUND` 与 `MIXED`
-行为不可区分；`MIXED` 的 javadoc（"cache check first, then IO on miss"）承诺了一个
-不存在的区分（`TaskType.java:16-17`）。
+拍板结论已收敛至 `design/task-type-semantics-v0.3-proposal.md`，本节只保留索引，
+细则以该文为准。要点：
 
-分析：
+- 拒绝处置（inline vs. 失败）**移出枚举**，改为
+  `TaskOptions`/`BatchOptions.runOnCallerThread(boolean)`，**默认 `false`（拒绝）**；
+- `TaskType` 三值**保留**，只重写 javadoc，诚实写明 `IO_BOUND` 与 `MIXED` 在当前
+  机制下不可区分、且类型不再影响拒绝路径；
+- **行为变更**：`CPU_BOUND`（默认类型）在 executor 拒绝时默认不再 inline，改为
+  `SubmissionException`；旧行为需显式 `runOnCallerThread(true)`。
 
-- **收敛为两值/布尔**：删 `MIXED`，枚举即"是否 CPU 密集"一个比特。符合公理 3
-  （不教用户运行时不兑现的区分），代价是一次公开 API 收缩。
-- **给 `MIXED` 赋真实语义**：报告建议的读法是"可入队、绝不 inline"。改动集中在
-  提交路径的 inline 决策与 `SmartBlockingQueue`，成本小，保留表达力。
-
-**推荐：给 `MIXED` 赋义"可入队、绝不 inline"**，而非收缩——inline-fallback 是
-`TaskType` 唯一对任意 executor 都生效的行为，三值区分的是"排队/执行策略"这一真实
-维度。但若决策二选择把 queue 包整体移出 core，则 core 内只剩 inline 语义，本决策
-降级为"core 保两值、队列策略随包走"，随决策二定稿。
+被否决的原推荐：给 `MIXED` 赋义"可入队、绝不 inline"（本节此前的选项 B）——它把
+两条正交维度压进一个枚举，并让"拒绝时在提交线程执行用户代码"继续由隐式规则驱动。
+否决理由与该决策的完整落地清单见 SSOT。
 
 ## 6. 决策五：batch 路径的受检异常（B3）
 
@@ -174,7 +172,11 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 1. **决策一（v0.3 重做）**——它决定公开面形态，决策五挂它的发布窗口，C10 挂它
    的代码区。
 2. ~~**决策二（queue 包 ADR）**~~——**已拍板：维持现状（ADR 0006）**，不再阻塞后续项。
-3. **决策三 + 决策四（executor 看透性 + TaskType）**——同一片代码（`register`/
-   `ExecutorRuntime`/提交路径），一次改完。
-4. **决策五（B3 改签名）**——独立但宜早，绑定决策一的窗口。
-5. 附录三项 opportunistic 随上述改动顺带完成。
+3. ~~**决策四（TaskType 语义与拒绝处置）**~~——**已拍板 2026-09-14**（见 §5）；
+   其实现会与 **决策三**（executor 看透性）落在提交路径的相邻代码区
+   （`TaskOptions`/`BatchOptions`/`UnitSpec`/`MultiTaskContext`/`Par`/`TaskGroup`），
+   宜一并实施以少动一次提交路径。
+4. **决策三（executor 看透性 A3/A4/B2）**——`register`/`ExecutorRuntime`/提交路径，
+   与决策四同区，见上。
+5. **决策五（B3 改签名）**——独立但宜早，绑定决策一的窗口。
+6. 附录三项 opportunistic 随上述改动顺带完成。
