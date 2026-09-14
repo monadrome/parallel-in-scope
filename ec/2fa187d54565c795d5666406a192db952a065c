@@ -1,0 +1,58 @@
+src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  s_55445120998176::t_324e69fd1920b8 3-4
+  s_55445120998176::t_f3ce9ed8dcd62b 36
+  s_55445120998176::t_f24901b4425cf3 44-45
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  s_55445120998176::t_bfa3a724aa9244 166,211,235
+  s_55445120998176::t_fcef74f37da269 191
+src/main/java/io/github/monadrome/parallelinscope/GlobalPar.java
+  s_55445120998176::t_b62b722c8597f6 3-5
+  s_55445120998176::t_93f697ae8832e4 118-120
+  ai_agent 86-89
+  s_55445120998176::t_ab6ff8154ac4e6 11
+  s_55445120998176::t_bc048cef28c2a7 74,77,79
+  s_55445120998176::t_5a17a18c0833f5 68
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_55445120998176::t_b1fb0fbfd8bf46 3-4
+  s_55445120998176::t_ac0351710b9ff2 41
+  s_55445120998176::t_f2bdf455bf2c91 138
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupOptions.java
+  s_55445120998176::t_f206577c0889a9 58
+  ai_agent 54-57
+  s_55445120998176::t_4e6c89350f6198 38
+  s_55445120998176::t_6f55e44a30e9eb 3
+  s_55445120998176::t_50ac5e1dcf0c06 48
+src/main/java/io/github/monadrome/parallelinscope/GlobalParDeadlockPolicy.java
+  s_55445120998176::t_cc456ceb316f48 20
+  s_55445120998176::t_ca8f6fd888b847 3
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_55445120998176::t_0894fb564610a1 306
+  s_55445120998176::t_a8f17ae9f276b5 261-262
+  s_55445120998176::t_86fa4dedfe9e6d 3-4,6
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_55445120998176::t_9d0c272a1760a7 26
+  s_55445120998176::t_bb51a68e6a0ba1 3
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_55445120998176::t_96292bade96fe6 5
+  s_55445120998176::t_d7fc5ac555dc46 102
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_55445120998176::t_17d38104047346 5
+  ai_agent 161-162
+  s_55445120998176::t_8896cc6da1976d 228
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ec2fa187d54565c795d5666406a192db952a065c",
+  "prompts": {},
+  "sessions": {
+    "s_55445120998176": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "392cc089-d84b-46e6-b121-b611da923e7f",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
