@@ -29,7 +29,8 @@ class TaskOptionsTest {
         // No name, no parallelism, no listener: identity comes from the TaskKey and a single task
         // has no fan-out to limit, so those fields must not exist rather than be silently ignored.
         assertThat(names)
-                .isEqualTo(new TreeSet<>(Arrays.asList("inheritTimeout", "rejectEnqueue", "taskType", "timeout")));
+                .isEqualTo(new TreeSet<>(
+                        Arrays.asList("inheritTimeout", "rejectEnqueue", "runOnCallerThread", "taskType", "timeout")));
     }
 
     @Test
@@ -38,23 +39,28 @@ class TaskOptionsTest {
     }
 
     @Test
-    void defaultsAreCpuBoundAndRejecting() {
+    void defaultsAreCpuBoundRejectingAndFailOnRejection() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
         assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(options.rejectEnqueue()).isTrue();
+        // No task type implies the caller-thread fallback, CPU_BOUND included.
+        assertThat(options.runOnCallerThread()).isFalse();
     }
 
     @Test
     void withersReturnNewInstancesWithoutMutatingTheOriginal() {
         TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.IO_BOUND);
 
-        TaskOptions derived = base.rejectEnqueue(false).taskType(TaskType.CPU_BOUND);
+        TaskOptions derived =
+                base.rejectEnqueue(false).taskType(TaskType.CPU_BOUND).runOnCallerThread(true);
 
         assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(base.rejectEnqueue()).isTrue();
+        assertThat(base.runOnCallerThread()).isFalse();
         assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(derived.rejectEnqueue()).isFalse();
+        assertThat(derived.runOnCallerThread()).isTrue();
         assertThat(derived.timeout()).contains(Duration.ofSeconds(1));
 
         TaskOptions inherited = TaskOptions.inheritTimeout();
@@ -75,6 +81,7 @@ class TaskOptionsTest {
         UnitSpec spec = TaskOptions.timeout(Duration.ofSeconds(3))
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false)
+                .runOnCallerThread(true)
                 .spec("get-user");
 
         assertThat(spec.name()).isEqualTo("get-user");
@@ -82,6 +89,7 @@ class TaskOptionsTest {
         assertThat(spec.timeout()).contains(Duration.ofSeconds(3));
         assertThat(spec.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(spec.rejectEnqueue()).isFalse();
+        assertThat(spec.runOnCallerThread()).isTrue();
     }
 
     @Test

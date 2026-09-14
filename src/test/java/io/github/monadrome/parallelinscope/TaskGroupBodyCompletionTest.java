@@ -523,8 +523,9 @@ class TaskGroupBodyCompletionTest {
                     ParName.of("worker"),
                     () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
-                        // The rejecting executor runs this CPU-bound task inline on the member thread, so
-                        // the inner body nests under the member body on the same call stack.
+                        // The inner task asks for the caller-thread fallback, so the rejecting
+                        // executor runs it inline on the member thread and the inner body nests
+                        // under the member body on the same call stack.
                         return global.par(ParName.of("rejecting"))
                                 .submit(
                                         "inner",
@@ -536,7 +537,7 @@ class TaskGroupBodyCompletionTest {
                                                 return "guarded";
                                             }
                                         },
-                                        TaskOptions.inheritTimeout())
+                                        TaskOptions.inheritTimeout().runOnCallerThread(true))
                                 .get(5, TimeUnit.SECONDS);
                     },
                     memberOptions());

@@ -8,6 +8,7 @@
 - `TaskBatchResult` now implements `AutoCloseable` with the same "cancel + close grace" semantics: `close()` cancels every unfinished element through the batch token and waits within the grace configured by `BatchOptions.closeGrace(Duration)`.
 - `GlobalPar.awaitQuiescence(Duration)` now also waits for task-body exit, not just future drain: a task cancelled while running completes its future immediately but may still be executing user code, and quiescence means both.
 - `Checkpoints.checkpoint(String, boolean)` no longer fails open: a name that does not match the current scoped task — or a call outside any scoped task — throws `IllegalStateException` instead of silently skipping the cancellation check. The new no-argument `Checkpoints.checkpoint()` is the primary form and needs no name.
+- Executor rejection no longer runs user code by default. `TaskType.CPU_BOUND` used to be both the default task type and an implicit "run inline on rejection" rule, so every task that declared no type silently ran on the submitting thread when its executor rejected it. The caller-thread fallback is now the explicit `TaskOptions.runOnCallerThread(boolean)` / `BatchOptions.runOnCallerThread(boolean)`, default `false`: a rejected task fails with `SUBMISSION_FAILURE` instead. Pass `true` to keep the old behaviour. `TaskType` no longer affects the rejection path at all; it only selects whether `SmartBlockingQueue` refuses to enqueue a task.
 - `TaskGroup.future(TaskKey)` and `CompletedTaskValues.value(TaskKey)` now compare full generic types via `TypeToken.isSupertypeOf`: a key claiming `List<Integer>` no longer resolves a member registered as `List<String>` (previously accepted on raw types and failing later with a `ClassCastException` in user code).
 - `CancellationToken` is now `final` and its `bind(...)` is package-private: the token carries the library's attribution truth, so subclassing and external binding are no longer possible.
 - `Task` is package-private; the public contract is `TaskFuture` only.
@@ -24,6 +25,7 @@
 - Add `GlobalPar.awaitQuiescence(Duration)` and `inFlight()` so application shutdown hooks can join a closing topology.
 - Checkpoints now treat an expired deadline as cancelled on the wall clock: an expired token commits `TIMEOUT` at the next checkpoint even when the timer thread has not run yet, so deadline enforcement no longer depends on scheduling punctuality.
 - Warn once at `GlobalPar.Builder.build()` when a registered executor is not a `ThreadPoolExecutor` the library can see through (e.g. a pre-wrapped `listeningDecorator`), since queue purge and blocking-risk detection are silently disabled for it; `rejectEnqueue` javadoc now states it is honoured only by `SmartBlockingQueue`-backed pools.
+- Add `TaskOptions.runOnCallerThread(boolean)` and `BatchOptions.runOnCallerThread(boolean)` — the caller-thread fallback as an explicit per-task policy, independent of `TaskType`. The terminal combine does not read it: at join time there is no caller thread to borrow, so a rejected combine keeps failing as `SUBMISSION_FAILURE`.
 
 ### Performance
 
