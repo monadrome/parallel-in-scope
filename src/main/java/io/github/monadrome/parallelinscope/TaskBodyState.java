@@ -35,9 +35,22 @@ final class TaskBodyState {
 
     private final AtomicReference<State> state = new AtomicReference<>(State.PENDING);
     private final BodyCompletionTracker tracker;
+    private final String name;
 
-    TaskBodyState(BodyCompletionTracker tracker) {
+    TaskBodyState(BodyCompletionTracker tracker, String name) {
         this.tracker = tracker;
+        this.name = name;
+    }
+
+    /** The task name carried for diagnostics. */
+    String name() {
+        return name;
+    }
+
+    /** Whether the body has neither exited nor been determined to never enter. */
+    boolean isOutstanding() {
+        State current = state.get();
+        return current == State.PENDING || current == State.RUNNING;
     }
 
     /**
@@ -55,14 +68,14 @@ final class TaskBodyState {
      */
     void exited() {
         if (state.compareAndSet(State.RUNNING, State.EXITED)) {
-            tracker.countDown();
+            tracker.release();
         }
     }
 
     /** Marks the task as never entering its body, releasing the slot once. */
     void skipped() {
         if (state.compareAndSet(State.PENDING, State.SKIPPED)) {
-            tracker.countDown();
+            tracker.release();
         }
     }
 }

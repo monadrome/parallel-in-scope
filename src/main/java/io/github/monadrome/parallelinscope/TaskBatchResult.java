@@ -25,19 +25,36 @@ import javax.annotation.Nullable;
  * @param <T> the result type of individual tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public final class TaskBatchResult<T> {
+public final class TaskBatchResult<T> implements AutoCloseable {
+
+    private static final java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(TaskBatchResult.class.getName());
 
     private final ListenableFuture<?> submitCanceller;
     private final List<TaskFuture<T>> results;
     private final BodyCompletionTracker bodyCompletion;
+    private final @Nullable CancellationToken token;
+    private final long closeGraceNanos;
 
     private TaskBatchResult(
             ListenableFuture<?> submitCanceller,
             List<? extends TaskFuture<T>> results,
-            BodyCompletionTracker bodyCompletion) {
+            BodyCompletionTracker bodyCompletion,
+            @Nullable CancellationToken token,
+            Duration closeGrace) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
+        this.token = token;
+        this.closeGraceNanos = saturatedNanos(closeGrace);
+    }
+
+    private static long saturatedNanos(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
     }
 
     /**
@@ -97,7 +114,12 @@ public final class TaskBatchResult<T> {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, BodyCompletionTracker.empty());
+        return new TaskBatchResult<>(
+                Futures.immediateVoidFuture(),
+                results,
+                BodyCompletionTracker.empty(),
+                null,
+                BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /**
@@ -109,7 +131,8 @@ public final class TaskBatchResult<T> {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(BodyCompletionTracker bodyCompletion, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, bodyCompletion);
+        return new TaskBatchResult<>(
+                Futures.immediateVoidFuture(), results, bodyCompletion, null, BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /**
@@ -121,24 +144,67 @@ public final class TaskBatchResult<T> {
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(submitCanceller, results, BodyCompletionTracker.empty());
+        return new TaskBatchResult<>(
+                submitCanceller, results, BodyCompletionTracker.empty(), null, BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /**
      * Creates a result for a batch whose submissions may still be running, carrying its
-     * body-completion signal.
+     * body-completion signal, its cancellation token, and its close grace.
      *
      * @param <T> the element result type
      * @param bodyCompletion shared task-body completion signal of this submission
      * @param submitCanceller the future running the remaining submissions
      * @param results the individual result futures
+     * @param token the batch cancellation token used by {@link #close()}
+     * @param closeGrace the close grace used by {@link #close()}
      * @return a new batch result
      */
     static <T> TaskBatchResult<T> of(
             BodyCompletionTracker bodyCompletion,
             ListenableFuture<?> submitCanceller,
-            List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(submitCanceller, results, bodyCompletion);
+            List<? extends TaskFuture<T>> results,
+            CancellationToken token,
+            Duration closeGrace) {
+        return new TaskBatchResult<>(submitCanceller, results, bodyCompletion, token, closeGrace);
+    }
+
+    /**
+     * Cancels every unfinished element, then waits for task bodies to exit within the batch's close
+     * grace, and returns.
+     *
+     * <p>This is the batch's structured-close entry, symmetric with {@link TaskGroup#close()}:
+     * cancellation goes through the batch token, so every element and the submission loop are
+     * cancelled with the usual attribution. The close grace is a cleanup budget configured on
+     * {@link BatchOptions#closeGrace(Duration)} (default {@link BatchOptions#DEFAULT_CLOSE_GRACE}),
+     * independent of the batch's execution timeout; {@link Duration#ZERO} makes this method
+     * cancel-only. When the grace elapses with bodies still running, the outstanding task names
+     * are logged at WARN level. The executor is never shut down, and user code that ignores
+     * interruption may keep running after this method returns.
+     *
+     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
+     * is skipped with the interrupt flag preserved. A normal return does not by itself make
+     * resources used by task bodies safe to release; confirm body exit with {@link
+     * #awaitBodyCompletion(Duration)} first.
+     *
+     * @throws IllegalStateException if called from within a task body of this batch, including a
+     *     nested inline call on the same thread
+     */
+    @Override
+    public void close() {
+        CancellationToken batchToken = token;
+        BodyCompletionTracker.cancelAndAwaitBodyExit(
+                () -> {
+                    if (batchToken != null) {
+                        batchToken.cancel();
+                    } else {
+                        submitCanceller.cancel(true);
+                    }
+                },
+                bodyCompletion,
+                closeGraceNanos,
+                "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
+                LOGGER);
     }
 
     /**

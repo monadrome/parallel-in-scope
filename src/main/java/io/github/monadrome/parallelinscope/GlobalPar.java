@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -61,6 +62,8 @@ public final class GlobalPar implements AutoCloseable {
     private final AtomicInteger activeBatches = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Object quiescenceMonitor = new Object();
+    private final Set<ListenableFuture<Void>> liveBodySignals =
+            Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
@@ -261,8 +264,13 @@ public final class GlobalPar implements AutoCloseable {
 
     /**
      * Waits until this topology is closed and fully drained: no admission is setting up a batch,
-     * no admitted batch retains incomplete futures, and the framework-owned services have shut
-     * down. Call {@link #close()} first; without it this method simply waits out the timeout.
+     * no admitted batch retains incomplete futures, every admitted task body has exited, and the
+     * framework-owned services have shut down. Call {@link #close()} first; without it this method
+     * simply waits out the timeout.
+     *
+     * <p>Task-body exit is tracked separately from future completion: a task cancelled while
+     * running completes its future immediately but may still be executing user code that ignores
+     * interruption. Quiescence means both.
      *
      * @param timeout the maximum time to wait
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
@@ -275,7 +283,7 @@ public final class GlobalPar implements AutoCloseable {
         // Saturate instead of overflowing when the requested wait is astronomical.
         if (remainingNanos > 0 && deadline < 0) deadline = Long.MAX_VALUE;
         synchronized (quiescenceMonitor) {
-            while (!servicesShutdown.get()) {
+            while (!servicesShutdown.get() || !liveBodySignals.isEmpty()) {
                 if (remainingNanos <= 0) return false;
                 TimeUnit.NANOSECONDS.timedWait(quiescenceMonitor, remainingNanos);
                 remainingNanos = deadline - System.nanoTime();
@@ -348,6 +356,29 @@ public final class GlobalPar implements AutoCloseable {
                 () -> {
                     activeBatches.decrementAndGet();
                     shutdownServicesWhenAdmissionsComplete();
+                },
+                MoreExecutors.directExecutor());
+    }
+
+    /**
+     * Tracks one submission's task-body completion signal until every body has exited. Task bodies
+     * outlive their futures when a cancellation wins mid-run, so quiescence cannot read body exit
+     * from the future drain alone. Must be called inside {@link #whileOpen}: after shutdown begins
+     * and admissions drain, no new signal can appear, so {@link #awaitQuiescence} observing an
+     * empty set is stable.
+     */
+    void trackBodies(BodyCompletionTracker tracker) {
+        ListenableFuture<Void> signal = tracker.bodyExit();
+        if (signal.isDone()) return;
+        liveBodySignals.add(signal);
+        // directExecutor: the listener runs inside set(), so a completed signal is always removed
+        // before the completing thread returns — the quiescence check never sees a stale entry.
+        signal.addListener(
+                () -> {
+                    liveBodySignals.remove(signal);
+                    synchronized (quiescenceMonitor) {
+                        quiescenceMonitor.notifyAll();
+                    }
                 },
                 MoreExecutors.directExecutor());
     }
