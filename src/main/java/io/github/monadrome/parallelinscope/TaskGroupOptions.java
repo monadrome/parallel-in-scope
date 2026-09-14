@@ -24,16 +24,19 @@ public final class TaskGroupOptions {
     private final String name;
     private final @Nullable Duration timeout;
     private final List<TaskGroupListener> listeners;
+    private final Duration closeGrace;
 
-    private TaskGroupOptions(String name, @Nullable Duration timeout, List<TaskGroupListener> listeners) {
+    private TaskGroupOptions(
+            String name, @Nullable Duration timeout, List<TaskGroupListener> listeners, Duration closeGrace) {
         this.name = requireName(name);
         this.timeout = timeout;
         this.listeners = listeners;
+        this.closeGrace = closeGrace;
     }
 
     /** Returns group options that inherit the enclosing scope's deadline. */
     public static TaskGroupOptions inheritTimeout(String name) {
-        return new TaskGroupOptions(name, null, Collections.emptyList());
+        return new TaskGroupOptions(name, null, Collections.emptyList(), BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /**
@@ -43,7 +46,8 @@ public final class TaskGroupOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskGroupOptions timeout(String name, Duration timeout) {
-        return new TaskGroupOptions(name, requirePositive(timeout), Collections.emptyList());
+        return new TaskGroupOptions(
+                name, requirePositive(timeout), Collections.emptyList(), BatchOptions.DEFAULT_CLOSE_GRACE);
     }
 
     /** Returns a copy of these options with one more convergence listener. */
@@ -51,7 +55,26 @@ public final class TaskGroupOptions {
         Objects.requireNonNull(listener, "listener cannot be null");
         List<TaskGroupListener> extended = new ArrayList<>(listeners);
         extended.add(listener);
-        return new TaskGroupOptions(name, timeout, Collections.unmodifiableList(extended));
+        return new TaskGroupOptions(name, timeout, Collections.unmodifiableList(extended), closeGrace);
+    }
+
+    /**
+     * Returns a copy of these options with the given close grace: the bounded wait {@link
+     * TaskGroup#close()} performs for member bodies to exit after requesting cancellation.
+     *
+     * <p>The grace is a cleanup budget, independent of the group deadline: it starts when {@code
+     * close()} is called, after the members have already been asked to stop. {@link Duration#ZERO}
+     * makes {@code close()} cancel-only.
+     *
+     * @throws NullPointerException if {@code closeGrace} is null
+     * @throws IllegalArgumentException if {@code closeGrace} is negative
+     */
+    public TaskGroupOptions closeGrace(Duration closeGrace) {
+        Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
+        if (closeGrace.isNegative()) {
+            throw new IllegalArgumentException("closeGrace must not be negative: " + closeGrace);
+        }
+        return new TaskGroupOptions(name, timeout, listeners, closeGrace);
     }
 
     public String name() {
@@ -66,6 +89,11 @@ public final class TaskGroupOptions {
     /** Immutable listener snapshot, copied at construction; {@code submit} uses this snapshot. */
     public List<TaskGroupListener> listeners() {
         return listeners;
+    }
+
+    /** The close grace used by {@link TaskGroup#close()}; never negative, possibly zero. */
+    public Duration closeGrace() {
+        return closeGrace;
     }
 
     private static String requireName(String name) {

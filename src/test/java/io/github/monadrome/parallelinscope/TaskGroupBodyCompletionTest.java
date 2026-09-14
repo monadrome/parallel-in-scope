@@ -91,7 +91,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void closeReturnsWithoutWaitingWhenDeadlineBudgetIsExhausted() throws Exception {
+    void closeWaitsTheCloseGraceEvenAfterTheDeadlineIsExhausted() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
@@ -100,7 +100,8 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch bodyExited = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition =
-                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("exhausted", Duration.ofMillis(300)));
+                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("exhausted", Duration.ofMillis(300))
+                            .closeGrace(Duration.ofMillis(400)));
             definition.task(
                     new TaskKey<>("ignoring") {},
                     ParName.of("worker"),
@@ -117,10 +118,15 @@ class TaskGroupBodyCompletionTest {
             TaskGroup group = TaskGroup.submit(global, definition.build());
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // Let the execution deadline lapse so close has no remaining budget left.
+            // Let the execution deadline lapse: the close grace is a cleanup budget that starts
+            // at close time, so close still waits it rather than returning immediately.
             Thread.sleep(400);
+            long closeStart = System.nanoTime();
             group.close();
-            // close returned while the interrupt-ignoring body is still inside user code.
+            long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
+            assertThat(closeElapsedMillis).isGreaterThanOrEqualTo(300);
+            // close returned when the grace elapsed, while the interrupt-ignoring body is still
+            // inside user code.
             assertThat(bodyExited.getCount()).isEqualTo(1);
             // An explicit bounded wait reports the still-running body, then succeeds after exit.
             assertThat(group.awaitBodyCompletion(Duration.ofMillis(100))).isFalse();
@@ -128,6 +134,110 @@ class TaskGroupBodyCompletionTest {
             release.countDown();
             assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
         } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeWithZeroGraceIsCancelOnly() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch bodyExited = new CountDownLatch(1);
+        try {
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(groupOptions("zero-grace").closeGrace(Duration.ZERO));
+            definition.task(
+                    new TaskKey<>("ignoring") {},
+                    ParName.of("worker"),
+                    () -> {
+                        entered.countDown();
+                        try {
+                            awaitIgnoringInterrupt(release);
+                        } finally {
+                            bodyExited.countDown();
+                        }
+                        return 1;
+                    },
+                    memberOptions());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            long closeStart = System.nanoTime();
+            group.close();
+            long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
+            // No wait at all: cancellation took effect, the body is still parked, and close
+            // returned far below any grace.
+            assertThat(closeElapsedMillis).isLessThan(1000);
+            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(bodyExited.getCount()).isEqualTo(1);
+            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeGraceElapseLogsTheOutstandingMemberNames() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        java.util.logging.Logger groupLogger = java.util.logging.Logger.getLogger(TaskGroup.class.getName());
+        java.util.List<java.util.logging.LogRecord> records =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.logging.Handler capture = new java.util.logging.Handler() {
+            @Override
+            public void publish(java.util.logging.LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        groupLogger.addHandler(capture);
+        try {
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(groupOptions("warn-visible").closeGrace(Duration.ofMillis(200)));
+            definition.task(
+                    new TaskKey<>("blocked") {},
+                    ParName.of("worker"),
+                    () -> {
+                        entered.countDown();
+                        awaitIgnoringInterrupt(release);
+                        return 1;
+                    },
+                    memberOptions());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            group.close();
+
+            // The grace elapsed with the body still running: the leak is visible data, naming the
+            // group and the outstanding member.
+            assertThat(records).anySatisfy(record -> {
+                assertThat(record.getLevel()).isEqualTo(java.util.logging.Level.WARNING);
+                assertThat(record.getMessage()).contains("warn-visible").contains("blocked");
+            });
+
+            release.countDown();
+            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            groupLogger.removeHandler(capture);
             release.countDown();
             global.close();
             executor.shutdownNow();

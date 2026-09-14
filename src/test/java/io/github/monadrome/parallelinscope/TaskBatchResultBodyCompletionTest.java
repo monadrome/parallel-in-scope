@@ -155,6 +155,22 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    /** Awaits the latch, ignoring interrupts, so cancellation cannot force the body out early. */
+    private static void awaitIgnoringInterrupt(CountDownLatch latch) {
+        boolean interrupted = false;
+        for (; ; ) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException ignored) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @Test
     void queuedTasksNeverStartAndLateRunAfterCancellationStaysOutOfTheBody() throws Exception {
         QueuingExecutor queuing = new QueuingExecutor();
@@ -332,13 +348,14 @@ class TaskBatchResultBodyCompletionTest {
         try {
             // CPU-bound elements rejected by the executor run inline; the window-external one runs
             // inline on the submitter thread. All slots must still be released exactly once.
+            // The wait uses a real budget because the submitter thread runs concurrently.
             TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
                             options("inline").parallelism(1).taskType(TaskType.CPU_BOUND));
 
-            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);
         } finally {
             global.close();
@@ -364,8 +381,130 @@ class TaskBatchResultBodyCompletionTest {
                             options("mixed"));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            // Body exit is published before the future goes terminal (listeners run in between),
+            // so read outcomes only after the futures themselves complete.
+            assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThatThrownBy(() -> batch.results().get(1).get(2, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeCancelsElementsAndWaitsForBodyExitWithinGrace() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch closeReturned = new CountDownLatch(1);
+        try {
+            TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
+                    .map(
+                            Collections.singletonList(1),
+                            value -> {
+                                entered.countDown();
+                                awaitIgnoringInterrupt(release);
+                                return value;
+                            },
+                            options("batch-close"));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            Thread closing = new Thread(() -> {
+                batch.close();
+                closeReturned.countDown();
+            });
+            closing.start();
+
+            // Cancellation lands through the batch token while the body stays parked: close keeps
+            // waiting for the body instead of returning with the cancelled future.
+            long pollDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (!batch.results().get(0).isDone() && System.nanoTime() < pollDeadline) {
+                Thread.sleep(5);
+            }
+            assertThat(batch.results().get(0).isCancelled()).isTrue();
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(closeReturned.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            closing.join(2000);
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void batchCloseWithZeroGraceIsCancelOnly() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskBatchResult<Integer> batch = global.par(ParName.of("worker"))
+                    .map(
+                            Collections.singletonList(1),
+                            value -> {
+                                entered.countDown();
+                                awaitIgnoringInterrupt(release);
+                                return value;
+                            },
+                            options("batch-zero-grace").closeGrace(Duration.ZERO));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            long closeStart = System.nanoTime();
+            batch.close();
+            long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
+            assertThat(closeElapsedMillis).isLessThan(1000);
+            assertThat(batch.results().get(0).isDone()).isTrue();
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void batchCloseFromWithinElementBodyIsRejectedAsSelfAwait() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        AtomicReference<TaskBatchResult<String>> batchRef = new AtomicReference<>();
+        CountDownLatch batchReady = new CountDownLatch(1);
+        try {
+            TaskBatchResult<String> batch = global.par(ParName.of("worker"))
+                    .map(
+                            Collections.singletonList("x"),
+                            value -> {
+                                try {
+                                    batchReady.await(5, TimeUnit.SECONDS);
+                                    batchRef.get().close();
+                                } catch (IllegalStateException guarded) {
+                                    return "guarded";
+                                } catch (InterruptedException interrupted) {
+                                    Thread.currentThread().interrupt();
+                                    return "interrupted";
+                                }
+                                return "unguarded";
+                            },
+                            options("batch-self-await"));
+            batchRef.set(batch);
+            batchReady.countDown();
+
+            assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo("guarded");
         } finally {
             global.close();
             executor.shutdownNow();

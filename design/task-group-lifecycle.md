@@ -246,18 +246,20 @@ null --all success-----------> SUCCESS
 
 ### 6.1 三种终止状态与任务体退出等待
 
-区分三种终止（实现方案见
-[scope-close-and-termination-proposal](scope-close-and-termination-proposal.md)）：
+区分三种终止（关闭语义见
+[取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）：
 
 1. **Future 完成**：公开 future 已有不可变终态；`CLOSED`/收敛只承诺到这一层；
 2. **任务体退出**：用户 Callable 已返回或抛出并完成其 finally；由每任务预登记的原子状态机
-   （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享 `CountDownLatch` 等待信号跟踪，
+   （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享的 body-exit future 信号跟踪，
    名额在任何任务提交之前预登记（含窗口外任务与 terminal combine），正常路径在用户任务体
    finally 完成后、TaskListener 调用前发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
    或 `SKIPPED` 各恰好释放一次名额；
 3. **监听器完成**：`TaskListener` 回调执行完毕，不属于任务体退出范围。
 
-`close()` 保证第一层，并在剩余 deadline 预算内尽力等待第二层；第三层不在关闭保证内。嵌套
+`close()` 保证第一层，并在独立的 close grace（`TaskGroupOptions.closeGrace(Duration)`，默认
+`BatchOptions.DEFAULT_CLOSE_GRACE`）内等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。
+第三层不在关闭保证内。嵌套
 作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
 「future 完成」与「任务体退出」，禁止混用「工作终态」。
 
@@ -270,5 +272,8 @@ null --all success-----------> SUCCESS
 - submit 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
 - 每个冻结成员通过 `retainUntilComplete()` 计入活动运行；可以增加 group-aware retain helper，但不得提前关闭 timer/submitter/maintenance 服务；
 - Group 不创建或关闭业务 executor；
-- `GlobalPar.close()` 不阻塞，不关闭注册 executor；
+- `GlobalPar.close()` 不阻塞，不关闭注册 executor；`awaitQuiescence(Duration)` 等待拓扑完全
+  排空——无进行中的 admission、无未完成 future、所有已接纳任务体已退出、框架服务已关闭，
+  其中任务体退出独立于 future 终态单独跟踪（见
+  [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）；
 - Group deadline 使用 GlobalPar 拥有的 scheduler。
