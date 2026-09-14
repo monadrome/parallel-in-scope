@@ -1,0 +1,47 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskBodyState.java
+  ai_agent 38,40,42-53,71,78
+design/task-group-cancellation.md
+  ai_agent 150,157-163,171-174,176-183
+src/test/java/io/github/monadrome/parallelinscope/GlobalParTest.java
+  ai_agent 369-456
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  ai_agent 40,45,50-51,57-58,62,79-84,109-114,120-125,151
+design/task-group-lifecycle.md
+  ai_agent 249-250,254,260-262,275-278
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  ai_agent 22-27,33,36-41,47,52,62,67,73-78,90-105,131-135,154-160
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  ai_agent 146,161,170,193,198-201,233,238
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  ai_agent 67,84-85,92,154-155,163-171,174-177,191-201,203-205,678-679,685
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupBodyCompletionTest.java
+  ai_agent 94,103-104,121-122,124,126-129,143-240
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupOptionsTest.java
+  ai_agent 32-33
+src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultBodyCompletionTest.java
+  ai_agent 158-173,351,358,384-388,397-507
+docs/en/migration-v0.2.md
+  ai_agent 265,269-280,286-288
+docs/zh/user-guide.md
+  ai_agent 60-62,91
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  ai_agent 28-31,36-37,42-44,48-57,117-122,134-135,147-148,153,159-160,166-207
+CHANGELOG.md
+  ai_agent 7-9,20
+docs/en/user-guide.md
+  ai_agent 64-66,121-127
+src/main/java/io/github/monadrome/parallelinscope/GlobalPar.java
+  ai_agent 16,65-66,267-273,286,363-381
+docs/zh/migration-v0.2.md
+  ai_agent 197,199-208,214-215
+src/main/java/io/github/monadrome/parallelinscope/BodyCompletionTracker.java
+  ai_agent 3-4,6,8-10,13-14,16-18,24-33,37-38,42-43,45,48-52,55,63,74-76,80-108,159,162-171,173,177-184,186-229
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupOptions.java
+  ai_agent 27,29-30,34,39,49-50,58-77,94-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6951e45ede7c524e0d0293dc3f948233daff90f9",
+  "prompts": {}
+}
