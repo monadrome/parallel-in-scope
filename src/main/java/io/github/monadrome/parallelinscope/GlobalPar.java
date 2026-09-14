@@ -1,13 +1,16 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,31 +65,28 @@ public final class GlobalPar implements AutoCloseable {
     private final AtomicInteger activeBatches = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Object quiescenceMonitor = new Object();
-    private final Set<ListenableFuture<Void>> liveBodySignals =
-            Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+    private final Set<ListenableFuture<Void>> liveBodySignals = Sets.newConcurrentHashSet();
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
 
     private GlobalPar(Builder builder) {
-        this.taskListeners = Collections.unmodifiableList(new ArrayList<>(builder.taskListeners));
+        this.taskListeners = ImmutableList.copyOf(builder.taskListeners);
         Map<ParName, List<TaskListener>> overrides = new LinkedHashMap<>();
         for (Map.Entry<ParName, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
-            overrides.put(entry.getKey(), Collections.unmodifiableList(new ArrayList<>(entry.getValue())));
+            overrides.put(entry.getKey(), ImmutableList.copyOf(entry.getValue()));
         }
-        this.taskListenerOverrides = Collections.unmodifiableMap(overrides);
+        this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
         this.purger = new HeuristicPurger(
                 new AtomicBoolean(purgePolicy.enabled()),
                 new AtomicDouble(purgePolicy.queuePressureThreshold()),
                 new AtomicDouble(purgePolicy.canceledTaskRatioThreshold()));
-        AtomicInteger threadId = new AtomicInteger();
-        ThreadFactory factory = runnable -> {
-            Thread thread = new Thread(runnable, "GlobalPar-runtime-" + threadId.incrementAndGet());
-            thread.setDaemon(true);
-            return thread;
-        };
+        ThreadFactory factory = new ThreadFactoryBuilder()
+                .setNameFormat("GlobalPar-runtime-%d")
+                .setDaemon(true)
+                .build();
         this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
@@ -115,9 +115,9 @@ public final class GlobalPar implements AutoCloseable {
             builtRuntimes.put(entry.getKey(), runtime);
             builtPars.put(entry.getKey(), Par.forGlobal(this, entry.getKey(), runtime));
         }
-        this.runtimes = Collections.unmodifiableMap(builtRuntimes);
-        this.runtimesByIdentity = Collections.unmodifiableMap(identityRuntimes);
-        this.pars = Collections.unmodifiableMap(builtPars);
+        this.runtimes = ImmutableMap.copyOf(builtRuntimes);
+        this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
+        this.pars = ImmutableMap.copyOf(builtPars);
     }
 
     public static Builder builder() {
