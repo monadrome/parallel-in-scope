@@ -29,7 +29,8 @@ class TaskGroupOptionsTest {
 
         // A group is not a task execution: no parallelism, no task type, no enqueue policy.
         assertThat(names)
-                .isEqualTo(new TreeSet<>(Arrays.asList("inheritTimeout", "listener", "listeners", "name", "timeout")));
+                .isEqualTo(new TreeSet<>(
+                        Arrays.asList("closeGrace", "inheritTimeout", "listener", "listeners", "name", "timeout")));
     }
 
     @Test

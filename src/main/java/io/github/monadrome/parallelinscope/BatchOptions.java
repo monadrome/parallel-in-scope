@@ -19,24 +19,37 @@ import javax.annotation.Nullable;
  * wither returns a new instance.
  */
 public final class BatchOptions {
+    /**
+     * The default close grace: how long {@link TaskBatchResult#close()} waits for task bodies to
+     * exit after requesting cancellation, when no explicit grace is configured.
+     */
+    public static final Duration DEFAULT_CLOSE_GRACE = Duration.ofSeconds(5);
+
     private final String name;
     private final int parallelism;
     private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
+    private final Duration closeGrace;
 
     private BatchOptions(
-            String name, int parallelism, @Nullable Duration timeout, TaskType taskType, boolean rejectEnqueue) {
+            String name,
+            int parallelism,
+            @Nullable Duration timeout,
+            TaskType taskType,
+            boolean rejectEnqueue,
+            Duration closeGrace) {
         this.name = requireName(name);
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
+        this.closeGrace = closeGrace;
     }
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, -1, null, TaskType.CPU_BOUND, true);
+        return new BatchOptions(name, -1, null, TaskType.CPU_BOUND, true, DEFAULT_CLOSE_GRACE);
     }
 
     /**
@@ -46,18 +59,23 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static BatchOptions timeout(String name, Duration timeout) {
-        return new BatchOptions(name, -1, requirePositive(timeout), TaskType.CPU_BOUND, true);
+        return new BatchOptions(name, -1, requirePositive(timeout), TaskType.CPU_BOUND, true, DEFAULT_CLOSE_GRACE);
     }
 
     /** Returns a copy of these options with the given requested parallelism. */
     public BatchOptions parallelism(int parallelism) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
     }
 
     /** Returns a copy of these options with the given task type. */
     public BatchOptions taskType(TaskType taskType) {
         return new BatchOptions(
-                name, parallelism, timeout, Objects.requireNonNull(taskType, "taskType cannot be null"), rejectEnqueue);
+                name,
+                parallelism,
+                timeout,
+                Objects.requireNonNull(taskType, "taskType cannot be null"),
+                rejectEnqueue,
+                closeGrace);
     }
 
     /**
@@ -69,7 +87,22 @@ public final class BatchOptions {
      * regardless of this flag.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
+    }
+
+    /**
+     * Returns a copy of these options with the given close grace: the bounded wait {@link
+     * TaskBatchResult#close()} performs for task bodies to exit after requesting cancellation.
+     *
+     * <p>The grace is a cleanup budget, independent of the execution timeout: it starts when
+     * {@code close()} is called, after the tasks have already been asked to stop. {@link
+     * Duration#ZERO} makes {@code close()} cancel-only.
+     *
+     * @throws NullPointerException if {@code closeGrace} is null
+     * @throws IllegalArgumentException if {@code closeGrace} is negative
+     */
+    public BatchOptions closeGrace(Duration closeGrace) {
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, requireNonNegative(closeGrace));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -95,6 +128,11 @@ public final class BatchOptions {
         return rejectEnqueue;
     }
 
+    /** The close grace used by {@link TaskBatchResult#close()}; never negative, possibly zero. */
+    public Duration closeGrace() {
+        return closeGrace;
+    }
+
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
         return new UnitSpec(name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue);
@@ -112,5 +150,13 @@ public final class BatchOptions {
             throw new IllegalArgumentException("timeout must be positive when configured");
         }
         return timeout;
+    }
+
+    private static Duration requireNonNegative(Duration closeGrace) {
+        Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
+        if (closeGrace.isNegative()) {
+            throw new IllegalArgumentException("closeGrace must not be negative: " + closeGrace);
+        }
+        return closeGrace;
     }
 }
