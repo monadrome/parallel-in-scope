@@ -107,18 +107,19 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     /**
-     * Submits this deferred future to {@code executor} exactly once. A {@code CPU_BOUND} task that
-     * the executor rejects runs inline; any other rejection, or a submission-time runtime failure,
-     * fails the future with a {@link SubmissionException} without running user code.
+     * Submits this deferred future to {@code executor} exactly once. A task whose options request
+     * the caller-thread fallback runs inline when the executor rejects it; any other rejection, or
+     * a submission-time runtime failure, fails the future with a {@link SubmissionException}
+     * without running user code.
      *
      * @param executor target executor
-     * @param cpuBound whether the task may fall back to inline execution on rejection
+     * @param runOnCallerThread whether the task may run on the submitting thread on rejection
      */
-    public void submitPrepared(Executor executor, boolean cpuBound) {
+    public void submitPrepared(Executor executor, boolean runOnCallerThread) {
         try {
             executor.execute(this);
         } catch (RejectedExecutionException rejected) {
-            if (cpuBound) {
+            if (runOnCallerThread) {
                 run();
             } else {
                 reject(rejected);

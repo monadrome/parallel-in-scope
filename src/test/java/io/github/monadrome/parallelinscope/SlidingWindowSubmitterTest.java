@@ -186,13 +186,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cpuBatchFallsBackToDirectExecutionAfterRejection() throws Exception {
+    void batchElementFallsBackToDirectExecutionWhenOptionsRequestIt() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND, true), submitter);
             assertThat(executor.submitAll(futures(() -> 7)).results().get(0).get())
                     .isEqualTo(7);
         } finally {
@@ -201,13 +201,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cpuInlineFallbackPublishesCompletionForSlidingWindow() throws Exception {
+    void callerThreadFallbackPublishesCompletionForSlidingWindow() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
 
             TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
 
@@ -221,13 +221,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void failedCpuInlineFallbackStillAdvancesSlidingWindow() throws Exception {
+    void failedCallerThreadFallbackStillAdvancesSlidingWindow() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
 
             TaskBatchResult<Integer> batch = executor.submitAll(futures(
                     () -> {
@@ -240,6 +240,36 @@ class SlidingWindowSubmitterTest {
                     .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * The default for every task type: a rejected element fails and its body never runs. Before the
+     * caller-thread fallback became an explicit option, {@code CPU_BOUND} was the default type and
+     * silently ran rejected elements on the submitting thread.
+     */
+    @Test
+    void rejectedCpuElementFailsWithoutRunningItsBodyByDefault() throws Exception {
+        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        rejected.shutdownNow();
+        java.util.concurrent.atomic.AtomicBoolean bodyRan = new java.util.concurrent.atomic.AtomicBoolean();
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> {
+                bodyRan.set(true);
+                return 7;
+            }));
+
+            assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(bodyRan).isFalse();
         } finally {
             submitter.shutdownNow();
         }
@@ -402,10 +432,19 @@ class SlidingWindowSubmitterTest {
     }
 
     private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {
+        return context(tasks, parallelism, type, false);
+    }
+
+    /**
+     * Builds a unit for the given type and caller-thread fallback. The fallback is explicit: no
+     * task type implies it, so a rejection test must ask for inline execution itself.
+     */
+    private static MultiTaskContext context(int tasks, int parallelism, TaskType type, boolean runOnCallerThread) {
         return MultiTaskContext.resolve(
                 BatchOptions.timeout("batch", Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(type)
+                        .runOnCallerThread(runOnCallerThread)
                         .spec(),
                 tasks,
                 null);

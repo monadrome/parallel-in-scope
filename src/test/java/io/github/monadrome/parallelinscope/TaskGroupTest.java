@@ -243,6 +243,72 @@ class TaskGroupTest {
     }
 
     /**
+     * A member that asks for the caller-thread fallback runs on the thread that submitted the
+     * group when its executor rejects it — the option, not the task type, decides.
+     */
+    @Test
+    void memberRunsOnTheSubmittingThreadWhenOptionsRequestIt() throws Exception {
+        ExecutorService rejecting = new RejectingExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("reject"), rejecting).build();
+        Thread submitter = Thread.currentThread();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inline-member"));
+            TaskKey<Thread> inline = definition.task(
+                    new TaskKey<>("inline") {},
+                    ParName.of("reject"),
+                    Thread::currentThread,
+                    TaskOptions.timeout(Duration.ofSeconds(30))
+                            .taskType(TaskType.CPU_BOUND)
+                            .runOnCallerThread(true));
+
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+
+            assertThat(group.future(inline).get(2, TimeUnit.SECONDS)).isSameAs(submitter);
+            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
+        } finally {
+            global.close();
+            rejecting.shutdownNow();
+        }
+    }
+
+    /**
+     * The default for every member type: a rejected member fails without entering user code. Before
+     * the caller-thread fallback became an option, {@code CPU_BOUND} — the default type — silently
+     * ran rejected members on the submitting thread.
+     */
+    @Test
+    void rejectedCpuMemberFailsWithoutRunningItsBodyByDefault() throws Exception {
+        ExecutorService rejecting = new RejectingExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("reject"), rejecting).build();
+        AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("rejected-member"));
+            TaskKey<Integer> member = definition.task(
+                    new TaskKey<>("rejected") {},
+                    ParName.of("reject"),
+                    () -> {
+                        bodyRan.set(true);
+                        return 1;
+                    },
+                    TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(bodyRan.get()).isFalse();
+        } finally {
+            global.close();
+            rejecting.shutdownNow();
+        }
+    }
+
+    /**
      * A group deadline that already expired before submission commits TIMEOUT synchronously during
      * bind: members are cancelled before their submission loop runs, so no member enters user
      * code and the group reports TIMEOUT rather than SUCCESS.

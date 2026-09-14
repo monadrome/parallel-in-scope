@@ -169,7 +169,7 @@ public final class Par {
                 .bind(Collections.singletonList(future), NO_SUBMISSION, globalPar.timeoutScheduler());
         globalPar.retainUntilComplete(completion);
         globalPar.trackBodies(bodyCompletion);
-        TaskSubmissions.submitScoped(future, unit, runtime.submissionExecutor(), unit.taskType() == TaskType.CPU_BOUND);
+        TaskSubmissions.submitScoped(future, unit, runtime.submissionExecutor(), unit.runOnCallerThread());
         return view;
     }
 
