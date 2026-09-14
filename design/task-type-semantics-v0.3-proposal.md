@@ -137,10 +137,12 @@ IO on miss"，`TaskType.java:16-17`）向用户暗示了一个运行时不兑现
 
 ## 8. 联动条件（独立情形说明）
 
-若未来 queue 包被拆分为独立产物（`SmartBlockingQueue` 随之移出 core），则 core 内
-机制二整体消失，`TaskType` 在 core 只剩 inline 语义，`MIXED` 的"可入队"承诺失去
-载体。届时本决策应重访并降级为：core 保两值语义，队列策略随 queue 包文档化。
-该情形不发生时，本文档方案独立成立。
+原担忧的"queue 包被拆为独立产物"情形**已排除**：2026-09-14 拍板 queue 包与 core 同产物
+发布（[adr/0006-queues-ship-with-core.md](../adr/0006-queues-ship-with-core.md)）。同时，
+`design/queue-artifact-boundary-decision.md` §5 已复核纠正了早前的粗略表述——
+`SmartBlockingQueue` 在 root 包，queue 包内没有任何读取 `TaskType` 的代码，机制二本就整体
+留在 core。因此本决策不依赖产物边界，选项 A/B 均在当前单产物形态下独立成立，
+`MIXED` 的"可入队"承诺始终有载体。
 
 ## 9. 待拍板点
 
