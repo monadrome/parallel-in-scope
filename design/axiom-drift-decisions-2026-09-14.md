@@ -1,0 +1,174 @@
+# Axiom Drift 待拍板决策（2026-09-14）
+
+> 状态：**决策提案，待拍板**。本文汇总 `reports/axiom-drift-2026-09-11.html` 中尚未
+> 关闭、需要用户决策的条目，每条给出现状锚点、选项分析与推荐方案。
+> 基线：当前 HEAD `9861b28`（`dev/v0.3.0`），全量测试 567 绿。
+> 已解决条目见 §1；待决策条目按"决策先行、其余随动"排序，见 §2–§6；
+> 无需决策的剩余重构见 §7。
+
+## 1. 已解决（不再重复讨论）
+
+`768437b` + `9861b28` + `ab7ee27` + `a2753d9` 已关闭：A1（`TaskGroup.close()`
+取消后在剩余 deadline 预算内等待任务体退出；`GlobalPar.close()` 维持非阻塞但
+javadoc 明示，并以 `awaitQuiescence(Duration)`/`inFlight()` 提供 join 点）、A2、
+A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9 月 10 日报告
+的五个缺陷。
+
+以下五条仍开放。
+
+## 2. 决策一：是否采纳 v0.3 TaskGroup 用户表面重做方案（含 C11）
+
+**这是最大的待定方向，且卡在它后面的决策最多。**
+
+现状：设计与决策点已收敛至 `design/group-api-redesign-v0.3-decision.md`——本议题的
+唯一设计文档（SSOT），其 §0 列出 7 个原子问题（D1.0–D1.6）并附推荐。核心内容：用 `TaskGroup.builder(...)` + 直接返回
+`TaskFuture<T>` 取代"定义侧声明、运行侧凭 `TaskKey` 回查"的令牌模型，净删 7 个公开
+顶层类型（`TaskGroupDefinition`、`TaskKey`、`ParName`、`CombineFunction`、
+`CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`），内核零改动。
+
+分析：
+
+- **采纳的连带收益**：C11（builder 不像 builder）由单次使用的 `TaskGroup.Declaration`
+  直接消除；A5 的残留顾虑随 `TaskKey` 删除整体消失（类型安全改由返回值泛型承担，
+  比运行期 `TypeToken` 比较更强）；报告中原话"that plan is strictly stronger here,
+  since the compiler does the work"。
+- **成本**：波及面最大的是 `ParName`（325 处引用 / 15 文件），已建议拆成
+  同方向、独立提交（先 group 后装配面）；契约文档六份 + user-guide + 新增
+  `migration-v0.3.md` 需一次同步。
+- **不采纳的代价**：C11 需要单独修（返回值改 Builder、build 后失效），A5 的运行期
+  类型比较保留为永久机制，group 侧"声明/回查"间接层的 7 个类型继续占用公开面。
+
+**推荐：采纳**，按该文档 §0 的推荐执行——净删 7 类型、`ParName` 一并移出但独立提交、
+声明收集器命名 `Declaration`（不可链式是返回值互斥的必然，见该文档 §3）、实现
+`AutoCloseable` + 双层 try 为唯一文档用法、combine 采用"框架保留 join
+调度 + 普通 `Callable`"综合方案、缺陷 #5 归因修复与本方案同区一次改。
+声明期占位读语义（D1.1）已被 `TaskFuture` 契约收窄为唯一解，确认即可。
+
+## 3. 决策二：queue 包的产物边界（B8，产品决策）
+
+现状：`queue/DrainingBlockingQueue` 1 642 行（全项目最大文件，main 的 ~18%），
+是公开 API、有独立契约文档（`design/draining-queue-contract.md`）与 1 448 行测试，
+但 src/main 中除自身包 javadoc 外**无任何引用**（本次已复核：grep 无命中）；
+`VariableLinkedBlockingQueue` 仅经 `SmartBlockingQueue` 间接可达；
+`SmartBlockingQueue` 本身从不被库构造（见决策三）。CLAUDE.md 称该包为"独立的通用
+队列实现"，即耦合是有意的。
+
+分析：
+
+- **拆分（sibling artifact `…-queues`，core 依赖它）**：core 评审面减半，队列缺陷
+  不再直接成为本库的缺陷；队列用户不受影响。代价是多模块构建与发布的长期维护。
+- **从公开面删除**（包私有化，只留 `SmartBlockingQueue` 需要的部分）：最彻底收敛，
+  但砍掉了一个已有用户的公开产品，且 `SmartBlockingQueue` 依赖的类得搬回 root 包。
+- **维持现状**：零成本，但 0.3 冻结公开面后，拆/删的成本只会更高——报告原话
+  "0.x is the cheapest moment this decision will ever have"。
+
+**推荐：写一份 ADR，方向选拆分**。队列包作为独立通用产品的定位保留（违背它等于
+推翻 CLAUDE.md 的既定决策），但物理上与 core 的发布节奏解耦。若不愿引入多模块，
+退路是维持现状并在 ADR 中记录"这是有意承担的评审面"，而不是继续悬置。
+注意本决策与决策三、四联动：队列包的去向决定 `SmartBlockingQueue` 与 `TaskType`
+队列跳过语义最终落在哪个产物里。
+
+## 4. 决策三：executor 可看透性——A3/A4 的终态与 B2 的分类（一组合改）
+
+现状：`768437b` 只落地了报告三档方案里的最低档——文档说明 + `build()` 时对非
+`ThreadPoolExecutor` 的注册警告一次（`GlobalPar.java:102-111`）。遗留三个实质问题：
+
+- A3：`rejectEnqueue`（默认 true）的唯一读者仍是 `SmartBlockingQueue.offer`，
+  用普通 `LinkedBlockingQueue` 的池上该选项**依旧静默失效**；
+- A4：用户预包装 `MoreExecutors.listeningDecorator(pool)` 后，purge 观测与死锁
+  检测依旧静默失效（只是现在有警告）；Guava decorator 不暴露 delegate，无法unwrap；
+- B2：`BlockingRisk` 四值仍只产出两值（`ExecutorRuntime.java:70-75`：TPE →
+  `BOUNDED_PLATFORM_POOL`，其余 → `UNKNOWN`），`UNBOUNDED` /
+  `VIRTUAL_THREAD_PER_TASK` 从未赋值；队列有界性与最大线程数这两个真正决定嵌套
+  死锁风险的事实未被读取。
+
+分析（按公理 2"结构性保证或显眼"与公理 3"宁可不提供"）：
+
+- **选项 A：维持 warn-only 为终态**。成本为零；但默认开启的安全选项在主流配置
+  （普通 LBQ 池）下永远不做任何事，正是公理 3 说的"易被误用的能力"。
+- **选项 B：`build()` 拒绝看不透的 executor**。简单强硬，但会把 `ForkJoinPool`、
+  虚拟线程 executor 等合法形态一并拒之门外，与 `BlockingRisk` 已声明的后两个值
+  自相矛盾；库是 Java 8 基线，不能假设用户池的形态。
+- **选项 C：register 只认物理池 + 按真实形态分类**。"executor 所有权归用户"是既定
+  决策（first-principles §二），且 TPE 构造后队列不可换，库**无法**替用户安装
+  `SmartBlockingQueue`——报告里"register installs the smart queue itself"这一档
+  在现有所有权模型下不成立，排除。
+
+**推荐：选项 C**，三个子项一次改：
+
+1. B2 按池的真实形状分类：TPE 且有界队列 + 有界 `maximumPoolSize` →
+   `BOUNDED_PLATFORM_POOL`；TPE 且无界队列（默认 LBQ）→ `UNBOUNDED`（内存风险，
+   不是死锁，应走不同检测路径）；非 TPE → `UNKNOWN` 并保留 build() 警告。
+   `VIRTUAL_THREAD_PER_TASK` 在 Java 8 基线下无类型可引，可留空待多 release 版本，
+   或按类名探测。
+2. A3 改为提交时显眼：`options.rejectEnqueue()` 为 true 而池队列非
+   `SmartBlockingQueue` 时，每个 Par 警告一次（不能抛异常——默认值是 true，抛
+   异常会破坏所有普通池用户）。
+3. A4 维持"只认物理池"契约 + build() 警告为终态；死锁检测对看不透的 executor
+   拒绝启动优于静默降级，这一点已是现状，文档化即可。
+
+## 5. 决策四：`TaskType` 三值枚举的语义（B1）
+
+现状：库内 6 处读取全部只判 `== CPU_BOUND`（本次已复核），`IO_BOUND` 与 `MIXED`
+行为不可区分；`MIXED` 的 javadoc（"cache check first, then IO on miss"）承诺了一个
+不存在的区分（`TaskType.java:16-17`）。
+
+分析：
+
+- **收敛为两值/布尔**：删 `MIXED`，枚举即"是否 CPU 密集"一个比特。符合公理 3
+  （不教用户运行时不兑现的区分），代价是一次公开 API 收缩。
+- **给 `MIXED` 赋真实语义**：报告建议的读法是"可入队、绝不 inline"。改动集中在
+  提交路径的 inline 决策与 `SmartBlockingQueue`，成本小，保留表达力。
+
+**推荐：给 `MIXED` 赋义"可入队、绝不 inline"**，而非收缩——inline-fallback 是
+`TaskType` 唯一对任意 executor 都生效的行为，三值区分的是"排队/执行策略"这一真实
+维度。但若决策二选择把 queue 包整体移出 core，则 core 内只剩 inline 语义，本决策
+降级为"core 保两值、队列策略随包走"，随决策二定稿。
+
+## 6. 决策五：batch 路径的受检异常（B3）
+
+现状：`Par.map` 收 `Function<? super T, ? extends R>`（`Par.java:102-103`），
+元素体调用 IO 必须手工包受检异常；`TaskGroupDefinition.task` 收 `Callable<T>`
+则不必。公理 4（贴近 JDK 习语）下，"会抛的工作"的 JDK 习语是 `Callable`。
+
+分析：
+
+- **新增重载不可行**：`map(Collection, Function, BatchOptions)` 与
+  `map(Collection, ThrowingFunction, BatchOptions)` 对 lambda 调用点产生二义性，
+  两个函数式接口不能共存于同名重载。
+- **改签名（推荐方向）**：把 `map` 的函数参数换成库自定义的
+  `ThrowingFunction<T, R>`（`apply` 声明 `throws Exception`）。对 lambda/方法引用
+  调用点源码兼容，对持有 `Function` 变量的调用点是源码级破坏——0.x 破坏性变更
+  窗口内现在做最便宜，0.3 冻结后代价陡增。
+- **备选**：`map` 收 `Function<T, Callable<R>>`——调用方多包一层，只是把手工包装
+  换了个位置，不解决问题，不推荐。
+
+**推荐：改签名为 `ThrowingFunction<T, R>`**，与决策一同一发布窗口落地（v0.3 本就
+在动公开面），同步更新 user-guide 与新增 `migration-v0.3.md`。若决策一落地，
+`Par.submit` 已收 `Callable`，三个入口的"会抛"语义即全部对齐。
+
+## 7. 无需决策的剩余重构（附录）
+
+三项报告 Tier B/C 条目无决策负担，可在上述任一改动窗口顺带做：
+
+- **B7**：`Checkpoints` 现为 ~35 个公开方法、580 行（比报告时更长），同一模式的
+  重复展开且覆盖不均（`CountDownLatch` 有 untimed `checkAwait`，`Semaphore` 只有
+  timed `tryAcquire`，无 `Lock.lock()` 适配）。方向：以一个参数化原语
+  `Checkpoints.interruptible(op)` 重写全部包装，覆盖不再取决于"谁记得写哪个方法"。
+- **C5**：`ListenableCompletionService` 仍 191 行、五个构造器，实现完整
+  `CompletionService` 契约，而 `SlidingWindowSubmitter` 只调两个方法。折叠为
+  实际使用的两方法内部提交器。
+- **C10**：`MultiTaskContext.resolve` 仍 4 个重载、最多 9 个位置参数
+  （`MultiTaskContext.java:66-131`），相邻 `@Nullable` 引用参数易错位。收敛为一个
+  resolution-parameters 对象。若决策一采纳，此改与 group 重做同区，一并进行。
+
+## 8. 建议的拍板顺序
+
+1. **决策一（v0.3 重做）**——它决定公开面形态，决策五挂它的发布窗口，C10 挂它
+   的代码区。
+2. **决策二（queue 包 ADR）**——产物边界在 0.3 冻结前定稿；它的答案决定决策四的
+   终态形态。
+3. **决策三 + 决策四（executor 看透性 + TaskType）**——同一片代码（`register`/
+   `ExecutorRuntime`/提交路径），一次改完。
+4. **决策五（B3 改签名）**——独立但宜早，绑定决策一的窗口。
+5. 附录三项 opportunistic 随上述改动顺带完成。
