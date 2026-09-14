@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.graph.ElementOrder;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.Graphs;
@@ -7,7 +8,6 @@ import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +163,7 @@ final class TaskGraphData {
                 ValueGraphBuilder.directed().allowsSelfLoops(true).immutable();
         for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : edgeMap.entrySet()) {
             graphBuilder.putEdgeValue(
-                    entry.getKey().source(), entry.getKey().target(), Collections.unmodifiableList(entry.getValue()));
+                    entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
         return graphBuilder.build();
     }
@@ -188,7 +188,7 @@ final class TaskGraphData {
 
         for (EndpointPair<String> taskEdgePair : graph().edges()) {
             List<TaskEdge> edges = Objects.requireNonNull(
-                    graph().edgeValueOrDefault(taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList()));
+                    graph().edgeValueOrDefault(taskEdgePair.source(), taskEdgePair.target(), ImmutableList.of()));
             for (TaskEdge taskEdge : edges) {
                 String sourceExecutor = taskEdge.sourceExecutorName();
                 String targetExecutor = taskEdge.executorName();
@@ -208,7 +208,7 @@ final class TaskGraphData {
                 .immutable();
         for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : executorEdges.entrySet()) {
             graphBuilder.putEdgeValue(
-                    entry.getKey().source(), entry.getKey().target(), Collections.unmodifiableList(entry.getValue()));
+                    entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
         return graphBuilder.build();
     }
@@ -232,7 +232,7 @@ final class TaskGraphData {
                 .immutable();
         for (Map.Entry<EndpointPair<ExecutorIdentity>, List<TaskEdge>> entry : executorEdges.entrySet()) {
             builder.putEdgeValue(
-                    entry.getKey().source(), entry.getKey().target(), Collections.unmodifiableList(entry.getValue()));
+                    entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
         return builder.build();
     }
