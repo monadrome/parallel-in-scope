@@ -32,6 +32,13 @@ The root package deliberately co-locates the public API with package-private can
 context, graph, and scheduling implementation. This is the Java 8 encapsulation boundary: do not
 reintroduce public bridge types or conceptual subpackages merely to categorize files.
 
+The `queue` package ships in this same artifact. Its artifact boundary is a settled decision
+(`adr/0006-queues-ship-with-core.md`): do not propose splitting it into a sibling artifact,
+privatizing it, or re-raising the boundary as an open question in reviews, defect triage, or
+refactor proposals. Treat it as part of this library's public product — the `queue` classes have
+their own contract (`design/draining-queue-contract.md`) and tests, and their defects are this
+repository's to fix.
+
 Two invariants to respect:
 
 - `CancellationToken.bind()` wires deadline, fail-fast, and parent
