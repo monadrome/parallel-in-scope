@@ -154,11 +154,11 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
   不只看最内层 current context；任务体需要取消自身所在组时应使用取消入口；
 - 存在未完成成员：等同 `cancel()`（幂等）取消组 token；取消处理同步竞争任务入口，尚未取得
   执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
-- 取消传播返回后，以 **close grace**（`TaskGroupOptions.closeGrace(Duration)`，默认
-  `BatchOptions.DEFAULT_CLOSE_GRACE` = 5 秒）为预算等待全部成员（含 terminal combine）任务体
-  退出。close grace 是清理预算，独立于执行 deadline，从 `close()` 调用时起算：它不随 deadline
-  耗尽而消失，也不会因 deadline 尚远而拉长——忽略中断的任务体最多把 `close()` 挂住一个 grace
-  的时长。grace 为零时 `close()` 只取消不等待，等价于 `cancel()`；
+- 取消传播返回后，以 **close grace** 为预算等待全部成员（含 terminal combine）任务体退出。
+  close grace 是清理预算：显式配置时（`TaskGroupOptions.closeGrace(Duration)`）从 `close()`
+  调用时起算，与执行 deadline 无关；未配置时派生自关闭时剩余的有效 deadline——超时引发的
+  关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。grace 为零时
+  `close()` 只取消不等待，等价于 `cancel()`；
 - grace 耗尽而任务体仍在运行：以 WARN 级别记录未退出任务的名称——泄漏必须是可见数据，不是
   沉默；这是正常返回，不是错误；
 - 等待被中断：取消效果保留，恢复调用线程中断标志并返回；进入方法时已中断则先完成取消、
@@ -169,8 +169,9 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 - 不关闭 `GlobalPar` 或任何注册 executor。
 
 Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次 token 取消全部未完成
-元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，同一默认值）等待
-任务体退出；Batch 没有独立的 cancel-only 公共入口，零 grace 即等价语义。
+元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生
+自关闭时剩余 deadline）等待任务体退出；Batch 没有独立的 cancel-only 公共入口，零 grace 即等价
+语义。
 
 任务体退出由每个任务在提交前预登记的原子状态机跟踪
 （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）：`RUNNING` 只表示取得执行资格；正常
