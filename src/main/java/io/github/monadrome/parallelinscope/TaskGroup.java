@@ -3,19 +3,20 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -294,7 +295,7 @@ public final class TaskGroup implements AutoCloseable {
         BodyCompletionTracker bodyCompletion =
                 BodyCompletionTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
         Map<String, MemberState> states = new LinkedHashMap<>();
-        Map<TaskGroupDefinition.Member<?>, MemberState> handles = new HashMap<>();
+        Map<TaskGroupDefinition.Member<?>, MemberState> handles = Maps.newIdentityHashMap();
         MemberState terminal = null;
         TaskGraphObservationScope previousObservation = TaskGraphObservationScope.current();
         int memberIndex = 0;
@@ -778,7 +779,7 @@ public final class TaskGroup implements AutoCloseable {
         Bindings(TaskGroupDefinition definition) {
             this.ownerThread = Thread.currentThread();
             this.definition = Objects.requireNonNull(definition, "definition cannot be null");
-            this.slots = new IdentityHashMap<>();
+            this.slots = Maps.newIdentityHashMap();
             for (TaskGroupDefinition.Slot slot : definition.slots()) {
                 this.slots.put(slot.handle, slot);
             }
@@ -837,7 +838,7 @@ public final class TaskGroup implements AutoCloseable {
             Callable<?>[] taskBodies = new Callable<?>[plain.size()];
             CombineBody<?> combineBody = null;
             try {
-                Map<TaskGroupDefinition.Member<?>, Boolean> seen = new IdentityHashMap<>();
+                Set<TaskGroupDefinition.Member<?>> seen = Sets.newIdentityHashSet();
                 for (Recorded entry : recorded) {
                     TaskGroupDefinition.Slot slot = slots.get(entry.member);
                     if (slot == null) {
@@ -858,7 +859,7 @@ public final class TaskGroup implements AutoCloseable {
                                     "Member '" + slot.name + "' is not a combine; bind it with task()");
                         }
                     }
-                    if (seen.put(entry.member, Boolean.TRUE) != null) {
+                    if (!seen.add(entry.member)) {
                         throw new IllegalStateException("Member '" + slot.name + "' was bound more than once");
                     }
                     if (entry.kind == KIND_TASK) {

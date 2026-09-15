@@ -1,10 +1,10 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,7 @@ final class BodyCompletionTracker {
 
     private final AtomicInteger outstanding;
     private final SettableFuture<Void> bodyExit = SettableFuture.create();
-    private final Set<MultiTaskContext> identityUnits = new HashSet<>();
+    private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
     private final List<TaskBodyState> slots;
 
     private BodyCompletionTracker(int taskCount) {
