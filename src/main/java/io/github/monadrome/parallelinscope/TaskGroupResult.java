@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.util.EnumMap;
@@ -147,13 +148,8 @@ public final class TaskGroupResult {
      * @return formatted report string
      */
     public String reportString() {
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
-        for (Map.Entry<TaskOutcome, Integer> e : outcomeCounts().entrySet()) {
-            if (!first) sb.append(',');
-            sb.append(e.getKey()).append(':').append(e.getValue());
-            first = false;
-        }
+        StringBuilder sb =
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
         sb.append(" | outcome=").append(outcome);
         if (failedTaskName != null) {
             sb.append(", failedTask=").append(failedTaskName);
