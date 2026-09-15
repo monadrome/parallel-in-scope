@@ -1,16 +1,20 @@
 # v0.3 迁移指南
 
-`0.3.0` 带来两类变化。其一，把任务组 API 重构为严格的三阶段生命周期——不可变结构定义、
-一次性提交绑定、运行期 Group——并删除了 `0.2.x` 公开面上积累的名字包装与间接类型；所有
-构建或提交 `TaskGroup` 的代码都需要源码级迁移。其二，改变若干运行期契约，使库不再在未
-声明的场合替你做决定——关闭作用域会等待而非只发取消，quiescence 指任务体退出而非 future
-完成，checkpoint 守卫失败而非跳过，executor 拒绝后不再在你没选择的线程上运行你的代码。
-批次（`Par.map`）代码不受组重构影响，除了 `ParName` 删除。
+`0.3.0` 带来三类变化。其一，把应用级执行宿主从 `GlobalPar` 更名为 `ParRuntime`。其二，把
+任务组 API 重构为严格的三阶段生命周期——不可变结构定义、一次性提交绑定、运行期 Group——
+并删除了 `0.2.x` 公开面上积累的名字包装与间接类型；所有构建或提交 `TaskGroup` 的代码都
+需要源码级迁移。其三，改变若干运行期契约，使库不再在未声明的场合替你做决定——关闭作用域
+会等待而非只发取消，quiescence 指任务体退出而非 future 完成，checkpoint 守卫失败而非跳过，
+executor 拒绝后不再在你没选择的线程上运行你的代码。批次（`Par.map`）代码不受组重构影响，
+除了 `ParName` 删除。
 
 ## 速查表
 
 | `0.2.x` | `0.3.0` |
 |---|---|
+| `GlobalPar` / `GlobalPar.Builder` | `ParRuntime` / `ParRuntime.Builder` |
+| `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
+| `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>`（匿名子类） | `Builder.task`/`Builder.combine` 返回的 `TaskGroupDefinition.Member<T>` |
 | `ParName` / `ParName.of(name)` | 所有端点统一使用 `String` 名 |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
@@ -27,28 +31,54 @@
 `CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`。`0.x` 阶段不提供
 shim；请同时更新 import、声明和调用点。
 
+## `GlobalPar` 更名为 `ParRuntime`
+
+`ParRuntime` 是应用级执行宿主：注册具名 `Par` 条目、拥有框架自身的定时与提交服务、跟踪在途
+工作，并在应用关闭时关闭。改名后名字描述的是对象本身——它并非天然全局，而是一个活跃、
+可关闭的运行期。显式实例才是常态，测试中临时创建一个也合理；`installGlobal(...)` /
+`global()` 描述的是可选的安装模式，而不是类型。
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register("io", executor)
+        .build();
+
+Par io = runtime.par("io");
+```
+
+| `0.2.x` | `0.3.0` |
+|---|---|
+| `GlobalPar` | `ParRuntime` |
+| `GlobalPar.Builder` | `ParRuntime.Builder` |
+| `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
+| `Par.globalPar()` | `Par.runtime()` |
+
+`Par.runtime()` 原本已被暴露执行器绑定的包私有访问器占用，该访问器改名为
+`Par.executorRuntime()`，它不是公开 API。`ParRuntime.installGlobal` 与 `ParRuntime.global()`
+保留原名。与本次发布的其他改名一样，不提供兼容别名。
+
 ## `ParName` 已删除：所有名称都是 `String`
 
 执行器查找与注册恢复为裸 `String` 名。原来接收或返回 `ParName` 的端点改为接收或返回
 `String`：
 
-- `GlobalPar.Builder.register(String, ExecutorService)` 仍返回 `Builder`——在
-  `GlobalPar` 完成构建前，`Par` 所需的 owner 与 runtime 尚不存在，因此不能返回 `Par`。
-- `GlobalPar.Builder.defaultPar(String)` 与 `parTaskListener(String, TaskListener)`。
-- `GlobalPar.par(String)`、`GlobalPar.find(String)`、`GlobalPar.taskListenersFor(String)`；
-  `GlobalPar.pars()` 现在返回 `Map<String, Par>`。
+- `ParRuntime.Builder.register(String, ExecutorService)` 仍返回 `Builder`——在
+  `ParRuntime` 完成构建前，`Par` 所需的 owner 与 runtime 尚不存在，因此不能返回 `Par`。
+- `ParRuntime.Builder.defaultPar(String)` 与 `parTaskListener(String, TaskListener)`。
+- `ParRuntime.par(String)`、`ParRuntime.find(String)`、`ParRuntime.taskListenersFor(String)`；
+  `ParRuntime.pars()` 现在返回 `Map<String, Par>`。
 - `Par.name()` 现在返回 `String`；删除所有 `.value()` 调用。
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` 与
   `combine(String, Par[, TaskOptions])` 直接以字符串命名成员。
 
 校验下沉到端点本身：builder 与运行期方法中，`null` 名抛 `NullPointerException`，空白名抛
 `IllegalArgumentException`，均在调用点抛出。名称仍按原样使用——不做 trim 或大小写规范化——
-`GlobalPar.Builder.build()` 的一致性校验（默认 `Par` 已注册、listener override 已注册）不变。
+`ParRuntime.Builder.build()` 的一致性校验（默认 `Par` 已注册、listener override 已注册）不变。
 格式合法的名字仍不代表已注册；未知名称仍在 `build()` 或 `par(name)` 处失败，与此前一致。
 
 ```java
 // 0.2.x
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register(ParName.of("io"), ioPool)
         .defaultPar(ParName.of("io"))
         .build();
@@ -56,7 +86,7 @@ Par io = global.par(ParName.of("io"));
 String name = io.name().value();
 
 // 0.3.0
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register("io", ioPool)
         .defaultPar("io")
         .build();
@@ -78,11 +108,11 @@ Definition（只含结构，不可变，可复用）
 definition 只保存名称、声明顺序、已解析的 owner 绑定 `Par` 句柄、成员选项和组 timeout 选择，
 绝不保存 `Callable`、combine body、listener、request 对象、future、token 或 deadline。Java
 lambda 必然产生捕获，因此承载它们的 `Bindings` 与 `TaskGroup` 是每次提交、一次性使用；而
-definition 可在 owner `GlobalPar` 存活期间跨线程共享。
+definition 可在 owner `ParRuntime` 存活期间跨线程共享。
 
 ### 1. 在 owner 上定义组
 
-只有创建它的 `GlobalPar` 能生成 builder；不再存在公共静态 `builder(...)` 入口。组 timeout
+只有创建它的 `ParRuntime` 能生成 builder；不再存在公共静态 `builder(...)` 入口。组 timeout
 仍是强制的显式二选一：`defineGroup(name, timeout)` 声明显式预算，嵌套组用
 `defineGroupInheriting(name)` 继承外层 scoped task 的 deadline。不存在隐式无界默认值。
 
@@ -208,9 +238,9 @@ Futures.addCallback(
 
 ## 需要适应的行为变化
 
-- **owner 绑定显式化。** definition 只接受创建它的 `GlobalPar` 的 `Par` 句柄；foreign `Par`
+- **owner 绑定显式化。** definition 只接受创建它的 `ParRuntime` 的 `Par` 句柄；foreign `Par`
   在定义配置期失败，提交 foreign owner 的 definition 在 `submitGroup` 入口失败。
-  `GlobalPar.close()` 后 definition 仍是普通不可变对象，但新的提交会失败。
+  `ParRuntime.close()` 后 definition 仍是普通不可变对象，但新的提交会失败。
 - **inherit 组无外层任务时整次失败。** 用 `defineGroupInheriting(name)` 构建的组在没有外层
   scoped task 的线程提交时，在运行准备期抛 `IllegalArgumentException`：不产生
   `TaskGroup`、future、token，也不执行任何 body。
@@ -231,7 +261,7 @@ Futures.addCallback(
 | foreign definition owner | `submitGroup` 入口 | 否 |
 | 缺失/重复/foreign/kind 不匹配的绑定 | binder 冻结校验 | 否 |
 | binder 抛异常 | binder 同步调用 | 否 |
-| `GlobalPar` 已关闭（或关闭竞争获胜） | admission | 否 |
+| `ParRuntime` 已关闭（或关闭竞争获胜） | admission | 否 |
 | inherit 组无外层 scoped task | 运行准备期 | 否 |
 | 运行准备失败 | admission 回滚 | 否 |
 | executor 拒绝 | 运行提交期 | 是，记入结果 |
@@ -299,7 +329,7 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 
 ## quiescence 指任务体退出
 
-`GlobalPar.awaitQuiescence(Duration)` 现在等待任务体退出，而不只是 future 排空。运行中被
+`ParRuntime.awaitQuiescence(Duration)` 现在等待任务体退出，而不只是 future 排空。运行中被
 取消的任务会立刻完成 future，但可能仍在执行用户代码，quiescence 两者都算。
 
 ## checkpoint 守卫改为失败而非跳过
@@ -317,7 +347,7 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `Task` 改为包私有，公开契约只有 `TaskFuture` | 原先使用 `Task` 的位置改声明 `TaskFuture`。 |
 | `Par.map` 接收任意 `Collection`，不再只收 `List` | 源码兼容；非 `List` 输入在入口处快照。 |
 | `TaskBatchResult.BatchReport.stateCounts()` 不再 `@Nullable`，`BatchReport` 构造器改为包私有 | 移除对 `stateCounts()` 的判空；report 一律从库获取。 |
-| `GlobalPar.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
+| `ParRuntime.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
 
 ## 不变的部分
 

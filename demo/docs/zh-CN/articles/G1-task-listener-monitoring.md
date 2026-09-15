@@ -29,7 +29,7 @@ Future<String> future = pool.submit(() -> {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `GlobalPar.builder().taskListener(listener)` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskCompletion)`，无需侵入业务代码。
+`parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `ParRuntime.builder().taskListener(listener)` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskCompletion)`，无需侵入业务代码。
 
 `TaskCompletion` 包含完整的任务生命周期信息：
 - `taskContext()` — 当前 task 的只读上下文，包含 batch、taskIndex 和计时
@@ -48,7 +48,7 @@ Future<String> future = pool.submit(() -> {
 
 // 注册监控监听器
 ConcurrentHashMap<String, Long> taskTimings = new ConcurrentHashMap<>();
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .taskListener(event -> {
             // 每个任务完成时自动回调，零侵入

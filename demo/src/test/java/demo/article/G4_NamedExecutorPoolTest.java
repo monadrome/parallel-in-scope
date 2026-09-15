@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>问题：多个 ExecutorService 实例类型相同，传错池编译器不报错，运行时才发现。
  *
- * <p>解决：GlobalPar.builder().register("name", pool) 命名注册，par.map(...) 按名引用。
+ * <p>解决：ParRuntime.builder().register("name", pool) 命名注册，par.map(...) 按名引用。
  */
 class G4_NamedExecutorPoolTest {
 
@@ -76,7 +76,7 @@ class G4_NamedExecutorPoolTest {
     }
 
     /**
-     * 解决方案：GlobalPar 命名注册，按名引用，不可能传错。
+     * 解决方案：ParRuntime 命名注册，按名引用，不可能传错。
      *
      * <p>IO 池和 CPU 池分别注册为 "io-pool" 和 "cpu-pool"，通过不同的 Par 实例调用 map。名字不匹配会直接抛出 IllegalArgumentException，而不是静默地跑在错误的池上。
      */
@@ -101,8 +101,8 @@ class G4_NamedExecutorPoolTest {
         });
 
         try {
-            // 命名注册：一个 GlobalPar 统一管理多个线程池
-            GlobalPar config = GlobalPar.builder()
+            // 命名注册：一个 ParRuntime 统一管理多个线程池
+            ParRuntime config = ParRuntime.builder()
                     .register("io-pool", ioPool)
                     .register("cpu-pool", cpuPool)
                     .defaultPar("io-pool")
@@ -113,7 +113,9 @@ class G4_NamedExecutorPoolTest {
             List<String> items = Arrays.asList("a", "b", "c", "d", "e");
 
             // IO 任务：按名引用 io-pool
-            BatchOptions ioOpts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000)).parallelism(4).taskType(TaskType.IO_BOUND);
+            BatchOptions ioOpts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000))
+                    .parallelism(4)
+                    .taskType(TaskType.IO_BOUND);
             TaskBatchResult<String> ioResult = par.map(
                     items,
                     item -> {
@@ -122,7 +124,9 @@ class G4_NamedExecutorPoolTest {
                     ioOpts);
 
             // CPU 任务：按名引用 cpu-pool
-            BatchOptions cpuOpts = BatchOptions.timeout("compute", java.time.Duration.ofMillis(5000)).parallelism(4).taskType(TaskType.CPU_BOUND);
+            BatchOptions cpuOpts = BatchOptions.timeout("compute", java.time.Duration.ofMillis(5000))
+                    .parallelism(4)
+                    .taskType(TaskType.CPU_BOUND);
             TaskBatchResult<String> cpuResult = cpuPar.map(
                     items,
                     item -> {

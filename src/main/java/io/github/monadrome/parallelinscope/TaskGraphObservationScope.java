@@ -12,21 +12,21 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
- * Explicit request-level task-graph observation scope owned by one {@link GlobalPar}.
+ * Explicit request-level task-graph observation scope owned by one {@link ParRuntime}.
  *
  * <p>The scope is a request-level global object: it is held in a {@link TransmittableThreadLocal}
  * with identity copy semantics, so every worker thread within the request observes the same
  * instance and shares its {@link TaskGraphData}. Nested scopes stack on the opening thread, and
  * {@link #close()} is idempotent so it can be used with try-with-resources. Closing the scope runs
  * the deadlock detection pass over the recorded graph and notifies the owner's
- * {@code GlobalParDeadlockPolicy} listeners.
+ * {@code ParRuntimeDeadlockPolicy} listeners.
  *
  * <p>Lifecycle:
  *
  * <ul>
- *   <li>Request start: {@link GlobalPar#openTaskGraphObservation()} creates the scope and a fresh
+ *   <li>Request start: {@link ParRuntime#openTaskGraphObservation()} creates the scope and a fresh
  *       {@link TaskGraphData}
- *   <li>During request: the GlobalPar execution path records batch-instance relationships via
+ *   <li>During request: the ParRuntime execution path records batch-instance relationships via
  *       {@link #logTaskPair}
  *   <li>Request end: {@link #close()} checks for cycles and notifies listeners
  * </ul>
@@ -41,12 +41,12 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     private static final TransmittableThreadLocal<TaskGraphObservationScope> CURRENT =
             new TransmittableThreadLocal<TaskGraphObservationScope>() {};
 
-    private final GlobalPar owner;
+    private final ParRuntime owner;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final @Nullable TaskGraphObservationScope previousScope;
     private final TaskGraphData data;
 
-    TaskGraphObservationScope(GlobalPar owner) {
+    TaskGraphObservationScope(ParRuntime owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
         this.previousScope = CURRENT.get();
         CURRENT.set(this);
@@ -132,7 +132,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return data != null && data.executorSelfLoop();
     }
 
-    GlobalPar owner() {
+    ParRuntime owner() {
         return owner;
     }
 
@@ -154,7 +154,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         }
     }
 
-    /** Runs the GlobalPar deadlock policy over this scope's graph and restores the outer scope. */
+    /** Runs the ParRuntime deadlock policy over this scope's graph and restores the outer scope. */
     private void runDeadlockDetection() {
         try {
             if (!owner.deadlockPolicy().enabled()) {
@@ -179,7 +179,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
             logger.log(
                     Level.WARNING,
                     "[[title=TaskGraph,function=finishObservation]]"
-                            + "Failed to run GlobalPar potential-deadlock detection",
+                            + "Failed to run ParRuntime potential-deadlock detection",
                     e);
         }
     }

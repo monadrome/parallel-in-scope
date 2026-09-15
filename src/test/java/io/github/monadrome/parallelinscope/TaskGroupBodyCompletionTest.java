@@ -41,7 +41,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeCancelsAndWaitsForBodyExitWithinRemainingBudget() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch closeReturned = new CountDownLatch(1);
@@ -84,7 +84,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeWithDefaultGraceDerivesTheBudgetFromTheRemainingDeadline() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch bodyExited = new CountDownLatch(1);
@@ -128,7 +128,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeWaitsTheCloseGraceEvenAfterTheDeadlineIsExhausted() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch bodyExited = new CountDownLatch(1);
@@ -175,7 +175,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeWithZeroGraceIsCancelOnly() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch bodyExited = new CountDownLatch(1);
@@ -219,7 +219,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeGraceElapseLogsTheOutstandingMemberNames() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         java.util.logging.Logger groupLogger = java.util.logging.Logger.getLogger(TaskGroup.class.getName());
@@ -273,7 +273,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeOnEntryWithInterruptFlagCancelsButSkipsWaitAndPreservesFlag() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
@@ -311,7 +311,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void awaitBodyCompletionValidatesArgumentsAndHonoursInterruption() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
@@ -362,7 +362,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void awaitBodyCompletionInterruptedDuringWaitClearsFlagAndThrows() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch waiting = new CountDownLatch(1);
@@ -403,7 +403,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void closeAndAwaitFromWithinMemberBodyAreRejectedAsSelfAwait() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         AtomicReference<TaskGroup> groupRef = new AtomicReference<>();
         CountDownLatch groupReady = new CountDownLatch(1);
         AtomicReference<Throwable> awaitFailure = new AtomicReference<>();
@@ -477,7 +477,7 @@ class TaskGroupBodyCompletionTest {
                 throw new RejectedExecutionException("rejected");
             }
         };
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .register("rejecting", rejecting)
                 .build();
@@ -522,7 +522,7 @@ class TaskGroupBodyCompletionTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CountDownLatch listenerRelease = new CountDownLatch(1);
         CountDownLatch listenerEntered = new CountDownLatch(1);
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .taskListener(event -> {
                     listenerEntered.countDown();
@@ -551,7 +551,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void unstartedCombineReleasesItsSlotOnCancellation() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger combineRuns = new AtomicInteger();
@@ -588,7 +588,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void successfulGroupWithCombineReportsBodyCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("combine-ok", TIMEOUT);
             TaskGroupDefinition.Member<Integer> value = builder.task("value", global.par("worker"));
@@ -616,7 +616,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void emptyGroupReportsImmediateBodyCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroup group =
                     global.submitGroup(global.defineGroup("empty", TIMEOUT).build(), bindings -> {});
@@ -633,7 +633,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void repeatedCloseAndConcurrentWaitersObserveTheSameCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger trueResults = new AtomicInteger();
@@ -680,7 +680,7 @@ class TaskGroupBodyCompletionTest {
     @Test
     void successfulAwaitEstablishesVisibilityOfBodyWrites() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         int[] writes = new int[2];
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("visibility", TIMEOUT);

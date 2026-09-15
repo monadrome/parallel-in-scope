@@ -1,8 +1,8 @@
 package demo.integration;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +33,7 @@ public class BatchProcessingDemo {
         System.out.println("数据集大小: " + largeDataset.size() + " 个元素");
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("batch-demo", pool)
                 .defaultPar("batch-demo")
                 .build();
@@ -41,7 +41,8 @@ public class BatchProcessingDemo {
 
         try {
             // 2. 配置批处理参数
-            BatchOptions options = BatchOptions.timeout("batch-demo", java.time.Duration.ofMillis(30000)).parallelism(4);
+            BatchOptions options = BatchOptions.timeout("batch-demo", java.time.Duration.ofMillis(30000))
+                    .parallelism(4);
 
             System.out.println("并行度: " + options.parallelism());
             System.out.println("超时: 30秒\n");

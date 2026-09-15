@@ -45,7 +45,7 @@ class MultiTaskContextTest {
 
     @Test
     void inheritsParentObservationAndCreatesLinkedCancellationToken() {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         TaskGraphObservationScope observation = global.openTaskGraphObservation();
         try {
             MultiTaskContext parent = MultiTaskContext.resolve(

@@ -6,10 +6,10 @@
 
 ## 构建执行拓扑
 
-在 composition root 创建 `GlobalPar`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
+在 composition root 创建 `ParRuntime`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
 
 ```java
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
         .register("database", databaseExecutor)
         .register("http", httpExecutor)
@@ -22,13 +22,13 @@ Par databasePar = global.par("database");
 
 名称是普通 `String`，在接收它的端点上校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。名称是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个名称可以有意共享同一个执行器。
 
-名称会在构建期校验；`build()` 后 `GlobalPar` 不可变，未知名称的 `par(name)` 会失败。注册的执行器属于调用方：关闭 `GlobalPar` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
+名称会在构建期校验；`build()` 后 `ParRuntime` 不可变，未知名称的 `par(name)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
 ```java
-GlobalPar.installGlobal(global);
-Par defaultPar = GlobalPar.global().defaultPar();
+ParRuntime.installGlobal(global);
+Par defaultPar = ParRuntime.global().defaultPar();
 ```
 
 测试和库代码应优先显式注入。`installGlobal` 只能成功一次，不能替换已有实例。
@@ -63,7 +63,7 @@ future 完成只表示值已落定，并不证明用户函数已经退出。`res
 
 ## 执行异构任务组
 
-当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组经历三个阶段：`GlobalPar.defineGroup*` 创建 `TaskGroupDefinition.Builder`，记录不可变、可复用、只含结构的 `TaskGroupDefinition`；`GlobalPar.submitGroup(definition, binder)` 通过一次性的 `TaskGroup.Bindings` 收集本次运行的 body，并在单个边界统一接纳；返回的 `TaskGroup` 是运行中的可关闭作用域。definition 不保存 `Callable`、combine body、listener 或 request 对象，因此可跨线程共享、用不同 bindings 反复提交；每次请求的捕获只存在于一次性的 `Bindings`/`TaskGroup` 中。
+当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组经历三个阶段：`ParRuntime.defineGroup*` 创建 `TaskGroupDefinition.Builder`，记录不可变、可复用、只含结构的 `TaskGroupDefinition`；`ParRuntime.submitGroup(definition, binder)` 通过一次性的 `TaskGroup.Bindings` 收集本次运行的 body，并在单个边界统一接纳；返回的 `TaskGroup` 是运行中的可关闭作用域。definition 不保存 `Callable`、combine body、listener 或 request 对象，因此可跨线程共享、用不同 bindings 反复提交；每次请求的捕获只存在于一次性的 `Bindings`/`TaskGroup` 中。
 
 组 timeout 仍是强制的显式二选一：`defineGroup(name, timeout)` 设置正数显式预算，`defineGroupInheriting(name)` 继承外层 scoped task 的 deadline——没有第三个状态。用 `defineGroupInheriting` 构建的组必须在 scoped task 内提交，否则 `submitGroup` 在运行准备期抛 `IllegalArgumentException`，不产生组或 future。成员需要收紧时才声明 `TaskOptions`：省略即等价于 `TaskOptions.inheritTimeout()`，成员永远不会因此超出组 deadline；成员的显式 timeout 会被组 deadline 截断。`Builder.closeGrace(Duration)` 配置 `close()` 等待所用的清理预算。
 
@@ -88,7 +88,7 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 }
 ```
 
-`Builder.task(name, par)` 只记录成员的名称、`Par` 和选项——它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务；`Par` 必须属于创建该 builder 的同一个 `GlobalPar`。每次声明显式返回一个类型化的 `Member<T>` 句柄：它由库创建、按对象身份识别，同时约束 `Bindings.task(member, callable)` 的返回值与 `group.future(member)` 的结果类型为同一个 `T`；来自其他 definition 的句柄或 kind 不匹配的用法一律抛 `IllegalArgumentException`。binder 在调用线程上恰好同步执行一次，返回后 bindings 即冻结：每个成员恰好一个 body，binder 抛异常会在 admission 前拒绝整次提交，binder 返回后或从其他线程使用 `Bindings` 都抛 `IllegalStateException`。组 deadline 从 binder 返回时起算，因此绑定阶段耗时不会消耗执行预算。
+`Builder.task(name, par)` 只记录成员的名称、`Par` 和选项——它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务；`Par` 必须属于创建该 builder 的同一个 `ParRuntime`。每次声明显式返回一个类型化的 `Member<T>` 句柄：它由库创建、按对象身份识别，同时约束 `Bindings.task(member, callable)` 的返回值与 `group.future(member)` 的结果类型为同一个 `T`；来自其他 definition 的句柄或 kind 不匹配的用法一律抛 `IllegalArgumentException`。binder 在调用线程上恰好同步执行一次，返回后 bindings 即冻结：每个成员恰好一个 body，binder 抛异常会在 admission 前拒绝整次提交，binder 返回后或从其他线程使用 `Bindings` 都抛 `IllegalStateException`。组 deadline 从 binder 返回时起算，因此绑定阶段耗时不会消耗执行预算。
 
 组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。要异步观测完成，请在 completion future 上显式选择回调 executor 登记——`Futures.addCallback(group.completionFuture(), callback, executor)`；future 完成后追加的 callback 仍会以已完成结果运行，direct executor 下 callback 可能在 `submitGroup` 返回前执行。
 
@@ -185,7 +185,7 @@ databasePar.map(ids, id -> {
 
 ## 观测嵌套工作 {#nested-observation}
 
-任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
+任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
 
 ```java
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
@@ -197,26 +197,26 @@ try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) 
 在构建拓扑时配置策略：
 
 ```java
-GlobalParDeadlockPolicy deadlock = GlobalParDeadlockPolicy.builder()
+ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
         .enabled(true)
         .listener(event -> log.warn("Potential deadlock: {}", event))
         .build();
 ```
 
-不同 `GlobalPar` 的观测作用域不会合并任务图。
+不同 `ParRuntime` 的观测作用域不会合并任务图。
 
 ## 清理已取消的排队任务
 
-purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生效。执行前取消会发出 execution phase 信号；`GlobalPar` 按物理执行器 identity 合并维护任务，因此同一线程池的别名或多个 `Par` 不会创建重复协调器。
+purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生效。执行前取消会发出 execution phase 信号；`ParRuntime` 按物理执行器 identity 合并维护任务，因此同一线程池的别名或多个 `Par` 不会创建重复协调器。
 
 ```java
-GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
+ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
         .enabled(true)
         .queuePressureThreshold(0.80)
         .canceledTaskRatioThreshold(0.05)
         .build();
 
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .purgePolicy(purge)
         .register("io", ioThreadPool)
         .build();
@@ -241,7 +241,7 @@ Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 
 ## 运行规则
 
-- `GlobalPar` 应覆盖应用生命周期，并在应用关闭时关闭它。
+- `ParRuntime` 应覆盖应用生命周期，并在应用关闭时关闭它。
 - 注册执行器的所有权在库外；由拥有它的组件负责关闭。
 - 为每批任务提供稳定 task name，并在长 CPU 任务中设置 checkpoint。
 - 需要隔离的资源应使用不同 `Par`，即使它们同为 IO。

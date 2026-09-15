@@ -1,17 +1,17 @@
 package io.github.monadrome.parallelinscope;
 
 /**
- * Immutable thread-pool-level purge policy owned by one {@link GlobalPar}.
+ * Immutable thread-pool-level purge policy owned by one {@link ParRuntime}.
  *
  * <p>The thresholds are advisory trigger conditions, not queue-accounting guarantees. They apply
  * once per physical supplied executor even when several named {@code Par} entries share it.
  */
-public final class GlobalParPurgePolicy {
+public final class ParRuntimePurgePolicy {
     private final boolean enabled;
     private final double queuePressureThreshold;
     private final double canceledTaskRatioThreshold;
 
-    private GlobalParPurgePolicy(Builder builder) {
+    private ParRuntimePurgePolicy(Builder builder) {
         this.enabled = builder.enabled;
         this.queuePressureThreshold = builder.queuePressureThreshold;
         this.canceledTaskRatioThreshold = builder.canceledTaskRatioThreshold;
@@ -55,8 +55,8 @@ public final class GlobalParPurgePolicy {
             return this;
         }
 
-        public GlobalParPurgePolicy build() {
-            return new GlobalParPurgePolicy(this);
+        public ParRuntimePurgePolicy build() {
+            return new ParRuntimePurgePolicy(this);
         }
 
         private static void validate(double value, String name) {

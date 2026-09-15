@@ -33,7 +33,7 @@ The demo depends on the published library artifact and acts as an external consu
 demo -> io.github.monadrome:parallel-in-scope
 ```
 
-Examples use the `demo.*` namespace and access only public API types from the root package (`GlobalPar`, `Par`, `BatchOptions`, `TaskBatchResult`, `TaskGroupDefinition`, `TaskGroup`, listeners) and the `queue` package. Cancellation, context, graph, and scheduling internals are package-private in the root package, so consumer code cannot import them.
+Examples use the `demo.*` namespace and access only public API types from the root package (`ParRuntime`, `Par`, `BatchOptions`, `TaskBatchResult`, `TaskGroupDefinition`, `TaskGroup`, listeners) and the `queue` package. Cancellation, context, graph, and scheduling internals are package-private in the root package, so consumer code cannot import them.
 
 ## Documentation
 

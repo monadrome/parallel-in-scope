@@ -37,7 +37,7 @@ class TaskFutureTest {
     @Test
     void batchDeliversEveryElementAsATaskFutureInsideAndOutsideTheWindow() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -69,7 +69,7 @@ class TaskFutureTest {
     void batchRejectedAtSubmitDeliversIdentifiedTaskFutures() {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        GlobalPar global = GlobalPar.builder().register("worker", rejected).build();
+        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
         try {
             TaskBatchResult<String> batch = global.par("worker")
                     .map(
@@ -96,7 +96,7 @@ class TaskFutureTest {
     @Test
     void groupDeliversMembersCombineAndCompletionAsTaskFutures() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
             TaskGroupDefinition.Member<String> user = definition.task("user", global.par("worker"), memberOptions());
@@ -126,7 +126,7 @@ class TaskFutureTest {
     @Test
     void submitCancellerStaysAPlainFuture() {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -149,7 +149,7 @@ class TaskFutureTest {
     @Test
     void succeededTaskReadsSuccessWithoutAFailure() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         try {
             TaskBatchResult<String> batch = global.par("worker")
                     .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
@@ -167,7 +167,7 @@ class TaskFutureTest {
     @Test
     void failedTaskReadsUserFailureAndExposesTheCause() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -194,7 +194,7 @@ class TaskFutureTest {
     @Test
     void aMemberCancelledDirectlyKeepsItsInitiatorAttributionInTheSnapshot() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
@@ -229,7 +229,7 @@ class TaskFutureTest {
     @Test
     void groupCancellationReadsGroupCanceledOnEveryMember() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
@@ -258,7 +258,7 @@ class TaskFutureTest {
     @Test
     void siblingFailureReadsFailFastOnTheCancelledElement() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -281,7 +281,7 @@ class TaskFutureTest {
     @Test
     void expiredDeadlineReadsTimeoutAndClampsTheRemainingBudget() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -307,7 +307,7 @@ class TaskFutureTest {
     void nestedScopeCancellationReadsTheOriginatingCause() throws Exception {
         ExecutorService outerPool = Executors.newSingleThreadExecutor();
         ExecutorService innerPool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("outer", outerPool)
                 .register("inner", innerPool)
                 .build();
@@ -358,7 +358,7 @@ class TaskFutureTest {
     @Test
     void aCancellationSignalRacingTheCascadeIsAttributedToTheDeadline() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -392,7 +392,7 @@ class TaskFutureTest {
     @Test
     void recordedSuccessSurvivesALaterDeadlineCommit() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -417,7 +417,7 @@ class TaskFutureTest {
     @Test
     void terminalOutcomeIsStableAcrossRepeatedReads() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskBatchResult<String> batch = global.par("worker")
@@ -501,7 +501,7 @@ class TaskFutureTest {
     @Test
     void cancelInterruptsTheWorkerThroughTheTaskView() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch interrupted = new CountDownLatch(1);
         try {
@@ -537,7 +537,7 @@ class TaskFutureTest {
         ExecutorService pool = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "task-worker"));
         ExecutorService listeners =
                 Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "listener-thread"));
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         try {
             TaskBatchResult<String> batch = global.par("worker")
                     .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
@@ -558,7 +558,7 @@ class TaskFutureTest {
     @Test
     void theTaskViewIsStillAPlainListenableFuture() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         try {
             TaskBatchResult<Integer> batch = global.par("worker")
                     .map(Arrays.asList(1, 2, 3), item -> item + 1, BatchOptions.timeout("orders", SCOPE_TIMEOUT));
@@ -577,7 +577,7 @@ class TaskFutureTest {
     @Test
     void deadlineAndRemainingBudgetComeFromTheOwningScope() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", pool).build();
+        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);

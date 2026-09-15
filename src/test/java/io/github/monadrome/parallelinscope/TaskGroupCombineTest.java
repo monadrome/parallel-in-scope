@@ -24,8 +24,8 @@ class TaskGroupCombineTest {
     void combineRunsOnceOnItsOwnExecutorAfterAllMembersSucceed() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(2);
         ExecutorService cpu = Executors.newSingleThreadExecutor();
-        GlobalPar global =
-                GlobalPar.builder().register("io", io).register("cpu", cpu).build();
+        ParRuntime global =
+                ParRuntime.builder().register("io", io).register("cpu", cpu).build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             AtomicReference<String> combineThread = new AtomicReference<>();
@@ -69,7 +69,7 @@ class TaskGroupCombineTest {
     @Test
     void memberFailureSkipsCombineAndTerminatesTerminalFuture() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
@@ -105,7 +105,7 @@ class TaskGroupCombineTest {
     @Test
     void combineFailureIsAttributedToTheCombineNotAMember() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
@@ -139,7 +139,7 @@ class TaskGroupCombineTest {
     void rejectedCombineFailsAsSubmissionFailureWithoutInlineExecution() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .register("rejecting", rejecting)
                 .build();
@@ -180,7 +180,7 @@ class TaskGroupCombineTest {
         // fallback.
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .register("rejecting", rejecting)
                 .build();
@@ -255,7 +255,7 @@ class TaskGroupCombineTest {
     @Test
     void groupCancelSkipsUnstartedCombine() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         CountDownLatch running = new CountDownLatch(1);
         try {
             AtomicInteger combineRuns = new AtomicInteger();
@@ -292,7 +292,7 @@ class TaskGroupCombineTest {
     @Test
     void combineOwnDeadlineEscalatesToGroupTimeout() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
@@ -322,7 +322,7 @@ class TaskGroupCombineTest {
     @Test
     void emptyGroupSubmitsCombineInsideTheSubmitFlow() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("empty", TIMEOUT);
             TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
@@ -344,7 +344,7 @@ class TaskGroupCombineTest {
     @Test
     void combineContextEnforcesTheHandleContract() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             AtomicReference<Throwable> unknownRef = new AtomicReference<>();
             AtomicReference<Throwable> selfRef = new AtomicReference<>();
@@ -383,7 +383,7 @@ class TaskGroupCombineTest {
     private static TaskGroupDefinition.Member<String> unknownMember() {
         // Declared in a definition that was never submitted: a handle that cannot resolve in the
         // "page" definition, rejected by identity.
-        GlobalPar owner = GlobalPar.builder()
+        ParRuntime owner = ParRuntime.builder()
                 .register("p", Executors.newSingleThreadExecutor())
                 .build();
         try {
@@ -396,7 +396,7 @@ class TaskGroupCombineTest {
     @Test
     void combineDeclarationIsValidatedEarly() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.task("user", global.par("worker"));
@@ -424,7 +424,7 @@ class TaskGroupCombineTest {
     @Test
     void omittedCombineOptionsDefaultToAnInheritedTimeout() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.combine("assemble", global.par("worker"));
@@ -445,7 +445,7 @@ class TaskGroupCombineTest {
     @Test
     void aMemberDeclaredAfterTheCombineCannotReuseItsName() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.combine("assemble", global.par("worker"));
@@ -465,7 +465,7 @@ class TaskGroupCombineTest {
     @Test
     void aCombineDeclaredAfterAMemberCannotReuseItsName() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             builder.task("assemble", global.par("worker"));
@@ -486,7 +486,7 @@ class TaskGroupCombineTest {
     @Test
     void groupDeadlineCoversTheCombineExecutionWithoutResettingTheBudget() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             // The members finish quickly; the combine then sleeps past the group deadline: the
             // group reports TIMEOUT, proving the fan-out wait and the combine share one budget.
@@ -517,7 +517,7 @@ class TaskGroupCombineTest {
     @Test
     void combineMayBeDeclaredBeforeTheMembers() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             // Declaration order is free; execution always places the terminal combine after every
             // plain member, however the builder calls were ordered.

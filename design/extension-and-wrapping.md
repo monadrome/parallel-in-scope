@@ -201,7 +201,7 @@ public static <V> Callable<V> wrapScoped(
 
 **循环方向是易错点**：`body = d.decorate(body)` 会让最后遍历到的成为最外层，因此必须倒序遍历，才能实现"注册序 = 由外到内"。
 
-**装饰器列表是构建期冻结的有序不可变快照**（`GlobalPar` 不可变），提交时不再变化——避免并发迭代与顺序抖动。
+**装饰器列表是构建期冻结的有序不可变快照**（`ParRuntime` 不可变），提交时不再变化——避免并发迭代与顺序抖动。
 
 三条路径自动一致（现状已共用此点）：
 
@@ -215,13 +215,13 @@ batch 的 `Function` 在 `Par.mapWhileOpen` 已转成每元素 `Callable`，因�
 
 ### 5.3 注册面
 
-镜像已有的 listener 设计（`GlobalPar.Builder.taskListener` / `parTaskListener` / `GlobalPar.taskListenersFor`）：
+镜像已有的 listener 设计（`ParRuntime.Builder.taskListener` / `parTaskListener` / `ParRuntime.taskListenersFor`）：
 
 ```java
-GlobalPar.Builder
+ParRuntime.Builder
     .taskDecorator(TaskDecorator)              // 全局默认，按注册序追加
     .parTaskDecorator(String, TaskDecorator)   // 按 Par 追加，位于全局之后（ParName 已删，收 String）
-GlobalPar.taskDecoratorsFor(String)            // 与 taskListenersFor(String) 对称
+ParRuntime.taskDecoratorsFor(String)            // 与 taskListenersFor(String) 对称
 ```
 
 **组合语义是追加，不是 listener 的覆盖替换**：静默丢弃一个传播型装饰器属于"忘记"类错误。要少用就不全局注册；这个差异 MUST 写进用户文档。
@@ -349,7 +349,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 1. **L3 检测（可独立先行）**：`ExecutorRuntime` 加 `TtlUnwrap.isWrapper` 告警 + 能力探测解包 + 回归测试；
 2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md` 记录；
-3. `TaskDecorator` SPI + `TaskSubmissions.wrapScoped` 参数化 + `GlobalPar` 注册面；
+3. `TaskDecorator` SPI + `TaskSubmissions.wrapScoped` 参数化 + `ParRuntime` 注册面；
 4. §8 验证矩阵；
 5. 用户文档（中英）：顺序、捕获时点、逃逸禁令、重试语义、注册面追加语义。
 

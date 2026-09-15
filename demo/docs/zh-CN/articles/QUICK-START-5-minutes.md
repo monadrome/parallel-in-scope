@@ -22,7 +22,7 @@
 ```java
 // 1. 准备线程池和配置（应用启动时做一次即可）
 ExecutorService pool = Executors.newFixedThreadPool(4);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();

@@ -20,7 +20,7 @@ class ParSubmitTest {
     void submitRunsOneScopedTaskWithNameAndDeadline() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("worker", executor)
                 .taskListener(listenerCompletion::set)
                 .build();
@@ -50,7 +50,7 @@ class ParSubmitTest {
     void submitRunsOnTheCallerThreadWhenOptionsRequestIt() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        GlobalPar global = GlobalPar.builder().register("worker", rejected).build();
+        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
         Thread caller = Thread.currentThread();
         try {
             TaskFuture<Thread> task = global.par("worker")
@@ -74,7 +74,7 @@ class ParSubmitTest {
     void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        GlobalPar global = GlobalPar.builder().register("worker", rejected).build();
+        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
         AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
         try {
             TaskFuture<String> task = global.par("worker")
@@ -99,7 +99,7 @@ class ParSubmitTest {
     @Test
     void submitRequiresAnExplicitTimeoutWithoutAnEnclosingScope() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             Par par = global.par("worker");
             assertThatThrownBy(() -> par.submit("single", () -> "x", TaskOptions.inheritTimeout()))
@@ -113,7 +113,7 @@ class ParSubmitTest {
     @Test
     void submitDeadlineExpiresAndCancelsTheTask() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         try {
             CountDownLatch started = new CountDownLatch(1);
             TaskFuture<String> task = global.par("worker")
@@ -140,7 +140,7 @@ class ParSubmitTest {
     void submitInsideABatchInheritsCancellation() throws Exception {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("outer", outer)
                 .register("inner", inner)
                 .build();
@@ -163,7 +163,7 @@ class ParSubmitTest {
     @Test
     void submitRejectsAfterClose() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
         global.close();
         try {
             Par par = global.par("worker");

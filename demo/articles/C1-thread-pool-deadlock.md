@@ -37,7 +37,7 @@ for (int i = 0; i < 2; i++) {
 ```java
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.BatchOptions;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 
@@ -45,7 +45,7 @@ import io.github.monadrome.parallelinscope.TaskType;
 ExecutorService outerPool = Executors.newFixedThreadPool(2);
 ExecutorService innerPool = Executors.newCachedThreadPool();
 
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("outer-pool", outerPool)
         .register("inner-pool", innerPool)
         .build();

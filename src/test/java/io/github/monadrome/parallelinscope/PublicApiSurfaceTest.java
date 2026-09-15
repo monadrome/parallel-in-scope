@@ -22,9 +22,9 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".DeadlockDetectionListener",
-            BASE_PACKAGE + ".GlobalPar",
-            BASE_PACKAGE + ".GlobalParDeadlockPolicy",
-            BASE_PACKAGE + ".GlobalParPurgePolicy",
+            BASE_PACKAGE + ".ParRuntime",
+            BASE_PACKAGE + ".ParRuntimeDeadlockPolicy",
+            BASE_PACKAGE + ".ParRuntimePurgePolicy",
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".SmartBlockingQueue",
@@ -45,9 +45,9 @@ class PublicApiSurfaceTest {
             // type is part of the API just like a top-level one, so it is pinned here too.
             BASE_PACKAGE + ".CancellationToken$State",
             BASE_PACKAGE + ".DeadlockDetectionListener$DeadlockDetectionEvent",
-            BASE_PACKAGE + ".GlobalPar$Builder",
-            BASE_PACKAGE + ".GlobalParDeadlockPolicy$Builder",
-            BASE_PACKAGE + ".GlobalParPurgePolicy$Builder",
+            BASE_PACKAGE + ".ParRuntime$Builder",
+            BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
+            BASE_PACKAGE + ".ParRuntimePurgePolicy$Builder",
             BASE_PACKAGE + ".TaskBatchResult$BatchReport",
             BASE_PACKAGE + ".TaskGroup$Bindings",
             BASE_PACKAGE + ".TaskGroup$CombineBody",
@@ -68,7 +68,7 @@ class PublicApiSurfaceTest {
     }
 
     private static Set<String> declaredClassNames() throws Exception {
-        URI location = GlobalPar.class
+        URI location = ParRuntime.class
                 .getProtectionDomain()
                 .getCodeSource()
                 .getLocation()
@@ -91,7 +91,7 @@ class PublicApiSurfaceTest {
 
     private static boolean isPublic(String className) {
         try {
-            return Modifier.isPublic(Class.forName(className, false, GlobalPar.class.getClassLoader())
+            return Modifier.isPublic(Class.forName(className, false, ParRuntime.class.getClassLoader())
                     .getModifiers());
         } catch (ClassNotFoundException impossible) {
             throw new AssertionError(impossible);

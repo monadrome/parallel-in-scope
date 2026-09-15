@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +33,7 @@ public class B1_MdcContextLostTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
+        ParRuntime config = ParRuntime.builder()
                 .register("test-pool", pool)
                 .defaultPar("test-pool")
                 .build();
@@ -95,7 +95,8 @@ public class B1_MdcContextLostTest {
     @Test
     void parMap_executesAllTasksWithCleanResult() throws Exception {
         // 设置并行选项
-        BatchOptions opts = BatchOptions.timeout("mdc-demo", java.time.Duration.ofMillis(5000)).parallelism(3);
+        BatchOptions opts = BatchOptions.timeout("mdc-demo", java.time.Duration.ofMillis(5000))
+                .parallelism(3);
 
         // 准备数据
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104, 105);
@@ -148,7 +149,8 @@ public class B1_MdcContextLostTest {
      */
     @Test
     void parMap_frameworkContextAutoPropagated() throws Exception {
-        BatchOptions opts = BatchOptions.timeout("ttl-verify", java.time.Duration.ofMillis(5000)).parallelism(3);
+        BatchOptions opts = BatchOptions.timeout("ttl-verify", java.time.Duration.ofMillis(5000))
+                .parallelism(3);
 
         List<Integer> orderIds = Arrays.asList(1, 2, 3, 4, 5);
 

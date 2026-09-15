@@ -49,17 +49,17 @@ import java.util.logging.Logger;
  * processing while the framework-owned services drain; {@code close()} itself does not wait for
  * those batches to finish.
  */
-public final class GlobalPar implements AutoCloseable {
-    private static final Logger LOGGER = Logger.getLogger(GlobalPar.class.getName());
-    private static final AtomicReference<GlobalPar> INSTALLED = new AtomicReference<>();
+public final class ParRuntime implements AutoCloseable {
+    private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
+    private static final AtomicReference<ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<String, Par> pars;
     private final Map<String, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
     private final String defaultName;
     private final List<TaskListener> taskListeners;
     private final Map<String, List<TaskListener>> taskListenerOverrides;
-    private final GlobalParDeadlockPolicy deadlockPolicy;
-    private final GlobalParPurgePolicy purgePolicy;
+    private final ParRuntimeDeadlockPolicy deadlockPolicy;
+    private final ParRuntimePurgePolicy purgePolicy;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
@@ -71,7 +71,7 @@ public final class GlobalPar implements AutoCloseable {
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
 
-    private GlobalPar(Builder builder) {
+    private ParRuntime(Builder builder) {
         this.taskListeners = ImmutableList.copyOf(builder.taskListeners);
         Map<String, List<TaskListener>> overrides = new LinkedHashMap<>();
         for (Map.Entry<String, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
@@ -85,7 +85,7 @@ public final class GlobalPar implements AutoCloseable {
                 new AtomicDouble(purgePolicy.queuePressureThreshold()),
                 new AtomicDouble(purgePolicy.canceledTaskRatioThreshold()));
         ThreadFactory factory = new ThreadFactoryBuilder()
-                .setNameFormat("GlobalPar-runtime-%d")
+                .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
                 .build();
         this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
@@ -114,7 +114,7 @@ public final class GlobalPar implements AutoCloseable {
             }
             bindPurgeObserver(runtime);
             builtRuntimes.put(entry.getKey(), runtime);
-            builtPars.put(entry.getKey(), Par.forGlobal(this, entry.getKey(), runtime));
+            builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime));
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
@@ -135,16 +135,16 @@ public final class GlobalPar implements AutoCloseable {
      *
      * @throws IllegalStateException if another instance is currently installed
      */
-    public static void installGlobal(GlobalPar globalPar) {
-        Objects.requireNonNull(globalPar, "globalPar cannot be null");
-        if (!INSTALLED.compareAndSet(null, globalPar)) {
-            throw new IllegalStateException("GlobalPar is already installed");
+    public static void installGlobal(ParRuntime runtime) {
+        Objects.requireNonNull(runtime, "runtime cannot be null");
+        if (!INSTALLED.compareAndSet(null, runtime)) {
+            throw new IllegalStateException("ParRuntime is already installed");
         }
     }
 
-    public static GlobalPar global() {
-        GlobalPar value = INSTALLED.get();
-        if (value == null) throw new IllegalStateException("GlobalPar has not been installed");
+    public static ParRuntime global() {
+        ParRuntime value = INSTALLED.get();
+        if (value == null) throw new IllegalStateException("ParRuntime has not been installed");
         return value;
     }
 
@@ -160,7 +160,7 @@ public final class GlobalPar implements AutoCloseable {
     }
 
     public Par defaultPar() {
-        if (defaultName == null) throw new IllegalStateException("GlobalPar has no default Par");
+        if (defaultName == null) throw new IllegalStateException("ParRuntime has no default Par");
         return par(defaultName);
     }
 
@@ -199,11 +199,11 @@ public final class GlobalPar implements AutoCloseable {
         return override == null ? taskListeners : override;
     }
 
-    public GlobalParDeadlockPolicy deadlockPolicy() {
+    public ParRuntimeDeadlockPolicy deadlockPolicy() {
         return deadlockPolicy;
     }
 
-    public GlobalParPurgePolicy purgePolicy() {
+    public ParRuntimePurgePolicy purgePolicy() {
         return purgePolicy;
     }
 
@@ -238,9 +238,9 @@ public final class GlobalPar implements AutoCloseable {
      * Opens a request-scoped task-graph observation owned by this topology.
      *
      * <p>The caller must close the returned scope. Only nested batches belonging to this same
-     * {@code GlobalPar} join it; crossing to another topology deliberately starts no shared graph.
+     * {@code ParRuntime} join it; crossing to another topology deliberately starts no shared graph.
      *
-     * @throws IllegalStateException if this GlobalPar has begun shutdown
+     * @throws IllegalStateException if this ParRuntime has begun shutdown
      */
     public TaskGraphObservationScope openTaskGraphObservation() {
         return whileOpen(() -> new TaskGraphObservationScope(this));
@@ -249,7 +249,7 @@ public final class GlobalPar implements AutoCloseable {
     /**
      * Starts configuring a task group with an explicit group timeout.
      *
-     * <p>The returned builder accepts only {@link Par}s belonging to this {@code GlobalPar} and
+     * <p>The returned builder accepts only {@link Par}s belonging to this {@code ParRuntime} and
      * produces an immutable, reusable, structure-only {@link TaskGroupDefinition}: it holds names,
      * declaration order, resolved {@code Par}s, and {@link TaskOptions} — never a {@code Callable}
      * or combine body, which are supplied per submission through {@link TaskGroup.Bindings}. The
@@ -302,14 +302,14 @@ public final class GlobalPar implements AutoCloseable {
      * cancellation) are reported through the member futures and {@link TaskGroupResult}, not by
      * throwing from this method.
      *
-     * @param definition the immutable group structure, created by this {@code GlobalPar}
+     * @param definition the immutable group structure, created by this {@code ParRuntime}
      * @param binder registers this run's bodies; invoked synchronously on the calling thread
      * @return the running group, holding the complete member registry
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the definition belongs to a different {@code GlobalPar},
+     * @throws IllegalArgumentException if the definition belongs to a different {@code ParRuntime},
      *     carries an inherited timeout with no enclosing scoped task, or the frozen bindings are
      *     incomplete or invalid
-     * @throws IllegalStateException if this {@code GlobalPar} has begun shutdown, or the binder
+     * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown, or the binder
      *     reentered or leaked its bindings
      */
     public TaskGroup submitGroup(TaskGroupDefinition definition, Consumer<? super TaskGroup.Bindings> binder) {
@@ -317,10 +317,10 @@ public final class GlobalPar implements AutoCloseable {
         Objects.requireNonNull(binder, "binder cannot be null");
         if (definition.owner() != this) {
             throw new IllegalArgumentException(
-                    "definition '" + definition.name() + "' belongs to a different GlobalPar");
+                    "definition '" + definition.name() + "' belongs to a different ParRuntime");
         }
         if (closed.get()) {
-            throw new IllegalStateException("GlobalPar is closed");
+            throw new IllegalStateException("ParRuntime is closed");
         }
         TaskGroup.Bindings bindings = new TaskGroup.Bindings(definition);
         try {
@@ -440,7 +440,7 @@ public final class GlobalPar implements AutoCloseable {
 
     private void enterAdmission() {
         while (true) {
-            if (closed.get()) throw new IllegalStateException("GlobalPar is closed");
+            if (closed.get()) throw new IllegalStateException("ParRuntime is closed");
             activeAdmissions.incrementAndGet();
             if (!closed.get()) return;
             if (activeAdmissions.decrementAndGet() == 0) {
@@ -552,12 +552,12 @@ public final class GlobalPar implements AutoCloseable {
 
         @Override
         public void shutdown() {
-            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by GlobalPar");
+            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by ParRuntime");
         }
 
         @Override
         public java.util.List<Runnable> shutdownNow() {
-            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by GlobalPar");
+            throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by ParRuntime");
         }
 
         @Override
@@ -588,10 +588,10 @@ public final class GlobalPar implements AutoCloseable {
         private final Map<String, ExecutorService> executors = new LinkedHashMap<>();
         private final List<TaskListener> taskListeners = new ArrayList<>();
         private final Map<String, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
-        private GlobalParDeadlockPolicy deadlockPolicy =
-                GlobalParDeadlockPolicy.builder().build();
-        private GlobalParPurgePolicy purgePolicy =
-                GlobalParPurgePolicy.builder().build();
+        private ParRuntimeDeadlockPolicy deadlockPolicy =
+                ParRuntimeDeadlockPolicy.builder().build();
+        private ParRuntimePurgePolicy purgePolicy =
+                ParRuntimePurgePolicy.builder().build();
         private String defaultName;
 
         /**
@@ -616,12 +616,12 @@ public final class GlobalPar implements AutoCloseable {
             return this;
         }
 
-        public Builder deadlockPolicy(GlobalParDeadlockPolicy policy) {
+        public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
             this.deadlockPolicy = Objects.requireNonNull(policy);
             return this;
         }
 
-        public Builder purgePolicy(GlobalParPurgePolicy policy) {
+        public Builder purgePolicy(ParRuntimePurgePolicy policy) {
             this.purgePolicy = Objects.requireNonNull(policy);
             return this;
         }
@@ -648,7 +648,7 @@ public final class GlobalPar implements AutoCloseable {
             return this;
         }
 
-        public GlobalPar build() {
+        public ParRuntime build() {
             if (defaultName != null && !executors.containsKey(defaultName)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultName);
             }
@@ -657,7 +657,7 @@ public final class GlobalPar implements AutoCloseable {
                     throw new IllegalArgumentException("task listener override is not registered: " + name);
                 }
             }
-            return new GlobalPar(this);
+            return new ParRuntime(this);
         }
     }
 }

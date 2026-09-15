@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 /**
  * Main facade for parallel execution.
  *
- * <p>Each {@code Par} is created by one {@link GlobalPar} and remains bound to its executor
+ * <p>Each {@code Par} is created by one {@link ParRuntime} and remains bound to its executor
  * runtime. Calls are rejected once its owner begins shutdown.
  *
  * <p>Provides the {@link #map} instance method that wires together the entire parallel execution
@@ -40,23 +40,23 @@ public final class Par {
     /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
     private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
-    private final GlobalPar globalPar;
-    private final ExecutorRuntime runtime;
+    private final ParRuntime runtime;
+    private final ExecutorRuntime executorRuntime;
     private final String name;
 
-    private Par(GlobalPar globalPar, String name, ExecutorRuntime runtime) {
-        this.globalPar = Objects.requireNonNull(globalPar, "globalPar cannot be null");
+    private Par(ParRuntime runtime, String name, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
+        this.executorRuntime = Objects.requireNonNull(executorRuntime, "executorRuntime cannot be null");
         this.name = Objects.requireNonNull(name, "name cannot be null");
     }
 
-    static Par forGlobal(GlobalPar globalPar, String name, ExecutorRuntime runtime) {
-        return new Par(globalPar, name, runtime);
+    static Par forRuntime(ParRuntime runtime, String name, ExecutorRuntime executorRuntime) {
+        return new Par(runtime, name, executorRuntime);
     }
 
-    /** Returns the owning immutable GlobalPar. */
-    public GlobalPar globalPar() {
-        return globalPar;
+    /** Returns the owning immutable ParRuntime. */
+    public ParRuntime runtime() {
+        return runtime;
     }
 
     /** Returns the logical name this entry is registered under. */
@@ -64,33 +64,33 @@ public final class Par {
         return name;
     }
 
-    ExecutorRuntime runtime() {
-        return runtime;
+    ExecutorRuntime executorRuntime() {
+        return executorRuntime;
     }
 
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
             Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(
-                taskContext, callable, globalPar.taskListenersFor(name), runtime.phaseObserver());
+                taskContext, callable, runtime.taskListenersFor(name), executorRuntime.phaseObserver());
     }
 
     ExecutorIdentity executorIdentity() {
-        return runtime.identity();
+        return executorRuntime.identity();
     }
 
     java.util.concurrent.Executor submissionExecutor() {
-        return runtime.submissionExecutor();
+        return executorRuntime.submissionExecutor();
     }
 
     /**
-     * Executes a batch using the executor bound when the owning {@link GlobalPar} was built.
+     * Executes a batch using the executor bound when the owning {@link ParRuntime} was built.
      *
      * <p>The supplied elements are snapshotted on entry unless the collection is already a {@link
      * List}, in which case callers must not structurally mutate it while this method runs. A
      * {@code null} or empty collection returns an empty result without submitting work. When
      * invoked within another scoped task, the child batch inherits cancellation and cannot outlive
      * its parent's deadline. The selected executor never changes per call and is not owned by this
-     * {@code Par}. Once the owning {@link GlobalPar} is closed, this method throws {@link
+     * {@code Par}. Once the owning {@link ParRuntime} is closed, this method throws {@link
      * IllegalStateException} before submitting any task.
      *
      * @param elements input elements, or {@code null} for an empty batch
@@ -98,16 +98,16 @@ public final class Par {
      * @param options immutable per-batch request; it cannot select an executor
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call
-     * @throws IllegalStateException if the owning GlobalPar has begun shutdown
+     * @throws IllegalStateException if the owning ParRuntime has begun shutdown
      */
     public <T, R> TaskBatchResult<R> map(
             @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
-        return globalPar.whileOpen(() -> mapWhileOpen(elements, function, options));
+        return runtime.whileOpen(() -> mapWhileOpen(elements, function, options));
     }
 
     /**
-     * Submits one scoped task to the executor bound when the owning {@link GlobalPar} was built.
+     * Submits one scoped task to the executor bound when the owning {@link ParRuntime} was built.
      *
      * <p>This is the unary entry point of the same pipeline {@link #map} uses: the task gets its
      * own child {@link CancellationToken} with the resolved deadline, a TTL snapshot taken on this
@@ -120,12 +120,12 @@ public final class Par {
      * @return the task's future view, carrying its name and cancellation attribution
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call
-     * @throws IllegalStateException if the owning GlobalPar has begun shutdown
+     * @throws IllegalStateException if the owning ParRuntime has begun shutdown
      */
     public <T> TaskFuture<T> submit(String taskName, Callable<T> task, TaskOptions options) {
         Objects.requireNonNull(task, "task cannot be null");
         Objects.requireNonNull(options, "options cannot be null");
-        return globalPar.whileOpen(() -> submitWhileOpen(taskName, task, options));
+        return runtime.whileOpen(() -> submitWhileOpen(taskName, task, options));
     }
 
     private <T> TaskFuture<T> submitWhileOpen(String taskName, Callable<T> task, TaskOptions options) {
@@ -137,13 +137,13 @@ public final class Par {
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
         TaskGraphObservationScope observation = parent != null
                         && parent.taskGraphObservationScope() != null
-                        && parent.taskGraphObservationScope().owner() == globalPar
+                        && parent.taskGraphObservationScope().owner() == runtime
                 ? parent.taskGraphObservationScope()
-                : parent == null && currentObservation != null && currentObservation.owner() == globalPar
+                : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit =
-                MultiTaskContext.resolve(options.spec(taskName), 1, parent, observation, runtime.identity(), name);
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                options.spec(taskName), 1, parent, observation, executorRuntime.identity(), name);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -155,21 +155,21 @@ public final class Par {
                     parent == null ? "NA" : parent.executorLabel(),
                     1,
                     unit.remaining(),
-                    runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
             logForking(unit, edge);
         }
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
-        ExecutionPhaseHintFuture<T> future =
-                TaskSubmissions.prepare(taskContext, task, globalPar.taskListenersFor(name), runtime.phaseObserver());
+        ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(
+                taskContext, task, runtime.taskListenersFor(name), executorRuntime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
         ListenableFuture<?> completion = unit.cancellationToken()
-                .bind(Collections.singletonList(future), NO_SUBMISSION, globalPar.timeoutScheduler());
-        globalPar.retainUntilComplete(completion);
-        globalPar.trackBodies(bodyCompletion);
-        TaskSubmissions.submitScoped(future, unit, runtime.submissionExecutor(), unit.runOnCallerThread());
+                .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
+        runtime.retainUntilComplete(completion);
+        runtime.trackBodies(bodyCompletion);
+        TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor(), unit.runOnCallerThread());
         return view;
     }
 
@@ -184,13 +184,13 @@ public final class Par {
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
         TaskGraphObservationScope observation = parent != null
                         && parent.taskGraphObservationScope() != null
-                        && parent.taskGraphObservationScope().owner() == globalPar
+                        && parent.taskGraphObservationScope().owner() == runtime
                 ? parent.taskGraphObservationScope()
-                : parent == null && currentObservation != null && currentObservation.owner() == globalPar
+                : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit =
-                MultiTaskContext.resolve(options.spec(), taskCount, parent, observation, runtime.identity(), name);
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                options.spec(), taskCount, parent, observation, executorRuntime.identity(), name);
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),
@@ -222,7 +222,7 @@ public final class Par {
                             : unit.structuralParent().executorLabel(),
                     list.size(),
                     unit.remaining(),
-                    runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
             logForking(unit, edge);
         }
         Ticker ticker = Ticker.systemTicker();
@@ -231,16 +231,16 @@ public final class Par {
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
-                        globalPar.taskListenersFor(name),
-                        runtime.phaseObserver()))
+                        runtime.taskListenersFor(name),
+                        executorRuntime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
-                        runtime.submissionExecutor(), unit, globalPar.submitterPool(), bodyCompletion, closeGrace)
+                        executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace)
                 .submitAll(tasks);
         ListenableFuture<?> completion =
-                unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
-        globalPar.retainUntilComplete(completion);
-        globalPar.trackBodies(bodyCompletion);
+                unit.cancellationToken().bind(result.results(), result.submitCanceller(), runtime.timeoutScheduler());
+        runtime.retainUntilComplete(completion);
+        runtime.trackBodies(bodyCompletion);
         return result;
     }
 

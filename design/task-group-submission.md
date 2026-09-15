@@ -11,18 +11,18 @@
 
 - memberName 为 null/空白或重复；
 - 参数为 null；
-- `Par` 不属于 owner `GlobalPar`（foreign Par）；
+- `Par` 不属于 owner `ParRuntime`（foreign Par）；
 - 第二个 `combine()` 调用（一个 definition 至多一个 terminal combine）。
 
 成员 `Par` 在配置期解析并保存进 definition（owner-bound），不存在"submit 时才按注册名解析
 executor"的路径；配置期校验先于任何运行状态。`task()`/`combine()` 不检查或消耗 deadline，
-因为 Group 的逻辑执行时间从 `GlobalPar.submitGroup()` 的统一 start 开始。
+因为 Group 的逻辑执行时间从 `ParRuntime.submitGroup()` 的统一 start 开始。
 
 executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的成员默认不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；仅当成员选项声明 `runOnCallerThread(true)` 时才在提交线程 inline 执行该成员，属于正常执行路径。
 
 ### 7.2 submit 线性化与步骤
 
-`GlobalPar.submitGroup()` 必须作为一次整体 admission 与 `GlobalPar.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `GlobalPar.whileOpen()` 中；实际 executor 调用仍须在内部锁和 GlobalPar admission 机制外进行：
+`ParRuntime.submitGroup()` 必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `ParRuntime.whileOpen()` 中；实际 executor 调用仍须在内部锁和 ParRuntime admission 机制外进行：
 
 本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：binder 执行前没有任何运行状态或执行，binder 返回后一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
@@ -31,7 +31,7 @@ executor rejection 只有实际提交时才能知道，因此属于 submit 后�
 1. 校验 definition owner，创建 `Bindings` 并在调用线程同步执行 binder；binder 返回后冻结、
    全量校验（missing/duplicate/foreign/wrong-kind binding、null body）并把本次 payload
    转移为内部 RunBindings；
-2. 在 `GlobalPar.whileOpen()` 内解析结构父任务/observation（成员 executor 为配置期已解析的
+2. 在 `ParRuntime.whileOpen()` 内解析结构父任务/observation（成员 executor 为配置期已解析的
    `Par`），冻结有序成员定义；
 3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
 4. 为每个定义创建 member Batch、TaskExecutionContext、公开 future 和执行权竞争对象；
@@ -49,10 +49,10 @@ executor rejection 只有实际提交时才能知道，因此属于 submit 后�
 
 不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致 close/cancel 长时间无法取得锁。
 
-`GlobalPar.submitGroup()` 正常返回时必须保证完整 members registry 已发布（`future(member)`
+`ParRuntime.submitGroup()` 正常返回时必须保证完整 members registry 已发布（`future(member)`
 可立即解析），并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submitGroup()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、binder 校验失败、GlobalPar 已关闭，或无法建立完整运行对象的框架级准备错误才允许 `submitGroup` 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submitGroup()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、binder 校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许 `submitGroup` 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
 
 ### 7.3 Prepared single-task submission
 
@@ -90,9 +90,9 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 
 | 现有能力 | Group 中的用途 |
 |---|---|
-| `GlobalPar.whileOpen()` | 整体 submit 与 shutdown 的线性化 |
-| `GlobalPar.timeoutScheduler()` | Group/member deadline |
-| `GlobalPar.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
+| `ParRuntime.whileOpen()` | 整体 submit 与 shutdown 的线性化 |
+| `ParRuntime.timeoutScheduler()` | Group/member deadline |
+| `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
 | `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk、phase observer |
 | `ScopedCallable` | current task、checkpoint、计时、TaskListener、恢复 |
 | `TaskExecutionContext` | 单成员任务执行身份与 timing |

@@ -24,7 +24,7 @@
 在应用启动阶段构建一次执行拓扑。具名 `Par` 在构建期绑定执行器；先选择 `Par`，再调用 `map`，而不是每次调用时按名称选池。
 
 ```java
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .register("io", Executors.newFixedThreadPool(8))
         .defaultPar("io")
         .build();
@@ -37,7 +37,7 @@ TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 
-`GlobalPar.close()` 只释放框架自建的 timer 和 submitter 资源，不会关闭传给 `register` 的执行器；执行器生命周期仍由应用负责。
+`ParRuntime.close()` 只释放框架自建的 timer 和 submitter 资源，不会关闭传给 `register` 的执行器；执行器生命周期仍由应用负责。
 
 ## v0.3 迁移
 
@@ -45,11 +45,11 @@ TaskBatchResult<User> result = global.par("io")
 
 ## v0.2 迁移
 
-`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `GlobalPar`、`BatchOptions`（任务组成员与 combine 用 `TaskOptions`）与 `global.par(name).map(...)`。请参阅 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
+`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `ParRuntime`、`BatchOptions`（任务组成员与 combine 用 `TaskOptions`）与 `global.par(name).map(...)`。请参阅 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
 
 ## 核心能力
 
-- 管理多个具名、构建期绑定执行器的不可变 `GlobalPar`
+- 管理多个具名、构建期绑定执行器的不可变 `ParRuntime`
 - 每次调用的选项解析为 `MultiTaskContext`
 - 快速失败、超时、手动取消和父子批次协作式取消
 - 滑动窗口提交；未提交任务也会获得终态结果

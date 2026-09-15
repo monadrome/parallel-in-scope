@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ class G6_BatchDbQueryTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
-        GlobalPar config = GlobalPar.builder()
+        ParRuntime config = ParRuntime.builder()
                 .register("db-pool", pool)
                 .defaultPar("db-pool")
                 .build();
@@ -121,7 +121,9 @@ class G6_BatchDbQueryTest {
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
         assertThat(shards).hasSize(SHARD_COUNT);
 
-        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
+        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
+                .parallelism(parallelism)
+                .taskType(TaskType.IO_BOUND);
 
         long start = System.currentTimeMillis();
 
@@ -169,7 +171,9 @@ class G6_BatchDbQueryTest {
         AtomicInteger concurrency = new AtomicInteger(0);
         AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
+        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
+                .parallelism(parallelism)
+                .taskType(TaskType.IO_BOUND);
 
         TaskBatchResult<List<User>> result = par.map(
                 shards,

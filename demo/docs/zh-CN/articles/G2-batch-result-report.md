@@ -62,7 +62,7 @@ SUCCESS:6
 ```java
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();

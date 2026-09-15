@@ -37,14 +37,14 @@ with SmartBlockingQueue; with any other queue this flag is inert"
 物理池。两处能力随之失明：
 
 - **purge 观测不绑定**：`bindPurgeObserver` 对非 `ThreadPoolExecutor` 直接返回
-  （`GlobalPar.java:454-460`），已取消任务滞留队列的清理机制对该池不存在；
+  （`ParRuntime.java:454-460`），已取消任务滞留队列的清理机制对该池不存在；
 - **死锁检测跳过它的边**：风险分类为 `UNKNOWN`（`ExecutorRuntime.java:70-75`），
   边上的 `executorDeadlockProne` 快照为 false（`Par.java:149-159,211-226`、
   `TaskGroup.java:636-640,751-765`），executor 环分析直接过滤这些边
   （`TaskGraphData.java:195-197,220-224`）。
 
 现状缓解：自 `768437b` 起，`build()` 对非 TPE 注册在组成根打**一次**警告
-（`GlobalPar.java:101-110`）。能力仍然失效，只是不再完全无声。
+（`ParRuntime.java:101-110`）。能力仍然失效，只是不再完全无声。
 
 ### 1.3 B2：`BlockingRisk` 声明四值，实际只产出两值
 
@@ -90,7 +90,7 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
   （Java 21）在基线下**无类型可引**，`VIRTUAL_THREAD_PER_TASK` 没有可判定的
   `instanceof` 目标；按类名字符串探测是启发式猜测，猜错的分类比 `UNKNOWN` 更糟，
   且直接违反 C5。
-- **C2 所有权与不可改造**：资源所有权唯一——`GlobalPar` 拥有 scheduler 与内部服务，
+- **C2 所有权与不可改造**：资源所有权唯一——`ParRuntime` 拥有 scheduler 与内部服务，
   **业务 executor 所有权归用户**。`ThreadPoolExecutor` 的工作队列是构造期 final
   字段，造好后不可更换。因此"register 时库替用户安装 `SmartBlockingQueue`"这一档方
   案在所有权模型下**物理不成立**，排除，不再列为选项。
@@ -110,7 +110,7 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
   个身份，executor 图与死锁检测整体错乱（现状即如此，`ExecutorRuntime.java:15-16`、
   `ExecutorIdentity.java:13-18`，方案不得回退）。
 - **I2 单物理池合并**：同一 supplied executor 注册多个 Par 名时共享一个
-  `ExecutorRuntime`（`GlobalPar.java:96-113`）；purge 阈值按物理池应用一次，不按
+  `ExecutorRuntime`（`ParRuntime.java:96-113`）；purge 阈值按物理池应用一次，不按
   Par 名重复触发。
 - **I3 只读维护**：purge 只调用 `ThreadPoolExecutor.purge()` 移除**已取消**的任务
   （`HeuristicPurger.java:255-278`），永不 shutdown、永不修改用户 executor 的线程
@@ -191,7 +191,7 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
 ## 9. 落地时的同步清单（拍板后执行）
 
 - 实现：`ExecutorRuntime.detectRisk` 重写；提交路径每 Par 一次警告；javadoc 对齐。
-- 测试：`GlobalParTest`（build 警告与分类）、`TaskEdgeTest`（deadlockProne 标记）、
+- 测试：`ParRuntimeTest`（build 警告与分类）、`TaskEdgeTest`（deadlockProne 标记）、
   `ScopePrimitivesTest`、`TaskGraphExportTest` 中现有相关用例的期望更新；新增三形态
   分类（有界/无界/装饰器）与警告一次性用例。
 - 文档：user-guide 的 executor 注册与 options 章节（`rejectEnqueue` 的生效条件与警

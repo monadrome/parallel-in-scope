@@ -48,7 +48,7 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(2);
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();
