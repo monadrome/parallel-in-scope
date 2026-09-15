@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.graph.ValueGraph;
 import io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent;
 import java.util.Collections;
 import java.util.List;
@@ -93,7 +94,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Checks if any task cycle exists.
+     * Checks if any task cycle exists as of the edges recorded so far.
      *
      * @return {@code true} when the current request graph contains a task cycle
      */
@@ -103,7 +104,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Checks if any task self-loop exists.
+     * Checks if any task self-loop exists as of the edges recorded so far.
      *
      * @return {@code true} when the current request graph contains a task self-loop
      */
@@ -113,7 +114,8 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Returns whether the current request graph contains an executor cycle.
+     * Returns whether the current request graph contains an executor cycle as of the edges recorded
+     * so far.
      *
      * @return {@code true} when an executor cycle exists
      */
@@ -123,7 +125,8 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Returns whether the current request graph contains an executor self-loop.
+     * Returns whether the current request graph contains an executor self-loop as of the edges
+     * recorded so far.
      *
      * @return {@code true} when an executor self-loop exists
      */
@@ -185,28 +188,25 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     private static @Nullable DeadlockDetectionEvent buildDetectionEvent(TaskGraphData data) {
-        boolean hasTaskCycle = data.taskCycle();
-        boolean hasSelfLoop = data.selfLoop();
-        boolean hasExecutorCycle = data.executorCycle();
-        boolean hasExecutorSelfLoop = data.executorSelfLoop();
+        TaskGraphData.Snapshot snapshot = data.snapshot();
+        boolean hasTaskCycle = snapshot.taskCycle();
+        boolean hasSelfLoop = snapshot.taskSelfLoop();
+        boolean hasExecutorCycle = snapshot.executorCycle();
+        boolean hasExecutorSelfLoop = snapshot.executorSelfLoop();
 
         if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
             return null;
         }
 
-        String taskEdges = data.graph().edges().stream()
-                .map(p -> {
-                    List<TaskEdge> edges =
-                            data.graph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
-                    return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
-                })
+        ValueGraph<String, List<TaskEdge>> taskGraph = snapshot.graph();
+        String taskEdges = taskGraph.edges().stream()
+                .map(p -> snapshot.displayNode(p.source()) + " -> " + snapshot.displayNode(p.target()) + " "
+                        + taskGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
-        String executorEdges = data.executorGraph().edges().stream()
-                .map(p -> {
-                    List<TaskEdge> edges =
-                            data.executorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
-                    return p.source() + " -> " + p.target() + " " + edges;
-                })
+        ValueGraph<String, List<TaskEdge>> executorGraph = snapshot.executorGraph();
+        String executorEdges = executorGraph.edges().stream()
+                .map(p -> p.source() + " -> " + p.target() + " "
+                        + executorGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
 
         return new DeadlockDetectionEvent(
