@@ -2,6 +2,7 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -94,8 +95,8 @@ class A2_NestedCancelPropagationTest {
     void testParNestedCancelPropagatesViaTimeout() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
         ParRuntime config = ParRuntime.builder()
-                .register("test-pool", pool)
-                .defaultPar("test-pool")
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
         AtomicInteger innerCompletedNormally = new AtomicInteger(0);

@@ -43,7 +43,7 @@ outer.cancel(true); // 取消外层任务
 
 ```java
 ParRuntime config = ParRuntime.builder()
-        .register("pool", Executors.newFixedThreadPool(8))
+        .register(ParId.of("pool"), Executors.newFixedThreadPool(8))
         .build();
 Par par = config.defaultPar();
 

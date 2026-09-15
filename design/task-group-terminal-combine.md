@@ -51,10 +51,10 @@ kind 与 `Member` handle），与 member 一样经 `ParRuntime.submitGroup(defin
 combine 同样持有自己的 `Member` handle：
 
 ```java
-Par databasePar = global.par("database");
-Par httpPar = global.par("http");
-Par inventoryPar = global.par("inventory");
-Par cpuPar = global.par("cpu");
+Par databasePar = global.par(ParId.of("database"));
+Par httpPar = global.par(ParId.of("http"));
+Par inventoryPar = global.par(ParId.of("inventory"));
+Par cpuPar = global.par(ParId.of("cpu"));
 
 TaskGroupDefinition.Builder builder =
         global.defineGroup("account-page", Duration.ofSeconds(3));

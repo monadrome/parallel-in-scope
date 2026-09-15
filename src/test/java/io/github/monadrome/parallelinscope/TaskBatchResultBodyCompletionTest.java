@@ -174,10 +174,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void queuedTasksNeverStartAndLateRunAfterCancellationStaysOutOfTheBody() throws Exception {
         QueuingExecutor queuing = new QueuingExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", queuing).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), queuing).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
@@ -239,11 +240,12 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void placeholderCancellationReleasesTheWindowExternalSlotExactlyOnce() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> {
@@ -269,11 +271,12 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void cancellingTheSubmitterAbandonsWindowExternalSlots() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2, 3),
                             value -> {
@@ -297,10 +300,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void initialWindowRejectionReleasesEverySlot() throws Exception {
         RejectingExecutor rejecting = new RejectingExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", rejecting).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2, 3),
                             value -> executions.incrementAndGet(),
@@ -317,10 +321,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void midWindowRejectionReleasesTheRemainingSlots() throws Exception {
         RejectAfterFirstExecutor rejecting = new RejectAfterFirstExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", rejecting).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
@@ -337,14 +342,15 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void callerThreadFallbackDoesNotLeakSlots() throws Exception {
         RejectingExecutor rejecting = new RejectingExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", rejecting).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
             // Elements whose options request the caller-thread fallback run inline when rejected;
             // the window-external one runs inline on the submitter thread. All slots must still be
             // released exactly once. The wait uses a real budget because the submitter thread runs
             // concurrently.
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
@@ -364,9 +370,10 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void normalAndExceptionalBodiesDoNotLeakSlots() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> {
@@ -394,12 +401,13 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void closeCancelsElementsAndWaitsForBodyExitWithinGrace() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch closeReturned = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList(1),
                             value -> {
@@ -441,13 +449,14 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void batchCloseWithDefaultGraceDerivesTheBudgetFromTheRemainingDeadline() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
             // No closeGrace configured: the wait budget is the batch's remaining deadline at close
             // time, so a close after the deadline lapsed returns right after cancelling.
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList(1),
                             value -> {
@@ -477,11 +486,12 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void batchCloseWithZeroGraceIsCancelOnly() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList(1),
                             value -> {
@@ -511,11 +521,12 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void batchCloseFromWithinElementBodyIsRejectedAsSelfAwait() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         AtomicReference<TaskBatchResult<String>> batchRef = new AtomicReference<>();
         CountDownLatch batchReady = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             value -> {
@@ -544,10 +555,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void emptyBatchReportsImmediateBodyCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskBatchResult<Integer> batch =
-                    global.par("worker").<Integer, Integer>map(null, value -> value, options("empty"));
+                    global.par(ParId.of("worker")).<Integer, Integer>map(null, value -> value, options("empty"));
             assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isTrue();
         } finally {
             global.close();
@@ -558,11 +570,12 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void awaitFromWithinBatchElementBodyIsRejectedAsSelfAwait() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         AtomicReference<TaskBatchResult<String>> batchRef = new AtomicReference<>();
         CountDownLatch batchReady = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             value -> {
@@ -592,10 +605,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void awaitValidatesArgumentsBeforeCheckingCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskBatchResult<Integer> batch =
-                    global.par("worker").map(Collections.singletonList(1), value -> value, options("validation"));
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
+                    .map(Collections.singletonList(1), value -> value, options("validation"));
 
             assertThatThrownBy(() -> batch.awaitBodyCompletion(null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> batch.awaitBodyCompletion(Duration.ofMillis(-1)))
@@ -611,10 +625,11 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void successfulAwaitEstablishesVisibilityOfBodyWrites() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         int[] writes = new int[2];
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(0, 1),
                             index -> {

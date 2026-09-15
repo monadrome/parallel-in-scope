@@ -3,6 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -32,8 +33,8 @@ public class B2_FunctionSignatureBloatTest {
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
         ParRuntime config = ParRuntime.builder()
-                .register("test-pool", pool)
-                .defaultPar("test-pool")
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }

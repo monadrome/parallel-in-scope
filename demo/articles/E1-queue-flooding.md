@@ -59,7 +59,7 @@ import io.github.monadrome.parallelinscope.ParRuntime;
 // 餐厅只有 4 张桌（4 线程）
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
-        .register("my-pool", pool)
+        .register(ParId.of("my-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

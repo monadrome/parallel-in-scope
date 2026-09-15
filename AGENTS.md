@@ -73,7 +73,8 @@ relevant contract through the document routes below.
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
   stack-installed implementation details. The `Context` suffix marks a data carrier
   (a view or resolved parameters); the `Member` handle marks an identity-typed
-  structural slot of a `TaskGroupDefinition`.
+  structural slot of a `TaskGroupDefinition`; the `Id` suffix marks an immutable
+  value object identifying a logical entry (`ParId`).
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
   compatibility shims. During the `0.x` phase, a breaking change is acceptable
   when it provides a meaningful improvement and has a sufficiently documented

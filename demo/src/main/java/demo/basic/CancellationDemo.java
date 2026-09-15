@@ -1,6 +1,7 @@
 package demo.basic;
 
 import com.google.common.util.concurrent.Futures;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
@@ -33,10 +34,10 @@ public class CancellationDemo {
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
         ParRuntime global = ParRuntime.builder()
-                .register("cancel-demo", pool)
-                .defaultPar("cancel-demo")
+                .register(ParId.of("cancel-demo"), pool)
+                .defaultPar(ParId.of("cancel-demo"))
                 .build();
-        Par par = global.par("cancel-demo");
+        Par par = global.par(ParId.of("cancel-demo"));
 
         try {
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);

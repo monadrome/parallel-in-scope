@@ -37,10 +37,11 @@ class TaskFutureTest {
     @Test
     void batchDeliversEveryElementAsATaskFutureInsideAndOutsideTheWindow() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList("first", "second", "third"),
                             item -> hold(block, item),
@@ -69,9 +70,10 @@ class TaskFutureTest {
     void batchRejectedAtSubmitDeliversIdentifiedTaskFutures() {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejected).build();
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList("first", "second"),
                             item -> item,
@@ -96,13 +98,15 @@ class TaskFutureTest {
     @Test
     void groupDeliversMembersCombineAndCompletionAsTaskFutures() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
-            TaskGroupDefinition.Member<String> user = definition.task("user", global.par("worker"), memberOptions());
+            TaskGroupDefinition.Member<String> user =
+                    definition.task("user", global.par(ParId.of("worker")), memberOptions());
             TaskGroupDefinition.Member<Integer> orders =
-                    definition.task("orders", global.par("worker"), memberOptions());
-            TaskGroupDefinition.Member<String> page = definition.combine("assemble", global.par("worker"));
+                    definition.task("orders", global.par(ParId.of("worker")), memberOptions());
+            TaskGroupDefinition.Member<String> page = definition.combine("assemble", global.par(ParId.of("worker")));
             TaskGroup group = global.submitGroup(definition.build(), bindings -> {
                 bindings.task(user, () -> "alice");
                 bindings.task(orders, () -> 7);
@@ -126,10 +130,11 @@ class TaskFutureTest {
     @Test
     void submitCancellerStaysAPlainFuture() {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList("first", "second"),
                             item -> hold(block, item),
@@ -149,9 +154,10 @@ class TaskFutureTest {
     @Test
     void succeededTaskReadsSuccessWithoutAFailure() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
 
             TaskFuture<String> element = batch.results().get(0);
@@ -167,10 +173,11 @@ class TaskFutureTest {
     @Test
     void failedTaskReadsUserFailureAndExposesTheCause() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             item -> {
@@ -194,12 +201,14 @@ class TaskFutureTest {
     @Test
     void aMemberCancelledDirectlyKeepsItsInitiatorAttributionInTheSnapshot() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
-            TaskGroupDefinition.Member<String> slow = definition.task("slow", global.par("worker"), memberOptions());
+            TaskGroupDefinition.Member<String> slow =
+                    definition.task("slow", global.par(ParId.of("worker")), memberOptions());
             TaskGroup group = global.submitGroup(
                     definition.build(),
                     bindings -> bindings.task(slow, () -> startedThenHold(started, block, "never")));
@@ -229,14 +238,16 @@ class TaskFutureTest {
     @Test
     void groupCancellationReadsGroupCanceledOnEveryMember() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
-            TaskGroupDefinition.Member<String> first = definition.task("first", global.par("worker"), memberOptions());
+            TaskGroupDefinition.Member<String> first =
+                    definition.task("first", global.par(ParId.of("worker")), memberOptions());
             TaskGroupDefinition.Member<String> second =
-                    definition.task("second", global.par("worker"), memberOptions());
+                    definition.task("second", global.par(ParId.of("worker")), memberOptions());
             TaskGroup group = global.submitGroup(definition.build(), bindings -> {
                 bindings.task(first, () -> startedThenHold(started, block, "never"));
                 bindings.task(second, () -> startedThenHold(started, block, "never"));
@@ -258,10 +269,11 @@ class TaskFutureTest {
     @Test
     void siblingFailureReadsFailFastOnTheCancelledElement() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList("boom", "victim"),
                             item -> "boom".equals(item) ? boom() : hold(block, item),
@@ -281,10 +293,11 @@ class TaskFutureTest {
     @Test
     void expiredDeadlineReadsTimeoutAndClampsTheRemainingBudget() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             item -> hold(block, item),
@@ -308,8 +321,8 @@ class TaskFutureTest {
         ExecutorService outerPool = Executors.newSingleThreadExecutor();
         ExecutorService innerPool = Executors.newSingleThreadExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("outer", outerPool)
-                .register("inner", innerPool)
+                .register(ParId.of("outer"), outerPool)
+                .register(ParId.of("inner"), innerPool)
                 .build();
         AtomicReference<CancellationToken> outerToken = new AtomicReference<>();
         AtomicReference<TaskFuture<String>> innerMember = new AtomicReference<>();
@@ -317,7 +330,7 @@ class TaskFutureTest {
         CountDownLatch memberStarted = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            global.par("outer")
+            global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList("x"),
                             ignored -> {
@@ -326,7 +339,7 @@ class TaskFutureTest {
                                         .cancellationToken());
                                 TaskGroupDefinition.Builder inner = global.defineGroup("inner", SCOPE_TIMEOUT);
                                 TaskGroupDefinition.Member<String> slow =
-                                        inner.task("slow", global.par("inner"), memberOptions());
+                                        inner.task("slow", global.par(ParId.of("inner")), memberOptions());
                                 TaskGroup group = global.submitGroup(
                                         inner.build(),
                                         bindings -> bindings.task(
@@ -358,10 +371,11 @@ class TaskFutureTest {
     @Test
     void aCancellationSignalRacingTheCascadeIsAttributedToTheDeadline() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             item -> {
@@ -392,10 +406,11 @@ class TaskFutureTest {
     @Test
     void recordedSuccessSurvivesALaterDeadlineCommit() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList("fast", "slow"),
                             item -> "fast".equals(item) ? item : hold(block, item),
@@ -417,10 +432,11 @@ class TaskFutureTest {
     @Test
     void terminalOutcomeIsStableAcrossRepeatedReads() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             item -> hold(block, item),
@@ -501,11 +517,12 @@ class TaskFutureTest {
     @Test
     void cancelInterruptsTheWorkerThroughTheTaskView() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch interrupted = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("x"),
                             item -> {
@@ -537,9 +554,10 @@ class TaskFutureTest {
         ExecutorService pool = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "task-worker"));
         ExecutorService listeners =
                 Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "listener-thread"));
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<String> batch = global.par("worker")
+            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
             TaskFuture<String> element = batch.results().get(0);
             AtomicReference<String> listenerThread = new AtomicReference<>();
@@ -558,9 +576,10 @@ class TaskFutureTest {
     @Test
     void theTaskViewIsStillAPlainListenableFuture() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<Integer> batch = global.par("worker")
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(Arrays.asList(1, 2, 3), item -> item + 1, BatchOptions.timeout("orders", SCOPE_TIMEOUT));
             List<ListenableFuture<Integer>> asPlainFutures = new ArrayList<>(batch.results());
 
@@ -577,14 +596,15 @@ class TaskFutureTest {
     @Test
     void deadlineAndRemainingBudgetComeFromTheOwningScope() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", pool).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
             TaskGroupDefinition.Member<String> inherited =
-                    definition.task("inherited", global.par("worker"), TaskOptions.inheritTimeout());
-            TaskGroupDefinition.Member<String> tighter =
-                    definition.task("tighter", global.par("worker"), TaskOptions.timeout(Duration.ofMillis(200)));
+                    definition.task("inherited", global.par(ParId.of("worker")), TaskOptions.inheritTimeout());
+            TaskGroupDefinition.Member<String> tighter = definition.task(
+                    "tighter", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofMillis(200)));
             TaskGroup group = global.submitGroup(definition.build(), bindings -> {
                 bindings.task(inherited, () -> hold(block, "x"));
                 bindings.task(tighter, () -> hold(block, "y"));

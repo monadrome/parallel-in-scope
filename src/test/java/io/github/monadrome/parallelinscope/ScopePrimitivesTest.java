@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Behavior pins for small scope primitives: {@link ExecutorIdentity} identity semantics,
- * {@link ParRuntime} Par-name validation and lookup semantics, {@link ParRuntime} task-listener
+ * {@link ParId} validation and {@link ParRuntime} lookup semantics, {@link ParRuntime} task-listener
  * defaults, {@link MultiTaskContext#resolve} boundary matrix, {@link ParRuntime} topology shutdown
  * states with its scheduler adapter, and {@link ScopedCallable} timing bookkeeping.
  */
@@ -45,38 +45,37 @@ class ScopePrimitivesTest {
         }
     }
 
-    // ==================== Par names ====================
+    // ==================== Par ids ====================
 
     @Test
-    void parNamesAreValidatedAtPublicEndpointsAndNeverNormalized() {
+    void parIdsAreValidatedByTheValueTypeAndNeverNormalized() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskListener listener = event -> {};
         try {
             ParRuntime.Builder builder = ParRuntime.builder();
+            assertThatThrownBy(() -> ParId.of(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> ParId.of("")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> ParId.of("   ")).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> builder.register(null, executor)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> builder.register("", executor)).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> builder.register("   ", executor)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> builder.defaultPar(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> builder.defaultPar(" ")).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> builder.parTaskListener(null, listener)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> builder.parTaskListener(" ", listener))
-                    .isInstanceOf(IllegalArgumentException.class);
         } finally {
             executor.shutdownNow();
         }
 
         // The value is used verbatim: no trimming, lower-casing, or other normalization.
         ExecutorService io = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register(" db ", io).register("db", io).build();
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of(" db "), io)
+                .register(ParId.of("db"), io)
+                .build();
         try {
-            assertThat(global.pars()).containsOnlyKeys(" db ", "db");
-            assertThat(global.par(" db ")).isNotSameAs(global.par("db"));
-            assertThat(global.par(" db ").name()).isEqualTo(" db ");
+            assertThat(global.pars()).containsOnlyKeys(ParId.of(" db "), ParId.of("db"));
+            assertThat(global.par(ParId.of(" db "))).isNotSameAs(global.par(ParId.of("db")));
+            assertThat(global.par(ParId.of(" db ")).id()).isEqualTo(ParId.of(" db "));
             assertThatThrownBy(() -> global.par(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> global.par("")).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.find("   ")).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> global.taskListenersFor(" ")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> global.find(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> global.taskListenersFor(null)).isInstanceOf(NullPointerException.class);
         } finally {
             global.close();
             io.shutdownNow();
@@ -84,15 +83,16 @@ class ScopePrimitivesTest {
     }
 
     @Test
-    void parLookupResolvesByNameValue() {
+    void parLookupResolvesByIdValue() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("io", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
-            assertThat(global.par("io")).isSameAs(global.par("io"));
-            assertThat(global.find("io")).contains(global.par("io"));
-            assertThat(global.find("missing")).isEmpty();
-            assertThat(global.pars()).containsOnlyKeys("io");
-            assertThatThrownBy(() -> global.par("missing"))
+            assertThat(global.par(ParId.of("io"))).isSameAs(global.par(ParId.of("io")));
+            assertThat(global.find(ParId.of("io"))).contains(global.par(ParId.of("io")));
+            assertThat(global.find(ParId.of("missing"))).isEmpty();
+            assertThat(global.pars()).containsOnlyKeys(ParId.of("io"));
+            assertThatThrownBy(() -> global.par(ParId.of("missing")))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("missing");
         } finally {
@@ -106,10 +106,11 @@ class ScopePrimitivesTest {
     @Test
     void taskListenersExposeImmutableSnapshotSemantics() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime empty = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime empty =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             assertThat(empty.taskListeners()).isEmpty();
-            assertThat(empty.taskListenersFor("worker")).isEmpty();
+            assertThat(empty.taskListenersFor(ParId.of("worker"))).isEmpty();
         } finally {
             empty.close();
             executor.shutdownNow();
@@ -122,14 +123,15 @@ class ScopePrimitivesTest {
         ExecutorService snapshottedExecutor = Executors.newSingleThreadExecutor();
         ParRuntime snapshotted = ParRuntime.builder()
                 .taskListener(listener)
-                .register("worker", snapshottedExecutor)
+                .register(ParId.of("worker"), snapshottedExecutor)
                 .build();
         try {
             assertThat(snapshotted.taskListeners()).containsExactly(listener);
-            assertThat(snapshotted.taskListenersFor("worker")).containsExactly(listener);
+            assertThat(snapshotted.taskListenersFor(ParId.of("worker"))).containsExactly(listener);
             assertThatThrownBy(() -> snapshotted.taskListeners().add(listener))
                     .isInstanceOf(UnsupportedOperationException.class);
-            assertThatThrownBy(() -> snapshotted.taskListenersFor("worker").add(listener))
+            assertThatThrownBy(() ->
+                            snapshotted.taskListenersFor(ParId.of("worker")).add(listener))
                     .isInstanceOf(UnsupportedOperationException.class);
         } finally {
             snapshotted.close();
@@ -234,11 +236,13 @@ class ScopePrimitivesTest {
     void runtimeBindingsExposeTheExactRegisteredExecutorAndStayDistinct() {
         ExecutorService poolA = Executors.newSingleThreadExecutor();
         ExecutorService poolB = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register("a", poolA).register("b", poolB).build();
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("a"), poolA)
+                .register(ParId.of("b"), poolB)
+                .build();
         try {
-            ExecutorRuntime runtimeA = global.par("a").executorRuntime();
-            ExecutorRuntime runtimeB = global.par("b").executorRuntime();
+            ExecutorRuntime runtimeA = global.par(ParId.of("a")).executorRuntime();
+            ExecutorRuntime runtimeB = global.par(ParId.of("b")).executorRuntime();
             assertThat(runtimeA).isNotNull();
             assertThat(runtimeB).isNotNull();
             assertThat(runtimeA).isNotSameAs(runtimeB);

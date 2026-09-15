@@ -47,7 +47,7 @@ class TaskGraphObservationScopeTest {
     @Test
     void nestedObservationsRestoreTheOuterGraphData() throws Exception {
         global = ParRuntime.builder()
-                .register("io", Executors.newSingleThreadExecutor())
+                .register(ParId.of("io"), Executors.newSingleThreadExecutor())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             TaskGraphData outerData = TaskGraphObservationScope.data();

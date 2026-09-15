@@ -1,5 +1,6 @@
 package demo.integration;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -34,10 +35,10 @@ public class BatchProcessingDemo {
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
         ParRuntime global = ParRuntime.builder()
-                .register("batch-demo", pool)
-                .defaultPar("batch-demo")
+                .register(ParId.of("batch-demo"), pool)
+                .defaultPar(ParId.of("batch-demo"))
                 .build();
-        Par par = global.par("batch-demo");
+        Par par = global.par(ParId.of("batch-demo"));
 
         try {
             // 2. 配置批处理参数

@@ -15,21 +15,22 @@ Create `ParRuntime` at the composition root. Register every logical entry with t
 ```java
 ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
-        .register("database", databaseExecutor)
-        .register("http", httpExecutor)
-        .defaultPar("http")
+        .register(ParId.of("database"), databaseExecutor)
+        .register(ParId.of("http"), httpExecutor)
+        .defaultPar(ParId.of("http"))
         .build();
 
-Par httpPar = global.par("http");
-Par databasePar = global.par("database");
+Par httpPar = global.par(ParId.of("http"));
+Par databasePar = global.par(ParId.of("database"));
 ```
 
-Names are plain `String`s validated at the endpoint that receives them (never null, never blank,
-used verbatim — no trimming or case folding), so they can be declared as constants and reused. A
-name is a logical lookup key, not a resource identity — the physical pool is identified by
-`ExecutorIdentity` through object reference, and two names may deliberately share one executor.
+Entries are keyed by `ParId`, an immutable value type whose construction validates once (never
+null, never blank, used verbatim — no trimming or case folding), so ids can be declared as
+constants and reused. An id is a logical lookup key, not a resource identity — the physical pool
+is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
+one executor. `Par.id()` returns the entry's id.
 
-Names are validated at build time. `ParRuntime` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
+Ids are registered at build time. `ParRuntime` is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
 For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
@@ -182,7 +183,7 @@ member succeeds — so it inherits the group's structured cancellation, deadline
 
 ```java
 TaskGroupDefinition.Member<AccountPage> page =
-        builder.combine("assemble-page", global.par("cpu"));
+        builder.combine("assemble-page", global.par(ParId.of("cpu")));
 
 TaskGroupDefinition accountPage = builder.build();
 
@@ -328,7 +329,7 @@ ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
 
 ParRuntime global = ParRuntime.builder()
         .purgePolicy(purge)
-        .register("io", ioThreadPool)
+        .register(ParId.of("io"), ioThreadPool)
         .build();
 ```
 

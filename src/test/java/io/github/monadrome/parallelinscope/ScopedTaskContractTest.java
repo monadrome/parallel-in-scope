@@ -198,7 +198,7 @@ class ScopedTaskContractTest {
         try {
             observePhases(global, phases);
             if (entry == Entry.BATCH) {
-                ListenableFuture<Object> queued = global.par("worker")
+                ListenableFuture<Object> queued = global.par(ParId.of("worker"))
                         .map(
                                 java.util.Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
@@ -209,10 +209,10 @@ class ScopedTaskContractTest {
                 assertThat(queued.cancel(true)).isTrue();
             } else {
                 TaskGroupDefinition.Builder definition = global.defineGroup("cancel", Duration.ofSeconds(30));
-                TaskGroupDefinition.Member<Object> blocker =
-                        definition.task("blocker", global.par("worker"), TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskGroupDefinition.Member<Object> queued =
-                        definition.task("queued", global.par("worker"), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroupDefinition.Member<Object> blocker = definition.task(
+                        "blocker", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
+                TaskGroupDefinition.Member<Object> queued = definition.task(
+                        "queued", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
                 TaskGroup group = global.submitGroup(definition.build(), bindings -> {
                     bindings.task(blocker, () -> runUnlessQueued("blocker", release, queuedRuns));
                     bindings.task(queued, () -> runUnlessQueued("queued", release, queuedRuns));
@@ -237,7 +237,7 @@ class ScopedTaskContractTest {
         ParRuntime global = globalWithListener(executor, synchronizedEvents());
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-                Object value = global.par("worker")
+                Object value = global.par(ParId.of("worker"))
                         .map(
                                 Collections.singletonList("outer"),
                                 item -> {
@@ -294,7 +294,7 @@ class ScopedTaskContractTest {
             boolean runOnCallerThread,
             Callable<Object> task) {
         if (entry == Entry.BATCH) {
-            return global.par("worker")
+            return global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
@@ -307,7 +307,7 @@ class ScopedTaskContractTest {
         TaskGroupDefinition.Builder definition = global.defineGroup("contract", Duration.ofSeconds(30));
         TaskGroupDefinition.Member<Object> key = definition.task(
                 name,
-                global.par("worker"),
+                global.par(ParId.of("worker")),
                 TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType).runOnCallerThread(runOnCallerThread));
         TaskGroup group = global.submitGroup(definition.build(), bindings -> bindings.task(key, task));
         LAST_GROUP.set(group);
@@ -345,14 +345,14 @@ class ScopedTaskContractTest {
     private static ParRuntime globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
         return ParRuntime.builder()
                 .taskListener(events::add)
-                .register("worker", executor)
+                .register(ParId.of("worker"), executor)
                 .build();
     }
 
     private static void observePhases(ParRuntime global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
         // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
         // installed and the phase observer slot is free to claim.
-        global.par("worker").executorRuntime().setPhaseObserver(phases::add);
+        global.par(ParId.of("worker")).executorRuntime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

@@ -1,5 +1,6 @@
 package demo.basic;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -32,12 +33,12 @@ public class BasicParDemo {
 
         // 2. 创建 ParRuntime 并注册执行器
         ParRuntime global = ParRuntime.builder()
-                .register("demo-pool", pool)
-                .defaultPar("demo-pool")
+                .register(ParId.of("demo-pool"), pool)
+                .defaultPar(ParId.of("demo-pool"))
                 .build();
 
         // 3. 创建 Par 实例
-        Par par = global.par("demo-pool");
+        Par par = global.par(ParId.of("demo-pool"));
 
         try {
             // 4. 准备数据

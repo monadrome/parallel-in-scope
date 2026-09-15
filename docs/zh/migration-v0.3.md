@@ -6,7 +6,7 @@
 需要源码级迁移。其三，改变若干运行期契约，使库不再在未声明的场合替你做决定——关闭作用域
 会等待而非只发取消，quiescence 指任务体退出而非 future 完成，checkpoint 守卫失败而非跳过，
 executor 拒绝后不再在你没选择的线程上运行你的代码。批次（`Par.map`）代码不受组重构影响，
-除了 `ParName` 删除。
+除了 `ParName` 更名为 `ParId`。
 
 ## 速查表
 
@@ -16,7 +16,7 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
 | `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>`（匿名子类） | `Builder.task`/`Builder.combine` 返回的 `TaskGroupDefinition.Member<T>` |
-| `ParName` / `ParName.of(name)` | 所有端点统一使用 `String` 名 |
+| `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`；`Par.name()` → `Par.id()` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
 | `TaskGroupOptions`（name/timeout/listeners） | `defineGroup*` 实参列表加 `Builder.closeGrace`；listeners 迁到 `Futures.addCallback` |
 | `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)`（只含结构）+ `Bindings.task(member, callable)` |
@@ -27,8 +27,9 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` 及 `tasks()` / `combine()` | 已删除；`Member<T>` 是唯一句柄 |
 
-六个被删除的顶层类型都不保留兼容别名：`TaskKey`、`ParName`、`CombineFunction`、
-`CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`。`0.x` 阶段不提供
+五个被删除的顶层类型都不保留兼容别名：`TaskKey`、`CombineFunction`、
+`CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`。`ParName` 不是删除而是
+更名为 `ParId`——执行器查找边界保留受校验的值类型。`0.x` 阶段不提供
 shim；请同时更新 import、声明和调用点。
 
 ## `GlobalPar` 更名为 `ParRuntime`
@@ -40,10 +41,10 @@ shim；请同时更新 import、声明和调用点。
 
 ```java
 ParRuntime runtime = ParRuntime.builder()
-        .register("io", executor)
+        .register(ParId.of("io"), executor)
         .build();
 
-Par io = runtime.par("io");
+Par io = runtime.par(ParId.of("io"));
 ```
 
 | `0.2.x` | `0.3.0` |
@@ -57,24 +58,23 @@ Par io = runtime.par("io");
 `Par.executorRuntime()`，它不是公开 API。`ParRuntime.installGlobal` 与 `ParRuntime.global()`
 保留原名。与本次发布的其他改名一样，不提供兼容别名。
 
-## `ParName` 已删除：所有名称都是 `String`
+## `ParName` 更名为 `ParId`
 
-执行器查找与注册恢复为裸 `String` 名。原来接收或返回 `ParName` 的端点改为接收或返回
-`String`：
+执行器查找的值类型保留，只是改成了一个名副其实的名字：一个 `Par` 条目的身份。它仍是
+不可变、受校验的值对象——`ParId.of(String)` 构造时拒绝 null 与空白值，值按原样使用——
+也是注册和取得 `Par` 的唯一方式：
 
-- `ParRuntime.Builder.register(String, ExecutorService)` 仍返回 `Builder`——在
+- `ParRuntime.Builder.register(ParId, ExecutorService)` 仍返回 `Builder`——在
   `ParRuntime` 完成构建前，`Par` 所需的 owner 与 runtime 尚不存在，因此不能返回 `Par`。
-- `ParRuntime.Builder.defaultPar(String)` 与 `parTaskListener(String, TaskListener)`。
-- `ParRuntime.par(String)`、`ParRuntime.find(String)`、`ParRuntime.taskListenersFor(String)`；
-  `ParRuntime.pars()` 现在返回 `Map<String, Par>`。
-- `Par.name()` 现在返回 `String`；删除所有 `.value()` 调用。
+- `ParRuntime.Builder.defaultPar(ParId)` 与 `parTaskListener(ParId, TaskListener)`。
+- `ParRuntime.par(ParId)`、`ParRuntime.find(ParId)`、`ParRuntime.taskListenersFor(ParId)`；
+  `ParRuntime.pars()` 现在返回 `Map<ParId, Par>`。
+- `Par.id()` 返回 `ParId`，取代 `Par.name()`；只有需要原始字符串时才调 `.value()`。
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` 与
-  `combine(String, Par[, TaskOptions])` 直接以字符串命名成员。
+  `combine(String, Par[, TaskOptions])` 仍以普通字符串命名成员——成员名从来不是 `ParName`。
 
-校验下沉到端点本身：builder 与运行期方法中，`null` 名抛 `NullPointerException`，空白名抛
-`IllegalArgumentException`，均在调用点抛出。名称仍按原样使用——不做 trim 或大小写规范化——
-`ParRuntime.Builder.build()` 的一致性校验（默认 `Par` 已注册、listener override 已注册）不变。
-格式合法的名字仍不代表已注册；未知名称仍在 `build()` 或 `par(name)` 处失败，与此前一致。
+`ParRuntime.Builder.build()` 的一致性校验（默认 `Par` 已注册、listener override 已注册）
+不变。格式合法的 id 仍不代表已注册；未知 id 仍在 `build()` 或 `par(id)` 处失败，与此前一致。
 
 ```java
 // 0.2.x
@@ -87,11 +87,11 @@ String name = io.name().value();
 
 // 0.3.0
 ParRuntime global = ParRuntime.builder()
-        .register("io", ioPool)
-        .defaultPar("io")
+        .register(ParId.of("io"), ioPool)
+        .defaultPar(ParId.of("io"))
         .build();
-Par io = global.par("io");
-String name = io.name();
+Par io = global.par(ParId.of("io"));
+ParId id = io.id();
 ```
 
 ## 三阶段模型
