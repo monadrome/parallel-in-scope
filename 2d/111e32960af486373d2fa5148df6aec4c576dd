@@ -1,0 +1,73 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_938b0dc5cfbf6a::t_0bcffbf3b476b1 151-152
+  s_938b0dc5cfbf6a::t_cba78adf29f41f 3
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_938b0dc5cfbf6a::t_1c4c7cb0fe9178 6-7,19
+  s_938b0dc5cfbf6a::t_304cdd189d90c7 298
+  s_938b0dc5cfbf6a::t_64c85e07e9b0d5 782
+  s_938b0dc5cfbf6a::t_83062e326f58b5 841
+  s_938b0dc5cfbf6a::t_f6637fb6ed24a6 862
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_938b0dc5cfbf6a::t_0bcffbf3b476b1 282-283
+  s_938b0dc5cfbf6a::t_fcd9c175e9f5cc 5
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_938b0dc5cfbf6a::t_1439715f07a195 271-272,274
+  s_938b0dc5cfbf6a::t_180c9583ece08d 154-155
+  s_938b0dc5cfbf6a::t_0bcffbf3b476b1 42-43
+  s_938b0dc5cfbf6a::t_69d596d4cb62e7 3-4,8,12
+src/main/java/io/github/monadrome/parallelinscope/BodyCompletionTracker.java
+  s_938b0dc5cfbf6a::t_fb2566f5aac97a 44
+  s_938b0dc5cfbf6a::t_791f674a86a1a3 3
+src/main/java/io/github/monadrome/parallelinscope/ParRuntimeDeadlockPolicy.java
+  s_938b0dc5cfbf6a::t_254ac11ac77df8 16,19
+  s_938b0dc5cfbf6a::t_2edeecff545324 4,7
+src/main/java/io/github/monadrome/parallelinscope/Checkpoints.java
+  s_938b0dc5cfbf6a::t_c7aedf99732a74 3
+  s_938b0dc5cfbf6a::t_bdf8044ff75750 573
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  s_938b0dc5cfbf6a::t_9502db27f9ea97 166
+  s_938b0dc5cfbf6a::t_5e6f0783ce64dd 186-187,195
+  s_938b0dc5cfbf6a::t_5c8a9b149c1d9f 3-4,6-7,14
+  s_938b0dc5cfbf6a::t_303906b03df2a7 42-48
+  s_938b0dc5cfbf6a::t_e350ccaa12fc54 119
+  s_938b0dc5cfbf6a::t_102f40ba9999da 178
+  s_938b0dc5cfbf6a::t_e2cf4c1b9c215e 205
+  s_938b0dc5cfbf6a::t_95187fce26b799 211-212
+  s_938b0dc5cfbf6a::t_0f8f4c5a30edb2 68
+  s_938b0dc5cfbf6a::t_19b5e293ef3b91 87
+  s_938b0dc5cfbf6a::t_e2c0abcdd5d82a 59
+  s_938b0dc5cfbf6a::t_1910030a49dc30 77
+  s_938b0dc5cfbf6a::t_7845b07898e471 136,138,142-143
+src/main/java/io/github/monadrome/parallelinscope/HeuristicPurger.java
+  s_938b0dc5cfbf6a::t_59e87c8cc3fe5c 3-4
+  s_938b0dc5cfbf6a::t_38a45e7cf6814c 94,99
+  s_938b0dc5cfbf6a::t_f5b32a74118971 85
+  s_938b0dc5cfbf6a::t_55cee390bdf067 200
+  s_938b0dc5cfbf6a::t_5e87fe6a49df02 270
+  s_938b0dc5cfbf6a::t_98d624fd24950f 264-266
+  s_938b0dc5cfbf6a::t_52014361af74ec 56
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerExpiryTest.java
+  s_938b0dc5cfbf6a::t_d1b7f437bd7996 203-204
+  s_938b0dc5cfbf6a::t_a0c1f9d2b980ea 46
+  s_938b0dc5cfbf6a::t_b8392186c190af 6
+  s_938b0dc5cfbf6a::t_9cdc3bc25479a1 187
+  s_938b0dc5cfbf6a::t_7b033e98721282 72
+  s_938b0dc5cfbf6a::t_354667acd3e74e 145-154
+  s_938b0dc5cfbf6a::t_c6ed6a88f063b6 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2d111e32960af486373d2fa5148df6aec4c576dd",
+  "prompts": {},
+  "sessions": {
+    "s_938b0dc5cfbf6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a68fb9f-c9d7-4c26-b7f8-de07752e0bc3",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
