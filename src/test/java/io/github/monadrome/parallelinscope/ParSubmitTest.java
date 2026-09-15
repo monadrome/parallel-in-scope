@@ -21,11 +21,11 @@ class ParSubmitTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
         ParRuntime global = ParRuntime.builder()
-                .register("worker", executor)
+                .register(ParId.of("worker"), executor)
                 .taskListener(listenerCompletion::set)
                 .build();
         try {
-            TaskFuture<String> task = global.par("worker")
+            TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "single",
                             () -> {
@@ -50,10 +50,11 @@ class ParSubmitTest {
     void submitRunsOnTheCallerThreadWhenOptionsRequestIt() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejected).build();
         Thread caller = Thread.currentThread();
         try {
-            TaskFuture<Thread> task = global.par("worker")
+            TaskFuture<Thread> task = global.par(ParId.of("worker"))
                     .submit(
                             "inline",
                             Thread::currentThread,
@@ -74,10 +75,11 @@ class ParSubmitTest {
     void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
-        ParRuntime global = ParRuntime.builder().register("worker", rejected).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), rejected).build();
         AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
         try {
-            TaskFuture<String> task = global.par("worker")
+            TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "rejected",
                             () -> {
@@ -99,9 +101,10 @@ class ParSubmitTest {
     @Test
     void submitRequiresAnExplicitTimeoutWithoutAnEnclosingScope() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            Par par = global.par("worker");
+            Par par = global.par(ParId.of("worker"));
             assertThatThrownBy(() -> par.submit("single", () -> "x", TaskOptions.inheritTimeout()))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
@@ -113,10 +116,11 @@ class ParSubmitTest {
     @Test
     void submitDeadlineExpiresAndCancelsTheTask() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             CountDownLatch started = new CountDownLatch(1);
-            TaskFuture<String> task = global.par("worker")
+            TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "slow",
                             () -> {
@@ -141,15 +145,16 @@ class ParSubmitTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParId.of("outer"), outer)
+                .register(ParId.of("inner"), inner)
                 .build();
         try {
-            TaskBatchResult<String> batch = global.par("outer")
+            TaskBatchResult<String> batch = global.par(ParId.of("outer"))
                     .map(
                             Arrays.asList("a"),
-                            ignored -> com.google.common.util.concurrent.Futures.getUnchecked(global.par("inner")
-                                    .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
+                            ignored ->
+                                    com.google.common.util.concurrent.Futures.getUnchecked(global.par(ParId.of("inner"))
+                                            .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
                             BatchOptions.timeout("outer-batch", Duration.ofSeconds(30)));
 
             assertThat(batch.valuesOrThrow()).containsExactly("nested-value");
@@ -163,10 +168,11 @@ class ParSubmitTest {
     @Test
     void submitRejectsAfterClose() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         global.close();
         try {
-            Par par = global.par("worker");
+            Par par = global.par(ParId.of("worker"));
             assertThatThrownBy(() -> par.submit("single", () -> "x", TaskOptions.timeout(Duration.ofSeconds(1))))
                     .isInstanceOf(IllegalStateException.class);
         } finally {

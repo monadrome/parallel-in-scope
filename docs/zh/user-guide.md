@@ -11,18 +11,18 @@
 ```java
 ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
-        .register("database", databaseExecutor)
-        .register("http", httpExecutor)
-        .defaultPar("http")
+        .register(ParId.of("database"), databaseExecutor)
+        .register(ParId.of("http"), httpExecutor)
+        .defaultPar(ParId.of("http"))
         .build();
 
-Par httpPar = global.par("http");
-Par databasePar = global.par("database");
+Par httpPar = global.par(ParId.of("http"));
+Par databasePar = global.par(ParId.of("database"));
 ```
 
-名称是普通 `String`，在接收它的端点上校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。名称是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个名称可以有意共享同一个执行器。
+条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-名称会在构建期校验；`build()` 后 `ParRuntime` 不可变，未知名称的 `par(name)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
+id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
@@ -108,7 +108,7 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 
 ```java
 TaskGroupDefinition.Member<AccountPage> page =
-        builder.combine("assemble-page", global.par("cpu"));
+        builder.combine("assemble-page", global.par(ParId.of("cpu")));
 
 TaskGroupDefinition accountPage = builder.build();
 
@@ -218,7 +218,7 @@ ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
 
 ParRuntime global = ParRuntime.builder()
         .purgePolicy(purge)
-        .register("io", ioThreadPool)
+        .register(ParId.of("io"), ioThreadPool)
         .build();
 ```
 

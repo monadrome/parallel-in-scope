@@ -2,6 +2,7 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -41,8 +42,8 @@ class G6_BatchDbQueryTest {
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
         ParRuntime config = ParRuntime.builder()
-                .register("db-pool", pool)
-                .defaultPar("db-pool")
+                .register(ParId.of("db-pool"), pool)
+                .defaultPar(ParId.of("db-pool"))
                 .build();
         par = config.defaultPar();
     }

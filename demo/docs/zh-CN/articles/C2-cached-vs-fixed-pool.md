@@ -60,7 +60,7 @@ for (int i = 0; i < 2; i++) {
 ExecutorService cachedPool = Executors.newCachedThreadPool();
 
 ParRuntime config = ParRuntime.builder()
-        .register("cached-pool", cachedPool)
+        .register(ParId.of("cached-pool"), cachedPool)
         .build();
 Par par = config.defaultPar();
 

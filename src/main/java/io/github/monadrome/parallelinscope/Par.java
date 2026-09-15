@@ -42,16 +42,16 @@ public final class Par {
 
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;
-    private final String name;
+    private final ParId id;
 
-    private Par(ParRuntime runtime, String name, ExecutorRuntime executorRuntime) {
+    private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
         this.executorRuntime = Objects.requireNonNull(executorRuntime, "executorRuntime cannot be null");
-        this.name = Objects.requireNonNull(name, "name cannot be null");
+        this.id = Objects.requireNonNull(id, "id cannot be null");
     }
 
-    static Par forRuntime(ParRuntime runtime, String name, ExecutorRuntime executorRuntime) {
-        return new Par(runtime, name, executorRuntime);
+    static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
+        return new Par(runtime, id, executorRuntime);
     }
 
     /** Returns the owning immutable ParRuntime. */
@@ -59,9 +59,9 @@ public final class Par {
         return runtime;
     }
 
-    /** Returns the logical name this entry is registered under. */
-    public String name() {
-        return name;
+    /** Returns the logical id this entry is registered under. */
+    public ParId id() {
+        return id;
     }
 
     ExecutorRuntime executorRuntime() {
@@ -71,7 +71,7 @@ public final class Par {
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
             Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(
-                taskContext, callable, runtime.taskListenersFor(name), executorRuntime.phaseObserver());
+                taskContext, callable, runtime.taskListenersFor(id), executorRuntime.phaseObserver());
     }
 
     ExecutorIdentity executorIdentity() {
@@ -143,7 +143,7 @@ public final class Par {
                         ? currentObservation
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(taskName), 1, parent, observation, executorRuntime.identity(), name);
+                options.spec(taskName), 1, parent, observation, executorRuntime.identity(), id.value());
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -161,7 +161,7 @@ public final class Par {
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
         ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(
-                taskContext, task, runtime.taskListenersFor(name), executorRuntime.phaseObserver());
+                taskContext, task, runtime.taskListenersFor(id), executorRuntime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
@@ -190,7 +190,7 @@ public final class Par {
                         ? currentObservation
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(), taskCount, parent, observation, executorRuntime.identity(), name);
+                options.spec(), taskCount, parent, observation, executorRuntime.identity(), id.value());
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),
@@ -231,7 +231,7 @@ public final class Par {
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
-                        runtime.taskListenersFor(name),
+                        runtime.taskListenersFor(id),
                         executorRuntime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(

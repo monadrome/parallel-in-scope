@@ -2,6 +2,7 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -32,8 +33,8 @@ class QuickStartTest {
         // 步骤 1 的准备工作：创建线程池和 Par 实例
         pool = Executors.newFixedThreadPool(4);
         ParRuntime config = ParRuntime.builder()
-                .register("my-pool", pool)
-                .defaultPar("my-pool")
+                .register(ParId.of("my-pool"), pool)
+                .defaultPar(ParId.of("my-pool"))
                 .build();
         par = config.defaultPar();
     }

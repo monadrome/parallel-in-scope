@@ -2,6 +2,7 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -123,8 +124,8 @@ public class G5_BatchHttpCallsTest {
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void parMap_batchHttpCalls_failFastCancelsSiblings() throws Exception {
         ParRuntime config = ParRuntime.builder()
-                .register("test-pool", pool)
-                .defaultPar("test-pool")
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
 
