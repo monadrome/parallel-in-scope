@@ -40,7 +40,7 @@ class TaskGraphExportTest {
 
     @Test
     void acyclicChainAndBranchExportCleanGraph() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair(null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
@@ -67,7 +67,7 @@ class TaskGraphExportTest {
 
     @Test
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
@@ -94,7 +94,7 @@ class TaskGraphExportTest {
     void executorCycleAcrossDistinctIdentitiesIsDetectedAndExported() throws Exception {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
@@ -125,7 +125,7 @@ class TaskGraphExportTest {
     void sameNameExecutorsWithDistinctIdentitiesDoNotReportCycle() throws Exception {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
@@ -166,10 +166,10 @@ class TaskGraphExportTest {
         ExecutorService innerExecutor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
@@ -226,7 +226,7 @@ class TaskGraphExportTest {
     void wrappedExecutorsFallIntoUnknownRiskAndAreInvisibleToExecutorGraphs() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
@@ -272,7 +272,7 @@ class TaskGraphExportTest {
     @Test
     void directExecutorServiceRecordsTaskGraphButSkipsExecutorGraphs() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        ParRuntime global = ParRuntime.builder().register("direct", direct).build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
             TaskBatchResult<Integer> batch = global.par("direct")
                     .map(

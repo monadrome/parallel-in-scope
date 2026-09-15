@@ -169,7 +169,7 @@ public enum TaskType {
   改为显式开启后**必须仍然通过**。
 - 更新：`TaskOptionsTest`/`BatchOptionsTest` 的默认值断言补 `runOnCallerThread()`
   为 `false`；`TaskType` 相关用例确认入队语义未变。
-- 排查其余 `CPU_BOUND` 用例（`GlobalParTest`、`TaskGroupTest`、`TaskGroupCombineTest`、
+- 排查其余 `CPU_BOUND` 用例（`ParRuntimeTest`、`TaskGroupTest`、`TaskGroupCombineTest`、
   `ScopedTaskContractTest`、`TaskEdgeTest`、`TaskGraph*Test`、
   `TaskBatchResultBodyCompletionTest`、`SmartBlockingQueueTest`）：区分"读 `taskType()`
   的声明断言"（不受影响）与"依赖拒绝后 inline"（须显式开启）。
@@ -183,10 +183,10 @@ public enum TaskType {
   `ioBoundRejectionNeverRunsUserCode` 一对，改为按选项而非按类型区分，
   helper 增加 `runOnCallerThread` 参数）、
   `TaskBatchResultBodyCompletionTest.cpuBoundInlineFallbackDoesNotLeakSlots`、
-  `GlobalParTest.closeFromCpuFallbackTaskDoesNotDeadlockBatchAdmission`、
+  `ParRuntimeTest.closeFromCpuFallbackTaskDoesNotDeadlockBatchAdmission`、
   `TaskGroupBodyCompletionTest.nestedInlineCallOnMemberThreadIsCoveredByTheSelfAwaitGuard`。
   死锁回归用例（`SlidingWindowSubmitterTest.callerThreadFallbackPublishesCompletionForSlidingWindow`
-  与 `GlobalParTest` 一例）改显式开启后仍然通过。
+  与 `ParRuntimeTest` 一例）改显式开启后仍然通过。
 - `SlidingWindowSubmitter` 的私有 `taskType()` 便利方法随判定迁移一并删除。
 - 新增 `docs/en/migration-v0.3.md` + `docs/zh/migration-v0.3.md`，并从两份 `index.md`
   链接；该文同时收拢了 `[Unreleased]` 中其余 v0.3 破坏性变更（close grace、

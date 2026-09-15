@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
  *
  * <p>A group is described by a reusable {@link TaskGroupDefinition} and submitted via {@link
- * GlobalPar#submitGroup(TaskGroupDefinition, java.util.function.Consumer)}, which binds this run's
+ * ParRuntime#submitGroup(TaskGroupDefinition, java.util.function.Consumer)}, which binds this run's
  * bodies, builds, starts, and submits all members in one call. Member futures are looked up by
  * name ({@link #members()}, {@link #findMember(String)}) or through the typed {@link
  * TaskGroupDefinition.Member} handles declared while configuring the definition ({@link
@@ -263,13 +263,13 @@ public final class TaskGroup implements AutoCloseable {
      * Builds the complete run of one submission and admits it: resolves the structural parent,
      * observation, and deadline ceiling from the calling thread, creates the group token, every
      * member context and future, and the terminal combine's pipeline, taking each body from the
-     * one-shot {@code payloads}. Runs inside one {@link GlobalPar#whileOpen} admission.
+     * one-shot {@code payloads}. Runs inside one {@link ParRuntime#whileOpen} admission.
      *
      * <p>On any preparation failure every prepared future is cancelled — releasing the bodies the
      * kernel took — and the exception propagates so the caller can discard the untaken payloads;
      * no user code runs on this path.
      */
-    static TaskGroup prepare(GlobalPar env, TaskGroupDefinition definition, RunBindings payloads) {
+    static TaskGroup prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
@@ -334,7 +334,7 @@ public final class TaskGroup implements AutoCloseable {
                 if (observation != null) {
                     logForking(
                             state.context.multiTaskContext(),
-                            memberPars.get(index).runtime().blockingRisk());
+                            memberPars.get(index).executorRuntime().blockingRisk());
                 }
                 index++;
             }
@@ -371,7 +371,7 @@ public final class TaskGroup implements AutoCloseable {
                 terminal = new MemberState(combineSlot.name, taskContext, future, par.submissionExecutor(), false);
                 handles.put(combineSlot.handle, terminal);
                 if (observation != null) {
-                    logForking(unit, par.runtime().blockingRisk());
+                    logForking(unit, par.executorRuntime().blockingRisk());
                 }
             }
         } catch (Throwable failure) {
@@ -400,7 +400,7 @@ public final class TaskGroup implements AutoCloseable {
         return group;
     }
 
-    void start(GlobalPar global) {
+    void start(ParRuntime global) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();
             return;

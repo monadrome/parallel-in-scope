@@ -19,8 +19,8 @@ account-page group
 
 它提供：
 
-- 通过 `GlobalPar.defineGroup*` + `TaskGroupDefinition.Builder` 收集具名成员声明（仅结构），
-  并经 `GlobalPar.submitGroup()` 在唯一的提交时点统一冻结；本次 `Callable` 由一次性的
+- 通过 `ParRuntime.defineGroup*` + `TaskGroupDefinition.Builder` 收集具名成员声明（仅结构），
+  并经 `ParRuntime.submitGroup()` 在唯一的提交时点统一冻结；本次 `Callable` 由一次性的
   `TaskGroup.Bindings` 提供；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`（配置期解析并绑定到 owner）；
@@ -43,7 +43,7 @@ account-page group
 | 维度 | Batch (`Par.map`) | Group (`TaskGroup`) |
 |---|---|---|
 | 业务含义 | 一个函数映射同类输入 | 多个异构操作共享协调范围 |
-| 集合形成 | `map()` 调用时固定 | `GlobalPar.defineGroup*` + `TaskGroupDefinition.Builder.task()/combine()` 配置，`GlobalPar.submitGroup()` 冻结并统一提交 |
+| 集合形成 | `map()` 调用时固定 | `ParRuntime.defineGroup*` + `TaskGroupDefinition.Builder.task()/combine()` 配置，`ParRuntime.submitGroup()` 冻结并统一提交 |
 | 成员身份 | `taskIndex` | 唯一 `memberName` |
 | 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
@@ -61,7 +61,7 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 ### 3.1 创建与使用
 
 组由不可变、可复用、owner 绑定的 `TaskGroupDefinition` 描述，经一次性
-`GlobalPar.submitGroup(definition, binder)` 冻结并统一提交；本次运行的 `Callable` 由
+`ParRuntime.submitGroup(definition, binder)` 冻结并统一提交；本次运行的 `Callable` 由
 `TaskGroup.Bindings` 承载：
 
 ```java
@@ -96,7 +96,7 @@ try (TaskGroup group = global.submitGroup(definition, bindings -> {
 `TaskGroup` 是提交后的运行对象。当前公共面：
 
 ```java
-public final class GlobalPar implements AutoCloseable {
+public final class ParRuntime implements AutoCloseable {
     public TaskGroupDefinition.Builder defineGroup(
             String groupName, Duration timeout);
     public TaskGroupDefinition.Builder defineGroupInheriting(
@@ -168,15 +168,15 @@ public final class TaskGroup implements AutoCloseable {
 
 语义：
 
-- `TaskGroupDefinition.Builder` 只能由 owner `GlobalPar.defineGroup*()` 创建；`task()`/
+- `TaskGroupDefinition.Builder` 只能由 owner `ParRuntime.defineGroup*()` 创建；`task()`/
   `combine()` 只校验并保存不可变成员声明（name 为 null/空白、重名、Par 为 null、Par 不属于
-  owner `GlobalPar` 立即拒绝；至多一个 combine，第二个 `combine()` 抛
+  owner `ParRuntime` 立即拒绝；至多一个 combine，第二个 `combine()` 抛
   `IllegalStateException`）；不得提交 executor、启动 timer、创建
   `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；省略 `TaskOptions` 等价于
   `TaskOptions.inheritTimeout()`；
 - `build()` 第一次调用密封 builder，后续 `build()` 返回同一个 definition 实例；build 后
   再调用任何修改方法抛 `IllegalStateException`；
-- `GlobalPar.submitGroup()` 是唯一的冻结与提交入口：在调用线程同步执行 binder 收集本次
+- `ParRuntime.submitGroup()` 是唯一的冻结与提交入口：在调用线程同步执行 binder 收集本次
   `Callable`/`CombineBody`，binder 返回后冻结并全量校验（missing/duplicate/foreign/
   wrong-kind/null body 在 admission 前拒绝），按提交线程解析结构父任务与 observation、
   创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
@@ -213,8 +213,8 @@ public final class TaskGroup implements AutoCloseable {
 | `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue / runOnCallerThread | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
 | `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue / runOnCallerThread | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
 
-组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `GlobalPar.defineGroup(name,
-timeout)`/`GlobalPar.defineGroupInheriting(name)` 入口承担，close grace 由
+组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.defineGroup(name,
+timeout)`/`ParRuntime.defineGroupInheriting(name)` 入口承担，close grace 由
 `TaskGroupDefinition.Builder.closeGrace(Duration)` 承担。
 
 ```java
@@ -292,7 +292,7 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
   后显式经 `completionFuture()` + Guava `Futures.addCallback(..., callbackExecutor)` 注册，
   callback executor 由调用方选择；
 - 校验时机：`Par` 在配置期解析——definition 保存已解析的 owner-bound `Par`，不存在
-  "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `GlobalPar` 在配置期即失败；
+  "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `ParRuntime` 在配置期即失败；
   现场相关校验（inherit deadline 是否存在）仍留在 `submitGroup`。
 
 **内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个

@@ -36,7 +36,7 @@ par.map(urls, url -> {
 
 **提议：** 提供 `parallel-in-scope-spring-boot-starter`，自动注入线程池，用 `@Parallel` 注解声明并行任务。
 
-**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`GlobalPar.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
+**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`ParRuntime.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
 
 **替代方案：** 在 Spring 项目里写一个约 10 行的 `@Configuration` 类：
 
@@ -45,8 +45,8 @@ par.map(urls, url -> {
 public CommandLineRunner registerExecutors(
         @Qualifier("ioPool") ExecutorService ioPool) {
     return args -> {
-        // GlobalPar 构建时注册，运行时不可变
-        GlobalPar config = GlobalPar.builder()
+        // ParRuntime 构建时注册，运行时不可变
+        ParRuntime config = ParRuntime.builder()
                 .register("io-pool", ioPool)
                 .build();
         // 注入到 Spring 容器供全局使用

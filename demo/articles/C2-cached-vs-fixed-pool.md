@@ -53,7 +53,7 @@ for (int i = 0; i < 2; i++) {
 ```java
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.BatchOptions;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 
 import java.util.Arrays;
@@ -64,7 +64,7 @@ import java.util.concurrent.Executors;
 // CachedThreadPool：嵌套并行不会死锁
 ExecutorService cachedPool = Executors.newCachedThreadPool();
 
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("cached-pool", cachedPool)
         .build();
 Par par = config.defaultPar();

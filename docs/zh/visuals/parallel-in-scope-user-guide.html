@@ -14,8 +14,8 @@
 </head>
 <body>
   <h1>v0.3 使用入口</h1>
-  <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>GlobalPar</code>，用 <code>String</code> 名注册执行器，再从其中取得已绑定执行器的 <code>Par</code>。</p>
-  <pre>GlobalPar global = GlobalPar.builder()
+  <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>ParRuntime</code>，用 <code>String</code> 名注册执行器，再从其中取得已绑定执行器的 <code>Par</code>。</p>
+  <pre>ParRuntime global = ParRuntime.builder()
     .register("io", executor)
     .build();
 

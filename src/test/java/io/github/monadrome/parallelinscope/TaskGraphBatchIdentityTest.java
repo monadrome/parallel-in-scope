@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class TaskGraphBatchIdentityTest {
     @Test
     void sameTaskNameInIndependentBatchesDoesNotCollapseNodes() {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             MultiTaskContext first = context();
             MultiTaskContext second = context();
@@ -30,7 +30,7 @@ class TaskGraphBatchIdentityTest {
 
     @Test
     void detectsTaskCyclesSelfLoopsAndPreservesParallelEdges() {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", edge());
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", edge());
@@ -50,7 +50,7 @@ class TaskGraphBatchIdentityTest {
 
     @Test
     void detectsExecutorCyclesAndSkipsNonRiskyEdges() {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
@@ -60,7 +60,7 @@ class TaskGraphBatchIdentityTest {
             global.close();
         }
 
-        GlobalPar nonRisky = GlobalPar.builder().build();
+        ParRuntime nonRisky = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = nonRisky.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool", "pool", false));
             assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
@@ -74,7 +74,7 @@ class TaskGraphBatchIdentityTest {
     void detectsCyclesAndSelfLoopsByExecutorObjectIdentity() {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
@@ -107,8 +107,8 @@ class TaskGraphBatchIdentityTest {
     @Test
     void closingObservationPublishesDetectionEventAndRestoresOuterGraph() {
         AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
-        GlobalPar global = GlobalPar.builder()
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+        ParRuntime global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event::set)
                         .build())
@@ -131,8 +131,8 @@ class TaskGraphBatchIdentityTest {
     @Test
     void closingObservationPublishesExecutorCycleEdges() {
         AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
-        GlobalPar global = GlobalPar.builder()
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+        ParRuntime global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event::set)
                         .build())
