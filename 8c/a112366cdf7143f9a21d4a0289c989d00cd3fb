@@ -1,0 +1,36 @@
+docs/en/index.md
+  s_0d816c37dc5cd7::t_377e29b53ecd79 10
+docs/en/migration-v0.3.md
+  s_0d816c37dc5cd7::t_cce06518009d5f 25
+  s_0d816c37dc5cd7::t_45bb85d43206d6 310-317
+  s_0d816c37dc5cd7::t_0a419747fcdd6e 28,31
+  s_0d816c37dc5cd7::t_47a3f775881f7e 107-119,122-137,140-152
+  s_0d816c37dc5cd7::t_07f06a454719c3 321-324
+  s_0d816c37dc5cd7::t_9546b591f583c2 430-443
+docs/zh/migration-v0.3.md
+  s_0d816c37dc5cd7::t_2a2dd235dbd3b6 22,25,28
+  s_0d816c37dc5cd7::t_a4690c79823d5f 388-392,396-398
+  s_0d816c37dc5cd7::t_5589fab09b0ea3 287-289
+  s_0d816c37dc5cd7::t_e0f2b1489c9f09 279-283
+  s_0d816c37dc5cd7::t_f6c9f7274e6cf3 99-108,111-125,128-137
+docs/zh/index.md
+  s_0d816c37dc5cd7::t_b96e477f7afae4 10
+design/group-api-redesign-v0.3-decision.md
+  s_0d816c37dc5cd7::t_dad61a36f3b975 867-882
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8ca112366cdf7143f9a21d4a0289c989d00cd3fb",
+  "prompts": {},
+  "sessions": {
+    "s_0d816c37dc5cd7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5fed907-ef2c-405d-aa0d-a6cd865528d4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
