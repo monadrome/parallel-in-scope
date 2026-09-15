@@ -46,7 +46,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 ```java
 BatchOptions options = BatchOptions.timeout("my-task", Duration.ofSeconds(5)).parallelism(4);
 
-global.par(ParName.of("myExecutor")).map(dataList, item -> {
+global.par("myExecutor").map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
         // 每 1000 次迭代检查一次取消状态
         if (i % 1000 == 0) {
@@ -114,7 +114,7 @@ void traverse(TreeNode node) {
 当你的任务代码中有 try-catch 时，需要注意不要意外吞掉取消异常：
 
 ```java
-global.par(ParName.of("myExecutor")).map(items, item -> {
+global.par("myExecutor").map(items, item -> {
     try {
         riskyOperation(item);
     } catch (Exception e) {

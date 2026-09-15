@@ -12,6 +12,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <!-- Verifies the artifact exactly as published on Maven Central. Stay on the 0.2.x line
+             until 0.3.0 is released there: the tests below intentionally compile against the
+             published 0.2.x API (ParName/TaskKey/TaskGroupOptions), so this module is the one
+             place that keeps the old surface on purpose. -->
         <parallel-in-scope.version>0.2.0</parallel-in-scope.version>
     </properties>
 

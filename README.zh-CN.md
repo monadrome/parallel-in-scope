@@ -7,7 +7,7 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 
-> 当前开发版本：`0.2.0`。`0.2.0` 相对 `0.1.x` 是一次破坏性 API 迁移。
+> 最新发布版本：`v0.2.0`。本代码树面向即将发布的 `0.3.0` API——任务组接口的一次破坏性重设计；从 `0.2.x` 升级请阅读 [v0.3 迁移指南](docs/zh/migration-v0.3.md)。
 
 面向 Java 8+ 的结构化并发工具包，提供有界批量提交、协作式取消、上下文传播和任务图诊断。
 
@@ -17,33 +17,35 @@
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
 在应用启动阶段构建一次执行拓扑。具名 `Par` 在构建期绑定执行器；先选择 `Par`，再调用 `map`，而不是每次调用时按名称选池。
 
 ```java
-ParName IO = ParName.of("io");
-
 GlobalPar global = GlobalPar.builder()
-        .register(IO, Executors.newFixedThreadPool(8))
-        .defaultPar(IO)
+        .register("io", Executors.newFixedThreadPool(8))
+        .defaultPar("io")
         .build();
 
 BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
         .parallelism(4)
         .taskType(TaskType.IO_BOUND);
 
-TaskBatchResult<User> result = global.par(IO)
+TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 
 `GlobalPar.close()` 只释放框架自建的 timer 和 submitter 资源，不会关闭传给 `register` 的执行器；执行器生命周期仍由应用负责。
 
+## v0.3 迁移
+
+`ParName`、`TaskKey`、`TaskGroupOptions`、`CombineFunction`、`CompletedTaskValues` 和 `TaskGroupListener` 均已删除，`TaskGroupDefinition` 不再保存 callable。用 `global.defineGroup(name, timeout)` 构建只含结构的 definition，用 `Builder.task(name, par)` 声明类型化成员，再通过 `global.submitGroup(definition, bindings)` 提交本次运行的 body；组完成观测使用 `Futures.addCallback(group.completionFuture(), callback, executor)`。升级既有应用前请阅读 [v0.3 迁移指南](docs/zh/migration-v0.3.md)。
+
 ## v0.2 迁移
 
-`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `GlobalPar`、`BatchOptions`（任务组用 `TaskGroupOptions` 与 `TaskOptions`）与 `global.par(name).map(...)`。升级既有应用前请阅读 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
+`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `GlobalPar`、`BatchOptions`（任务组成员与 combine 用 `TaskOptions`）与 `global.par(name).map(...)`。请参阅 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
 
 ## 核心能力
 
@@ -61,7 +63,7 @@ TaskBatchResult<User> result = global.par(IO)
 |---|---|
 | [中文文档中心](docs/zh/index.md) | 当前使用指南、迁移、API 契约与内部原理 |
 | [English documentation](docs/en/index.md) | 英文文档集 |
-| [Demo 工程](demo/README.md) | `0.1.x` 兼容示例，不是 v0.2 API 参考 |
+| [Demo 工程](demo/README.md) | 当前 API 的可运行示例 |
 
 ## 兼容性与构建
 

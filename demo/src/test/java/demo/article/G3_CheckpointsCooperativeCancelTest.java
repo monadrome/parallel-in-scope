@@ -6,7 +6,6 @@ import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,8 +38,8 @@ public class G3_CheckpointsCooperativeCancelTest {
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
         GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
                 .build();
         par = config.defaultPar();
     }

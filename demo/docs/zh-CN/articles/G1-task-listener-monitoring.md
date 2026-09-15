@@ -49,7 +49,7 @@ Future<String> future = pool.submit(() -> {
 // 注册监控监听器
 ConcurrentHashMap<String, Long> taskTimings = new ConcurrentHashMap<>();
 GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("my-pool"), pool)
+        .register("my-pool", pool)
         .taskListener(event -> {
             // 每个任务完成时自动回调，零侵入
             taskTimings.put(event.taskName(), event.executionTime().toMillis());

@@ -19,10 +19,12 @@ account-page group
 
 它提供：
 
-- 通过 `TaskGroupDefinition` 收集具名任务定义，并在唯一的 submit 时点统一冻结和提交；
+- 通过 `GlobalPar.defineGroup*` + `TaskGroupDefinition.Builder` 收集具名成员声明（仅结构），
+  并经 `GlobalPar.submitGroup()` 在唯一的提交时点统一冻结；本次 `Callable` 由一次性的
+  `TaskGroup.Bindings` 提供；
 - 组级 deadline、取消和默认 fail-fast；
-- 每个成员独立选择已经注册的 `Par`；
-- 类型安全的成员 `ListenableFuture<T>`；
+- 每个成员独立选择已经注册的 `Par`（配置期解析并绑定到 owner）；
+- 类型安全的成员 `TaskFuture<T>`；
 - 所有冻结成员的最终收敛结果和组级 telemetry；
 - 与现有单任务执行、取消、队列清理和任务监听能力复用。
 
@@ -41,7 +43,7 @@ account-page group
 | 维度 | Batch (`Par.map`) | Group (`TaskGroup`) |
 |---|---|---|
 | 业务含义 | 一个函数映射同类输入 | 多个异构操作共享协调范围 |
-| 集合形成 | `map()` 调用时固定 | `TaskGroupDefinition.Builder.task()` 配置，`TaskGroup.submit()` 冻结并统一提交 |
+| 集合形成 | `map()` 调用时固定 | `GlobalPar.defineGroup*` + `TaskGroupDefinition.Builder.task()/combine()` 配置，`GlobalPar.submitGroup()` 冻结并统一提交 |
 | 成员身份 | `taskIndex` | 唯一 `memberName` |
 | 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
@@ -58,108 +60,144 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ### 3.1 创建与使用
 
-组由不可变、可复用的 `TaskGroupDefinition` 描述，经一次性
-`TaskGroup.submit(global, definition)` 冻结并统一提交：
+组由不可变、可复用、owner 绑定的 `TaskGroupDefinition` 描述，经一次性
+`GlobalPar.submitGroup(definition, binder)` 冻结并统一提交；本次运行的 `Callable` 由
+`TaskGroup.Bindings` 承载：
 
 ```java
-TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-        TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
+Par userPar = global.par("user");
+Par orderPar = global.par("order");
+Par inventoryPar = global.par("inventory");
 
-TaskKey<User> user = definition.task(
-            new TaskKey<User>("get-user") {},
-            ParName.of("user"), userService::getUser);
-TaskKey<List<Order>> orders = definition.task(
-            new TaskKey<List<Order>>("get-orders") {},
-            ParName.of("order"), orderService::getOrders,
-            TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
-TaskKey<Inventory> inventory = definition.task(
-            new TaskKey<Inventory>("get-inventory") {},
-            ParName.of("inventory"), inventoryService::getInventory);
+TaskGroupDefinition.Builder builder =
+        global.defineGroup("account-page", Duration.ofSeconds(3))
+                .closeGrace(Duration.ofMillis(200));
 
-try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
+TaskGroupDefinition.Member<User> user = builder.task("get-user", userPar);
+TaskGroupDefinition.Member<List<Order>> orders = builder.task(
+        "get-orders", orderPar,
+        TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
+TaskGroupDefinition.Member<Inventory> inventory =
+        builder.task("get-inventory", inventoryPar);
+
+TaskGroupDefinition definition = builder.build();
+
+try (TaskGroup group = global.submitGroup(definition, bindings -> {
+    bindings.task(user, () -> userService.getUser(request.userId()));
+    bindings.task(orders, () -> orderService.getOrders(request.userId()));
+    bindings.task(inventory, () -> inventoryService.getInventory());
+})) {
     User userValue = group.future(user).get();
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-`TaskGroupDefinition` 是纯数据描述；`TaskGroup` 是 submit 后的运行对象。当前公共面：
+`TaskGroupDefinition` 是仅结构的不可变描述，不保存任何本次运行的用户可执行对象；
+`TaskGroup` 是提交后的运行对象。当前公共面：
 
 ```java
+public final class GlobalPar implements AutoCloseable {
+    public TaskGroupDefinition.Builder defineGroup(
+            String groupName, Duration timeout);
+    public TaskGroupDefinition.Builder defineGroupInheriting(
+            String groupName);
+    public TaskGroup submitGroup(
+            TaskGroupDefinition definition,
+            Consumer<? super TaskGroup.Bindings> binder);
+
+    public Par par(String name);
+    public Optional<Par> find(String name);
+}
+
 public final class TaskGroupDefinition {
-    public static Builder builder(TaskGroupOptions groupOptions);
-    public TaskGroupOptions groupOptions();
-    public List<TaskDefinition<?>> tasks();
+    public String name();
 
     public static final class Builder {
-        public <T> TaskKey<T> task(
-                TaskKey<T> key,
-                ParName parName,
-                Callable<T> callable);
-        public <T> TaskKey<T> task(
-                TaskKey<T> key,
-                ParName parName,
-                Callable<T> callable,
-                TaskOptions options);
-        public <R> TaskGroupDefinition buildWithCombiner(
-                TaskKey<R> key,
-                ParName parName,
-                CombineFunction<R> function);
-        public <R> TaskGroupDefinition buildWithCombiner(
-                TaskKey<R> key,
-                ParName parName,
-                CombineFunction<R> function,
-                TaskOptions options);
+        public Builder closeGrace(Duration closeGrace);
+
+        public <T> Member<T> task(String memberName, Par par);
+        public <T> Member<T> task(
+                String memberName, Par par, TaskOptions options);
+
+        public <R> Member<R> combine(String combineName, Par par);
+        public <R> Member<R> combine(
+                String combineName, Par par, TaskOptions options);
+
         public TaskGroupDefinition build();
+    }
+
+    public static final class Member<T> {
+        public String name();
     }
 }
 
-public abstract class TaskKey<T> {
-    protected TaskKey(String name);
-    public final String name();
-    public final TypeToken<T> resultType();
-}
-
 public final class TaskGroup implements AutoCloseable {
-    public static TaskGroup submit(GlobalPar env, TaskGroupDefinition definition);
-
     public String groupId();
     public String groupName();
     public void cancel();
-    public ListenableFuture<TaskGroupResult> completionFuture();
 
-    public Optional<ListenableFuture<?>> findMember(String memberName);
-    public Map<String, ListenableFuture<?>> members();
-    public <T> ListenableFuture<T> future(TaskKey<T> key);
+    public <T> TaskFuture<T> future(
+            TaskGroupDefinition.Member<T> member);
+    public TaskFuture<TaskGroupResult> completionFuture();
+    public Map<String, TaskFuture<?>> members();
+    public Optional<TaskFuture<?>> findMember(String memberName);
+    public boolean awaitBodyCompletion(Duration timeout)
+            throws InterruptedException;
 
-    @Override
-    public void close();
+    @Override public void close();
+
+    public static final class Bindings {
+        public <T> void task(
+                TaskGroupDefinition.Member<T> member,
+                Callable<? extends T> body);
+        public <R> void combine(
+                TaskGroupDefinition.Member<R> member,
+                CombineBody<? extends R> body);
+    }
+
+    @FunctionalInterface
+    public interface CombineBody<R> {
+        R apply(CombineContext values) throws Exception;
+    }
+
+    public static final class CombineContext {
+        public <T> T value(TaskGroupDefinition.Member<T> member);
+    }
 }
 ```
 
 语义：
 
-- `TaskGroupDefinition.Builder.task()` 只校验并保存不可变任务定义（key 为 null、name 重复、参数为
-  null 立即拒绝；name 的 null/空白校验由 `TaskKey` 构造器完成）；不得提交 executor、启动
-  timer、创建 `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；省略 `TaskOptions`
-  等价于传入 `TaskOptions.inheritTimeout()`；
-- `buildWithCombiner()` 是声明终端汇合的**终止方法**：它注册 combine 并返回构建完成的
-  definition，因此不必也无法把 combine 声明在成员之前；选项可省略，默认与成员相同；
-- `TaskGroup.submit()` 是唯一的冻结与提交入口；它按提交线程解析结构父任务与
-  observation、创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
-- `TaskKey<T>` 由调用方以匿名子类创建（`new TaskKey<List<Order>>("orders") {}`），在运行时
-  捕获结果类型，不携带执行状态；`group.future(key)` 在组内解析成员
-  future，名称不属于该组、或 key 的 raw 结果类型不能覆盖注册类型时抛
+- `TaskGroupDefinition.Builder` 只能由 owner `GlobalPar.defineGroup*()` 创建；`task()`/
+  `combine()` 只校验并保存不可变成员声明（name 为 null/空白、重名、Par 为 null、Par 不属于
+  owner `GlobalPar` 立即拒绝；至多一个 combine，第二个 `combine()` 抛
+  `IllegalStateException`）；不得提交 executor、启动 timer、创建
+  `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；省略 `TaskOptions` 等价于
+  `TaskOptions.inheritTimeout()`；
+- `build()` 第一次调用密封 builder，后续 `build()` 返回同一个 definition 实例；build 后
+  再调用任何修改方法抛 `IllegalStateException`；
+- `GlobalPar.submitGroup()` 是唯一的冻结与提交入口：在调用线程同步执行 binder 收集本次
+  `Callable`/`CombineBody`，binder 返回后冻结并全量校验（missing/duplicate/foreign/
+  wrong-kind/null body 在 admission 前拒绝），按提交线程解析结构父任务与 observation、
+  创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
+- `Member<T>` 由 builder 创建、不可变、按对象身份识别，不携带执行状态；`T` 同时约束
+  `Bindings.task/combine` 的返回值和 `TaskGroup.future()` 的结果；name 只用于诊断与
+  观测；foreign member handle（其他 definition 的 handle、kind 不匹配的 handle）在
+  `Bindings` 绑定、`TaskGroup.future(member)` 与 `CombineContext.value(member)` 处一律抛
   `IllegalArgumentException`；
 - `cancel()` 幂等、非阻塞，固定 `CANCELED`（若尚未固定）并取消未完成成员；
 - `close()` 是异常安全清理：若仍有未完成成员，语义等同 `cancel()`；若所有成员已经终态或空组则无副作用；
 - `completionFuture()` 在全部冻结成员的公开 future 终态后完成，不存在另行封口条件；
-- `members()` 返回按定义顺序排列、不可修改的完整集合；
+- `members()` 返回按定义顺序排列、不可修改的普通成员集合；terminal combine 使用其
+  `Member` handle 经 `future(member)` 取得，并在完成快照中由 `TaskGroupResult.terminal()`
+  单独表达；
 - `findMember()`/`members()` 在 Group 返回给调用方时即可看见全部冻结成员。
 
-`TaskKey<T>` 是调用方创建的类型化键，通过匿名子类在运行时捕获结果类型，不携带执行状态；
-键按 name 值相等，因此声明父类型的键与注册键是同一个键。异构任务的 future 在统一
-submit 时创建，调用方用配置期注册的键在提交后取回类型安全的 future。definition 不捕获线程
-上下文，因此结构归属始终由提交现场决定。
+`Member<T>` 是库创建的类型化 identity handle，绑定与取 future 使用同一个对象，因此不再
+需要运行期 `TypeToken` 比较；调用方主动使用 raw type/unchecked cast 的风险与普通 Java
+泛型相同，不为其增加运行期类型体系。异构任务的 future 在统一提交时创建，调用方用配置期
+获得的 `Member` handle 在提交后取回类型安全的 future。definition 不捕获线程上下文，因此
+结构归属始终由提交现场决定。
 
 ### 3.2 选项：一个作用域一个类型
 
@@ -172,9 +210,12 @@ submit 时创建，调用方用配置期注册的键在提交后取回类型安�
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue | 批次 unit 解析、滑动窗口并发上限、入队策略 |
-| `TaskGroupOptions` | `TaskGroupDefinition.builder(...)` | name / timeout / listeners | 组名、组 deadline、组收敛监听快照 |
-| `TaskOptions` | `Builder.task(...)`、`Builder.buildWithCombiner(...)` | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、CPU-bound inline 策略、入队拒绝策略 |
+| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue / runOnCallerThread | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
+| `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue / runOnCallerThread | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝、拒绝时的 caller-thread 回退 |
+
+组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `GlobalPar.defineGroup(name,
+timeout)`/`GlobalPar.defineGroupInheriting(name)` 入口承担，close grace 由
+`TaskGroupDefinition.Builder.closeGrace(Duration)` 承担。
 
 ```java
 public final class TaskOptions {
@@ -182,20 +223,12 @@ public final class TaskOptions {
     public static TaskOptions timeout(Duration timeout);
     public TaskOptions taskType(TaskType taskType);
     public TaskOptions rejectEnqueue(boolean rejectEnqueue);
+    public TaskOptions runOnCallerThread(boolean runOnCallerThread); // 默认 false
 
     public Optional<Duration> timeout();
     public TaskType taskType();
     public boolean rejectEnqueue();
-}
-
-public final class TaskGroupOptions {
-    public static TaskGroupOptions inheritTimeout(String name);
-    public static TaskGroupOptions timeout(String name, Duration timeout);
-    public TaskGroupOptions listener(TaskGroupListener listener);
-
-    public String name();
-    public Optional<Duration> timeout();
-    public List<TaskGroupListener> listeners();
+    public boolean runOnCallerThread();
 }
 
 public final class BatchOptions {
@@ -204,58 +237,68 @@ public final class BatchOptions {
     public BatchOptions parallelism(int parallelism);
     public BatchOptions taskType(TaskType taskType);
     public BatchOptions rejectEnqueue(boolean rejectEnqueue);
+    public BatchOptions runOnCallerThread(boolean runOnCallerThread); // 默认 false
 
     public String name();
     public int parallelism();
     public Optional<Duration> timeout();
     public TaskType taskType();
     public boolean rejectEnqueue();
+    public boolean runOnCallerThread();
 }
 ```
 
 **字段即消费集合。** 每个选项类型暴露的字段集合必须等于其消费者读取的集合：成员与 combine
-的身份来自 `TaskKey.name()`，单任务是单次执行、没有扇出，因此 `TaskOptions` MUST NOT 含
-name、parallelism、listeners；组不是一次任务执行，因此 `TaskGroupOptions` MUST NOT 含
-parallelism、taskType、rejectEnqueue。
+的身份来自声明名（`Member.name()`），单任务是单次执行、没有扇出，因此 `TaskOptions` MUST
+NOT 含 name、parallelism、listeners；组不是一次任务执行，因此组级配置 MUST NOT 含
+parallelism、taskType、rejectEnqueue、runOnCallerThread。`runOnCallerThread` 的消费者是
+单次任务执行的 rejection 路径（拒绝时是否在提交线程 inline 运行），因此它与
+timeout/taskType/rejectEnqueue 一起只出现在 `TaskOptions`/`BatchOptions` 中，terminal
+combine 同样忽略它（见 [终端汇合 §4](task-group-terminal-combine.md)）。
 
-**三个类型互不相关，判别式由调用点静态决定。** 就"一个单位的选项"而言，这是把原先的单
-product type 换成三个角色 product 组成的不相交并集：分支选择发生在形参位置——`Par.map` 只
-接受 `BatchOptions`，`TaskGroupDefinition.builder` 只接受 `TaskGroupOptions`，
-`task`/`combine` 只接受 `TaskOptions`——编译器在选择分支的同时排除了其余分支的字段，运行时
+**判别式由调用点静态决定。** 就"一个单位的选项"而言，这是把原先的单
+product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOptions`，`task`/`combine`
+只接受 `TaskOptions`——编译器在选择分支的同时排除了其余分支的字段，运行时
 不需要也不存在 tag。因此 MUST NOT 引入公共父类型、角色枚举或运行期判别字段：一旦存在公共
 父类型，"把组选项传给成员位置"就会重新变成可编译的，本节的编译期保证随即失效。
 
-**timeout 的显式选择提升为类型不变量。** `inheritTimeout()` 与 `timeout(Duration)` 是仅有的
-两个工厂：不存在"未声明"状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都
-返回终态实例）。这比原先"`build()` 时校验二者恰有其一"更强，约束的语义不变。
+**timeout 的显式选择提升为入口/类型不变量。** 组级二选一由两个工厂入口承担：显式
+`defineGroup(name, timeout)` 与嵌套继承 `defineGroupInheriting(name)`；不存在隐式无界
+默认值。成员级 `inheritTimeout()` 与 `timeout(Duration)` 是仅有的两个工厂：不存在"未声明"
+状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都返回终态实例）。这比原先
+"`build()` 时校验二者恰有其一"更强，约束的语义不变。
 
-**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`/
-`listener(...)` 返回新实例，原实例不变；不引入 Builder 与中间可变状态。无参工厂
+**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`
+返回新实例，原实例不变；不引入 Builder 与中间可变状态。无参工厂
 （如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
 
 语义逐条不变（拆分只改变值的承载类型，不改变任何解析结果或执行行为）：
 
 - name 非空；timeout 为正数，负值或零在工厂期被拒绝；
 - `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
-- 组级 `inheritTimeout()` 要求 submit 时存在外层 scoped task，否则 `submit` 抛
-  `IllegalArgumentException`；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
+- `defineGroupInheriting` 定义的组要求提交现场存在外层 scoped task，否则 `submitGroup`
+  在运行准备期整体失败（`IllegalArgumentException`，无 TaskGroup/Future，见
+  [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) 增补裁定
+  §19.1）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
-- 成员的诊断名始终取注册 key 的 name；
-- 成员选项 MAY 省略：`task(key, parName, callable)` 等价于第四个实参传
+- 成员的诊断名始终取声明名（`Member.name()`）；
+- 成员选项 MAY 省略：`task(name, par)` 等价于第三个实参传
   `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
   因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
   需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
-- 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`/`TaskGroup.submit`）读取
+- 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`/`submitGroup`）读取
   的是该嵌套提交自己的选项；
-- options 不保存运行状态，可安全复用；listener 在 `TaskGroupOptions` 构造时复制成不可修改
-  快照，`submit` 时使用该快照；
-- 校验时机不变：配置期只校验选项自身与配置参数的合法性，现场相关校验（executor 名解析、
-  继承 deadline 是否存在）仍留在 `submit`。
+- options 不保存运行状态，可安全复用；组完成回调不进入 options——调用方拿到 `TaskGroup`
+  后显式经 `completionFuture()` + Guava `Futures.addCallback(..., callbackExecutor)` 注册，
+  callback executor 由调用方选择；
+- 校验时机：`Par` 在配置期解析——definition 保存已解析的 owner-bound `Par`，不存在
+  "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `GlobalPar` 在配置期即失败；
+  现场相关校验（inherit deadline 是否存在）仍留在 `submitGroup`。
 
 **内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个
 选项类型提供一个包私有适配方法，把选项折叠成内核载体（name、requestedParallelism、timeout、
-taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取 key，requestedParallelism
-恒为 1），batch 侧由 `BatchOptions` 适配。签名与三 parent 解耦语义见
+taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取成员声明名，
+requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。签名与三 parent 解耦语义见
 [生命周期与状态机 §5](task-group-lifecycle.md)。
 
 ### 3.3 结果类型
@@ -300,7 +343,7 @@ public final class TaskGroupResult {
 group 成员共用），字段为 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/
 `result()`/`failure()`，派生 `successful()`/`enqueued()`/三个 Duration。其中 `result()`
 只在监听器投递成功任务时非 null（组成员结果留在其 future），`taskIndex()` 对组成员恒为 0；
-组快照和监听器事件的 `taskName()` 均取注册 key 的 name。
+组快照和监听器事件的 `taskName()` 均取成员声明名。
 
 要求：
 
