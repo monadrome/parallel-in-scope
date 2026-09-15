@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,8 +75,8 @@ public class E2_SubmitterPoolOffloadingTest {
         ExecutorService pool = Executors.newFixedThreadPool(1);
         try {
             GlobalPar config = GlobalPar.builder()
-                    .register(ParName.of("test-pool"), pool)
-                    .defaultPar(ParName.of("test-pool"))
+                    .register("test-pool", pool)
+                    .defaultPar("test-pool")
                     .build();
             Par par = config.defaultPar();
 

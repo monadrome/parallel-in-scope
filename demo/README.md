@@ -2,7 +2,7 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.2.0` API，可作为外部消费者示例。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.3.0` API，可作为外部消费者示例。
 
 ## 快速开始
 
@@ -52,7 +52,7 @@ chmod +x scripts/run-demos.sh
 
 ## 架构约束
 
-这个示例项目是完全独立的，只依赖 parallel-in-scope 的发布版本。
+这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 发布前，坐标仍解析为从代码树根目录 `mvn install` 安装的本地构建。
 
 ### 依赖方向
 

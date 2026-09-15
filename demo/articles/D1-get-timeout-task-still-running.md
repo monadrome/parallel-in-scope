@@ -54,7 +54,7 @@ import io.github.monadrome.parallelinscope.TaskType;
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(2);
 GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("my-pool"), pool)
+        .register("my-pool", pool)
         .build();
 Par par = config.defaultPar();
 

@@ -26,8 +26,9 @@ class TaskOptionsTest {
                 .map(Method::getName)
                 .collect(Collectors.toCollection(TreeSet::new));
 
-        // No name, no parallelism, no listener: identity comes from the TaskKey and a single task
-        // has no fan-out to limit, so those fields must not exist rather than be silently ignored.
+        // No name, no parallelism, no listener: identity comes from the Member handle (or the
+        // explicit name at Par.submit) and a single task has no fan-out to limit, so those fields
+        // must not exist rather than be silently ignored.
         assertThat(names)
                 .isEqualTo(new TreeSet<>(
                         Arrays.asList("inheritTimeout", "rejectEnqueue", "runOnCallerThread", "taskType", "timeout")));

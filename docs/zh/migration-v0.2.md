@@ -1,5 +1,10 @@
 # v0.2 迁移指南
 
+> **注意（v0.3）。** 本文描述的 `0.2.x` API 已在 `0.3.0` 中被替换：`ParName`、`TaskKey`、
+> `TaskGroupOptions` 及任务组接口的其余部分已被删除或围绕
+> `defineGroup*` / `submitGroup` / `Bindings` 重设计。仍在使用 `0.2.x` 的应用在完成本文迁移后，
+> 请继续阅读 [v0.3 迁移指南](migration-v0.3.md)。
+
 `0.2.0` 用不可变执行拓扑替代可变配置和运行期 resolver，是一次源码级破坏性迁移。
 
 发布身份同时变更：GitHub 账号由 `huatalk` 改名为 `monadrome`，`io.github.huatalk:parallel-in-scope` 变为 `io.github.monadrome:parallel-in-scope`，根 Java 包 `io.github.huatalk.parallelinscope` 变为 `io.github.monadrome.parallelinscope`。同步更新依赖坐标、import、`package` 声明和 SPI 服务加载名。`0.1.0` 仍以旧坐标发布在 Maven Central 上。
