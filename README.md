@@ -25,12 +25,12 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 
 ```java
 ParRuntime execution = ParRuntime.builder()
-        .register("io", Executors.newFixedThreadPool(8))
+        .register(ParId.of("io"), Executors.newFixedThreadPool(8))
         .build();
 
 BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3)).parallelism(4);
 
-TaskBatchResult<User> result = execution.par("io")
+TaskBatchResult<User> result = execution.par(ParId.of("io"))
         .map(userIds, userService::findById, options);
 ```
 

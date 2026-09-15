@@ -9,7 +9,7 @@ changes several runtime contracts so the library stops doing things on your beha
 so: scope close waits instead of only cancelling, quiescence means body exit rather than future
 completion, checkpoint guards fail instead of skipping, and executor rejection no longer runs your
 code on a thread you did not choose. Batch (`Par.map`) code is unaffected by the group redesign
-except for the `ParName` removal.
+except for the `ParName` rename to `ParId`.
 
 ## At a glance
 
@@ -19,7 +19,7 @@ except for the `ParName` removal.
 | `GlobalParDeadlockPolicy` / `GlobalParPurgePolicy` | `ParRuntimeDeadlockPolicy` / `ParRuntimePurgePolicy` |
 | `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>` (anonymous subclass) | `TaskGroupDefinition.Member<T>` returned by `Builder.task` / `Builder.combine` |
-| `ParName` / `ParName.of(name)` | `String` name at every endpoint |
+| `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`; `Par.name()` → `Par.id()` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
 | `TaskGroupOptions` (name/timeout/listeners) | the `defineGroup*` argument list plus `Builder.closeGrace`; listeners move to `Futures.addCallback` |
 | `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)` (structure only) + `Bindings.task(member, callable)` |
@@ -30,9 +30,10 @@ except for the `ParName` removal.
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `tasks()` / `combine()` | removed; `Member<T>` is the only handle |
 
-The six deleted top-level types have no compatibility aliases: `TaskKey`, `ParName`,
-`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, and `TaskGroupOptions`. The
-`0.x` phase keeps no shims; update imports, declarations, and call sites together.
+The five deleted top-level types have no compatibility aliases: `TaskKey`,
+`CombineFunction`, `CompletedTaskValues`, `TaskGroupListener`, and `TaskGroupOptions`. `ParName`
+is renamed to `ParId` rather than deleted — the executor-lookup boundary keeps a validated value
+type. The `0.x` phase keeps no shims; update imports, declarations, and call sites together.
 
 ## `GlobalPar` is now `ParRuntime`
 
@@ -44,10 +45,10 @@ runtime. Explicit instances are the norm, short-lived ones are legitimate in tes
 
 ```java
 ParRuntime runtime = ParRuntime.builder()
-        .register("io", executor)
+        .register(ParId.of("io"), executor)
         .build();
 
-Par io = runtime.par("io");
+Par io = runtime.par(ParId.of("io"));
 ```
 
 | `0.2.x` | `0.3.0` |
@@ -61,26 +62,27 @@ Par io = runtime.par("io");
 binding, which becomes `Par.executorRuntime()`; it is not public API. `ParRuntime.installGlobal`
 and `ParRuntime.global()` keep their names. There are no compatibility aliases.
 
-## `ParName` is gone: every name is a `String`
+## `ParName` is renamed to `ParId`
 
-Executor lookup and registration revert to bare `String` names. The endpoints that used to take
-or return a `ParName` now take or return `String`:
+The executor-lookup value type stays, under a name that says what it is: the identity of one
+`Par` entry. It is still an immutable, validated value object — construction via
+`ParId.of(String)` rejects null and blank values, values are used verbatim — and it is the only
+way to register or obtain a `Par`:
 
-- `ParRuntime.Builder.register(String, ExecutorService)` still returns `Builder` — it cannot
+- `ParRuntime.Builder.register(ParId, ExecutorService)` still returns `Builder` — it cannot
   return a `Par`, because a `Par`'s owner and runtime do not exist until `ParRuntime` is built.
-- `ParRuntime.Builder.defaultPar(String)` and `parTaskListener(String, TaskListener)`.
-- `ParRuntime.par(String)`, `ParRuntime.find(String)`, `ParRuntime.taskListenersFor(String)`,
-  and `ParRuntime.pars()`, which is now a `Map<String, Par>`.
-- `Par.name()` now returns `String`; drop every `.value()` call.
+- `ParRuntime.Builder.defaultPar(ParId)` and `parTaskListener(ParId, TaskListener)`.
+- `ParRuntime.par(ParId)`, `ParRuntime.find(ParId)`, `ParRuntime.taskListenersFor(ParId)`,
+  and `ParRuntime.pars()`, which is now a `Map<ParId, Par>`.
+- `Par.id()` returns `ParId`, replacing `Par.name()`; call `.value()` only where a raw string
+  is needed.
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` and
-  `combine(String, Par[, TaskOptions])` name the member directly.
+  `combine(String, Par[, TaskOptions])` still name members with plain strings — member names
+  were never `ParName`s.
 
-Validation moved into the endpoints themselves: a `null` name throws `NullPointerException` and
-a blank name throws `IllegalArgumentException` at the call site, in both builder and runtime
-methods. The values are still used verbatim — no trimming or case folding — and the
-`ParRuntime.Builder.build()` consistency checks (default `Par` registered, listener overrides
-registered) are unchanged. A well-formed name still says nothing about registration; unknown
-names fail at `build()` or at `par(name)` exactly as before.
+The `ParRuntime.Builder.build()` consistency checks (default `Par` registered, listener
+overrides registered) are unchanged. A well-formed id still says nothing about registration;
+unknown ids fail at `build()` or at `par(id)` exactly as before.
 
 ```java
 // 0.2.x
@@ -93,11 +95,11 @@ String name = io.name().value();
 
 // 0.3.0
 ParRuntime global = ParRuntime.builder()
-        .register("io", ioPool)
-        .defaultPar("io")
+        .register(ParId.of("io"), ioPool)
+        .defaultPar(ParId.of("io"))
         .build();
-Par io = global.par("io");
-String name = io.name();
+Par io = global.par(ParId.of("io"));
+ParId id = io.id();
 ```
 
 ## The three phases

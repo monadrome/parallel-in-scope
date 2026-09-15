@@ -318,7 +318,7 @@ public final class TaskGroup implements AutoCloseable {
                         start,
                         observation,
                         par.executorIdentity(),
-                        par.name());
+                        par.id().value());
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 // The payload moves into the prepared future here; the RunBindings slot is cleared
@@ -362,7 +362,7 @@ public final class TaskGroup implements AutoCloseable {
                         start,
                         observation,
                         par.executorIdentity(),
-                        par.name());
+                        par.id().value());
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineContext values = new CombineContext(combineSlot.handle, handles);

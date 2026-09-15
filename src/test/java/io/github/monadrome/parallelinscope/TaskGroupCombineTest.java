@@ -24,16 +24,18 @@ class TaskGroupCombineTest {
     void combineRunsOnceOnItsOwnExecutorAfterAllMembersSucceed() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(2);
         ExecutorService cpu = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register("io", io).register("cpu", cpu).build();
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("io"), io)
+                .register(ParId.of("cpu"), cpu)
+                .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             AtomicReference<String> combineThread = new AtomicReference<>();
             AtomicReference<String> combineTask = new AtomicReference<>();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("io"));
-            TaskGroupDefinition.Member<List<String>> orders = builder.task("orders", global.par("io"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("cpu"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("io")));
+            TaskGroupDefinition.Member<List<String>> orders = builder.task("orders", global.par(ParId.of("io")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("cpu")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
@@ -69,12 +71,13 @@ class TaskGroupCombineTest {
     @Test
     void memberFailureSkipsCombineAndTerminatesTerminalFuture() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> failure = builder.task("failure", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> failure = builder.task("failure", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
@@ -105,11 +108,12 @@ class TaskGroupCombineTest {
     @Test
     void combineFailureIsAttributedToTheCombineNotAMember() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
@@ -140,14 +144,14 @@ class TaskGroupCombineTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("worker", executor)
-                .register("rejecting", rejecting)
+                .register(ParId.of("worker"), executor)
+                .register(ParId.of("rejecting"), rejecting)
                 .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("rejecting"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("rejecting")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroupResult result = global.submitGroup(definition, bindings -> {
@@ -181,16 +185,16 @@ class TaskGroupCombineTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
         ParRuntime global = ParRuntime.builder()
-                .register("worker", executor)
-                .register("rejecting", rejecting)
+                .register(ParId.of("worker"), executor)
+                .register(ParId.of("rejecting"), rejecting)
                 .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
             TaskGroupDefinition.Member<String> page = builder.combine(
                     "assemble",
-                    global.par("rejecting"),
+                    global.par(ParId.of("rejecting")),
                     TaskOptions.inheritTimeout().runOnCallerThread(true));
             TaskGroupDefinition definition = builder.build();
 
@@ -255,13 +259,14 @@ class TaskGroupCombineTest {
     @Test
     void groupCancelSkipsUnstartedCombine() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch running = new CountDownLatch(1);
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<Integer> slow = builder.task("slow", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<Integer> slow = builder.task("slow", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
@@ -292,12 +297,13 @@ class TaskGroupCombineTest {
     @Test
     void combineOwnDeadlineEscalatesToGroupTimeout() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
-            TaskGroupDefinition.Member<String> page =
-                    builder.combine("assemble", global.par("worker"), TaskOptions.timeout(Duration.ofMillis(100)));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine(
+                    "assemble", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofMillis(100)));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroupResult result = global.submitGroup(definition, bindings -> {
@@ -322,10 +328,11 @@ class TaskGroupCombineTest {
     @Test
     void emptyGroupSubmitsCombineInsideTheSubmitFlow() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("empty", TIMEOUT);
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> bindings.combine(page, values -> "assembled"));
@@ -344,17 +351,18 @@ class TaskGroupCombineTest {
     @Test
     void combineContextEnforcesTheHandleContract() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             AtomicReference<Throwable> unknownRef = new AtomicReference<>();
             AtomicReference<Throwable> selfRef = new AtomicReference<>();
             AtomicReference<Throwable> foreignRef = new AtomicReference<>();
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
-            TaskGroupDefinition.Member<Integer> count = builder.task("count", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<Integer> count = builder.task("count", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition.Member<Integer> foreign =
-                    global.defineGroup("other", TIMEOUT).task("count", global.par("worker"));
+                    global.defineGroup("other", TIMEOUT).task("count", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {
@@ -384,10 +392,10 @@ class TaskGroupCombineTest {
         // Declared in a definition that was never submitted: a handle that cannot resolve in the
         // "page" definition, rejected by identity.
         ParRuntime owner = ParRuntime.builder()
-                .register("p", Executors.newSingleThreadExecutor())
+                .register(ParId.of("p"), Executors.newSingleThreadExecutor())
                 .build();
         try {
-            return owner.defineGroup("unused", TIMEOUT).task("ghost", owner.par("p"));
+            return owner.defineGroup("unused", TIMEOUT).task("ghost", owner.par(ParId.of("p")));
         } finally {
             owner.close();
         }
@@ -396,23 +404,24 @@ class TaskGroupCombineTest {
     @Test
     void combineDeclarationIsValidatedEarly() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            builder.task("user", global.par("worker"));
+            builder.task("user", global.par(ParId.of("worker")));
 
-            assertThatThrownBy(() -> builder.combine(null, global.par("worker")))
+            assertThatThrownBy(() -> builder.combine(null, global.par(ParId.of("worker"))))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> builder.combine("assemble", null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> builder.combine(" ", global.par("worker")))
+            assertThatThrownBy(() -> builder.combine(" ", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class);
 
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             // One combine per group: any further combine() fails at configuration time, before
             // name or owner validation.
-            assertThatThrownBy(() -> builder.combine("user", global.par("worker")))
+            assertThatThrownBy(() -> builder.combine("user", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> builder.combine("second", global.par("worker")))
+            assertThatThrownBy(() -> builder.combine("second", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalStateException.class);
             assertThat(builder.build().combineSlot().handle).isSameAs(page);
         } finally {
@@ -424,10 +433,11 @@ class TaskGroupCombineTest {
     @Test
     void omittedCombineOptionsDefaultToAnInheritedTimeout() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            builder.combine("assemble", global.par("worker"));
+            builder.combine("assemble", global.par(ParId.of("worker")));
 
             TaskGroupDefinition built = builder.build();
 
@@ -445,14 +455,15 @@ class TaskGroupCombineTest {
     @Test
     void aMemberDeclaredAfterTheCombineCannotReuseItsName() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            builder.combine("assemble", global.par("worker"));
+            builder.combine("assemble", global.par(ParId.of("worker")));
 
             // The combine owns its name for the rest of the builder's life, in either declaration
             // order; a collision would leave the combine's future unreachable through its handle.
-            assertThatThrownBy(() -> builder.task("assemble", global.par("worker")))
+            assertThatThrownBy(() -> builder.task("assemble", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Duplicate name 'assemble'");
             assertThat(builder.build().members()).isEmpty();
@@ -465,14 +476,15 @@ class TaskGroupCombineTest {
     @Test
     void aCombineDeclaredAfterAMemberCannotReuseItsName() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            builder.task("assemble", global.par("worker"));
+            builder.task("assemble", global.par(ParId.of("worker")));
 
             // The name-uniqueness rule is symmetric: a combine declared after a member cannot take
             // the member's name either, and the failed declaration leaves no combine behind.
-            assertThatThrownBy(() -> builder.combine("assemble", global.par("worker")))
+            assertThatThrownBy(() -> builder.combine("assemble", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Duplicate name 'assemble'");
             assertThat(builder.build().combineSlot()).isNull();
@@ -486,13 +498,14 @@ class TaskGroupCombineTest {
     @Test
     void groupDeadlineCoversTheCombineExecutionWithoutResettingTheBudget() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             // The members finish quickly; the combine then sleeps past the group deadline: the
             // group reports TIMEOUT, proving the fan-out wait and the combine share one budget.
             TaskGroupDefinition.Builder builder = global.defineGroup("page", Duration.ofMillis(100));
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroupResult result = global.submitGroup(definition, bindings -> {
@@ -517,13 +530,14 @@ class TaskGroupCombineTest {
     @Test
     void combineMayBeDeclaredBeforeTheMembers() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().register("worker", executor).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             // Declaration order is free; execution always places the terminal combine after every
             // plain member, however the builder calls were ordered.
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
-            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par("worker"));
-            TaskGroupDefinition.Member<String> user = builder.task("user", global.par("worker"));
+            TaskGroupDefinition.Member<String> page = builder.combine("assemble", global.par(ParId.of("worker")));
+            TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
             TaskGroupDefinition definition = builder.build();
 
             TaskGroup group = global.submitGroup(definition, bindings -> {

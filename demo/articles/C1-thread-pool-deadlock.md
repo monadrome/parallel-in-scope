@@ -46,8 +46,8 @@ ExecutorService outerPool = Executors.newFixedThreadPool(2);
 ExecutorService innerPool = Executors.newCachedThreadPool();
 
 ParRuntime config = ParRuntime.builder()
-        .register("outer-pool", outerPool)
-        .register("inner-pool", innerPool)
+        .register(ParId.of("outer-pool"), outerPool)
+        .register(ParId.of("inner-pool"), innerPool)
         .build();
 Par par = config.defaultPar();
 

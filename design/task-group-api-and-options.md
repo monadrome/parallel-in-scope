@@ -65,9 +65,9 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 `TaskGroup.Bindings` 承载：
 
 ```java
-Par userPar = global.par("user");
-Par orderPar = global.par("order");
-Par inventoryPar = global.par("inventory");
+Par userPar = global.par(ParId.of("user"));
+Par orderPar = global.par(ParId.of("order"));
+Par inventoryPar = global.par(ParId.of("inventory"));
 
 TaskGroupDefinition.Builder builder =
         global.defineGroup("account-page", Duration.ofSeconds(3))
@@ -105,8 +105,8 @@ public final class ParRuntime implements AutoCloseable {
             TaskGroupDefinition definition,
             Consumer<? super TaskGroup.Bindings> binder);
 
-    public Par par(String name);
-    public Optional<Par> find(String name);
+    public Par par(ParId id);
+    public Optional<Par> find(ParId id);
 }
 
 public final class TaskGroupDefinition {

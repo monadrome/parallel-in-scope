@@ -2,6 +2,7 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
@@ -20,7 +21,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>问题：多个 ExecutorService 实例类型相同，传错池编译器不报错，运行时才发现。
  *
- * <p>解决：ParRuntime.builder().register("name", pool) 命名注册，par.map(...) 按名引用。
+ * <p>解决：ParRuntime.builder().register(ParId.of("name"), pool) 命名注册，par.map(...) 按名引用。
  */
 class G4_NamedExecutorPoolTest {
 
@@ -103,12 +104,12 @@ class G4_NamedExecutorPoolTest {
         try {
             // 命名注册：一个 ParRuntime 统一管理多个线程池
             ParRuntime config = ParRuntime.builder()
-                    .register("io-pool", ioPool)
-                    .register("cpu-pool", cpuPool)
-                    .defaultPar("io-pool")
+                    .register(ParId.of("io-pool"), ioPool)
+                    .register(ParId.of("cpu-pool"), cpuPool)
+                    .defaultPar(ParId.of("io-pool"))
                     .build();
-            Par par = config.par("io-pool");
-            Par cpuPar = config.par("cpu-pool");
+            Par par = config.par(ParId.of("io-pool"));
+            Par cpuPar = config.par(ParId.of("cpu-pool"));
 
             List<String> items = Arrays.asList("a", "b", "c", "d", "e");
 
@@ -152,7 +153,7 @@ class G4_NamedExecutorPoolTest {
 
             // 验证名字不匹配时直接报错，而不是静默地跑在错误的池上
             try {
-                config.par("nonexistent-pool").map(items, item -> item, ioOpts);
+                config.par(ParId.of("nonexistent-pool")).map(items, item -> item, ioOpts);
                 // 应该抛异常，不会走到这里
                 assertThat(false).as("应抛出 IllegalArgumentException").isTrue();
             } catch (IllegalArgumentException e) {
