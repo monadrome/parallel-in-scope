@@ -7,8 +7,7 @@
 | 文档 | 内容 |
 |---|---|
 | [完整使用指南](user-guide.md) | 配置、公共 API、执行语义和进阶能力 |
-| [v0.3 迁移指南](migration-v0.3.md) | 从 `0.2.x` 迁移：运行期契约变化 |
-| [TaskGroup v0.3 改动总结](group-changes-v0.3.md) | 任务组 API 为何以及如何变成三阶段生命周期 |
+| [v0.3 迁移指南](migration-v0.3.md) | 从 `0.2.x` 迁移：任务组三阶段生命周期与运行期契约变化 |
 | [v0.2 迁移指南](migration-v0.2.md) | 从 `0.1.x` 迁移到当前 API |
 | [5 分钟快速上手](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/zh-CN/articles/QUICK-START-5-minutes.md) | 用最小示例完成首次调用 |
 | [批量调用最佳实践](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/zh-CN/articles/BATCH-best-practices.md) | HTTP、数据库和混合 IO 场景 |
