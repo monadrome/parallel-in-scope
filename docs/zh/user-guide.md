@@ -205,6 +205,8 @@ ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
 
 不同 `ParRuntime` 的观测作用域不会合并任务图。
 
+`TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的检测事件中，各标志与渲染文本来自同一份一致的请求图快照。
+
 ## 清理已取消的排队任务
 
 purge 是可选能力，仅在 supplied executor 是 `ThreadPoolExecutor` 时生效。执行前取消会发出 execution phase 信号；`ParRuntime` 按物理执行器 identity 合并维护任务，因此同一线程池的别名或多个 `Par` 不会创建重复协调器。
