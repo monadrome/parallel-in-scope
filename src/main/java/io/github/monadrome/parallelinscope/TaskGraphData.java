@@ -1,14 +1,17 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.graph.ElementOrder;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,11 +39,13 @@ final class TaskGraphData {
     final BlockingQueue<TaskEdgeEntry> subTaskList = new LinkedTransferQueue<>();
     private final Map<String, String> nodeLabels = new ConcurrentHashMap<>();
 
-    private volatile ValueGraph<String, List<TaskEdge>> graph;
-    private volatile ValueGraph<String, List<TaskEdge>> executorGraph;
-    private volatile ValueGraph<ExecutorIdentity, List<TaskEdge>> executorIdentityGraph;
-    private volatile Boolean taskCycle;
-    private volatile Boolean selfLoop;
+    private final Supplier<ValueGraph<String, List<TaskEdge>>> graph = Suppliers.memoize(this::generateGraph);
+    private final Supplier<ValueGraph<String, List<TaskEdge>>> executorGraph =
+            Suppliers.memoize(this::generateExecutorGraph);
+    private final Supplier<ValueGraph<ExecutorIdentity, List<TaskEdge>>> executorIdentityGraph =
+            Suppliers.memoize(this::generateExecutorIdentityGraph);
+    private final Supplier<Boolean> taskCycle = Suppliers.memoize(this::checkTaskCycle);
+    private final Supplier<Boolean> selfLoop = Suppliers.memoize(this::checkSelfLoop);
 
     /** Creates an empty request-scoped graph. */
     public TaskGraphData() {}
@@ -51,14 +56,7 @@ final class TaskGraphData {
      * @return the task dependency graph
      */
     public ValueGraph<String, List<TaskEdge>> graph() {
-        if (graph == null) {
-            synchronized (this) {
-                if (graph == null) {
-                    graph = generateGraph();
-                }
-            }
-        }
-        return graph;
+        return graph.get();
     }
 
     /**
@@ -67,10 +65,7 @@ final class TaskGraphData {
      * @return {@code true} when a task cycle exists
      */
     public boolean taskCycle() {
-        if (taskCycle == null) {
-            taskCycle = checkTaskCycle();
-        }
-        return taskCycle;
+        return taskCycle.get();
     }
 
     /**
@@ -79,10 +74,7 @@ final class TaskGraphData {
      * @return {@code true} when a task self-loop exists
      */
     public boolean selfLoop() {
-        if (selfLoop == null) {
-            selfLoop = checkSelfLoop();
-        }
-        return selfLoop;
+        return selfLoop.get();
     }
 
     /**
@@ -92,14 +84,7 @@ final class TaskGraphData {
      * @return executor dependency graph
      */
     public ValueGraph<String, List<TaskEdge>> executorGraph() {
-        if (executorGraph == null) {
-            synchronized (this) {
-                if (executorGraph == null) {
-                    executorGraph = generateExecutorGraph();
-                }
-            }
-        }
-        return executorGraph;
+        return executorGraph.get();
     }
 
     /**
@@ -131,14 +116,7 @@ final class TaskGraphData {
 
     /** Returns the memoized identity-keyed executor graph used for cycle and self-loop detection. */
     private ValueGraph<ExecutorIdentity, List<TaskEdge>> executorIdentityGraph() {
-        if (executorIdentityGraph == null) {
-            synchronized (this) {
-                if (executorIdentityGraph == null) {
-                    executorIdentityGraph = generateExecutorIdentityGraph();
-                }
-            }
-        }
-        return executorIdentityGraph;
+        return executorIdentityGraph.get();
     }
 
     /** Records one parent-to-child edge. Batch IDs, not reusable task names, keep nodes distinct. */
@@ -155,13 +133,14 @@ final class TaskGraphData {
     }
 
     ValueGraph<String, List<TaskEdge>> generateGraph() {
-        Map<EndpointPair<String>, List<TaskEdge>> edgeMap = new LinkedHashMap<>();
+        ListMultimap<EndpointPair<String>, TaskEdge> edgeMap = LinkedListMultimap.create();
         for (TaskEdgeEntry entry : subTaskList) {
-            edgeMap.computeIfAbsent(entry.edge(), k -> new ArrayList<>()).add(entry.value());
+            edgeMap.put(entry.edge(), entry.value());
         }
         ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
                 ValueGraphBuilder.directed().allowsSelfLoops(true).immutable();
-        for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : edgeMap.entrySet()) {
+        for (Map.Entry<EndpointPair<String>, Collection<TaskEdge>> entry :
+                edgeMap.asMap().entrySet()) {
             graphBuilder.putEdgeValue(
                     entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
@@ -184,7 +163,7 @@ final class TaskGraphData {
     }
 
     ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
-        Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
+        ListMultimap<EndpointPair<String>, TaskEdge> executorEdges = LinkedListMultimap.create();
 
         for (EndpointPair<String> taskEdgePair : graph().edges()) {
             List<TaskEdge> edges = Objects.requireNonNull(
@@ -196,9 +175,7 @@ final class TaskGraphData {
                     continue;
                 }
                 EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
-                executorEdges
-                        .computeIfAbsent(executorPair, k -> new ArrayList<>())
-                        .add(taskEdge);
+                executorEdges.put(executorPair, taskEdge);
             }
         }
 
@@ -206,7 +183,8 @@ final class TaskGraphData {
                 .allowsSelfLoops(true)
                 .incidentEdgeOrder(ElementOrder.stable())
                 .immutable();
-        for (Map.Entry<EndpointPair<String>, List<TaskEdge>> entry : executorEdges.entrySet()) {
+        for (Map.Entry<EndpointPair<String>, Collection<TaskEdge>> entry :
+                executorEdges.asMap().entrySet()) {
             graphBuilder.putEdgeValue(
                     entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
@@ -214,7 +192,7 @@ final class TaskGraphData {
     }
 
     private ValueGraph<ExecutorIdentity, List<TaskEdge>> generateExecutorIdentityGraph() {
-        Map<EndpointPair<ExecutorIdentity>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
+        ListMultimap<EndpointPair<ExecutorIdentity>, TaskEdge> executorEdges = LinkedListMultimap.create();
         for (TaskEdgeEntry entry : subTaskList) {
             TaskEdge edge = entry.value();
             if (!edge.executorDeadlockProne()
@@ -224,13 +202,14 @@ final class TaskGraphData {
             }
             EndpointPair<ExecutorIdentity> pair =
                     EndpointPair.ordered(edge.sourceExecutorIdentity(), edge.executorIdentity());
-            executorEdges.computeIfAbsent(pair, k -> new ArrayList<>()).add(edge);
+            executorEdges.put(pair, edge);
         }
         ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder = ValueGraphBuilder.directed()
                 .allowsSelfLoops(true)
                 .incidentEdgeOrder(ElementOrder.stable())
                 .immutable();
-        for (Map.Entry<EndpointPair<ExecutorIdentity>, List<TaskEdge>> entry : executorEdges.entrySet()) {
+        for (Map.Entry<EndpointPair<ExecutorIdentity>, Collection<TaskEdge>> entry :
+                executorEdges.asMap().entrySet()) {
             builder.putEdgeValue(
                     entry.getKey().source(), entry.getKey().target(), ImmutableList.copyOf(entry.getValue()));
         }
