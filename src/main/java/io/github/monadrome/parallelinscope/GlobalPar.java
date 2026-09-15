@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -51,12 +52,12 @@ import java.util.logging.Logger;
 public final class GlobalPar implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(GlobalPar.class.getName());
     private static final AtomicReference<GlobalPar> INSTALLED = new AtomicReference<>();
-    private final Map<ParName, Par> pars;
-    private final Map<ParName, ExecutorRuntime> runtimes;
+    private final Map<String, Par> pars;
+    private final Map<String, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
-    private final ParName defaultName;
+    private final String defaultName;
     private final List<TaskListener> taskListeners;
-    private final Map<ParName, List<TaskListener>> taskListenerOverrides;
+    private final Map<String, List<TaskListener>> taskListenerOverrides;
     private final GlobalParDeadlockPolicy deadlockPolicy;
     private final GlobalParPurgePolicy purgePolicy;
     private final HeuristicPurger purger;
@@ -72,8 +73,8 @@ public final class GlobalPar implements AutoCloseable {
 
     private GlobalPar(Builder builder) {
         this.taskListeners = ImmutableList.copyOf(builder.taskListeners);
-        Map<ParName, List<TaskListener>> overrides = new LinkedHashMap<>();
-        for (Map.Entry<ParName, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
+        Map<String, List<TaskListener>> overrides = new LinkedHashMap<>();
+        for (Map.Entry<String, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
             overrides.put(entry.getKey(), ImmutableList.copyOf(entry.getValue()));
         }
         this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
@@ -91,10 +92,10 @@ public final class GlobalPar implements AutoCloseable {
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
         this.defaultName = builder.defaultName;
-        Map<ParName, Par> builtPars = new LinkedHashMap<>();
-        Map<ParName, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
+        Map<String, Par> builtPars = new LinkedHashMap<>();
+        Map<String, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
-        for (Map.Entry<ParName, ExecutorService> entry : builder.executors.entrySet()) {
+        for (Map.Entry<String, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
@@ -147,6 +148,17 @@ public final class GlobalPar implements AutoCloseable {
         return value;
     }
 
+    /**
+     * Validates one logical {@link Par} name at a public endpoint: non-null and non-blank, matching
+     * the boundary the removed {@code ParName.of} provided. The value is used verbatim — no
+     * trimming, lower-casing, or other normalization.
+     */
+    static String requireValidParName(String name) {
+        Objects.requireNonNull(name, "name cannot be null");
+        if (name.trim().isEmpty()) throw new IllegalArgumentException("Par name cannot be blank");
+        return name;
+    }
+
     public Par defaultPar() {
         if (defaultName == null) throw new IllegalStateException("GlobalPar has no default Par");
         return par(defaultName);
@@ -155,17 +167,18 @@ public final class GlobalPar implements AutoCloseable {
     /**
      * Returns the {@link Par} registered under the given name.
      *
-     * @throws IllegalArgumentException if no entry is registered under {@code name}
+     * @throws NullPointerException if {@code name} is null
+     * @throws IllegalArgumentException if {@code name} is blank or no entry is registered under it
      */
-    public Par par(ParName name) {
-        Par value = pars.get(Objects.requireNonNull(name, "name cannot be null"));
+    public Par par(String name) {
+        Par value = pars.get(requireValidParName(name));
         if (value == null) throw new IllegalArgumentException("No Par registered with name '" + name + "'");
         return value;
     }
 
     /** Returns the {@link Par} registered under the given name, or empty when none is. */
-    public Optional<Par> find(ParName name) {
-        return Optional.ofNullable(pars.get(Objects.requireNonNull(name, "name cannot be null")));
+    public Optional<Par> find(String name) {
+        return Optional.ofNullable(pars.get(requireValidParName(name)));
     }
 
     /**
@@ -181,8 +194,8 @@ public final class GlobalPar implements AutoCloseable {
      * Returns the immutable listener list for the named {@link Par}: its override when one was
      * configured, otherwise the default {@link #taskListeners()}.
      */
-    public List<TaskListener> taskListenersFor(ParName name) {
-        List<TaskListener> override = taskListenerOverrides.get(Objects.requireNonNull(name, "name cannot be null"));
+    public List<TaskListener> taskListenersFor(String name) {
+        List<TaskListener> override = taskListenerOverrides.get(requireValidParName(name));
         return override == null ? taskListeners : override;
     }
 
@@ -195,12 +208,12 @@ public final class GlobalPar implements AutoCloseable {
     }
 
     /** Returns the immutable name-to-entry topology; names are the registration keys. */
-    public Map<ParName, Par> pars() {
+    public Map<String, Par> pars() {
         return pars;
     }
 
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
-    Map<ParName, ExecutorRuntime> runtimes() {
+    Map<String, ExecutorRuntime> runtimes() {
         return runtimes;
     }
 
@@ -231,6 +244,118 @@ public final class GlobalPar implements AutoCloseable {
      */
     public TaskGraphObservationScope openTaskGraphObservation() {
         return whileOpen(() -> new TaskGraphObservationScope(this));
+    }
+
+    /**
+     * Starts configuring a task group with an explicit group timeout.
+     *
+     * <p>The returned builder accepts only {@link Par}s belonging to this {@code GlobalPar} and
+     * produces an immutable, reusable, structure-only {@link TaskGroupDefinition}: it holds names,
+     * declaration order, resolved {@code Par}s, and {@link TaskOptions} — never a {@code Callable}
+     * or combine body, which are supplied per submission through {@link TaskGroup.Bindings}. The
+     * group timeout is a forced explicit choice: use this entry for an explicit budget, or {@link
+     * #defineGroupInheriting(String)} for a nested group that inherits an enclosing scoped task's
+     * deadline.
+     *
+     * @param groupName the group name; diagnostics and result identity
+     * @param timeout the group's explicit execution budget, positive
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is blank or the timeout is not positive
+     */
+    public TaskGroupDefinition.Builder defineGroup(String groupName, java.time.Duration timeout) {
+        return new TaskGroupDefinition.Builder(this, requireValidGroupName(groupName), requirePositiveTimeout(timeout));
+    }
+
+    /**
+     * Starts configuring a task group that inherits its deadline from an enclosing scoped task at
+     * submission time.
+     *
+     * <p>Submitting the built definition from a thread with no enclosing scoped task fails at run
+     * preparation with {@link IllegalArgumentException}; no {@link TaskGroup} or future is
+     * created. See {@link #defineGroup(String, java.time.Duration)} for the general contract.
+     *
+     * @param groupName the group name; diagnostics and result identity
+     * @throws NullPointerException if {@code groupName} is null
+     * @throws IllegalArgumentException if the name is blank
+     */
+    public TaskGroupDefinition.Builder defineGroupInheriting(String groupName) {
+        return new TaskGroupDefinition.Builder(this, requireValidGroupName(groupName), null);
+    }
+
+    /**
+     * Freezes one submission of {@code definition} and submits every member at one boundary.
+     *
+     * <p>The {@code binder} runs synchronously on the calling thread, exactly once, before any
+     * admission: it registers this run's {@code Callable}s and combine body on the one-shot {@link
+     * TaskGroup.Bindings}. The bindings freeze when the binder returns: every plain member must
+     * have exactly one {@code Callable}, and a declared combine exactly one {@link
+     * TaskGroup.CombineBody} — a missing, duplicate, foreign, or wrong-kind binding, a null body,
+     * or a binder failure rejects the whole submission before admission, runs no user code, and
+     * releases every registered body. The unified submit start — structural parent, deadline
+     * ceiling, TTL and observation snapshots — is resolved only after the binder returns, so slow
+     * binding never consumes the group's execution budget and inherited-deadline errors surface
+     * before any body can run.
+     *
+     * <p>The whole preparation is one admission against {@link #close()}: either the group is
+     * accepted completely or rejected completely, never partially. A group accepted before the
+     * topology closes converges fully; runtime failures (member failure, rejection, timeout,
+     * cancellation) are reported through the member futures and {@link TaskGroupResult}, not by
+     * throwing from this method.
+     *
+     * @param definition the immutable group structure, created by this {@code GlobalPar}
+     * @param binder registers this run's bodies; invoked synchronously on the calling thread
+     * @return the running group, holding the complete member registry
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the definition belongs to a different {@code GlobalPar},
+     *     carries an inherited timeout with no enclosing scoped task, or the frozen bindings are
+     *     incomplete or invalid
+     * @throws IllegalStateException if this {@code GlobalPar} has begun shutdown, or the binder
+     *     reentered or leaked its bindings
+     */
+    public TaskGroup submitGroup(TaskGroupDefinition definition, Consumer<? super TaskGroup.Bindings> binder) {
+        Objects.requireNonNull(definition, "definition cannot be null");
+        Objects.requireNonNull(binder, "binder cannot be null");
+        if (definition.owner() != this) {
+            throw new IllegalArgumentException(
+                    "definition '" + definition.name() + "' belongs to a different GlobalPar");
+        }
+        if (closed.get()) {
+            throw new IllegalStateException("GlobalPar is closed");
+        }
+        TaskGroup.Bindings bindings = new TaskGroup.Bindings(definition);
+        try {
+            binder.accept(bindings);
+        } catch (RuntimeException | Error failure) {
+            // No admission, no future, no executor call: release whatever the binder registered.
+            bindings.discard();
+            throw failure;
+        }
+        TaskGroup.RunBindings payloads = bindings.freeze();
+        try {
+            TaskGroup group = whileOpen(() -> TaskGroup.prepare(this, definition, payloads));
+            group.start(this);
+            group.submitPrepared();
+            return group;
+        } catch (RuntimeException | Error failure) {
+            // Admission or preparation failed: futures already prepared were cancelled inside
+            // prepare (which releases the bodies the kernel took); clear whatever was never taken.
+            payloads.discard();
+            throw failure;
+        }
+    }
+
+    private static String requireValidGroupName(String name) {
+        Objects.requireNonNull(name, "groupName cannot be null");
+        if (name.trim().isEmpty()) throw new IllegalArgumentException("Group name cannot be blank");
+        return name;
+    }
+
+    private static java.time.Duration requirePositiveTimeout(java.time.Duration timeout) {
+        Objects.requireNonNull(timeout, "timeout cannot be null");
+        if (timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("timeout must be positive when configured");
+        }
+        return timeout;
     }
 
     /**
@@ -460,14 +585,14 @@ public final class GlobalPar implements AutoCloseable {
     }
 
     public static final class Builder {
-        private final Map<ParName, ExecutorService> executors = new LinkedHashMap<>();
+        private final Map<String, ExecutorService> executors = new LinkedHashMap<>();
         private final List<TaskListener> taskListeners = new ArrayList<>();
-        private final Map<ParName, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
+        private final Map<String, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
         private GlobalParDeadlockPolicy deadlockPolicy =
                 GlobalParDeadlockPolicy.builder().build();
         private GlobalParPurgePolicy purgePolicy =
                 GlobalParPurgePolicy.builder().build();
-        private ParName defaultName;
+        private String defaultName;
 
         /**
          * Appends a task listener to the default list shared by every {@link Par} without an
@@ -481,12 +606,12 @@ public final class GlobalPar implements AutoCloseable {
         /**
          * Appends a task listener to the override list of the named {@link Par}, replacing the
          * default list for that entry. May be called repeatedly with the same name to register
-         * several listeners; the name must be {@link #register(ParName, ExecutorService)
+         * several listeners; the name must be {@link #register(String, ExecutorService)
          * registered} before {@link #build()}.
          */
-        public Builder parTaskListener(ParName name, TaskListener listener) {
+        public Builder parTaskListener(String name, TaskListener listener) {
             taskListenerOverrides
-                    .computeIfAbsent(Objects.requireNonNull(name, "name cannot be null"), key -> new ArrayList<>())
+                    .computeIfAbsent(requireValidParName(name), key -> new ArrayList<>())
                     .add(Objects.requireNonNull(listener));
             return this;
         }
@@ -504,21 +629,22 @@ public final class GlobalPar implements AutoCloseable {
         /**
          * Registers a logical entry with one exact executor object.
          *
-         * <p>The name is only a build-time lookup and diagnostic label; it is validated by {@link
-         * ParName#of(String)} rather than here. Executor sharing is instead detected by object
-         * identity, so two names may intentionally use the same physical pool.
+         * <p>The name is only a build-time lookup and diagnostic label; it is validated here
+         * (non-null, non-blank) rather than by a name object. Executor sharing is instead detected
+         * by object identity, so two names may intentionally use the same physical pool.
          */
-        public Builder register(ParName name, ExecutorService executor) {
-            Objects.requireNonNull(name, "name cannot be null");
-            if (executors.containsKey(name)) throw new IllegalArgumentException("Duplicate Par name '" + name + "'");
-            executors.put(name, Objects.requireNonNull(executor));
+        public Builder register(String name, ExecutorService executor) {
+            String validName = requireValidParName(name);
+            if (executors.containsKey(validName))
+                throw new IllegalArgumentException("Duplicate Par name '" + name + "'");
+            executors.put(validName, Objects.requireNonNull(executor));
             return this;
         }
 
-        public Builder defaultPar(ParName name) {
-            Objects.requireNonNull(name, "name cannot be null");
+        public Builder defaultPar(String name) {
+            String validName = requireValidParName(name);
             if (defaultName != null) throw new IllegalStateException("default Par already configured");
-            defaultName = name;
+            defaultName = validName;
             return this;
         }
 
@@ -526,7 +652,7 @@ public final class GlobalPar implements AutoCloseable {
             if (defaultName != null && !executors.containsKey(defaultName)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultName);
             }
-            for (ParName name : taskListenerOverrides.keySet()) {
+            for (String name : taskListenerOverrides.keySet()) {
                 if (!executors.containsKey(name)) {
                     throw new IllegalArgumentException("task listener override is not registered: " + name);
                 }

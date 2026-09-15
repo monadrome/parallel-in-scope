@@ -3,7 +3,6 @@ package demo.basic;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -33,12 +32,12 @@ public class BasicParDemo {
 
         // 2. 创建 GlobalPar 并注册执行器
         GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("demo-pool"), pool)
-                .defaultPar(ParName.of("demo-pool"))
+                .register("demo-pool", pool)
+                .defaultPar("demo-pool")
                 .build();
 
         // 3. 创建 Par 实例
-        Par par = global.par(ParName.of("demo-pool"));
+        Par par = global.par("demo-pool");
 
         try {
             // 4. 准备数据

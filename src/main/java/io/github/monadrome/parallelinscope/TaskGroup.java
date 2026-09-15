@@ -3,24 +3,22 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.monadrome.parallelinscope.TaskGroupListener.TaskGroupEvent;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
@@ -28,15 +26,17 @@ import javax.annotation.Nullable;
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
  *
  * <p>A group is described by a reusable {@link TaskGroupDefinition} and submitted via {@link
- * #submit(GlobalPar, TaskGroupDefinition)}, which builds, starts, and submits all members in one call.
- * Member futures are looked up by name ({@link #members()}, {@link #findMember(String)}) or through
- * the typed {@link TaskKey} keys registered while configuring the definition ({@link #future(TaskKey)}).
+ * GlobalPar#submitGroup(TaskGroupDefinition, java.util.function.Consumer)}, which binds this run's
+ * bodies, builds, starts, and submits all members in one call. Member futures are looked up by
+ * name ({@link #members()}, {@link #findMember(String)}) or through the typed {@link
+ * TaskGroupDefinition.Member} handles declared while configuring the definition ({@link
+ * #future(TaskGroupDefinition.Member)}).
  *
- * <p>A definition may declare one terminal combine: a real scoped task that depends on every member.
- * Its key, execution context, and TTL snapshot are prepared at submit like a member's, but it is
- * submitted to its own {@code Par} only after all members succeed, and the group completes only when
- * its future is terminal. Its future resolves through {@link #future(TaskKey)} like a member's, yet
- * it is not part of {@link #members()}.
+ * <p>A definition may declare one terminal combine: a real scoped task that depends on every
+ * member. Its handle, execution context, and TTL snapshot are prepared at submit like a member's,
+ * but it is submitted to its own {@code Par} only after all members succeed, and the group
+ * completes only when its future is terminal. Its future resolves through {@link
+ * #future(TaskGroupDefinition.Member)} like a member's, yet it is not part of {@link #members()}.
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
  * deadline, or any single member deadline cancels every unfinished member. All outcomes are
@@ -57,8 +57,8 @@ public final class TaskGroup implements AutoCloseable {
     private final String groupName;
     private final long startTimeNanos;
     private final long deadlineNanos;
-    private final List<TaskGroupListener> listeners;
     private final Map<String, MemberState> memberStates;
+    private final Map<TaskGroupDefinition.Member<?>, MemberState> handles;
     private final @Nullable MemberState terminal;
     private final Map<String, TaskFuture<?>> members;
     private final SettableFuture<TaskGroupResult> completion = SettableFuture.create();
@@ -78,20 +78,20 @@ public final class TaskGroup implements AutoCloseable {
             String groupName,
             long startTimeNanos,
             long deadlineNanos,
-            List<TaskGroupListener> listeners,
             CancellationToken groupToken,
             Map<String, MemberState> memberStates,
+            Map<TaskGroupDefinition.Member<?>, MemberState> handles,
             @Nullable MemberState terminal,
             BodyCompletionTracker bodyCompletion,
             @Nullable Duration closeGrace) {
         this.groupName = groupName;
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
-        this.listeners = listeners;
         this.groupToken = groupToken;
         this.bodyCompletion = bodyCompletion;
         this.closeGrace = closeGrace;
         this.memberStates = new LinkedHashMap<>(memberStates);
+        this.handles = handles;
         this.terminal = terminal;
         // The group's own terminal future is a task like any other: it carries the group name and
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
@@ -123,29 +123,38 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Resolves the future of the member — or the terminal combine — the key was created for in this
-     * group.
+     * Resolves the future of the member — or the terminal combine — the handle was declared for in
+     * this group's definition.
      *
-     * @throws IllegalArgumentException if no member or combine carries the key's name, or if the
-     *     key's result type is not a supertype of the type it was registered with (generic
-     *     arguments included: a key claiming {@code List<Integer>} does not resolve a member
-     *     registered as {@code List<String>})
+     * @throws NullPointerException if {@code member} is null
+     * @throws IllegalArgumentException if the handle does not belong to this group's definition
+     *     (a foreign handle, identified by object identity)
      */
     @SuppressWarnings("unchecked")
-    public <T> TaskFuture<T> future(TaskKey<T> key) {
-        Objects.requireNonNull(key, "key cannot be null");
-        MemberState member = memberStates.get(key.name());
-        if (member == null && terminal != null && terminal.name.equals(key.name())) {
-            member = terminal;
+    public <T> TaskFuture<T> future(TaskGroupDefinition.Member<T> member) {
+        Objects.requireNonNull(member, "member cannot be null");
+        MemberState state = handles.get(member);
+        if (state == null) {
+            throw new IllegalArgumentException("No member named '" + member.name() + "'");
         }
-        if (member == null) {
-            throw new IllegalArgumentException("No member named '" + key.name() + "'");
+        return (TaskFuture<T>) state.view;
+    }
+
+    /**
+     * Package-private probe for reference-release tests: whether the engine future of the given
+     * member has released its callable holder (decision §9/§16).
+     *
+     * @throws NullPointerException if {@code member} is null
+     * @throws IllegalArgumentException if the handle does not belong to this group's definition
+     *     (a foreign handle, identified by object identity)
+     */
+    boolean callableReleased(TaskGroupDefinition.Member<?> member) {
+        Objects.requireNonNull(member, "member cannot be null");
+        MemberState state = handles.get(member);
+        if (state == null) {
+            throw new IllegalArgumentException("No member named '" + member.name() + "'");
         }
-        if (!key.resultType().isSupertypeOf(member.resultType)) {
-            throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
-                    + member.resultType + " but the key claims " + key.resultType());
-        }
-        return (TaskFuture<T>) member.view;
+        return state.future.callableReleased();
     }
 
     /**
@@ -165,11 +174,11 @@ public final class TaskGroup implements AutoCloseable {
      * and returns.
      *
      * <p>The close grace is a cleanup budget configured on {@link
-     * TaskGroupOptions#closeGrace(Duration)}. When never configured, the wait budget is derived
-     * from the group's remaining execution deadline at close time: a close triggered by an expired
-     * deadline returns right after cancelling, and a body that ignores interruption can hold this
-     * method at most until the deadline. An explicit grace overrides the derivation; {@link
-     * Duration#ZERO} makes this method cancel-only, equivalent to {@link #cancel()}.
+     * TaskGroupDefinition.Builder#closeGrace(Duration)}. When never configured, the wait budget is
+     * derived from the group's remaining execution deadline at close time: a close triggered by an
+     * expired deadline returns right after cancelling, and a body that ignores interruption can
+     * hold this method at most until the deadline. An explicit grace overrides the derivation;
+     * {@link Duration#ZERO} makes this method cancel-only, equivalent to {@link #cancel()}.
      *
      * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
      * the grace never extends the group's execution deadline and does not revive cancelled tasks.
@@ -250,7 +259,148 @@ public final class TaskGroup implements AutoCloseable {
         return bodyCompletion.awaitBodyCompletion(timeout);
     }
 
-    private void start(GlobalPar global) {
+    /**
+     * Builds the complete run of one submission and admits it: resolves the structural parent,
+     * observation, and deadline ceiling from the calling thread, creates the group token, every
+     * member context and future, and the terminal combine's pipeline, taking each body from the
+     * one-shot {@code payloads}. Runs inside one {@link GlobalPar#whileOpen} admission.
+     *
+     * <p>On any preparation failure every prepared future is cancelled — releasing the bodies the
+     * kernel took — and the exception propagates so the caller can discard the untaken payloads;
+     * no user code runs on this path.
+     */
+    static TaskGroup prepare(GlobalPar env, TaskGroupDefinition definition, RunBindings payloads) {
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
+        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
+        TaskGraphObservationScope observation = structuralParent != null
+                        && structuralParent.taskGraphObservationScope() != null
+                        && structuralParent.taskGraphObservationScope().owner() == env
+                ? structuralParent.taskGraphObservationScope()
+                : structuralParent == null && currentObservation != null && currentObservation.owner() == env
+                        ? currentObservation
+                        : null;
+        long start = System.nanoTime();
+        Optional<Duration> groupTimeout = definition.timeout();
+        if (!groupTimeout.isPresent() && structuralParent == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; call defineGroup(String, Duration)");
+        }
+        long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
+                groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
+        CancellationToken groupToken = new CancellationToken(
+                structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
+        // Every member and the terminal combine registers its body-completion slot here, before
+        // any submission, so the shared signal covers tasks that start late or never start.
+        BodyCompletionTracker bodyCompletion =
+                BodyCompletionTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
+        Map<String, MemberState> states = new LinkedHashMap<>();
+        Map<TaskGroupDefinition.Member<?>, MemberState> handles = new HashMap<>();
+        MemberState terminal = null;
+        TaskGraphObservationScope previousObservation = TaskGraphObservationScope.current();
+        int memberIndex = 0;
+        try {
+            if (observation != null && !observation.closed()) {
+                TaskGraphObservationScope.install(observation);
+            } else {
+                TaskGraphObservationScope.restore(null);
+            }
+            List<Par> memberPars = new ArrayList<>();
+            for (TaskGroupDefinition.Slot slot : definition.members()) {
+                Par par = slot.par;
+                memberPars.add(par);
+                MultiTaskContext unit = MultiTaskContext.resolve(
+                        slot.options.spec(slot.name),
+                        1,
+                        structuralParent,
+                        groupToken,
+                        groupDeadline,
+                        start,
+                        observation,
+                        par.executorIdentity(),
+                        par.name());
+                TaskExecutionContext taskContext =
+                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
+                // The payload moves into the prepared future here; the RunBindings slot is cleared
+                // by the take, so a half-prepared group holds no body the kernel has not adopted.
+                ExecutionPhaseHintFuture<Object> future =
+                        par.prepareGroupTask(payloads.takeCallable(memberIndex++), unit, taskContext);
+                MemberState state = new MemberState(
+                        slot.name, taskContext, future, par.submissionExecutor(), unit.runOnCallerThread());
+                states.put(slot.name, state);
+                handles.put(slot.handle, state);
+            }
+            int index = 0;
+            for (MemberState state : states.values()) {
+                if (observation != null) {
+                    logForking(
+                            state.context.multiTaskContext(),
+                            memberPars.get(index).runtime().blockingRisk());
+                }
+                index++;
+            }
+            TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
+            if (combineSlot != null) {
+                // The combine is prepared exactly like a member — token, context, TTL snapshot,
+                // structural parent — so its context capture happens on the submitting thread at
+                // submit time; only the executor submission is deferred to the join. The values
+                // view captures the frozen member states created above. The caller-thread fallback
+                // is fixed false because the combine has no caller thread: it is submitted by the
+                // convergence callback at join time, not by the caller of submitGroup(). A rejected
+                // combine therefore fails as SUBMISSION_FAILURE instead of running user code on
+                // the convergence callback thread, whatever runOnCallerThread the options declare.
+                // Empty-group exception: the join condition holds inside submitGroup itself, so the
+                // submitGroup thread submits the combine within the submit flow — the fallback
+                // stays disabled on that path too.
+                Par par = combineSlot.par;
+                MultiTaskContext unit = MultiTaskContext.resolve(
+                        combineSlot.options.spec(combineSlot.name),
+                        1,
+                        structuralParent,
+                        groupToken,
+                        groupDeadline,
+                        start,
+                        observation,
+                        par.executorIdentity(),
+                        par.name());
+                TaskExecutionContext taskContext =
+                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
+                CombineContext values = new CombineContext(combineSlot.handle, handles);
+                CombineBody<Object> body = castCombineBody(payloads.takeCombineBody());
+                ExecutionPhaseHintFuture<Object> future =
+                        par.prepareGroupTask(() -> body.apply(values), unit, taskContext);
+                terminal = new MemberState(combineSlot.name, taskContext, future, par.submissionExecutor(), false);
+                handles.put(combineSlot.handle, terminal);
+                if (observation != null) {
+                    logForking(unit, par.runtime().blockingRisk());
+                }
+            }
+        } catch (Throwable failure) {
+            for (MemberState state : states.values()) state.future.cancel(true);
+            if (terminal != null) terminal.future.cancel(true);
+            throw failure;
+        } finally {
+            TaskGraphObservationScope.restore(previousObservation);
+        }
+        TaskGroup group = new TaskGroup(
+                definition.name(),
+                start,
+                groupDeadline,
+                groupToken,
+                states,
+                handles,
+                terminal,
+                bodyCompletion,
+                definition.closeGrace().orElse(null));
+        List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
+        if (terminal != null) {
+            retained.add(terminal.future);
+        }
+        env.retainUntilComplete(retained);
+        env.trackBodies(bodyCompletion);
+        return group;
+    }
+
+    void start(GlobalPar global) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();
             return;
@@ -315,7 +465,7 @@ public final class TaskGroup implements AutoCloseable {
         return futures;
     }
 
-    private void submitPrepared() {
+    void submitPrepared() {
         for (MemberState member : memberStates.values()) {
             if (!member.future.isDone()) member.submit();
         }
@@ -408,11 +558,11 @@ public final class TaskGroup implements AutoCloseable {
 
     /**
      * Classifies an exceptionally completed member. A failure that merely signals observed
-     * cancellation — a checkpoint threw a {@link CancellationException}, or the worker thread was
-     * interrupted — can win the race against the cascade cancel on the member future; it is
-     * attributed through the tokens like a cancellation instead of being recorded as a user
-     * failure. A spontaneous {@code CancellationException} from user code with no committed
-     * framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     * cancellation — a checkpoint threw a {@link java.util.concurrent.CancellationException}, or
+     * the worker thread was interrupted — can win the race against the cascade cancel on the
+     * member future; it is attributed through the tokens like a cancellation instead of being
+     * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
+     * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
      */
     private TaskOutcome classifyFailure(MemberState member, Throwable failure) {
         if (failure instanceof SubmissionException) {
@@ -452,7 +602,6 @@ public final class TaskGroup implements AutoCloseable {
             result = snapshot();
         }
         completion.set(result);
-        notifyListeners(result);
     }
 
     /**
@@ -506,7 +655,6 @@ public final class TaskGroup implements AutoCloseable {
             result = snapshot();
         }
         completion.set(result);
-        notifyListeners(result);
     }
 
     private TaskGroupResult snapshot() {
@@ -537,221 +685,6 @@ public final class TaskGroup implements AutoCloseable {
                 member.context.endTimeNanos());
     }
 
-    private void notifyListeners(TaskGroupResult result) {
-        TaskGroupEvent event = new TaskGroupEvent(result);
-        for (TaskGroupListener listener : listeners) {
-            try {
-                listener.onTaskGroupComplete(event);
-            } catch (Throwable failure) {
-                LOGGER.log(Level.WARNING, "TaskGroupListener callback failed", failure);
-            }
-        }
-    }
-
-    /**
-     * Builds a group from the definition and submits all of its members at one boundary.
-     *
-     * <p>The structural parent, graph observation, and group deadline are resolved from the calling
-     * thread at submit time, so a {@link TaskGroupDefinition} may be reused across submissions. Group
-     * options declaring {@link TaskGroupOptions#inheritTimeout(String)} require an enclosing scoped
-     * task; without one this method throws {@link IllegalArgumentException}.
-     *
-     * @throws IllegalArgumentException if a member references an unregistered executor name, or if
-     *     the group inherits a deadline that does not exist
-     * @throws IllegalStateException if the given GlobalPar has begun shutdown
-     */
-    public static TaskGroup submit(GlobalPar env, TaskGroupDefinition definition) {
-        Objects.requireNonNull(env, "env cannot be null");
-        Objects.requireNonNull(definition, "definition cannot be null");
-        TaskGroup group = env.whileOpen(() -> buildWhileOpen(env, definition));
-        group.start(env);
-        group.submitPrepared();
-        return group;
-    }
-
-    private static TaskGroup buildWhileOpen(GlobalPar env, TaskGroupDefinition definition) {
-        TaskGroupOptions options = definition.groupOptions();
-        TaskExecutionContext currentTask = TaskExecutionContext.current();
-        MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
-        TaskGraphObservationScope observation = structuralParent != null
-                        && structuralParent.taskGraphObservationScope() != null
-                        && structuralParent.taskGraphObservationScope().owner() == env
-                ? structuralParent.taskGraphObservationScope()
-                : structuralParent == null && currentObservation != null && currentObservation.owner() == env
-                        ? currentObservation
-                        : null;
-        long start = System.nanoTime();
-        Optional<Duration> groupTimeout = options.timeout();
-        if (!groupTimeout.isPresent() && structuralParent == null) {
-            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
-        }
-        long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
-                groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
-        CancellationToken groupToken = new CancellationToken(
-                structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
-        // Every member and the terminal combine registers its body-completion slot here, before
-        // any submission, so the shared signal covers tasks that start late or never start.
-        BodyCompletionTracker bodyCompletion =
-                BodyCompletionTracker.create(definition.tasks().size() + (definition.combine() == null ? 0 : 1));
-        Map<String, MemberState> states = new LinkedHashMap<>();
-        MemberState terminal = null;
-        TaskGraphObservationScope previousObservation = TaskGraphObservationScope.current();
-        try {
-            if (observation != null && !observation.closed()) {
-                TaskGraphObservationScope.install(observation);
-            } else {
-                TaskGraphObservationScope.restore(null);
-            }
-            List<Par> memberPars = new ArrayList<>();
-            for (TaskGroupDefinition.TaskDefinition<?> member : definition.tasks()) {
-                Par par = env.par(member.parName());
-                memberPars.add(par);
-                MultiTaskContext unit = MultiTaskContext.resolve(
-                        member.options().spec(member.name()),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.name().value());
-                TaskExecutionContext taskContext =
-                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
-                ExecutionPhaseHintFuture<Object> future =
-                        par.prepareGroupTask(castCallable(member.callable()), unit, taskContext);
-                states.put(
-                        member.name(),
-                        new MemberState(
-                                member.name(),
-                                taskContext,
-                                future,
-                                par.submissionExecutor(),
-                                unit.runOnCallerThread(),
-                                member.key().resultType()));
-            }
-            int index = 0;
-            for (MemberState state : states.values()) {
-                if (observation != null) {
-                    logForking(
-                            state.context.multiTaskContext(),
-                            memberPars.get(index).runtime().blockingRisk());
-                }
-                index++;
-            }
-            TaskGroupDefinition.CombineDefinition<?> combineDefinition = definition.combine();
-            if (combineDefinition != null) {
-                // The combine is prepared exactly like a member — token, context, TTL snapshot,
-                // structural parent — so its context capture happens on the submitting thread at
-                // submit time; only the executor submission is deferred to the join. The values
-                // view captures the frozen member states created above. The caller-thread fallback
-                // is fixed false because the combine has no caller thread: it is submitted by the
-                // convergence callback at join time, not by the caller of submit(). A rejected
-                // combine therefore fails as SUBMISSION_FAILURE instead of running user code on
-                // the convergence callback thread, whatever runOnCallerThread the options declare.
-                Par par = env.par(combineDefinition.parName());
-                MultiTaskContext unit = MultiTaskContext.resolve(
-                        combineDefinition.options().spec(combineDefinition.name()),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.name().value());
-                TaskExecutionContext taskContext =
-                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
-                CompletedTaskValues values = new CompletedTaskValues(states, combineDefinition.name());
-                CombineFunction<?> function = combineDefinition.function();
-                ExecutionPhaseHintFuture<Object> future =
-                        par.prepareGroupTask(() -> function.apply(values), unit, taskContext);
-                terminal = new MemberState(
-                        combineDefinition.name(),
-                        taskContext,
-                        future,
-                        par.submissionExecutor(),
-                        false,
-                        combineDefinition.key().resultType());
-                if (observation != null) {
-                    logForking(unit, par.runtime().blockingRisk());
-                }
-            }
-        } catch (Throwable failure) {
-            for (MemberState state : states.values()) state.future.cancel(true);
-            if (terminal != null) terminal.future.cancel(true);
-            throw failure;
-        } finally {
-            TaskGraphObservationScope.restore(previousObservation);
-        }
-        TaskGroup group = new TaskGroup(
-                options.name(),
-                start,
-                groupDeadline,
-                options.listeners(),
-                groupToken,
-                states,
-                terminal,
-                bodyCompletion,
-                options.closeGrace().orElse(null));
-        List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
-        if (terminal != null) {
-            retained.add(terminal.future);
-        }
-        env.retainUntilComplete(retained);
-        env.trackBodies(bodyCompletion);
-        return group;
-    }
-
-    /** Package-visible for {@link CompletedTaskValues}, which reads member futures and types. */
-    static final class MemberState {
-        final String name;
-
-        /** The engine object: submitted to the executor, never handed to the caller. */
-        final ExecutionPhaseHintFuture<Object> future;
-
-        /** The caller-facing view of {@link #future}; carries the member name and the member token. */
-        final Task<Object> view;
-
-        final TypeToken<?> resultType;
-        private final TaskExecutionContext context;
-        private final Executor executor;
-        private final boolean runOnCallerThread;
-        private @Nullable TaskOutcome reason;
-        private @Nullable Throwable failure;
-        private boolean counted;
-
-        private MemberState(
-                String name,
-                TaskExecutionContext context,
-                ExecutionPhaseHintFuture<Object> future,
-                Executor executor,
-                boolean runOnCallerThread,
-                TypeToken<?> resultType) {
-            this.name = name;
-            this.context = context;
-            this.future = future;
-            this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
-            this.executor = executor;
-            this.runOnCallerThread = runOnCallerThread;
-            this.resultType = resultType;
-        }
-
-        /**
-         * Submits once with the member's batch scope installed; a member whose options request the
-         * caller-thread fallback runs inline on rejection.
-         */
-        private void submit() {
-            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, runOnCallerThread);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Callable<Object> castCallable(Callable<?> callable) {
-        return (Callable<Object>) callable;
-    }
-
     private static void logForking(MultiTaskContext context, BlockingRisk blockingRisk) {
         MultiTaskContext parent = context.structuralParent();
         if (parent == null) return;
@@ -766,5 +699,372 @@ public final class TaskGroup implements AutoCloseable {
                 context.remaining(),
                 blockingRisk == BlockingRisk.BOUNDED_PLATFORM_POOL);
         TaskGraphObservationScope.logTaskPair(parent.unitId(), parent.name(), context.unitId(), context.name(), edge);
+    }
+
+    /** Internal per-run state of one frozen member or of the terminal combine. */
+    static final class MemberState {
+        final String name;
+
+        /** The engine object: submitted to the executor, never handed to the caller. */
+        final ExecutionPhaseHintFuture<Object> future;
+
+        /** The caller-facing view of {@link #future}; carries the member name and the member token. */
+        final Task<Object> view;
+
+        private final TaskExecutionContext context;
+        private final Executor executor;
+        private final boolean runOnCallerThread;
+        private @Nullable TaskOutcome reason;
+        private @Nullable Throwable failure;
+        private boolean counted;
+
+        private MemberState(
+                String name,
+                TaskExecutionContext context,
+                ExecutionPhaseHintFuture<Object> future,
+                Executor executor,
+                boolean runOnCallerThread) {
+            this.name = name;
+            this.context = context;
+            this.future = future;
+            this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
+            this.executor = executor;
+            this.runOnCallerThread = runOnCallerThread;
+        }
+
+        /**
+         * Submits once with the member's batch scope installed; a member whose options request the
+         * caller-thread fallback runs inline on rejection.
+         */
+        private void submit() {
+            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, runOnCallerThread);
+        }
+    }
+
+    /**
+     * One submission's executable payload collector (decision §7): a one-shot, synchronous
+     * registrar for this run's {@code Callable}s and combine body.
+     *
+     * <p>{@code submitGroup} creates a {@code Bindings}, invokes the binder exactly once on the
+     * calling thread, and freezes the bindings when the binder returns. A binding is usable only
+     * from the thread that created it and only while the binder runs: storing the instance in a
+     * field, handing it to another thread, or calling it after the binder returns throws {@link
+     * IllegalStateException}. On a normal return the payloads are validated — every plain member
+     * exactly one {@code Callable}, a declared combine exactly one {@link CombineBody}, no
+     * missing/duplicate/foreign/wrong-kind/null binding — and transferred to an internal
+     * one-shot {@code RunBindings}; this instance's own references are cleared immediately, so
+     * even a leaked {@code Bindings} never retains the run's closures. Any failure path clears the
+     * registered bodies before the exception escapes, without waiting for garbage collection.
+     *
+     * <p>{@code Bindings} is not a scope and does not implement {@link AutoCloseable}: it owns no
+     * running resource and needs no user cleanup.
+     */
+    public static final class Bindings {
+        private enum State {
+            OPEN,
+            DRAINED,
+            DISCARDED
+        }
+
+        private static final int KIND_TASK = 0;
+        private static final int KIND_COMBINE = 1;
+
+        private final Thread ownerThread;
+        private final TaskGroupDefinition definition;
+        private final Map<TaskGroupDefinition.Member<?>, TaskGroupDefinition.Slot> slots;
+        private final List<Recorded> recorded = new ArrayList<>();
+        private State state = State.OPEN;
+
+        Bindings(TaskGroupDefinition definition) {
+            this.ownerThread = Thread.currentThread();
+            this.definition = Objects.requireNonNull(definition, "definition cannot be null");
+            this.slots = new IdentityHashMap<>();
+            for (TaskGroupDefinition.Slot slot : definition.slots()) {
+                this.slots.put(slot.handle, slot);
+            }
+        }
+
+        /**
+         * Registers this run's {@code Callable} for one plain member of the definition.
+         *
+         * <p>Only valid on the creating thread, only while the binder runs. Duplicates, foreign
+         * handles, wrong kinds, and missing bindings are all rejected when the binder returns,
+         * before any admission, executor call, or future creation.
+         *
+         * @throws NullPointerException if {@code member} or {@code body} is null
+         * @throws IllegalStateException if called after the binder returned or from another thread
+         */
+        public <T> void task(TaskGroupDefinition.Member<T> member, Callable<? extends T> body) {
+            checkUsable();
+            Objects.requireNonNull(member, "member cannot be null");
+            Objects.requireNonNull(body, "body cannot be null");
+            recorded.add(new Recorded(member, body, KIND_TASK));
+        }
+
+        /**
+         * Registers this run's {@link CombineBody} for the definition's terminal combine.
+         *
+         * <p>Same usage contract as {@link #task}: only valid on the creating thread, only while
+         * the binder runs; validated when the binder returns.
+         *
+         * @throws NullPointerException if {@code member} or {@code body} is null
+         * @throws IllegalStateException if called after the binder returned or from another thread
+         */
+        public <R> void combine(TaskGroupDefinition.Member<R> member, CombineBody<? extends R> body) {
+            checkUsable();
+            Objects.requireNonNull(member, "member cannot be null");
+            Objects.requireNonNull(body, "body cannot be null");
+            recorded.add(new Recorded(member, body, KIND_COMBINE));
+        }
+
+        private void checkUsable() {
+            if (Thread.currentThread() != ownerThread) {
+                throw new IllegalStateException("Bindings may only be used on the thread that created them");
+            }
+            if (state != State.OPEN) {
+                throw new IllegalStateException("Bindings are only usable during the binder callback");
+            }
+        }
+
+        /**
+         * Freezes the bindings after the binder returned: validates the complete set, transfers
+         * the payloads to a one-shot {@code RunBindings}, and clears this instance's references.
+         * Any validation failure discards the bindings and clears every registered body first.
+         */
+        RunBindings freeze() {
+            checkUsable();
+            List<TaskGroupDefinition.Slot> plain = definition.members();
+            Callable<?>[] taskBodies = new Callable<?>[plain.size()];
+            CombineBody<?> combineBody = null;
+            try {
+                Map<TaskGroupDefinition.Member<?>, Boolean> seen = new IdentityHashMap<>();
+                for (Recorded entry : recorded) {
+                    TaskGroupDefinition.Slot slot = slots.get(entry.member);
+                    if (slot == null) {
+                        throw new IllegalArgumentException("Member handle '" + entry.member.name()
+                                + "' does not belong to definition '" + definition.name() + "'");
+                    }
+                    // Kind mismatch is a binding error on this entry; a duplicate binds an
+                    // already-validated slot. Check the kind first so a wrong-kind bind reports as
+                    // such even when it also repeats a handle.
+                    if (entry.kind == KIND_TASK) {
+                        if (slot.kind != TaskGroupDefinition.Kind.MEMBER) {
+                            throw new IllegalArgumentException(
+                                    "Member '" + slot.name + "' is a combine; bind it with combine()");
+                        }
+                    } else {
+                        if (slot.kind != TaskGroupDefinition.Kind.COMBINE) {
+                            throw new IllegalArgumentException(
+                                    "Member '" + slot.name + "' is not a combine; bind it with task()");
+                        }
+                    }
+                    if (seen.put(entry.member, Boolean.TRUE) != null) {
+                        throw new IllegalStateException("Member '" + slot.name + "' was bound more than once");
+                    }
+                    if (entry.kind == KIND_TASK) {
+                        taskBodies[slot.memberIndex] = (Callable<?>) entry.body;
+                    } else {
+                        combineBody = (CombineBody<?>) entry.body;
+                    }
+                }
+                for (TaskGroupDefinition.Slot slot : plain) {
+                    if (taskBodies[slot.memberIndex] == null) {
+                        throw new IllegalArgumentException("No Callable bound for member '" + slot.name + "'");
+                    }
+                }
+                TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
+                if (combineSlot != null && combineBody == null) {
+                    throw new IllegalArgumentException("No CombineBody bound for combine '" + combineSlot.name + "'");
+                }
+                state = State.DRAINED;
+                clearRecorded();
+                return new RunBindings(taskBodies, combineBody);
+            } catch (RuntimeException | Error failure) {
+                state = State.DISCARDED;
+                clearRecorded();
+                throw failure;
+            }
+        }
+
+        /** Binder-failure path: releases every registered body before the exception escapes. */
+        void discard() {
+            state = State.DISCARDED;
+            clearRecorded();
+        }
+
+        private void clearRecorded() {
+            for (Recorded entry : recorded) {
+                entry.body = null;
+            }
+            recorded.clear();
+        }
+
+        /** Package-private probe for ownership tests: the payloads left this instance. */
+        boolean payloadsCleared() {
+            return recorded.isEmpty();
+        }
+
+        /** Package-private probe for ownership tests. */
+        boolean isDrained() {
+            return state == State.DRAINED;
+        }
+
+        /** Package-private probe for ownership tests. */
+        boolean isDiscarded() {
+            return state == State.DISCARDED;
+        }
+    }
+
+    /** One recorded binding: the handle, this run's body, and which registrar accepted it. */
+    private static final class Recorded {
+        final TaskGroupDefinition.Member<?> member;
+        Object body;
+        final int kind;
+
+        Recorded(TaskGroupDefinition.Member<?> member, Object body, int kind) {
+            this.member = member;
+            this.body = body;
+            this.kind = kind;
+        }
+    }
+
+    /**
+     * The one-shot payload carrier handed from the frozen {@link Bindings} to the preparation
+     * kernel (decision §9 rule 1): lives only until each prepared task adopts its body, clearing
+     * its slot on every take, and is cleared wholesale on any failure path.
+     */
+    static final class RunBindings {
+        private final Callable<?>[] taskBodies;
+        private @Nullable CombineBody<?> combineBody;
+
+        RunBindings(Callable<?>[] taskBodies, @Nullable CombineBody<?> combineBody) {
+            this.taskBodies = taskBodies;
+            this.combineBody = combineBody;
+        }
+
+        /** Moves one member's callable out: the slot is cleared before the body is returned. */
+        @SuppressWarnings("unchecked")
+        Callable<Object> takeCallable(int memberIndex) {
+            Callable<Object> body = (Callable<Object>) taskBodies[memberIndex];
+            taskBodies[memberIndex] = null;
+            return body;
+        }
+
+        /** Moves the combine body out: the slot is cleared before the body is returned. */
+        CombineBody<?> takeCombineBody() {
+            CombineBody<?> body = combineBody;
+            combineBody = null;
+            return body;
+        }
+
+        /** Clears every payload still held; used when preparation or admission never consumed them. */
+        void discard() {
+            java.util.Arrays.fill(taskBodies, null);
+            combineBody = null;
+        }
+
+        /** Package-private probe for ownership tests. */
+        boolean taskSlotCleared(int memberIndex) {
+            return taskBodies[memberIndex] == null;
+        }
+
+        /** Package-private probe for ownership tests. */
+        boolean combineSlotCleared() {
+            return combineBody == null;
+        }
+    }
+
+    /**
+     * Terminal combine body of one group run: the business computation the framework executes
+     * after every member has succeeded.
+     *
+     * <p>The body receives a {@link CombineContext} view exposing only successful member values —
+     * never futures — so it cannot re-await, cancel, or orchestrate the underlying tasks. It runs
+     * exactly once, on a worker thread of the {@code Par} named at declaration, inside the same
+     * scoped-task machinery as a member (execution context, TTL replay, deadline, cooperative
+     * cancellation, listener events).
+     *
+     * <p>The body is supplied per submission through {@link Bindings#combine} and may capture this
+     * run's request; it must still be a pure function of member values and its configuration-time
+     * captures: the framework schedules it the moment the last member succeeds, so there is no
+     * synchronization edge between it and code the submitting thread runs after {@code
+     * submitGroup} returns.
+     *
+     * <p>The {@code throws Exception} clause mirrors the member {@code Callable}: a checked failure
+     * is recorded as {@link TaskOutcome#USER_FAILURE} with the original exception, exactly like a
+     * failed member.
+     *
+     * @param <R> the assembled result type
+     */
+    @FunctionalInterface
+    public interface CombineBody<R> {
+
+        /**
+         * Computes the terminal value from the successful member values.
+         *
+         * @param values read-only view of the group's successful member values
+         * @return the assembled terminal result, possibly null
+         * @throws Exception any business failure, recorded as {@link TaskOutcome#USER_FAILURE}
+         */
+        R apply(CombineContext values) throws Exception;
+    }
+
+    /**
+     * Read-only view of one run's successful member values, handed to the terminal {@link
+     * CombineBody}.
+     *
+     * <p>The view never blocks: the framework invokes the combine only after every member
+     * succeeded, so each value is read from an already-completed member future. It exposes neither
+     * futures nor a name-keyed map — values are looked up through the same {@link
+     * TaskGroupDefinition.Member} handles used at declaration, keeping lookups type-safe and
+     * refactor-safe.
+     *
+     * <p>The view is valid only for the duration of the {@link CombineBody#apply} call; the
+     * framework releases its references with the combine's execution wrapper.
+     */
+    public static final class CombineContext {
+        private final TaskGroupDefinition.Member<?> combine;
+        private final Map<TaskGroupDefinition.Member<?>, MemberState> members;
+
+        CombineContext(TaskGroupDefinition.Member<?> combine, Map<TaskGroupDefinition.Member<?>, MemberState> members) {
+            this.combine = combine;
+            this.members = members;
+        }
+
+        /**
+         * Returns the successful value of the given member without blocking; the value may be null.
+         *
+         * @throws NullPointerException if {@code member} is null
+         * @throws IllegalArgumentException if the handle is foreign to this group or names the
+         *     combine itself
+         * @throws IllegalStateException if the member has not completed successfully (a framework
+         *     invariant violation: the combine runs only after every member succeeded)
+         */
+        @SuppressWarnings("unchecked")
+        public <T> T value(TaskGroupDefinition.Member<T> member) {
+            Objects.requireNonNull(member, "member cannot be null");
+            if (member == combine) {
+                throw new IllegalArgumentException(
+                        "The combine cannot read its own value through '" + combine.name() + "'");
+            }
+            MemberState state = members.get(member);
+            if (state == null) {
+                throw new IllegalArgumentException("No member named '" + member.name() + "'");
+            }
+            try {
+                return (T) Futures.getDone(state.future);
+            } catch (ExecutionException | IllegalStateException failure) {
+                // The combine runs only after every member succeeded, so anything but a plain value
+                // signals a framework invariant violation, not user input. CancellationException is
+                // an IllegalStateException and lands here too.
+                throw new IllegalStateException(
+                        "Member '" + member.name() + "' has not completed successfully", failure);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static CombineBody<Object> castCombineBody(@Nullable CombineBody<?> body) {
+        return (CombineBody<Object>) Objects.requireNonNull(body, "combine body cannot be null");
     }
 }

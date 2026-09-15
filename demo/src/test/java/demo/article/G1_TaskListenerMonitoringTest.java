@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskCompletion;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -99,9 +98,9 @@ public class G1_TaskListenerMonitoringTest {
         CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
         GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
+                .register("test-pool", pool)
                 .taskListener(events::add)
-                .defaultPar(ParName.of("test-pool"))
+                .defaultPar("test-pool")
                 .build();
         Par par = config.defaultPar();
 
@@ -169,9 +168,9 @@ public class G1_TaskListenerMonitoringTest {
         CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
         GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
+                .register("test-pool", pool)
                 .taskListener(events::add)
-                .defaultPar(ParName.of("test-pool"))
+                .defaultPar("test-pool")
                 .build();
         Par par = config.defaultPar();
 

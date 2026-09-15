@@ -72,9 +72,8 @@ relevant contract through the document routes below.
 - The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
   stack-installed implementation details. The `Context` suffix marks a data carrier
-  (a view or resolved parameters); the `Key` suffix marks a configuration-time
-  typed key whose equality is its member name (`TaskKey`); the `Name` suffix
-  marks a value object naming a logical entry (`ParName`).
+  (a view or resolved parameters); the `Member` handle marks an identity-typed
+  structural slot of a `TaskGroupDefinition`.
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
   compatibility shims. During the `0.x` phase, a breaking change is acceptable
   when it provides a meaningful improvement and has a sufficiently documented

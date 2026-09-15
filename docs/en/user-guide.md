@@ -1,32 +1,33 @@
 # User Guide
 
-> This guide documents the current `0.2.0` API. `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [migration guide](migration-v0.2.md).
+> This guide documents the current `0.3.0` API. `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [v0.2 migration guide](migration-v0.2.md). Applications coming from `0.2.x` migrate through the [v0.3 migration guide](migration-v0.3.md).
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
 It also coordinates a fixed heterogeneous set of named operations through `TaskGroup`. A
-group is described as a reusable `TaskGroupDefinition` and submitted at one explicit boundary; it is not
-a dynamically growing batch.
+group is described as a reusable, structure-only `TaskGroupDefinition` and submitted at one
+explicit boundary with one-shot bindings; it is not a dynamically growing batch.
 
 ## Build the execution topology
 
 Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
 
 ```java
-ParName DATABASE = ParName.of("database");
-ParName HTTP = ParName.of("http");
-
 GlobalPar global = GlobalPar.builder()
         .taskListener(metricsListener)
-        .register(DATABASE, databaseExecutor)
-        .register(HTTP, httpExecutor)
-        .defaultPar(HTTP)
+        .register("database", databaseExecutor)
+        .register("http", httpExecutor)
+        .defaultPar("http")
         .build();
 
-Par httpPar = global.par(HTTP);
+Par httpPar = global.par("http");
+Par databasePar = global.par("database");
 ```
 
-`ParName` is a value object: it is validated once at construction (never null, never blank) and compared by value, so the same name can be declared as a constant and reused. It is a logical lookup key, not a resource identity — the physical pool is identified by `ExecutorIdentity` through object reference, and two names may deliberately share one executor.
+Names are plain `String`s validated at the endpoint that receives them (never null, never blank,
+used verbatim — no trimming or case folding), so they can be declared as constants and reused. A
+name is a logical lookup key, not a resource identity — the physical pool is identified by
+`ExecutorIdentity` through object reference, and two names may deliberately share one executor.
 
 Names are validated at build time. `GlobalPar` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `GlobalPar` shuts down its internal timer and submitter services only, never a registered executor.
 
@@ -41,7 +42,7 @@ Prefer explicit injection in tests and libraries. `installGlobal` is one-time an
 
 ## Execute a batch
 
-`BatchOptions` is the immutable input of one batch call. Option types map one-to-one onto scopes: a batch declares `BatchOptions`, a group declares `TaskGroupOptions`, and a single member or combine declares `TaskOptions`. The library resolves a scope's name, concurrency, and execution policy together with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
+`BatchOptions` is the immutable input of one batch call. Option types map one-to-one onto scopes: a batch declares `BatchOptions`, a group takes its timeout from the `defineGroup*` call and its cleanup budget from `TaskGroupDefinition.Builder.closeGrace`, and a single member or combine declares `TaskOptions`. The library resolves a scope's name, concurrency, and execution policy together with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
 
 ```java
 BatchOptions options = BatchOptions.timeout("fetch-account", Duration.ofSeconds(5))
@@ -59,7 +60,7 @@ List<TaskFuture<Account>> futures = result.results();
 
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point.
 
-`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread you may not own the caller's expectations for. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. `TaskType` does not affect either: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
+`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. `TaskType` does not affect either: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
@@ -70,61 +71,74 @@ A future being done means its value is settled; it does not prove the user funct
 ## Execute a heterogeneous task group
 
 Use a task group when a request has a small fixed set of independent operations that may return
-different types or use different `Par` entries. A group is described by a `TaskGroupDefinition`: an
-immutable, reusable, pure-data description. `TaskGroupDefinition.Builder.task` only records a definition;
-it does not create execution contexts, capture TTL values, start timers, or submit work.
-`TaskGroup.submit(global, definition)` resolves the calling thread's context at submission time,
-freezes the complete member set, prepares every member, and then submits them.
+different types or use different `Par` entries. A group moves through three phases:
+`GlobalPar.defineGroup*` creates a `TaskGroupDefinition.Builder` that records an immutable,
+reusable, structure-only `TaskGroupDefinition`; `GlobalPar.submitGroup(definition, binder)`
+collects this run's bodies through the one-shot `TaskGroup.Bindings` and admits the whole group
+at one boundary; the returned `TaskGroup` is the running, closeable scope. The definition never
+holds a `Callable`, combine body, listener, or request object, so it can be shared across threads
+and submitted repeatedly with different bindings; per-request captures live only in the one-shot
+`Bindings`/`TaskGroup` pair.
 
-A group scope declares `TaskGroupOptions`: the group name, the group deadline, and the group's
-convergence listeners. A group is not a task execution, so it has no concurrency, task type, or
-enqueue policy. A member or combine declares `TaskOptions` only when it must differ: the type carries
-just that execution's timeout, task type, and enqueue policy. A member is a single task with no
-fan-out, so no parallelism field exists in its options — nested work submitted inside a member reads
-that nested submission's own options. Identity is not an option either: a member's diagnostic name is
-always its `TaskKey` name. A member runs under the group deadline by default — omitting the fourth
-argument is exactly `TaskOptions.inheritTimeout()`, so a member can never outlive the group deadline
-that way. Pass options explicitly only for a tighter budget, a different task type, or a different
-enqueue policy; an explicit member timeout is capped by the group deadline. A group that declares `inheritTimeout` must be submitted from
-inside a scoped task, otherwise `submit` is rejected.
+The group timeout remains a forced explicit choice: `defineGroup(name, timeout)` sets an explicit
+positive budget, `defineGroupInheriting(name)` adopts the enclosing scoped task's deadline — there
+is no third state. A group built with `defineGroupInheriting` must be submitted from inside a
+scoped task, otherwise `submitGroup` fails at run preparation with `IllegalArgumentException` and
+no group or future is created. A member declares `TaskOptions` only when it must differ: omitting
+it is exactly `TaskOptions.inheritTimeout()`, so a member can never outlive the group deadline that
+way; an explicit member timeout is capped by the group deadline. `Builder.closeGrace(Duration)`
+configures the cleanup budget that `close()` waits within.
 
 ```java
-TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-        TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
+TaskGroupDefinition.Builder builder =
+        global.defineGroup("account-page", Duration.ofSeconds(3));
 
-TaskKey<User> user = definition.task(
-        new TaskKey<User>("user") {},
-        DATABASE, userRepository::load);
-TaskKey<List<Order>> orders = definition.task(
-        new TaskKey<List<Order>>("orders") {},
-        HTTP, orderClient::load,
+TaskGroupDefinition.Member<User> user = builder.task("user", databasePar);
+TaskGroupDefinition.Member<List<Order>> orders = builder.task(
+        "orders", httpPar,
         TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
 
-try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
+TaskGroupDefinition accountPage = builder.build();
+
+try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
+    bindings.task(user, () -> userRepository.load(request.userId()));
+    bindings.task(orders, () -> orderClient.load(request.userId()));
+})) {
     User userValue = group.future(user).get();
     List<Order> orderValues = group.future(orders).get();
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-A `TaskKey` is a type-safe key created as an anonymous subclass so the member's result type is
-captured at runtime; it is registered while configuring the definition, and after submission
-`group.future(key)` resolves the member's future, rejecting a key whose raw result type does not
-cover the registered one. Keys compare equal by name alone, so a key claiming a supertype of
-the registered type is equal to the registered key. Group completion always returns a
-`TaskGroupResult`; the group outcome (`result.outcome()`, a `TaskOutcome`) is result data rather
-than a failure of the completion future. Individual member futures retain normal Guava success,
-failure, and cancellation behavior.
+`Builder.task(name, par)` records only the member's name, `Par`, and options — it creates no
+execution context, captures no TTL value, starts no timer, and submits nothing; the `Par` must
+belong to the same `GlobalPar` that created the builder. Each declaration returns a typed
+`Member<T>` handle created by the library and identified by object identity: it constrains both
+`Bindings.task(member, callable)` and `group.future(member)` to the same `T`, and a handle from
+another definition, or used with the wrong kind of binding, is rejected with
+`IllegalArgumentException`. The binder runs synchronously on the calling thread, exactly once,
+and the bindings freeze when it returns: every member must have exactly one body, a binder failure
+rejects the whole submission before admission, and using the `Bindings` afterwards — or from any
+other thread — throws `IllegalStateException`. The group deadline starts when the binder returns,
+so slow binding never consumes the execution budget.
+
+Group completion always returns a `TaskGroupResult`; the group outcome (`result.outcome()`, a
+`TaskOutcome`) is result data rather than a failure of the completion future. Individual member
+futures retain normal Guava success, failure, and cancellation behavior. To observe completion
+without blocking, register on the completion future and choose the callback executor explicitly —
+`Futures.addCallback(group.completionFuture(), callback, executor)`; a callback added after
+completion still runs with the finished result, and under a direct executor it may run before
+`submitGroup` returns.
 
 Group cancellation is fully structured, matching batch semantics: the first member failure, a
 direct cancellation of any member future or member token, the group deadline, or any single member
 deadline cancels every unfinished member. `group.cancel()` only issues the cancellation request.
 `close()` cancels unfinished members and then waits for their task bodies to exit within the
 group's close grace — a cleanup budget configured with
-`TaskGroupOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from
-the group's remaining execution deadline at close time, so a close triggered by an expired
-deadline returns right after cancelling and an interrupt-ignoring member can hold `close()` at
-most until the deadline. `closeGrace(Duration.ZERO)`
+`TaskGroupDefinition.Builder.closeGrace(Duration)`; when never configured, the wait budget is
+derived from the group's remaining execution deadline at close time, so a close triggered by an
+expired deadline returns right after cancelling and an interrupt-ignoring member can hold
+`close()` at most until the deadline. `closeGrace(Duration.ZERO)`
 makes `close()` cancel-only, equivalent to `cancel()`. When the grace elapses with bodies still
 running, the outstanding member names are logged at WARN level rather than leaking silently.
 `close()` never shuts down executors, and a task body that ignores interruption may
@@ -138,43 +152,64 @@ member deadlines start at the submission boundary, and member deadlines are capp
 deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
 ceiling; cancellation propagated from an ancestor keeps its originating reason
 (`CancellationToken.originState()`), so an ancestor deadline expiring still converges the group as
-`TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while membership
-itself does not add dependency edges between siblings.
+`TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while
+membership itself does not add dependency edges between siblings. Execution order is fixed by the
+definition — plain members in declaration order, a terminal combine always last — independent of
+the order in which the binder registers bodies.
+
+### Captured resources and task-body exit
+
+A lambda submitted to the group captures its environment, and neither `close()` nor a terminal
+future proves the body has exited: `close()` may return after the close grace elapses while an
+interrupt-ignoring body is still running, and the framework cannot discover, close, or force-kill
+captured objects. Treat the body exit — not the future and not the `close()` return — as the
+resource boundary:
+
+- before releasing request-scoped objects the bodies used (transactions, connections, buffers),
+  call `awaitBodyCompletion(Duration)` and check the result is `true`; a `false` means the bodies
+  may still be running and the resources must stay open;
+- the most robust pattern for short resources is to create them inside the callable and close them
+  with try-with-resources, so the resource lifetime sits entirely inside the body;
+- application-scoped services may be captured freely, because their owner outlives the group.
 
 ### Terminal combine
 
-When the request ends by assembling the member values into one result, the terminal `buildWithCombiner` call declares
-a single combine — registering it and building the definition at once — instead of making you wire
-`Futures` callbacks yourself. The combine is a real
+When the request ends by assembling the member values into one result, declare a single terminal
+combine with `Builder.combine(name, par)` and build the definition with the ordinary `build()` —
+instead of wiring `Futures` callbacks yourself. The combine is a real
 scoped task — prepared at submit like a member, but submitted to its own `Par` only after every
 member succeeds — so it inherits the group's structured cancellation, deadline, and observability:
 
 ```java
-TaskKey<AccountPage> page = new TaskKey<AccountPage>("assemble-page") {};
+TaskGroupDefinition.Member<AccountPage> page =
+        builder.combine("assemble-page", global.par("cpu"));
 
-// The combine depends on every member, so the terminal call declares it and builds the definition
-TaskGroupDefinition built = definition.buildWithCombiner(
-        page,
-        ParName.of("cpu"),
-        values -> new AccountPage(values.value(user), values.value(orders)));
+TaskGroupDefinition accountPage = builder.build();
 
-try (TaskGroup group = TaskGroup.submit(global, built)) {
-    AccountPage accountPage = group.future(page).get();
+try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
+    bindings.task(user, () -> userRepository.load(request.userId()));
+    bindings.task(orders, () -> orderClient.load(request.userId()));
+    bindings.combine(
+            page,
+            values -> new AccountPage(values.value(user), values.value(orders)));
+})) {
+    AccountPage assembled = group.future(page).get();
 }
 ```
 
-The `CompletedTaskValues` view is non-blocking and exposes only successful member values through
-the registered `TaskKey` keys — no futures, no name-keyed map. The combine function runs exactly
+The `CombineContext` view is non-blocking and exposes only successful member values through the
+`Member` handles — no futures, no name-keyed map. The combine body runs exactly
 once on a worker of the named `Par` (never on a member's completion thread; a rejected combine
 fails as `SUBMISSION_FAILURE`, because it has no caller thread to borrow — `runOnCallerThread` is
 inapplicable to it), and it must be a pure function of member
 values and configuration-time captures: it is scheduled the moment the last member succeeds, so
-state created by the submitting thread after `submit` returns is not visible to it — read the
-member futures directly for that. A group accepts at most one combine, declared with its own
-`TaskKey`; `group.future(combineKey)` resolves the typed terminal future with normal Guava
-semantics. If any member fails, the combine never runs and the terminal future is cancelled with
-the group's attributed outcome. The combine's snapshot appears as `TaskGroupResult.terminal()`
-(`members()` stays member-only), and when the combine itself fails or is rejected,
+state created by the submitting thread after `submitGroup` returns is not visible to it — read the
+member futures directly for that. A group accepts at most one combine; a second `combine()` call
+fails at definition configuration with `IllegalStateException`, and `group.future(combineMember)`
+resolves the typed terminal future with normal Guava semantics. If any member fails, the combine
+never runs and the terminal future is cancelled with the group's attributed outcome. The combine's
+snapshot appears as `TaskGroupResult.terminal()` (`members()` stays member-only), and when the
+combine itself fails or is rejected,
 `failedTaskName()` carries the combine's registered name. The group deadline spans the fan-out
 and the combine, so a combine whose members consumed most of the budget may time out before it
 starts — that is the intended end-to-end semantics.
@@ -187,7 +222,7 @@ members, its terminal combine, and the group completion future.
 
 | Method | Answer |
 |---|---|
-| `taskName()` | The batch name, the member or combine key name, or the group name |
+| `taskName()` | The batch name, the member or combine name, or the group name |
 | `outcome()` | `RUNNING` while pending, then one terminal `TaskOutcome` |
 | `deadlineNanos()` | The task's absolute deadline on the `System.nanoTime()` clock |
 | `remaining()` | The budget left before that deadline, never negative |
@@ -293,7 +328,7 @@ GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
 
 GlobalPar global = GlobalPar.builder()
         .purgePolicy(purge)
-        .register(ParName.of("io"), ioThreadPool)
+        .register("io", ioThreadPool)
         .build();
 ```
 

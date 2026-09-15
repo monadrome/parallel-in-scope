@@ -18,6 +18,15 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 
 ## 2. 决策一：是否采纳 v0.3 TaskGroup 用户表面重做方案（含 C11）
 
+> ⚠️ **本节已被取代（superseded），内容不再有效。** 本节描述的是旧版方案（删除
+> `TaskGroupDefinition`、以 `TaskGroup.Declaration` 实现 `AutoCloseable`、"内核零改动"、
+> 净删 7 个顶层类型），已被现行决策
+> [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) 取代：现行
+> 决策**保留** `TaskGroupDefinition`（仅结构、owner 绑定、可并发复用），以一次性的
+> `TaskGroup.Bindings` 承载本次 `Callable`，入口移至 `GlobalPar.defineGroup*`/
+> `submitGroup`，净删 6 个顶层类型。本节及其分析保留为历史记录，仅用于追溯讨论过程，
+> 所有"现状""推荐"表述均不再有效；实施与评审以现行决策及其增补裁定为准。
+
 **这是最大的待定方向，且卡在它后面的决策最多。**
 
 现状：设计与决策点已收敛至 `design/group-api-redesign-v0.3-decision.md`——本议题的

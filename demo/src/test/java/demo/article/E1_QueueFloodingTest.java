@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
@@ -89,8 +88,8 @@ class E1_QueueFloodingTest {
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
         GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+                .register("test-pool", pool)
+                .defaultPar("test-pool")
                 .build();
         Par par = config.defaultPar();
 

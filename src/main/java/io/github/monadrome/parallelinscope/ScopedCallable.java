@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,7 +33,15 @@ final class ScopedCallable<V> implements Callable<V> {
 
     private static final Logger logger = Logger.getLogger(ScopedCallable.class.getName());
 
-    private final Callable<V> delegate;
+    /**
+     * The user body (plus any decorator chain), held in a one-way releasable slot. {@link
+     * #call()}'s finally clears it after the user body's own finally has exited, so neither this
+     * wrapper nor anything retaining it (for example the TTL wrapper) keeps the user closure
+     * reachable once the body has ended. Written by the worker thread only; read by the worker
+     * and by test probes, hence the atomic slot.
+     */
+    private final AtomicReference<Callable<V>> delegate;
+
     private final Ticker ticker;
     private final TaskExecutionContext taskContext;
     private final List<TaskListener> taskListeners;
@@ -40,7 +49,7 @@ final class ScopedCallable<V> implements Callable<V> {
     /** Creates a task wrapper from the batch context owned by one GlobalPar execution. */
     ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
         this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
-        this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
+        this.delegate = new AtomicReference<>(Objects.requireNonNull(delegate, "delegate cannot be null"));
         this.ticker = Ticker.systemTicker();
         this.taskListeners = taskListeners == null ? ImmutableList.of() : taskListeners;
     }
@@ -59,13 +68,17 @@ final class ScopedCallable<V> implements Callable<V> {
             // ==================== doCall ====================
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
-            result = delegate.call();
+            result = delegate.get().call();
             return result;
         } catch (Throwable t) {
             taskException = t;
             throw t;
         } finally {
             // ==================== cleanup & metrics ====================
+            // delegate.call() has returned, so the user body's finally has exited: release the
+            // one-way holder before publishing body exit, and a waiter that observes EXITED never
+            // sees this wrapper still referencing the user closure.
+            releaseDelegate();
             taskContext.markEnded(ticker.read());
             // Publish body exit after the user body's finally and before listeners: listeners are
             // not part of body completion. The outer future finally retries this as a fallback;
@@ -83,6 +96,19 @@ final class ScopedCallable<V> implements Callable<V> {
                 TaskExecutionContext.restore(previousTask);
             }
         }
+    }
+
+    /**
+     * Permanently releases the user-body reference; one-way and idempotent. Called from {@link
+     * #call()}'s finally, i.e. after the user body's own finally has exited.
+     */
+    private void releaseDelegate() {
+        delegate.set(null);
+    }
+
+    /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the body. */
+    boolean delegateReleased() {
+        return delegate.get() == null;
     }
 
     private void notifyListeners(V result, Throwable exception) {
@@ -136,12 +162,13 @@ final class ScopedCallable<V> implements Callable<V> {
 
     @Override
     public String toString() {
+        Callable<V> body = delegate.get();
         return "ScopedCallable{"
                 + "taskName='"
                 + taskContext.multiTaskContext().name()
                 + '\''
                 + ", delegate="
-                + delegate
+                + (body == null ? "released" : body)
                 + ", taskIndex="
                 + taskContext.taskIndex()
                 + ", submitTime="
