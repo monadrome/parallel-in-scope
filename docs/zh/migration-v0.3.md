@@ -19,13 +19,13 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`；`Par.name()` → `Par.id()` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.defineGroup(name, timeout)` / `global.defineGroupInheriting(name)` |
 | `TaskGroupOptions`（name/timeout/listeners） | `defineGroup*` 实参列表加 `Builder.closeGrace`；listeners 迁到 `Futures.addCallback` |
-| `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)`（只含结构）+ `Bindings.task(member, callable)` |
+| `Builder.task(key, parName, callable[, options])` | `Builder.task(name, par)`（只含结构）+ `TaskGroup.Bindings.task(member, callable)` |
 | `Builder.buildWithCombiner(key, parName, function[, options])` | `Builder.combine(name, par[, options])` 后接 `build()` |
 | `TaskGroup.submit(global, definition)` | `global.submitGroup(definition, binder)` |
-| `CombineFunction<R>` | 在 `Bindings` 上登记的 `TaskGroup.CombineBody<R>` |
+| `CombineFunction<R>` | 在 `TaskGroup.Bindings` 上登记的 `TaskGroup.CombineBody<R>` |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
-| `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` 及 `tasks()` / `combine()` | 已删除；`Member<T>` 是唯一句柄 |
+| `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` 及 `TaskGroupDefinition.tasks()` / `combine()` | 已删除；`TaskGroupDefinition.Member<T>` 是唯一句柄 |
 
 五个被删除的顶层类型都不保留兼容别名：`TaskKey`、`CombineFunction`、
 `CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`。`ParName` 不是删除而是
@@ -96,19 +96,45 @@ ParId id = io.id();
 
 ## 三阶段模型
 
-`0.2.x` 把成员 callable 存进 definition，使"可复用"的 definition 悄悄捕获第一次请求的数据。
-v0.3 把配置与执行分离：
+`0.2.x` 的 `TaskGroupDefinition` 把成员 `Callable` 直接存在 definition 里。即使所有字段都是
+`final`，lambda 仍会捕获 `request`、事务、连接等短生命周期对象，导致三类问题：
+
+- **错误保留**：长期复用的 definition 意外延长单次请求对象的生命周期；
+- **错误复用**：复用 definition 时执行的是第一次构建时捕获的数据；
+- **并发串扰**：看似可并发复用的 definition 实际绑定到某次运行的可变对象。
+
+Java 8 没有任何类型约束能证明一个 lambda 不捕获外部对象，运行时检查也依赖编译器细节、可
+绕过。因此规则被收紧为一条更强的形式：**definition 根本不接收 callable；承载 callable 的
+对象必须一次性。** v0.3 据此把配置与执行分成三个阶段：
 
 ```text
-Definition（只含结构，不可变，可复用）
-    -> Bindings（本次提交的 Callable，一次性）
-    -> TaskGroup（运行状态，一次性，可关闭）
+应用/拓扑生命周期
+ParRuntime ------------------------------------------------- close
+    |
+    +-- defineGroup*(...) -- build --> TaskGroupDefinition
+                                      只含结构，可并发复用
+
+一次提交
+submitGroup(definition, binder)
+    |
+    +-- Bindings                 一次性，收集本次的 Callable
+    |     |
+    |     +-- binder 返回即冻结 --> 内部一次性载体，逐跳清空引用
+    |
+    +-- TaskGroup                一次运行寿命，可关闭
+          future / token / deadline / context / timer
 ```
 
-definition 只保存名称、声明顺序、已解析的 owner 绑定 `Par` 句柄、成员选项和组 timeout 选择，
-绝不保存 `Callable`、combine body、listener、request 对象、future、token 或 deadline。Java
-lambda 必然产生捕获，因此承载它们的 `Bindings` 与 `TaskGroup` 是每次提交、一次性使用；而
-definition 可在 owner `ParRuntime` 存活期间跨线程共享。
+三个阶段对应三种寿命，互不倒流：
+
+- **Definition（结构，应用级寿命）**：不可变、线程安全，只保存名称、声明顺序、kind、
+  owner 绑定的 `Par` 句柄、成员 `TaskOptions`、timeout 与 closeGrace 选择；绝不保存
+  `Callable`、combine body、listener、request 对象、future、token、deadline 或 TTL 快照。
+  可在 owner `ParRuntime` 存活期间跨线程共享。
+- **Bindings（本次负载，一次调用寿命）**：由 `submitGroup` 内部创建，只在 binder 回调的
+  同步动态范围内有效。Java lambda 必然产生捕获，因此承载它们的对象按提交隔离、用完即弃。
+- **TaskGroup（运行状态，一次运行寿命）**：closeable scope，持有本次的 future、token、
+  deadline 和 body tracker；future 只在提交成功后产生，不存在声明期 placeholder。
 
 ### 1. 在 owner 上定义组
 
@@ -250,9 +276,16 @@ Futures.addCallback(
 - **成员的诊断名来自声明时的名称字符串**，不再来自 `TaskKey`——checkpoint、任务监听器
   `taskName()` 和任务图 label 都使用传给 `task(name, par)` 的名字。
 - **提交之前不存在任何 future。** 声明期不再有 placeholder；`TaskFuture` 只出现在
-  `submitGroup` 返回的 `TaskGroup` 上。
+  `submitGroup` 返回的 `TaskGroup` 上，因此不会再因为忘记 submit 而留下永久 pending 的 future。
+- **body 引用逐跳转交并清空。** payload 从 `Bindings` 转交内部一次性载体，再被各个 prepared
+  task 接管，每跳都清空上一跳的引用；准备失败、executor 拒绝、cancel-before-run、fail-fast、
+  timeout 与正常完成的全部路径都会释放 body 引用，不依赖 GC。持有外部资源的 body 仍需你自己
+  在 body 内释放——框架释放的是对 body 的引用，不是 body 捕获的资源。
 
 ## 错误时机
+
+admission 仍是全量边界：绑定缺失、重复、foreign 或 kind 不匹配都在冻结校验整体拒绝；与
+`close()` 竞争的结果只有整体接纳或整体拒绝，不存在"部分 body 已执行"的中间态。
 
 | 错误 | 失败时机 | 是否产生 TaskGroup/Future |
 |---|---|---:|
@@ -352,7 +385,14 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 ## 不变的部分
 
 `TaskFuture`、`TaskGroupResult`、`TaskOutcome` 与 `TaskCompletion` 保持 `0.2.x` 形态。
-取消归因、deadline 截断、fail-fast 与 TTL/上下文传播均不变；
+
+结构化并发不变量全部保留：统一 admission、取消树（outer → group → members/combine）、
+deadline 上限取 min、fail-fast、TTL 与 `TaskExecutionContext` 的栈式恢复、`awaitBodyCompletion`
+区分 future terminal 与 body exit。组重设计没有引入第二套提交管道，执行内核仍然只有一套。
+
 组的 close grace 配置从 `TaskGroupOptions.closeGrace(Duration)` 移到
 `TaskGroupDefinition.Builder.closeGrace(Duration)`，close 语义本身见上文。批次（`Par.map`）
 的 API 形态不变——但上面的拒绝默认值同样适用于批次。
+
+完整的设计依据、被否决的替代方案与验证矩阵见仓库内的
+`design/group-api-redesign-v0.3-decision.md`。
