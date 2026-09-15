@@ -21,7 +21,7 @@
 
 - 单一 submit 边界：任务集合一次冻结、统一 admission，不存在部分注册、部分提交。
 - 作用域可关闭（`Scope` 后缀），数据只是载体（`Context` 后缀）。
-- 资源所有权唯一：`GlobalPar` 拥有 scheduler 与内部服务，业务 executor 所有权归用户。
+- 资源所有权唯一：`ParRuntime` 拥有 scheduler 与内部服务，业务 executor 所有权归用户。
 
 ### 取消与 deadline
 

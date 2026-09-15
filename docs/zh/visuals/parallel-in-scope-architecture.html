@@ -17,8 +17,8 @@
   <h1>v0.3 执行架构</h1>
   <p>此页面已随 v0.3 重构：旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在，<code>ParName</code> 已由 <code>String</code> 名取代。</p>
   <div class="flow">
-    <p><strong>应用装配：</strong><code>GlobalPar</code> 以 <code>String</code> 名注册多个 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
-    <p><strong>结构定义：</strong><code>GlobalPar.defineGroup*</code> 生成只含结构的不可变 <code>TaskGroupDefinition</code>（成员与终端 combine 返回类型化 <code>Member</code> 句柄），可跨线程复用。</p>
+    <p><strong>应用装配：</strong><code>ParRuntime</code> 以 <code>String</code> 名注册多个 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
+    <p><strong>结构定义：</strong><code>ParRuntime.defineGroup*</code> 生成只含结构的不可变 <code>TaskGroupDefinition</code>（成员与终端 combine 返回类型化 <code>Member</code> 句柄），可跨线程复用。</p>
     <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；任务组经一次性的 <code>Bindings</code> 在 <code>submitGroup</code> 边界统一接纳。</p>
     <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；组完成经 <code>completionFuture()</code> 与调用方选择的 executor 回调观测。</p>
     <p><strong>维护：</strong>取消发生在执行前时，按物理线程池 identity 合并 purge 维护。</p>

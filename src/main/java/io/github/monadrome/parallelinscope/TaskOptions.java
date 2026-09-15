@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
  * task's name is its {@link TaskGroupDefinition.Member} handle, or the explicit name passed to
  * {@code Par.submit} — and fan-out is not an option either — a single task has no parallelism to
  * limit. A batch declares {@link BatchOptions}; group-level configuration is declared by {@code
- * GlobalPar.defineGroup*} and {@link TaskGroupDefinition.Builder}.
+ * ParRuntime.defineGroup*} and {@link TaskGroupDefinition.Builder}.
  *
  * <p>The timeout is a forced explicit choice between two factories: {@link #inheritTimeout()}
  * declares that the enclosing scope's deadline is inherited, while {@link #timeout(Duration)} sets

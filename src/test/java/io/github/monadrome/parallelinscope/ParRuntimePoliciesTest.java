@@ -5,12 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
-/** Builder validation matrix for {@link GlobalPar} policies and its task-listener overrides. */
-class GlobalParPoliciesTest {
+/** Builder validation matrix for {@link ParRuntime} policies and its task-listener overrides. */
+class ParRuntimePoliciesTest {
 
     @Test
     void parTaskListenerRejectsBlankNamesAndNullListenersAndAppendsPerPar() {
-        GlobalPar.Builder builder = GlobalPar.builder();
+        ParRuntime.Builder builder = ParRuntime.builder();
         TaskListener first = event -> {};
         TaskListener second = event -> {};
 
@@ -18,11 +18,11 @@ class GlobalParPoliciesTest {
 
         assertThatThrownBy(() -> builder.parTaskListener(null, first)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> builder.parTaskListener("", first)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> GlobalPar.builder().parTaskListener("fresh", null))
+        assertThatThrownBy(() -> ParRuntime.builder().parTaskListener("fresh", null))
                 .isInstanceOf(NullPointerException.class);
 
         java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
+        ParRuntime global = ParRuntime.builder()
                 .register("billing", executor)
                 .taskListener(first)
                 .parTaskListener("billing", first)
@@ -42,30 +42,30 @@ class GlobalParPoliciesTest {
 
     @Test
     void taskListenerOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
-        assertThatThrownBy(() -> GlobalPar.builder()
+        assertThatThrownBy(() -> ParRuntime.builder()
                         .parTaskListener("ghost", event -> {})
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not registered");
-        assertThatThrownBy(() -> GlobalPar.builder()
+        assertThatThrownBy(() -> ParRuntime.builder()
                         .register("same", java.util.concurrent.Executors.newSingleThreadExecutor())
                         .register("same", java.util.concurrent.Executors.newSingleThreadExecutor()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate Par name");
-        assertThatThrownBy(() -> GlobalPar.builder().defaultPar("absent").build())
+        assertThatThrownBy(() -> ParRuntime.builder().defaultPar("absent").build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("default Par is not registered");
     }
 
     @Test
     void purgePolicyThresholdsAcceptBoundsOnly() {
-        GlobalParPurgePolicy policy = GlobalParPurgePolicy.builder()
+        ParRuntimePurgePolicy policy = ParRuntimePurgePolicy.builder()
                 .queuePressureThreshold(1.0)
                 .canceledTaskRatioThreshold(1.0)
                 .build();
         assertThat(policy).isNotNull();
 
-        GlobalParPurgePolicy.Builder builder = GlobalParPurgePolicy.builder();
+        ParRuntimePurgePolicy.Builder builder = ParRuntimePurgePolicy.builder();
         assertThatThrownBy(() -> builder.queuePressureThreshold(1.0000001))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.queuePressureThreshold(0.0)).isInstanceOf(IllegalArgumentException.class);
@@ -80,12 +80,12 @@ class GlobalParPoliciesTest {
 
     @Test
     void purgePolicyGettersExposeConfiguredValuesExactly() {
-        GlobalParPurgePolicy defaults = GlobalParPurgePolicy.builder().build();
+        ParRuntimePurgePolicy defaults = ParRuntimePurgePolicy.builder().build();
         assertThat(defaults.enabled()).isFalse();
         assertThat(defaults.queuePressureThreshold()).isEqualTo(0.80d);
         assertThat(defaults.canceledTaskRatioThreshold()).isEqualTo(0.05d);
 
-        GlobalParPurgePolicy custom = GlobalParPurgePolicy.builder()
+        ParRuntimePurgePolicy custom = ParRuntimePurgePolicy.builder()
                 .enabled(true)
                 .queuePressureThreshold(0.5d)
                 .canceledTaskRatioThreshold(0.25d)
@@ -97,14 +97,14 @@ class GlobalParPoliciesTest {
 
     @Test
     void deadlockPolicyAndTaskListenerBuildersExposeFluentSelfReturns() {
-        GlobalParDeadlockPolicy.Builder deadlock = GlobalParDeadlockPolicy.builder();
+        ParRuntimeDeadlockPolicy.Builder deadlock = ParRuntimeDeadlockPolicy.builder();
         assertThat(deadlock.enabled(true)).isSameAs(deadlock);
         assertThat(deadlock.build().enabled()).isTrue();
 
-        GlobalPar.Builder listeners = GlobalPar.builder();
+        ParRuntime.Builder listeners = ParRuntime.builder();
         TaskListener listener = event -> {};
         assertThat(listeners.taskListener(listener)).isSameAs(listeners);
-        GlobalPar global = listeners.build();
+        ParRuntime global = listeners.build();
         try {
             assertThat(global.taskListeners()).containsExactly(listener);
         } finally {

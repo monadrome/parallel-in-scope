@@ -46,7 +46,7 @@ final class ScopedCallable<V> implements Callable<V> {
     private final TaskExecutionContext taskContext;
     private final List<TaskListener> taskListeners;
 
-    /** Creates a task wrapper from the batch context owned by one GlobalPar execution. */
+    /** Creates a task wrapper from the batch context owned by one ParRuntime execution. */
     ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
         this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
         this.delegate = new AtomicReference<>(Objects.requireNonNull(delegate, "delegate cannot be null"));

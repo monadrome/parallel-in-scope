@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 /**
  * Immutable, reusable, structure-only description of one heterogeneous task group.
  *
- * <p>A definition captures nothing but structure: the owning {@link GlobalPar}'s identity, the
+ * <p>A definition captures nothing but structure: the owning {@link ParRuntime}'s identity, the
  * group name, the forced choice between an explicit timeout and an inherited one, the optional
  * close grace, and the ordered member declarations — each carrying its name, declaration order,
  * internal kind, the owner-bound {@link Par} resolved at configuration time, and immutable {@link
@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
  * as its owner lives.
  */
 public final class TaskGroupDefinition {
-    private final GlobalPar owner;
+    private final ParRuntime owner;
     private final String name;
     private final @Nullable Duration timeout;
     private final @Nullable Duration closeGrace;
@@ -51,7 +51,7 @@ public final class TaskGroupDefinition {
     }
 
     /** The owner this definition is bound to; only it may submit this definition. */
-    GlobalPar owner() {
+    ParRuntime owner() {
         return owner;
     }
 
@@ -141,14 +141,14 @@ public final class TaskGroupDefinition {
     /**
      * Configuration builder; each {@link #task}/{@link #combine} call is validated immediately.
      *
-     * <p>Created only by the owner through {@link GlobalPar#defineGroup(String, Duration)} or
-     * {@link GlobalPar#defineGroupInheriting(String)}. Not thread-safe: use it from one
+     * <p>Created only by the owner through {@link ParRuntime#defineGroup(String, Duration)} or
+     * {@link ParRuntime#defineGroupInheriting(String)}. Not thread-safe: use it from one
      * synchronous configuration flow. The first {@link #build()} seals the builder and returns the
      * definition; later {@code build()} calls return that same instance, and any mutating call
      * after sealing throws {@link IllegalStateException}.
      */
     public static final class Builder {
-        private final GlobalPar owner;
+        private final ParRuntime owner;
         private final String name;
         private final @Nullable Duration timeout;
         private final List<Slot> slots = new ArrayList<>();
@@ -156,7 +156,7 @@ public final class TaskGroupDefinition {
         private @Nullable Duration closeGrace;
         private @Nullable TaskGroupDefinition built;
 
-        Builder(GlobalPar owner, String name, @Nullable Duration timeout) {
+        Builder(ParRuntime owner, String name, @Nullable Duration timeout) {
             this.owner = owner;
             this.name = name;
             this.timeout = timeout;
@@ -194,13 +194,13 @@ public final class TaskGroupDefinition {
          * Declares one plain member on the given {@code Par}.
          *
          * <p>The name must be non-null, non-blank, and unique across every member and the combine;
-         * the {@code Par} must belong to the same {@link GlobalPar} that created this builder —
+         * the {@code Par} must belong to the same {@link ParRuntime} that created this builder —
          * both are rejected here, at configuration time, before any run state exists. Omitting
          * {@code TaskOptions} is equivalent to {@link TaskOptions#inheritTimeout()}.
          *
          * @throws NullPointerException if any argument is null
          * @throws IllegalArgumentException if the name is blank or duplicated, or the {@code Par}
-         *     belongs to a different {@code GlobalPar}
+         *     belongs to a different {@code ParRuntime}
          * @throws IllegalStateException if the builder is already sealed by {@link #build()}
          */
         public <T> Member<T> task(String memberName, Par par, TaskOptions options) {
@@ -225,11 +225,11 @@ public final class TaskGroupDefinition {
          * after all of them succeed. A group accepts at most one combine: a second {@code
          * combine()} call throws {@link IllegalStateException}. Its name must be unique across
          * every member and the combine, and the {@code Par} must belong to the owning {@code
-         * GlobalPar}.
+         * ParRuntime}.
          *
          * @throws NullPointerException if any argument is null
          * @throws IllegalArgumentException if the name is blank or duplicated, or the {@code Par}
-         *     belongs to a different {@code GlobalPar}
+         *     belongs to a different {@code ParRuntime}
          * @throws IllegalStateException if a combine is already declared or the builder is sealed
          */
         public <R> Member<R> combine(String combineName, Par par, TaskOptions options) {
@@ -263,9 +263,9 @@ public final class TaskGroupDefinition {
             if (memberName.trim().isEmpty()) {
                 throw new IllegalArgumentException("member name cannot be blank");
             }
-            if (par.globalPar() != owner) {
+            if (par.runtime() != owner) {
                 throw new IllegalArgumentException(
-                        "Par '" + par.name() + "' does not belong to the GlobalPar that created this builder");
+                        "Par '" + par.name() + "' does not belong to the ParRuntime that created this builder");
             }
             for (Slot slot : slots) {
                 if (slot.name.equals(memberName)) {

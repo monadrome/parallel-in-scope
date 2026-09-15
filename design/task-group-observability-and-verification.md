@@ -108,7 +108,7 @@ fake-group-batch -> A/B/C
 ### 14.2 submit 与关闭竞态
 
 7. 同一个 definition 可重复 `submitGroup`，每次产生独立 Group（不同 groupId）；
-8. `GlobalPar.submitGroup()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
+8. `ParRuntime.submitGroup()` 与 `ParRuntime.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
 9. direct executor/inline fallback 中，任一 callable 执行前完整成员集合已可查询；
 10. executor rejection 产生 SUBMISSION_FAILURE、触发 fail-fast、所有 future 终态；
 11. 已注册但尚未 `executor.execute()` 的成员被 fail-fast/cancel 后不得运行 callable；
@@ -147,7 +147,7 @@ fake-group-batch -> A/B/C
 32. outer scoped task 创建 Group 时，只产生 outer->member 的真实边；
 33. member 内嵌套 `Par.map()` 产生 member->child Batch 的真实边；
 34. 同一 executor 的 siblings 不因 membership 产生 self-loop；
-35. GlobalPar close 后拒绝新 submit；先于 close 完成 admission 的完整 Group 可继续运行；
+35. ParRuntime close 后拒绝新 submit；先于 close 完成 admission 的完整 Group 可继续运行；
 36. close 前完整冻结的成员继续走终止、timeout 和 telemetry；
 37. Group close 不关闭任何注册 executor。
 

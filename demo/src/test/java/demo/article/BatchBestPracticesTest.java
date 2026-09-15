@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ public class BatchBestPracticesTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
-        GlobalPar config = GlobalPar.builder()
+        ParRuntime config = ParRuntime.builder()
                 .register("test-pool", pool)
                 .defaultPar("test-pool")
                 .build();
@@ -69,7 +69,9 @@ public class BatchBestPracticesTest {
                 "recommendation",
                 "analytics");
 
-        BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000)).parallelism(5).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
+                .parallelism(5)
+                .taskType(TaskType.IO_BOUND);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
@@ -129,7 +131,9 @@ public class BatchBestPracticesTest {
         }
         assertThat(shards).hasSize(10);
 
-        BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
+                .parallelism(parallelism)
+                .taskType(TaskType.IO_BOUND);
 
         long start = System.currentTimeMillis();
 
@@ -179,7 +183,9 @@ public class BatchBestPracticesTest {
         // 模拟混合任务：0=DB, 1=Cache, 2=HTTP(会失败), 3=DB, 4=Cache
         List<String> tasks = Arrays.asList("db-1", "cache-1", "http-1", "db-2", "cache-2");
 
-        BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000)).parallelism(3).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
+                .parallelism(3)
+                .taskType(TaskType.IO_BOUND);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

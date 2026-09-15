@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  * waiting thread (via {@link SettableFuture}).
  *
  * <p>The signal is a future rather than a bare latch so it composes with the rest of the library:
- * the owning {@code GlobalPar} aggregates the signals of every admitted submission without
+ * the owning {@code ParRuntime} aggregates the signals of every admitted submission without
  * dedicating a thread per wait, and a timed wait distinguishes "all bodies exited" from "budget
  * elapsed" instead of merging them.
  *

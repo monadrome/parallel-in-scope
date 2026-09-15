@@ -41,7 +41,7 @@ try {
 ## 代码
 
 ```java
-GlobalPar config = GlobalPar.builder()
+ParRuntime config = ParRuntime.builder()
         .register("http-pool", pool)
         .build();
 Par par = config.defaultPar();

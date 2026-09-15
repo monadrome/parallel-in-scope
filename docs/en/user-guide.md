@@ -10,10 +10,10 @@ explicit boundary with one-shot bindings; it is not a dynamically growing batch.
 
 ## Build the execution topology
 
-Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
+Create `ParRuntime` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
 
 ```java
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
         .register("database", databaseExecutor)
         .register("http", httpExecutor)
@@ -29,13 +29,13 @@ used verbatim — no trimming or case folding), so they can be declared as const
 name is a logical lookup key, not a resource identity — the physical pool is identified by
 `ExecutorIdentity` through object reference, and two names may deliberately share one executor.
 
-Names are validated at build time. `GlobalPar` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `GlobalPar` shuts down its internal timer and submitter services only, never a registered executor.
+Names are validated at build time. `ParRuntime` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
 For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
 ```java
-GlobalPar.installGlobal(global);
-Par defaultPar = GlobalPar.global().defaultPar();
+ParRuntime.installGlobal(global);
+Par defaultPar = ParRuntime.global().defaultPar();
 ```
 
 Prefer explicit injection in tests and libraries. `installGlobal` is one-time and intentionally rejects replacement.
@@ -72,8 +72,8 @@ A future being done means its value is settled; it does not prove the user funct
 
 Use a task group when a request has a small fixed set of independent operations that may return
 different types or use different `Par` entries. A group moves through three phases:
-`GlobalPar.defineGroup*` creates a `TaskGroupDefinition.Builder` that records an immutable,
-reusable, structure-only `TaskGroupDefinition`; `GlobalPar.submitGroup(definition, binder)`
+`ParRuntime.defineGroup*` creates a `TaskGroupDefinition.Builder` that records an immutable,
+reusable, structure-only `TaskGroupDefinition`; `ParRuntime.submitGroup(definition, binder)`
 collects this run's bodies through the one-shot `TaskGroup.Bindings` and admits the whole group
 at one boundary; the returned `TaskGroup` is the running, closeable scope. The definition never
 holds a `Callable`, combine body, listener, or request object, so it can be shared across threads
@@ -112,7 +112,7 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 
 `Builder.task(name, par)` records only the member's name, `Par`, and options — it creates no
 execution context, captures no TTL value, starts no timer, and submits nothing; the `Par` must
-belong to the same `GlobalPar` that created the builder. Each declaration returns a typed
+belong to the same `ParRuntime` that created the builder. Each declaration returns a typed
 `Member<T>` handle created by the library and identified by object identity: it constrains both
 `Bindings.task(member, callable)` and `group.future(member)` to the same `T`, and a handle from
 another definition, or used with the wrong kind of binding, is rejected with
@@ -294,7 +294,7 @@ Use an [observation scope](#observe-nested-work) when the request needs graph di
 
 ## Observe nested work
 
-Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
+Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
 
 ```java
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
@@ -307,26 +307,26 @@ try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) 
 Configure the policy while building the topology:
 
 ```java
-GlobalParDeadlockPolicy deadlock = GlobalParDeadlockPolicy.builder()
+ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
         .enabled(true)
         .listener(event -> log.warn("Potential deadlock: {}", event))
         .build();
 ```
 
-An observation scope does not merge graphs from separate `GlobalPar` instances.
+An observation scope does not merge graphs from separate `ParRuntime` instances.
 
 ## Purge cancelled queue entries
 
-Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `GlobalPar` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
+Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `ParRuntime` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
 
 ```java
-GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
+ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
         .enabled(true)
         .queuePressureThreshold(0.80)
         .canceledTaskRatioThreshold(0.05)
         .build();
 
-GlobalPar global = GlobalPar.builder()
+ParRuntime global = ParRuntime.builder()
         .purgePolicy(purge)
         .register("io", ioThreadPool)
         .build();
@@ -351,7 +351,7 @@ Consumers can still take elements that were queued before `close()`; no recovery
 
 ## Operational rules
 
-- Keep a `GlobalPar` for the application lifetime and close it during application shutdown.
+- Keep a `ParRuntime` for the application lifetime and close it during application shutdown.
 - Keep registered executor ownership outside the library; shut executors down in the owning component.
 - Give each batch a stable task name and add checkpoints to long CPU work.
 - Use different `Par` entries for resources that require isolation, even when both are IO-bound.
