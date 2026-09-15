@@ -6,8 +6,6 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -302,23 +300,24 @@ class TaskGraphExportTest {
     // ==================== JSON export ====================
 
     private static void exportScenario(String scenario, TaskGraphData data) throws IOException {
+        TaskGraphData.Snapshot snapshot = data.snapshot();
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "scenario", quote(scenario));
         json.append(",\n");
         indent(json, 1).append("\"graphs\": {\n");
-        field(json, 2, "task", graphJson(data.graph(), labelsOf(data), 3));
+        field(json, 2, "task", graphJson(snapshot.graph(), snapshot.nodeLabels(), 3));
         json.append(",\n");
-        field(json, 2, "executorName", graphJson(data.executorGraph(), null, 3));
+        field(json, 2, "executorName", graphJson(snapshot.executorGraph(), null, 3));
         json.append(",\n");
-        field(json, 2, "executorIdentity", identityGraphJson(identityGraphOf(data), 3));
+        field(json, 2, "executorIdentity", identityGraphJson(snapshot.executorIdentityGraph(), 3));
         json.append('\n');
         indent(json, 1).append("},\n");
         indent(json, 1).append("\"predicates\": {");
-        json.append("\"taskCycle\": ").append(data.taskCycle());
-        json.append(", \"selfLoop\": ").append(data.selfLoop());
-        json.append(", \"executorCycle\": ").append(data.executorCycle());
-        json.append(", \"executorSelfLoop\": ").append(data.executorSelfLoop());
+        json.append("\"taskCycle\": ").append(snapshot.taskCycle());
+        json.append(", \"selfLoop\": ").append(snapshot.taskSelfLoop());
+        json.append(", \"executorCycle\": ").append(snapshot.executorCycle());
+        json.append(", \"executorSelfLoop\": ").append(snapshot.executorSelfLoop());
         json.append("}\n}");
         Files.createDirectories(EXPORT_DIR);
         Files.write(EXPORT_DIR.resolve(scenario + ".json"), json.toString().getBytes(StandardCharsets.UTF_8));
@@ -463,25 +462,7 @@ class TaskGraphExportTest {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, targetName, sourceName, 1, Duration.ZERO, true);
     }
 
-    @SuppressWarnings("unchecked")
     private static ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraphOf(TaskGraphData data) {
-        try {
-            Method method = TaskGraphData.class.getDeclaredMethod("generateExecutorIdentityGraph");
-            method.setAccessible(true);
-            return (ValueGraph<ExecutorIdentity, List<TaskEdge>>) method.invoke(data);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, String> labelsOf(TaskGraphData data) {
-        try {
-            Field field = TaskGraphData.class.getDeclaredField("nodeLabels");
-            field.setAccessible(true);
-            return (Map<String, String>) field.get(data);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
+        return data.snapshot().executorIdentityGraph();
     }
 }

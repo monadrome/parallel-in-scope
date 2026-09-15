@@ -73,6 +73,13 @@ fake-group-batch -> A/B/C
 - groupId/memberName 的 membership 只写入 Group telemetry；
 - 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警。
 
+派生视图的一致性：
+
+- 每次查询（`hasTaskCycle()` / `hasSelfLoop()` / `hasExecutorCycle()` / `hasExecutorSelfLoop()`
+  以及导出使用的图）MUST 包含其线性化点之前已完成记录的全部边；新增边之后 MUST NOT 复用旧快照；
+- `close()` 检测事件中的 task graph、executor graph、四个 cycle/self-loop 标志与渲染文本 MUST 来自
+  同一份不可变快照，MUST NOT 混用不同时点的读取结果。
+
 ## 13. 并发不变量
 
 实现和测试必须证明：
