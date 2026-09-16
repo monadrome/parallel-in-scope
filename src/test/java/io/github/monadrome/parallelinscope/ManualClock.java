@@ -101,6 +101,19 @@ final class ManualClock {
         return ticker.read();
     }
 
+    /** Handles still scheduled and neither run nor cancelled — the scheduler-retention probe. */
+    int pendingHandles() {
+        synchronized (lock) {
+            int count = 0;
+            for (Entry entry : queue) {
+                if (!entry.isDone()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
+
     /** Advances the clock and runs every task whose deadline the advance crossed. */
     void advance(Duration duration) {
         synchronized (lock) {

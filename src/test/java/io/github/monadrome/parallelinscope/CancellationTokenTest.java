@@ -118,12 +118,13 @@ public class CancellationTokenTest {
         alreadySucceeded.set("kept");
         SettableFuture<Void> submitCanceller = SettableFuture.create();
 
-        token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceller, TIMER);
+        ListenableFuture<?> aggregate = token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceller, TIMER);
 
         // The commit is synchronous: bind returns with the token already TIMEOUT and the pending
         // work already cancelled, so no submitted task can still enter user code in the window a
         // zero-delay timer would leave open.
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
+        assertThat(aggregate.isDone()).isTrue();
         assertThat(pending).isCancelled();
         assertThat(submitCanceller).isCancelled();
         assertThat(alreadySucceeded).isNotCancelled();
@@ -238,6 +239,21 @@ public class CancellationTokenTest {
             assertThat(sibling).isCancelled();
             assertThat(submitCanceller).isCancelled();
         });
+    }
+
+    @Test
+    public void bindReturnsAggregateTrackingAllFuturesAndTheSubmitter() {
+        CancellationToken token = CancellationToken.create();
+
+        SettableFuture<String> task = SettableFuture.create();
+        SettableFuture<Void> submitCanceller = SettableFuture.create();
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(task), submitCanceller, TIMER);
+
+        assertThat(aggregate.isDone()).isFalse();
+        task.set("a");
+        assertThat(aggregate.isDone()).isFalse();
+        submitCanceller.set(null);
+        assertThat(aggregate.isDone()).isTrue();
     }
 
     @Test
