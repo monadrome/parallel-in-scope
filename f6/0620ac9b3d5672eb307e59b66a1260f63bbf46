@@ -1,0 +1,31 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java
+  s_5d0f233ae46b2c::t_f0bd7f6d6d6fb1 77
+  s_5d0f233ae46b2c::t_28e9b7f308b31b 12-13,40-45,47,83
+  s_5d0f233ae46b2c::t_2ff457ec2f6aa2 62-67
+  s_5d0f233ae46b2c::t_c749bc9b1cb8b6 1-11,14-39,46,48-61,68-76,78-82,84-130
+design/task-group-observability-and-verification.md
+  s_5d0f233ae46b2c::t_076157b63bf878 92,101-102
+design/task-group-terminal-combine.md
+  s_5d0f233ae46b2c::t_076157b63bf878 43,249
+design/task-group-lifecycle.md
+  s_5d0f233ae46b2c::t_076157b63bf878 56,249-253
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_5d0f233ae46b2c::t_5b9d8c2dad0091 23-25,74-87,493-494,504-505,513-532,535-548,568-573,612-620,659-660,663,668,671,683,730-732
+  s_5d0f233ae46b2c::t_a942c1a535bfa9 108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f60620ac9b3d5672eb307e59b66a1260f63bbf46",
+  "prompts": {},
+  "sessions": {
+    "s_5d0f233ae46b2c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0af23-dba1-77a2-a5e6-5144c9d2cb3b",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
