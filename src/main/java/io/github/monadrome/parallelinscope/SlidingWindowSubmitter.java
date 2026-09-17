@@ -104,7 +104,7 @@ final class SlidingWindowSubmitter<V> {
                 // never cancelled (the token binds the Task views, not these futures), so their
                 // body slots are released here as skipped.
                 for (int pending = i; pending < tasks.size(); pending++) {
-                    tasks.get(pending).markBodySkipped();
+                    tasks.get(pending).skipBody();
                 }
                 return TaskBatchResult.of(
                         bodyCompletion,
@@ -238,7 +238,7 @@ final class SlidingWindowSubmitter<V> {
             @Nullable Throwable reason) {
         for (int i = fromIndex; i < result.size(); i++) {
             result.get(i).abandon(reason);
-            tasks.get(i).markBodySkipped();
+            tasks.get(i).skipBody();
         }
     }
 }

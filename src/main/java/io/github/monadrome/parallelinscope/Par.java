@@ -180,6 +180,12 @@ public final class Par {
         if (!options.timeout().isPresent() && currentTask == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
+        // An empty collection submits nothing, so it must not resolve a unit: resolving builds a
+        // child token whose constructor registers a cancellation listener on the parent, and a
+        // batch that never runs never completes that token -- so the listener node would stay
+        // reachable from the parent for the parent's whole lifetime, one per call.
+        // The deadline check above stays first so the documented @throws contract is unchanged.
+        if (elements == null || elements.isEmpty()) return emptyBatchResult();
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
         TaskGraphObservationScope observation = parent != null
@@ -200,11 +206,10 @@ public final class Par {
 
     @SuppressWarnings("unchecked")
     private <T, R> TaskBatchResult<R> executeGlobal(
-            @Nullable Collection<T> elements,
+            Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
             @Nullable java.time.Duration closeGrace) {
-        if (elements == null || elements.isEmpty()) return emptyBatchResult();
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;
         // skip the edge allocation and remaining() read on the common unobserved path.

@@ -288,8 +288,13 @@ public final class TaskGroup implements AutoCloseable {
         }
         long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
                 groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
+        // A definition with nothing to run completes immediately with SUCCESS and never executes or
+        // cancels a member, so it does not need a parent cancellation link. Skipping the link
+        // matters: the token of such a group is never bound, so a parent-linked one would hold a
+        // listener node on the parent scope for the parent's entire lifetime.
+        boolean empty = definition.members().isEmpty() && definition.combineSlot() == null;
         CancellationToken groupToken = new CancellationToken(
-                structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
+                structuralParent == null || empty ? null : structuralParent.cancellationToken(), groupDeadline);
         // Every member and the terminal combine registers its body-completion slot here, before
         // any submission, so the shared signal covers tasks that start late or never start.
         BodyCompletionTracker bodyCompletion =
@@ -626,9 +631,11 @@ public final class TaskGroup implements AutoCloseable {
                 if (recordedFailure != null) {
                     return recordedFailure.reason;
                 }
-                boolean allSuccess =
-                        memberStates.values().stream().allMatch(member -> member.reason == TaskOutcome.SUCCESS)
-                                && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
+                // successCount is maintained incrementally under this same lock (memberCompleted)
+                // and covers members only, so the all-success question is an O(1) comparison here
+                // instead of a scan that allocates an iterator and a capturing lambda.
+                boolean allSuccess = successCount == memberStates.size()
+                        && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
                 return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
             default:
                 return TokenOutcomes.forCanceled(groupToken, TaskOutcome.MEMBER_CANCELED);

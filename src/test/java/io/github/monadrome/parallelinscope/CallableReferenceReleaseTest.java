@@ -117,7 +117,7 @@ class CallableReferenceReleaseTest {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         Fixture fixture = fixture(unit("skip-release"), tracker, 0, () -> "never");
 
-        fixture.future.markBodySkipped();
+        fixture.future.skipBody();
 
         // The placeholder-only path never completes the engine future; only the body slot and the
         // reference are released.
@@ -140,7 +140,7 @@ class CallableReferenceReleaseTest {
         // the clear lands between the claim and the read. The body must not run, no NPE may be
         // published, and the run must still exit through the normal finally, releasing the body
         // slot through the existing fallback publish.
-        fixture.future.markBodySkipped();
+        fixture.future.skipBody();
         fixture.future.run();
 
         assertThat(ran).isFalse();
