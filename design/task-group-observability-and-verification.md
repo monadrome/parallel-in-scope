@@ -89,7 +89,7 @@ fake-group-batch -> A/B/C
 3. definition 不可变、可复用；每次 submit 冻结的是同一份完整定义；
 4. Group 一旦发布，其 registry 完整、不可扩展，且每个成员都拥有一个最终终态的公开 future；
 5. executor rejection 不能留下 pending future；
-6. `terminalCount` 对每个成员最多增加一次；
+6. `completedTasks` 对每个任务（member 或 combine）最多增加一次（`MemberState.counted` 的 CAS 保证）；
 7. Group completion reason 只固定一次；
 8. ~~Group listener 只调用一次~~ **删除转交**：`TaskGroupListener` 已删除，组完成回调经
    `completionFuture()` + Guava `Futures.addCallback` 注册，"只调一次"由 Guava future 语义
@@ -98,7 +98,8 @@ fake-group-batch -> A/B/C
 10. 取消赢得 execution claim 时用户 callable 不执行；
 11. 任一 inline 执行前，全部成员已经出现在 registry；
 12. 所有 ThreadLocal/TTL 在正常、异常、取消、拒绝和 inline 路径上恢复；
-13. Group lock 内不执行用户 callable、listener、future cancellation 或 executor 方法；
+13. 内部状态更新（归类、计数）不持锁、不执行外部调用；级联取消、combine 提交与收敛在该更新
+    之后触发，重入安全由原子状态的幂等性而非互斥保证；
 14. 同一成员的公开 future 状态、`TaskOutcome`（成员结果 `outcome()`）、Group result 三者一致。
 
 ## 14. 必测矩阵
