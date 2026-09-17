@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.base.Function;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
@@ -12,7 +11,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -221,20 +219,9 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     /** See {@link #transform(Function, Executor)}. */
-    <R> Task<R> transformAsync(AsyncFunction<? super T, R> function, Executor executor) {
-        return derived(fluent().transformAsync(function, executor));
-    }
-
-    /** See {@link #transform(Function, Executor)}. */
     <X extends Throwable> Task<T> catching(
             Class<X> exceptionType, Function<? super X, ? extends T> fallback, Executor executor) {
         return derived(fluent().catching(exceptionType, fallback, executor));
-    }
-
-    /** See {@link #transform(Function, Executor)}. */
-    <X extends Throwable> Task<T> catchingAsync(
-            Class<X> exceptionType, AsyncFunction<? super X, ? extends T> fallback, Executor executor) {
-        return derived(fluent().catchingAsync(exceptionType, fallback, executor));
     }
 
     /**
@@ -243,11 +230,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      */
     Task<T> withTimeout(Duration timeout, ScheduledExecutorService scheduledExecutor) {
         return derived(fluent().withTimeout(timeout, scheduledExecutor));
-    }
-
-    /** See {@link #withTimeout(Duration, ScheduledExecutorService)}. */
-    Task<T> withTimeout(long timeout, TimeUnit unit, ScheduledExecutorService scheduledExecutor) {
-        return derived(fluent().withTimeout(timeout, unit, scheduledExecutor));
     }
 
     /**

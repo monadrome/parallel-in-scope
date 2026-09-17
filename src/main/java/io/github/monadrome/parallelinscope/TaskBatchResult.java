@@ -119,30 +119,6 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     }
 
     /**
-     * Creates a result for a fully submitted batch carrying its body-completion signal.
-     *
-     * @param <T> the element result type
-     * @param bodyCompletion shared task-body completion signal of this submission
-     * @param results the individual result futures
-     * @return a new batch result
-     */
-    static <T> TaskBatchResult<T> of(BodyCompletionTracker bodyCompletion, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results, bodyCompletion, null, null);
-    }
-
-    /**
-     * Creates a result for a batch whose submissions may still be running.
-     *
-     * @param <T> the element result type
-     * @param submitCanceller the future running the remaining submissions
-     * @param results the individual result futures
-     * @return a new batch result
-     */
-    static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<? extends TaskFuture<T>> results) {
-        return new TaskBatchResult<>(submitCanceller, results, BodyCompletionTracker.empty(), null, null);
-    }
-
-    /**
      * Creates a result for a batch whose submissions may still be running, carrying its
      * body-completion signal, its cancellation token, and its close grace.
      *
