@@ -20,6 +20,9 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
@@ -68,12 +71,20 @@ public final class TaskGroup implements AutoCloseable {
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable Duration closeGrace;
 
-    private int terminalCount;
-    private int successCount;
-    private @Nullable TaskOutcome outcome;
-    private @Nullable String failedTaskName;
-    private boolean terminalSubmitted;
-    private boolean closed;
+    /** Convergence barrier: incremented exactly once per completed task (member or combine). */
+    private final AtomicInteger completedTasks = new AtomicInteger();
+
+    /** Members (never the terminal combine) that completed successfully; the combine join test. */
+    private final AtomicInteger memberSuccesses = new AtomicInteger();
+
+    /** First writer wins: names the member or combine whose own outcome recorded a failure. */
+    private final AtomicReference<String> failedTaskName = new AtomicReference<>();
+
+    /** One-shot guard that keeps the terminal combine from being submitted twice. */
+    private final AtomicBoolean terminalSubmitted = new AtomicBoolean();
+
+    /** How many tasks the convergence barrier waits for: members plus an optional combine. */
+    private final int totalTasks;
 
     private TaskGroup(
             String groupName,
@@ -94,6 +105,7 @@ public final class TaskGroup implements AutoCloseable {
         this.memberStates = new LinkedHashMap<>(memberStates);
         this.handles = handles;
         this.terminal = terminal;
+        this.totalTasks = this.memberStates.size() + (terminal == null ? 0 : 1);
         // The group's own terminal future is a task like any other: it carries the group name and
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
         // as on a member future.
@@ -484,8 +496,8 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Submits the prepared combine to its own executor exactly once, outside the group lock. The
-     * submission runs on the convergence callback thread (or the submit thread for an empty
+     * Submits the prepared combine to its own executor exactly once, with no group state lock held.
+     * The submission runs on the convergence callback thread (or the submit thread for an empty
      * group); the user function itself runs only on the combine executor's worker. A combine that
      * lost to cancellation is never submitted, and a cancellation racing the submission still
      * cannot enter user code because the future's phase claim guards the call.
@@ -495,9 +507,8 @@ public final class TaskGroup implements AutoCloseable {
         if (combine == null) {
             return;
         }
-        synchronized (this) {
-            if (terminalSubmitted) return;
-            terminalSubmitted = true;
+        if (!terminalSubmitted.compareAndSet(false, true)) {
+            return;
         }
         if (!combine.future.isDone()) {
             combine.submit();
@@ -505,39 +516,42 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     private void memberCompleted(MemberState member) {
-        TaskOutcome observedReason;
-        boolean joinSatisfied;
-        synchronized (this) {
-            if (member.counted) return;
-            member.counted = true;
-            if (member.future.isCancelled()) {
-                member.reason = classifyCancelled(member);
-            } else {
-                try {
-                    // The listener fires only on a done future, so read the result with
-                    // Futures.getDone: unlike get(), it never throws InterruptedException, and an
-                    // interrupted completing thread can no longer turn a success into a phantom
-                    // USER_FAILURE.
-                    Futures.getDone(member.future);
-                    member.reason = TaskOutcome.SUCCESS;
-                } catch (ExecutionException failure) {
-                    member.failure = failure.getCause();
-                    member.reason = classifyFailure(member, member.failure);
-                }
-            }
-            observedReason = member.reason;
-            terminalCount++;
-            if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
-                successCount++;
-            }
-            if ((observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE)
-                    && failedTaskName == null) {
-                failedTaskName = member.name;
-            }
-            // The combine is not part of memberStates, so successCount covers members only: the
-            // join condition is every member counted and successful, in O(1) under the lock.
-            joinSatisfied = terminal != null && !terminalSubmitted && successCount == memberStates.size();
+        // Classification reads only an already-terminal future and the tokens' own atomic state,
+        // so it needs no mutual exclusion. The counted CAS stays: this design depends on counting
+        // each member exactly once, and a duplicate increment would step over the barrier total
+        // and strand the completion future.
+        if (!member.counted.compareAndSet(false, true)) {
+            return;
         }
+        if (member.future.isCancelled()) {
+            member.reason = classifyCancelled(member);
+        } else {
+            try {
+                // The listener fires only on a done future, so read the result with
+                // Futures.getDone: unlike get(), it never throws InterruptedException, and an
+                // interrupted completing thread can no longer turn a success into a phantom
+                // USER_FAILURE.
+                Futures.getDone(member.future);
+                member.reason = TaskOutcome.SUCCESS;
+            } catch (ExecutionException failure) {
+                member.failure = failure.getCause();
+                member.reason = classifyFailure(member, member.failure);
+            }
+        }
+        TaskOutcome observedReason = member.reason;
+
+        if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
+            memberSuccesses.incrementAndGet();
+        }
+        if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
+            failedTaskName.compareAndSet(null, member.name);
+        }
+        // The combine is not part of memberStates, so memberSuccesses covers members only: the
+        // join condition is every member counted and successful.
+        if (terminal != null && memberSuccesses.get() == memberStates.size()) {
+            submitTerminalOnce();
+        }
+
         if (observedReason == TaskOutcome.MEMBER_CANCELED) {
             // A directly canceled member cascades to the whole group; the group token is canceled
             // first so members cancelled through their tokens read a terminal group state.
@@ -557,10 +571,13 @@ public final class TaskGroup implements AutoCloseable {
                 groupToken.failFastCancel();
             }
         }
-        if (joinSatisfied) {
-            submitTerminalOnce();
+        // The barrier increment MUST stay last: everything ordered before it -- this member's
+        // classification, the cascade above, and fail-fast -- is then visible to the converging
+        // thread. Moving it back to the top (as the locked version had terminalCount++) lets one
+        // thread converge while another is still mid-cascade.
+        if (completedTasks.incrementAndGet() == totalTasks) {
+            converge();
         }
-        convergeIfTerminal();
     }
 
     /**
@@ -598,17 +615,15 @@ public final class TaskGroup implements AutoCloseable {
         return TokenOutcomes.forCanceled(groupToken, whenUncommitted);
     }
 
-    private void convergeIfTerminal() {
-        TaskGroupResult result;
-        synchronized (this) {
-            if (closed || terminalCount != memberStates.size() + (terminal == null ? 0 : 1)) return;
-            if (outcome == null) {
-                outcome = deriveOutcome();
-            }
-            closed = true;
-            result = snapshot();
-        }
-        completion.set(result);
+    /**
+     * Converges the group on the unique thread whose barrier increment observed every task
+     * terminal: the read-modify-write that won also publishes every other task's classification
+     * and timestamps, so the decision and the snapshot are taken over a complete, immutable view
+     * without holding a lock.
+     */
+    private void converge() {
+        TaskOutcome decided = deriveOutcome();
+        completion.set(snapshot(decided, failedTaskName.get()));
     }
 
     /**
@@ -632,10 +647,11 @@ public final class TaskGroup implements AutoCloseable {
                 if (recordedFailure != null) {
                     return recordedFailure.reason;
                 }
-                // successCount is maintained incrementally under this same lock (memberCompleted)
-                // and covers members only, so the all-success question is an O(1) comparison here
-                // instead of a scan that allocates an iterator and a capturing lambda.
-                boolean allSuccess = successCount == memberStates.size()
+                // memberSuccesses is maintained incrementally in memberCompleted and covers members
+                // only. The barrier that won the completion count publishes every increment to this
+                // thread, so the all-success question is an O(1) comparison instead of a scan that
+                // allocates an iterator and a capturing lambda.
+                boolean allSuccess = memberSuccesses.get() == memberStates.size()
                         && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
                 return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
             default:
@@ -649,24 +665,19 @@ public final class TaskGroup implements AutoCloseable {
      * member.
      */
     private @Nullable MemberState failedTask() {
-        if (failedTaskName == null) {
+        String name = failedTaskName.get();
+        if (name == null) {
             return null;
         }
-        MemberState failed = memberStates.get(failedTaskName);
+        MemberState failed = memberStates.get(name);
         return failed != null ? failed : terminal;
     }
 
     private void completeEmpty() {
-        TaskGroupResult result;
-        synchronized (this) {
-            outcome = TaskOutcome.SUCCESS;
-            closed = true;
-            result = snapshot();
-        }
-        completion.set(result);
+        completion.set(snapshot(TaskOutcome.SUCCESS, null));
     }
 
-    private TaskGroupResult snapshot() {
+    private TaskGroupResult snapshot(TaskOutcome outcome, @Nullable String failedName) {
         Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) {
             snapshots.put(member.name, memberSnapshot(member));
@@ -678,7 +689,7 @@ public final class TaskGroup implements AutoCloseable {
                 System.nanoTime(),
                 deadlineNanos,
                 outcome,
-                failedTaskName,
+                failedName,
                 snapshots,
                 terminal == null ? null : memberSnapshot(terminal));
     }
@@ -725,7 +736,9 @@ public final class TaskGroup implements AutoCloseable {
         private final boolean runOnCallerThread;
         private @Nullable TaskOutcome reason;
         private @Nullable Throwable failure;
-        private boolean counted;
+
+        /** One-shot guard that keeps this member from being counted twice by the barrier. */
+        private final AtomicBoolean counted = new AtomicBoolean();
 
         private MemberState(
                 String name,
