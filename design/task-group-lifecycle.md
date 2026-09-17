@@ -53,7 +53,7 @@ startTimeNanos / deadlineNanos
 lifecycle
 first completion reason
 frozen members registry
-memberCount / terminalCount
+totalTasks / completedTasks（收敛屏障）
 group CancellationToken（内部，不作为公共控制入口）
 completion SettableFuture
 failedTaskName
@@ -246,7 +246,11 @@ null --all success-----------> SUCCESS
 - 组在 group token 仍 `RUNNING` 时收敛（成员 observer 先于 group bind 回调触发）：已记录失败
   任务时优先沿用其 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关；无失败
   记录且并非全部成功时，Group 原因固定为 `MEMBER_CANCELED`；
-- `CLOSED` 只在 `terminalCount == memberCount` 时发布；
+- `CLOSED` 只由计数屏障的胜出线程发布：`completedTasks` 递增到 `totalTasks` 的那次读-改-写；
+- 收敛由计数屏障决定：member 或 combine 终态时对 `completedTasks` 做一次原子递增，唯一观察到
+  计数达到 `totalTasks` 的线程固定完成原因并发布 `CLOSED`；该读-改-写同时把每个任务的归类与
+  时间戳发布给收敛线程，因此快照不依赖额外互斥；`totalTasks == 0` 的空组屏障不触发，由 submit
+  路径显式以 `SUCCESS` 收敛；
 - Group 原因可以先固定，但 completion future 仍必须等所有公开成员 future 达到终态；
 - 空 definition submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
 
