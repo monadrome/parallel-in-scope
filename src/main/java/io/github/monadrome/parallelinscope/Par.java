@@ -275,6 +275,12 @@ public final class Par {
         }
         Task<C> terminalView = Task.of(unit.name(), unit.cancellationToken(), terminalFuture);
         if (observation != null) {
+            // The batch->combine edge is a data dependency, recorded honestly in the task graph,
+            // but it is not deadlock-relevant: the combine is submitted by the converging thread
+            // only after every element settled, so no pool worker ever blocks waiting on it.
+            // executorDeadlockProne=false keeps it out of the executor projection — otherwise a
+            // combine on the batch's own pool would read as an executor self-loop, a false ISSUE.
+            // This mirrors the group combine, whose join is telemetry, not a cycle participant.
             TaskEdge edge = new TaskEdge(
                     1,
                     terminalUnit.taskType(),
@@ -284,7 +290,7 @@ public final class Par {
                     unit.executorLabel(),
                     1,
                     terminalUnit.remaining(),
-                    combinePar.executorRuntime().starvationProne());
+                    false);
             observation.recordEdge(unit.unitId(), unit.name(), terminalUnit.unitId(), terminalUnit.name(), edge);
         }
         SlidingWindowSubmitter<R> submitter =

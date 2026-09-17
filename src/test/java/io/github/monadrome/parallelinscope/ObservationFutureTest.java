@@ -106,7 +106,7 @@ class ObservationFutureTest {
             TaskBatch<String> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList("blocker", "queued-a", "queued-b"),
-                            item -> holdQuietly(block, item),
+                            item -> holdUninterruptibly(block, item),
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
 
             // Element 0 occupies the only slot; the other two are placeholders that the batch
@@ -419,6 +419,24 @@ class ObservationFutureTest {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    /** Holds until the latch opens, ignoring interruption; restores the flag before returning. */
+    private static String holdUninterruptibly(CountDownLatch latch, String item) {
+        boolean interrupted = false;
+        for (; ; ) {
+            try {
+                if (latch.await(50, TimeUnit.MILLISECONDS)) {
+                    break;
+                }
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+        return item;
     }
 
     private static String holdQuietly(CountDownLatch latch, String item) {
