@@ -128,6 +128,50 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
+    void closeWithAstronomicGraceWaitsForTheBodyToExit() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch closeReturned = new CountDownLatch(1);
+        try {
+            // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); close() must saturate the
+            // grace and keep waiting for the body to exit instead of failing or skipping the wait.
+            TaskGroupDefinition.Builder builder =
+                    global.defineGroup("astronomic-grace", TIMEOUT).closeGrace(Duration.ofSeconds(Long.MAX_VALUE));
+            TaskGroupDefinition.Member<Integer> ignoring = builder.task("ignoring", global.par(ParId.of("worker")));
+            TaskGroup group = global.submitGroup(
+                    builder.build(),
+                    bindings -> bindings.task(ignoring, () -> {
+                        entered.countDown();
+                        awaitIgnoringInterrupt(release);
+                        return 1;
+                    }));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            Thread closing = new Thread(() -> {
+                group.close();
+                closeReturned.countDown();
+            });
+            closing.start();
+
+            // The saturated budget means close keeps waiting while the body is parked.
+            assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
+            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            release.countDown();
+            assertThat(closeReturned.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            closing.join(2000);
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void closeWaitsTheCloseGraceEvenAfterTheDeadlineIsExhausted() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
