@@ -185,6 +185,11 @@ final class SlidingWindowSubmitter<V> {
                 Thread.currentThread().interrupt();
                 return submitted;
             }
+            // Claim the index as soon as a slot is taken, before the completion check: the
+            // cancellation callback abandons only indexes strictly beyond nextIndex, so it can
+            // never overwrite an index this iteration already claimed. The cancelled/done branch
+            // below still abandons from index locally, covering this iteration as well.
+            nextIndex.set(index + 1);
             if (completed.isCancelled() || result.get(index).isDone()) {
                 abandonRemaining(tasks, result, index, null);
                 return submitted;
@@ -198,11 +203,6 @@ final class SlidingWindowSubmitter<V> {
                 Thread.currentThread().interrupt();
                 return submitted;
             }
-            // Claim the index before handing the task to the executor: the cancellation callback
-            // abandons only indexes at or beyond nextIndex, so an element already with the
-            // executor can only be canceled through its own future, never reported as
-            // never-submitted after user code may already have run.
-            nextIndex.set(index + 1);
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
             } catch (RuntimeException e) {
