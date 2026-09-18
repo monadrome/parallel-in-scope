@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -348,5 +349,44 @@ public class CancellationTokenTest {
         assertThat(grandchild.originState()).isEqualTo(CancellationToken.State.CANCELED);
         assertThat(origin.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(origin.originState()).isEqualTo(CancellationToken.State.RUNNING);
+    }
+
+    // ==================== remaining ====================
+
+    @Test
+    public void remainingWithoutDeadlineIsExactlyTheMaxValueSentinel() {
+        CancellationToken token = CancellationToken.create();
+
+        // The sentinel stays a sentinel: remaining() reports Duration.ofNanos(Long.MAX_VALUE)
+        // exactly, not a value eroded by subtracting the current nanoTime.
+        assertThat(token.remaining()).isEqualTo(Duration.ofNanos(Long.MAX_VALUE));
+    }
+
+    @Test
+    public void remainingWithExpiredDeadlineIsZero() {
+        CancellationToken token = withDeadlineAfter(-1000);
+
+        assertThat(token.remaining().isNegative()).isFalse();
+        assertThat(token.remaining().isZero()).isTrue();
+    }
+
+    @Test
+    public void remainingWithUnexpiredDeadlineStaysPositiveAndBoundedByTheRequest() {
+        CancellationToken token = withDeadlineAfter(60_000);
+
+        assertThat(token.remaining().isNegative()).isFalse();
+        assertThat(token.remaining().toNanos())
+                .isGreaterThan(TimeUnit.SECONDS.toNanos(59))
+                .isLessThanOrEqualTo(TimeUnit.MINUTES.toNanos(1));
+    }
+
+    @Test
+    public void remainingWithNearMaxUnexpiredDeadlineIsNotReportedAsExpired() {
+        // One nanosecond below the sentinel: an unexpired deadline keeps its remaining time
+        // instead of collapsing to zero through saturated or wrapped subtraction.
+        CancellationToken token = new CancellationToken(null, Long.MAX_VALUE - 1);
+
+        assertThat(token.deadlineNanos()).isEqualTo(Long.MAX_VALUE - 1);
+        assertThat(token.remaining().toNanos()).isGreaterThan(TimeUnit.DAYS.toNanos(365 * 100));
     }
 }

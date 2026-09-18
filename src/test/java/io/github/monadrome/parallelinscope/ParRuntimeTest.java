@@ -367,6 +367,26 @@ class ParRuntimeTest {
     }
 
     @Test
+    void awaitQuiescenceSaturatesAstronomicTimeouts() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            global.close();
+
+            // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); the wait must saturate and
+            // report quiescence immediately instead of throwing ArithmeticException.
+            long start = System.nanoTime();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(Long.MAX_VALUE)))
+                    .isTrue();
+            assertThat(System.nanoTime() - start).isLessThan(TimeUnit.SECONDS.toNanos(5));
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
