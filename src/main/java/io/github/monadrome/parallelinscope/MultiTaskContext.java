@@ -187,8 +187,9 @@ final class MultiTaskContext {
 
     /** Returns a non-negative remaining timeout derived from the monotonic clock. */
     public Duration remaining() {
-        long nanos = Math.max(0L, deadlineNanos - System.nanoTime());
-        return Duration.ofNanos(nanos);
+        long now = System.nanoTime();
+        return Duration.ofNanos(
+                deadlineNanos == Long.MAX_VALUE ? Long.MAX_VALUE : (now >= deadlineNanos ? 0L : deadlineNanos - now));
     }
 
     public CancellationToken cancellationToken() {
