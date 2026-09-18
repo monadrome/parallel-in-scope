@@ -22,6 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
@@ -108,6 +109,21 @@ public final class ParRuntime implements AutoCloseable {
                             + ", which this library cannot see through: queue purge and"
                             + " blocking-risk detection are disabled for it. Register the physical"
                             + " ThreadPoolExecutor instead of a decorated wrapper to keep them.");
+                } else {
+                    // A discarding policy accepts the task and then drops it without running it
+                    // and without throwing, so the framework would keep waiting on a future that
+                    // can never complete. Refuse to register such a pool at all.
+                    RejectedExecutionHandler policy =
+                            ((ThreadPoolExecutor) entry.getValue()).getRejectedExecutionHandler();
+                    if (policy instanceof ThreadPoolExecutor.DiscardPolicy
+                            || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
+                        throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
+                                + entry.getValue().getClass().getName() + " using "
+                                + policy.getClass().getName()
+                                + ", which discards rejected tasks silently: submission of an"
+                                + " overflowing task would never complete and the batch would hang. Register a"
+                                + " pool with AbortPolicy or CallerRunsPolicy instead.");
+                    }
                 }
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
