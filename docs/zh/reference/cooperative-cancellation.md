@@ -157,7 +157,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 | 手动取消 | `CANCELED` | 代码调用了 `CancellationToken.cancel()` |
 | 父作用域取消 | `PROPAGATED_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
-所有触发源最终都通过同一个 `CancellationToken.getState().shouldInterruptCurrentThread()` 判断——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
+所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELED`/`PROPAGATED_CANCELED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
 
 ## 嵌套作用域的取消传播
 
