@@ -30,7 +30,7 @@ DRAINED   : DRAINING 且队列已空。终态，不可回退。
 
 关键不变量：**从 OPEN 到 DRAINED，任何已经成功 `offer`/`put`/`add` 返回 `true` 的元素，最终一定被某个消费者取走(或被 `drainTo` 排空)。** 逐渐关闭契约下不存在"调用成功但元素消失"的状态。
 
-"排干"的线性化点：若 `close()` 线性化时队列为空，`close()` 本身必须同时完成 `DRAINING → DRAINED`；否则，某个取出或排空操作把 DRAINING 状态下最后一个真实元素取走的那一刻，在该操作的临界区内迁移到 DRAINED。该迁移与元素所有权转移原子一致——拿到最后元素的调用返回时，`isDrained()` 已为 true。
+"排干"的线性化点：若 `close()` 线性化时队列为空，`close()` 本身必须同时完成 `DRAINING → DRAINED`；否则，某个取出或排空操作把 DRAINING 状态下最后一个真实元素取走的那一刻，在该操作的临界区内迁移到 DRAINED。该迁移与元素所有权转移原子一致——拿到最后元素的调用返回时，`drained()` 已为 true。
 
 ## 2. 方法分组
 
@@ -115,13 +115,13 @@ DRAINING 且仍有存量时，`take()` 应立即返回真实元素；不应返�
 
 | 方法 | OPEN | DRAINING | DRAINED |
 |---|---|---|---|
-| `isShutdown()` | false | true | true |
-| `isDraining()` | false | true | false |
-| `isDrained()` | false | false(即使瞬间为空) | true |
+| `shutdown()` | false | true | true |
+| `draining()` | false | true | false |
+| `drained()` | false | false(即使瞬间为空) | true |
 | `awaitDrained()` | 阻塞等待 DRAINED | 阻塞等待 DRAINED | 立即返回 |
 | `awaitDrained(timeout, unit)` | 等待 DRAINED 或超时 | 等待 DRAINED 或超时 | 立即返回 true |
 
-`isShutdown()`、`isDraining()` 与 `isDrained()` 分离是必要的：`isShutdown()` 告诉生产者"别再写了"，`isDraining()` 表示存量仍在排空，`isDrained()` 告诉消费者"真的结束了"。合并其中任意两个都会让调用方难以区分"暂时空"和"永久结束"。
+`shutdown()`、`draining()` 与 `drained()` 分离是必要的：`shutdown()` 告诉生产者"别再写了"，`draining()` 表示存量仍在排空，`drained()` 告诉消费者"真的结束了"。合并其中任意两个都会让调用方难以区分"暂时空"和"永久结束"。
 
 `awaitDrained()` 只等待 `DRAINED` 状态到达，不承诺等待已准入阻塞调用全部退出；后者属于实现可增强的诊断能力，不属于主契约。`awaitDrained(timeout, unit)` 在状态到达时返回 `true`，超时返回 `false`；两者都可响应线程中断并抛出 `InterruptedException`。
 
@@ -200,7 +200,7 @@ DrainingBlockingQueue.ShutdownPolicy.builder()
 | `iterator()` / `toArray` / `stream` | 空 |
 | `contains` | `false` |
 | `drainTo` | 返回 0 |
-| `isShutdown()` / `isDraining()` / `isDrained()` | `true` / `false` / `true` |
+| `shutdown()` / `draining()` / `drained()` | `true` / `false` / `true` |
 | `awaitDrained()` / `awaitDrained(timeout, unit)` | 立即返回 / 立即返回 `true` |
 
 `poison(p)` 预设将 DRAINED 后所有值返回型取出结果改为 `p`。
@@ -213,7 +213,7 @@ DrainingBlockingQueue.ShutdownPolicy.builder()
 - 超时版本在 DRAINED 到达时返回 `true`，超时返回 `false`
 - 两者都不承诺等待已准入阻塞调用全部退出，也不表示后台资源已经停止
 
-Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭生产端”和“存量排干”，不是传统 Service 的“启动后停止”；若需要 `ServiceManager` 集成，应提供独立适配层，将 `close()` 映射为停止请求、将 `isDrained()` 映射为 terminated。
+Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭生产端”和“存量排干”，不是传统 Service 的“启动后停止”；若需要 `ServiceManager` 集成，应提供独立适配层，将 `close()` 映射为停止请求、将 `drained()` 映射为 terminated。
 
 ## 9. 异常类型
 
@@ -227,7 +227,7 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 ## 10. 调用约定
 
 - **优雅关闭生产-消费循环**：`close()` 后消费者继续 `take()`，直到拿到 poison(或捕获 `NoSuchElementException`)退出。不需要 `remainingList()`，不存在隐藏存量。
-- **判定关闭与暂时空队列**：`poll()` 返回 null 时，若需区分"DRAINING 暂时空"和"DRAINED 永久空"，调用 `isDrained()`。`isShutdown()` 只说明生产端关了，不说明存量排干。
+- **判定关闭与暂时空队列**：`poll()` 返回 null 时，若需区分"DRAINING 暂时空"和"DRAINED 永久空"，调用 `drained()`。`shutdown()` 只说明生产端关了，不说明存量排干。
 - **size/isEmpty 全程可信**：任何状态下都反映真实存量，`while (!q.isEmpty()) process(q.poll())` 在所有生命周期阶段都是安全的(尽管并发下 size 只是弱一致)。
 - **中断语义**：阻塞方法观察到外部中断时优先抛 `InterruptedException`；关闭结果不得吞掉中断，上层取消框架可依赖中断标志。
 - **等待排干**：用 `awaitDrained()` 等待 DRAINED；带超时版本用于有界等待。不要把它理解成等待所有调用线程退出。
@@ -240,10 +240,10 @@ Guava `Service` 不进入主契约。Draining 模型的关键事件是“关闭�
 | V2 用法 | 逐渐关闭等价物 | 注意事项 |
 |---|---|---|
 | `close()` 后调 `remainingList()` 找回剩余 | 不需要——继续 `take()` 直到 poison/NSE | 删除 remainingList 调用，改为消费循环 |
-| `close()` 后 `size()==0` 判断"已关" | `isDrained()` | `isShutdown()` 不等于排干 |
+| `close()` 后 `size()==0` 判断"已关" | `drained()` | `shutdown()` 不等于排干 |
 | `catch (NoSuchElementException)` 判断关闭 | 直接 `catch (NoSuchElementException)`(消息含 "queue is drained") | 无需迁移 |
 | `catch (IllegalStateException)` 判断关闭 | 直接 `catch (IllegalStateException)`(消息含 "queue is closed") | 无需迁移 |
-| 依赖 `Service` 状态机 | `isShutdown()`/`isDrained()` + 可选 listener | Service 集成是独立适配层，不在本契约 |
+| 依赖 `Service` 状态机 | `shutdown()`/`drained()` + 可选 listener | Service 集成是独立适配层，不在本契约 |
 
 ## 12. 实现参考：借鉴当前 `ClosableBlockingQueue` 的关闭技巧
 
