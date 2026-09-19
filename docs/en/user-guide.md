@@ -133,8 +133,8 @@ thread) but submitted to its own Par exactly once, only after all elements succe
 fails or the deadline expires first, the combine never runs and its `terminalResult()` records the
 batch's attribution (`FAIL_FAST` / `TIMEOUT`); a rejected combine handoff records
 `SUBMISSION_FAILURE`. The combine body takes the element values in input order as a
-`CombineBody<List<E>, C>` — so it may throw checked exceptions — and successful null elements appear
-as null entries. The input must be non-empty: a combine over zero elements has no fan-out to
+`CombineBody<List<@Nullable E>, C>` — so it may throw checked exceptions — and successful null
+elements appear as null entries, which the signature spells out for nullness-aware consumers. The input must be non-empty: a combine over zero elements has no fan-out to
 summarize, and the call rejects it like an empty group with a combine. Element results,
 `bodyCompletionConfirmed()`, and `unfinishedBodies()` cover the combine's body as well.
 
