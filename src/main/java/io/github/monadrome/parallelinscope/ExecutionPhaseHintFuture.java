@@ -132,8 +132,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /**
      * Submits this deferred future to {@code executor} exactly once. A task whose options request
      * the caller-thread fallback runs inline when the executor rejects it; any other rejection, or
-     * a submission-time runtime failure, fails the future with a {@link SubmissionException}
-     * without running user code.
+     * any other failure of the handoff, fails the future with a {@link SubmissionException} without
+     * running user code.
      *
      * @param executor target executor
      * @param runOnCallerThread whether the task may run on the submitting thread on rejection
@@ -147,7 +147,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             } else {
                 reject(rejected);
             }
-        } catch (RuntimeException failure) {
+        } catch (Throwable failure) {
+            // Errors are caught on purpose. Once the handoff throws, no worker holds this future
+            // and nothing else can terminate it, so letting the failure propagate would leave a
+            // pending future behind: a batch that never drains, or a task group whose convergence
+            // barrier can never reach its total. A broken executor that throws instead of rejecting
+            // and an executor that fails while enqueuing (OutOfMemoryError) both fail the task this
+            // way, exactly like an ordinary rejection without the caller-thread fallback.
             reject(failure);
         }
     }
