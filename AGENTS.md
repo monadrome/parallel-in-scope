@@ -100,6 +100,33 @@ relevant contract through the document routes below.
   pausing for review of the first implementation. Report unrelated failures or
   blockers explicitly; do not claim completion while required checks are blocked.
 
+## Issue Tracking
+
+Feature-level work starts as an issue. The issue is where the direction is
+agreed and recorded; the pull request is where it is built, and it links back.
+
+- **Requires an issue first**: a new capability; a new public type, method, or
+  option; a change to existing behaviour or to a documented contract; a
+  signature change; anything that needs a `design/` proposal.
+- **Does not**: renames, wording and typo fixes, small bug fixes whose root
+  cause is obvious, test-only repairs, internal refactors that leave public
+  signatures and contracts untouched, dependency or version bumps, and routine
+  maintenance. Do not manufacture an issue for these.
+- File through `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for capabilities
+  and contract changes, `bug_report.yml` for defects, `documentation.yml` for
+  guides and javadoc. The forms ask for what makes a proposal reviewable — the
+  best code possible today, the same code with the change, and the failure mode
+  it removes.
+- Reference the issue from the PR body: `Closes #NN` when the PR completes it,
+  `Refs #NN` when it is one step of it. Keep the issue updated when the direction
+  changes; the thread is the record of what was decided and why.
+- Direction that needs more than a thread goes to `design/`: write the proposal
+  there, leave it in the working tree until the direction settles (see Git
+  Workflow), and link it from the issue. The issue stays the tracker, the
+  document carries the reasoning.
+- Use the current release milestone for findings that must land before that line
+  is cut; leave everything else un-milestoned as backlog.
+
 ## Git Workflow
 
 - After completing the applicable verification above, commit and push the
@@ -112,6 +139,8 @@ relevant contract through the document routes below.
 - Stage only the files belonging to the change; leave unrelated working-tree
   modifications uncommitted. Follow the repository's conventional-commit style
   (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`, lowercase summary).
+- Link the PR to the issue it implements (`Closes #NN` / `Refs #NN`) as
+  described under Issue Tracking.
 
 ## Permissions
 
@@ -146,3 +175,6 @@ Load documents when their subject affects the task:
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
 - `adr/` - Historical decision rationale; existing records are immutable.
+- `.github/ISSUE_TEMPLATE/` - The forms a capability, defect, or documentation
+  issue must use; the design proposal form mirrors the `design/first-principles.md`
+  evaluation.
