@@ -133,7 +133,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 | 编号 | 问题 | 触发机制 | 后果 | 封堵 |
 |---|---|---|---|---|
 | **P11** | 注册 TTL 包装器 | `TtlExecutors.getTtlExecutorService(pool)` 传入 `register` | ① 出现第二个捕获点（破 I3）；② `ExecutorServiceTtlWrapper` 非 `ThreadPoolExecutor` → purge 观察者不绑定、`BlockingRisk` 静默降为 `UNKNOWN` | L3 检测 + WARNING；能力探测时 `TtlUnwrap.unwrap` |
-| **P12** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 CPU-bound inline 回退策略被绕过 | 契约 U2 + 文档；负例测试 T11 |
+| **P12** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 CPU-bound inline 回退策略被绕过 | 契约 U2 + 注册期守卫（`DiscardPolicy` / `DiscardOldestPolicy` 直接拒绝注册，见 L8）+ 提交失败必终结 future（L7）+ 文档；负例测试 T11 |
 | **P13** | executor 包装扩大上下文范围 | 包装器给每个 Runnable 套上下文层 | 上下文回放覆盖到 future 记账与完成回调，语义超出"任务体" | 契约 U1：不在 `run()` 之外包上下文 |
 
 ### E. 接口与类型
@@ -286,7 +286,8 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 | L4 | **不可配置**：不提供关闭或替换上下文包装的配置项 |
 | L5 | **归因不变**：装饰器不引入新的 `TaskOutcome` 词汇 |
 | L6 | **快照独立**：每次 `prepare` 独立捕获上下文快照，不跨任务复用（P8） |
-| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P10）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象 |
+| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P10）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象。提交调用抛出的**任何**失败——含违反契约直接抛出的 `Error`——同样 MUST 以 `SubmissionException` 终结该 prepared future：它没有 worker 持有，抛出后没有任何其他路径能完成它 |
+| L8 | **注册期拒绝丢弃型拒绝策略**：注册的 `ThreadPoolExecutor` 使用 `DiscardPolicy` / `DiscardOldestPolicy` 时，`ParRuntime.Builder.build()` MUST 以 `IllegalArgumentException` 失败，并在消息中点名 Par id、池类与策略类。这两种策略"接受后丢弃"：既不执行也不抛 `RejectedExecutionException`，而提交内核只把后者当作终态信号，因此 `Par.map` 与 TaskGroup 会永久等待（P12/L7）。`AbortPolicy`（拒绝成为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。守卫只在注册期读取一次 supplied 对象：`build()` 之后安装的 handler、自定义丢弃 handler、以及库看不透的包装器都不在覆盖范围内，这些形态仍只能由 U2 约束 |
 
 ### 6.3 用户侧约束
 
