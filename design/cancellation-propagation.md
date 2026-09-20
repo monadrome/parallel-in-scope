@@ -21,13 +21,15 @@ public <T> void bind(
     // futureToken/setFuture 桥与 onFailure 回调完整到达。跳过也使终态 token 的 bind
     // 不触碰所属 runtime 可能已关闭的调度器（组启动竞态）。
     if (deadlineNanos != Long.MAX_VALUE && state() == RUNNING) {
-        ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
+        @Nullable ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
             transitionTo(TIMEOUT);
             cancelBoundWork(allFutures); // uses the winning token's interrupt intent
         }, remaining); // 域调度器退役时回退到调用方 scheduler；两者同一则抛出
         // token 以任何路径终态都会完成 futureToken，在那里取消已调度的任务，
         // 避免共享 timer 把一个已终态 token 保留到 deadline。
-        futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+        if (timeoutHandle != null) {
+            futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+        }
     }
     Futures.addCallback(businessOutcome, new FutureCallback<>() {
         onSuccess: transitionTo(SUCCESS);

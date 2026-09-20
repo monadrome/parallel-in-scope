@@ -232,3 +232,42 @@ sound（取消先于拒绝后状态检查提交、setFuture 传播取消、已�
 调度器，「域调度器拒绝 → 独立 fallback 也拒绝 → 仍 RUNNING 必须抛出」的路径无覆盖。
 新增 `runningTokenRejectedByBothDistinctSchedulersThrows`（两个不同的退役调度器）钉死该
 分支。测试级增补，无实现改动，评审循环到此收敛。
+
+## 第七轮：启动竞态的结构性收口（保留并修复）
+
+- **保留的 major**：调度器回退是局部的——`submitPreparedGroup` 只在 whileOpen 准入里包住
+  prepare，`start()`（全部 bind）与 `submitPrepared()` 在准入之外，close 可在两者间隙退役
+  本 runtime 的调度器，更紧成员的 bind 仍可能抛出。修复（采纳「准入覆盖全部 bind」方案）：
+  组启动全程（prepare + start + submitPrepared）并入同一个 whileOpen 准入，与批次
+  （map/submit 早已如此）对齐——准入期间本 runtime 服务必然存活，退役源只剩继承的祖先域
+  调度器，由第三轮回退与第五轮终态吸收覆盖。
+- 机制边界（如实记录，逐一反向验证）：端到端回归
+  `memberBindSurvivesShutdownAndCancellationRacingGroupStartup`（暂停第 3 次布防=嵌套更紧
+  成员 bind，暂停期间关闭双 runtime + 兄弟 fail-fast，释放后必须收敛为取消结果）——
+  同时撤销准入扩展与终态吸收（02f103b 形态）时转红，抛出 RejectedExecutionException
+  （round7-reverted.log）；只撤销准入、保留吸收时仍绿（吸收覆盖终态路径，
+  round7-revert-admission-only.log）。即：准入扩展是结构性收口——它使「本 runtime 调度器
+  在启动期间存活」成为不变量，双拒绝路径对 runtime 关闭不再可达；其可观察行为由吸收机制
+  兜底并已被单测与端到端测试钉死。
+- 注意：组启动的准入现在覆盖 submitPrepared——与批次一致，CallerRunsPolicy 内联 body 在
+  准入内运行；close 不等待准入，无死锁引入。
+
+第七轮确认评审（codex-round7-review.md）：生产修复 APPROVE（准入阻止自身调度器在全部 bind
+期间退役；无新锁死）。三条测试/契约发现，全部处置：
+
+1. **回归测试可与级联竞争（major，测试缺陷，修复）**：release 原先不等待兄弟 fail-fast 提交。
+   第一次修复用 `outer.snapshot().undrainedBatches() == 0` 等待，第八轮评审指出其不充分：
+   外层成员 future 的取消可使外层计数先归零，而 futureToken 桥上的 ParentLink 传播尚未完成
+   ——嵌套 token 仍 RUNNING 时释放，准入保护的 fallback 存活，嵌套组可合法成功而使断言在
+   正确代码上失败。正确等待点是**内层** retained 排空：Guava cancel 先派发 futureToken 监听
+   （含 ParentLink 传播）再级联 delegate，故嵌套成员 future 被取消蕴含嵌套 token 已提交
+   终态。测试改为依次等待 outer 与 inner 的 undrainedBatches 归零后再释放。反向验证
+   （双撤销）仍转红（round7-reverted2.log）。
+2. **活契约与改动冲突（moderate，修复）**：task-group-submission.md §7.2 原要求 executor 调用
+  在 admission 外进行。原地改写：启动全程（准备+全部 bind+提交）同属一次 admission，记录被
+  否决的旧规则及其被本竞态否决的理由（取代即原地改写，否决理由保留）。
+3. **失败路径资源泄漏（minor，修复）**：finally 现在释放暂停并 shutdownNow 注入的调度器，
+  先于关闭 runtime 与线程池。
+
+评审另注：端到端测试经由非空结果要求捕获嵌套启动抛出，但不独立钉死准入机制本身——与上方
+机制边界记录一致：准入扩展是结构性收口，可观察行为由吸收机制兜底。
