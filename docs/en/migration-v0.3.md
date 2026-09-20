@@ -11,6 +11,10 @@ completion, checkpoint guards fail instead of skipping, and executor rejection n
 code on a thread you did not choose. Batch (`Par.map`) code is unaffected by the group redesign
 except for the `ParName` rename to `ParId`.
 
+> `0.3.0` is published as `0.3.0-SNAPSHOT` for now — see the
+> [README quick start](https://github.com/monadrome/parallel-in-scope#quick-start) for the snapshot
+> coordinates. `0.2.0` remains the latest stable release until `0.3.0` is published to Maven Central.
+
 ## At a glance
 
 | `0.2.x` | `0.3.0` |

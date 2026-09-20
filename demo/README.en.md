@@ -4,7 +4,7 @@
 
 An independent consumer project containing runnable examples for `parallel-in-scope`.
 
-> The demo targets the current `0.3.0` API and serves as an external-consumer reference.
+> The demo targets the current `0.3.0` API (published as `0.3.0-SNAPSHOT`) and serves as an external-consumer reference.
 
 ## Build and Run
 
