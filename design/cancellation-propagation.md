@@ -167,6 +167,10 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
 - MUST：已终态 token 的 bind 不布防 timer。终态后没有任何转换能再获胜，deadline 已无意义；
   取消经 futureToken/setFuture 桥与 onFailure 回调完整到达绑定工作。跳过布防同时保证终态
   token 的 bind 不触碰可能已随所属 runtime 关闭的调度器（组启动可在准入后遭遇取消与关闭）。
+  MUST：布防的活性检查与 schedule 之间是 check-then-act：取消可在其间落锤并随 runtime 关闭
+  退役调度器。两个调度器都拒绝时，若 token 已并发进入终态，bind 吸收该拒绝（终态已蕴含
+  取消，timer 无事可做）；若 token 仍 RUNNING，deadline 无法执行，必须照常抛出——静默
+  丢弃 deadline 违背超时契约。
 - MUST：由 deadline 推导的清理预算（closeGrace 缺省值）在 token 自己的时钟域内推导相对
   预算，再把该预算当作真实有界等待花掉。不得把 token 的 deadline 与 `System.nanoTime()`
   交叉相减：手动时钟域里那样读出 0，会把清理等待静默缩成单次检查。
