@@ -1,0 +1,27 @@
+demo/pom.xml
+  s_527ee058754c0f::t_1f76e49bee9e99 9,21,27-29
+scripts/verify-maven-central.sh
+  s_527ee058754c0f::t_1f76e49bee9e99 4
+verification/maven-central-consumer/pom.xml
+  s_527ee058754c0f::t_cac45f6cec7c09 15-20,23-34
+pom.xml
+  s_527ee058754c0f::t_1f76e49bee9e99 9
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_527ee058754c0f::t_cac45f6cec7c09 4,6,33,38,44,58-59,61,71,73,87,97,99,121,133,135,163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "82923784e508db6c78283088fcd7cf5d0849cbd5",
+  "prompts": {},
+  "sessions": {
+    "s_527ee058754c0f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bdc4-af38-7123-ba87-0755cb6501f8",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
