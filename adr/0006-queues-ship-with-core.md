@@ -16,7 +16,7 @@
 `TaskType`、提交作用域与任务上下文等 core 类型，因此必须留在 core；库自身从不构造它——
 它由用户自行实例化并安装到自己的 `ThreadPoolExecutor` 上。
 
-项目定位（`CLAUDE.md`）已把 `queue` 声明为 "independent general-purpose queue
+项目定位（`AGENTS.md`）已把 `queue` 声明为 "independent general-purpose queue
 implementations"，即与 core 无代码耦合是有意的，不是欠账。库处于 0.x 预稳定窗口，0.3 将
 冻结公开面：冻结后删除公开类不再可行，拆分的迁移成本随存量用户增长而上升。因此"不决定"
 等于默认维持现状，产物边界必须显式拍板。
