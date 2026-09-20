@@ -1,0 +1,19 @@
+scripts/verify-maven-central.sh
+  s_fb1b1827ea4722::t_b103c3a014e563 5-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "67bfd0f63ca7a580c460e595a591740ff4e94370",
+  "prompts": {},
+  "sessions": {
+    "s_fb1b1827ea4722": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07e9284c-d4c8-46d4-aace-f131aa253aae",
+        "model": "ep-s52bpjk9"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
