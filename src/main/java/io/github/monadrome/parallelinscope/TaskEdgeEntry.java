@@ -4,7 +4,7 @@ import com.google.common.graph.EndpointPair;
 
 /**
  * Bundles an {@link EndpointPair} edge with its associated {@link TaskEdge} metadata. Used in the
- * concurrent queue within {@link TaskGraphData}.
+ * recorded edge list within {@link TaskGraphData}.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */

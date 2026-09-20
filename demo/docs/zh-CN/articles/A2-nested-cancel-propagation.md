@@ -42,8 +42,8 @@ outer.cancel(true); // 取消外层任务
 ## 代码
 
 ```java
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("pool"), Executors.newFixedThreadPool(8))
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("pool"), Executors.newFixedThreadPool(8))
         .build();
 Par par = config.defaultPar();
 

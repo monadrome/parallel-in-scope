@@ -1,6 +1,5 @@
 package io.github.monadrome.parallelinscope.queue;
 
-import java.io.Serializable;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -21,12 +20,16 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>Key addition: {@link #setCapacity(int)} allows runtime capacity adjustment.
  *
+ * <p>Unlike the JDK original this queue is deliberately <em>not</em> {@code Serializable}: the
+ * sentinel-linked node chain is reachable only through {@code head}/{@code last}, and the element
+ * nodes are not serializable themselves, so a {@code readObject} could only ever restore an empty
+ * queue. Declaring the interface without that support would make deserialized instances fail with
+ * a {@code NullPointerException} on first use.
+ *
  * @param <E> the type of elements held in this queue
  * @author Doug Lea
  */
-public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
 
     static class Node<E> {
         E item;
@@ -44,10 +47,10 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     private final AtomicInteger count = new AtomicInteger();
 
     /** Sentinel node at the head of the linked queue. */
-    transient Node<E> head;
+    Node<E> head;
 
     /** Last node in the linked queue. */
-    private transient Node<E> last;
+    private Node<E> last;
 
     /** Lock protecting dequeue operations. */
     private final ReentrantLock takeLock = new ReentrantLock();
@@ -401,7 +404,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
                 p.item = null;
             }
             head = last;
-            if (count.getAndSet(0) == capacity) notFull.signal();
+            if (count.getAndSet(0) >= capacity) notFull.signal();
         } finally {
             fullyUnlock();
         }
@@ -422,17 +425,23 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         lock.lock();
         try {
             int n = Math.min(maxElements, count.get());
+            Node<E> h = head;
             int i = 0;
             try {
                 while (i < n) {
-                    E x = dequeue();
-                    c.add(x);
+                    Node<E> p = h.next;
+                    c.add(p.item); // transfer before unlinking: a throwing target leaves the queue unchanged
+                    p.item = null;
+                    h.next = h; // help GC
+                    h = p;
                     ++i;
                 }
                 return n;
             } finally {
                 if (i > 0) {
-                    signalNotFull = (count.getAndAdd(-i) == capacity);
+                    head = h;
+                    int before = count.getAndAdd(-i);
+                    signalNotFull = before >= capacity && before - i < capacity;
                 }
             }
         } finally {

@@ -12,8 +12,26 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <parallel-in-scope.version>0.2.0</parallel-in-scope.version>
+        <!-- The public API consumer always tracks the current API line. CI overrides this
+             property with the freshly built library version, which resolves from the local
+             repository after the library is installed; scripts/verify-maven-central.sh points it
+             at a published version and resolves it from Maven Central instead. Snapshot versions
+             come from the Central snapshot repository declared below. -->
+        <parallel-in-scope.version>0.3.0-SNAPSHOT</parallel-in-scope.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>

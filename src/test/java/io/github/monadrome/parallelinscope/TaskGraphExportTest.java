@@ -6,8 +6,6 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,7 +38,7 @@ class TaskGraphExportTest {
 
     @Test
     void acyclicChainAndBranchExportCleanGraph() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair(null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
@@ -67,7 +65,7 @@ class TaskGraphExportTest {
 
     @Test
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
@@ -94,7 +92,7 @@ class TaskGraphExportTest {
     void executorCycleAcrossDistinctIdentitiesIsDetectedAndExported() throws Exception {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
@@ -125,7 +123,7 @@ class TaskGraphExportTest {
     void sameNameExecutorsWithDistinctIdentitiesDoNotReportCycle() throws Exception {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().build();
+        ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
@@ -166,21 +164,21 @@ class TaskGraphExportTest {
         ExecutorService innerExecutor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
-        GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("outer"), outerExecutor)
-                .register(ParName.of("inner"), innerExecutor)
-                .deadlockPolicy(GlobalParDeadlockPolicy.builder()
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("outer"), outerExecutor)
+                .register(ParId.of("inner"), innerExecutor)
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
         TaskGraphData captured;
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
+            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
+                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -226,16 +224,16 @@ class TaskGraphExportTest {
     void wrappedExecutorsFallIntoUnknownRiskAndAreInvisibleToExecutorGraphs() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder()
-                .register(ParName.of("outer"), outerExecutor)
-                .register(ParName.of("inner"), innerExecutor)
+        ParRuntime global = ParRuntime.builder()
+                .register(ParId.of("outer"), outerExecutor)
+                .register(ParId.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
+            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
+                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -272,10 +270,10 @@ class TaskGraphExportTest {
     @Test
     void directExecutorServiceRecordsTaskGraphButSkipsExecutorGraphs() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global =
-                GlobalPar.builder().register(ParName.of("direct"), direct).build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> batch = global.par(ParName.of("direct"))
+            TaskBatchResult<Integer> batch = global.par(ParId.of("direct"))
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,
@@ -302,23 +300,24 @@ class TaskGraphExportTest {
     // ==================== JSON export ====================
 
     private static void exportScenario(String scenario, TaskGraphData data) throws IOException {
+        TaskGraphData.Snapshot snapshot = data.snapshot();
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "scenario", quote(scenario));
         json.append(",\n");
         indent(json, 1).append("\"graphs\": {\n");
-        field(json, 2, "task", graphJson(data.graph(), labelsOf(data), 3));
+        field(json, 2, "task", graphJson(snapshot.graph(), snapshot.nodeLabels(), 3));
         json.append(",\n");
-        field(json, 2, "executorName", graphJson(data.executorGraph(), null, 3));
+        field(json, 2, "executorName", graphJson(snapshot.executorGraph(), null, 3));
         json.append(",\n");
-        field(json, 2, "executorIdentity", identityGraphJson(identityGraphOf(data), 3));
+        field(json, 2, "executorIdentity", identityGraphJson(snapshot.executorIdentityGraph(), 3));
         json.append('\n');
         indent(json, 1).append("},\n");
         indent(json, 1).append("\"predicates\": {");
-        json.append("\"taskCycle\": ").append(data.taskCycle());
-        json.append(", \"selfLoop\": ").append(data.selfLoop());
-        json.append(", \"executorCycle\": ").append(data.executorCycle());
-        json.append(", \"executorSelfLoop\": ").append(data.executorSelfLoop());
+        json.append("\"taskCycle\": ").append(snapshot.taskCycle());
+        json.append(", \"selfLoop\": ").append(snapshot.taskSelfLoop());
+        json.append(", \"executorCycle\": ").append(snapshot.executorCycle());
+        json.append(", \"executorSelfLoop\": ").append(snapshot.executorSelfLoop());
         json.append("}\n}");
         Files.createDirectories(EXPORT_DIR);
         Files.write(EXPORT_DIR.resolve(scenario + ".json"), json.toString().getBytes(StandardCharsets.UTF_8));
@@ -463,25 +462,7 @@ class TaskGraphExportTest {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, targetName, sourceName, 1, Duration.ZERO, true);
     }
 
-    @SuppressWarnings("unchecked")
     private static ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraphOf(TaskGraphData data) {
-        try {
-            Method method = TaskGraphData.class.getDeclaredMethod("generateExecutorIdentityGraph");
-            method.setAccessible(true);
-            return (ValueGraph<ExecutorIdentity, List<TaskEdge>>) method.invoke(data);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, String> labelsOf(TaskGraphData data) {
-        try {
-            Field field = TaskGraphData.class.getDeclaredField("nodeLabels");
-            field.setAccessible(true);
-            return (Map<String, String>) field.get(data);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
+        return data.snapshot().executorIdentityGraph();
     }
 }

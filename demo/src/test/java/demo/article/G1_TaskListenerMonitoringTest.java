@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskCompletion;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -98,16 +98,18 @@ public class G1_TaskListenerMonitoringTest {
         // 注册 TaskListener，收集所有事件
         CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
                 .taskListener(events::add)
-                .defaultPar(ParName.of("test-pool"))
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         // parallelism=5 确保所有任务同时启动，避免被取消
-        BatchOptions opts = BatchOptions.timeout("monitor-demo", java.time.Duration.ofMillis(5000)).parallelism(5).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("monitor-demo", java.time.Duration.ofMillis(5000))
+                .parallelism(5)
+                .taskType(TaskType.IO_BOUND);
 
         // 业务代码：纯逻辑，不碰监控
         TaskBatchResult<String> result = par.map(
@@ -168,16 +170,18 @@ public class G1_TaskListenerMonitoringTest {
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
         CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
                 .taskListener(events::add)
-                .defaultPar(ParName.of("test-pool"))
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
 
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
-        BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000)).parallelism(2).taskType(TaskType.IO_BOUND);
+        BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000))
+                .parallelism(2)
+                .taskType(TaskType.IO_BOUND);
 
         TaskBatchResult<String> result = par.map(
                 input,

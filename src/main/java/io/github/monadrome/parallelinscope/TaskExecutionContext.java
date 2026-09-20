@@ -11,15 +11,27 @@ final class TaskExecutionContext {
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
     private final long submitTimeNanos;
+    private final @Nullable TaskBodyState bodyState;
 
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
 
     public TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
+        this(multiTaskContext, taskIndex, submitTimeNanos, null);
+    }
+
+    /**
+     * Creates a context carrying the task-body slot registered with the submission's shared
+     * completion tracker; {@code null} for tasks outside any tracked submission (a single {@code
+     * Par.submit}).
+     */
+    public TaskExecutionContext(
+            MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
         if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
+        this.bodyState = bodyState;
     }
 
     public MultiTaskContext multiTaskContext() {
@@ -33,6 +45,12 @@ final class TaskExecutionContext {
 
     public long submitTimeNanos() {
         return submitTimeNanos;
+    }
+
+    /** The body-completion slot of this task, or null when the submission is not tracked. */
+    @Nullable
+    TaskBodyState bodyState() {
+        return bodyState;
     }
 
     public long startTimeNanos() {

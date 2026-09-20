@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -32,9 +32,9 @@ class QuickStartTest {
     void setUp() {
         // 步骤 1 的准备工作：创建线程池和 Par 实例
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("my-pool"), pool)
-                .defaultPar(ParName.of("my-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("my-pool"), pool)
+                .defaultPar(ParId.of("my-pool"))
                 .build();
         par = config.defaultPar();
     }
@@ -70,7 +70,8 @@ class QuickStartTest {
         }
 
         // ---- 步骤 4：控制并发度 ----
-        BatchOptions limitedOpts = BatchOptions.timeout("process", java.time.Duration.ofMillis(5000)).parallelism(2);
+        BatchOptions limitedOpts = BatchOptions.timeout("process", java.time.Duration.ofMillis(5000))
+                .parallelism(2);
         List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
         TaskBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 

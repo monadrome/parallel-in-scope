@@ -986,12 +986,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return removed;
     }
 
-    private void clearBatch(Node<E>[] nodes, int length) {
-        for (int index = 0; index < length; index++) {
-            nodes[index] = null;
-        }
-    }
-
     private void clearBatch(Object[] values, int length) {
         for (int index = 0; index < length; index++) {
             values[index] = null;
@@ -1108,15 +1102,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return item;
     }
 
-    /** Prepends one node; caller must hold both monitors. */
-    private void prepend(Node<E> node) {
-        node.next = head.next;
-        head.next = node;
-        if (last == head) {
-            last = node;
-        }
-    }
-
     /** Unlinks one known live node; caller must hold both monitors. Returns the removed item. */
     private E unlink(Node<E> trail, Node<E> node) {
         E item = node.item;
@@ -1127,17 +1112,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
         count.getAndDecrement();
         return item;
-    }
-
-    /** Unlinks the tail node; caller must hold both monitors. */
-    private E unlinkLast() {
-        Node<E> trail = head;
-        Node<E> node = Objects.requireNonNull(trail.next, "queue is empty");
-        while (node.next != null) {
-            trail = node;
-            node = node.next;
-        }
-        return unlink(trail, node);
     }
 
     // endregion

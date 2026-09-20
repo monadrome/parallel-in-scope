@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A listenable future and runnable that publishes hints about its execution phase.
@@ -26,6 +27,16 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     private static final Logger LOGGER = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
     private static final Consumer<ExecutionPhase> NOOP = phase -> {};
+
+    /**
+     * The wrapped task body, held in a one-way releasable slot: once {@link #releaseCallable()}
+     * clears it — after run() returns or once the body is determined to never run — nothing may
+     * restore it, so a completed, rejected, cancelled, or abandoned future never pins the user
+     * callable and its captures. Accessed from the worker thread (run) and from cancelling or
+     * rejecting threads (afterDone/skipBody), hence the volatile slot. Plain volatile reads and
+     * writes are enough: the slot only ever moves from set to cleared, so it needs no CAS.
+     */
+    private volatile @Nullable Callable<V> callable;
 
     /**
      * Tracks whether the worker or cancellation claimed the task first. The resulting phase is a hint
@@ -56,9 +67,16 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      *                         TERMINAL
      * </pre>
      */
-    private final Callable<V> callable;
-
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
+
+    /**
+     * The task-body completion slot, or null when the submission carries no shared tracker (a
+     * single {@code Par.submit} or a non-scoped completion-service task). Driven by the same
+     * claim/cancel race as the phase machine: run() claims it, cancel-before-run and rejection
+     * skip it, and the body-exit publish (inner, with this future's finally as fallback) releases
+     * it — each exactly once.
+     */
+    private final @Nullable TaskBodyState bodyState;
 
     private volatile Consumer<? super ExecutionPhase> phaseObserver;
     private volatile Thread runner;
@@ -66,7 +84,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /** Creates a future with a phase observer. */
     public static <V> ExecutionPhaseHintFuture<V> create(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
-        return new ExecutionPhaseHintFuture<>(callable, phaseObserver);
+        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, null);
+    }
+
+    /** Creates a future with a phase observer and a task-body completion slot. */
+    public static <V> ExecutionPhaseHintFuture<V> create(
+            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
+        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, bodyState);
     }
 
     /** Creates a future with a phase observer for a runnable and fixed result. */
@@ -78,33 +102,58 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                     runnable.run();
                     return result;
                 },
-                phaseObserver);
+                phaseObserver,
+                null);
     }
 
     /** Wraps Guava's future semantics with task-local execution-phase hints. */
-    private ExecutionPhaseHintFuture(Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
+    private ExecutionPhaseHintFuture(
+            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
         this.callable = Objects.requireNonNull(callable, "callable cannot be null");
         this.phaseObserver = Objects.requireNonNull(phaseObserver);
+        this.bodyState = bodyState;
     }
 
     /**
-     * Submits this deferred future to {@code executor} exactly once. A {@code CPU_BOUND} task that
-     * the executor rejects runs inline; any other rejection, or a submission-time runtime failure,
-     * fails the future with a {@link SubmissionException} without running user code.
+     * Permanently releases the body reference; one-way and idempotent. The release covers every
+     * path that ends the body's lifetime (decision §9): run()'s finally, after the user body's
+     * finally has exited, and {@link #skipBody()}, for rejection, cancel-before-run, and
+     * sliding-window abandonment.
+     */
+    private void releaseCallable() {
+        callable = null;
+    }
+
+    /** Package-private probe for tests: whether {@link #releaseCallable()} has released the body. */
+    boolean callableReleased() {
+        return callable == null;
+    }
+
+    /**
+     * Submits this deferred future to {@code executor} exactly once. A task whose options request
+     * the caller-thread fallback runs inline when the executor rejects it; any other rejection, or
+     * any other failure of the handoff, fails the future with a {@link SubmissionException} without
+     * running user code.
      *
      * @param executor target executor
-     * @param cpuBound whether the task may fall back to inline execution on rejection
+     * @param runOnCallerThread whether the task may run on the submitting thread on rejection
      */
-    public void submitPrepared(Executor executor, boolean cpuBound) {
+    public void submitPrepared(Executor executor, boolean runOnCallerThread) {
         try {
             executor.execute(this);
         } catch (RejectedExecutionException rejected) {
-            if (cpuBound) {
+            if (runOnCallerThread) {
                 run();
             } else {
                 reject(rejected);
             }
-        } catch (RuntimeException failure) {
+        } catch (Throwable failure) {
+            // Errors are caught on purpose. Once the handoff throws, no worker holds this future
+            // and nothing else can terminate it, so letting the failure propagate would leave a
+            // pending future behind: a batch that never drains, or a task group whose convergence
+            // barrier can never reach its total. A broken executor that throws instead of rejecting
+            // and an executor that fails while enqueuing (OutOfMemoryError) both fail the task this
+            // way, exactly like an ordinary rejection without the caller-thread fallback.
             reject(failure);
         }
     }
@@ -115,9 +164,39 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     private void reject(Throwable failure) {
         if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.TERMINAL)) {
+            skipBody();
             setException(new SubmissionException(failure));
             notifyPhase(ExecutionPhase.TERMINAL);
             phaseObserver = NOOP;
+        }
+    }
+
+    /** Claims body execution eligibility; a lost claim means the body must not be entered. */
+    private boolean claimBody() {
+        TaskBodyState body = bodyState;
+        return body == null || body.claimRunning();
+    }
+
+    /** Publishes body exit; no-op when the inner callable already published it. */
+    private void releaseBody() {
+        TaskBodyState body = bodyState;
+        if (body != null) {
+            body.exited();
+        }
+    }
+
+    /**
+     * Marks the task body as never entered and releases its reference, for prepared futures that
+     * were never submitted and never cancelled — the sliding-window abandonment and
+     * initial-rejection paths, where only the caller-facing placeholder is completed. Idempotent
+     * against the cancel-before-run path, which reaches the same transition through {@link
+     * #afterDone()}. A body that can never be entered must not stay reachable through this future.
+     */
+    void skipBody() {
+        releaseCallable();
+        TaskBodyState body = bodyState;
+        if (body != null) {
+            body.skipped();
         }
     }
 
@@ -129,14 +208,32 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         runner = Thread.currentThread();
         notifyPhase(ExecutionPhase.RUNNING);
+        // A task skipped by cancellation or abandonment before this claim must never enter the
+        // user body, even though the executor invoked it.
+        boolean skipped = !claimBody();
+        // The cancel or abandonment path may release the body holder between the phase claim above
+        // and the dereference below (a sliding-window cancellation callback reading a stale
+        // nextIndex is one such path): read once into a local and treat a cleared holder as
+        // already terminated — no NPE, no user code; the finally's body-exit publish still
+        // releases the slot through the existing fallback.
+        @Nullable Callable<V> body = callable;
         boolean canceled = isCancelled();
         try {
-            if (!canceled) {
-                set(callable.call());
+            if (!skipped && !canceled && body != null) {
+                set(body.call());
             }
         } catch (Throwable failure) {
             setException(failure);
         } finally {
+            // The user body's finally has exited by now (or the body never ran), so the one-way
+            // release clears the wrapper chain before the fallback body-exit publish: a waiter that
+            // observes EXITED never sees this future still referencing the user closure.
+            releaseCallable();
+            // Fallback body-exit publish: covers the paths where ScopedCallable never ran (TTL
+            // replay failure, or the body skipped by a cancel that won mid-claim). The normal
+            // publish happens inside ScopedCallable before its listeners; both are guarded by the
+            // same atomic state, so the slot is released exactly once.
+            releaseBody();
             runner = null;
             // A cancel won mid-run if the runner saw it up front (skipped the call) or the
             // set()/setException() above lost the race (isCancelled() now true). Phase reads, CAS,
@@ -185,6 +282,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             if (current == ExecutionPhase.SUBMITTED) {
                 // Cancel won before run(): no worker will emit phases, so report it here and release.
                 if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELED_BEFORE_RUN)) {
+                    skipBody();
                     notifyPhase(ExecutionPhase.CANCELED_BEFORE_RUN);
                     phaseObserver = NOOP;
                 }

@@ -6,10 +6,10 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
@@ -144,16 +144,18 @@ class D2_LateBindRaceConditionTest {
         long batchTimeoutMs = 8000;
 
         ExecutorService rawPool = Executors.newFixedThreadPool(PARALLELISM + 1);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), rawPool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), rawPool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
 
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchOptions options = BatchOptions.timeout("late-bind-test", java.time.Duration.ofMillis(batchTimeoutMs)).parallelism(PARALLELISM).taskType(TaskType.IO_BOUND);
+            BatchOptions options = BatchOptions.timeout("late-bind-test", java.time.Duration.ofMillis(batchTimeoutMs))
+                    .parallelism(PARALLELISM)
+                    .taskType(TaskType.IO_BOUND);
 
             long startTime = System.currentTimeMillis();
 

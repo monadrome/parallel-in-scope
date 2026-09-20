@@ -13,27 +13,34 @@ import org.junit.jupiter.api.Test;
 class BatchOptionsTest {
 
     @Test
-    void defaultsAreOneWorkerPerTaskCpuBoundAndRejecting() {
+    void defaultsAreOneWorkerPerTaskCpuBoundRejectingAndFailOnRejection() {
         BatchOptions options = BatchOptions.timeout("load", Duration.ofSeconds(30));
 
         assertThat(options.name()).isEqualTo("load");
         assertThat(options.parallelism()).isEqualTo(-1);
         assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(options.rejectEnqueue()).isTrue();
+        // No task type implies the caller-thread fallback, CPU_BOUND included.
+        assertThat(options.runOnCallerThread()).isFalse();
     }
 
     @Test
     void withersRoundTripEveryFieldWithoutMutatingTheOriginal() {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
-        BatchOptions derived = base.parallelism(3).taskType(TaskType.IO_BOUND).rejectEnqueue(false);
+        BatchOptions derived = base.parallelism(3)
+                .taskType(TaskType.IO_BOUND)
+                .rejectEnqueue(false)
+                .runOnCallerThread(true);
 
         assertThat(base.parallelism()).isEqualTo(-1);
         assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(base.rejectEnqueue()).isTrue();
+        assertThat(base.runOnCallerThread()).isFalse();
         assertThat(derived.parallelism()).isEqualTo(3);
         assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(derived.rejectEnqueue()).isFalse();
+        assertThat(derived.runOnCallerThread()).isTrue();
         assertThat(derived.timeout()).isEmpty();
     }
 

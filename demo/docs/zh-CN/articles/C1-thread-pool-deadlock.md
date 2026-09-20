@@ -40,9 +40,9 @@ for (int i = 0; i < 2; i++) {
 ExecutorService outerPool = Executors.newFixedThreadPool(2);
 ExecutorService innerPool = Executors.newCachedThreadPool();
 
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("outer-pool"), outerPool)
-        .register(ParName.of("inner-pool"), innerPool)
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("outer-pool"), outerPool)
+        .register(ParId.of("inner-pool"), innerPool)
         .build();
 Par par = config.defaultPar();
 

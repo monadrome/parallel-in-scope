@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -14,6 +15,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -29,8 +32,9 @@ class CheckpointsTest {
     @Test
     void checkpointHonorsTaskNameAndCancellationKind() throws Exception {
         MultiTaskContext context = context("task");
-        assertThat(runInTask(context, () -> Checkpoints.checkpoint("other", true)))
-                .isNull();
+        assertThatThrownBy(() -> runInTask(context, () -> Checkpoints.checkpoint("other", true)))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Checkpoints.checkpoint("task", true)).isInstanceOf(IllegalStateException.class);
 
         MultiTaskContext leanContext = context("task");
         assertThatThrownBy(() -> runInTask(leanContext, () -> {
@@ -46,6 +50,32 @@ class CheckpointsTest {
                 }))
                 .isInstanceOf(CancellationException.class)
                 .isNotInstanceOf(LeanCancellationException.class);
+    }
+
+    @Test
+    void noArgCheckpointChecksTheCurrentScopeUnconditionally() throws Exception {
+        Checkpoints.checkpoint();
+
+        MultiTaskContext context = context("task");
+        runInTask(context, Checkpoints::checkpoint);
+
+        MultiTaskContext canceled = context("task");
+        assertThatThrownBy(() -> runInTask(canceled, () -> {
+                    canceled.cancellationToken().cancel(false);
+                    Checkpoints.checkpoint();
+                }))
+                .isInstanceOf(LeanCancellationException.class);
+    }
+
+    @Test
+    void checkpointTreatsAnExpiredDeadlineAsCanceledWithoutWaitingForTheTimer() throws Exception {
+        MultiTaskContext expired = MultiTaskContext.resolve(
+                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1, null);
+        Thread.sleep(5L);
+        assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
+        assertThatThrownBy(() -> runInTask(expired, Checkpoints::checkpoint))
+                .isInstanceOf(LeanCancellationException.class);
+        assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
     }
 
     private static Void runInTask(MultiTaskContext context, Runnable action) throws Exception {
@@ -120,6 +150,82 @@ class CheckpointsTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void astronomicDurationsSaturateAcrossAllDurationAdapters() throws Exception {
+        // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); every Duration entry point
+        // must saturate to Long.MAX_VALUE and reach its primitive instead of throwing
+        // ArithmeticException. Each primitive's precondition is already satisfied, so the
+        // saturated budget returns immediately.
+        Duration astronomic = Duration.ofSeconds(Long.MAX_VALUE);
+
+        assertThat(Checkpoints.checkAwait(new CountDownLatch(0), astronomic)).isTrue();
+
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        lock.lock();
+        try {
+            Thread signaler = new Thread(() -> {
+                try {
+                    Thread.sleep(50L);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+                lock.lock();
+                try {
+                    condition.signal();
+                } finally {
+                    lock.unlock();
+                }
+            });
+            signaler.start();
+            assertThat(Checkpoints.checkAwait(condition, astronomic)).isTrue();
+            signaler.join(2000L);
+        } finally {
+            lock.unlock();
+        }
+
+        Thread finished = new Thread(() -> {});
+        finished.start();
+        finished.join(2000L);
+        Checkpoints.checkJoin(finished, astronomic);
+
+        CompletableFuture<String> completed = CompletableFuture.completedFuture("value");
+        assertThat(Checkpoints.checkGet(completed, astronomic)).isEqualTo("value");
+
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(1), astronomic)).isTrue();
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(2), 2, astronomic)).isTrue();
+
+        assertThat(Checkpoints.checkTryLock(lock, astronomic)).isTrue();
+        lock.unlock();
+
+        ExecutorService terminated = Executors.newSingleThreadExecutor();
+        terminated.shutdown();
+        assertThat(terminated.awaitTermination(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(Checkpoints.checkAwaitTermination(terminated, astronomic)).isTrue();
+
+        // checkSleep cannot be waited out: prove the saturated entry actually entered the timed
+        // sleep (the thread parks in TIMED_WAITING instead of dying on ArithmeticException), then
+        // stop it with an interrupt and expect the usual translation.
+        AtomicReference<Throwable> sleepOutcome = new AtomicReference<>();
+        AtomicBoolean flagRestored = new AtomicBoolean();
+        Thread sleeper = new Thread(() -> {
+            try {
+                Checkpoints.checkSleep(astronomic);
+            } catch (Throwable failure) {
+                sleepOutcome.set(failure);
+                flagRestored.set(Thread.currentThread().isInterrupted());
+            }
+        });
+        sleeper.start();
+        await().atMost(2, TimeUnit.SECONDS).until(() -> sleeper.getState() == Thread.State.TIMED_WAITING);
+        sleeper.interrupt();
+        sleeper.join(2000L);
+        assertThat(sleepOutcome.get()).isInstanceOf(LeanCancellationException.class);
+        // The flag is only portable while the thread is alive: JDK 14+ preserves it after
+        // termination (JDK-8229516), earlier JDKs discard it.
+        assertThat(flagRestored).isTrue();
     }
 
     @Test

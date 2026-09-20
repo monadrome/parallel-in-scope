@@ -1,5 +1,10 @@
 # v0.2 迁移指南
 
+> **注意（v0.3）。** 本文描述的 `0.2.x` API 已在 `0.3.0` 中被替换：`ParName`、`TaskKey`、
+> `TaskGroupOptions` 及任务组接口的其余部分已被删除或围绕
+> `defineGroup*` / `submitGroup` / `Bindings` 重设计。仍在使用 `0.2.x` 的应用在完成本文迁移后，
+> 请继续阅读 [v0.3 迁移指南](migration-v0.3.md)。
+
 `0.2.0` 用不可变执行拓扑替代可变配置和运行期 resolver，是一次源码级破坏性迁移。
 
 发布身份同时变更：GitHub 账号由 `huatalk` 改名为 `monadrome`，`io.github.huatalk:parallel-in-scope` 变为 `io.github.monadrome:parallel-in-scope`，根 Java 包 `io.github.huatalk.parallelinscope` 变为 `io.github.monadrome.parallelinscope`。同步更新依赖坐标、import、`package` 声明和 SPI 服务加载名。`0.1.0` 仍以旧坐标发布在 Maven Central 上。
@@ -193,3 +198,23 @@ try {
 
 `SubmissionException` 本身是内部类型：它只会出现在 `getCause()` 链和堆栈里，无法在 `catch`
 子句中指名。请通过 `TaskOutcome.SUBMISSION_FAILURE` 区分这类终态。
+
+## `TaskGroup.close()` 与 `TaskBatchResult.close()` 在 close grace 内等待（0.2.0 之后的变更）
+
+`0.2.0` 的 `TaskGroup.close()` 只取消未完成成员并立即返回。现在它先取消，再在组的
+**close grace** 内等待成员与终端 combine 的任务体退出：close grace 是清理预算，用
+`TaskGroupOptions.closeGrace(Duration)` 配置；未配置时派生自关闭时组的剩余执行 deadline——
+超时引发的关闭在预算耗尽后直接返回，忽略中断的任务体最多把 `close()` 挂到 deadline。
+`closeGrace(Duration.ZERO)` 使 `close()` 只取消不
+等待；等待被中断时恢复中断标志并返回；grace 耗尽而任务体仍在运行时，未退出任务的名称会以
+WARN 级别记录。只需要发出取消请求的调用方必须改用 `cancel()`，不能再假设 `close()` 不等待。
+
+`TaskBatchResult` 现在实现了 `AutoCloseable`，语义相同：`close()` 经批次 token 取消所有
+未完成元素，然后在批次的 close grace（`BatchOptions.closeGrace(Duration)`）内等待任务体退出。
+
+`close()` 正常返回不证明任务体已经退出。`TaskGroup` 与 `TaskBatchResult` 现在都提供
+`awaitBodyCompletion(Duration)`：返回 `true` 表示所有任务体已退出（或被确定为永远不会进入），
+并对任务体的写入建立 happens-before——释放任务体使用的资源前应以它确认。在本作用域任务体内
+（含同线程嵌套 inline 调用）调用这两个等待入口会被拒绝并抛 `IllegalStateException`。
+`GlobalPar.awaitQuiescence(Duration)` 现在也覆盖任务体退出：运行中被取消的任务会立即完成其
+future，但用户代码可能仍在执行，quiescence 两者都等待。

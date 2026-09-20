@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Objects;
@@ -12,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,7 +53,7 @@ final class HeuristicPurger {
     private final AtomicBoolean enabled;
     private final AtomicDouble queuePressureThreshold;
     private final AtomicDouble canceledTaskRatioThreshold;
-    private final LongSupplier nanoTime;
+    private final Ticker ticker;
     private final long estimateExpiryNanos;
     private final AtomicLong resetGeneration = new AtomicLong();
     private final ConcurrentHashMap<ThreadPoolExecutor, PoolState> states = new ConcurrentHashMap<>();
@@ -81,7 +82,7 @@ final class HeuristicPurger {
                 enabled,
                 queuePressureThreshold,
                 canceledTaskRatioThreshold,
-                System::nanoTime,
+                Ticker.systemTicker(),
                 CANCELLATION_ESTIMATE_EXPIRY_NANOS);
     }
 
@@ -90,12 +91,12 @@ final class HeuristicPurger {
             AtomicBoolean enabled,
             AtomicDouble queuePressureThreshold,
             AtomicDouble canceledTaskRatioThreshold,
-            LongSupplier nanoTime,
+            Ticker ticker,
             long estimateExpiryNanos) {
         this.enabled = Objects.requireNonNull(enabled);
         this.queuePressureThreshold = Objects.requireNonNull(queuePressureThreshold);
         this.canceledTaskRatioThreshold = Objects.requireNonNull(canceledTaskRatioThreshold);
-        this.nanoTime = Objects.requireNonNull(nanoTime);
+        this.ticker = Objects.requireNonNull(ticker);
         if (estimateExpiryNanos <= 0) {
             throw new IllegalArgumentException("estimateExpiryNanos must be positive");
         }
@@ -196,7 +197,7 @@ final class HeuristicPurger {
                 return;
             }
 
-            recordIdleCancellation(generation, sequence, nanoTime.getAsLong());
+            recordIdleCancellation(generation, sequence, ticker.read());
             if (!enabled.get() || generation != resetGeneration.get()) {
                 settleThrough(sequence);
                 return;
@@ -260,11 +261,13 @@ final class HeuristicPurger {
                     return;
                 }
                 int beforeSize = queue.size();
-                long started = System.nanoTime();
+                // Purge duration is a real-time diagnostic: it always reads the system clock, so an
+                // injected test clock cannot turn it into a meaningless zero.
+                Stopwatch purgeTimer = Stopwatch.createStarted();
                 try {
                     executor.purge();
                     settleThrough(claimThrough);
-                    logPurge(estimatedCancelled, beforeSize, queue.size(), System.nanoTime() - started);
+                    logPurge(estimatedCancelled, beforeSize, queue.size(), purgeTimer.elapsed(TimeUnit.NANOSECONDS));
                 } catch (RuntimeException e) {
                     logCurrentDecision("failed", estimatedCancelled());
                     LOGGER.log(Level.WARNING, "Unable to purge canceled tasks", e);
