@@ -105,13 +105,18 @@ public final class CancellationToken {
         return deadlineNanos;
     }
 
-    /** Returns a non-negative remaining duration until this token's deadline. */
+    /**
+     * Returns the remaining duration until this token's deadline.
+     *
+     * <p>The result is never negative: an elapsed deadline reports {@link Duration#ZERO}. A token
+     * without a deadline reports exactly {@link Duration#ofNanos Duration.ofNanos(Long.MAX_VALUE)},
+     * the same {@link Long#MAX_VALUE} sentinel {@link #deadlineNanos()} uses — the duration is not
+     * eroded by subtracting the current clock reading.
+     *
+     * @return the remaining duration, saturated at zero and at the no-deadline sentinel
+     */
     public Duration remaining() {
-        long now = System.nanoTime();
-        if (deadlineNanos == Long.MAX_VALUE) {
-            return Duration.ofNanos(Long.MAX_VALUE);
-        }
-        return Duration.ofNanos(now >= deadlineNanos ? 0L : deadlineNanos - now);
+        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
     }
 
     /**
@@ -142,7 +147,7 @@ public final class CancellationToken {
         // futures and the submission canceller: it stays pending until every input is done, so
         // cancelling it still propagates after one task already failed or was cancelled.
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
-        if (deadlineNanos != Long.MAX_VALUE && deadlineNanos - System.nanoTime() <= 0L) {
+        if (Deadlines.remaining(deadlineNanos, System.nanoTime()) == 0L) {
             // The deadline already expired: behave as if the timeout callback had already run.
             // Scheduling a zero-delay timeout would leave the token RUNNING until the timer
             // thread gets to it, and submitted tasks could enter user code in that window. The
@@ -155,10 +160,10 @@ public final class CancellationToken {
         }
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
         if (deadlineNanos != Long.MAX_VALUE) {
-            // Clamp the subtraction: with no upper bound a negative nanoTime() would overflow the
-            // difference negative and schedule the timeout for immediate execution.
+            // Saturate the subtraction: a positive result here is guaranteed by the expired-deadline
+            // branch above, which also owns the sentinel and the wrapped-negative case.
             failFastFuture = failFastFuture.withTimeout(
-                    Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime())), timer);
+                    Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime())), timer);
         }
         failFastFuture.addCallback(
                 new FutureCallback<Object>() {

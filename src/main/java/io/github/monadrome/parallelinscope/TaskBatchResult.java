@@ -192,8 +192,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         if (batchToken == null || batchToken.deadlineNanos() == Long.MAX_VALUE) {
             return 0;
         }
-        long now = System.nanoTime();
-        return now >= batchToken.deadlineNanos() ? 0 : batchToken.deadlineNanos() - now;
+        return Deadlines.remaining(batchToken.deadlineNanos(), System.nanoTime());
     }
 
     /**

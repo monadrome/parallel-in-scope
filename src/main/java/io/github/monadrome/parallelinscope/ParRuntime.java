@@ -418,14 +418,13 @@ public final class ParRuntime implements AutoCloseable {
         } catch (ArithmeticException overflow) {
             remainingNanos = Long.MAX_VALUE;
         }
-        long deadline = System.nanoTime() + remainingNanos;
-        // Saturate instead of overflowing when the requested wait is astronomical.
-        if (remainingNanos > 0 && deadline < 0) deadline = Long.MAX_VALUE;
+        // Saturates to the sentinel when the requested wait is astronomical.
+        long deadline = Deadlines.after(System.nanoTime(), remainingNanos);
         synchronized (quiescenceMonitor) {
             while (!servicesShutdown.get() || !liveBodySignals.isEmpty()) {
                 if (remainingNanos <= 0) return false;
                 TimeUnit.NANOSECONDS.timedWait(quiescenceMonitor, remainingNanos);
-                remainingNanos = deadline - System.nanoTime();
+                remainingNanos = Deadlines.remaining(deadline, System.nanoTime());
             }
             return true;
         }
