@@ -64,7 +64,7 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
 是公开 API、有独立契约文档（`design/draining-queue-contract.md`）与 1 448 行测试，
 但 src/main 中除自身包 javadoc 外**无任何引用**（本次已复核：grep 无命中）；
 `VariableLinkedBlockingQueue` 仅经 `SmartBlockingQueue` 间接可达；
-`SmartBlockingQueue` 本身从不被库构造（见决策三）。CLAUDE.md 称该包为"独立的通用
+`SmartBlockingQueue` 本身从不被库构造（见决策三）。AGENTS.md 称该包为"独立的通用
 队列实现"，即耦合是有意的。
 
 分析：
