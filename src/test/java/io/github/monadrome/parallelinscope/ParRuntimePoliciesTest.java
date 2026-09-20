@@ -3,6 +3,11 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /** Builder validation matrix for {@link ParRuntime} policies and its task-listener overrides. */
@@ -113,5 +118,77 @@ class ParRuntimePoliciesTest {
         } finally {
             global.close();
         }
+    }
+
+    @Test
+    void discardingRejectionPoliciesFailTheBuildNamingTheParAndThePolicy() {
+        // DiscardPolicy and DiscardOldestPolicy accept a task and drop it: execute() neither runs it
+        // nor throws, so the prepared future stays pending and every batch or group submitted to
+        // that pool waits forever. Refuse the pool at the composition root instead.
+        ExecutorService discard = poolWith(new ThreadPoolExecutor.DiscardPolicy());
+        ExecutorService discardOldest = poolWith(new ThreadPoolExecutor.DiscardOldestPolicy());
+        try {
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("orders"), discard)
+                            .build())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("orders")
+                    .hasMessageContaining("DiscardPolicy")
+                    .hasMessageContaining("AbortPolicy");
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("orders"), discardOldest)
+                            .build())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("DiscardOldestPolicy");
+        } finally {
+            discard.shutdownNow();
+            discardOldest.shutdownNow();
+        }
+    }
+
+    @Test
+    void terminatingRejectionPoliciesStillBuild() {
+        // AbortPolicy surfaces RejectedExecutionException (which the kernel already turns into
+        // SUBMISSION_FAILURE) and CallerRunsPolicy runs the task inline, so both keep the "every
+        // prepared future reaches a terminal state" guarantee and stay registrable.
+        ExecutorService abort = poolWith(new ThreadPoolExecutor.AbortPolicy());
+        ExecutorService callerRuns = poolWith(new ThreadPoolExecutor.CallerRunsPolicy());
+        try {
+            ParRuntime runtime = ParRuntime.builder()
+                    .register(ParId.of("abort"), abort)
+                    .register(ParId.of("caller-runs"), callerRuns)
+                    .build();
+            try {
+                assertThat(runtime.pars()).containsOnlyKeys(ParId.of("abort"), ParId.of("caller-runs"));
+            } finally {
+                runtime.close();
+            }
+        } finally {
+            abort.shutdownNow();
+            callerRuns.shutdownNow();
+        }
+    }
+
+    @Test
+    void undetectableDiscardingShapesAreNotGuarded() {
+        // Pins the boundary of the guard: it reads the handler of a directly registered
+        // ThreadPoolExecutor once, at build time. A custom handler that discards silently is
+        // indistinguishable from a well-behaved one, and it is not the guard's job to guess -- see
+        // design/extension-and-wrapping.md L8 for the scope and the U2 obligation it leaves to the
+        // caller. This test documents that gap rather than pretending it is closed.
+        RejectedExecutionHandler silentDrop = (task, executor) -> {};
+        ExecutorService pool = poolWith(silentDrop);
+        try {
+            ParRuntime runtime =
+                    ParRuntime.builder().register(ParId.of("orders"), pool).build();
+            runtime.close();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** A one-thread pool with the given rejection handler, shaped so the guard can inspect it. */
+    private static ThreadPoolExecutor poolWith(RejectedExecutionHandler handler) {
+        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), handler);
     }
 }
