@@ -1,0 +1,88 @@
+name: Design proposal
+description: A new capability, or a change to existing behaviour or API
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposals are welcome, but this library optimises for a high power-to-weight ratio: the
+        design prefers parameterising an existing mechanism over adding a concept. A proposal is
+        judged against `design/first-principles.md` (axioms: structured concurrency is the subject;
+        users fail by forgetting; safety before expressiveness; stay close to JDK idioms), and
+        ideas that were already weighed and declined are recorded in
+        `docs/zh/design/idea-graveyard.md` — please check there first.
+
+        The `0.x` line allows breaking changes when they carry a documented rationale, so "this
+        cannot change because it is public" is not by itself a reason to decline. Filling in the
+        fields below is what makes a proposal reviewable.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      multiple: false
+      options:
+        - New capability or API
+        - Change to existing behaviour
+        - Change to an existing signature or type
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: The task or guarantee you want, not the API you have in mind yet.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: Best code you can write today, without the change
+      description: |
+        Show how the same outcome is reached with the current API, even if it is clumsy or unsafe.
+        "There is no way to do this" is an acceptable answer, but say what you tried.
+      render: java
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: What the same code would look like with the change
+      description: Sketch the call site. Signatures and types are more useful than prose here.
+      render: java
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure-mode
+    attributes:
+      label: Which failure mode does this remove?
+      description: |
+        Name the mistake a caller can make today (forget to cancel, leak a thread, miss a failure,
+        deadlock) and how the change makes it impossible or obvious.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Existing mechanisms that could carry the requirement, parameterised, and why they are not
+        enough. If the idea was declined before, link the discussion.
+    validations:
+      required: false
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and migration
+      description: |
+        Would this break a public signature, a documented contract, or a migration guide? What would
+        the migration note say?
+    validations:
+      required: false
