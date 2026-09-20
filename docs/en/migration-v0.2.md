@@ -1,5 +1,10 @@
 # Migrating to v0.2
 
+> **Note (v0.3).** The `0.2.x` API described in this guide has itself been replaced in `0.3.0`:
+> `ParName`, `TaskKey`, `TaskGroupOptions`, and the rest of the task-group surface were removed
+> or redesigned around `defineGroup*` / `submitGroup` / `Bindings`. Applications on `0.2.x`
+> should continue on to [Migrating to v0.3](migration-v0.3.md).
+
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.
 
 The publishing identity also moves because the GitHub account was renamed `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` becomes `io.github.monadrome:parallel-in-scope`, and the root Java package `io.github.huatalk.parallelinscope` becomes `io.github.monadrome.parallelinscope`. Update dependency coordinates, imports, `package` declarations, and service-loading names. `0.1.0` stays published under the old coordinates on Maven Central.
@@ -261,3 +266,29 @@ try {
 `SubmissionException` itself is an internal type: it surfaces only through `getCause()` chains and
 stack traces and cannot be named in a `catch` clause. Classify the outcome through
 `TaskOutcome.SUBMISSION_FAILURE` instead.
+
+## `TaskGroup.close()` and `TaskBatchResult.close()` wait within a close grace (post-0.2.0)
+
+`0.2.0`'s `TaskGroup.close()` only cancelled unfinished members and returned immediately. It now
+cancels and then waits for member and terminal-combine task bodies to exit within the group's
+**close grace**: a cleanup budget configured with `TaskGroupOptions.closeGrace(Duration)`; when
+never configured, the wait budget is derived from the group's remaining execution deadline at
+close time, so a close triggered by an expired deadline returns right after cancelling and a body
+that ignores interruption can hold `close()` at most until the deadline.
+`closeGrace(Duration.ZERO)` makes `close()`
+cancel-only; an interrupted wait restores the interrupt flag and returns; a grace elapsed with
+bodies still running is logged at WARN level with the outstanding task names. Callers that only
+want to issue the cancellation request must use `cancel()` instead of relying on `close()` being
+non-blocking.
+
+`TaskBatchResult` is now `AutoCloseable` with the same semantics: `close()` cancels every
+unfinished element through the batch token, then waits within the batch's close grace
+(`BatchOptions.closeGrace(Duration)`).
+
+A normal `close()` return does not prove task bodies have exited. Both `TaskGroup` and
+`TaskBatchResult` now offer `awaitBodyCompletion(Duration)`: a `true` result means every task body
+has exited (or will never be entered) and happens-before the bodies' writes — check it before
+releasing resources the bodies used. Both wait entries reject a call made from within a task body
+of the same scope with `IllegalStateException`. `GlobalPar.awaitQuiescence(Duration)` now also
+covers task-body exit: a task cancelled while running completes its future immediately but may
+still be executing user code, and quiescence waits for both.

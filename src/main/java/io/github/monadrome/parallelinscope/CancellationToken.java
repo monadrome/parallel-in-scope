@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public class CancellationToken {
+public final class CancellationToken {
 
     private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
 
@@ -105,9 +105,18 @@ public class CancellationToken {
         return deadlineNanos;
     }
 
-    /** Returns a non-negative remaining duration until this token's deadline. */
+    /**
+     * Returns the remaining duration until this token's deadline.
+     *
+     * <p>The result is never negative: an elapsed deadline reports {@link Duration#ZERO}. A token
+     * without a deadline reports exactly {@link Duration#ofNanos Duration.ofNanos(Long.MAX_VALUE)},
+     * the same {@link Long#MAX_VALUE} sentinel {@link #deadlineNanos()} uses — the duration is not
+     * eroded by subtracting the current clock reading.
+     *
+     * @return the remaining duration, saturated at zero and at the no-deadline sentinel
+     */
     public Duration remaining() {
-        return Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime()));
+        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
     }
 
     /**
@@ -117,30 +126,45 @@ public class CancellationToken {
      * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
      * when any future fails. Every canceling transition cancels the futures and the submission
      * canceller; cancelling an already-successful future is a no-op, so a late cancel never
-     * destroys a recorded result. An already-expired deadline simply schedules the timeout for
-     * immediate execution.
+     * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
+     * synchronously and cancels the futures before this method returns, so no submitted task can
+     * still enter user code on an expired deadline.
      *
      * @param <T> the task result type
      * @param futures the submitted task futures
      * @param submitCanceller the submission future to cancel with the tasks
      * @param timer scheduler used to detect the deadline
+     * @return the aggregate that completes when every submitted future and the submission
+     *     canceller are done, so callers tracking completion reuse it instead of building a
+     *     second aggregate over the same futures
      */
-    public <T> void bind(
+    <T> ListenableFuture<?> bind(
             List<? extends ListenableFuture<T>> futures,
             ListenableFuture<?> submitCanceller,
             ScheduledExecutorService timer) {
         Objects.requireNonNull(timer);
-        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
-        if (deadlineNanos != Long.MAX_VALUE) {
-            // Clamp the subtraction: with no upper bound a negative nanoTime() would overflow the
-            // difference negative and schedule the timeout for immediate execution.
-            failFastFuture = failFastFuture.withTimeout(
-                    Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime())), timer);
-        }
         // A pending successfulAsList is the one cancellable handle that reaches both the task
         // futures and the submission canceller: it stays pending until every input is done, so
         // cancelling it still propagates after one task already failed or was cancelled.
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
+        if (Deadlines.remaining(deadlineNanos, System.nanoTime()) == 0L) {
+            // The deadline already expired: behave as if the timeout callback had already run.
+            // Scheduling a zero-delay timeout would leave the token RUNNING until the timer
+            // thread gets to it, and submitted tasks could enter user code in that window. The
+            // futures are canceled even when the state was already committed (a pre-bind cancel):
+            // that is exactly the cancellation the committed state implies.
+            transitionTo(TIMEOUT);
+            allFutures.cancel(true);
+            futureToken.setException(new TimeoutException());
+            return allFutures;
+        }
+        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
+        if (deadlineNanos != Long.MAX_VALUE) {
+            // Saturate the subtraction: a positive result here is guaranteed by the expired-deadline
+            // branch above, which also owns the sentinel and the wrapped-negative case.
+            failFastFuture = failFastFuture.withTimeout(
+                    Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime())), timer);
+        }
         failFastFuture.addCallback(
                 new FutureCallback<Object>() {
                     @Override
@@ -159,6 +183,7 @@ public class CancellationToken {
                 },
                 directExecutor());
         futureToken.setFuture(failFastFuture);
+        return allFutures;
     }
 
     /**
@@ -186,9 +211,9 @@ public class CancellationToken {
     /**
      * Cancels this token as a timeout without waiting for its own deadline to expire.
      *
-     * <p>Intended for {@code io.github.monadrome.parallelinscope.TaskGroup}: when a
-     * member exceeds its own deadline, the group escalates that timeout onto the group token so
-     * the group's completion reason stays {@code TIMEOUT} instead of collapsing into fail-fast.
+     * <p>Intended for {@link TaskGroup}: when a member exceeds its own deadline, the group
+     * escalates that timeout onto the group token so the group's completion reason stays {@code
+     * TIMEOUT} instead of collapsing into fail-fast.
      */
     void timeoutCancel() {
         if (transitionTo(TIMEOUT)) {
@@ -200,11 +225,11 @@ public class CancellationToken {
      * Cancels this token as a fail-fast cancellation, committing {@code FAIL_FAST} before the
      * cascade runs.
      *
-     * <p>Intended for {@code io.github.monadrome.parallelinscope.TaskGroup}'s terminal
-     * combine: the combine is always the last task to complete, so its failure must commit the
-     * group state synchronously — convergence reading the token must not observe a still-{@code
-     * RUNNING} group and misattribute the terminal business failure as a cancellation. Member
-     * failures keep the established rule and do not use this path.
+     * <p>Intended for {@link TaskGroup}'s terminal combine: the combine is always the last task to
+     * complete, so its failure must commit the group state synchronously — convergence reading the
+     * token must not observe a still-{@code RUNNING} group and misattribute the terminal business
+     * failure as a cancellation. Member failures keep the established rule and do not use this
+     * path.
      */
     void failFastCancel() {
         if (transitionTo(FAIL_FAST)) {
@@ -247,12 +272,10 @@ public class CancellationToken {
      * Registers a callback invoked synchronously right after a terminal transition commits and
      * before the associated cancellation actions run.
      *
-     * <p>Intended for {@code io.github.monadrome.parallelinscope.TaskGroup}: a group
-     * listens on a member token so a member timeout escalates to the group before cascade
-     * cancellation runs. It is public only because the {@code scope} and {@code cancel} packages
-     * cannot share package-private access; it is not a general-purpose hook and external callers
-     * should not rely on it. A listener registered after the token left {@code RUNNING} is never
-     * invoked. Listener failures are logged and swallowed; they must not break cancellation.
+     * <p>Intended for {@link TaskGroup}: a group listens on a member token so a member timeout
+     * escalates to the group before cascade cancellation runs. It is not a general-purpose hook.
+     * A listener registered after the token left {@code RUNNING} is never invoked. Listener
+     * failures are logged and swallowed; they must not break cancellation.
      */
     void addStateListener(Consumer<State> listener) {
         stateListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));

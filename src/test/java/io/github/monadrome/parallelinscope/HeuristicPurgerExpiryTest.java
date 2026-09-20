@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import java.util.concurrent.CountDownLatch;
@@ -42,7 +43,7 @@ public class HeuristicPurgerExpiryTest {
             }
         };
         HeuristicPurger purger = new HeuristicPurger(
-                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.20), now::get, 100L);
+                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.20), tickerOf(now), 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         for (int i = 0; i < 8; i++) {
             executor.getQueue().put(ListenableFutureTask.create(() -> null));
@@ -68,7 +69,7 @@ public class HeuristicPurgerExpiryTest {
         AtomicInteger purgeCount = new AtomicInteger();
         executor = countingExecutor(purgeCount);
         HeuristicPurger purger = new HeuristicPurger(
-                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.30), clock::getAsLong, 100L);
+                new AtomicBoolean(true), new AtomicDouble(0.80), new AtomicDouble(0.30), clock, 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
@@ -97,7 +98,7 @@ public class HeuristicPurgerExpiryTest {
         AtomicBoolean enabled = new AtomicBoolean(true);
         executor = countingExecutor(purgeCount);
         HeuristicPurger purger =
-                new HeuristicPurger(enabled, new AtomicDouble(0.80), new AtomicDouble(0.20), clock::getAsLong, 100L);
+                new HeuristicPurger(enabled, new AtomicDouble(0.80), new AtomicDouble(0.20), clock, 100L);
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
@@ -141,6 +142,16 @@ public class HeuristicPurgerExpiryTest {
         }
     }
 
+    /** Adapts a test-controlled nano clock to the {@link Ticker} the purger reads. */
+    private static Ticker tickerOf(AtomicLong now) {
+        return new Ticker() {
+            @Override
+            public long read() {
+                return now.get();
+            }
+        };
+    }
+
     /** Creates an executor that counts normal purge scans. */
     private ThreadPoolExecutor countingExecutor(AtomicInteger purgeCount) {
         return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(10)) {
@@ -173,7 +184,7 @@ public class HeuristicPurgerExpiryTest {
     }
 
     /** Blocks one selected clock read while returning deterministic timestamps. */
-    private static final class ControlledClock {
+    private static final class ControlledClock extends Ticker {
         private final int blockedCall;
         private final long firstValue;
         private final long laterValue;
@@ -189,7 +200,8 @@ public class HeuristicPurgerExpiryTest {
         }
 
         /** Returns the configured time after pausing the selected invocation. */
-        private long getAsLong() {
+        @Override
+        public long read() {
             int call = calls.incrementAndGet();
             if (call == blockedCall) {
                 blocked.countDown();

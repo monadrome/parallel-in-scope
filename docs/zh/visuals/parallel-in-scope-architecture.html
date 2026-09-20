@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>parallel-in-scope v0.2 架构</title>
+  <title>parallel-in-scope v0.3 架构</title>
   <style>
     body { max-width: 760px; margin: 48px auto; padding: 0 24px; color: #1b242b; font: 16px/1.65 system-ui, sans-serif; }
     h1 { margin-bottom: 8px; }
@@ -14,14 +14,15 @@
   </style>
 </head>
 <body>
-  <h1>v0.2 执行架构</h1>
-  <p>此页面已随 v0.2 重构：旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在。</p>
+  <h1>v0.3 执行架构</h1>
+  <p>此页面已随 v0.3 重构：旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在，<code>ParName</code> 已更名为 <code>ParId</code>。</p>
   <div class="flow">
-    <p><strong>应用装配：</strong><code>GlobalPar</code> 注册多个具名 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
-    <p><strong>单次调用：</strong>作用域自己的选项类型（<code>BatchOptions</code>/<code>TaskGroupOptions</code>/<code>TaskOptions</code>）解析为 <code>MultiTaskContext</code>，后者保存 deadline、取消令牌、父批次和 executor identity。</p>
-    <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；跨 <code>Par</code> 嵌套调用可在同一个 observation scope 中记录任务图。</p>
+    <p><strong>应用装配：</strong><code>ParRuntime</code> 以 <code>String</code> 名注册多个 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
+    <p><strong>结构定义：</strong><code>ParRuntime.defineGroup*</code> 生成只含结构的不可变 <code>TaskGroupDefinition</code>（成员与终端 combine 返回类型化 <code>Member</code> 句柄），可跨线程复用。</p>
+    <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；任务组经一次性的 <code>Bindings</code> 在 <code>submitGroup</code> 边界统一接纳。</p>
+    <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；组完成经 <code>completionFuture()</code> 与调用方选择的 executor 回调观测。</p>
     <p><strong>维护：</strong>取消发生在执行前时，按物理线程池 identity 合并 purge 维护。</p>
   </div>
-  <p>完整说明请阅读 <a href="../user-guide.md">使用指南</a>、<a href="../migration-v0.2.md">v0.2 迁移指南</a> 和 <a href="../../../adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
+  <p>完整说明请阅读 <a href="../user-guide.md">使用指南</a>、<a href="../migration-v0.3.md">v0.3 迁移指南</a>、<a href="../migration-v0.2.md">v0.2 迁移指南</a> 和 <a href="../../../adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
 </body>
 </html>

@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope.queue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -92,11 +93,16 @@ class VariableLinkedBlockingQueueSignalTest {
         producer.start();
         Thread.sleep(50);
         queue.clear();
-        assertTrue(queue.isEmpty());
         assertTrue(finished.await(4, TimeUnit.SECONDS), "put was not released by clear");
         producer.join(TimeUnit.SECONDS.toMillis(2));
         assertTrue(stored.get());
-        assertFalse(queue.isEmpty());
+        // Only inspect the queue once the producer has exited. Asserting emptiness directly after
+        // clear() would race with the released producer re-enqueueing -- which is the very
+        // behaviour under test. After the join the state is stable, and the assertions below are
+        // strictly stronger: clear() dropped the pre-existing element and the producer's value is
+        // what remains.
+        assertEquals(1, queue.size());
+        assertEquals(10, queue.poll());
     }
 
     @Test
@@ -158,7 +164,9 @@ class VariableLinkedBlockingQueueSignalTest {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(4);
         queue.addAll(Arrays.asList("a", "b"));
 
-        String[] exact = queue.toArray(new String[2]);
+        // Exact-size array: the contract requires the caller's array to be reused and returned.
+        String[] exact = new String[2];
+        assertSame(exact, queue.toArray(exact));
         assertEquals("a", exact[0]);
         assertEquals("b", exact[1]);
 

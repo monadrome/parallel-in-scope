@@ -21,7 +21,7 @@
 
 - 单一 submit 边界：任务集合一次冻结、统一 admission，不存在部分注册、部分提交。
 - 作用域可关闭（`Scope` 后缀），数据只是载体（`Context` 后缀）。
-- 资源所有权唯一：`GlobalPar` 拥有 scheduler 与内部服务，业务 executor 所有权归用户。
+- 资源所有权唯一：`ParRuntime` 拥有 scheduler 与内部服务，业务 executor 所有权归用户。
 
 ### 取消与 deadline
 
@@ -51,7 +51,7 @@
 
 ## 三、便利性的来源
 
-- 类型安全下沉到键（`TaskKey` 捕获结果类型），避免强转与名称重构风险。
+- 类型安全下沉到句柄（group 成员由 `TaskGroupDefinition.Member<T>` 携带结果类型），避免强转与名称重构风险。
 - 必须显式的选择逼用户思考（timeout 二选一，无默认超时）。
 - 用户不管理执行器生命周期：executor 注册一次，按名引用。
 

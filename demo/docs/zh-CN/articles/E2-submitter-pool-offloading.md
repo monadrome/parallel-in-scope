@@ -48,8 +48,8 @@ pool.submit(() -> {
 
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("my-pool"), pool)
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("my-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

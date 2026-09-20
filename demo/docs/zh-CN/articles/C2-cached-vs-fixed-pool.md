@@ -59,8 +59,8 @@ for (int i = 0; i < 2; i++) {
 // CachedThreadPool：嵌套并行不会死锁
 ExecutorService cachedPool = Executors.newCachedThreadPool();
 
-GlobalPar config = GlobalPar.builder()
-        .register(ParName.of("cached-pool"), cachedPool)
+ParRuntime config = ParRuntime.builder()
+        .register(ParId.of("cached-pool"), cachedPool)
         .build();
 Par par = config.defaultPar();
 
