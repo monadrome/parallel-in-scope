@@ -271,3 +271,14 @@ sound（取消先于拒绝后状态检查提交、setFuture 传播取消、已�
 
 评审另注：端到端测试经由非空结果要求捕获嵌套启动抛出，但不独立钉死准入机制本身——与上方
 机制边界记录一致：准入扩展是结构性收口，可观察行为由吸收机制兜底。
+
+## 第八轮评审（Codex CLI 终审，只读）与终审收尾
+
+输入输出：target/cmux-handoff/codex-round8-review.md。准入扩展与终态吸收判 APPROVE；
+两条发现均处置：回归测试的释放等待改为同时等 outer 与 inner 的 `undrainedBatches()` 归零
+（Guava 先派发 futureToken 监听含 ParentLink 传播、再级联 delegate，故内层排空蕴含嵌套
+token 已提交终态），§7.2 残留的「声明期全部成员已尝试提交」矛盾措辞原地改写为「注册表在
+循环前发布，提交尝试发生在循环内」。最终评审 APPROVE，仅剩一条 P3 文档漂移：
+cancellation-propagation.md §1 代码草图的注释仍隐含「双调度器拒绝一律抛出」，已改写为终态
+吸收 / null 句柄 / 仅 RUNNING 抛出的现行语义（§5.2 的 MUST 文本此前已含此规则，本轮只补齐
+草图）。评审循环到此收敛，无遗留生产发现。
