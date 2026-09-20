@@ -1,0 +1,37 @@
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_1503957580b8e1::t_85f0e8e55391b2 421-422
+  s_1503957580b8e1::t_114e7367cf0167 427
+src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_1503957580b8e1::t_ba8c93d819c489 150,163-164,166
+  s_1503957580b8e1::t_9541fea7dfe10e 108-117,119
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_1503957580b8e1::t_ad3727c30cf6d5 226-229,239
+src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java
+  s_1503957580b8e1::t_6b028e7b51262f 7
+  s_1503957580b8e1::t_e1247ea419691f 107-119
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_1503957580b8e1::t_75e69f77776466 195
+src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java
+  s_1503957580b8e1::t_21cc6abe996921 32-33,36-37,64-66
+  s_1503957580b8e1::t_6f27ae9af8ec78 1-31,34-35,38-63,67-77
+src/main/java/io/github/monadrome/parallelinscope/Deadlines.java
+  s_1503957580b8e1::t_3a2eeaed0fd8ae 1-57
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_1503957580b8e1::t_06a651e771108c 156-165,167,169,197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ed9fdfb0439a7d86fd00b325ec0f7c8fb2e953d0",
+  "prompts": {},
+  "sessions": {
+    "s_1503957580b8e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd97-dc3b-7a53-aa99-7cd0a70d4636",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
