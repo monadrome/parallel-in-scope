@@ -153,14 +153,21 @@ final class MultiTaskContext {
         if (!timeout.isPresent()) {
             return ceilingNanos;
         }
-        long timeoutNanos;
-        try {
-            timeoutNanos = timeout.get().toNanos();
-        } catch (ArithmeticException overflow) {
-            timeoutNanos = Long.MAX_VALUE;
-        }
-        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - nowNanos ? Long.MAX_VALUE : nowNanos + timeoutNanos;
+        long timeoutNanos = saturatedNanos(timeout.get());
+        // Saturated on both ends: an astronomical timeout and a clock reading that is far from zero
+        // (nanoTime() may legally be negative) used to overflow this sum into a negative deadline,
+        // which then read as "no deadline" and silently dropped the caller's timeout.
+        long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
         return Math.min(requestedDeadline, ceilingNanos);
+    }
+
+    /** Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} on overflow. */
+    private static long saturatedNanos(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
     }
 
     /** The logical unit name: batches use the options name; group members and combines use the key name. */
@@ -187,9 +194,7 @@ final class MultiTaskContext {
 
     /** Returns a non-negative remaining timeout derived from the monotonic clock. */
     public Duration remaining() {
-        long now = System.nanoTime();
-        return Duration.ofNanos(
-                deadlineNanos == Long.MAX_VALUE ? Long.MAX_VALUE : (now >= deadlineNanos ? 0L : deadlineNanos - now));
+        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
     }
 
     public CancellationToken cancellationToken() {

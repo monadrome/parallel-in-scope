@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -100,6 +101,20 @@ class MultiTaskContextTest {
         assertThat(unit.remaining().toNanos())
                 .isGreaterThan(TimeUnit.SECONDS.toNanos(29))
                 .isLessThanOrEqualTo(TimeUnit.SECONDS.toNanos(30));
+    }
+
+    @Test
+    void explicitTimeoutSurvivesAResolutionClockFarInTheNegative() {
+        // A platform whose nanoTime() origin sits centuries in the past: the deadline sum used to
+        // wrap negative, so the explicit timeout was silently resolved as "no deadline" instead of
+        // as a live deadline 30 seconds out.
+        long now = -100_000L * TimeUnit.DAYS.toNanos(1);
+        Duration timeout = Duration.ofSeconds(30);
+
+        long deadline = MultiTaskContext.resolveDeadlineNanos(Optional.of(timeout), Long.MAX_VALUE, now);
+
+        assertThat(deadline).isEqualTo(now + timeout.toNanos());
+        assertThat(deadline).isLessThan(Long.MAX_VALUE);
     }
 
     @Test
