@@ -4,8 +4,8 @@
 契约类文档以实现约束力（MUST/MUST NOT/SHOULD）书写，是本仓库行为的权威依据。
 
 新能力与契约变更先在 issue 立项（`.github/ISSUE_TEMPLATE/design_proposal.yml`）；需要展开论证的，
-在本目录写提案文档并由 issue 链接，方向定稿前不进版本库（见根 [AGENTS.md](../AGENTS.md) 的
-Issue Tracking 与 Git Workflow）。
+在本目录写提案文档并在 issue 里指名（issue 记结论，文档随实现一起提交），方向定稿前不进版本库
+（见根 [AGENTS.md](../AGENTS.md) 的 Issue Tracking 与 Git Workflow）。
 
 ## TaskGroup（独立并行任务组）
 
