@@ -8,6 +8,10 @@
 executor 拒绝后不再在你没选择的线程上运行你的代码。批次（`Par.map`）代码不受组重构影响，
 除了 `ParName` 更名为 `ParId`。
 
+> `0.3.0` 目前以 `0.3.0-SNAPSHOT` 发布，坐标见
+> [README 快速开始](https://github.com/monadrome/parallel-in-scope/blob/main/README.zh-CN.md#快速开始)；
+> 在 `0.3.0` 正式发布到 Maven Central 之前，最新稳定版仍是 `0.2.0`。
+
 ## 速查表
 
 | `0.2.x` | `0.3.0` |
