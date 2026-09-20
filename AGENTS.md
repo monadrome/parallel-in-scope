@@ -122,7 +122,8 @@ agreed and recorded; the pull request is where it is built, and it links back.
   changes; the thread is the record of what was decided and why.
 - Direction that needs more than a thread goes to `design/`: write the proposal
   there, leave it in the working tree until the direction settles (see Git
-  Workflow), and link it from the issue. The issue stays the tracker, the
+  Workflow), and name it in the issue, which carries the summary; the document is
+  committed with the change that implements it. The issue stays the tracker, the
   document carries the reasoning.
 - Use the current release milestone for findings that must land before that line
   is cut; leave everything else un-milestoned as backlog.
