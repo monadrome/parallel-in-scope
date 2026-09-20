@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.graph.ValueGraph;
 import io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent;
 import java.util.Collections;
 import java.util.List;
@@ -12,21 +13,21 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
- * Explicit request-level task-graph observation scope owned by one {@link GlobalPar}.
+ * Explicit request-level task-graph observation scope owned by one {@link ParRuntime}.
  *
  * <p>The scope is a request-level global object: it is held in a {@link TransmittableThreadLocal}
  * with identity copy semantics, so every worker thread within the request observes the same
  * instance and shares its {@link TaskGraphData}. Nested scopes stack on the opening thread, and
  * {@link #close()} is idempotent so it can be used with try-with-resources. Closing the scope runs
  * the deadlock detection pass over the recorded graph and notifies the owner's
- * {@code GlobalParDeadlockPolicy} listeners.
+ * {@code ParRuntimeDeadlockPolicy} listeners.
  *
  * <p>Lifecycle:
  *
  * <ul>
- *   <li>Request start: {@link GlobalPar#openTaskGraphObservation()} creates the scope and a fresh
+ *   <li>Request start: {@link ParRuntime#openTaskGraphObservation()} creates the scope and a fresh
  *       {@link TaskGraphData}
- *   <li>During request: the GlobalPar execution path records batch-instance relationships via
+ *   <li>During request: the ParRuntime execution path records batch-instance relationships via
  *       {@link #logTaskPair}
  *   <li>Request end: {@link #close()} checks for cycles and notifies listeners
  * </ul>
@@ -41,12 +42,12 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     private static final TransmittableThreadLocal<TaskGraphObservationScope> CURRENT =
             new TransmittableThreadLocal<TaskGraphObservationScope>() {};
 
-    private final GlobalPar owner;
+    private final ParRuntime owner;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final @Nullable TaskGraphObservationScope previousScope;
     private final TaskGraphData data;
 
-    TaskGraphObservationScope(GlobalPar owner) {
+    TaskGraphObservationScope(ParRuntime owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
         this.previousScope = CURRENT.get();
         CURRENT.set(this);
@@ -93,7 +94,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Checks if any task cycle exists.
+     * Checks if any task cycle exists as of the edges recorded so far.
      *
      * @return {@code true} when the current request graph contains a task cycle
      */
@@ -103,7 +104,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Checks if any task self-loop exists.
+     * Checks if any task self-loop exists as of the edges recorded so far.
      *
      * @return {@code true} when the current request graph contains a task self-loop
      */
@@ -113,7 +114,8 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Returns whether the current request graph contains an executor cycle.
+     * Returns whether the current request graph contains an executor cycle as of the edges recorded
+     * so far.
      *
      * @return {@code true} when an executor cycle exists
      */
@@ -123,7 +125,8 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Returns whether the current request graph contains an executor self-loop.
+     * Returns whether the current request graph contains an executor self-loop as of the edges
+     * recorded so far.
      *
      * @return {@code true} when an executor self-loop exists
      */
@@ -132,7 +135,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return data != null && data.executorSelfLoop();
     }
 
-    GlobalPar owner() {
+    ParRuntime owner() {
         return owner;
     }
 
@@ -154,7 +157,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         }
     }
 
-    /** Runs the GlobalPar deadlock policy over this scope's graph and restores the outer scope. */
+    /** Runs the ParRuntime deadlock policy over this scope's graph and restores the outer scope. */
     private void runDeadlockDetection() {
         try {
             if (!owner.deadlockPolicy().enabled()) {
@@ -179,34 +182,31 @@ public final class TaskGraphObservationScope implements AutoCloseable {
             logger.log(
                     Level.WARNING,
                     "[[title=TaskGraph,function=finishObservation]]"
-                            + "Failed to run GlobalPar potential-deadlock detection",
+                            + "Failed to run ParRuntime potential-deadlock detection",
                     e);
         }
     }
 
     private static @Nullable DeadlockDetectionEvent buildDetectionEvent(TaskGraphData data) {
-        boolean hasTaskCycle = data.taskCycle();
-        boolean hasSelfLoop = data.selfLoop();
-        boolean hasExecutorCycle = data.executorCycle();
-        boolean hasExecutorSelfLoop = data.executorSelfLoop();
+        TaskGraphData.Snapshot snapshot = data.snapshot();
+        boolean hasTaskCycle = snapshot.taskCycle();
+        boolean hasSelfLoop = snapshot.taskSelfLoop();
+        boolean hasExecutorCycle = snapshot.executorCycle();
+        boolean hasExecutorSelfLoop = snapshot.executorSelfLoop();
 
         if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
             return null;
         }
 
-        String taskEdges = data.graph().edges().stream()
-                .map(p -> {
-                    List<TaskEdge> edges =
-                            data.graph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
-                    return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
-                })
+        ValueGraph<String, List<TaskEdge>> taskGraph = snapshot.graph();
+        String taskEdges = taskGraph.edges().stream()
+                .map(p -> snapshot.displayNode(p.source()) + " -> " + snapshot.displayNode(p.target()) + " "
+                        + taskGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
-        String executorEdges = data.executorGraph().edges().stream()
-                .map(p -> {
-                    List<TaskEdge> edges =
-                            data.executorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
-                    return p.source() + " -> " + p.target() + " " + edges;
-                })
+        ValueGraph<String, List<TaskEdge>> executorGraph = snapshot.executorGraph();
+        String executorEdges = executorGraph.edges().stream()
+                .map(p -> p.source() + " -> " + p.target() + " "
+                        + executorGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
 
         return new DeadlockDetectionEvent(

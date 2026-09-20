@@ -3,10 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,9 +32,9 @@ public class B2_FunctionSignatureBloatTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }
@@ -113,7 +113,8 @@ public class B2_FunctionSignatureBloatTest {
     @Test
     void parMap_cleanSignature_onlyBusinessParam() throws Exception {
         // 解决方案：Par.map() 隐式传播上下文，lambda 只需业务参数
-        BatchOptions opts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000)).parallelism(3);
+        BatchOptions opts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000))
+                .parallelism(3);
 
         List<String> urls = Arrays.asList(
                 "http://api.example.com/users", "http://api.example.com/orders", "http://api.example.com/products");
@@ -146,7 +147,8 @@ public class B2_FunctionSignatureBloatTest {
         // 验证：即使有多种上下文需求，Par.map() 的 lambda 签名依然干净
         AtomicInteger processedCount = new AtomicInteger(0);
 
-        BatchOptions opts = BatchOptions.timeout("complex-task", java.time.Duration.ofMillis(3000)).parallelism(2);
+        BatchOptions opts = BatchOptions.timeout("complex-task", java.time.Duration.ofMillis(3000))
+                .parallelism(2);
 
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104);
 

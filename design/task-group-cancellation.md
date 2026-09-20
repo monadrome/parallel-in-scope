@@ -26,7 +26,7 @@ outer task token（可空）
 - Group 取消语义与 batch 完全一致（结构化并发）：成员被直接取消即级联取消整个 Group；
 - 该成员原因记录为 `MEMBER_CANCELED`；
 - 未完成 siblings 通过各自 member token 级联取消，记录 `GROUP_CANCELED`；
-- Group completion reason 固定为 `CANCELED`；
+- Group completion reason 固定为 `GROUP_CANCELED`；
 - 取消在线程取得执行权前获胜时，用户 callable 不得执行；
 - 取消在 RUNNING 后获胜时发出中断请求，但不保证用户代码立即停止。
 
@@ -46,7 +46,7 @@ publish CLOSED/result/event
 
 ### 8.4 Deadline
 
-逻辑 deadline 在 `submit()` 时计算；definition 配置耗时不计入 Group timeout：
+逻辑 deadline 在 `submitGroup()` 的统一 start 计算；definition 配置与 Bindings 阶段耗时不计入 Group timeout：
 
 ```text
 requestedGroupDeadline = submitStartNanos + resolvedGroupTimeout
@@ -62,7 +62,7 @@ timer 触发时：
 - first-wins 固定 `TIMEOUT`；
 - 未完成成员取消并记录 `TIMEOUT`；
 - timer 必须在 Group 先完成时取消或成为无害 no-op；
-- timeout action 使用 `GlobalPar.timeoutScheduler()`，Group 不创建 scheduler。
+- timeout action 使用 `ParRuntime.timeoutScheduler()`，Group 不创建 scheduler。
 
 成员 deadline：
 
@@ -99,7 +99,8 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 `FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
 无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELED`；`PROPAGATED_CANCELED` 按
 `originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELED`；`CANCELED`（用户直接 cancel 组或成员直消
-级联）→ `GROUP_CANCELED`；token 仍在 `RUNNING`/`SUCCESS` 时全部成员成功记 `SUCCESS`，否则
+级联）→ `GROUP_CANCELED`；token 仍在 `RUNNING`/`SUCCESS` 时，已记录失败任务优先沿用其
+outcome（失败归因不随完成顺序漂移），否则全部成员成功记 `SUCCESS`，否则
 `MEMBER_CANCELED`。
 
 嵌套提交的终态不唯一但归因确定：成员 callable 内部的嵌套 batch 继承组 deadline 后自身也会被
@@ -128,8 +129,8 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
   `MEMBER_CANCELED`，先拦截 `CANCELED` 再调用共享映射；组快照保持事后归因
   `GROUP_CANCELED`，两者允许不一致（见观测契约）。
 - `TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
-  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败成员 outcome）与
-  `RUNNING`/`SUCCESS`（全成功判定），其余委托共享映射。
+  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务 outcome）与
+  `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 
 批次报告（`TaskBatchResult.report()`）携带批次 token 时同样按此表修正 future 层的粗分类
 （future 层对一切取消只报 `MEMBER_CANCELED`）。批次共享单一 token、无逐元素完成时归因，
@@ -144,11 +145,49 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 用户代码自发抛出的取消异常仍是 `USER_FAILURE`）。`TaskGroup.memberCompleted` 与
 `TaskBatchResult.outcomeOf` 都执行这一改道。
 
-### 8.5 close
+### 8.5 close 与任务体退出
 
-`close()` 不阻塞：
+`close()` 采用「取消 + 独立 close grace 等待」语义：
 
-- 空组或所有冻结成员已终态：无副作用；
-- 存在未完成成员：等同 `cancel()`；
-- 已 `CLOSED`：幂等；
-- 不关闭 `GlobalPar` 或任何注册 executor。
+- 先校验自等待条件：当前线程正在执行本组成员（含 terminal combine）任务体——含当前线程上
+  尚未返回的嵌套 inline 调用——时抛 `IllegalStateException`；守卫沿 `structuralParent` 链判定，
+  不只看最内层 current context；任务体需要取消自身所在组时应使用取消入口；
+- 存在未完成成员：等同 `cancel()`（幂等）取消组 token；取消处理同步竞争任务入口，尚未取得
+  执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
+- 取消传播返回后，以 **close grace** 为预算等待全部成员（含 terminal combine）任务体退出。
+  close grace 是清理预算：显式配置时（`TaskGroupDefinition.Builder.closeGrace(Duration)`）从 `close()`
+  调用时起算，与执行 deadline 无关；未配置时派生自关闭时剩余的有效 deadline——超时引发的
+  关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。grace 为零时
+  `close()` 只取消不等待，等价于 `cancel()`；
+- grace 耗尽而任务体仍在运行：以 WARN 级别记录未退出任务的名称——泄漏必须是可见数据，不是
+  沉默；这是正常返回，不是错误；
+- 等待被中断：取消效果保留，恢复调用线程中断标志并返回；进入方法时已中断则先完成取消、
+  跳过等待、保留标志；`close()` 不新增 checked exception；
+- 空组或所有冻结成员已终态：取消无副作用，等待立即返回；
+- 已 `CLOSED`：幂等；future 层的 `CLOSED` 与任务体退出相互独立，future 完成不导致等待信号
+  或正在运行的任务状态提前丢失；
+- 不关闭 `ParRuntime` 或任何注册 executor。
+
+Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次 token 取消全部未完成
+元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生
+自关闭时剩余 deadline）等待任务体退出；Batch 没有独立的 cancel-only 公共入口，零 grace 即等价
+语义。
+
+任务体退出由每个任务在提交前预登记的原子状态机跟踪
+（`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）：`RUNNING` 只表示取得执行资格；正常
+路径在用户任务体 finally 完成后、listener 调用前发布 `EXITED`，外层 future finally 兜底；取消
+获胜、提交拒绝、占位取消、窗口放弃和 combine 不执行都接入真实 prepared task 的状态，各恰好释放
+一次名额。等待信号是 `AtomicInteger` 计数加 `SettableFuture`（最后一个释放名额的线程直接完成
+它），而不是阻塞原语：定时等待因此能区分「全部退出」与「预算耗尽」，信号也能被
+`ParRuntime.awaitQuiescence` 按提交聚合——quiescence 覆盖任务体退出，而不只是 future 终态（运行
+中被取消的任务会立即完成 future，但用户代码可能仍在执行）。listener、TTL 恢复和用户另行启动的
+线程不属于任务体退出范围。
+
+调用方可用 `TaskGroup.awaitBodyCompletion(Duration)` 或 `TaskBatchResult.awaitBodyCompletion(Duration)`
+以独立预算显式等待（不自动取消、不要求先 close；Batch 无新增 close 入口，先经既有取消入口取消
+再等待）：返回 `true` 表示全部直接任务体已退出或被原子确定为永远不会进入，并建立任务体写入对
+等待线程的 happens-before，结果单调不失效；`false` 只表示预算耗尽，其中可能含尚未启动的任务。
+校验顺序为参数（null → `NullPointerException`，负值 → `IllegalArgumentException`）与自等待
+（`IllegalStateException`）先于中断检查（抛 `InterruptedException` 并清除标志），再检查是否
+完成；零值只做单次检查，超大 Duration 饱和处理。`close()` 正常返回不构成「资源可释放」承诺：
+释放任务体使用的资源前须以 `awaitBodyCompletion` 的成功确认。

@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,9 +94,9 @@ class A2_NestedCancelPropagationTest {
     @Test
     void testParNestedCancelPropagatesViaTimeout() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
         AtomicInteger innerCompletedNormally = new AtomicInteger(0);
@@ -104,7 +104,8 @@ class A2_NestedCancelPropagationTest {
 
         try {
             // 外层配置：500ms 超时
-            BatchOptions outerOptions = BatchOptions.timeout("outer", java.time.Duration.ofMillis(500)).parallelism(2);
+            BatchOptions outerOptions = BatchOptions.timeout("outer", java.time.Duration.ofMillis(500))
+                    .parallelism(2);
 
             List<Integer> items = Arrays.asList(1, 2);
 
@@ -112,7 +113,8 @@ class A2_NestedCancelPropagationTest {
                     items,
                     outerItem -> {
                         // 内层并行处理
-                        BatchOptions innerOptions = BatchOptions.inheritTimeout("inner").parallelism(3);
+                        BatchOptions innerOptions =
+                                BatchOptions.inheritTimeout("inner").parallelism(3);
 
                         List<Integer> innerItems = Arrays.asList(10, 20, 30);
                         TaskBatchResult<Integer> innerResult = par.map(

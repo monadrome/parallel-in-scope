@@ -133,7 +133,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 | 编号 | 问题 | 触发机制 | 后果 | 封堵 |
 |---|---|---|---|---|
 | **P11** | 注册 TTL 包装器 | `TtlExecutors.getTtlExecutorService(pool)` 传入 `register` | ① 出现第二个捕获点（破 I3）；② `ExecutorServiceTtlWrapper` 非 `ThreadPoolExecutor` → purge 观察者不绑定、`BlockingRisk` 静默降为 `UNKNOWN` | L3 检测 + WARNING；能力探测时 `TtlUnwrap.unwrap` |
-| **P12** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 CPU-bound inline 回退策略被绕过 | 契约 U2 + 文档；负例测试 T11 |
+| **P12** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 CPU-bound inline 回退策略被绕过 | 契约 U2 + 注册期守卫（`DiscardPolicy` / `DiscardOldestPolicy` 直接拒绝注册，见 L8）+ 提交失败必终结 future（L7）+ 文档；负例测试 T11 |
 | **P13** | executor 包装扩大上下文范围 | 包装器给每个 Runnable 套上下文层 | 上下文回放覆盖到 future 记账与完成回调，语义超出"任务体" | 契约 U1：不在 `run()` 之外包上下文 |
 
 ### E. 接口与类型
@@ -176,8 +176,9 @@ public interface TaskDecorator {
 
 **为什么不是 `TaskDecorator<T>`**：注册面异构（同一 `Par` 下 batch 元素、group 成员、combine 结果类型各不相同），只能存 `List<TaskDecorator<?>>`，应用时需一次 unchecked cast。用户可注册 `TaskDecorator<String>` 到 `Callable<Integer>` 的成员上 → 堆污染、运行期 `ClassCastException`。泛型方法没有这个洞（公理 3：安全优先于表达力）。
 
-**为什么是接口不是抽象类**：既有回调（`TaskListener`/`TaskGroupListener`/`DeadlockDetectionListener`）
-都是接口；`TaskKey` 用抽象类是因为需要匿名子类捕获类型参数，这里没有该需求。
+**为什么是接口不是抽象类**：既有回调（`TaskListener`/`DeadlockDetectionListener`）
+都是接口；v0.3 起 group 侧回调统一为 `completionFuture()` + Guava callback，不再有
+`TaskGroupListener`。这里需要的就是普通接口，没有捕获类型参数的需求。
 
 ### 5.2 唯一构造点
 
@@ -200,7 +201,7 @@ public static <V> Callable<V> wrapScoped(
 
 **循环方向是易错点**：`body = d.decorate(body)` 会让最后遍历到的成为最外层，因此必须倒序遍历，才能实现"注册序 = 由外到内"。
 
-**装饰器列表是构建期冻结的有序不可变快照**（`GlobalPar` 不可变），提交时不再变化——避免并发迭代与顺序抖动。
+**装饰器列表是构建期冻结的有序不可变快照**（`ParRuntime` 不可变），提交时不再变化——避免并发迭代与顺序抖动。
 
 三条路径自动一致（现状已共用此点）：
 
@@ -214,13 +215,13 @@ batch 的 `Function` 在 `Par.mapWhileOpen` 已转成每元素 `Callable`，因�
 
 ### 5.3 注册面
 
-镜像已有的 listener 设计（`GlobalPar.Builder.taskListener` / `parTaskListener` / `GlobalPar.taskListenersFor`）：
+镜像已有的 listener 设计（`ParRuntime.Builder.taskListener` / `parTaskListener` / `ParRuntime.taskListenersFor`）：
 
 ```java
-GlobalPar.Builder
+ParRuntime.Builder
     .taskDecorator(TaskDecorator)              // 全局默认，按注册序追加
-    .parTaskDecorator(ParName, TaskDecorator)  // 按 Par 追加，位于全局之后
-GlobalPar.taskDecoratorsFor(ParName)           // 与 taskListenersFor 对称
+    .parTaskDecorator(ParId, TaskDecorator)   // 按 Par 追加，位于全局之后
+ParRuntime.taskDecoratorsFor(ParId)            // 与 taskListenersFor(ParId) 对称
 ```
 
 **组合语义是追加，不是 listener 的覆盖替换**：静默丢弃一个传播型装饰器属于"忘记"类错误。要少用就不全局注册；这个差异 MUST 写进用户文档。
@@ -285,7 +286,8 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 | L4 | **不可配置**：不提供关闭或替换上下文包装的配置项 |
 | L5 | **归因不变**：装饰器不引入新的 `TaskOutcome` 词汇 |
 | L6 | **快照独立**：每次 `prepare` 独立捕获上下文快照，不跨任务复用（P8） |
-| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P10）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象 |
+| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P10）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象。提交调用抛出的**任何**失败——含违反契约直接抛出的 `Error`——同样 MUST 以 `SubmissionException` 终结该 prepared future：它没有 worker 持有，抛出后没有任何其他路径能完成它 |
+| L8 | **注册期拒绝丢弃型拒绝策略**：注册的 `ThreadPoolExecutor` 使用 `DiscardPolicy` / `DiscardOldestPolicy` 时，`ParRuntime.Builder.build()` MUST 以 `IllegalArgumentException` 失败，并在消息中点名 Par id、池类与策略类。这两种策略"接受后丢弃"：既不执行也不抛 `RejectedExecutionException`，而提交内核只把后者当作终态信号，因此 `Par.map` 与 TaskGroup 会永久等待（P12/L7）。`AbortPolicy`（拒绝成为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。守卫只在注册期读取一次 supplied 对象：`build()` 之后安装的 handler、自定义丢弃 handler、以及库看不透的包装器都不在覆盖范围内，这些形态仍只能由 U2 约束 |
 
 ### 6.3 用户侧约束
 
@@ -348,7 +350,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 1. **L3 检测（可独立先行）**：`ExecutorRuntime` 加 `TtlUnwrap.isWrapper` 告警 + 能力探测解包 + 回归测试；
 2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md` 记录；
-3. `TaskDecorator` SPI + `TaskSubmissions.wrapScoped` 参数化 + `GlobalPar` 注册面；
+3. `TaskDecorator` SPI + `TaskSubmissions.wrapScoped` 参数化 + `ParRuntime` 注册面；
 4. §8 验证矩阵；
 5. 用户文档（中英）：顺序、捕获时点、逃逸禁令、重试语义、注册面追加语义。
 

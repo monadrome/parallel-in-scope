@@ -186,13 +186,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cpuBatchFallsBackToDirectExecutionAfterRejection() throws Exception {
+    void batchElementFallsBackToDirectExecutionWhenOptionsRequestIt() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND, true), submitter);
             assertThat(executor.submitAll(futures(() -> 7)).results().get(0).get())
                     .isEqualTo(7);
         } finally {
@@ -201,13 +201,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cpuInlineFallbackPublishesCompletionForSlidingWindow() throws Exception {
+    void callerThreadFallbackPublishesCompletionForSlidingWindow() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
 
             TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
 
@@ -221,13 +221,13 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void failedCpuInlineFallbackStillAdvancesSlidingWindow() throws Exception {
+    void failedCallerThreadFallbackStillAdvancesSlidingWindow() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
 
             TaskBatchResult<Integer> batch = executor.submitAll(futures(
                     () -> {
@@ -240,6 +240,36 @@ class SlidingWindowSubmitterTest {
                     .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * The default for every task type: a rejected element fails and its body never runs. Before the
+     * caller-thread fallback became an explicit option, {@code CPU_BOUND} was the default type and
+     * silently ran rejected elements on the submitting thread.
+     */
+    @Test
+    void rejectedCpuElementFailsWithoutRunningItsBodyByDefault() throws Exception {
+        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        rejected.shutdownNow();
+        java.util.concurrent.atomic.AtomicBoolean bodyRan = new java.util.concurrent.atomic.AtomicBoolean();
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> {
+                bodyRan.set(true);
+                return 7;
+            }));
+
+            assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(bodyRan).isFalse();
         } finally {
             submitter.shutdownNow();
         }
@@ -305,6 +335,168 @@ class SlidingWindowSubmitterTest {
         }
     }
 
+    /**
+     * The handoff window: the worker executor blocks inside the second {@code execute} until the
+     * cancellation lands, so the submitter loop (running the task and binding the placeholder)
+     * races the cancellation callback (abandoning placeholders). The claimed element must stay
+     * consistent: once handed to the executor it can only be canceled through its own future, so
+     * its callable runs and the caller sees the real result — never SUBMISSION_FAILURE for a task
+     * that ran. Only genuinely unsubmitted placeholders are abandoned.
+     */
+    @Test
+    void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
+        CountDownLatch secondExecuteEntered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger executions = new AtomicInteger();
+        AtomicInteger ranValues = new AtomicInteger();
+        ExecutorService blocking = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return true;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (executions.incrementAndGet() >= 2) {
+                    secondExecuteEntered.countDown();
+                    try {
+                        release.await(2, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        // cancel(true) interrupts the submitter thread; run the handoff anyway
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                command.run();
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(blocking);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(
+                    () -> 1,
+                    () -> {
+                        ranValues.addAndGet(2);
+                        return 2;
+                    },
+                    () -> {
+                        ranValues.addAndGet(3);
+                        return 3;
+                    }));
+
+            assertThat(secondExecuteEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            batch.submitCanceller().cancel(true);
+            release.countDown();
+
+            // The claimed element ran and its caller sees the real result, not a submission failure.
+            assertThat(batch.results().get(1).get(2, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            // The unclaimed element was abandoned without ever entering user code.
+            assertThat(batch.results().get(2).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(ranValues.get()).isEqualTo(2);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * The claim-before-completion-check ordering is what keeps the cancellation callback from
+     * abandoning an index the submission loop already accepted: once {@code take()} hands over a
+     * slot, {@code nextIndex} is bumped before any check, so the callback abandons only strictly
+     * later placeholders and the loop itself disposes of the claimed index. The vulnerable window
+     * is nanoseconds wide and cannot be gated deterministically, so this test hammers it: many
+     * rounds of submit + cancel at staggered moments, asserting the one observable corruption the
+     * race produced — a task body that ran while its placeholder was already abandoned (user code
+     * ran, the caller reads "never submitted"). On the fixed code the invariant holds by
+     * construction; if the claim ever moves back below the completion check, staggered rounds
+     * make the corruption possible again.
+     */
+    @Test
+    void repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            for (int round = 0; round < 100; round++) {
+                AtomicInteger ran0 = new AtomicInteger();
+                AtomicInteger ran1 = new AtomicInteger();
+                SlidingWindowSubmitter<Integer> executor =
+                        new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+                TaskBatchResult<Integer> batch = executor.submitAll(futures(
+                        () -> {
+                            ran0.incrementAndGet();
+                            return 1;
+                        },
+                        () -> {
+                            ran1.incrementAndGet();
+                            return 2;
+                        }));
+
+                // Stagger the cancellation across the phases of the submission loop: before the
+                // submitter thread parks in take(), while it is parked, right around the moment
+                // take() hands over the freed slot, and after the handoff completed.
+                switch (round % 5) {
+                    case 1:
+                        Thread.sleep(1L);
+                        break;
+                    case 2:
+                        Thread.sleep(2L);
+                        break;
+                    case 3:
+                        Thread.sleep(5L);
+                        break;
+                    case 4:
+                        Thread.sleep(10L);
+                        break;
+                    default:
+                        Thread.yield();
+                }
+                batch.submitCanceller().cancel(true);
+
+                await().atMost(5, TimeUnit.SECONDS)
+                        .until(() -> batch.results().get(0).isDone()
+                                && batch.results().get(1).isDone());
+
+                // The invariant: a body that entered user code is reported as a real success,
+                // never as an abandoned placeholder; an abandoned placeholder never entered user
+                // code.
+                assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
+                        .as("round %s element 0", round)
+                        .isEqualTo(ran0.get() == 1);
+                assertThat(batch.results().get(1).outcome() == TaskOutcome.SUCCESS)
+                        .as("round %s element 1", round)
+                        .isEqualTo(ran1.get() == 1);
+            }
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
@@ -313,10 +505,19 @@ class SlidingWindowSubmitterTest {
     }
 
     private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {
+        return context(tasks, parallelism, type, false);
+    }
+
+    /**
+     * Builds a unit for the given type and caller-thread fallback. The fallback is explicit: no
+     * task type implies it, so a rejection test must ask for inline execution itself.
+     */
+    private static MultiTaskContext context(int tasks, int parallelism, TaskType type, boolean runOnCallerThread) {
         return MultiTaskContext.resolve(
                 BatchOptions.timeout("batch", Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(type)
+                        .runOnCallerThread(runOnCallerThread)
                         .spec(),
                 tasks,
                 null);

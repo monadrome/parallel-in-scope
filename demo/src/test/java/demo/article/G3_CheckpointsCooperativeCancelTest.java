@@ -2,11 +2,11 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.Checkpoints;
-import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,9 +38,9 @@ public class G3_CheckpointsCooperativeCancelTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        GlobalPar config = GlobalPar.builder()
-                .register(ParName.of("test-pool"), pool)
-                .defaultPar(ParName.of("test-pool"))
+        ParRuntime config = ParRuntime.builder()
+                .register(ParId.of("test-pool"), pool)
+                .defaultPar(ParId.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }
@@ -117,7 +117,8 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_parMapTimeoutCancelsIoTasks() throws Exception {
-        BatchOptions opts = BatchOptions.timeout("io-task", java.time.Duration.ofMillis(500)).parallelism(4);
+        BatchOptions opts = BatchOptions.timeout("io-task", java.time.Duration.ofMillis(500))
+                .parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
@@ -176,7 +177,8 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_checkpointsCancelCpuIntensiveLoop() throws Exception {
-        BatchOptions opts = BatchOptions.timeout("cpu-checkpoint", java.time.Duration.ofMillis(500)).parallelism(4);
+        BatchOptions opts = BatchOptions.timeout("cpu-checkpoint", java.time.Duration.ofMillis(500))
+                .parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();

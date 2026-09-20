@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  *   <li>Wrapping a user {@link Callable} with {@link ScopedCallable} lifecycle instrumentation and
  *       a TTL snapshot, and presenting it as an {@link ExecutionPhaseHintFuture}
  *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch, with the
- *       CPU-bound inline fallback on executor rejection
+ *       caller-thread fallback the task's options request on executor rejection
  * </ul>
  *
  * <p>The entry points keep their distinct topologies on top of this: the batch path drives a
@@ -51,20 +51,21 @@ final class TaskSubmissions {
             Callable<V> callable,
             List<TaskListener> taskListeners,
             Consumer<? super ExecutionPhase> phaseObserver) {
-        return ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable, taskListeners), phaseObserver);
+        return ExecutionPhaseHintFuture.create(
+                wrapScoped(taskContext, callable, taskListeners), phaseObserver, taskContext.bodyState());
     }
 
     /**
      * Submits a prepared future to {@code executor} with the unit's {@link SubmissionScope}
-     * installed, so enqueue policies see the submitting unit. A rejected CPU-bound task runs
-     * inline; any other rejection fails the future with a {@link SubmissionException} without
-     * running user code.
+     * installed, so enqueue policies see the submitting unit. A task whose options request the
+     * caller-thread fallback runs inline when rejected; any other rejection fails the future with
+     * a {@link SubmissionException} without running user code.
      */
     public static void submitScoped(
-            ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean cpuBound) {
+            ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean runOnCallerThread) {
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            future.submitPrepared(executor, cpuBound);
+            future.submitPrepared(executor, runOnCallerThread);
         } finally {
             SubmissionScope.restore(previous);
         }

@@ -36,12 +36,30 @@ final class SlidingWindowSubmitter<V> {
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
+    private final BodyCompletionTracker bodyCompletion;
+    private final java.time.@Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
+        this(pool, unit, submitterPool, BodyCompletionTracker.empty(), null);
+    }
+
+    /**
+     * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
+     * body-completion signal and close grace. The tracker must have registered one slot per
+     * prepared task before {@link #submitAll(List)} runs.
+     */
+    public SlidingWindowSubmitter(
+            ListeningExecutorService pool,
+            MultiTaskContext unit,
+            ListeningExecutorService submitterPool,
+            BodyCompletionTracker bodyCompletion,
+            java.time.@Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
+        this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
+        this.closeGrace = closeGrace;
         this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 
@@ -58,7 +76,12 @@ final class SlidingWindowSubmitter<V> {
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(ImmutableList.of());
+            return TaskBatchResult.of(
+                    bodyCompletion,
+                    Futures.immediateVoidFuture(),
+                    ImmutableList.of(),
+                    unit.cancellationToken(),
+                    closeGrace);
         }
 
         ImmutableList.Builder<Task<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -77,13 +100,29 @@ final class SlidingWindowSubmitter<V> {
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
                     resultBuilder.add(rejectedTask(rejected));
                 }
-                return TaskBatchResult.of(resultBuilder.build());
+                // Prepared futures from the rejected element on never reach the executor and are
+                // never cancelled (the token binds the Task views, not these futures), so their
+                // body slots are released here as skipped.
+                for (int pending = i; pending < tasks.size(); pending++) {
+                    tasks.get(pending).skipBody();
+                }
+                return TaskBatchResult.of(
+                        bodyCompletion,
+                        Futures.immediateVoidFuture(),
+                        resultBuilder.build(),
+                        unit.cancellationToken(),
+                        closeGrace);
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            return TaskBatchResult.of(resultBuilder.build());
+            return TaskBatchResult.of(
+                    bodyCompletion,
+                    Futures.immediateVoidFuture(),
+                    resultBuilder.build(),
+                    unit.cancellationToken(),
+                    closeGrace);
         }
 
         // Async submit remaining tasks
@@ -101,6 +140,7 @@ final class SlidingWindowSubmitter<V> {
                 () -> {
                     if (submittingFuture.isCancelled()) {
                         abandonRemaining(
+                                tasks,
                                 results,
                                 nextIndex.get(),
                                 new InterruptedException("remaining task submission cancelled"));
@@ -108,15 +148,14 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(submittingFuture, results);
+        return TaskBatchResult.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
     }
 
     private Task<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            ListenableFuture<V> submitted =
-                    TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+            ListenableFuture<V> submitted = unit.runOnCallerThread() ? cs.submitOrRunInline(task) : cs.submit(task);
             return Task.of(unit.name(), unit.cancellationToken(), submitted);
         } finally {
             SubmissionScope.restore(previous);
@@ -132,31 +171,32 @@ final class SlidingWindowSubmitter<V> {
         return unit.effectiveParallelism();
     }
 
-    private TaskType taskType() {
-        return unit.taskType();
-    }
-
     private int submitRemaining(
             List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> result, AtomicInteger nextIndex) {
         int index = nextIndex.get();
         int size = tasks.size();
         int submitted = 0;
         while (index < size) {
-            nextIndex.set(index);
             ListenableFuture<V> completed;
             try {
                 completed = blockingQueue.take();
             } catch (InterruptedException e) {
-                abandonRemaining(result, index, e);
+                abandonRemaining(tasks, result, index, e);
                 Thread.currentThread().interrupt();
                 return submitted;
             }
-            if (completed.isCancelled() || result.get(index).isCancelled()) {
-                abandonRemaining(result, index, null);
+            // Claim the index as soon as a slot is taken, before the completion check: the
+            // cancellation callback abandons only indexes strictly beyond nextIndex, so it can
+            // never overwrite an index this iteration already claimed. The cancelled/done branch
+            // below still abandons from index locally, covering this iteration as well.
+            nextIndex.set(index + 1);
+            if (completed.isCancelled() || result.get(index).isDone()) {
+                abandonRemaining(tasks, result, index, null);
                 return submitted;
             }
             if (Thread.currentThread().isInterrupted()) {
                 abandonRemaining(
+                        tasks,
                         result,
                         index,
                         new InterruptedException("submitter thread interrupted while scheduling remaining tasks"));
@@ -166,12 +206,11 @@ final class SlidingWindowSubmitter<V> {
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
             } catch (RuntimeException e) {
-                abandonRemaining(result, index, e);
+                abandonRemaining(tasks, result, index, e);
                 throw e;
             }
             submitted++;
             index++;
-            nextIndex.set(index);
         }
         return submitted;
     }
@@ -182,14 +221,24 @@ final class SlidingWindowSubmitter<V> {
      * submitter or rejected submission records its cause. Without this cleanup, {@link
      * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
      *
+     * <p>The prepared futures behind the abandoned placeholders are never submitted and never
+     * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
+     * same atomic state the cancel-before-run path uses.
+     *
+     * @param tasks the prepared task futures, positionally aligned with {@code result}
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
      *     when the batch is already being canceled
      */
-    private static <V> void abandonRemaining(List<Task<V>> result, int fromIndex, @Nullable Throwable reason) {
+    private static <V> void abandonRemaining(
+            List<? extends ExecutionPhaseHintFuture<V>> tasks,
+            List<Task<V>> result,
+            int fromIndex,
+            @Nullable Throwable reason) {
         for (int i = fromIndex; i < result.size(); i++) {
             result.get(i).abandon(reason);
+            tasks.get(i).skipBody();
         }
     }
 }
