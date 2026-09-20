@@ -1,0 +1,19 @@
+demo/README.md
+  s_98fbc98db87999::t_b5125ea38afcc1 108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7f9f3cb75a56ad6a811ced9f68b9f8de323154c0",
+  "prompts": {},
+  "sessions": {
+    "s_98fbc98db87999": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "681be366-1d73-4ec6-b13b-3f1745f831e5",
+        "model": "ep-s52bpjk9"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
