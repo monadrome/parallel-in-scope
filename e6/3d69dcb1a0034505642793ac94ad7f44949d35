@@ -1,0 +1,21 @@
+design/AGENTS.md
+  s_527ee058754c0f::t_84b84e10fc4213 6-9
+AGENTS.md
+  s_527ee058754c0f::t_fd7b2d9410933e 103-129,142-143,178-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "e63d69dcb1a0034505642793ac94ad7f44949d35",
+  "prompts": {},
+  "sessions": {
+    "s_527ee058754c0f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bdc4-af38-7123-ba87-0755cb6501f8",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
