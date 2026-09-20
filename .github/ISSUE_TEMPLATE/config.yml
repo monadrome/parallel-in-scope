@@ -1,0 +1,12 @@
+# Keep the blank issue available: not every report fits a form, and the maintainer files chores here too.
+blank_issues_enabled: true
+contact_links:
+  - name: User guide (batches, task groups, cancellation, reporting)
+    url: https://github.com/monadrome/parallel-in-scope/blob/main/docs/en/user-guide.md
+    about: The contract a caller needs before filing a behaviour report.
+  - name: Migrating to 0.3.0
+    url: https://github.com/monadrome/parallel-in-scope/blob/main/docs/en/migration-v0.3.md
+    about: Renames and contract changes from 0.2.x — check here before reporting a compile break.
+  - name: Design contracts and rejected ideas
+    url: https://github.com/monadrome/parallel-in-scope/blob/main/design/first-principles.md
+    about: The criteria a proposal is judged against, plus the idea graveyard of declined designs.
