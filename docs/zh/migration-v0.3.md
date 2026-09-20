@@ -281,6 +281,15 @@ Futures.addCallback(
   task 接管，每跳都清空上一跳的引用；准备失败、executor 拒绝、cancel-before-run、fail-fast、
   timeout 与正常完成的全部路径都会释放 body 引用，不依赖 GC。持有外部资源的 body 仍需你自己
   在 body 内释放——框架释放的是对 body 的引用，不是 body 捕获的资源。
+- **注册丢弃型拒绝策略的 executor 现在会让 build 失败。** `ThreadPoolExecutor` 的
+  `DiscardPolicy` / `DiscardOldestPolicy` 会"接受后丢弃"：既不执行任务也不抛异常。内核只把
+  `RejectedExecutionException` 当作终态信号，因此该任务的 future 会永久 pending，`Par.map`
+  或任务组会静默地一直等待。现在 `ParRuntime.Builder.build()` 会抛 `IllegalArgumentException`，
+  消息点名 `Par`、池类与策略类。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与
+  `CallerRunsPolicy`（任务 inline 执行）不受影响。该检查只在 build 时对直接注册的
+  `ThreadPoolExecutor` 读一次 handler：`build()` 之后安装的 handler、自定义丢弃 handler、
+  以及库看不透的 executor 都不在覆盖范围内，这些形态仍由你履行 `Executor` 契约
+  （`design/extension-and-wrapping.md` L8）。
 
 ## 错误时机
 
@@ -381,6 +390,7 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `Par.map` 接收任意 `Collection`，不再只收 `List` | 源码兼容；非 `List` 输入在入口处快照。 |
 | `TaskBatchResult.BatchReport.stateCounts()` 不再 `@Nullable`，`BatchReport` 构造器改为包私有 | 移除对 `stateCounts()` 的判空；report 一律从库获取。 |
 | `ParRuntime.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
+| `VariableLinkedBlockingQueue` 不再实现 `Serializable` | 它沿用 JDK `LinkedBlockingQueue` 的形态，但哨兵节点链使得反序列化出来的实例表现为空队列、并在首次使用时抛 `NullPointerException`——该声明只承诺了它做不到的事，`DrainingBlockingQueue` 也从未声明过。队列不是序列化格式：需要时重建队列，或序列化元素后重新灌入。 |
 
 ## 不变的部分
 

@@ -79,6 +79,9 @@ fake-group-batch -> A/B/C
   以及导出使用的图）MUST 包含其线性化点之前已完成记录的全部边；新增边之后 MUST NOT 复用旧快照；
 - `close()` 检测事件中的 task graph、executor graph、四个 cycle/self-loop 标志与渲染文本 MUST 来自
   同一份不可变快照，MUST NOT 混用不同时点的读取结果。
+- 快照是 eager 构建的：无法渲染的边（`executorDeadlockProne` 但没有两个端点的 executor 名，
+  或 identity graph 缺少 endpoint identity）MUST 在该派生视图中跳过，MUST NOT 让无关查询失败；
+  这些边仍保留在 task graph 中。
 
 ## 13. 并发不变量
 
@@ -88,8 +91,10 @@ fake-group-batch -> A/B/C
 2. 每次 submit 中每个 callable 最多执行一次；
 3. definition 不可变、可复用；每次 submit 冻结的是同一份完整定义；
 4. Group 一旦发布，其 registry 完整、不可扩展，且每个成员都拥有一个最终终态的公开 future；
-5. executor rejection 不能留下 pending future；
-6. `completedTasks` 对每个任务（member 或 combine）最多增加一次（`MemberState.counted` 的 CAS 保证）；
+5. executor rejection 不能留下 pending future；提交调用抛出的任何失败（含 `Error`）同样 MUST 以
+   终态 future 收场，MUST NOT 留下 pending；
+6. `completedTasks` 对每个任务（member 或 combine）恰好增加一次：`MemberState.counted` 的 CAS
+   保证"至多一次"，`finally` 保证它不因归类或级联取消抛出 `Error` 而丢失；
 7. Group completion reason 只固定一次；
 8. ~~Group listener 只调用一次~~ **删除转交**：`TaskGroupListener` 已删除，组完成回调经
    `completionFuture()` + Guava `Futures.addCallback` 注册，"只调一次"由 Guava future 语义
@@ -98,8 +103,9 @@ fake-group-batch -> A/B/C
 10. 取消赢得 execution claim 时用户 callable 不执行；
 11. 任一 inline 执行前，全部成员已经出现在 registry；
 12. 所有 ThreadLocal/TTL 在正常、异常、取消、拒绝和 inline 路径上恢复；
-13. 内部状态更新（归类、计数）不持锁、不执行外部调用；级联取消、combine 提交与收敛在该更新
-    之后触发，重入安全由原子状态的幂等性而非互斥保证；
+13. 内部状态更新（归类、成功计数、首失败名）不持锁、不执行外部调用；级联取消与 combine 提交
+    在这些更新之后触发，收敛屏障的递增与收敛本身排在最后（且在该 callback 的 `finally` 中），
+    重入安全由原子状态的幂等性而非互斥保证；
 14. 同一成员的公开 future 状态、`TaskOutcome`（成员结果 `outcome()`）、Group result 三者一致。
 
 ## 14. 必测矩阵

@@ -150,6 +150,12 @@ class TaskGraphSnapshotConsistencyTest {
         assertThat(data.executorSelfLoop()).isFalse();
     }
 
+    /**
+     * Pins concurrent-write visibility, not the snapshot-refresh defect: as long as no query runs
+     * before the writers, the previous memoizing implementation also answered this one correctly.
+     * The refresh contract itself is pinned by the earlier-negative-query probes above, which
+     * discriminate because they read before the edge is recorded.
+     */
     @Test
     void concurrentCompletedWritesArePresentInTheNextSnapshot() throws Exception {
         int writers = 8;
