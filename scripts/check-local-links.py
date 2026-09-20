@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-SCAN_ROOTS = (ROOT / "README.md", ROOT / "README.en.md", ROOT / "CHANGELOG.md", ROOT / "docs", ROOT / "demo")
+SCAN_ROOTS = (ROOT / "README.md", ROOT / "README.zh-CN.md", ROOT / "CHANGELOG.md", ROOT / "docs", ROOT / "demo")
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)")
 
 

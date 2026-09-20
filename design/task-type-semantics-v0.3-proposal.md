@@ -49,6 +49,7 @@
   类型标注。
 - **危险默认**：inline 让用户代码在提交线程执行，而它今天由默认任务类型隐式开启
   ——每个不写 `taskType` 的任务都在此路径上。`reports/concurrent-limit-executor-inline-fallback-deadlock.html`
+  （已移出主干，见分支 `backup/scratch-materials`）
   记录的滑动窗口永久 PENDING 故障（窗口前进依赖 completion service 的队列事件，
   而 inline 回退绕过了该 service）正是这条路径的形状。该缺陷本身已修复，但"默认
   开启一条会把用户代码拉回提交线程的路径"不因此变得安全。
