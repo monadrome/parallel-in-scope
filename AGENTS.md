@@ -91,6 +91,9 @@ explicit human confirmation before implementing it.
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
+- Write code without inline comments: name things so the code says what it does,
+  and let git history carry why it changed. Remove comments that restate behavior
+  or provenance when touching the lines that carry them.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
   Respelled public members need changelog and migration-guide entries. Preserve
