@@ -246,10 +246,10 @@ class InlineSubmissionLivenessTest {
      * is now event-driven and the same borrowed-thread isolation keeps the inline case safe.
      */
     @Test
-    void aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {
+    void aBodyRunningInlineOnTheCompletingThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {
         // Core pool of 1 with a zero-capacity queue and CallerRunsPolicy: the first element
-        // occupies the worker and every later handoff runs inline on the submitting thread, so the
-        // window-external elements run on the library's submitter thread rather than the caller's.
+        // occupies the worker, and each later handoff is claimed by the completing thread and then
+        // runs inline on that same thread — not on the caller's.
         ThreadPoolExecutor saturated = new ThreadPoolExecutor(
                 1,
                 1,
@@ -270,13 +270,13 @@ class InlineSubmissionLivenessTest {
                                 Thread.currentThread().interrupt();
                                 return value;
                             },
-                            BatchOptions.timeout("submitter-thread", Duration.ofSeconds(15))
+                            BatchOptions.timeout("completing-thread", Duration.ofSeconds(15))
                                     .parallelism(1)
                                     .taskType(TaskType.CPU_BOUND));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(15))).isTrue();
             assertThat(executed.get())
-                    .as("a dirty flag on the submitter thread must not abandon unsubmitted elements")
+                    .as("a dirty flag on the completing thread must not abandon unsubmitted elements")
                     .isEqualTo(12);
             assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.SUBMISSION_FAILURE);
         } finally {

@@ -127,7 +127,7 @@ class CallableReferenceReleaseTest {
 
         fixture.future.skipBody();
 
-        // The placeholder-only path never completes the engine future; only the body slot and the
+        // The skipped-body path never completes the engine future; only the body slot and the
         // reference are released.
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
@@ -325,7 +325,7 @@ class CallableReferenceReleaseTest {
         try {
             future.get(5, TimeUnit.SECONDS);
         } catch (CancellationException | ExecutionException ignored) {
-            // Abandoned placeholders may cancel or fail with the abandonment cause; only
+            // Abandoned elements may cancel or fail with the abandonment cause; only
             // completion matters here.
         }
     }

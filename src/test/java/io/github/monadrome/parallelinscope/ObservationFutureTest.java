@@ -109,8 +109,8 @@ class ObservationFutureTest {
                             item -> holdUninterruptibly(block, item),
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
 
-            // Element 0 occupies the only slot; the other two are placeholders that the batch
-            // close abandons before submission.
+            // Element 0 occupies the only slot; the other two are still waiting for one and the
+            // batch close abandons them before submission.
             batch.close();
             block.countDown();
 
@@ -134,7 +134,7 @@ class ObservationFutureTest {
     }
 
     @Test
-    void directPlaceholderCancellationPublishesNeverStartedSnapshot() throws Exception {
+    void directCancellationOfAWaitingElementPublishesNeverStartedSnapshot() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -161,7 +161,7 @@ class ObservationFutureTest {
     }
 
     @Test
-    void boundPlaceholderExposesTheSameObservationAsTheRealTask() throws Exception {
+    void preSubmissionObservationResolvesWithTheRealTimings() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -174,17 +174,17 @@ class ObservationFutureTest {
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
 
             TaskFuture<String> queued = batch.results().get(1);
-            ListenableFuture<TaskCompletion<String>> beforeBind = queued.completionFuture();
+            ListenableFuture<TaskCompletion<String>> whileWaiting = queued.completionFuture();
             block.countDown();
 
             assertThat(queued.get(2, TimeUnit.SECONDS)).isEqualTo("queued");
-            TaskCompletion<String> snapshot = beforeBind.get(2, TimeUnit.SECONDS);
-            // The observation future captured while the element was still a placeholder resolves
-            // with the real task's final timings after binding.
+            TaskCompletion<String> snapshot = whileWaiting.get(2, TimeUnit.SECONDS);
+            // The observation future captured while the element was still waiting for a slot
+            // resolves with the real task's final timings once it runs.
             assertThat(snapshot.successful()).isTrue();
             assertThat(snapshot.result()).isEqualTo("queued");
             assertThat(snapshot.startTimeNanos()).isGreaterThan(0L);
-            assertThat(queued.completionFuture()).isSameAs(beforeBind);
+            assertThat(queued.completionFuture()).isSameAs(whileWaiting);
         } finally {
             block.countDown();
             global.close();
