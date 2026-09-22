@@ -94,7 +94,8 @@ final class TaskBatch<T> implements AutoCloseable {
     /**
      * Provides the future running the sliding-window submission loop. Cancelling it stops further
      * submissions and abandons every element not yet handed to the executor, so no future of this
-     * batch stays pending; cancelling a placeholder directly completes it as {@code CANCELLED}.
+     * batch stays pending; cancelling an element's own view directly completes it as {@code
+     * CANCELLED}.
      *
      * @return the submission-loop future
      */

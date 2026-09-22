@@ -226,9 +226,10 @@ final class MultiTaskContext {
             return ceilingNanos;
         }
         long timeoutNanos = Deadlines.saturatedNanos(timeout);
-        // Saturated on both ends: an astronomical timeout and a clock reading that is far from zero
-        // (nanoTime() may legally be negative) used to overflow this sum into a negative deadline,
-        // which then read as "no deadline" and silently dropped the caller's timeout.
+        // Both ends can be extreme — a saturated timeout and a far-from-zero clock reading
+        // (nanoTime() may legally be negative) — so the sum goes through Deadlines.after, whose
+        // saturation yields the no-deadline sentinel instead of a negative deadline that
+        // Deadlines.remaining would read as already expired.
         long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
         return Math.min(requestedDeadline, ceilingNanos);
     }

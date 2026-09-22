@@ -513,18 +513,9 @@ public final class Par {
         SlidingWindowSubmitter<R> submitter =
                 new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
-        // Bind before submitting, for the same reason Par.submit does: submission can run user code
-        // on this very thread. The batch's initial window hands off synchronously here, and a direct
-        // executor or a CallerRunsPolicy rejection runs the element's body inline on this thread, so
-        // a body that waits for a later element of its own batch wedges the submitting thread itself. Arming the
-        // deadline first is
-        // what makes that recoverable — the timer cancels the element, whose interrupt reaches this
-        // thread — and it extends the deadline to cover the submission window rather than starting
-        // only once every element is handed off.
-        //
-        // The submission canceller cannot come from submitAll, which has not run yet, so it is
-        // pre-built here and pointed at the real one afterward. Cancelling it before then is not
-        // lost: setFuture propagates the cancellation on to the submitting future.
+        // Bind before submitting: see ADR-0007. The submission canceller cannot come from
+        // submitAll, which has not run yet, so it is pre-built here and pointed at the real one
+        // afterward; setFuture propagates an early cancellation on to the submitting future.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion =
                 unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());

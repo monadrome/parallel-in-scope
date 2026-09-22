@@ -167,7 +167,6 @@ class TaskGraphData {
             this.nodeLabels = nodeLabels;
             this.taskCycle = Graphs.hasCycle(taskGraph.asGraph());
             this.taskSelfLoop = hasSelfLoop(taskGraph);
-            // Edges recorded without an executor identity fall back to the label-keyed graph.
             this.executorCycle = executorIdentityGraph.nodes().isEmpty()
                     ? Graphs.hasCycle(executorGraph.asGraph())
                     : Graphs.hasCycle(executorIdentityGraph.asGraph());
