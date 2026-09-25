@@ -42,6 +42,8 @@ class ActionGateBoundaryTest {
         assertThat(gate.due()).isTrue();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void factoryValidatesArguments() {
         assertThatThrownBy(() -> ActionGate.whenBoth(0, Duration.ofMillis(1), () -> {}))

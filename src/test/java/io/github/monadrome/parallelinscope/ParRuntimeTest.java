@@ -7,6 +7,7 @@ import com.alibaba.ttl.TransmittableThreadLocal;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -182,7 +183,7 @@ class ParRuntimeTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(TaskGraphObservationScope.data()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.graph().edges()).isNotEmpty();
+            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).isNotEmpty();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -223,7 +224,7 @@ class ParRuntimeTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.graph().edges()).hasSize(2);
+            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).hasSize(2);
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -293,6 +294,8 @@ class ParRuntimeTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
         ExecutorService executor = Executors.newSingleThreadExecutor();

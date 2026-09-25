@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -41,7 +42,7 @@ class VariableLinkedBlockingQueueSignalTest {
         Thread.sleep(50);
         queue.put(31);
         assertTrue(finished.await(4, TimeUnit.SECONDS), "take was not released by put");
-        assertEquals(31, taken.get().intValue());
+        assertEquals(31, Objects.requireNonNull(taken.get()).intValue());
     }
 
     @Test
@@ -132,6 +133,8 @@ class VariableLinkedBlockingQueueSignalTest {
         assertEquals(2, queue.size());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void capacityAndElementValidationStayGuarded() {
         assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<Object>(0));

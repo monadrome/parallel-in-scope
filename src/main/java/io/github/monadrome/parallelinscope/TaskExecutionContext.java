@@ -1,7 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import java.util.Objects;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
 final class TaskExecutionContext {

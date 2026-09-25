@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.ForwardingBlockingQueue;
 import io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Smart blocking queue that dynamically adjusts enqueue behavior based on task type.
@@ -60,7 +61,8 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      * task types enqueue normally.
      */
     @Override
-    public boolean offer(E o) {
+    public boolean offer(@Nullable E o) {
+        if (o == null) throw new NullPointerException();
         MultiTaskContext unit = SubmissionScope.current();
         if (unit != null) {
             if (unit.taskType() == TaskType.CPU_BOUND || unit.rejectEnqueue()) return false;

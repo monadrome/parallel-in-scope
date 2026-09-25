@@ -12,6 +12,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Lifecycle semantics of {@link TaskGraphObservationScope}: ownership, polarity, idempotence. */
+// JUnit-style: 'global' is assigned inside each test method, not in a constructor or @BeforeEach.
+@SuppressWarnings("NullAway.Init")
 class TaskGraphObservationScopeTest {
 
     private ParRuntime global;
@@ -139,6 +141,8 @@ class TaskGraphObservationScopeTest {
     }
 
     @Test
+    // deliberately passes null to verify the constructor's null rejection
+    @SuppressWarnings("NullAway")
     void constructorRejectsNullOwner() {
         assertThatThrownBy(() -> new TaskGraphObservationScope(null)).isInstanceOf(NullPointerException.class);
     }

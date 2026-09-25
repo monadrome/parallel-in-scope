@@ -4,6 +4,7 @@ import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.BlockingQueue;
@@ -11,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A clone of JDK's {@code LinkedBlockingQueue} with dynamically adjustable capacity.
@@ -32,10 +34,13 @@ import java.util.concurrent.locks.ReentrantLock;
 public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
 
     static class Node<E> {
+        @Nullable
         E item;
+
+        @Nullable
         Node<E> next;
 
-        Node(E x) {
+        Node(@Nullable E x) {
             item = x;
         }
     }
@@ -152,10 +157,10 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
 
     private E dequeue() {
         Node<E> h = head;
-        Node<E> first = h.next;
+        Node<E> first = Objects.requireNonNull(h.next);
         h.next = h; // help GC
         head = first;
-        E x = first.item;
+        E x = Objects.requireNonNull(first.item);
         first.item = null;
         return x;
     }
@@ -267,7 +272,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E x;
         int c;
         long nanos = unit.toNanos(timeout);
@@ -290,7 +295,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
-    public E poll() {
+    public @Nullable E poll() {
         final AtomicInteger cnt = this.count;
         if (cnt.get() == 0) return null;
         E x;
@@ -310,19 +315,20 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
-    public E peek() {
+    public @Nullable E peek() {
         if (count.get() == 0) return null;
         final ReentrantLock lock = this.takeLock;
         lock.lock();
         try {
-            return (head.next == null) ? null : head.next.item;
+            Node<E> first = head.next;
+            return first == null ? null : first.item;
         } finally {
             lock.unlock();
         }
     }
 
     @Override
-    public boolean remove(Object o) {
+    public boolean remove(@Nullable Object o) {
         if (o == null) return false;
         fullyLock();
         try {
@@ -346,7 +352,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
-    public boolean contains(Object o) {
+    public boolean contains(@Nullable Object o) {
         if (o == null) return false;
         fullyLock();
         try {
@@ -429,8 +435,9 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
             int i = 0;
             try {
                 while (i < n) {
-                    Node<E> p = h.next;
-                    c.add(p.item); // transfer before unlinking: a throwing target leaves the queue unchanged
+                    Node<E> p = Objects.requireNonNull(h.next);
+                    c.add(Objects.requireNonNull(
+                            p.item)); // transfer before unlinking: a throwing target leaves the queue unchanged
                     p.item = null;
                     h.next = h; // help GC
                     h = p;
@@ -456,9 +463,9 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     private class Itr implements Iterator<E> {
-        private Node<E> current;
-        private Node<E> lastRet;
-        private E currentElement;
+        private @Nullable Node<E> current;
+        private @Nullable Node<E> lastRet;
+        private @Nullable E currentElement;
 
         Itr() {
             fullyLock();
@@ -475,7 +482,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
             return current != null;
         }
 
-        private Node<E> nextNode(Node<E> p) {
+        private @Nullable Node<E> nextNode(Node<E> p) {
             for (; ; ) {
                 Node<E> s = p.next;
                 if (s == p) return head.next;
@@ -490,7 +497,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
             try {
                 if (current == null) throw new NoSuchElementException();
                 lastRet = current;
-                E item = currentElement;
+                E item = Objects.requireNonNull(currentElement);
                 current = nextNode(current);
                 currentElement = (current == null) ? null : current.item;
                 return item;

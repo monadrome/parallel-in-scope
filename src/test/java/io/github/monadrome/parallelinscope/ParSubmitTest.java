@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -29,8 +30,8 @@ class ParSubmitTest {
                     .submit(
                             "single",
                             () -> {
-                                MultiTaskContext unit =
-                                        TaskExecutionContext.current().multiTaskContext();
+                                MultiTaskContext unit = Objects.requireNonNull(TaskExecutionContext.current())
+                                        .multiTaskContext();
                                 assertThat(unit.name()).isEqualTo("single");
                                 return "done";
                             },
@@ -39,7 +40,8 @@ class ParSubmitTest {
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(listenerCompletion.get().taskName()).isEqualTo("single");
+            assertThat(Objects.requireNonNull(listenerCompletion.get()).taskName())
+                    .isEqualTo("single");
         } finally {
             global.close();
             executor.shutdownNow();

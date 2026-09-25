@@ -96,6 +96,8 @@ class ActionGateTest {
         assertThrows(IllegalStateException.class, gate::runIfDue);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void invalidBoundariesAndActionsAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> ActionGate.every(0));
@@ -106,6 +108,8 @@ class ActionGateTest {
         assertThrows(NullPointerException.class, () -> ActionGate.whenBoth(1, Duration.ofMillis(1), null));
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void suppliedActionMustNotBeNull() {
         assertThrows(NullPointerException.class, () -> ActionGate.every(1).runIfDue(null));

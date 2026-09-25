@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -95,7 +96,8 @@ class ScopedTaskContractTest {
                 // adopts the failed member's own outcome.
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.failedTaskName()).isEqualTo("task");
-                assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+                assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
+                        .isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
             }
             assertThat(events).hasSize(1);
@@ -178,7 +180,8 @@ class ScopedTaskContractTest {
             assertThat(phases).doesNotContain(ExecutionPhase.RUNNING);
             if (entry == Entry.GROUP) {
                 TaskGroupResult result = lastGroupResult(global);
-                assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
+                        .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
                 assertThat(result.members().get("task").failure()).isInstanceOf(SubmissionException.class);
             }
         } finally {
@@ -219,7 +222,9 @@ class ScopedTaskContractTest {
                 });
                 assertThat(group.future(queued).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
-                assertThat(result.members().get("queued").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+                assertThat(Objects.requireNonNull(result.members().get("queued"))
+                                .outcome())
+                        .isEqualTo(TaskOutcome.MEMBER_CANCELED);
             }
             assertThat(phases).contains(ExecutionPhase.CANCELED_BEFORE_RUN);
             assertThat(queuedRuns).hasValue(0);
@@ -258,7 +263,10 @@ class ScopedTaskContractTest {
 
                 assertThat(value).isEqualTo("inner-value");
                 // root->outer plus outer->inner; a missing member/batch edge shows up here.
-                assertThat(TaskGraphObservationScope.data().graph().edges()).hasSize(2);
+                assertThat(Objects.requireNonNull(TaskGraphObservationScope.data())
+                                .graph()
+                                .edges())
+                        .hasSize(2);
             }
         } finally {
             global.close();

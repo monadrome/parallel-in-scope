@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -18,6 +19,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class TaskGroupTest {
@@ -91,8 +93,8 @@ class TaskGroupTest {
             TaskGroup group = global.submitGroup(
                     builder.build(),
                     bindings -> bindings.task(user, () -> {
-                        MultiTaskContext context =
-                                TaskExecutionContext.current().multiTaskContext();
+                        MultiTaskContext context = Objects.requireNonNull(TaskExecutionContext.current())
+                                .multiTaskContext();
                         context.cancellationToken().cancel(false);
                         assertThatThrownBy(() -> Checkpoints.checkpoint("load-user", true))
                                 .isInstanceOf(IllegalStateException.class);
@@ -103,8 +105,10 @@ class TaskGroupTest {
             assertThat(group.future(user).get(2, TimeUnit.SECONDS)).isEqualTo("alice");
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(listenerCompletion.get().taskName()).isEqualTo("user");
-            assertThat(result.members().get("user").taskName()).isEqualTo("user");
+            assertThat(Objects.requireNonNull(listenerCompletion.get()).taskName())
+                    .isEqualTo("user");
+            assertThat(Objects.requireNonNull(result.members().get("user")).taskName())
+                    .isEqualTo("user");
         } finally {
             global.close();
             executor.shutdownNow();
@@ -168,8 +172,10 @@ class TaskGroupTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failure");
-            assertThat(result.members().get("failure").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(Objects.requireNonNull(result.members().get("failure")).outcome())
+                    .isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.FAIL_FAST);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -203,8 +209,10 @@ class TaskGroupTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("slow-boom");
-            assertThat(result.members().get("fast").outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(result.members().get("slow-boom").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("fast")).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.members().get("slow-boom")).outcome())
+                    .isEqualTo(TaskOutcome.USER_FAILURE);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -229,7 +237,8 @@ class TaskGroupTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("rejected");
-            assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
+                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             // The rejected body never ran and its holder was released with the rejection.
             assertThat(group.callableReleased(rejected)).isTrue();
         } finally {
@@ -297,7 +306,8 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
+                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(bodyRan.get()).isFalse();
         } finally {
             global.close();
@@ -327,7 +337,8 @@ class TaskGroupTest {
 
             assertThat(calls).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("member").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("member")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             direct.shutdownNow();
@@ -352,7 +363,8 @@ class TaskGroupTest {
                     .completionFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(first.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(first.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(first.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
 
             TaskGroupDefinition.Builder memberDeadline = global.defineGroup("member-timeout", TIMEOUT);
             TaskGroupDefinition.Member<Integer> slowWithTightBudget = memberDeadline.task(
@@ -366,7 +378,8 @@ class TaskGroupTest {
                     .completionFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(second.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(second.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(second.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -397,8 +410,10 @@ class TaskGroupTest {
 
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(result.members().get("canceled").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
-            assertThat(result.members().get("sibling").outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("canceled")).outcome())
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             release.countDown();
             global.close();
@@ -430,8 +445,10 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("sibling").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -465,8 +482,10 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("tight").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("shared").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("tight")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("shared")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -493,14 +512,14 @@ class TaskGroupTest {
             TaskGroup group = global.submitGroup(
                     builder.build(),
                     bindings -> bindings.task(member, () -> {
-                        memberToken.set(TaskExecutionContext.current()
+                        memberToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
                                 .cancellationToken());
                         TaskBatchResult<Integer> nested = global.par(ParId.of("inner"))
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> {
-                                            nestedToken.set(TaskExecutionContext.current()
+                                            nestedToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                                     .multiTaskContext()
                                                     .cancellationToken());
                                             nestedRunning.countDown();
@@ -533,12 +552,13 @@ class TaskGroupTest {
             // group token can move it; await the cascade, which runs after the group converges.
             org.awaitility.Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
-                    .until(() -> memberToken.get().state() == CancellationToken.State.PROPAGATED_CANCELED
-                            && nestedToken.get().state() != CancellationToken.State.RUNNING
-                            && nestedFuture.get().isCancelled());
+                    .until(() -> Objects.requireNonNull(memberToken.get()).state()
+                                    == CancellationToken.State.PROPAGATED_CANCELED
+                            && Objects.requireNonNull(nestedToken.get()).state() != CancellationToken.State.RUNNING
+                            && Objects.requireNonNull(nestedFuture.get()).isCancelled());
             // The nested batch inherits the group deadline, so its own timer races the propagated
             // cancellation; either terminal state attests the deadline reached the nested batch.
-            assertThat(nestedToken.get().state())
+            assertThat(Objects.requireNonNull(nestedToken.get()).state())
                     .isIn(CancellationToken.State.PROPAGATED_CANCELED, CancellationToken.State.TIMEOUT);
         } finally {
             global.close();
@@ -640,8 +660,10 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(result.members().get("later").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
+                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("later")).outcome())
+                    .isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(calls).hasValue(0);
             assertThat(SubmissionScope.current()).isNull();
         } finally {
@@ -669,7 +691,7 @@ class TaskGroupTest {
                     group.completionFuture(),
                     new com.google.common.util.concurrent.FutureCallback<TaskGroupResult>() {
                         @Override
-                        public void onSuccess(TaskGroupResult result) {
+                        public void onSuccess(@Nullable TaskGroupResult result) {
                             observed.set(result);
                             current.set(TaskExecutionContext.current());
                         }
@@ -689,6 +711,8 @@ class TaskGroupTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void definitionValidatesDeclarationsAndIsReusableAcrossSubmits() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -754,6 +778,8 @@ class TaskGroupTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void futureRejectsAForeignMemberHandle() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
@@ -811,7 +837,7 @@ class TaskGroupTest {
                     builder.build(),
                     bindings -> bindings.task(
                             member,
-                            () -> TaskExecutionContext.current()
+                            () -> Objects.requireNonNull(TaskExecutionContext.current())
                                     .multiTaskContext()
                                     .deadlineNanos()));
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -862,8 +888,10 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("slow").startTimeNanos()).isPositive();
+            assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("slow")).startTimeNanos())
+                    .isPositive();
         } finally {
             global.close();
             executor.shutdownNow();
@@ -884,7 +912,7 @@ class TaskGroupTest {
                     builder.build(),
                     bindings -> bindings.task(
                             member,
-                            () -> TaskExecutionContext.current()
+                            () -> Objects.requireNonNull(TaskExecutionContext.current())
                                     .multiTaskContext()
                                     .deadlineNanos()));
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -910,13 +938,13 @@ class TaskGroupTest {
             TaskGroup group = global.submitGroup(
                     builder.build(),
                     bindings -> bindings.task(member, () -> {
-                        long memberDeadline = TaskExecutionContext.current()
+                        long memberDeadline = Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
                                 .deadlineNanos();
                         TaskBatchResult<Long> nested = global.par(ParId.of("inner"))
                                 .map(
                                         Arrays.asList(1),
-                                        ignored -> TaskExecutionContext.current()
+                                        ignored -> Objects.requireNonNull(TaskExecutionContext.current())
                                                 .multiTaskContext()
                                                 .deadlineNanos(),
                                         BatchOptions.inheritTimeout("nested"));
@@ -961,7 +989,7 @@ class TaskGroupTest {
                     .map(
                             Arrays.asList(1),
                             ignored -> {
-                                long outerDeadline = TaskExecutionContext.current()
+                                long outerDeadline = Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .deadlineNanos();
                                 TaskGroupDefinition.Builder nested = global.defineGroupInheriting("nested-group");
@@ -1001,8 +1029,8 @@ class TaskGroupTest {
                     .map(
                             Arrays.asList(1),
                             ignored -> {
-                                MultiTaskContext expectedParent =
-                                        TaskExecutionContext.current().multiTaskContext();
+                                MultiTaskContext expectedParent = Objects.requireNonNull(TaskExecutionContext.current())
+                                        .multiTaskContext();
                                 TaskGroupDefinition.Builder builder = global.defineGroup("nested", TIMEOUT);
                                 TaskGroupDefinition.Member<MultiTaskContext> child =
                                         builder.task("child", global.par(ParId.of("inner")));
@@ -1010,7 +1038,7 @@ class TaskGroupTest {
                                         builder.build(),
                                         bindings -> bindings.task(
                                                 child,
-                                                () -> TaskExecutionContext.current()
+                                                () -> Objects.requireNonNull(TaskExecutionContext.current())
                                                         .multiTaskContext()
                                                         .structuralParent()));
                                 try {
@@ -1064,12 +1092,16 @@ class TaskGroupTest {
 
             // The outer batch deadline cancels the outer task and propagates into the nested
             // group's token tree; the group keeps the originating timeout reason.
-            org.awaitility.Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> nestedGroup.get() != null);
-            TaskGroupResult nested = nestedGroup.get().completionFuture().get(2, TimeUnit.SECONDS);
+            org.awaitility.Awaitility.await()
+                    .atMost(2, TimeUnit.SECONDS)
+                    .until(() -> Objects.requireNonNull(nestedGroup.get()) != null);
+            TaskGroupResult nested =
+                    Objects.requireNonNull(nestedGroup.get()).completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.results().get(0)).isCancelled();
             assertThat(nested.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(nested.members().get("child").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(nested.members().get("child")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             outer.shutdownNow();
@@ -1123,7 +1155,8 @@ class TaskGroupTest {
             unfinished.close();
             TaskGroupResult result = unfinished.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -1147,7 +1180,7 @@ class TaskGroupTest {
                     .map(
                             Arrays.asList("x"),
                             ignored -> {
-                                outerToken.set(TaskExecutionContext.current()
+                                outerToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken());
                                 TaskGroupDefinition.Builder builder = global.defineGroup("outer-cancel", TIMEOUT);
@@ -1186,12 +1219,13 @@ class TaskGroupTest {
                             },
                             BatchOptions.timeout("outer", TIMEOUT));
             assertThat(groupBuilt.await(2, TimeUnit.SECONDS)).isTrue();
-            outerToken.get().cancel(true);
-            TaskGroup group = publishedGroup.get();
+            Objects.requireNonNull(outerToken.get()).cancel(true);
+            TaskGroup group = Objects.requireNonNull(publishedGroup.get());
 
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
             org.awaitility.Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> observedReason.get() != null
@@ -1280,7 +1314,7 @@ class TaskGroupTest {
             TaskGroupResult cancelled = global.submitGroup(
                             canceling.build(),
                             bindings -> bindings.task(cancelingText, () -> {
-                                TaskExecutionContext.current()
+                                Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken()
                                         .cancel(false);

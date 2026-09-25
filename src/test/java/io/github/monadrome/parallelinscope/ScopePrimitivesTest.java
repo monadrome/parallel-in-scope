@@ -20,6 +20,8 @@ class ScopePrimitivesTest {
 
     // ==================== ExecutorIdentity ====================
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void executorIdentityBindsToTheExactSuppliedObject() {
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -47,6 +49,8 @@ class ScopePrimitivesTest {
 
     // ==================== Par ids ====================
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void parIdsAreValidatedByTheValueTypeAndNeverNormalized() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -103,6 +107,8 @@ class ScopePrimitivesTest {
 
     // ==================== ParRuntime task listeners ====================
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void taskListenersExposeImmutableSnapshotSemantics() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -149,6 +155,8 @@ class ScopePrimitivesTest {
         return MultiTaskContext.resolve(options.spec(), taskCount, parent);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void resolveNormalizesParallelismAgainstTaskCount() {
         assertThat(resolve(0, Duration.ofSeconds(30), 4, null).effectiveParallelism())
@@ -164,6 +172,8 @@ class ScopePrimitivesTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void resolveAppliesExplicitTimeoutAndOverflowGuard() {
         long before = System.nanoTime();
@@ -179,6 +189,8 @@ class ScopePrimitivesTest {
         assertThat(overflow.deadlineNanos()).isEqualTo(Long.MAX_VALUE);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void childDeadlineNeverExceedsParentDeadline() {
         MultiTaskContext parent = resolve(0, Duration.ofMillis(50), 1, null);
@@ -188,6 +200,8 @@ class ScopePrimitivesTest {
         assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void resolveRejectsNullOptions() {
         assertThatThrownBy(() -> MultiTaskContext.resolve(null, 1, null)).isInstanceOf(NullPointerException.class);
@@ -195,6 +209,8 @@ class ScopePrimitivesTest {
 
     // ==================== ScopedCallable timing ====================
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
         MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
@@ -216,6 +232,8 @@ class ScopePrimitivesTest {
         assertThat(context.cancellationToken()).isNotNull();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void scopedCallableRejectsNullConstructionArguments() {
         MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
