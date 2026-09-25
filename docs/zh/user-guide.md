@@ -11,7 +11,7 @@
 ```java
 ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
-        .register(ParId.of("database"), databaseExecutor)
+        .register(ParId.of("database"), databaseExecutor, "blocking", "database")
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
         .build();
@@ -25,6 +25,16 @@ Par databasePar = global.par(ParId.of("database"));
 id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
+
+注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
+
+```java
+ImmutableSetMultimap<ParId, String> tags = global.executorTags();
+ImmutableSet<String> databaseTags = global.executorTags(ParId.of("database"));
+ImmutableSet<ParId> blocking = global.parsWithExecutorTag("blocking");
+```
+
+标签只用于元数据，不改变调度、取消、队列处理或 executor 图身份。`build()` 后快照只读；未知 id 或 executor 返回空集合。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
