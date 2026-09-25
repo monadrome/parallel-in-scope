@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
@@ -22,17 +23,20 @@ import org.jspecify.annotations.Nullable;
  *
  * <ol>
  *   <li>Submits an initial batch equal to {@code parallelism}
- *   <li>Uses a blocking queue populated by {@link ListenableCompletionService} to detect completion
- *       events
+ *   <li>Uses a blocking queue populated by completion listeners on the submitted futures to detect
+ *       completion events
  *   <li>Fills freed slots incrementally with remaining tasks
  * </ol>
+ *
+ * <p>Each submitted future is also the exact runnable handed to the worker pool, so cancelling it
+ * is directly visible to queue maintenance such as {@code ThreadPoolExecutor.purge()}.
  *
  * @param <V> the result type of tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class SlidingWindowSubmitter<V> {
 
-    private final ListenableCompletionService<V> cs;
+    private final ListeningExecutorService pool;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
@@ -60,7 +64,7 @@ final class SlidingWindowSubmitter<V> {
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.closeGrace = closeGrace;
-        this.cs = new ListenableCompletionService<>(pool, blockingQueue);
+        this.pool = Objects.requireNonNull(pool, "pool cannot be null");
     }
 
     /**
@@ -155,11 +159,33 @@ final class SlidingWindowSubmitter<V> {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            ListenableFuture<V> submitted = unit.runOnCallerThread() ? cs.submitOrRunInline(task) : cs.submit(task);
+            ListenableFuture<V> submitted = unit.runOnCallerThread() ? submitOrRunInline(task) : submit(task);
             return Task.of(unit.name(), unit.cancellationToken(), submitted);
         } finally {
             SubmissionScope.restore(previous);
         }
+    }
+
+    /**
+     * Submits a prepared future to the worker pool and returns it. The listener is registered
+     * before the handoff, so a task rejected or cancelled before it runs still reaches the
+     * completion queue that drives the sliding window.
+     */
+    private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
+        task.addListener(() -> blockingQueue.add(task), directExecutor());
+        pool.execute(task);
+        return task;
+    }
+
+    /** Submits a prepared future, running it on the calling thread when the pool rejects it. */
+    private ListenableFuture<V> submitOrRunInline(ExecutionPhaseHintFuture<V> task) {
+        task.addListener(() -> blockingQueue.add(task), directExecutor());
+        try {
+            pool.execute(task);
+        } catch (RejectedExecutionException rejected) {
+            directExecutor().execute(task);
+        }
+        return task;
     }
 
     /** Wraps one element of a batch whose task will never reach the executor. */
