@@ -20,10 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up JDK
+      # Build JDK: the analysis build runs the same enforcer as CI, which requires 21+.
+      - name: Set up build JDK
         uses: actions/setup-java@v5
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
           cache: maven
 
