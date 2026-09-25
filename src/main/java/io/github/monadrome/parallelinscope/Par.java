@@ -101,7 +101,8 @@ public final class Par {
      * IllegalStateException} before submitting any task.
      *
      * @param elements input elements, or {@code null} for an empty batch
-     * @param function synchronous mapping function, run at most once for each submitted element
+     * @param function synchronous mapping function, run at most once for each submitted element; it
+     *     may return {@code null}, which completes the element as {@code SUCCESS} with a null value
      * @param options immutable per-batch request; it cannot select an executor
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call

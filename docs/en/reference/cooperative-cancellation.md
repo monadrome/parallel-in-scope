@@ -41,6 +41,14 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 
 Prefer the no-argument `Checkpoints.checkpoint()`: it checks the current scope unconditionally and cannot go stale across a rename. The named `checkpoint(taskName, lean)` still validates the current task's name and throws `IllegalStateException` on a mismatch (a typo, a stale name, or a call outside any scoped task) instead of silently skipping the safety check; its `lean=false` form throws the standard `CancellationException` with a stack trace for diagnostics.
 
+The three checkpoint forms differ in what they do **outside** any scoped task:
+
+| Checkpoint | Outside a scoped task | When cancelled |
+|---|---|---|
+| `Checkpoints.checkpoint()` | Silent no-op | Throws `LeanCancellationException` |
+| `Checkpoints.checkpoint(taskName, lean)` | Throws `IllegalStateException` | `lean=true`: `LeanCancellationException`; `lean=false`: `CancellationException` with a stack trace |
+| `Checkpoints.rawCheckpoint()` | Works — no scope required; also honours the thread's interrupt flag | Throws `LeanCancellationException` |
+
 ## Checkpoints API
 
 | Method | Purpose |
