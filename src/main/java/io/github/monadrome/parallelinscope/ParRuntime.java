@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -112,7 +113,12 @@ public final class ParRuntime implements AutoCloseable {
             tagsByIdentityBuilder.putAll(identity, builder.executorTags.get(entry.getKey()));
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
-                if (!(entry.getValue() instanceof ThreadPoolExecutor)) {
+                // A TTL wrapper hides the physical pool, so every structural fact below is read
+                // through it. Without this the wrapper is indistinguishable from a foreign
+                // executor: purge and blocking-risk detection silently downgrade, and the
+                // discarding-policy guard below never runs at all.
+                ExecutorService introspectable = TtlUnwrap.unwrap(entry.getValue());
+                if (!(introspectable instanceof ThreadPoolExecutor)) {
                     // Detection that silently downgrades is worse than a diagnostic: a decorated
                     // or foreign executor hides the physical pool from purge and deadlock-risk
                     // classification, so say so once at the composition root.
@@ -126,16 +132,26 @@ public final class ParRuntime implements AutoCloseable {
                     // and without throwing, so the framework would keep waiting on a future that
                     // can never complete. Refuse to register such a pool at all.
                     RejectedExecutionHandler policy =
-                            ((ThreadPoolExecutor) entry.getValue()).getRejectedExecutionHandler();
+                            ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
                     if (policy instanceof ThreadPoolExecutor.DiscardPolicy
                             || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
                         throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
-                                + entry.getValue().getClass().getName() + " using "
+                                + introspectable.getClass().getName() + " using "
                                 + policy.getClass().getName()
                                 + ", which discards rejected tasks silently: submission of an"
                                 + " overflowing task would never complete and the batch would hang. Register a"
                                 + " pool with AbortPolicy or CallerRunsPolicy instead.");
                     }
+                }
+                if (TtlUnwrap.isWrapper(entry.getValue())) {
+                    // The facts above survive because they are read through the wrapper. What a
+                    // wrapper still costs is a second TTL capture: the executor boundary adds one
+                    // on top of the one prepare already performs. That boundary is the caller's
+                    // executor, so it is named rather than unwrapped.
+                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with the TTL wrapper "
+                            + entry.getValue().getClass().getName()
+                            + "; register the physical pool instead. TTL capture then happens twice"
+                            + " for every task: once at the executor boundary and once at prepare.");
                 }
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
@@ -651,8 +667,9 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     private void bindPurgeObserver(ExecutorRuntime runtime) {
-        if (!(runtime.suppliedExecutor() instanceof ThreadPoolExecutor)) return;
-        Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) runtime.suppliedExecutor());
+        ExecutorService introspectable = runtime.introspectableExecutor();
+        if (!(introspectable instanceof ThreadPoolExecutor)) return;
+        Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) introspectable);
         runtime.setPhaseObserver(phase -> {
             if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) observer.run();
         });

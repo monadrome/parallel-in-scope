@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Objects;
@@ -11,16 +12,22 @@ import java.util.function.Consumer;
 /**
  * Runtime capability record for one supplied executor. Internal to the {@code ParRuntime} package.
  *
- * <p>The supplied executor is the resource identity used for queue inspection, purge, and blocking
- * risk. The submission executor is either that same object or a Guava listening adapter used only
- * to obtain {@code ListenableFuture}s; the adapter must never be mistaken for the physical pool.
+ * <p>The supplied executor is the resource identity and the submission target. Capability facts —
+ * queue inspection, purge, and blocking risk — are read from the {@linkplain #introspectableExecutor()
+ * introspectable executor} instead, which looks through a TTL executor wrapper: a wrapper hides the
+ * physical pool, and a registration whose every fact silently downgrades to "unknown" is worse than
+ * one diagnostic. The identity deliberately does not follow that unwrapping (see {@link
+ * ExecutorIdentity}), so a physical pool registered twice — bare and wrapped — stays two graph
+ * entries. The submission executor is either the supplied object or a Guava listening adapter used
+ * only to obtain {@code ListenableFuture}s; the adapter must never be mistaken for the physical pool.
  *
- * <p>Both capability facts below are read once from the supplied object's structure, never from its
- * class name or from runtime statistics: a fact that cannot be read stays {@link
+ * <p>Both capability facts below are read once from the introspectable object's structure, never
+ * from its class name or from runtime statistics: a fact that cannot be read stays {@link
  * BlockingRisk#UNKNOWN} rather than being guessed.
  */
 final class ExecutorRuntime {
     private final ExecutorService suppliedExecutor;
+    private final ExecutorService introspectableExecutor;
     private final ListeningExecutorService submissionExecutor;
     private final boolean adapter;
     private final ExecutorIdentity identity;
@@ -29,14 +36,15 @@ final class ExecutorRuntime {
     private volatile Consumer<? super ExecutionPhase> phaseObserver = phase -> {};
 
     ExecutorRuntime(ExecutorService suppliedExecutor) {
-        this(suppliedExecutor, detectRisk(suppliedExecutor));
+        this(suppliedExecutor, detectRisk(TtlUnwrap.unwrap(suppliedExecutor)));
     }
 
     ExecutorRuntime(ExecutorService suppliedExecutor, BlockingRisk blockingRisk) {
         this.suppliedExecutor = Objects.requireNonNull(suppliedExecutor);
+        this.introspectableExecutor = TtlUnwrap.unwrap(suppliedExecutor);
         this.identity = new ExecutorIdentity(suppliedExecutor);
         this.blockingRisk = Objects.requireNonNull(blockingRisk);
-        this.starvationProne = detectStarvationProne(suppliedExecutor);
+        this.starvationProne = detectStarvationProne(introspectableExecutor);
         if (suppliedExecutor instanceof ListeningExecutorService) {
             this.submissionExecutor = (ListeningExecutorService) suppliedExecutor;
             this.adapter = false;
@@ -48,6 +56,15 @@ final class ExecutorRuntime {
 
     ExecutorService suppliedExecutor() {
         return suppliedExecutor;
+    }
+
+    /**
+     * The object the capability facts are read from: the supplied executor, or the physical executor
+     * behind a TTL wrapper. Callers that inspect the pool's structure MUST use this rather than
+     * {@link #suppliedExecutor()}, whose type may be a wrapper that hides every fact.
+     */
+    ExecutorService introspectableExecutor() {
+        return introspectableExecutor;
     }
 
     ListeningExecutorService submissionExecutor() {
@@ -87,12 +104,12 @@ final class ExecutorRuntime {
 
     /**
      * Whether {@code rejectEnqueue} can actually take effect for this executor, which requires the
-     * supplied executor to be a {@link ThreadPoolExecutor} whose work queue is a {@link
+     * introspectable executor to be a {@link ThreadPoolExecutor} whose work queue is a {@link
      * SmartBlockingQueue} — the only implementation that reads the flag.
      */
     boolean rejectEnqueueEffective() {
-        return suppliedExecutor instanceof ThreadPoolExecutor
-                && ((ThreadPoolExecutor) suppliedExecutor).getQueue() instanceof SmartBlockingQueue;
+        return introspectableExecutor instanceof ThreadPoolExecutor
+                && ((ThreadPoolExecutor) introspectableExecutor).getQueue() instanceof SmartBlockingQueue;
     }
 
     Consumer<? super ExecutionPhase> phaseObserver() {

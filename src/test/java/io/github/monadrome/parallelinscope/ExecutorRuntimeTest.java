@@ -2,6 +2,8 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.alibaba.ttl.TtlUnwrap;
+import com.alibaba.ttl.threadpool.TtlExecutors;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -125,6 +127,31 @@ class ExecutorRuntimeTest {
         } finally {
             single.shutdownNow();
             decorated.shutdownNow();
+        }
+    }
+
+    @Test
+    void ttlWrappedPoolIsReadThroughWhileItsIdentityStaysOnTheRegisteredObject() {
+        // A TTL wrapper is not a ThreadPoolExecutor, so reading the registered object would make
+        // every structural fact unknown and would hide the pool from purge. TtlUnwrap is the public
+        // way through. Identity deliberately does not follow, so one physical pool registered both
+        // bare and wrapped stays two entries in the executor graph.
+        ThreadPoolExecutor physical =
+                new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(8));
+        ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
+        try {
+            assertThat(TtlUnwrap.isWrapper(wrapped)).isTrue();
+
+            ExecutorRuntime runtime = new ExecutorRuntime(wrapped);
+
+            assertThat(runtime.suppliedExecutor()).isSameAs(wrapped);
+            assertThat(runtime.introspectableExecutor()).isSameAs(physical);
+            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
+            assertThat(runtime.starvationProne()).isTrue();
+            assertThat(runtime.rejectEnqueueEffective()).isTrue();
+            assertThat(runtime.identity()).isNotEqualTo(new ExecutorRuntime(physical).identity());
+        } finally {
+            physical.shutdownNow();
         }
     }
 }
