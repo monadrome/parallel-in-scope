@@ -3,40 +3,27 @@ name: Snapshot
 # Publish a fresh `0.3.0-SNAPSHOT` to the Central snapshot repository when the development
 # line has moved on. The README recommends the snapshot coordinates to first-time callers, so
 # a published snapshot that lags the tree makes the quick start fail to compile for anyone who
-# follows it; this workflow keeps the lag under a day instead of leaving it until someone
+# follows it; this workflow keeps the lag to about a day instead of leaving it until someone
 # remembers to push a tag.
 #
-# The daily schedule is the rate limit -- at most one automatic publish per day -- and the
-# gate below skips the run entirely when Central already carries everything on the branch.
+# Triggered by a push rather than by a schedule, because GitHub registers a workflow only from
+# the repository's default branch: a `schedule` trigger in a file that exists only on
+# `dev/v0.3.0` never fires, and `workflow_dispatch` is not offered for it either. A `push`
+# trigger carries no such restriction -- the workflow file travels with the branch that was
+# pushed. `release.yml` does live on the default branch, so pushing the `v0.3.0-SNAPSHOT` tag
+# remains the way to publish by hand before the next push.
 #
-# This is a separate workflow from `release.yml` on purpose. A tag pushed by a scheduled run
-# with the default `GITHUB_TOKEN` does not trigger another workflow run, so a scheduler that
-# pushed `v<version>` would publish nothing; running the deploy here avoids both that trap and
-# a personal access token. The cost is that the publish steps below repeat `release.yml`'s
-# setup -- keep the two in step when the publishing configuration changes.
-#
-# GitHub disables a scheduled workflow after 60 days without repository activity. If the daily
-# run stops, start it by hand from the Actions tab; the first run picks the work back up.
+# A real daily schedule (one that also fires on days without a push) would need this file on
+# the default branch; making `dev/v0.3.0` the default branch is the alternative.
 on:
-  schedule:
-    # 03:17 UTC: an off-minute hour avoids the top-of-the-hour scheduling rush, and 11:17 in
-    # the maintainer's UTC+8 day lets the run carry a full working day of commits.
-    - cron: '17 3 * * *'
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: Revision to snapshot; leave empty for the development branch below.
-        required: false
-        default: ''
-
-env:
-  # The branch carrying the `-SNAPSHOT` version. Move it when the development line moves;
-  # the gate refuses to publish any version that is not a snapshot.
-  DEVELOPMENT_BRANCH: dev/v0.3.0
+  push:
+    branches: [dev/v0.3.0]
 
 permissions:
   contents: read
 
+# Serialize publishes. `cancel-in-progress` stays false so that a push arriving mid-deploy
+# cannot kill a publish that has already started.
 concurrency:
   group: snapshot-publish
   cancel-in-progress: false
@@ -48,8 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # `inputs` is empty for the scheduled run, so this falls back to the branch.
-          ref: ${{ inputs.ref || env.DEVELOPMENT_BRANCH }}
           fetch-depth: 0
 
       # The release path's build JDK, for the same reason: the enforcer requires JDK 25 and
@@ -68,15 +53,19 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
-      # Skip when Central already carries every commit on the branch. Central's own
-      # `<lastUpdated>` is the record of what was published -- the `v0.3.0-SNAPSHOT` tag is
-      # not maintained by this workflow and no longer marks the published revision.
+      # Skip unless the branch has moved past what Central serves. Central's own
+      # `<lastUpdated>` is the record of the last publish -- the `v0.3.0-SNAPSHOT` tag is no
+      # longer maintained as a marker of the published revision.
       #
-      # The comparison uses the branch tip's *committer* date, which is when this state of
-      # the branch was created: rebase, amend, and squash-pick all move it forward, so a
-      # rewritten branch is republished rather than skipped. The known miss is a branch
-      # whose tip carries a deliberate older committer date; dispatch the workflow by hand
-      # to publish past it.
+      # Both stamps are UTC `yyyyMMddHHmmss`, so they compare as plain integers: no date
+      # arithmetic, and no dependency on a GNU-specific `date -d`. Requiring the branch tip's
+      # UTC *date* to be strictly later than the last publish's UTC date is the rate limit --
+      # once a publish has happened, no further push can publish again until the next UTC day.
+      #
+      # The comparison reads the branch tip's committer date, which rebase, amend, and
+      # squash-pick all move forward, so a rewritten branch is republished rather than
+      # skipped. The known miss is a branch whose tip carries a deliberately older committer
+      # date; pushing the `v0.3.0-SNAPSHOT` tag publishes past it.
       - name: Decide whether Central already has this tree
         id: gate
         run: |
@@ -110,20 +99,19 @@ jobs:
             exit 0
           fi
 
-          # Central writes lastUpdated as UTC yyyyMMddHHmmss, and the branch tip's committer
-          # date is rendered in the same shape, so the two compare as plain integers: no date
-          # arithmetic, and no dependency on a GNU-specific `date -d`.
           head_stamp="$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S)"
+          head_day="${head_stamp:0:8}"
+          published_day="${last_updated:0:8}"
 
           echo "Branch tip committed: $head_stamp (UTC)"
           echo "Central last updated: $last_updated (UTC)"
 
-          if [ "$head_stamp" -gt "$last_updated" ]; then
+          if [ "$head_day" -gt "$published_day" ]; then
             echo "publish=yes" >> "$GITHUB_OUTPUT"
-            echo "::notice::The branch tip is newer than the published snapshot; publishing."
+            echo "::notice::The branch has moved past the published snapshot; publishing."
           else
             echo "publish=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::Central already carries every commit on the branch; nothing to publish."
+            echo "::notice::Nothing to publish: the published snapshot is not older than the branch tip in UTC days."
           fi
 
       # A snapshot is still a public artifact, and the development branch has no continuous
@@ -151,6 +139,6 @@ jobs:
         run: |
           case "$PUBLISHED" in
             yes) echo "Published a snapshot from $(git rev-parse --short HEAD)." >> "$GITHUB_STEP_SUMMARY" ;;
-            no) echo "No snapshot published: Central already carries every commit on the branch." >> "$GITHUB_STEP_SUMMARY" ;;
+            no) echo "No snapshot published: Central already serves this branch." >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo "No snapshot published: the gate did not reach a decision; check the log above." >> "$GITHUB_STEP_SUMMARY" ;;
           esac
