@@ -12,7 +12,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,12 +39,17 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Par {
 
+    private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
+
     /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
     private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
+
+    /** One-shot latch for the inert-{@code rejectEnqueue} diagnostic; see {@link #warnIfRejectEnqueueInert}. */
+    private final AtomicBoolean rejectEnqueueWarningIssued = new AtomicBoolean();
 
     private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
@@ -144,6 +151,7 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(taskName), 1, parent, observation, executorRuntime.identity(), id.value());
+        warnIfRejectEnqueueInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -155,7 +163,7 @@ public final class Par {
                     parent == null ? "NA" : parent.executorLabel(),
                     1,
                     unit.remaining(),
-                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.starvationProne());
             logForking(unit, edge);
         }
         TaskExecutionContext taskContext =
@@ -197,6 +205,7 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(), taskCount, parent, observation, executorRuntime.identity(), id.value());
+        warnIfRejectEnqueueInert(unit);
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),
@@ -227,7 +236,7 @@ public final class Par {
                             : unit.structuralParent().executorLabel(),
                     list.size(),
                     unit.remaining(),
-                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.starvationProne());
             logForking(unit, edge);
         }
         Ticker ticker = Ticker.systemTicker();
@@ -247,6 +256,29 @@ public final class Par {
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         return result;
+    }
+
+    /**
+     * Reports once per Par that a requested enqueue rejection cannot take effect here.
+     *
+     * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
+     * tasks queue up and nothing tells the caller that the protection they selected — on by
+     * default, for {@link TaskOptions#timeout(java.time.Duration)} — is not running. The diagnostic
+     * belongs on the submission path rather than at registration because options are per task and
+     * per batch: registration cannot know whether the default will ever be used. It stays a
+     * warning: throwing would fail every caller that legitimately runs on a plain pool.
+     */
+    void warnIfRejectEnqueueInert(MultiTaskContext unit) {
+        if (!unit.rejectEnqueue() || executorRuntime.rejectEnqueueEffective()) {
+            return;
+        }
+        if (rejectEnqueueWarningIssued.compareAndSet(false, true)) {
+            LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
+                    + executorRuntime.suppliedExecutor().getClass().getName()
+                    + " does not use a SmartBlockingQueue, so the option is inert there and tasks"
+                    + " will queue instead of being rejected. Register a ThreadPoolExecutor whose"
+                    + " work queue is a SmartBlockingQueue to make the option effective.");
+        }
     }
 
     /**

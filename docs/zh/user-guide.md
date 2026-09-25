@@ -26,6 +26,8 @@ id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `pa
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
 
+注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。决定任务图边是否标记为死锁易感的事实只有线程上界：只有线程数被封顶的池，才可能出现全部 worker 都阻塞在子任务上、而再无线程可跑的局面；cached pool 总能新开线程，因此永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
+
 注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
 
 ```java
@@ -65,7 +67,7 @@ List<TaskFuture<Account>> futures = result.results();
 
 `parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制。timeout 必须在两个互斥的静态工厂里显式二选一：`BatchOptions.timeout(name, Duration)` 设置正数超时，`BatchOptions.inheritTimeout(name)` 继承外层作用域的 deadline——没有第三个状态，遗漏声明根本无法构造选项对象。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。
 
-`runOnCallerThread` 决定绑定的执行器拒绝元素时的处置，默认 `false`：元素以 `SUBMISSION_FAILURE` 失败，用户代码不会进入。设为 `true` 会借用提交线程、任务体在提交线程上执行——可用作背压，但代价是你的代码运行在一个调用方未必预期的线程上。`rejectEnqueue` 是另一个维度的决策：它只在绑定的执行器队列是 `SmartBlockingQueue` 时决定是否拒绝入队，其他队列上该选项不生效。`TaskType` 不影响这两者：它只决定 `SmartBlockingQueue` 是否拒绝入队，且默认类型 `CPU_BOUND` 在 `rejectEnqueue(false)` 时仍会被拒绝入队。没有任何任务类型隐含 caller-thread 回退。
+`runOnCallerThread` 决定绑定的执行器拒绝元素时的处置，默认 `false`：元素以 `SUBMISSION_FAILURE` 失败，用户代码不会进入。设为 `true` 会借用提交线程、任务体在提交线程上执行——可用作背压，但代价是你的代码运行在一个调用方未必预期的线程上。`rejectEnqueue` 是另一个维度的决策：它只在绑定的执行器队列是 `SmartBlockingQueue` 时决定是否拒绝入队，其他队列上该选项不生效。不生效不等于无声：某个 `Par` 的执行器无法兑现该选项时，通过它的第一次提交会打出一条 `WARNING`，指明是哪个 `Par`、以及修复动作——注册一个工作队列为 `SmartBlockingQueue` 的 `ThreadPoolExecutor`。它每个 `Par` 只报一次、而非每个任务一次，因为选项是逐次提交选择的、而执行器在注册时就已绑定。该警告不会让提交失败，也不改变任何实际执行。`TaskType` 不影响这两个决策：它只决定 `SmartBlockingQueue` 是否拒绝入队，且默认类型 `CPU_BOUND` 在 `rejectEnqueue(false)` 时仍会被拒绝入队。没有任何任务类型隐含 caller-thread 回退。
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
