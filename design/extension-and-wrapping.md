@@ -2,7 +2,7 @@
 
 > 本文定义 parallel-in-scope 的**扩展接缝**：用户如何在不破坏结构化并发语义的前提下，给任务体加上自己的横切能力（MDC、追踪、指标、重试）。
 > 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
-> **状态：设计定稿，`TaskDecorator` 尚未实现。** §5.5 的 L3 检测修的是现存缺陷，可独立先行。
+> **状态：设计定稿，`TaskDecorator` 尚未实现。** §5.5 的 L3 检测修的是现存缺陷，可独立先行——**已落地（2026-09-25，见 §5.5 落地记录）**。
 
 ## 0. 一句话结论
 
@@ -255,6 +255,31 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 - `ExecutorServiceTtlWrapper` 是包私有类（`implements ExecutorService, TtlEnhanced`），外部无法 `instanceof`，但 `TtlUnwrap.isWrapper/unwrap` 是公开 API；
 - Guava 的 `WrappingExecutorService` 是包私有且无公开解包入口，因此**只修 TTL 一侧**；
 - **身份不跟着解包**：`ExecutorIdentity` 仍按注册对象（见其 javadoc 的理由），否则同一物理池以两个对象注册会被合并，改变执行器图语义。
+
+> **落地记录（2026-09-25，提交 `fa5f303`）**：L3 检测已实现。新增
+> `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`，
+> blocking-risk 分类、饥饿判定、`rejectEnqueue` 生效判定、purge 绑定、注册期「看不透」告警
+> 全部改读解包对象；身份仍按注册对象。修复前实测 644/644 全绿，新增 3 条回归测试。
+>
+> **落地时发现的新缺陷（本文档此前未记载）**：L8 护栏曾被整条绕过。注册期拒绝策略校验用
+> 同一句 `instanceof ThreadPoolExecutor` 判断，而 TTL 包装器不是 `ThreadPoolExecutor`，
+> 于是本应被 `IllegalArgumentException` 拒绝的 `DiscardPolicy` / `DiscardOldestPolicy`
+> 池经 TTL 包装后能够成功注册——提交的任务被接受后静默丢弃，任务体从未执行，框架一直等
+> 一个永远不会完成的 future，直到 deadline 才以 TIMEOUT 浮现。这正是 L8 存在要拦下的
+> 失败形状。回归用例：
+> `ParRuntimePoliciesTest.aTtlWrappedDiscardingPoolIsStillRefusedInsteadOfSlidingPastTheGuard`
+> （修复前实测失败）。
+>
+> 与本文草稿的两处有意偏离：
+> 1. **告警位置**：草稿写「`ExecutorRuntime` 构造期」，实际放在 `ParRuntime` 注册循环里——
+>    消息需要点名 Par id（本仓既定消息约定），而 `ExecutorRuntime` 不知道 Par id；顺带让
+>    `ExecutorRuntime` 保持无日志副作用。告警每个新 identity 至多一次。
+> 2. **告警文案**：草稿的 *"purge/BlockingRisk introspection is disabled"* 在探测改到解包
+>    对象后不再成立，实际只陈述仍然成立的代价：TTL 捕获两次（executor 边界 + prepare）。
+>    双重捕获来自用户 executor 边界的包装，库管不着，告警是唯一处置。
+>
+> TTL agent 已加载的部署下 `getTtlExecutorService` 直接返回原对象：无包装、无双重捕获、
+> 无需告警，两条路径行为各自正确。
 
 ## 6. 契约
 
