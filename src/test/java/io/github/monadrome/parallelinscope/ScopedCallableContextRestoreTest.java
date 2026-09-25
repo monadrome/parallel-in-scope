@@ -64,8 +64,11 @@ class ScopedCallableContextRestoreTest {
     @Test
     void nestedCallRestoresOuterCurrentTask() throws Exception {
         MultiTaskContext outer = context("same-name");
-        MultiTaskContext inner = MultiTaskContext.resolve(
-                BatchOptions.timeout("same-name", Duration.ofSeconds(30)).spec(), 1, outer);
+        MultiTaskContext inner = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("same-name", Duration.ofSeconds(30))
+                                .spec(),
+                        1)
+                .structuralParent(outer));
         TaskExecutionContext outerTask = task(outer, 0);
         ScopedCallable<String> outerCallable = new ScopedCallable<>(
                 outerTask,
@@ -92,8 +95,8 @@ class ScopedCallableContextRestoreTest {
     }
 
     private static MultiTaskContext context(String name) {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1));
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {

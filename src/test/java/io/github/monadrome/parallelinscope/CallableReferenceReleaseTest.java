@@ -293,18 +293,17 @@ class CallableReferenceReleaseTest {
     }
 
     private static MultiTaskContext unit(String name) {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1));
     }
 
     private static MultiTaskContext batchUnit(String name, int tasks, int parallelism) {
-        return MultiTaskContext.resolve(
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(name, Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(TaskType.IO_BOUND)
                         .spec(),
-                tasks,
-                null);
+                tasks));
     }
 
     private static void awaitUninterruptibly(CountDownLatch latch) {

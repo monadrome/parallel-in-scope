@@ -150,8 +150,11 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(taskName), 1, parent, observation, executorRuntime.identity(), id.value());
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
+                .structuralParent(parent)
+                .taskGraphObservationScope(observation)
+                .executorIdentity(executorRuntime.identity())
+                .executorLabel(id.value()));
         warnIfRejectEnqueueInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
@@ -204,8 +207,11 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(), taskCount, parent, observation, executorRuntime.identity(), id.value());
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
+                .structuralParent(parent)
+                .taskGraphObservationScope(observation)
+                .executorIdentity(executorRuntime.identity())
+                .executorLabel(id.value()));
         warnIfRejectEnqueueInert(unit);
         return executeGlobal(
                 elements,

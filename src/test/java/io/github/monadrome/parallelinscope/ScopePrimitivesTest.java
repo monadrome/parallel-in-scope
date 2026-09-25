@@ -152,7 +152,8 @@ class ScopePrimitivesTest {
         if (parallelism > 0) {
             options = options.parallelism(parallelism);
         }
-        return MultiTaskContext.resolve(options.spec(), taskCount, parent);
+        return MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options.spec(), taskCount).structuralParent(parent));
     }
 
     // NullAway: deliberate null arguments — probes the null-rejection contract
@@ -204,7 +205,7 @@ class ScopePrimitivesTest {
     @SuppressWarnings("NullAway")
     @Test
     void resolveRejectsNullOptions() {
-        assertThatThrownBy(() -> MultiTaskContext.resolve(null, 1, null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> MultiTaskContext.resolution(null, 1)).isInstanceOf(NullPointerException.class);
     }
 
     // ==================== ScopedCallable timing ====================
