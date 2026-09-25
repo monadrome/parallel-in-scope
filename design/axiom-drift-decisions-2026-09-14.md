@@ -96,9 +96,12 @@ A5、A6、A7、A8、A9、B4、B5、B6、C1–C4、C6–C9、C12、C13，以及 9
    留空，不做类名探测。
 2. **A3**：改为提交路径上每个 `Par` 警告一次，不抛异常。
 3. **A4**：维持"只认物理池"契约 + `build()` 警告为终态，未新增机制。
-4. **一处细化**：`executorDeadlockProne` 的判定事实从"队列有界"改为"线程上界有界"
-   ——fixed pool 线程有界、照样会饿死，仍应标记；`UNBOUNDED` 只承担资源分类，不再
-   兼任死锁过滤条件（见 `design/executor-transparency.md` §8 的 P1 落地记录）。
+4. **一处细化**：`executorDeadlockProne` 不再与 `BlockingRisk` 共用一个值，改由独立的
+   结构事实判定——**提交去向**：`ThreadPoolExecutor` 在超过 `corePoolSize` 前先 `offer`
+   给队列，有缓冲能力的队列会收下子任务并把它排在阻塞的 worker 之后（`maximumPoolSize`
+   从不参与），零容量交接队列则拒绝入队、迫使开新线程或显式拒绝。fixed pool 因此仍被
+   标记，cached pool 不再被标记；`UNBOUNDED` 只承担资源分类，不再兼任死锁过滤条件
+   （见 `design/executor-transparency.md` §8 的 P1 落地记录）。
 
 以下为决策时的原文，保留供追溯。
 

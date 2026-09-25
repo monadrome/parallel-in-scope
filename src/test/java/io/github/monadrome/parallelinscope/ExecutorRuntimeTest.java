@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,7 @@ class ExecutorRuntimeTest {
 
             // The queue absorbs without limit, so the classification names the resource fact...
             assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.UNBOUNDED);
-            // ...while the capped worker count is what decides whether a child task can starve.
+            // ...while the buffering queue is what decides whether a child task can starve.
             assertThat(runtime.starvationProne()).isTrue();
         } finally {
             executor.shutdownNow();
@@ -74,13 +75,32 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void handoffQueueWithoutThreadBoundIsUnboundedAndNotStarvationProne() {
+    void anUnboundedThreadBoundDoesNotSaveABufferingQueue() {
+        // execute() offers to the queue before it grows past corePoolSize, so the buffering queue
+        // parks the child behind the blocked worker and maximumPoolSize is never consulted: one
+        // core thread with an unbounded thread bound still starves.
         ThreadPoolExecutor pool =
-                new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
+                new ThreadPoolExecutor(1, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
             assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.UNBOUNDED);
+            assertThat(runtime.starvationProne()).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aHandoffQueueForcesANewWorkerEvenWhenTheThreadBoundIsSmall() {
+        // The opposite of the case above: the offer is refused, so the pool grows to its bound
+        // instead of parking the child, and a blocked worker cannot starve it.
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>());
+        try {
+            ExecutorRuntime runtime = new ExecutorRuntime(pool);
+
+            // A handoff queue is a bounded queue, so the resource shape is still a bounded pool.
+            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
             assertThat(runtime.starvationProne()).isFalse();
         } finally {
             pool.shutdownNow();

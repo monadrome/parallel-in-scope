@@ -177,11 +177,16 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
 
 ## 8. 待拍板点
 
-> **落地记录（2026-09-25）**：§6.1 分类与 §6.2 警告已实现。P1 按候选 **(b)** 落地：
-> `executorDeadlockProne` 的判定事实改为"线程上界有界"（`ExecutorRuntime.starvationProne()`），
-> `BlockingRisk` 只承担资源分类，两者在同一次注册读取中各自成立，互不代偿。P2 按本文
-> 推荐留空——`VIRTUAL_THREAD_PER_TASK` 仍不产出；P3 按"每 Par 一次 + 附修复指引、
-> 落在提交路径"实现。§6.3（非 TPE 的契约化）维持现状文案，未新增机制。
+> **落地记录（2026-09-25）**：§6.1 分类与 §6.2 警告已实现。P1 取候选 (b) 的**分离精神**
+> 但换掉了它的事实：`executorDeadlockProne` 由 `ExecutorRuntime.starvationProne()` 单独
+> 判定，`BlockingRisk` 只承担资源分类；而判定的结构事实不是"线程上界有界"，是**提交去向**
+> ——`ThreadPoolExecutor.execute` 在超过 `corePoolSize` 前先 `offer` 给队列，有缓冲能力的
+> 队列会收下子任务、把它排在阻塞的 worker 之后，池子不会开新线程，`maximumPoolSize` 因此
+> 从不参与；零容量交接队列拒绝入队，才迫使开新线程或显式拒绝。按"线程上界"判定会漏掉
+> `corePoolSize=1 + maximumPoolSize=Integer.MAX_VALUE + 普通队列` 这档（队列吸收 → 照样饿死），
+> 该反例由 codex review 提出并已修正。P2 按本文推荐留空——`VIRTUAL_THREAD_PER_TASK` 仍不产出；
+> P3 按"每 Par 一次 + 附修复指引、落在提交路径"实现。§6.3（非 TPE 的契约化）维持现状文案，
+> 未新增机制。
 
 - **P1（最需要敲实）**：`UNBOUNDED` 池移出 `executorDeadlockProne` 过滤后，固定池
   的嵌套饥饿死锁覆盖缺口由什么承接？候选：(a) 接受缺口 + 文档明示；(b) **死锁易感
