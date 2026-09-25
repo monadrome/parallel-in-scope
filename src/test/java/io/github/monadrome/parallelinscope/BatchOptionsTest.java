@@ -44,6 +44,8 @@ class BatchOptionsTest {
         assertThat(derived.timeout()).isEmpty();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void nameIsValidatedOnceAndPreservedVerbatim() {
         String longName = "order-pipeline-stage-7";
@@ -54,6 +56,8 @@ class BatchOptionsTest {
         assertThatThrownBy(() -> BatchOptions.inheritTimeout("  ")).isInstanceOf(IllegalArgumentException.class);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void rejectsNonPositiveExplicitTimeouts() {
         assertThatThrownBy(() -> BatchOptions.timeout("load", Duration.ZERO))

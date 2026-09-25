@@ -69,6 +69,8 @@ class TaskOptionsTest {
         assertThat(inherited.taskType()).isEqualTo(TaskType.CPU_BOUND);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void rejectsNonPositiveExplicitTimeouts() {
         assertThatThrownBy(() -> TaskOptions.timeout(Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);

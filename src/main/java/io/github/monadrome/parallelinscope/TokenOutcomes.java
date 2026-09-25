@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import java.util.concurrent.CancellationException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Maps a {@link CancellationToken}'s committed state onto the {@link TaskOutcome} of the work it
@@ -64,7 +65,7 @@ final class TokenOutcomes {
      * race against the cascade {@code cancel(true)} on the task's future; the owning token, which
      * committed its state first, is then the correct attribution source.
      */
-    public static boolean causedByCancellation(Throwable failure) {
+    public static boolean causedByCancellation(@Nullable Throwable failure) {
         return failure instanceof CancellationException || failure instanceof InterruptedException;
     }
 }

@@ -78,6 +78,8 @@ class CheckpointsTest {
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     private static Void runInTask(MultiTaskContext context, Runnable action) throws Exception {
         return new ScopedCallable<Void>(
                         new TaskExecutionContext(context, 0, System.nanoTime()),

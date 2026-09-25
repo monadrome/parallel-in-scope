@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A listenable future and runnable that publishes hints about its execution phase.
@@ -79,7 +79,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private final @Nullable TaskBodyState bodyState;
 
     private volatile Consumer<? super ExecutionPhase> phaseObserver;
-    private volatile Thread runner;
+    private volatile @Nullable Thread runner;
 
     /** Creates a future with a phase observer. */
     public static <V> ExecutionPhaseHintFuture<V> create(
@@ -95,7 +95,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     /** Creates a future with a phase observer for a runnable and fixed result. */
     public static <V> ExecutionPhaseHintFuture<V> create(
-            Runnable runnable, V result, Consumer<? super ExecutionPhase> phaseObserver) {
+            Runnable runnable, @Nullable V result, Consumer<? super ExecutionPhase> phaseObserver) {
         Objects.requireNonNull(runnable, "runnable cannot be null");
         return new ExecutionPhaseHintFuture<>(
                 () -> {

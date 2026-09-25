@@ -11,6 +11,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -41,7 +42,8 @@ class CallableReferenceReleaseTest {
             // are happens-before visible here; the future-holder release sits in run()'s finally,
             // just after completion, and must arrive without any GC.
             assertThat(fixture.scoped.delegateReleased()).isTrue();
-            assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+            assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                    .isFalse();
             await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(
                             () -> assertThat(fixture.future.callableReleased()).isTrue());
@@ -68,7 +70,8 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
         assertThat(fixture.scoped.delegateReleased()).isTrue();
-        assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                .isFalse();
     }
 
     @Test
@@ -92,7 +95,8 @@ class CallableReferenceReleaseTest {
                 .isInstanceOf(java.util.concurrent.ExecutionException.class)
                 .hasCauseInstanceOf(SubmissionException.class);
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                .isFalse();
     }
 
     @Test
@@ -109,7 +113,8 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isCancelled()).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                .isFalse();
     }
 
     @Test
@@ -123,7 +128,8 @@ class CallableReferenceReleaseTest {
         // reference are released.
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                .isFalse();
     }
 
     @Test
@@ -146,7 +152,8 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                .isFalse();
     }
 
     @Test
@@ -174,14 +181,16 @@ class CallableReferenceReleaseTest {
             // early — the body and its captures are still in use.
             assertThat(fixture.future.callableReleased()).isFalse();
             assertThat(fixture.scoped.delegateReleased()).isFalse();
-            assertThat(fixture.context.bodyState().isOutstanding()).isTrue();
+            assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                    .isTrue();
 
             release.countDown();
             assertThat(bodyFinally.await(5, TimeUnit.SECONDS)).isTrue();
             // The holder release precedes the body-exit publish, so observing the released slot
             // implies both references are gone.
             await().atMost(5, TimeUnit.SECONDS)
-                    .untilAsserted(() -> assertThat(fixture.context.bodyState().isOutstanding())
+                    .untilAsserted(() -> assertThat(Objects.requireNonNull(fixture.context.bodyState())
+                                    .isOutstanding())
                             .isFalse());
             assertThat(fixture.future.callableReleased()).isTrue();
             assertThat(fixture.scoped.delegateReleased()).isTrue();
@@ -210,7 +219,8 @@ class CallableReferenceReleaseTest {
                 assertThat(result.results().get(i).get(5, TimeUnit.SECONDS)).isEqualTo("element-" + i);
             }
             for (Fixture fixture : fixtures) {
-                assertThat(fixture.context.bodyState().isOutstanding()).isFalse();
+                assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                        .isFalse();
                 await().atMost(5, TimeUnit.SECONDS)
                         .untilAsserted(() ->
                                 assertThat(fixture.future.callableReleased()).isTrue());

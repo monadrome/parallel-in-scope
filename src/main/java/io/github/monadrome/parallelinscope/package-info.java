@@ -6,7 +6,7 @@
  * kernel. Keeping them together lets Java 8 enforce the implementation boundary without exposing
  * bridge types solely for cross-package access.
  */
-@ParametersAreNonnullByDefault
+@NullMarked
 package io.github.monadrome.parallelinscope;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.jspecify.annotations.NullMarked;

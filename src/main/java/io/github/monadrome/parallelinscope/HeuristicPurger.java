@@ -210,7 +210,8 @@ final class HeuristicPurger {
 
         /** Expires only the old sequence boundary observed by one atomic marker update. */
         private void recordIdleCancellation(long generation, long sequence, long now) {
-            CancellationMarker previous = lastCancellation.get();
+            // the marker reference is never nulled; CAS swaps only between non-null markers
+            CancellationMarker previous = Objects.requireNonNull(lastCancellation.get());
             while (generation > previous.generation
                     || (generation == previous.generation && sequence > previous.sequence)) {
                 CancellationMarker next = new CancellationMarker(generation, sequence, now);
@@ -222,7 +223,7 @@ final class HeuristicPurger {
                     }
                     return;
                 }
-                previous = lastCancellation.get();
+                previous = Objects.requireNonNull(lastCancellation.get());
             }
         }
 
@@ -298,10 +299,10 @@ final class HeuristicPurger {
             settleThrough(issuedSequence.get());
             lastLoggedDecision.set(null);
             long generation = resetGeneration.get();
-            CancellationMarker marker = lastCancellation.get();
+            CancellationMarker marker = Objects.requireNonNull(lastCancellation.get());
             while (marker.generation < generation
                     && !lastCancellation.compareAndSet(marker, new CancellationMarker(generation, 0L, 0L))) {
-                marker = lastCancellation.get();
+                marker = Objects.requireNonNull(lastCancellation.get());
             }
             logCurrentDecision("disabled", 0L);
         }

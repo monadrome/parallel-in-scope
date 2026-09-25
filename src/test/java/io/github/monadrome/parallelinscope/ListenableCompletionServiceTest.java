@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -94,7 +95,7 @@ public class ListenableCompletionServiceTest {
             CountDownLatch done = new CountDownLatch(2);
             Thread runner = new Thread(() -> {
                 awaitUninterruptibly(start);
-                submitted.get().run();
+                Objects.requireNonNull(submitted.get()).run();
                 done.countDown();
             });
             Thread canceller = new Thread(() -> {
@@ -125,7 +126,7 @@ public class ListenableCompletionServiceTest {
         ListenableCompletionService<Integer> service =
                 new ListenableCompletionService<>(submitted::set, new LinkedBlockingQueue<>(), observer);
         ListenableFuture<Integer> completed = service.submit(() -> 1);
-        submitted.get().run();
+        Objects.requireNonNull(submitted.get()).run();
 
         assertThat(phaseObserver(completed)).isNotSameAs(observer);
 

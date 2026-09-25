@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 /** Builder validation matrix for {@link ParRuntime} policies and its task-listener overrides. */
 class ParRuntimePoliciesTest {
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void parTaskListenerRejectsBlankNamesAndNullListenersAndAppendsPerPar() {
         ParRuntime.Builder builder = ParRuntime.builder();

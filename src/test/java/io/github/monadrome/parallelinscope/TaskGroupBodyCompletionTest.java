@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -358,6 +359,8 @@ class TaskGroupBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void awaitBodyCompletionValidatesArgumentsAndHonoursInterruption() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -469,12 +472,12 @@ class TaskGroupBodyCompletionTest {
                     bindings -> bindings.task(self, () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         try {
-                            groupRef.get().awaitBodyCompletion(Duration.ofMillis(10));
+                            Objects.requireNonNull(groupRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
                         } catch (Throwable failure) {
                             awaitFailure.set(failure);
                         }
                         try {
-                            groupRef.get().close();
+                            Objects.requireNonNull(groupRef.get()).close();
                         } catch (Throwable failure) {
                             closeFailure.set(failure);
                         }
@@ -551,7 +554,8 @@ class TaskGroupBodyCompletionTest {
                                         "inner",
                                         () -> {
                                             try {
-                                                groupRef.get().awaitBodyCompletion(Duration.ofMillis(10));
+                                                Objects.requireNonNull(groupRef.get())
+                                                        .awaitBodyCompletion(Duration.ofMillis(10));
                                                 return "unguarded";
                                             } catch (IllegalStateException guarded) {
                                                 return "guarded";

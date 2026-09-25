@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Controls when an action is due based on invocation count, elapsed time, or both.
@@ -22,11 +23,11 @@ final class ActionGate {
 
     private final int minInvocations;
     private final long minIntervalNanos;
-    private final Runnable action;
+    private final @Nullable Runnable action;
     private int remainingInvocations;
     private long lastOpenTimeNanos;
 
-    private ActionGate(int minInvocations, Duration minInterval, Runnable action) {
+    private ActionGate(int minInvocations, @Nullable Duration minInterval, @Nullable Runnable action) {
         if (minInterval != null && (minInterval.isZero() || minInterval.isNegative())) {
             throw new IllegalArgumentException("minInterval must be positive");
         }
