@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>This is the shared single-task future for the whole library: both {@code Par.map} and
  * {@code TaskGroup} prepare it through {@link TaskSubmissions}, then the batch path
- * submits it via {@link ListenableCompletionService} while the group submits it after its frozen
+ * submits it via {@link SlidingWindowSubmitter} while the group submits it after its frozen
  * build boundary. Both call sites share this one phase state machine; it must not be
  * re-implemented per caller.
  *
@@ -91,19 +91,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     public static <V> ExecutionPhaseHintFuture<V> create(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
         return new ExecutionPhaseHintFuture<>(callable, phaseObserver, bodyState);
-    }
-
-    /** Creates a future with a phase observer for a runnable and fixed result. */
-    public static <V> ExecutionPhaseHintFuture<V> create(
-            Runnable runnable, @Nullable V result, Consumer<? super ExecutionPhase> phaseObserver) {
-        Objects.requireNonNull(runnable, "runnable cannot be null");
-        return new ExecutionPhaseHintFuture<>(
-                () -> {
-                    runnable.run();
-                    return result;
-                },
-                phaseObserver,
-                null);
     }
 
     /** Wraps Guava's future semantics with task-local execution-phase hints. */
