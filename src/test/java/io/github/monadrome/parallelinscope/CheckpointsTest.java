@@ -69,8 +69,8 @@ class CheckpointsTest {
 
     @Test
     void checkpointTreatsAnExpiredDeadlineAsCanceledWithoutWaitingForTheTimer() throws Exception {
-        MultiTaskContext expired = MultiTaskContext.resolve(
-                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1, null);
+        MultiTaskContext expired = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1));
         Thread.sleep(5L);
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThatThrownBy(() -> runInTask(expired, Checkpoints::checkpoint))
@@ -396,7 +396,7 @@ class CheckpointsTest {
     }
 
     private static MultiTaskContext context(String taskName) {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1));
     }
 }

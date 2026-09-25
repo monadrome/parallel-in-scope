@@ -328,16 +328,15 @@ public final class TaskGroup implements AutoCloseable {
             for (TaskGroupDefinition.Slot slot : definition.members()) {
                 Par par = slot.par;
                 memberPars.add(par);
-                MultiTaskContext unit = MultiTaskContext.resolve(
-                        slot.options.spec(slot.name),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.id().value());
+                MultiTaskContext unit =
+                        MultiTaskContext.resolve(MultiTaskContext.resolution(slot.options.spec(slot.name), 1)
+                                .structuralParent(structuralParent)
+                                .cancellationParent(groupToken)
+                                .deadlineCeilingNanos(groupDeadline)
+                                .resolutionTimeNanos(start)
+                                .taskGraphObservationScope(observation)
+                                .executorIdentity(par.executorIdentity())
+                                .executorLabel(par.id().value()));
                 par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
@@ -374,15 +373,14 @@ public final class TaskGroup implements AutoCloseable {
                 // stays disabled on that path too.
                 Par par = combineSlot.par;
                 MultiTaskContext unit = MultiTaskContext.resolve(
-                        combineSlot.options.spec(combineSlot.name),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.id().value());
+                        MultiTaskContext.resolution(combineSlot.options.spec(combineSlot.name), 1)
+                                .structuralParent(structuralParent)
+                                .cancellationParent(groupToken)
+                                .deadlineCeilingNanos(groupDeadline)
+                                .resolutionTimeNanos(start)
+                                .taskGraphObservationScope(observation)
+                                .executorIdentity(par.executorIdentity())
+                                .executorLabel(par.id().value()));
                 par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));

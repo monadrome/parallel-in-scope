@@ -513,14 +513,13 @@ class SlidingWindowSubmitterTest {
      * task type implies it, so a rejection test must ask for inline execution itself.
      */
     private static MultiTaskContext context(int tasks, int parallelism, TaskType type, boolean runOnCallerThread) {
-        return MultiTaskContext.resolve(
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("batch", Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(type)
                         .runOnCallerThread(runOnCallerThread)
                         .spec(),
-                tasks,
-                null);
+                tasks));
     }
 
     private static int runTracked(AtomicInteger active, AtomicInteger maximum, CountDownLatch release, int value)
