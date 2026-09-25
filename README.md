@@ -65,6 +65,16 @@ Two contracts shape that first call:
 `ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
 the executors you registered.
 
+Cross-thread context propagation runs on Alibaba `TransmittableThreadLocal` (TTL): a TTL value is
+captured when the task is prepared and restored on the worker thread — a plain `ThreadLocal` does
+not cross the pool boundary:
+
+```java
+TransmittableThreadLocal<String> traceId = new TransmittableThreadLocal<>();
+traceId.set("req-42");
+// the mapper inside par.map(...) reads "req-42" on the pool thread
+```
+
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
 
@@ -73,7 +83,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Fail-fast cancellation within a task batch
 - Timeout, explicit, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
-- Cross-thread `ThreadLocal` context propagation
+- Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
 - CPU / IO task-aware scheduling
 - Monitoring SPI for execution, queueing, and failures
 - Cycle detection across task and executor graphs

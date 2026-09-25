@@ -62,6 +62,14 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 - **首选无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
 - **带名字的 `checkpoint(taskName, lean)` 仍会校验当前任务名**：名字不匹配（笔误、重构后的旧名字、调用位置在任务外）会抛 `IllegalStateException`，而不是静默跳过安全检查。`lean` 为 `false` 时抛出带完整堆栈的标准 `CancellationException`，适合调试定位取消发生位置。
 
+三种 checkpoint 在**任务作用域之外**的行为不同：
+
+| Checkpoint | 在作用域之外 | 取消时 |
+|---|---|---|
+| `Checkpoints.checkpoint()` | 静默 no-op | 抛 `LeanCancellationException` |
+| `Checkpoints.checkpoint(taskName, lean)` | 抛 `IllegalStateException` | `lean=true` 抛 `LeanCancellationException`；`lean=false` 抛带堆栈的 `CancellationException` |
+| `Checkpoints.rawCheckpoint()` | 可用——不需要作用域，同时响应线程中断标志 | 抛 `LeanCancellationException` |
+
 ### Checkpoints API 一览
 
 | 方法 | 用途 | 典型场景 |
