@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -202,6 +203,8 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
         // Kernel-level: pin the window between the phase claim and the user body with a blocking
@@ -575,7 +578,7 @@ class TaskBatchResultBodyCompletionTest {
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().close();
+                                    Objects.requireNonNull(batchRef.get()).close();
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -624,7 +627,7 @@ class TaskBatchResultBodyCompletionTest {
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().awaitBodyCompletion(Duration.ofMillis(10));
+                                    Objects.requireNonNull(batchRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -645,6 +648,8 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void awaitValidatesArgumentsBeforeCheckingCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();

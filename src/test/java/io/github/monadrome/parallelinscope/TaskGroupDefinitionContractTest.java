@@ -47,6 +47,8 @@ class TaskGroupDefinitionContractTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void defineGroupValidatesNameAndTimeoutAtTheEntryPoint() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -112,6 +114,8 @@ class TaskGroupDefinitionContractTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void submitGroupValidatesItsArguments() {
         ExecutorService executor = Executors.newSingleThreadExecutor();

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
@@ -599,7 +599,7 @@ public final class TaskGroup implements AutoCloseable {
      * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
      * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
      */
-    private TaskOutcome classifyFailure(MemberState member, Throwable failure) {
+    private TaskOutcome classifyFailure(MemberState member, @Nullable Throwable failure) {
         if (failure instanceof SubmissionException) {
             return TaskOutcome.SUBMISSION_FAILURE;
         }
@@ -651,12 +651,14 @@ public final class TaskGroup implements AutoCloseable {
         switch (groupToken.state()) {
             case FAIL_FAST:
                 MemberState failFastFailure = failedTask();
-                return failFastFailure != null ? failFastFailure.reason : TaskOutcome.MEMBER_CANCELED;
+                return failFastFailure != null
+                        ? Objects.requireNonNull(failFastFailure.reason)
+                        : TaskOutcome.MEMBER_CANCELED;
             case SUCCESS:
             case RUNNING:
                 MemberState recordedFailure = failedTask();
                 if (recordedFailure != null) {
-                    return recordedFailure.reason;
+                    return Objects.requireNonNull(recordedFailure.reason);
                 }
                 // memberSuccesses is maintained incrementally in memberCompleted and covers members
                 // only. The barrier that won the completion count publishes every increment to this
@@ -699,7 +701,7 @@ public final class TaskGroup implements AutoCloseable {
                 startTimeNanos,
                 System.nanoTime(),
                 deadlineNanos,
-                outcome,
+                Objects.requireNonNull(outcome, "group outcome is committed before snapshot"),
                 failedName,
                 snapshots,
                 terminal == null ? null : memberSnapshot(terminal));
@@ -709,7 +711,7 @@ public final class TaskGroup implements AutoCloseable {
         return TaskCompletion.memberSnapshot(
                 member.name,
                 member.context.multiTaskContext().unitId(),
-                member.reason,
+                Objects.requireNonNull(member.reason, "member reason is recorded before convergence"),
                 member.failure,
                 member.context.submitTimeNanos(),
                 member.context.startTimeNanos(),
@@ -951,7 +953,10 @@ public final class TaskGroup implements AutoCloseable {
     /** One recorded binding: the handle, this run's body, and which registrar accepted it. */
     private static final class Recorded {
         final TaskGroupDefinition.Member<?> member;
+
+        @Nullable
         Object body;
+
         final int kind;
 
         Recorded(TaskGroupDefinition.Member<?> member, Object body, int kind) {
@@ -984,6 +989,7 @@ public final class TaskGroup implements AutoCloseable {
         }
 
         /** Moves the combine body out: the slot is cleared before the body is returned. */
+        @Nullable
         CombineBody<?> takeCombineBody() {
             CombineBody<?> body = combineBody;
             combineBody = null;
@@ -1074,7 +1080,7 @@ public final class TaskGroup implements AutoCloseable {
          *     invariant violation: the combine runs only after every member succeeded)
          */
         @SuppressWarnings("unchecked")
-        public <T> T value(TaskGroupDefinition.Member<T> member) {
+        public <T> @Nullable T value(TaskGroupDefinition.Member<T> member) {
             Objects.requireNonNull(member, "member cannot be null");
             if (member == combine) {
                 throw new IllegalArgumentException(

@@ -393,8 +393,22 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `Task` 改为包私有，公开契约只有 `TaskFuture` | 原先使用 `Task` 的位置改声明 `TaskFuture`。 |
 | `Par.map` 接收任意 `Collection`，不再只收 `List` | 源码兼容；非 `List` 输入在入口处快照。 |
 | `TaskBatchResult.BatchReport.stateCounts()` 不再 `@Nullable`，`BatchReport` 构造器改为包私有 | 移除对 `stateCounts()` 的判空；report 一律从库获取。 |
+| `TaskGroup.CombineContext.value(member)` 现在标注 `@Nullable` | 成员值本来就可能为 null，注解只是如实表达；除非你自己的空值检查器报错，否则无需改调用点。 |
 | `ParRuntime.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
 | `VariableLinkedBlockingQueue` 不再实现 `Serializable` | 它沿用 JDK `LinkedBlockingQueue` 的形态，但哨兵节点链使得反序列化出来的实例表现为空队列、并在首次使用时抛 `NullPointerException`——该声明只承诺了它做不到的事，`DrainingBlockingQueue` 也从未声明过。队列不是序列化格式：需要时重建队列，或序列化元素后重新灌入。 |
+
+## 空值注解迁移到 JSpecify
+
+`0.2.x` 混合使用 JSR-305（`javax.annotation.Nullable`，公开 API）与 Checker Framework
+（`org.checkerframework.checker.nullness.qual.Nullable`，内部实现），两者均为 `provided`
+scope，且构建期不做任何强制。`0.3.0` 统一为 JSpecify
+（`org.jspecify.annotations.Nullable`，TYPE_USE 语义），包级默认值从
+`@ParametersAreNonnullByDefault` 换成 `@NullMarked`。库自身的构建现在运行 NullAway，
+注解从「仅供参考」变成「编译期强制」。
+
+对源码消费者而言，仅当你反射读取旧注解类型、或从本库签名中 import 它们时才需要改动：
+换成 `org.jspecify.annotations`。`jspecify` 构件现在是 compile scope 依赖（JSpecify 对
+出现在公开签名中的注解的官方建议），会随 Guava 一起传递到你的 classpath。
 
 ## 不变的部分
 

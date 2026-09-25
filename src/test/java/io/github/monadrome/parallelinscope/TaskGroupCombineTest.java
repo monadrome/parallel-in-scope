@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -14,6 +15,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class TaskGroupCombineTest {
@@ -44,9 +46,11 @@ class TaskGroupCombineTest {
                 bindings.combine(page, values -> {
                     combineRuns.incrementAndGet();
                     combineThread.set(Thread.currentThread().getName());
-                    combineTask.set(
-                            TaskExecutionContext.current().multiTaskContext().name());
-                    return values.value(user) + ":" + values.value(orders).get(0);
+                    combineTask.set(Objects.requireNonNull(TaskExecutionContext.current())
+                            .multiTaskContext()
+                            .name());
+                    return values.value(user) + ":"
+                            + Objects.requireNonNull(values.value(orders)).get(0);
                 });
             });
 
@@ -58,8 +62,8 @@ class TaskGroupCombineTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.members().keySet()).containsExactly("user", "orders");
             assertThat(result.terminal()).isNotNull();
-            assertThat(result.terminal().taskName()).isEqualTo("assemble");
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.terminal()).taskName()).isEqualTo("assemble");
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.failedTaskName()).isNull();
         } finally {
             global.close();
@@ -95,8 +99,9 @@ class TaskGroupCombineTest {
             assertThat(group.future(page).isCancelled()).isTrue();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failure");
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
-            assertThat(result.terminal().startTimeNanos()).isZero();
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(Objects.requireNonNull(result.terminal()).startTimeNanos())
+                    .isZero();
             // The skipped combine released its body holder with the terminal future (decision §9).
             assertThat(group.callableReleased(page)).isTrue();
         } finally {
@@ -126,9 +131,10 @@ class TaskGroupCombineTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(result.members().get("user").outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.terminal().failure()).isInstanceOf(java.io.IOException.class);
+            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.terminal()).failure()).isInstanceOf(java.io.IOException.class);
             assertThatThrownBy(() -> group.future(page).get())
                     .isInstanceOf(ExecutionException.class)
                     .cause()
@@ -167,7 +173,7 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -211,7 +217,7 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -328,7 +334,7 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> group.future(page).get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
@@ -370,7 +376,7 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(group.future(page).isCancelled()).isTrue();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -400,8 +406,9 @@ class TaskGroupCombineTest {
                     .get(5, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("user").outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -424,7 +431,7 @@ class TaskGroupCombineTest {
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.members()).isEmpty();
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -484,6 +491,8 @@ class TaskGroupCombineTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void combineDeclarationIsValidatedEarly() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -506,7 +515,8 @@ class TaskGroupCombineTest {
                     .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> builder.combine("second", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalStateException.class);
-            assertThat(builder.build().combineSlot().handle).isSameAs(page);
+            assertThat(Objects.requireNonNull(builder.build().combineSlot()).handle)
+                    .isSameAs(page);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -524,7 +534,7 @@ class TaskGroupCombineTest {
 
             TaskGroupDefinition built = builder.build();
 
-            TaskOptions options = built.combineSlot().options;
+            TaskOptions options = Objects.requireNonNull(built.combineSlot()).options;
             assertThat(options.timeout()).isEmpty();
             assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
             assertThat(options.rejectEnqueue()).isTrue();
@@ -602,8 +612,9 @@ class TaskGroupCombineTest {
                     .get(5, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.members().get("user").outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -637,7 +648,7 @@ class TaskGroupCombineTest {
         }
     }
 
-    private static Throwable catchIllegal(Runnable action) {
+    private static @Nullable Throwable catchIllegal(Runnable action) {
         try {
             action.run();
             return null;

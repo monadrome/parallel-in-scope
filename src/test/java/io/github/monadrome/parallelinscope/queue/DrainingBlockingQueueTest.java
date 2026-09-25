@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,8 @@ class DrainingBlockingQueueTest {
         Thread.interrupted();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void shutdownPolicyFactoriesAndBuilderReturnConfiguredInstances() {
         DrainingBlockingQueue.ShutdownPolicy<String> empty = DrainingBlockingQueue.ShutdownPolicy.empty();
@@ -274,6 +277,9 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
+    // Error Prone: the anonymous target deliberately overrides equals alone to probe lock-free
+    // equality evaluation; hashCode is never consulted by the queue path under test
+    @SuppressWarnings("EqualsHashCode")
     void removeDoesNotHoldTheLockWhileEvaluatingEquals() throws Exception {
         DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(5);
         Object first = new Object();
@@ -432,6 +438,8 @@ class DrainingBlockingQueueTest {
         assertNull(queue.poll());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void constructorValidationCoversCapacityAndPolicyBoundaries() {
         assertThrows(IllegalArgumentException.class, () -> new DrainingBlockingQueue<Integer>(0));
@@ -532,7 +540,7 @@ class DrainingBlockingQueueTest {
         assertEquals(1, queue.poll());
         producer.join(1000);
         assertFalse(producer.isAlive());
-        assertTrue(inserted.get());
+        assertTrue(Objects.requireNonNull(inserted.get()));
         assertEquals(2, queue.poll());
     }
 
@@ -825,6 +833,8 @@ class DrainingBlockingQueueTest {
         assertTrue(queue.drained());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void drainToRejectsInvalidTargetsAndZeroCounts() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>();
@@ -851,7 +861,7 @@ class DrainingBlockingQueueTest {
         assertEquals(1, queue.poll());
         producer.join(2000);
         assertFalse(producer.isAlive());
-        assertTrue(inserted.get());
+        assertTrue(Objects.requireNonNull(inserted.get()));
     }
 
     @Test

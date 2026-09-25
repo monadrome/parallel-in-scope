@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Main facade for parallel execution.
@@ -209,7 +209,7 @@ public final class Par {
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable java.time.Duration closeGrace) {
+            java.time.@Nullable Duration closeGrace) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;
         // skip the edge allocation and remaining() read on the common unobserved path.

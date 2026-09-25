@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable application execution topology containing logical {@link Par} entries.
@@ -56,7 +57,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
-    private final ParId defaultId;
+    private final @Nullable ParId defaultId;
     private final List<TaskListener> taskListeners;
     private final Map<ParId, List<TaskListener>> taskListenerOverrides;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
@@ -608,7 +609,7 @@ public final class ParRuntime implements AutoCloseable {
                 ParRuntimeDeadlockPolicy.builder().build();
         private ParRuntimePurgePolicy purgePolicy =
                 ParRuntimePurgePolicy.builder().build();
-        private ParId defaultId;
+        private @Nullable ParId defaultId;
 
         /**
          * Appends a task listener to the default list shared by every {@link Par} without an

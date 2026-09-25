@@ -15,6 +15,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
@@ -548,7 +549,7 @@ public final class Checkpoints {
         return cancellation;
     }
 
-    private static MultiTaskContext currentContext() {
+    private static @Nullable MultiTaskContext currentContext() {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         return currentTask == null ? null : currentTask.multiTaskContext();
     }

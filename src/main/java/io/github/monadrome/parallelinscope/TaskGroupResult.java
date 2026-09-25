@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Immutable terminal snapshot for a parallel task group. */
 public final class TaskGroupResult {
