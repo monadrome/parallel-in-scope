@@ -36,6 +36,13 @@ Registered executors must honour the `Executor` contract: a task handed to `exec
 
 Registration classifies a supplied executor by reading its own structure, and claims nothing it cannot read. A `ThreadPoolExecutor` whose work queue has a finite capacity and whose `maximumPoolSize` is finite is a bounded pool. One with an unbounded queue — a fixed pool's default `LinkedBlockingQueue` — or an unbounded thread bound — a cached pool's `SynchronousQueue` with `Integer.MAX_VALUE` threads — is unbounded: the first absorbs work without limit, the second holds no ceiling on threads. Anything else, including a pool you decorated before registering, stays unknown.
 
+So register the physical pool, not a decorator. `Executors.newFixedThreadPool(n)` and `Executors.newCachedThreadPool()` return the `ThreadPoolExecutor` itself, keeping queue purge and blocking-risk detection fully working; `Executors.newSingleThreadExecutor()` and Guava's `listeningDecorator(...)`, by contrast, return wrappers the library cannot see through. When you want a single-thread pool, construct the physical pool explicitly:
+
+```java
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+```
+
 Whether a pool's task-graph edges are marked deadlock-prone follows where a submission goes when every worker is busy. `ThreadPoolExecutor` offers to its queue before it grows past `corePoolSize`, so a buffering queue accepts the child, parks it behind the blocked worker, and the pool never gets to add a thread — whatever `maximumPoolSize` says, finite or not. A zero-capacity handoff queue is the opposite: it refuses the offer, which forces a new worker or an explicit rejection, so a cached pool is never marked deadlock-prone. Neither fact is ever inferred from a class name or a runtime statistic; register the physical pool you want observed.
 
 Registration may attach any number of non-blank diagnostic tags to an executor. Tags are stored in an immutable set multimap and are merged by physical executor identity, so aliases of one pool see the same union of tags:
@@ -245,6 +252,10 @@ members, its terminal combine, and the group completion future.
 | `remaining()` | The budget left before that deadline, never negative |
 | `failure()` | The cause behind `USER_FAILURE` / `SUBMISSION_FAILURE`, otherwise `null` |
 
+`outcome()` is live state, not a snapshot tied to `get()`: an element whose deadline expires flips
+from `RUNNING` to `TIMEOUT` within scheduler latency, independently of whether anyone called
+`get()`.
+
 The view is purely additive. `TaskFuture` extends `ListenableFuture`, so `Futures.allAsList`,
 `addCallback`, and every other Guava combinator keep working on it unchanged, and code that never
 checks the interface behaves exactly as before. Check with `instanceof`; the implementation class is
@@ -296,6 +307,10 @@ httpPar.map(accountIds, id -> {
     return id;
 }, options);
 ```
+
+Note the asymmetry: `Checkpoints.checkpoint()` is a silent no-op outside any scoped task, while the
+named `checkpoint(taskName, lean)` throws `IllegalStateException` there; `rawCheckpoint()` works
+without a scope and also honours the thread's interrupt flag.
 
 Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 

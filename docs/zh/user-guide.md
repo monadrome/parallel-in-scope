@@ -28,6 +28,13 @@ id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `pa
 
 注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。
 
+因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，队列 purge 与阻塞风险检测完整可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
+
+```java
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+```
+
 任务图边是否标记为死锁易感，取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
 
 注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
@@ -153,6 +160,9 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 | `remaining()` | 距该 deadline 的剩余预算，永不为负 |
 | `failure()` | `USER_FAILURE` / `SUBMISSION_FAILURE` 背后的 cause，其余情况为 `null` |
 
+`outcome()` 是实时状态，不是与 `get()` 绑定的快照：元素 deadline 到期后会在调度器延迟内从
+`RUNNING` 翻转为 `TIMEOUT`，与是否有人调用过 `get()` 无关。
+
 这是纯增量视图。`TaskFuture` 继承 `ListenableFuture`，`Futures.allAsList`、`addCallback` 等全部 Guava 组合 API 照常工作，不检查该接口的代码行为完全不变。用 `instanceof` 检查；实现类不公开，不要书写类名。
 
 ```java
@@ -186,6 +196,10 @@ httpPar.map(accountIds, id -> {
     return id;
 }, options);
 ```
+
+注意行为不对称：无参 `Checkpoints.checkpoint()` 在任何任务作用域之外是静默 no-op，而带名字的
+`checkpoint(taskName, lean)` 在那里会抛 `IllegalStateException`；`rawCheckpoint()` 不需要作用域，
+同时响应线程中断标志。
 
 任务内部再次调用 `map` 时，子调用继承当前 `MultiTaskContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
 
