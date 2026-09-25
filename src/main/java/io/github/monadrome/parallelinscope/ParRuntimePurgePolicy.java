@@ -44,13 +44,13 @@ public final class ParRuntimePurgePolicy {
         }
 
         public Builder queuePressureThreshold(double threshold) {
-            validate(threshold, "queuePressureThreshold");
+            validateThreshold(threshold, "queuePressureThreshold");
             this.queuePressureThreshold = threshold;
             return this;
         }
 
         public Builder canceledTaskRatioThreshold(double threshold) {
-            validate(threshold, "canceledTaskRatioThreshold");
+            validateThreshold(threshold, "canceledTaskRatioThreshold");
             this.canceledTaskRatioThreshold = threshold;
             return this;
         }
@@ -58,11 +58,11 @@ public final class ParRuntimePurgePolicy {
         public ParRuntimePurgePolicy build() {
             return new ParRuntimePurgePolicy(this);
         }
+    }
 
-        private static void validate(double value, String name) {
-            if (Double.isNaN(value) || value <= 0.0 || value > 1.0) {
-                throw new IllegalArgumentException(name + " must be in (0, 1]");
-            }
+    static void validateThreshold(double value, String name) {
+        if (Double.isNaN(value) || value <= 0.0 || value > 1.0) {
+            throw new IllegalArgumentException(name + " must be in (0, 1]");
         }
     }
 }
