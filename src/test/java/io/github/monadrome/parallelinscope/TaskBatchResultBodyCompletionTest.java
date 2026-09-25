@@ -209,7 +209,8 @@ class TaskBatchResultBodyCompletionTest {
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
         // Kernel-level: pin the window between the phase claim and the user body with a blocking
         // phase observer, then cancel. The body is skipped and the outer finally releases the slot.
-        MultiTaskContext unit = MultiTaskContext.resolve(options("claimed").spec(), 1, null);
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("claimed").spec(), 1));
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         TaskBodyState bodyState = tracker.register(unit);
         TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), bodyState);
