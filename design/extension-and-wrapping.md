@@ -259,7 +259,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 > **落地记录（2026-09-25，提交 `fa5f303`）**：L3 检测已实现。新增
 > `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`，
 > blocking-risk 分类、饥饿判定、`rejectEnqueue` 生效判定、purge 绑定、注册期「看不透」告警
-> 全部改读解包对象；身份仍按注册对象。修复前实测 644/644 全绿，新增 3 条回归测试。
+> 全部改读解包对象；身份仍按注册对象。落地时实测根模块 644/644、demo 54/54 全绿，新增 3 条回归测试。
 >
 > **落地时发现的新缺陷（本文档此前未记载）**：L8 护栏曾被整条绕过。注册期拒绝策略校验用
 > 同一句 `instanceof ThreadPoolExecutor` 判断，而 TTL 包装器不是 `ThreadPoolExecutor`，
