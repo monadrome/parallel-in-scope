@@ -177,6 +177,12 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
 
 ## 8. 待拍板点
 
+> **落地记录（2026-09-25）**：§6.1 分类与 §6.2 警告已实现。P1 按候选 **(b)** 落地：
+> `executorDeadlockProne` 的判定事实改为"线程上界有界"（`ExecutorRuntime.starvationProne()`），
+> `BlockingRisk` 只承担资源分类，两者在同一次注册读取中各自成立，互不代偿。P2 按本文
+> 推荐留空——`VIRTUAL_THREAD_PER_TASK` 仍不产出；P3 按"每 Par 一次 + 附修复指引、
+> 落在提交路径"实现。§6.3（非 TPE 的契约化）维持现状文案，未新增机制。
+
 - **P1（最需要敲实）**：`UNBOUNDED` 池移出 `executorDeadlockProne` 过滤后，固定池
   的嵌套饥饿死锁覆盖缺口由什么承接？候选：(a) 接受缺口 + 文档明示；(b) **死锁易感
   性的判定事实改为"线程上界有界"而非"队列有界"**——fixed pool 线程有界、照样可饿
