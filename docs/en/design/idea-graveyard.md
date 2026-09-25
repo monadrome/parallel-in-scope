@@ -44,6 +44,10 @@ An `invokeAll`-style API for unrelated callable types cannot provide a useful ty
 
 Automatically changing parallelism makes latency and resource behavior difficult to predict. The caller should own the concurrency limit and adjust it using application metrics and an explicit policy.
 
+## A library-defined throwing mapper
+
+`Par.map` takes the standard `java.util.function.Function`, whose `apply` cannot declare checked exceptions, so a task body that does IO must wrap what it throws. A library-defined `ThrowingFunction` — or a `map` overload taking one — was considered and rejected. The kernel already runs every task body as a `Callable` and attributes cancellation, deadlines, and `USER_FAILURE` identically under either signature, so the change buys no structured-concurrency guarantee; it only widens the public surface with a second functional interface and costs a breaking, binary-incompatible signature change plus a migration for `Function`-typed call sites. Wrapping stays caller policy: catch and rethrow unchecked, return an explicit domain result, or move that work to `Par.submit` or a group member, which take a `Callable`. The direction is closed by explicit user decision, not deferred; the analysis is kept in `design/par-map-throwing-function-v0.3-proposal.md`.
+
 ## What will not be added
 
 The project will stay focused on structured batch execution, cooperative cancellation, bounded scheduling, context propagation, and executor deadlock diagnostics. Features outside that boundary should be integrated explicitly rather than hidden in the core API.
