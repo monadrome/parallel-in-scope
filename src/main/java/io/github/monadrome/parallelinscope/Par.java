@@ -279,7 +279,7 @@ public final class Par {
         }
         if (rejectEnqueueWarningIssued.compareAndSet(false, true)) {
             LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
-                    + executorRuntime.suppliedExecutor().getClass().getName()
+                    + executorRuntime.introspectableExecutor().getClass().getName()
                     + " does not use a SmartBlockingQueue, so the option is inert there: what"
                     + " happens to an element that cannot start at once is left to the executor's"
                     + " own queue and rejection policy. Register a ThreadPoolExecutor whose work"
