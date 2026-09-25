@@ -25,12 +25,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK
+      # Build JDK: release builds run the same enforcer as CI, which requires 21+; the
+      # published artifact still targets release 8 bytecode.
+      - name: Set up build JDK
         uses: actions/setup-java@v5
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
           cache: maven
           server-id: central
