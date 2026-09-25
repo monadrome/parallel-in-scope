@@ -180,7 +180,7 @@ class CallableReferenceReleaseTest {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(fixture.future.cancel(true)).isTrue();
-            // Rule 4: a cancelled future whose body is still running must not drop the reference
+            // A cancelled future whose body is still running must not drop the reference
             // early — the body and its captures are still in use.
             assertThat(fixture.future.callableReleased()).isFalse();
             assertThat(fixture.scoped.delegateReleased()).isFalse();

@@ -161,8 +161,9 @@ class TaskGraphExportTest {
 
     @Test
     void realNestedParMapPathIsRecordedAndExported() throws Exception {
-        // Raw ThreadPoolExecutors: ExecutorRuntime.detectRisk only recognizes the concrete class,
-        // so bounded pools are marked deadlock-prone and identities land in the identity graph.
+        // Raw ThreadPoolExecutors: ExecutorRuntime.detectStarvationProne recognizes the concrete
+        // class and a work queue that can hold a submission, so this edge is deadlock-prone and
+        // both executor identities land in the identity graph.
         ExecutorService outerExecutor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         ExecutorService innerExecutor =
@@ -219,12 +220,13 @@ class TaskGraphExportTest {
 
     /**
      * Documents a known blind spot: {@code Executors.newSingleThreadExecutor()} returns a
-     * DelegatedExecutorService wrapper, which ExecutorRuntime.detectRisk classifies as UNKNOWN.
-     * UNKNOWN edges are never marked deadlock-prone, so the exact same nested-map shape as
+     * DelegatedExecutorService wrapper, which {@code ExecutorRuntime.detectStarvationProne} does not
+     * recognize — the wrapper is not a {@code ThreadPoolExecutor}. The edge is therefore never
+     * deadlock-prone, so the exact same nested-map shape as
      * {@link #realNestedParMapPathIsRecordedAndExported()} produces an EMPTY identity graph.
      */
     @Test
-    void wrappedExecutorsFallIntoUnknownRiskAndAreInvisibleToExecutorGraphs() throws Exception {
+    void wrappedExecutorsAreInvisibleToExecutorGraphs() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         ParRuntime global = ParRuntime.builder()
@@ -288,7 +290,8 @@ class TaskGraphExportTest {
             // Fork edge is recorded regardless of executor implementation.
             assertThat(data.graph().nodes()).hasSize(2);
             assertThat(data.graph().edges()).hasSize(1);
-            // But the executor-level views stay empty: UNKNOWN risk is never deadlock-prone.
+            // But the executor-level views stay empty: the direct service is not a pool, so the
+            // edge is never deadlock-prone.
             assertThat(data.executorGraph().edges()).isEmpty();
             assertThat(identityGraphOf(data).nodes()).isEmpty();
             assertThat(data.executorCycle()).isFalse();

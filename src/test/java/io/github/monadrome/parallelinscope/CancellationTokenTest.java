@@ -309,8 +309,8 @@ public class CancellationTokenTest {
         SettableFuture<String> f2 = SettableFuture.create();
         List<ListenableFuture<String>> futures = Arrays.asList(f1, f2);
 
-        // Priority 7: a failed future must transition the shared token into fail-fast cancellation.
-        // This is the low-level state change that lets higher-level map calls stop sibling tasks.
+        // A failed future must transition the shared token into fail-fast cancellation. This is
+        // the low-level state change that lets higher-level map calls stop sibling tasks.
         token.bind(futures, Futures.immediateVoidFuture(), TIMER);
 
         f1.setException(new RuntimeException("boom"));
@@ -784,9 +784,8 @@ public class CancellationTokenTest {
 
         SettableFuture<String> f1 = SettableFuture.create();
 
-        // Priority 9: nested scopes inherit cancellation from their parent.
-        // Parent cancellation should mark the child as propagating cancellation even if its own
-        // future has not completed yet.
+        // Nested scopes inherit cancellation from their parent. Parent cancellation should mark
+        // the child as propagating cancellation even if its own future has not completed yet.
         child.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
         parent.cancel(true);
