@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class ScopedCallableContextRestoreTest {
                 }));
 
         assertThat(callable.call()).isEqualTo("value");
-        TaskCompletion<?> event = captured.get();
+        TaskCompletion<?> event = Objects.requireNonNull(captured.get());
         assertThat(event).isNotNull();
         assertThat(event.unitId()).isEqualTo(context.unitId());
         assertThat(event.taskIndex()).isEqualTo(0);
@@ -53,16 +54,21 @@ class ScopedCallableContextRestoreTest {
                 }));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
-        assertThat(captured.get().failure()).isSameAs(failure);
+        assertThat(Objects.requireNonNull(captured.get()).failure()).isSameAs(failure);
         assertThat(captured.get().successful()).isFalse();
         assertThat(captured.get().result()).isNull();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void nestedCallRestoresOuterCurrentTask() throws Exception {
         MultiTaskContext outer = context("same-name");
-        MultiTaskContext inner = MultiTaskContext.resolve(
-                BatchOptions.timeout("same-name", Duration.ofSeconds(30)).spec(), 1, outer);
+        MultiTaskContext inner = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("same-name", Duration.ofSeconds(30))
+                                .spec(),
+                        1)
+                .structuralParent(outer));
         TaskExecutionContext outerTask = task(outer, 0);
         ScopedCallable<String> outerCallable = new ScopedCallable<>(
                 outerTask,
@@ -89,8 +95,8 @@ class ScopedCallableContextRestoreTest {
     }
 
     private static MultiTaskContext context(String name) {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1));
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {

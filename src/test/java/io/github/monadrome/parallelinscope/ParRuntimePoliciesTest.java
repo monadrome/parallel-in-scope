@@ -3,16 +3,25 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.alibaba.ttl.threadpool.TtlExecutors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /** Builder validation matrix for {@link ParRuntime} policies and its task-listener overrides. */
 class ParRuntimePoliciesTest {
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void parTaskListenerRejectsBlankNamesAndNullListenersAndAppendsPerPar() {
         ParRuntime.Builder builder = ParRuntime.builder();
@@ -58,7 +67,8 @@ class ParRuntimePoliciesTest {
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor())
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate Par id");
+                .hasMessageContaining("duplicate Par id")
+                .hasMessageContaining("'same'");
         assertThatThrownBy(() ->
                         ParRuntime.builder().defaultPar(ParId.of("absent")).build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -101,6 +111,40 @@ class ParRuntimePoliciesTest {
         assertThat(custom.enabled()).isTrue();
         assertThat(custom.queuePressureThreshold()).isEqualTo(0.5d);
         assertThat(custom.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+    }
+
+    @Test
+    void purgeThresholdsAndEnablementAreAdjustableAtRuntime() {
+        ParRuntime runtime = ParRuntime.builder()
+                .purgePolicy(ParRuntimePurgePolicy.builder().enabled(true).build())
+                .build();
+        try {
+            assertThat(runtime.purgeEnabled()).isTrue();
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.80d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.05d);
+
+            runtime.adjustPurgeThresholds(0.5d, 0.25d);
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+
+            // The build-time policy is a snapshot; runtime adjustment does not rewrite it.
+            assertThat(runtime.purgePolicy().queuePressureThreshold()).isEqualTo(0.80d);
+
+            // Validation happens before either threshold changes.
+            assertThatThrownBy(() -> runtime.adjustPurgeThresholds(0.0d, 0.25d))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> runtime.adjustPurgeThresholds(0.5d, Double.NaN))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThat(runtime.queuePressureThreshold()).isEqualTo(0.5d);
+            assertThat(runtime.canceledTaskRatioThreshold()).isEqualTo(0.25d);
+
+            runtime.setPurgeEnabled(false);
+            assertThat(runtime.purgeEnabled()).isFalse();
+            runtime.setPurgeEnabled(true);
+            assertThat(runtime.purgeEnabled()).isTrue();
+        } finally {
+            runtime.close();
+        }
     }
 
     @Test
@@ -184,6 +228,67 @@ class ParRuntimePoliciesTest {
             runtime.close();
         } finally {
             pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aTtlWrappedDiscardingPoolIsStillRefusedInsteadOfSlidingPastTheGuard() {
+        // The guard reads the structure of the object it can see, and a TTL wrapper is not a
+        // ThreadPoolExecutor. Before the wrapper was looked through, registering this pool skipped
+        // the guard entirely and the silent-drop configuration the guard exists to refuse built
+        // successfully, surfacing only as a late timeout with no task body ever entered.
+        ThreadPoolExecutor physical = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new ThreadPoolExecutor.DiscardPolicy());
+        ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
+        try {
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("orders"), wrapped)
+                            .build())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("orders")
+                    .hasMessageContaining("DiscardPolicy");
+        } finally {
+            physical.shutdownNow();
+        }
+    }
+
+    @Test
+    void aTtlWrappedPoolIsAdvisedAboutTheDoubleCaptureRatherThanCalledOpaque() {
+        // The wrapper is looked through, so the generic "cannot see through" diagnostic would be
+        // false here. What stays true is the second TTL capture the executor boundary adds on top
+        // of the one prepare already performs -- that is the caller's executor, not ours to unwrap.
+        ThreadPoolExecutor physical =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
+        Logger runtimeLogger = Logger.getLogger(ParRuntime.class.getName());
+        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        runtimeLogger.addHandler(capture);
+        try {
+            ParRuntime runtime =
+                    ParRuntime.builder().register(ParId.of("orders"), wrapped).build();
+            runtime.close();
+
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getMessage())
+                    .contains("orders")
+                    .contains("TTL wrapper")
+                    .contains("twice")
+                    .doesNotContain("cannot see through");
+        } finally {
+            runtimeLogger.removeHandler(capture);
+            physical.shutdownNow();
         }
     }
 

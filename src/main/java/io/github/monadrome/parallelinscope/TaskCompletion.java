@@ -2,7 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable record of one completed task — a {@code Par.map} batch element or a task-group

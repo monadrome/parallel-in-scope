@@ -7,6 +7,7 @@ import com.alibaba.ttl.TransmittableThreadLocal;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,6 +68,50 @@ class ParRuntimeTest {
             assertThat(global.par(ParId.of("one")).runtime()).isSameAs(global);
             assertThat(global.par(ParId.of("one")).runtime())
                     .isSameAs(global.par(ParId.of("same")).runtime());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void aggregatesExecutorTagsByPhysicalIdentityAndExposesImmutableIndexes() {
+        ExecutorService shared = Executors.newFixedThreadPool(1);
+        ExecutorService separate = Executors.newFixedThreadPool(1);
+        ParId first = ParId.of("first");
+        ParId alias = ParId.of("alias");
+        ParId other = ParId.of("other");
+        try {
+            ParRuntime global = ParRuntime.builder()
+                    .register(first, shared, "io", "remote", "io")
+                    .register(alias, shared, "critical")
+                    .register(other, separate, "io")
+                    .build();
+
+            assertThat(global.executorTags(first)).containsExactlyInAnyOrder("io", "remote", "critical");
+            assertThat(global.executorTags(alias)).containsExactlyInAnyOrder("io", "remote", "critical");
+            assertThat(global.executorTags(shared)).containsExactlyInAnyOrder("io", "remote", "critical");
+            assertThat(global.executorTags(separate)).containsExactly("io");
+            assertThat(global.executorTags().containsEntry(first, "io")).isTrue();
+            assertThat(global.executorTags().containsEntry(alias, "critical")).isTrue();
+            assertThat(global.executorTags().containsEntry(other, "io")).isTrue();
+            assertThat(global.parsWithExecutorTag("io")).containsExactly(first, alias, other);
+            assertThat(global.parsWithExecutorTag("critical")).containsExactly(first, alias);
+        } finally {
+            shared.shutdownNow();
+            separate.shutdownNow();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void rejectsNullAndBlankExecutorTags() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("null"), executor, (String) null))
+                    .isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("blank"), executor, "  "))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("blank");
         } finally {
             executor.shutdownNow();
         }
@@ -182,7 +227,7 @@ class ParRuntimeTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(TaskGraphObservationScope.data()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.graph().edges()).isNotEmpty();
+            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).isNotEmpty();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -223,7 +268,7 @@ class ParRuntimeTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.graph().edges()).hasSize(2);
+            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).hasSize(2);
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -293,6 +338,8 @@ class ParRuntimeTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
         ExecutorService executor = Executors.newSingleThreadExecutor();

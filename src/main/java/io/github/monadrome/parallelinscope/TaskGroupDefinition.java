@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable, reusable, structure-only description of one heterogeneous task group.
@@ -239,7 +239,7 @@ public final class TaskGroupDefinition {
             Objects.requireNonNull(par, "par cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
             if (combine != null) {
-                throw new IllegalStateException("A group accepts at most one combine");
+                throw new IllegalStateException("a group accepts at most one combine");
             }
             Member<R> handle = add(combineName, par, options, Kind.COMBINE);
             combine = slots.get(slots.size() - 1);
@@ -269,7 +269,7 @@ public final class TaskGroupDefinition {
                         "Par '" + par.id() + "' does not belong to the ParRuntime that created this builder");
             }
             if (!seenNames.add(memberName)) {
-                throw new IllegalArgumentException("Duplicate name '" + memberName + "'");
+                throw new IllegalArgumentException("duplicate name '" + memberName + "'");
             }
             int memberIndex = kind == Kind.MEMBER ? memberCount++ : -1;
             Slot slot = new Slot(memberName, par, options, kind, memberIndex);
@@ -281,7 +281,7 @@ public final class TaskGroupDefinition {
 
         private void checkMutable() {
             if (built != null) {
-                throw new IllegalStateException("Builder is sealed: the definition has been built");
+                throw new IllegalStateException("builder is sealed: the definition has been built");
             }
         }
     }

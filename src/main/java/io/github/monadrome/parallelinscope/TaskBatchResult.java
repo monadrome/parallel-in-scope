@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable result wrapper for a batch of parallel tasks.
@@ -101,7 +103,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LeanCancellationException cancellation =
-                    new LeanCancellationException("Interrupted while awaiting batch values");
+                    new LeanCancellationException("interrupted while awaiting batch values");
             cancellation.initCause(e);
             throw cancellation;
         }
@@ -154,9 +156,11 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * returns.
      *
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
-     * is skipped with the interrupt flag preserved. A normal return does not by itself make
-     * resources used by task bodies safe to release; confirm body exit with {@link
-     * #awaitBodyCompletion(Duration)} first.
+     * is skipped with the interrupt flag preserved. Cancellation runs before the wait and settles
+     * every bound element future synchronously, so once this method returns, every future in
+     * {@link #results()} is terminal — even when a body is still unwinding. A normal return does
+     * not by itself make resources used by task bodies safe to release; confirm body exit with
+     * {@link #awaitBodyCompletion(Duration)} first.
      *
      * @throws IllegalStateException if called from within a task body of this batch, including a
      *     nested inline call on the same thread
@@ -196,32 +200,67 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     }
 
     /**
-     * Waits until every task body of this batch has exited, or the budget elapses.
+     * Waits until every task body of this batch has exited and every element future has settled,
+     * or the budget elapses.
      *
      * <p>Body exit means the user function returned or threw and its {@code finally} completed;
-     * listener callbacks are not covered. A {@code true} result also covers tasks that will never
-     * be entered (cancelled, rejected, or abandoned before execution) and establishes a
-     * happens-before edge from every task body's writes to this thread; once {@code true}, the
-     * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
-     * while at least one body had not exited, which may include tasks that have not started yet.
+     * listener callbacks are not covered. A body publishes its exit before its future settles, so
+     * body exit alone does not imply a terminal future; this method waits out that window as well.
+     * A {@code true} result therefore implies every future in {@link #results()} is terminal —
+     * {@link #report()} and {@link #reportString()} called after it read a terminal snapshot — and
+     * also covers tasks that will never be entered (cancelled, rejected, or abandoned before
+     * execution). It establishes a happens-before edge from every task body's writes to this
+     * thread; once {@code true}, the result cannot be invalidated by a task starting late. {@code
+     * false} means the budget elapsed while at least one body had not exited or one future had not
+     * settled, which may include tasks that have not started yet.
      *
      * <p>This method never cancels tasks and does not require prior cancellation: cancel through
      * {@link #submitCanceller()} or the element futures first when shutdown is intended, then wait
      * here. A zero timeout performs a single check.
      *
      * @param timeout the cleanup wait budget; independent of the batch's execution deadline
-     * @return {@code true} if all task bodies exited within the budget
+     * @return {@code true} if all task bodies exited and all element futures settled within the
+     *     budget
      * @throws NullPointerException if {@code timeout} is null
      * @throws IllegalArgumentException if {@code timeout} is negative
      * @throws IllegalStateException if called from within a task body of this batch
      * @throws InterruptedException if the calling thread is interrupted before or during the wait
      */
     public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
-        return bodyCompletion.awaitBodyCompletion(timeout);
+        long budgetNanos = saturatedNanos(Objects.requireNonNull(timeout, "timeout cannot be null"));
+        if (timeout.isNegative()) {
+            throw new IllegalArgumentException("timeout must not be negative: " + timeout);
+        }
+        long startNanos = System.nanoTime();
+        if (!bodyCompletion.awaitBodyCompletion(timeout)) {
+            return false;
+        }
+        for (TaskFuture<T> future : results) {
+            if (future.isDone()) {
+                continue;
+            }
+            long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                return false;
+            }
+            try {
+                future.get(remainingNanos, TimeUnit.NANOSECONDS);
+            } catch (ExecutionException | CancellationException settled) {
+                // A terminal future is all this wait needs; the outcome is report()'s business.
+            } catch (TimeoutException elapsed) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * Generates execution report: counts tasks by outcome and extracts first failure exception.
+     *
+     * <p>Counts reflect the futures' states at call time: an element whose body has exited but
+     * whose future has not settled yet still reads {@code RUNNING}. For a terminal snapshot, call
+     * this after {@link #awaitBodyCompletion(Duration)} returned {@code true} or after {@link
+     * #close()} returned — both guarantee every element future is terminal.
      *
      * <p>Each element is classified by {@link TaskFuture#outcome()} from its own token, which is
      * the batch's single token: {@code TIMEOUT} for deadline expiry, {@code FAIL_FAST} for the
@@ -266,7 +305,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     /** Immutable report of batch task execution state. */
     public static final class BatchReport {
         private final Map<TaskOutcome, Integer> stateCounts;
-        private final Throwable firstException;
+        private final @Nullable Throwable firstException;
 
         /**
          * Creates a batch report.
@@ -293,8 +332,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
          *
          * @return the first failure, or {@code null} if no task failed
          */
-        @Nullable
-        public Throwable firstException() {
+        public @Nullable Throwable firstException() {
             return firstException;
         }
 

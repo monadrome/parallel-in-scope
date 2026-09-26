@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Central task wrapper with full lifecycle instrumentation.
@@ -69,7 +69,8 @@ final class ScopedCallable<V> implements Callable<V> {
             // ==================== doCall ====================
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
-            result = delegate.call();
+            // the delegate is released only after call() returns (releaseDelegate in finally)
+            result = Objects.requireNonNull(delegate).call();
             return result;
         } catch (Throwable t) {
             taskException = t;
@@ -117,7 +118,7 @@ final class ScopedCallable<V> implements Callable<V> {
         return delegate == null;
     }
 
-    private void notifyListeners(V result, Throwable exception) {
+    private void notifyListeners(@Nullable V result, @Nullable Throwable exception) {
         List<TaskListener> listeners = taskListeners;
         if (listeners.isEmpty()) {
             return;

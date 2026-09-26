@@ -11,7 +11,7 @@
 ```java
 ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
-        .register(ParId.of("database"), databaseExecutor)
+        .register(ParId.of("database"), databaseExecutor, "blocking", "database")
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
         .build();
@@ -25,6 +25,27 @@ Par databasePar = global.par(ParId.of("database"));
 id 在构建期注册；`build()` 后 `ParRuntime` 不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
+
+注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。
+
+因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，队列 purge 与阻塞风险检测完整可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
+
+```java
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+```
+
+任务图边是否标记为死锁易感，取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
+
+注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
+
+```java
+ImmutableSetMultimap<ParId, String> tags = global.executorTags();
+ImmutableSet<String> databaseTags = global.executorTags(ParId.of("database"));
+ImmutableSet<ParId> blocking = global.parsWithExecutorTag("blocking");
+```
+
+标签只用于元数据，不改变调度、取消、队列处理或 executor 图身份。`build()` 后快照只读；未知 id 或 executor 返回空集合。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
@@ -55,11 +76,21 @@ List<TaskFuture<Account>> futures = result.results();
 
 `parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制。timeout 必须在两个互斥的静态工厂里显式二选一：`BatchOptions.timeout(name, Duration)` 设置正数超时，`BatchOptions.inheritTimeout(name)` 继承外层作用域的 deadline——没有第三个状态，遗漏声明根本无法构造选项对象。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。
 
-`runOnCallerThread` 决定绑定的执行器拒绝元素时的处置，默认 `false`：元素以 `SUBMISSION_FAILURE` 失败，用户代码不会进入。设为 `true` 会借用提交线程、任务体在提交线程上执行——可用作背压，但代价是你的代码运行在一个调用方未必预期的线程上。`rejectEnqueue` 是另一个维度的决策：它只在绑定的执行器队列是 `SmartBlockingQueue` 时决定是否拒绝入队，其他队列上该选项不生效。`TaskType` 不影响这两者：它只决定 `SmartBlockingQueue` 是否拒绝入队，且默认类型 `CPU_BOUND` 在 `rejectEnqueue(false)` 时仍会被拒绝入队。没有任何任务类型隐含 caller-thread 回退。
+`runOnCallerThread` 决定绑定的执行器拒绝元素时的处置，默认 `false`：元素以 `SUBMISSION_FAILURE` 失败，用户代码不会进入。设为 `true` 会借用提交线程、任务体在提交线程上执行——可用作背压，但代价是你的代码运行在一个调用方未必预期的线程上。`rejectEnqueue` 是另一个维度的决策：它只在绑定的执行器队列是 `SmartBlockingQueue` 时决定是否拒绝入队，其他队列上该选项不生效。不生效不等于无声：某个 `Par` 的执行器无法兑现该选项时，通过它的第一次提交会打出一条 `WARNING`，指明是哪个 `Par`、以及修复动作——注册一个工作队列为 `SmartBlockingQueue` 的 `ThreadPoolExecutor`。它每个 `Par` 只报一次、而非每个任务一次，因为选项是逐次提交选择的、而执行器在注册时就已绑定。该警告不会让提交失败，也不改变任何实际执行。`TaskType` 不影响这两个决策：它只决定 `SmartBlockingQueue` 是否拒绝入队，且默认类型 `CPU_BOUND` 在 `rejectEnqueue(false)` 时仍会被拒绝入队。没有任何任务类型隐含 caller-thread 回退。
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
-future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——预算耗尽时返回 `false`。它自身不取消任何任务。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
+future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——并且每个元素 future 都已落定，预算耗尽时返回 `false`。它自身不取消任何任务。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
+
+`true` 结果还蕴含每个元素 future 均已终态，这使它成为终态报告的标准配方：`result.report()` 与 `result.reportString()` 按调用时刻的 future 状态计数，任务体刚退出而 future 尚未落定的元素仍会计为 `RUNNING`。在 `awaitBodyCompletion` 返回 `true` 之后——或在 `close()` 返回之后（`close()` 先取消再等待，取消会把每个元素 future 同步落定）——报告即为终态：
+
+```java
+try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccount, options)) {
+    if (batch.awaitBodyCompletion(Duration.ofSeconds(5))) {
+        System.out.println(batch.reportString());  // 终态：不再有 RUNNING 项
+    }
+}
+```
 
 `TaskBatchResult` 实现了 `AutoCloseable`：`result.close()` 经批次 token 取消所有未完成元素，然后在批次的 close grace 内等待任务体退出。close grace 是清理预算，用 `BatchOptions.closeGrace(Duration)` 配置；未配置时派生自关闭时批次的剩余执行 deadline——超时引发的关闭在预算耗尽后直接返回，忽略中断的任务体最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待。grace 耗尽而任务体仍在运行时，未退出任务的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor；正常返回不证明任务体已经退出——先用 `awaitBodyCompletion(Duration)` 确认。
 
@@ -139,6 +170,9 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 | `remaining()` | 距该 deadline 的剩余预算，永不为负 |
 | `failure()` | `USER_FAILURE` / `SUBMISSION_FAILURE` 背后的 cause，其余情况为 `null` |
 
+`outcome()` 是实时状态，不是与 `get()` 绑定的快照：元素 deadline 到期后会在调度器延迟内从
+`RUNNING` 翻转为 `TIMEOUT`，与是否有人调用过 `get()` 无关。
+
 这是纯增量视图。`TaskFuture` 继承 `ListenableFuture`，`Futures.allAsList`、`addCallback` 等全部 Guava 组合 API 照常工作，不检查该接口的代码行为完全不变。用 `instanceof` 检查；实现类不公开，不要书写类名。
 
 ```java
@@ -172,6 +206,10 @@ httpPar.map(accountIds, id -> {
     return id;
 }, options);
 ```
+
+注意行为不对称：无参 `Checkpoints.checkpoint()` 在任何任务作用域之外是静默 no-op，而带名字的
+`checkpoint(taskName, lean)` 在那里会抛 `IllegalStateException`；`rawCheckpoint()` 不需要作用域，
+同时响应线程中断标志。
 
 任务内部再次调用 `map` 时，子调用继承当前 `MultiTaskContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
 

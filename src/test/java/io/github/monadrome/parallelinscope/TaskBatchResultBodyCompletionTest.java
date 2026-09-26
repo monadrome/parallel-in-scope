@@ -2,11 +2,13 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -202,11 +204,14 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
         // Kernel-level: pin the window between the phase claim and the user body with a blocking
         // phase observer, then cancel. The body is skipped and the outer finally releases the slot.
-        MultiTaskContext unit = MultiTaskContext.resolve(options("claimed").spec(), 1, null);
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("claimed").spec(), 1));
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         TaskBodyState bodyState = tracker.register(unit);
         TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), bodyState);
@@ -575,7 +580,7 @@ class TaskBatchResultBodyCompletionTest {
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().close();
+                                    Objects.requireNonNull(batchRef.get()).close();
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -624,7 +629,7 @@ class TaskBatchResultBodyCompletionTest {
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().awaitBodyCompletion(Duration.ofMillis(10));
+                                    Objects.requireNonNull(batchRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -645,6 +650,8 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void awaitValidatesArgumentsBeforeCheckingCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -683,6 +690,74 @@ class TaskBatchResultBodyCompletionTest {
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(writes).containsExactly(1, 2);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitBodyCompletionWaitsForFutureSettlementBeyondBodyExit() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch releaseListener = new CountDownLatch(1);
+        // The listener runs between the body-exit publish and the future settlement, so blocking
+        // it holds the element's future non-terminal after its body has already exited — the
+        // window where report() used to read RUNNING after a successful wait.
+        ParRuntime global = ParRuntime.builder()
+                .taskListener(event -> {
+                    listenerEntered.countDown();
+                    try {
+                        releaseListener.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                })
+                .register(ParId.of("worker"), executor)
+                .build();
+        try {
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
+                    .map(Collections.singletonList(1), value -> value, options("settlement-window"));
+            assertThat(listenerEntered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            // The body has exited but the listener holds the future short of settlement: the
+            // conjunction must not report completion yet.
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            releaseListener.countDown();
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
+        } finally {
+            releaseListener.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void reportIsTerminalAfterSuccessfulAwaitInFailFastBatches() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            // The issue #45 probe: a failing element makes fail-fast cancel its sibling; the
+            // failing element's own future settles a moment after its body exit is published.
+            for (int i = 0; i < 50; i++) {
+                TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
+                        .map(
+                                Arrays.asList(1, 2),
+                                value -> {
+                                    if (value == 1) {
+                                        throw new IllegalStateException("boom");
+                                    }
+                                    sleepInterruptibly(10_000);
+                                    return value;
+                                },
+                                options("fail-fast-report").parallelism(1).taskType(TaskType.IO_BOUND));
+                assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(5))).isTrue();
+                assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.RUNNING);
+                batch.close();
+            }
         } finally {
             global.close();
             executor.shutdownNow();

@@ -173,6 +173,8 @@ public class CancellationTriggerCartesianTest {
         }
 
         /** Creates pending or entered work with deterministic entry and release controls. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static WorkFixture create(Workload workload) {
             if (workload == Workload.PENDING) {
                 return new WorkFixture(

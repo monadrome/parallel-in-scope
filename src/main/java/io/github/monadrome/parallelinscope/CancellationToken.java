@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Cooperative cancellation token carrying a deadline for parallel work.
@@ -168,7 +168,7 @@ public final class CancellationToken {
         failFastFuture.addCallback(
                 new FutureCallback<Object>() {
                     @Override
-                    public void onSuccess(Object result) {
+                    public void onSuccess(@Nullable Object result) {
                         transitionTo(SUCCESS);
                     }
 
@@ -243,7 +243,8 @@ public final class CancellationToken {
      * @return the current state
      */
     public State state() {
-        return state.get();
+        // state only ever transitions between non-null enum constants
+        return Objects.requireNonNull(state.get());
     }
 
     /**

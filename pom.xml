@@ -52,8 +52,9 @@
         <mockito.version>5.23.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <jsr305.version>3.0.2</jsr305.version>
-        <checker-qual.version>3.55.1</checker-qual.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <errorprone.version>2.50.0</errorprone.version>
+        <nullaway.version>0.14.2</nullaway.version>
     </properties>
 
     <dependencies>
@@ -71,18 +72,13 @@
             <version>${ttl.version}</version>
         </dependency>
 
-        <!-- Nullability annotations (compile-only, transitively provided by Guava) -->
+        <!-- Nullability annotations: JSpecify (compile scope per JSpecify guidance —
+             annotations appear in public API signatures and downstream NullAway/Kotlin/
+             IntelliJ must read them; also transitively provided by Guava) -->
         <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-            <version>${jsr305.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.checkerframework</groupId>
-            <artifactId>checker-qual</artifactId>
-            <version>${checker-qual.version}</version>
-            <scope>provided</scope>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>${jspecify.version}</version>
         </dependency>
 
         <!-- Test: JUnit 5 -->
@@ -127,7 +123,50 @@
                 <configuration>
                     <release>${java.release}</release>
                     <testRelease>${maven.compiler.testRelease}</testRelease>
+                    <!-- Error Prone + NullAway: null errors fail the build at compile time.
+                         OnlyNullMarked restricts checking to @NullMarked packages.
+                         javac internal packages are opened via .mvn/jvm.config. -->
+                    <compilerArgs>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${errorprone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>enforce-jdk-21-plus</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- Error Prone requires JDK 21+ to run; the bytecode target
+                                     stays at release 8. Use JDK 25 (LTS) to build. -->
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                    <message>Error Prone/NullAway requires building on JDK 21+ (use JDK 25 LTS); the artifact still targets Java 8 bytecode via release=${java.release}.</message>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

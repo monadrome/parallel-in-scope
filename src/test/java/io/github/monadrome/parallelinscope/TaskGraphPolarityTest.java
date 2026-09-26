@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class TaskGraphPolarityTest {
             assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
             assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data).isNotNull();
             assertThat(data.executorCycle()).isFalse();
             assertThat(data.executorSelfLoop()).isFalse();
@@ -67,7 +68,7 @@ class TaskGraphPolarityTest {
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair(null, null, "child", null, plainEdge());
 
-            TaskGraphData data = TaskGraphObservationScope.data();
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data).isNotNull();
             assertThat(data.displayNode("root")).isEqualTo("NA[root]");
             assertThat(data.displayNode("child")).isEqualTo("NA[child]");
@@ -116,7 +117,8 @@ class TaskGraphPolarityTest {
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
         }
 
-        io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent event = captured.get();
+        io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent event =
+                Objects.requireNonNull(captured.get());
         assertThat(event).isNotNull();
         assertThat(event.hasTaskCycle()).isTrue();
         assertThat(event.hasSelfLoop()).isFalse();
@@ -160,7 +162,7 @@ class TaskGraphPolarityTest {
                 TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", forward);
                 TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", back);
 
-                TaskGraphData data = TaskGraphObservationScope.data();
+                TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
                 assertThat(data).isNotNull();
                 assertThat(data.executorCycle()).isTrue(); // Real pool-to-pool cycle.
                 assertThat(data.executorSelfLoop()).isFalse(); // But no single-pool loop.

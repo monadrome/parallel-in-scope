@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -220,7 +221,8 @@ class TaskFutureTest {
 
             // The member snapshot records the reason before the group cancels itself for the other
             // members, so it keeps the initiating member distinct from the fall-out.
-            assertThat(snapshot.members().get("slow").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(Objects.requireNonNull(snapshot.members().get("slow")).outcome())
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
             // The group-level outcome is the post-hoc view: the group token was canceled to protect
             // the remaining members, so the group reads GROUP_CANCELED.
             assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
@@ -334,7 +336,7 @@ class TaskFutureTest {
                     .map(
                             Collections.singletonList("x"),
                             ignored -> {
-                                outerToken.set(TaskExecutionContext.current()
+                                outerToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken());
                                 TaskGroupDefinition.Builder inner = global.defineGroup("inner", SCOPE_TIMEOUT);
@@ -351,13 +353,15 @@ class TaskFutureTest {
                             BatchOptions.timeout("outer", SCOPE_TIMEOUT));
 
             assertThat(memberStarted.await(2, TimeUnit.SECONDS)).isTrue();
-            outerToken.get().cancel(true);
+            Objects.requireNonNull(outerToken.get()).cancel(true);
 
             await().atMost(2, TimeUnit.SECONDS)
-                    .until(() -> innerGroup.get().completionFuture().isDone());
+                    .until(() -> Objects.requireNonNull(innerGroup.get())
+                            .completionFuture()
+                            .isDone());
             // The member token only learned about the cancellation by propagation, so the reported
             // cause is the originating state at the root of the chain, not the propagation link.
-            assertThat(innerMember.get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(Objects.requireNonNull(innerMember.get()).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             block.countDown();
             global.close();

@@ -15,7 +15,7 @@ Create `ParRuntime` at the composition root. Register every logical entry with t
 ```java
 ParRuntime global = ParRuntime.builder()
         .taskListener(metricsListener)
-        .register(ParId.of("database"), databaseExecutor)
+        .register(ParId.of("database"), databaseExecutor, "blocking", "database")
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
         .build();
@@ -33,6 +33,27 @@ one executor. `Par.id()` returns the entry's id.
 Ids are registered at build time. `ParRuntime` is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
+
+Registration classifies a supplied executor by reading its own structure, and claims nothing it cannot read. A `ThreadPoolExecutor` whose work queue has a finite capacity and whose `maximumPoolSize` is finite is a bounded pool. One with an unbounded queue — a fixed pool's default `LinkedBlockingQueue` — or an unbounded thread bound — a cached pool's `SynchronousQueue` with `Integer.MAX_VALUE` threads — is unbounded: the first absorbs work without limit, the second holds no ceiling on threads. Anything else, including a pool you decorated before registering, stays unknown.
+
+So register the physical pool, not a decorator. `Executors.newFixedThreadPool(n)` and `Executors.newCachedThreadPool()` return the `ThreadPoolExecutor` itself, keeping queue purge and blocking-risk detection fully working; `Executors.newSingleThreadExecutor()` and Guava's `listeningDecorator(...)`, by contrast, return wrappers the library cannot see through. When you want a single-thread pool, construct the physical pool explicitly:
+
+```java
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+```
+
+Whether a pool's task-graph edges are marked deadlock-prone follows where a submission goes when every worker is busy. `ThreadPoolExecutor` offers to its queue before it grows past `corePoolSize`, so a buffering queue accepts the child, parks it behind the blocked worker, and the pool never gets to add a thread — whatever `maximumPoolSize` says, finite or not. A zero-capacity handoff queue is the opposite: it refuses the offer, which forces a new worker or an explicit rejection, so a cached pool is never marked deadlock-prone. Neither fact is ever inferred from a class name or a runtime statistic; register the physical pool you want observed.
+
+Registration may attach any number of non-blank diagnostic tags to an executor. Tags are stored in an immutable set multimap and are merged by physical executor identity, so aliases of one pool see the same union of tags:
+
+```java
+ImmutableSetMultimap<ParId, String> tags = global.executorTags();
+ImmutableSet<String> databaseTags = global.executorTags(ParId.of("database"));
+ImmutableSet<ParId> blocking = global.parsWithExecutorTag("blocking");
+```
+
+Tags are metadata only. They do not change scheduling, cancellation, queue handling, or executor graph identity. The snapshot is read-only after `build()`; an unknown id or executor returns an empty set.
 
 For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
@@ -63,11 +84,21 @@ List<TaskFuture<Account>> futures = result.results();
 
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point.
 
-`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. `TaskType` does not affect either: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
+`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. An inert option is not left silent: the first submission through a `Par` whose executor cannot honour it logs one `WARNING` naming that `Par` and the fix — register a `ThreadPoolExecutor` whose work queue is a `SmartBlockingQueue` — and it is reported once per `Par`, never once per task, because the option is chosen per submission while the executor is bound at registration. The warning never fails the submission and never changes what runs. `TaskType` does not affect either decision: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
-A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and returns `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and every element future has settled, returning `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+
+A `true` result also implies every element future is terminal, which makes it the supported recipe for terminal reporting: `result.report()` and `result.reportString()` count each element by its future's state at call time, so an element whose body has just exited but whose future has not settled yet still reads `RUNNING`. After `awaitBodyCompletion` returned `true` — or after `close()` returned, which cancels before it waits and therefore settles every element future — the report is terminal:
+
+```java
+try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccount, options)) {
+    if (batch.awaitBodyCompletion(Duration.ofSeconds(5))) {
+        System.out.println(batch.reportString());  // terminal: no RUNNING entries
+    }
+}
+```
 
 `TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after cancelling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
 
@@ -231,6 +262,10 @@ members, its terminal combine, and the group completion future.
 | `remaining()` | The budget left before that deadline, never negative |
 | `failure()` | The cause behind `USER_FAILURE` / `SUBMISSION_FAILURE`, otherwise `null` |
 
+`outcome()` is live state, not a snapshot tied to `get()`: an element whose deadline expires flips
+from `RUNNING` to `TIMEOUT` within scheduler latency, independently of whether anyone called
+`get()`.
+
 The view is purely additive. `TaskFuture` extends `ListenableFuture`, so `Futures.allAsList`,
 `addCallback`, and every other Guava combinator keep working on it unchanged, and code that never
 checks the interface behaves exactly as before. Check with `instanceof`; the implementation class is
@@ -282,6 +317,10 @@ httpPar.map(accountIds, id -> {
     return id;
 }, options);
 ```
+
+Note the asymmetry: `Checkpoints.checkpoint()` is a silent no-op outside any scoped task, while the
+named `checkpoint(taskName, lean)` throws `IllegalStateException` there; `rawCheckpoint()` works
+without a scope and also honours the thread's interrupt flag.
 
 Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 

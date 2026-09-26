@@ -1,7 +1,12 @@
 package io.github.monadrome.parallelinscope;
 
+import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
@@ -35,6 +40,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable application execution topology containing logical {@link Par} entries.
@@ -56,11 +62,17 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
-    private final ParId defaultId;
+    private final ImmutableSetMultimap<ExecutorIdentity, String> executorTagsByIdentity;
+    private final ImmutableSetMultimap<ParId, String> executorTagsByPar;
+    private final ImmutableSetMultimap<String, ParId> parsByExecutorTag;
+    private final @Nullable ParId defaultId;
     private final List<TaskListener> taskListeners;
     private final Map<ParId, List<TaskListener>> taskListenerOverrides;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
     private final ParRuntimePurgePolicy purgePolicy;
+    private final AtomicBoolean purgeEnabled;
+    private final AtomicDouble purgeQueuePressureThreshold;
+    private final AtomicDouble purgeCanceledTaskRatioThreshold;
     private final HeuristicPurger purger;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
@@ -81,10 +93,10 @@ public final class ParRuntime implements AutoCloseable {
         this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
-        this.purger = new HeuristicPurger(
-                new AtomicBoolean(purgePolicy.enabled()),
-                new AtomicDouble(purgePolicy.queuePressureThreshold()),
-                new AtomicDouble(purgePolicy.canceledTaskRatioThreshold()));
+        this.purgeEnabled = new AtomicBoolean(purgePolicy.enabled());
+        this.purgeQueuePressureThreshold = new AtomicDouble(purgePolicy.queuePressureThreshold());
+        this.purgeCanceledTaskRatioThreshold = new AtomicDouble(purgePolicy.canceledTaskRatioThreshold());
+        this.purger = new HeuristicPurger(purgeEnabled, purgeQueuePressureThreshold, purgeCanceledTaskRatioThreshold);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -96,11 +108,20 @@ public final class ParRuntime implements AutoCloseable {
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
+        ImmutableSetMultimap.Builder<ExecutorIdentity, String> tagsByIdentityBuilder = ImmutableSetMultimap.builder();
+        Map<ParId, ExecutorIdentity> identitiesByPar = new LinkedHashMap<>();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
+            identitiesByPar.put(entry.getKey(), identity);
+            tagsByIdentityBuilder.putAll(identity, builder.executorTags.get(entry.getKey()));
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
-                if (!(entry.getValue() instanceof ThreadPoolExecutor)) {
+                // A TTL wrapper hides the physical pool, so every structural fact below is read
+                // through it. Without this the wrapper is indistinguishable from a foreign
+                // executor: purge and blocking-risk detection silently downgrade, and the
+                // discarding-policy guard below never runs at all.
+                ExecutorService introspectable = TtlUnwrap.unwrap(entry.getValue());
+                if (!(introspectable instanceof ThreadPoolExecutor)) {
                     // Detection that silently downgrades is worse than a diagnostic: a decorated
                     // or foreign executor hides the physical pool from purge and deadlock-risk
                     // classification, so say so once at the composition root.
@@ -114,16 +135,26 @@ public final class ParRuntime implements AutoCloseable {
                     // and without throwing, so the framework would keep waiting on a future that
                     // can never complete. Refuse to register such a pool at all.
                     RejectedExecutionHandler policy =
-                            ((ThreadPoolExecutor) entry.getValue()).getRejectedExecutionHandler();
+                            ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
                     if (policy instanceof ThreadPoolExecutor.DiscardPolicy
                             || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
                         throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
-                                + entry.getValue().getClass().getName() + " using "
+                                + introspectable.getClass().getName() + " using "
                                 + policy.getClass().getName()
                                 + ", which discards rejected tasks silently: submission of an"
                                 + " overflowing task would never complete and the batch would hang. Register a"
                                 + " pool with AbortPolicy or CallerRunsPolicy instead.");
                     }
+                }
+                if (TtlUnwrap.isWrapper(entry.getValue())) {
+                    // The facts above survive because they are read through the wrapper. What a
+                    // wrapper still costs is a second TTL capture: the executor boundary adds one
+                    // on top of the one prepare already performs. That boundary is the caller's
+                    // executor, so it is named rather than unwrapped.
+                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with the TTL wrapper "
+                            + entry.getValue().getClass().getName()
+                            + "; register the physical pool instead. TTL capture then happens twice"
+                            + " for every task: once at the executor boundary and once at prepare.");
                 }
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
@@ -134,6 +165,18 @@ public final class ParRuntime implements AutoCloseable {
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
+        this.executorTagsByIdentity = tagsByIdentityBuilder.build();
+        ImmutableSetMultimap.Builder<ParId, String> tagsByParBuilder = ImmutableSetMultimap.builder();
+        ImmutableSetMultimap.Builder<String, ParId> parsByTagBuilder = ImmutableSetMultimap.builder();
+        for (Map.Entry<ParId, ExecutorIdentity> entry : identitiesByPar.entrySet()) {
+            ImmutableSet<String> tags = this.executorTagsByIdentity.get(entry.getValue());
+            tagsByParBuilder.putAll(entry.getKey(), tags);
+            for (String tag : tags) {
+                parsByTagBuilder.put(tag, entry.getKey());
+            }
+        }
+        this.executorTagsByPar = tagsByParBuilder.build();
+        this.parsByExecutorTag = parsByTagBuilder.build();
         this.pars = ImmutableMap.copyOf(builtPars);
     }
 
@@ -177,7 +220,7 @@ public final class ParRuntime implements AutoCloseable {
      */
     public Par par(ParId id) {
         Par value = pars.get(Objects.requireNonNull(id, "id cannot be null"));
-        if (value == null) throw new IllegalArgumentException("No Par registered with id '" + id + "'");
+        if (value == null) throw new IllegalArgumentException("no Par registered with id '" + id + "'");
         return value;
     }
 
@@ -208,13 +251,86 @@ public final class ParRuntime implements AutoCloseable {
         return deadlockPolicy;
     }
 
+    /**
+     * Returns the build-time purge policy. Runtime adjustments made through {@link
+     * #adjustPurgeThresholds(double, double)} and {@link #setPurgeEnabled(boolean)} are not
+     * reflected here; read the live values from {@link #queuePressureThreshold()}, {@link
+     * #canceledTaskRatioThreshold()}, and {@link #purgeEnabled()}.
+     */
     public ParRuntimePurgePolicy purgePolicy() {
         return purgePolicy;
+    }
+
+    /** Whether automatic purge is currently enabled, honoring {@link #setPurgeEnabled(boolean)}. */
+    public boolean purgeEnabled() {
+        return purgeEnabled.get();
+    }
+
+    /** The live queue-pressure threshold, honoring runtime adjustment. */
+    public double queuePressureThreshold() {
+        return purgeQueuePressureThreshold.get();
+    }
+
+    /** The live canceled-task-ratio threshold, honoring runtime adjustment. */
+    public double canceledTaskRatioThreshold() {
+        return purgeCanceledTaskRatioThreshold.get();
+    }
+
+    /**
+     * Adjusts both advisory purge thresholds for subsequent purge evaluations. Each value is held
+     * atomically and validated exactly as the builder validates it; invalid values are rejected
+     * before either threshold changes.
+     *
+     * @throws IllegalArgumentException if either threshold is not in {@code (0, 1]}
+     */
+    public void adjustPurgeThresholds(double queuePressureThreshold, double canceledTaskRatioThreshold) {
+        ParRuntimePurgePolicy.validateThreshold(queuePressureThreshold, "queuePressureThreshold");
+        ParRuntimePurgePolicy.validateThreshold(canceledTaskRatioThreshold, "canceledTaskRatioThreshold");
+        purgeQueuePressureThreshold.set(queuePressureThreshold);
+        purgeCanceledTaskRatioThreshold.set(canceledTaskRatioThreshold);
+    }
+
+    /**
+     * Enables or disables automatic purge at runtime. Disabling settles nothing: pending
+     * cancellation estimates stay advisory and are dropped only by generation expiry; re-enabling
+     * resumes evaluation from whatever estimates are still live.
+     */
+    public void setPurgeEnabled(boolean enabled) {
+        purgeEnabled.set(enabled);
     }
 
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
     public Map<ParId, Par> pars() {
         return pars;
+    }
+
+    /**
+     * Returns the immutable executor-tag snapshot keyed by logical {@link ParId}.
+     *
+     * <p>Tags are attached to the physical executor identity at registration time. If several ids
+     * share one executor, each id exposes the union of tags registered for those aliases. The
+     * returned multimap is a set multimap: registering a tag more than once has no effect.
+     */
+    public ImmutableSetMultimap<ParId, String> executorTags() {
+        return executorTagsByPar;
+    }
+
+    /** Returns the tags of the executor bound to {@code id}, or an empty set for an unknown id. */
+    public ImmutableSet<String> executorTags(ParId id) {
+        return executorTagsByPar.get(Objects.requireNonNull(id, "id cannot be null"));
+    }
+
+    /**
+     * Returns the tags of the exact supplied executor object, or an empty set when it was not
+     * registered with this runtime.
+     */
+    public ImmutableSet<String> executorTags(ExecutorService executor) {
+        return executorTagsByIdentity.get(new ExecutorIdentity(Objects.requireNonNull(executor)));
+    }
+
+    /** Returns the ids whose physical executors carry {@code tag}. */
+    public ImmutableSet<ParId> parsWithExecutorTag(String tag) {
+        return parsByExecutorTag.get(validateExecutorTag(tag));
     }
 
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
@@ -225,6 +341,11 @@ public final class ParRuntime implements AutoCloseable {
     /** Package-private identity index; runtime binding is not a public application API. */
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
+    }
+
+    /** Package-private identity-keyed view used by diagnostics without exposing the identity type. */
+    ImmutableSetMultimap<ExecutorIdentity, String> executorTagsByIdentity() {
+        return executorTagsByIdentity;
     }
 
     HeuristicPurger purger() {
@@ -351,7 +472,7 @@ public final class ParRuntime implements AutoCloseable {
 
     private static String requireValidGroupName(String name) {
         Objects.requireNonNull(name, "groupName cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("Group name cannot be blank");
+        if (name.trim().isEmpty()) throw new IllegalArgumentException("group name cannot be blank");
         return name;
     }
 
@@ -562,7 +683,7 @@ public final class ParRuntime implements AutoCloseable {
 
         @Override
         public void execute(Runnable command) {
-            if (scheduler.isShutdown()) throw new RejectedExecutionException("Timer scheduler is shut down");
+            if (scheduler.isShutdown()) throw new RejectedExecutionException("timer scheduler is shut down");
             actions.execute(command);
         }
 
@@ -593,8 +714,9 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     private void bindPurgeObserver(ExecutorRuntime runtime) {
-        if (!(runtime.suppliedExecutor() instanceof ThreadPoolExecutor)) return;
-        Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) runtime.suppliedExecutor());
+        ExecutorService introspectable = runtime.introspectableExecutor();
+        if (!(introspectable instanceof ThreadPoolExecutor)) return;
+        Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) introspectable);
         runtime.setPhaseObserver(phase -> {
             if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) observer.run();
         });
@@ -602,13 +724,14 @@ public final class ParRuntime implements AutoCloseable {
 
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
+        private final SetMultimap<ParId, String> executorTags = LinkedHashMultimap.create();
         private final List<TaskListener> taskListeners = new ArrayList<>();
         private final Map<ParId, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
         private ParRuntimePurgePolicy purgePolicy =
                 ParRuntimePurgePolicy.builder().build();
-        private ParId defaultId;
+        private @Nullable ParId defaultId;
 
         /**
          * Appends a task listener to the default list shared by every {@link Par} without an
@@ -650,9 +773,24 @@ public final class ParRuntime implements AutoCloseable {
          * two ids may intentionally use the same physical pool.
          */
         public Builder register(ParId id, ExecutorService executor) {
+            return register(id, executor, new String[0]);
+        }
+
+        /**
+         * Registers a logical entry and attaches diagnostic tags to its physical executor.
+         *
+         * <p>Tags are immutable strings validated for non-blank content. They are deduplicated and
+         * unioned when another {@code ParId} registers the same executor object.
+         */
+        public Builder register(ParId id, ExecutorService executor, String... tags) {
             Objects.requireNonNull(id, "id cannot be null");
-            if (executors.containsKey(id)) throw new IllegalArgumentException("Duplicate Par id '" + id + "'");
-            executors.put(id, Objects.requireNonNull(executor));
+            if (executors.containsKey(id)) throw new IllegalArgumentException("duplicate Par id '" + id + "'");
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(tags, "tags cannot be null");
+            for (String tag : tags) {
+                executorTags.put(id, validateExecutorTag(tag));
+            }
+            executors.put(id, executor);
             return this;
         }
 
@@ -674,5 +812,11 @@ public final class ParRuntime implements AutoCloseable {
             }
             return new ParRuntime(this);
         }
+    }
+
+    private static String validateExecutorTag(String tag) {
+        Objects.requireNonNull(tag, "executor tag cannot be null");
+        if (tag.trim().isEmpty()) throw new IllegalArgumentException("executor tag cannot be blank");
+        return tag;
     }
 }

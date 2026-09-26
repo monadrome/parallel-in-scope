@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
@@ -148,7 +148,7 @@ public final class TaskGroup implements AutoCloseable {
         Objects.requireNonNull(member, "member cannot be null");
         MemberState state = handles.get(member);
         if (state == null) {
-            throw new IllegalArgumentException("No member named '" + member.name() + "'");
+            throw new IllegalArgumentException("no member named '" + member.name() + "'");
         }
         return (TaskFuture<T>) state.view;
     }
@@ -165,7 +165,7 @@ public final class TaskGroup implements AutoCloseable {
         Objects.requireNonNull(member, "member cannot be null");
         MemberState state = handles.get(member);
         if (state == null) {
-            throw new IllegalArgumentException("No member named '" + member.name() + "'");
+            throw new IllegalArgumentException("no member named '" + member.name() + "'");
         }
         return state.future.callableReleased();
     }
@@ -328,16 +328,16 @@ public final class TaskGroup implements AutoCloseable {
             for (TaskGroupDefinition.Slot slot : definition.members()) {
                 Par par = slot.par;
                 memberPars.add(par);
-                MultiTaskContext unit = MultiTaskContext.resolve(
-                        slot.options.spec(slot.name),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.id().value());
+                MultiTaskContext unit =
+                        MultiTaskContext.resolve(MultiTaskContext.resolution(slot.options.spec(slot.name), 1)
+                                .structuralParent(structuralParent)
+                                .cancellationParent(groupToken)
+                                .deadlineCeilingNanos(groupDeadline)
+                                .resolutionTimeNanos(start)
+                                .taskGraphObservationScope(observation)
+                                .executorIdentity(par.executorIdentity())
+                                .executorLabel(par.id().value()));
+                par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 // The payload moves into the prepared future here; the RunBindings slot is cleared
@@ -354,7 +354,7 @@ public final class TaskGroup implements AutoCloseable {
                 if (observation != null) {
                     logForking(
                             state.context.multiTaskContext(),
-                            memberPars.get(index).executorRuntime().blockingRisk());
+                            memberPars.get(index).executorRuntime().starvationProne());
                 }
                 index++;
             }
@@ -373,15 +373,15 @@ public final class TaskGroup implements AutoCloseable {
                 // stays disabled on that path too.
                 Par par = combineSlot.par;
                 MultiTaskContext unit = MultiTaskContext.resolve(
-                        combineSlot.options.spec(combineSlot.name),
-                        1,
-                        structuralParent,
-                        groupToken,
-                        groupDeadline,
-                        start,
-                        observation,
-                        par.executorIdentity(),
-                        par.id().value());
+                        MultiTaskContext.resolution(combineSlot.options.spec(combineSlot.name), 1)
+                                .structuralParent(structuralParent)
+                                .cancellationParent(groupToken)
+                                .deadlineCeilingNanos(groupDeadline)
+                                .resolutionTimeNanos(start)
+                                .taskGraphObservationScope(observation)
+                                .executorIdentity(par.executorIdentity())
+                                .executorLabel(par.id().value()));
+                par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineContext values = new CombineContext(combineSlot.handle, handles);
@@ -391,7 +391,7 @@ public final class TaskGroup implements AutoCloseable {
                 terminal = new MemberState(combineSlot.name, taskContext, future, par.submissionExecutor(), false);
                 handles.put(combineSlot.handle, terminal);
                 if (observation != null) {
-                    logForking(unit, par.executorRuntime().blockingRisk());
+                    logForking(unit, par.executorRuntime().starvationProne());
                 }
             }
         } catch (Throwable failure) {
@@ -599,7 +599,7 @@ public final class TaskGroup implements AutoCloseable {
      * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
      * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
      */
-    private TaskOutcome classifyFailure(MemberState member, Throwable failure) {
+    private TaskOutcome classifyFailure(MemberState member, @Nullable Throwable failure) {
         if (failure instanceof SubmissionException) {
             return TaskOutcome.SUBMISSION_FAILURE;
         }
@@ -651,12 +651,14 @@ public final class TaskGroup implements AutoCloseable {
         switch (groupToken.state()) {
             case FAIL_FAST:
                 MemberState failFastFailure = failedTask();
-                return failFastFailure != null ? failFastFailure.reason : TaskOutcome.MEMBER_CANCELED;
+                return failFastFailure != null
+                        ? Objects.requireNonNull(failFastFailure.reason)
+                        : TaskOutcome.MEMBER_CANCELED;
             case SUCCESS:
             case RUNNING:
                 MemberState recordedFailure = failedTask();
                 if (recordedFailure != null) {
-                    return recordedFailure.reason;
+                    return Objects.requireNonNull(recordedFailure.reason);
                 }
                 // memberSuccesses is maintained incrementally in memberCompleted and covers members
                 // only. The barrier that won the completion count publishes every increment to this
@@ -699,7 +701,7 @@ public final class TaskGroup implements AutoCloseable {
                 startTimeNanos,
                 System.nanoTime(),
                 deadlineNanos,
-                outcome,
+                Objects.requireNonNull(outcome, "group outcome is committed before snapshot"),
                 failedName,
                 snapshots,
                 terminal == null ? null : memberSnapshot(terminal));
@@ -709,14 +711,14 @@ public final class TaskGroup implements AutoCloseable {
         return TaskCompletion.memberSnapshot(
                 member.name,
                 member.context.multiTaskContext().unitId(),
-                member.reason,
+                Objects.requireNonNull(member.reason, "member reason is recorded before convergence"),
                 member.failure,
                 member.context.submitTimeNanos(),
                 member.context.startTimeNanos(),
                 member.context.endTimeNanos());
     }
 
-    private static void logForking(MultiTaskContext context, BlockingRisk blockingRisk) {
+    private static void logForking(MultiTaskContext context, boolean starvationProne) {
         MultiTaskContext parent = context.structuralParent();
         if (parent == null) return;
         TaskEdge edge = new TaskEdge(
@@ -728,7 +730,7 @@ public final class TaskGroup implements AutoCloseable {
                 parent.executorLabel(),
                 1,
                 context.remaining(),
-                blockingRisk == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                starvationProne);
         TaskGraphObservationScope.logTaskPair(parent.unitId(), parent.name(), context.unitId(), context.name(), edge);
     }
 
@@ -852,10 +854,10 @@ public final class TaskGroup implements AutoCloseable {
 
         private void checkUsable() {
             if (Thread.currentThread() != ownerThread) {
-                throw new IllegalStateException("Bindings may only be used on the thread that created them");
+                throw new IllegalStateException("bindings may only be used on the thread that created them");
             }
             if (state != State.OPEN) {
-                throw new IllegalStateException("Bindings are only usable during the binder callback");
+                throw new IllegalStateException("bindings are only usable during the binder callback");
             }
         }
 
@@ -874,7 +876,7 @@ public final class TaskGroup implements AutoCloseable {
                 for (Recorded entry : recorded) {
                     TaskGroupDefinition.Slot slot = slots.get(entry.member);
                     if (slot == null) {
-                        throw new IllegalArgumentException("Member handle '" + entry.member.name()
+                        throw new IllegalArgumentException("member handle '" + entry.member.name()
                                 + "' does not belong to definition '" + definition.name() + "'");
                     }
                     // Kind mismatch is a binding error on this entry; a duplicate binds an
@@ -883,16 +885,16 @@ public final class TaskGroup implements AutoCloseable {
                     if (entry.kind == KIND_TASK) {
                         if (slot.kind != TaskGroupDefinition.Kind.MEMBER) {
                             throw new IllegalArgumentException(
-                                    "Member '" + slot.name + "' is a combine; bind it with combine()");
+                                    "member '" + slot.name + "' is a combine; bind it with combine()");
                         }
                     } else {
                         if (slot.kind != TaskGroupDefinition.Kind.COMBINE) {
                             throw new IllegalArgumentException(
-                                    "Member '" + slot.name + "' is not a combine; bind it with task()");
+                                    "member '" + slot.name + "' is not a combine; bind it with task()");
                         }
                     }
                     if (!seen.add(entry.member)) {
-                        throw new IllegalStateException("Member '" + slot.name + "' was bound more than once");
+                        throw new IllegalStateException("member '" + slot.name + "' was bound more than once");
                     }
                     if (entry.kind == KIND_TASK) {
                         taskBodies[slot.memberIndex] = (Callable<?>) entry.body;
@@ -902,12 +904,12 @@ public final class TaskGroup implements AutoCloseable {
                 }
                 for (TaskGroupDefinition.Slot slot : plain) {
                     if (taskBodies[slot.memberIndex] == null) {
-                        throw new IllegalArgumentException("No Callable bound for member '" + slot.name + "'");
+                        throw new IllegalArgumentException("no Callable bound for member '" + slot.name + "'");
                     }
                 }
                 TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
                 if (combineSlot != null && combineBody == null) {
-                    throw new IllegalArgumentException("No CombineBody bound for combine '" + combineSlot.name + "'");
+                    throw new IllegalArgumentException("no CombineBody bound for combine '" + combineSlot.name + "'");
                 }
                 state = State.DRAINED;
                 clearRecorded();
@@ -951,7 +953,10 @@ public final class TaskGroup implements AutoCloseable {
     /** One recorded binding: the handle, this run's body, and which registrar accepted it. */
     private static final class Recorded {
         final TaskGroupDefinition.Member<?> member;
+
+        @Nullable
         Object body;
+
         final int kind;
 
         Recorded(TaskGroupDefinition.Member<?> member, Object body, int kind) {
@@ -984,6 +989,7 @@ public final class TaskGroup implements AutoCloseable {
         }
 
         /** Moves the combine body out: the slot is cleared before the body is returned. */
+        @Nullable
         CombineBody<?> takeCombineBody() {
             CombineBody<?> body = combineBody;
             combineBody = null;
@@ -1074,7 +1080,7 @@ public final class TaskGroup implements AutoCloseable {
          *     invariant violation: the combine runs only after every member succeeded)
          */
         @SuppressWarnings("unchecked")
-        public <T> T value(TaskGroupDefinition.Member<T> member) {
+        public <T> @Nullable T value(TaskGroupDefinition.Member<T> member) {
             Objects.requireNonNull(member, "member cannot be null");
             if (member == combine) {
                 throw new IllegalArgumentException(
@@ -1082,7 +1088,7 @@ public final class TaskGroup implements AutoCloseable {
             }
             MemberState state = members.get(member);
             if (state == null) {
-                throw new IllegalArgumentException("No member named '" + member.name() + "'");
+                throw new IllegalArgumentException("no member named '" + member.name() + "'");
             }
             try {
                 return (T) Futures.getDone(state.future);

@@ -4,13 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /** Contract tests for {@link Par#submit(String, java.util.concurrent.Callable, TaskOptions)}. */
@@ -29,8 +38,8 @@ class ParSubmitTest {
                     .submit(
                             "single",
                             () -> {
-                                MultiTaskContext unit =
-                                        TaskExecutionContext.current().multiTaskContext();
+                                MultiTaskContext unit = Objects.requireNonNull(TaskExecutionContext.current())
+                                        .multiTaskContext();
                                 assertThat(unit.name()).isEqualTo("single");
                                 return "done";
                             },
@@ -39,7 +48,8 @@ class ParSubmitTest {
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(listenerCompletion.get().taskName()).isEqualTo("single");
+            assertThat(Objects.requireNonNull(listenerCompletion.get()).taskName())
+                    .isEqualTo("single");
         } finally {
             global.close();
             executor.shutdownNow();
@@ -177,6 +187,72 @@ class ParSubmitTest {
                     .isInstanceOf(IllegalStateException.class);
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void inertRejectEnqueueIsReportedOncePerParAndNeverForAQueueThatHonoursIt() throws Exception {
+        ExecutorService plain = Executors.newFixedThreadPool(2);
+        ThreadPoolExecutor smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(4));
+        ParRuntime global = ParRuntime.builder()
+                // Two Par names on one physical pool: the diagnostic is per Par, not per executor.
+                .register(ParId.of("plain"), plain)
+                .register(ParId.of("plain-two"), plain)
+                .register(ParId.of("smart"), smart)
+                .build();
+        Logger parLogger = Logger.getLogger(Par.class.getName());
+        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        parLogger.addHandler(capture);
+        try {
+            Par par = global.par(ParId.of("plain"));
+            // The option is off for this call, so there is nothing to report yet.
+            par.submit(
+                            "silent",
+                            () -> "a",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(false))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).isEmpty();
+
+            // A fixed pool's default queue never reads the flag: say so once, not once per task.
+            par.submit("loud", () -> "b", TaskOptions.timeout(Duration.ofSeconds(30)))
+                    .get(2, TimeUnit.SECONDS);
+            par.submit("loud-again", () -> "c", TaskOptions.timeout(Duration.ofSeconds(30)))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
+            assertThat(records.get(0).getMessage()).contains("plain", "inert");
+
+            global.par(ParId.of("plain-two"))
+                    .submit("loud-other", () -> "d", TaskOptions.timeout(Duration.ofSeconds(30)))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(2);
+
+            // A SmartBlockingQueue reads the flag, so the caller is not warned about an inert one.
+            // runOnCallerThread keeps the run deterministic: this queue rejects the queued task.
+            global.par(ParId.of("smart"))
+                    .submit(
+                            "quiet",
+                            () -> "e",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).runOnCallerThread(true))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(2);
+        } finally {
+            parLogger.removeHandler(capture);
+            global.close();
+            plain.shutdownNow();
+            smart.shutdownNow();
         }
     }
 }

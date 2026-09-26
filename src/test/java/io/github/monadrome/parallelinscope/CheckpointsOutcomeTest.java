@@ -112,6 +112,8 @@ class CheckpointsOutcomeTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void checkSupplierRejectsBadArgumentsBeforeRunningTheSupplier() {
         Semaphore untouched = new Semaphore(1);
@@ -150,7 +152,7 @@ class CheckpointsOutcomeTest {
                         },
                         IllegalStateException.class))
                 .isInstanceOf(AssertionError.class)
-                .hasMessageContaining("checked Throwable")
+                .hasMessageContaining("checked throwable")
                 .hasCauseInstanceOf(Exception.class);
     }
 

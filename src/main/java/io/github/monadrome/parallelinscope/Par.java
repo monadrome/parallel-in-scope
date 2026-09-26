@@ -12,8 +12,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Main facade for parallel execution.
@@ -37,12 +39,17 @@ import javax.annotation.Nullable;
  */
 public final class Par {
 
+    private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
+
     /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
     private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
+
+    /** One-shot latch for the inert-{@code rejectEnqueue} diagnostic; see {@link #warnIfRejectEnqueueInert}. */
+    private final AtomicBoolean rejectEnqueueWarningIssued = new AtomicBoolean();
 
     private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
@@ -94,7 +101,8 @@ public final class Par {
      * IllegalStateException} before submitting any task.
      *
      * @param elements input elements, or {@code null} for an empty batch
-     * @param function synchronous mapping function, run at most once for each submitted element
+     * @param function synchronous mapping function, run at most once for each submitted element; it
+     *     may return {@code null}, which completes the element as {@code SUCCESS} with a null value
      * @param options immutable per-batch request; it cannot select an executor
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call
@@ -142,8 +150,12 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(taskName), 1, parent, observation, executorRuntime.identity(), id.value());
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
+                .structuralParent(parent)
+                .taskGraphObservationScope(observation)
+                .executorIdentity(executorRuntime.identity())
+                .executorLabel(id.value()));
+        warnIfRejectEnqueueInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -155,7 +167,7 @@ public final class Par {
                     parent == null ? "NA" : parent.executorLabel(),
                     1,
                     unit.remaining(),
-                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.starvationProne());
             logForking(unit, edge);
         }
         TaskExecutionContext taskContext =
@@ -195,8 +207,12 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == runtime
                         ? currentObservation
                         : null;
-        MultiTaskContext unit = MultiTaskContext.resolve(
-                options.spec(), taskCount, parent, observation, executorRuntime.identity(), id.value());
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
+                .structuralParent(parent)
+                .taskGraphObservationScope(observation)
+                .executorIdentity(executorRuntime.identity())
+                .executorLabel(id.value()));
+        warnIfRejectEnqueueInert(unit);
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),
@@ -209,7 +225,7 @@ public final class Par {
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable java.time.Duration closeGrace) {
+            java.time.@Nullable Duration closeGrace) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;
         // skip the edge allocation and remaining() read on the common unobserved path.
@@ -227,7 +243,7 @@ public final class Par {
                             : unit.structuralParent().executorLabel(),
                     list.size(),
                     unit.remaining(),
-                    executorRuntime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+                    executorRuntime.starvationProne());
             logForking(unit, edge);
         }
         Ticker ticker = Ticker.systemTicker();
@@ -247,6 +263,35 @@ public final class Par {
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         return result;
+    }
+
+    /**
+     * Reports once per Par that a requested enqueue rejection cannot take effect here.
+     *
+     * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
+     * nothing tells the caller that the protection they selected — on by default, for {@link
+     * TaskOptions#timeout(java.time.Duration)} — is not running. The diagnostic belongs on the
+     * submission path rather than at registration because options are per task and per batch:
+     * registration cannot know whether the default will ever be used. It stays a warning: throwing
+     * would fail every caller that legitimately runs on a plain pool.
+     *
+     * <p>The message claims only what the library knows. It cannot say what the executor will do
+     * with an element that cannot start immediately — an inline executor runs it, a bounded queue
+     * with an abort policy rejects it, a buffering queue holds it — so it reports the inert option
+     * and the fix, not the executor's behavior.
+     */
+    void warnIfRejectEnqueueInert(MultiTaskContext unit) {
+        if (!unit.rejectEnqueue() || executorRuntime.rejectEnqueueEffective()) {
+            return;
+        }
+        if (rejectEnqueueWarningIssued.compareAndSet(false, true)) {
+            LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
+                    + executorRuntime.introspectableExecutor().getClass().getName()
+                    + " does not use a SmartBlockingQueue, so the option is inert there: what"
+                    + " happens to an element that cannot start at once is left to the executor's"
+                    + " own queue and rejection policy. Register a ThreadPoolExecutor whose work"
+                    + " queue is a SmartBlockingQueue to make the option effective.");
+        }
     }
 
     /**
