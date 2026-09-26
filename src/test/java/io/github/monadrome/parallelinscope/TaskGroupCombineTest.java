@@ -558,7 +558,7 @@ class TaskGroupCombineTest {
             // order; a collision would leave the combine's future unreachable through its handle.
             assertThatThrownBy(() -> builder.task("assemble", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Duplicate name 'assemble'");
+                    .hasMessageContaining("duplicate name 'assemble'");
             assertThat(builder.build().members()).isEmpty();
         } finally {
             global.close();
@@ -579,7 +579,7 @@ class TaskGroupCombineTest {
             // the member's name either, and the failed declaration leaves no combine behind.
             assertThatThrownBy(() -> builder.combine("assemble", global.par(ParId.of("worker"))))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Duplicate name 'assemble'");
+                    .hasMessageContaining("duplicate name 'assemble'");
             assertThat(builder.build().combineSlot()).isNull();
             assertThat(builder.build().members()).hasSize(1);
         } finally {

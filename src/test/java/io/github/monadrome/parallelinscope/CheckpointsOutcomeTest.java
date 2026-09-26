@@ -152,7 +152,7 @@ class CheckpointsOutcomeTest {
                         },
                         IllegalStateException.class))
                 .isInstanceOf(AssertionError.class)
-                .hasMessageContaining("checked Throwable")
+                .hasMessageContaining("checked throwable")
                 .hasCauseInstanceOf(Exception.class);
     }
 

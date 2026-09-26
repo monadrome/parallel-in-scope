@@ -67,7 +67,8 @@ class ParRuntimePoliciesTest {
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor())
                         .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate Par id");
+                .hasMessageContaining("duplicate Par id")
+                .hasMessageContaining("'same'");
         assertThatThrownBy(() ->
                         ParRuntime.builder().defaultPar(ParId.of("absent")).build())
                 .isInstanceOf(IllegalArgumentException.class)
