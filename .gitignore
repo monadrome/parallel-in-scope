@@ -1,5 +1,6 @@
 # Build output
 target/
+__pycache__/
 
 # IDE
 .idea/

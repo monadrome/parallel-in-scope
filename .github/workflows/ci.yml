@@ -37,6 +37,9 @@ jobs:
       - name: Check design route table
         run: python3 scripts/check-design-routes.py
 
+      - name: Test repository scripts
+        run: python3 -m unittest discover -s scripts/issue_agent/tests -t scripts
+
       - name: Build documentation strictly
         run: mkdocs build --strict --config-file mkdocs/mkdocs.yml
 
