@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -689,6 +690,74 @@ class TaskBatchResultBodyCompletionTest {
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(writes).containsExactly(1, 2);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitBodyCompletionWaitsForFutureSettlementBeyondBodyExit() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch releaseListener = new CountDownLatch(1);
+        // The listener runs between the body-exit publish and the future settlement, so blocking
+        // it holds the element's future non-terminal after its body has already exited — the
+        // window where report() used to read RUNNING after a successful wait.
+        ParRuntime global = ParRuntime.builder()
+                .taskListener(event -> {
+                    listenerEntered.countDown();
+                    try {
+                        releaseListener.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                })
+                .register(ParId.of("worker"), executor)
+                .build();
+        try {
+            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
+                    .map(Collections.singletonList(1), value -> value, options("settlement-window"));
+            assertThat(listenerEntered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            // The body has exited but the listener holds the future short of settlement: the
+            // conjunction must not report completion yet.
+            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+            releaseListener.countDown();
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
+        } finally {
+            releaseListener.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void reportIsTerminalAfterSuccessfulAwaitInFailFastBatches() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            // The issue #45 probe: a failing element makes fail-fast cancel its sibling; the
+            // failing element's own future settles a moment after its body exit is published.
+            for (int i = 0; i < 50; i++) {
+                TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
+                        .map(
+                                Arrays.asList(1, 2),
+                                value -> {
+                                    if (value == 1) {
+                                        throw new IllegalStateException("boom");
+                                    }
+                                    sleepInterruptibly(10_000);
+                                    return value;
+                                },
+                                options("fail-fast-report").parallelism(1).taskType(TaskType.IO_BOUND));
+                assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(5))).isTrue();
+                assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.RUNNING);
+                batch.close();
+            }
         } finally {
             global.close();
             executor.shutdownNow();
