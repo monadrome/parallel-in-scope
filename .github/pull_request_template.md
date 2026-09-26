@@ -1,19 +1,25 @@
 <!--
 Thanks for contributing! First time here? Please read CONTRIBUTING.md first:
-most changes need an issue before a pull request.
+external contributions beyond the trivial list need an issue before a pull
+request.
 -->
 
 ## Summary
 
-<!-- What changed and why — explain the motivation, not the file list. -->
+<!-- What changed and why — explain the motivation, not the file list.
+
+If this PR adds or changes a public API or a documented contract, the summary
+must carry the concrete rationale: the best code a user can write today, the
+same code with the change applied, and the failure mode the change removes.
+When no issue is linked, this description is the only record of the decision —
+make it self-contained. -->
 
 ## Related issue
 
 <!--
 `Closes #NN` when this PR completes the issue, `Refs #NN` when it is one step
-of it. May be omitted for changes that don't require an issue (renames, typo
-fixes, small obvious bug fixes, test-only repairs, internal refactors,
-dependency bumps, routine maintenance — see AGENTS.md, "Issue Tracking").
+of it. Issues are opt-in (see AGENTS.md, "Issue Tracking"): maintainer-driven
+work may omit this, but then the Summary above must stand alone as the record.
 -->
 
 Closes #
