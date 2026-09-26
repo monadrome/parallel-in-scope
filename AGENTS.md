@@ -72,14 +72,26 @@ relevant contract through the document routes below.
   compile time via Error Prone; the build requires JDK 21+ (use JDK 25 LTS)
   while the bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
+- Runtime checks follow Guava's conditional-failure taxonomy
+  (`Preconditions` javadoc and the "Conditional failures explained" wiki):
+  caller contract violations use `Preconditions` — `checkArgument` for bad
+  arguments, `checkState` for bad state, `checkNotNull` for null rejection
+  (preferred over `Objects.requireNonNull`) — with a `%s` message template;
+  always-on invariants about dependencies or internal state use
+  `Verify.verify`/`verifyNotNull`; conditions that cannot fail unless the
+  platform is broken throw `AssertionError`. Hand-built `if`/`throw` remains
+  for what these utilities cannot express: ordered multi-step validation,
+  exceptions carrying a cause, custom exception types
+  (`LeanCancellationException`, `SubmissionException`), JDK types used as
+  intended (`UnsupportedOperationException`), and checks whose message
+  arguments are expensive to compute. Existing hand-built sites migrate
+  opportunistically when touched; do not mass-migrate.
 - Exception messages are lowercase sentence fragments without a trailing
   period; they interpolate the offending value or id and name the actionable
-  alternative when one exists (`"no enclosing deadline to inherit; call
-  timeout(Duration)"`). A leading code identifier keeps its exact casing
-  (`"ParRuntime is closed"`). Use `IllegalArgumentException` for bad
-  arguments, `IllegalStateException` for bad state, and
-  `Objects.requireNonNull(x, "x cannot be null")` for null rejection — never
-  Guava `Preconditions`.
+  alternative when one exists (`checkArgument(deadlineNanos > 0, "no enclosing
+  deadline to inherit; call timeout(Duration)")`). A leading code identifier
+  keeps its exact casing (`"ParRuntime is closed"`). Message templates use
+  `%s` only (Guava `lenientFormat` supports nothing else).
 - The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
   stack-installed implementation details. The `Context` suffix marks a data carrier
