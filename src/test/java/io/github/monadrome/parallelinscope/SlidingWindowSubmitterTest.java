@@ -336,6 +336,132 @@ class SlidingWindowSubmitterTest {
     }
 
     /**
+     * L7 alignment: a handoff that throws an {@code Error} — a broken executor, or one failing
+     * while enqueuing — must fail the batch like a rejection. Catching only {@code RuntimeException}
+     * let the error escape {@code submitAll}, orphaning the in-flight window and leaving every
+     * not-yet-submitted element pending forever.
+     */
+    @Test
+    void initialWindowHandoffErrorFailsEveryElementAsSubmissionFailure() {
+        ExecutorService brokenAtHandoff = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(brokenAtHandoff);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
+
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
+
+            assertThat(batch.results()).hasSize(3);
+            for (int i = 0; i < 3; i++) {
+                int index = i;
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
+                        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                        .hasCauseInstanceOf(SubmissionException.class)
+                        .hasRootCauseInstanceOf(AssertionError.class);
+            }
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /** Same contract past the initial window: the async submitter fails the remaining placeholders. */
+    @Test
+    void slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure() throws Exception {
+        AtomicInteger submissions = new AtomicInteger();
+        ExecutorService firstThenError = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (submissions.getAndIncrement() == 0) command.run();
+                else throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenError);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+
+            assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
      * The handoff window: the worker executor blocks inside the second {@code execute} until the
      * cancellation lands, so the submitter loop (running the task and binding the placeholder)
      * races the cancellation callback (abandoning placeholders). The claimed element must stay
