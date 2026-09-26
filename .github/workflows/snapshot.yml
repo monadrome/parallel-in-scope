@@ -18,6 +18,10 @@ name: Snapshot
 on:
   push:
     branches: [dev/v0.3.0]
+  # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
+  # publishes once. Kept because it is the only way to publish on a day the branch does not
+  # move without pushing the `v0.3.0-SNAPSHOT` tag by hand.
+  workflow_dispatch:
 
 permissions:
   contents: read
