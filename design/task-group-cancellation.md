@@ -171,7 +171,8 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次 token 取消全部未完成
 元素与提交循环，再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生
 自关闭时剩余 deadline）等待任务体退出；Batch 没有独立的 cancel-only 公共入口，零 grace 即等价
-语义。
+语义。取消先行且同步落定全部绑定的元素 future，因此 `close()` 返回后 `results()` 中每个
+future 必为终态——即使任务体仍在展开。
 
 任务体退出由每个任务在提交前预登记的原子状态机跟踪
 （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）：`RUNNING` 只表示取得执行资格；正常
@@ -187,7 +188,10 @@ Batch 侧对称：`TaskBatchResult` 实现 `AutoCloseable`，`close()` 经批次
 以独立预算显式等待（不自动取消、不要求先 close；Batch 无新增 close 入口，先经既有取消入口取消
 再等待）：返回 `true` 表示全部直接任务体已退出或被原子确定为永远不会进入，并建立任务体写入对
 等待线程的 happens-before，结果单调不失效；`false` 只表示预算耗尽，其中可能含尚未启动的任务。
-校验顺序为参数（null → `NullPointerException`，负值 → `IllegalArgumentException`）与自等待
+Batch 侧在此之上额外等待全部元素 future 落定——任务体退出先于 future settle（listener 在两者
+之间执行），单等任务体退出会让 `report()` 仍读到 `RUNNING`；因此 Batch 的 `true` 蕴含
+`results()` 全部终态，`report()`/`reportString()` 此时读到终态快照。校验顺序为参数（null →
+`NullPointerException`，负值 → `IllegalArgumentException`）与自等待
 （`IllegalStateException`）先于中断检查（抛 `InterruptedException` 并清除标志），再检查是否
 完成；零值只做单次检查，超大 Duration 饱和处理。`close()` 正常返回不构成「资源可释放」承诺：
 释放任务体使用的资源前须以 `awaitBodyCompletion` 的成功确认。
