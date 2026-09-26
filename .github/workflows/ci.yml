@@ -58,6 +58,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # The API surface check builds the pull request's merge base, so it needs history.
+          fetch-depth: 0
 
       - name: Set up build JDK ${{ matrix.java-version }}
         uses: actions/setup-java@v5
@@ -80,6 +83,20 @@ jobs:
           mvn -B -ntp -f demo/pom.xml
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           package
+
+      # Removed or changed public API fails unless the PR updates both migration guides of the
+      # pom.xml release line; additions are only listed. The merge base is compiled, not
+      # installed, so the head SNAPSHOT in the local repository stays the one this job built.
+      - name: Check public API changes against the merge base
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
+          git worktree add --detach "$RUNNER_TEMP/api-base" "$BASE"
+          (cd "$RUNNER_TEMP/api-base" && mvn -B -ntp -Dmaven.test.skip=true compile)
+          python3 scripts/check-api-surface.py \
+            --base-classes "$RUNNER_TEMP/api-base/target/classes" \
+            --head-classes target/classes \
+            --base "$BASE"
 
   java8-runtime:
     runs-on: ubuntu-latest

@@ -1,0 +1,162 @@
+Classfile /tmp/apifx/fixtures/evolving-reordered/classes/fixture/Evolving.class
+  Last modified 2026 Oct 10; size 1148 bytes
+  SHA-256 checksum d70be8895790796c092413265b30141a9840634f8e05d7e2d5e60535a2e938ff
+  Compiled from "Evolving.java"
+public final class fixture.Evolving<T extends java.lang.Comparable<T>> extends java.lang.Object
+  minor version: 0
+  major version: 52
+  flags: (0x0031) ACC_PUBLIC, ACC_FINAL, ACC_SUPER
+  this_class: #1                          // fixture/Evolving
+  super_class: #34                        // java/lang/Object
+  interfaces: 0, fields: 3, methods: 3, attributes: 2
+Constant pool:
+   #1 = Class              #2             // fixture/Evolving
+   #2 = Utf8               fixture/Evolving
+   #3 = Methodref          #1.#4          // fixture/Evolving."<init>":(Ljava/lang/Comparable;)V
+   #4 = NameAndType        #5:#6          // "<init>":(Ljava/lang/Comparable;)V
+   #5 = Utf8               <init>
+   #6 = Utf8               (Ljava/lang/Comparable;)V
+   #7 = Fieldref           #1.#8          // fixture/Evolving.fallback:Ljava/lang/Comparable;
+   #8 = NameAndType        #9:#10         // fallback:Ljava/lang/Comparable;
+   #9 = Utf8               fallback
+  #10 = Utf8               Ljava/lang/Comparable;
+  #11 = InterfaceMethodref #12.#13        // java/util/List.iterator:()Ljava/util/Iterator;
+  #12 = Class              #14            // java/util/List
+  #13 = NameAndType        #15:#16        // iterator:()Ljava/util/Iterator;
+  #14 = Utf8               java/util/List
+  #15 = Utf8               iterator
+  #16 = Utf8               ()Ljava/util/Iterator;
+  #17 = InterfaceMethodref #18.#19        // java/util/Iterator.hasNext:()Z
+  #18 = Class              #20            // java/util/Iterator
+  #19 = NameAndType        #21:#22        // hasNext:()Z
+  #20 = Utf8               java/util/Iterator
+  #21 = Utf8               hasNext
+  #22 = Utf8               ()Z
+  #23 = InterfaceMethodref #18.#24        // java/util/Iterator.next:()Ljava/lang/Object;
+  #24 = NameAndType        #25:#26        // next:()Ljava/lang/Object;
+  #25 = Utf8               next
+  #26 = Utf8               ()Ljava/lang/Object;
+  #27 = Class              #28            // java/lang/Comparable
+  #28 = Utf8               java/lang/Comparable
+  #29 = InterfaceMethodref #27.#30        // java/lang/Comparable.compareTo:(Ljava/lang/Object;)I
+  #30 = NameAndType        #31:#32        // compareTo:(Ljava/lang/Object;)I
+  #31 = Utf8               compareTo
+  #32 = Utf8               (Ljava/lang/Object;)I
+  #33 = Methodref          #34.#35        // java/lang/Object."<init>":()V
+  #34 = Class              #36            // java/lang/Object
+  #35 = NameAndType        #5:#37         // "<init>":()V
+  #36 = Utf8               java/lang/Object
+  #37 = Utf8               ()V
+  #38 = Utf8               SIZE
+  #39 = Utf8               I
+  #40 = Utf8               ConstantValue
+  #41 = Integer            2
+  #42 = Utf8               NAME
+  #43 = Utf8               Ljava/lang/String;
+  #44 = String             #45            // evolving
+  #45 = Utf8               evolving
+  #46 = Utf8               Signature
+  #47 = Utf8               TT;
+  #48 = Utf8               of
+  #49 = Utf8               (Ljava/lang/Comparable;)Lfixture/Evolving;
+  #50 = Utf8               Code
+  #51 = Utf8               LineNumberTable
+  #52 = Utf8               <T::Ljava/lang/Comparable<TT;>;>(TT;)Lfixture/Evolving<TT;>;
+  #53 = Utf8               pick
+  #54 = Utf8               (Ljava/util/List;)Ljava/lang/Comparable;
+  #55 = Utf8               StackMapTable
+  #56 = Utf8               (Ljava/util/List<TT;>;)TT;
+  #57 = Utf8               (TT;)V
+  #58 = Utf8               <T::Ljava/lang/Comparable<TT;>;>Ljava/lang/Object;
+  #59 = Utf8               SourceFile
+  #60 = Utf8               Evolving.java
+{
+  public static final int SIZE;
+    descriptor: I
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    ConstantValue: int 2
+
+  public static final java.lang.String NAME;
+    descriptor: Ljava/lang/String;
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    ConstantValue: String evolving
+
+  public static <T extends java.lang.Comparable<T>> fixture.Evolving<T> of(T);
+    descriptor: (Ljava/lang/Comparable;)Lfixture/Evolving;
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
+    Code:
+      stack=3, locals=2, args_size=1
+         0: new           #1                  // class fixture/Evolving
+         3: dup
+         4: aload_0
+         5: invokespecial #3                  // Method "<init>":(Ljava/lang/Comparable;)V
+         8: astore_1
+         9: aload_1
+        10: areturn
+      LineNumberTable:
+        line 11: 0
+        line 12: 9
+    Signature: #52                          // <T::Ljava/lang/Comparable<TT;>;>(TT;)Lfixture/Evolving<TT;>;
+
+  public T pick(java.util.List<T>);
+    descriptor: (Ljava/util/List;)Ljava/lang/Comparable;
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=5, args_size=2
+         0: aload_0
+         1: getfield      #7                  // Field fallback:Ljava/lang/Comparable;
+         4: astore_2
+         5: aload_1
+         6: invokeinterface #11,  1           // InterfaceMethod java/util/List.iterator:()Ljava/util/Iterator;
+        11: astore_3
+        12: aload_3
+        13: invokeinterface #17,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+        18: ifeq          49
+        21: aload_3
+        22: invokeinterface #23,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        27: checkcast     #27                 // class java/lang/Comparable
+        30: astore        4
+        32: aload         4
+        34: aload_2
+        35: invokeinterface #29,  2           // InterfaceMethod java/lang/Comparable.compareTo:(Ljava/lang/Object;)I
+        40: ifle          46
+        43: aload         4
+        45: astore_2
+        46: goto          12
+        49: aload_2
+        50: areturn
+      LineNumberTable:
+        line 16: 0
+        line 17: 5
+        line 18: 32
+        line 19: 43
+        line 21: 46
+        line 22: 49
+      StackMapTable: number_of_entries = 3
+        frame_type = 253 /* append */
+          offset_delta = 12
+          locals = [ class java/lang/Comparable, class java/util/Iterator ]
+        frame_type = 33 /* same */
+        frame_type = 250 /* chop */
+          offset_delta = 2
+    Signature: #56                          // (Ljava/util/List<TT;>;)TT;
+
+  public fixture.Evolving(T);
+    descriptor: (Ljava/lang/Comparable;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=2, args_size=2
+         0: aload_0
+         1: invokespecial #33                 // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: aload_1
+         6: putfield      #7                  // Field fallback:Ljava/lang/Comparable;
+         9: return
+      LineNumberTable:
+        line 25: 0
+        line 26: 4
+        line 27: 9
+    Signature: #57                          // (TT;)V
+}
+Signature: #58                          // <T::Ljava/lang/Comparable<TT;>;>Ljava/lang/Object;
+SourceFile: "Evolving.java"
