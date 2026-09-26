@@ -8,8 +8,11 @@ repeats.
 
 ## Before you write code: file an issue first
 
-Most changes start with an issue — not as ceremony, but because the issue is
-where the direction is agreed before anyone invests in a pull request.
+For external contributors, most changes start with an issue — not as ceremony,
+but because the issue is where the direction is agreed before anyone invests in
+a pull request. (Maintainer-driven work may skip this step; see
+[AGENTS.md — Issue Tracking](AGENTS.md#issue-tracking). Contributions arriving
+as pull requests still follow the rules below.)
 
 **An issue is required first for:**
 
@@ -25,10 +28,8 @@ where the direction is agreed before anyone invests in a pull request.
 - internal refactors that leave public signatures and contracts untouched
 - dependency or version bumps, and routine maintenance
 
-This is a summary; the authoritative list is
-[AGENTS.md — Issue Tracking](AGENTS.md#issue-tracking). When in doubt, file the
-issue — even for a change you think is small, letting others know what you are
-doing helps.
+When in doubt, file the issue — even for a change you think is small, letting
+others know what you are doing helps.
 
 Don't surprise the maintainers with a large pull request for something that
 required an issue: open the issue, agree on the direction there, then code. If
@@ -94,12 +95,16 @@ request, and state the rationale in the PR description.
 
 ## Design proposals
 
-Larger direction discussions happen in a design proposal issue (form above).
-Proposals that need extended reasoning get a document under `design/`, named in
-the issue; the document is committed together with the change that implements
-it. Before changing execution-engine, cancellation, task-group, or queue
-behaviour, read [design/AGENTS.md](design/AGENTS.md) — it routes you to the
-current design contracts, which are the authority for how the library behaves.
+Direction discussions happen either in a design proposal issue (form above) or
+directly in a document under `design/` that ships with the implementing pull
+request — the maintainer chooses the venue; the document carries the reasoning
+either way. Whether in an issue or a PR, a proposal that touches public API or
+a documented contract must state specifically: the best code a user can write
+today, the same code with the change applied, and the failure mode the change
+removes; breaking changes additionally name the migration path. Before changing
+execution-engine, cancellation, task-group, or queue behaviour, read
+[design/AGENTS.md](design/AGENTS.md) — it routes you to the current design
+contracts, which are the authority for how the library behaves.
 
 ## License
 

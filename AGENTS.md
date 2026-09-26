@@ -105,29 +105,37 @@ relevant contract through the document routes below.
 
 ## Issue Tracking
 
-Feature-level work starts as an issue. The issue is where the direction is
-agreed and recorded; the pull request is where it is built, and it links back.
+Issues are an opt-in public surface, not a mandatory gate. The authoritative
+record of a decision is the `design/` document plus the pull request that
+implements it; an issue exists only because someone judged the content worth
+public discussion — and whoever opens one maintains it.
 
-- **Requires an issue first**: a new capability; a new public type, method, or
-  option; a change to existing behaviour or to a documented contract; a
-  signature change; anything that needs a `design/` proposal.
-- **Does not**: renames, wording and typo fixes, small bug fixes whose root
-  cause is obvious, test-only repairs, internal refactors that leave public
-  signatures and contracts untouched, dependency or version bumps, and routine
-  maintenance. Do not manufacture an issue for these.
-- File through `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for capabilities
-  and contract changes, `bug_report.yml` for defects, `documentation.yml` for
-  guides and javadoc. The forms ask for what makes a proposal reviewable — the
-  best code possible today, the same code with the change, and the failure mode
-  it removes.
-- Reference the issue from the PR body: `Closes #NN` when the PR completes it,
-  `Refs #NN` when it is one step of it. Keep the issue updated when the direction
-  changes; the thread is the record of what was decided and why.
-- Direction that needs more than a thread goes to `design/`: write the proposal
-  there, leave it in the working tree until the direction settles (see Git
-  Workflow), and name it in the issue, which carries the summary; the document is
-  committed with the change that implements it. The issue stays the tracker, the
-  document carries the reasoning.
+- **Maintainer-driven work does not require an issue.** New capabilities, new
+  public types or options, contract changes, and signature changes go straight
+  to a `design/` proposal (when the direction needs extended reasoning) and a
+  pull request.
+- **Concrete rationale is mandatory for public API work.** Every design
+  proposal and every PR that adds or changes a public API or a documented
+  contract must state, specifically: the best code a user can write today, the
+  same code with the change applied, and the failure mode the change removes;
+  breaking changes additionally name the migration path. This mirrors what
+  `design_proposal.yml` asks — dropping the issue gate does not drop the
+  reasoning. A PR without this rationale is not mergeable.
+- **Open an issue when** you want public input on a direction before building,
+  the topic affects downstream users who should be able to find and follow it,
+  or a defect or backlog item will not be fixed immediately and must not be
+  lost. File through `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for
+  capabilities and contract changes, `bug_report.yml` for defects,
+  `documentation.yml` for guides and javadoc.
+- **External contributors still file an issue first** for anything beyond the
+  trivial list in `CONTRIBUTING.md` — agree on direction before investing in a
+  pull request.
+- When a PR does implement an issue, link it (`Closes #NN` / `Refs #NN`) and
+  keep the issue updated when the direction changes. When there is no linked
+  issue, the PR description alone is the record — make it self-contained.
+- Direction that needs more than a PR description goes to `design/`: write the
+  proposal there, leave it in the working tree until the direction settles (see
+  Git Workflow); the document is committed with the change that implements it.
 - Use the current release milestone for findings that must land before that line
   is cut; leave everything else un-milestoned as backlog.
 
