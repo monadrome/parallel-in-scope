@@ -92,7 +92,7 @@ public final class Checkpoints {
     public static void rawCheckpoint() {
         checkCancellationToken(true);
         if (Thread.interrupted()) {
-            throw cancellation("Cancel during running by interruption");
+            throw cancellation("cancel during running by interruption");
         }
     }
 
@@ -528,8 +528,8 @@ public final class Checkpoints {
         }
         if (cancelToken.state().shouldInterruptCurrentThread()) {
             throw lean
-                    ? new LeanCancellationException("Cancel during running")
-                    : new CancellationException("Cancel during running");
+                    ? new LeanCancellationException("cancel during running")
+                    : new CancellationException("cancel during running");
         }
         // Wall-clock backstop: an expired deadline is cancellation even when the timer thread has
         // not committed TIMEOUT yet (GC pause, busy scheduler). Committing the timeout here keeps
@@ -537,8 +537,8 @@ public final class Checkpoints {
         if (cancelToken.deadlineNanos() <= System.nanoTime()) {
             cancelToken.timeoutCancel();
             throw lean
-                    ? new LeanCancellationException("Cancel during running: deadline expired")
-                    : new CancellationException("Cancel during running: deadline expired");
+                    ? new LeanCancellationException("cancel during running: deadline expired")
+                    : new CancellationException("cancel during running: deadline expired");
         }
     }
 
@@ -580,6 +580,6 @@ public final class Checkpoints {
     /** Preserves unchecked failures while making an impossible checked failure explicit. */
     private static <T> T rethrowUnchecked(Throwable throwable) {
         Throwables.throwIfUnchecked(throwable);
-        throw new AssertionError("Runnable/Supplier threw a checked Throwable", throwable);
+        throw new AssertionError("runnable/supplier threw a checked throwable", throwable);
     }
 }

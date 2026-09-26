@@ -98,7 +98,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
             int n = 0;
             for (E e : c) {
                 if (e == null) throw new NullPointerException();
-                if (n == capacity) throw new IllegalStateException("Queue full");
+                if (n == capacity) throw new IllegalStateException("queue full");
                 enqueue(new Node<>(e));
                 ++n;
             }

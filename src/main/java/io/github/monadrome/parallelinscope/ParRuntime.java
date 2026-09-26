@@ -220,7 +220,7 @@ public final class ParRuntime implements AutoCloseable {
      */
     public Par par(ParId id) {
         Par value = pars.get(Objects.requireNonNull(id, "id cannot be null"));
-        if (value == null) throw new IllegalArgumentException("No Par registered with id '" + id + "'");
+        if (value == null) throw new IllegalArgumentException("no Par registered with id '" + id + "'");
         return value;
     }
 
@@ -472,7 +472,7 @@ public final class ParRuntime implements AutoCloseable {
 
     private static String requireValidGroupName(String name) {
         Objects.requireNonNull(name, "groupName cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("Group name cannot be blank");
+        if (name.trim().isEmpty()) throw new IllegalArgumentException("group name cannot be blank");
         return name;
     }
 
@@ -683,7 +683,7 @@ public final class ParRuntime implements AutoCloseable {
 
         @Override
         public void execute(Runnable command) {
-            if (scheduler.isShutdown()) throw new RejectedExecutionException("Timer scheduler is shut down");
+            if (scheduler.isShutdown()) throw new RejectedExecutionException("timer scheduler is shut down");
             actions.execute(command);
         }
 
@@ -784,7 +784,7 @@ public final class ParRuntime implements AutoCloseable {
          */
         public Builder register(ParId id, ExecutorService executor, String... tags) {
             Objects.requireNonNull(id, "id cannot be null");
-            if (executors.containsKey(id)) throw new IllegalArgumentException("Duplicate Par id '" + id + "'");
+            if (executors.containsKey(id)) throw new IllegalArgumentException("duplicate Par id '" + id + "'");
             Objects.requireNonNull(executor, "executor cannot be null");
             Objects.requireNonNull(tags, "tags cannot be null");
             for (String tag : tags) {
@@ -816,7 +816,7 @@ public final class ParRuntime implements AutoCloseable {
 
     private static String validateExecutorTag(String tag) {
         Objects.requireNonNull(tag, "executor tag cannot be null");
-        if (tag.trim().isEmpty()) throw new IllegalArgumentException("Executor tag cannot be blank");
+        if (tag.trim().isEmpty()) throw new IllegalArgumentException("executor tag cannot be blank");
         return tag;
     }
 }

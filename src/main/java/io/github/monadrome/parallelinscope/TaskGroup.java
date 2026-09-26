@@ -148,7 +148,7 @@ public final class TaskGroup implements AutoCloseable {
         Objects.requireNonNull(member, "member cannot be null");
         MemberState state = handles.get(member);
         if (state == null) {
-            throw new IllegalArgumentException("No member named '" + member.name() + "'");
+            throw new IllegalArgumentException("no member named '" + member.name() + "'");
         }
         return (TaskFuture<T>) state.view;
     }
@@ -165,7 +165,7 @@ public final class TaskGroup implements AutoCloseable {
         Objects.requireNonNull(member, "member cannot be null");
         MemberState state = handles.get(member);
         if (state == null) {
-            throw new IllegalArgumentException("No member named '" + member.name() + "'");
+            throw new IllegalArgumentException("no member named '" + member.name() + "'");
         }
         return state.future.callableReleased();
     }
@@ -854,10 +854,10 @@ public final class TaskGroup implements AutoCloseable {
 
         private void checkUsable() {
             if (Thread.currentThread() != ownerThread) {
-                throw new IllegalStateException("Bindings may only be used on the thread that created them");
+                throw new IllegalStateException("bindings may only be used on the thread that created them");
             }
             if (state != State.OPEN) {
-                throw new IllegalStateException("Bindings are only usable during the binder callback");
+                throw new IllegalStateException("bindings are only usable during the binder callback");
             }
         }
 
@@ -876,7 +876,7 @@ public final class TaskGroup implements AutoCloseable {
                 for (Recorded entry : recorded) {
                     TaskGroupDefinition.Slot slot = slots.get(entry.member);
                     if (slot == null) {
-                        throw new IllegalArgumentException("Member handle '" + entry.member.name()
+                        throw new IllegalArgumentException("member handle '" + entry.member.name()
                                 + "' does not belong to definition '" + definition.name() + "'");
                     }
                     // Kind mismatch is a binding error on this entry; a duplicate binds an
@@ -885,16 +885,16 @@ public final class TaskGroup implements AutoCloseable {
                     if (entry.kind == KIND_TASK) {
                         if (slot.kind != TaskGroupDefinition.Kind.MEMBER) {
                             throw new IllegalArgumentException(
-                                    "Member '" + slot.name + "' is a combine; bind it with combine()");
+                                    "member '" + slot.name + "' is a combine; bind it with combine()");
                         }
                     } else {
                         if (slot.kind != TaskGroupDefinition.Kind.COMBINE) {
                             throw new IllegalArgumentException(
-                                    "Member '" + slot.name + "' is not a combine; bind it with task()");
+                                    "member '" + slot.name + "' is not a combine; bind it with task()");
                         }
                     }
                     if (!seen.add(entry.member)) {
-                        throw new IllegalStateException("Member '" + slot.name + "' was bound more than once");
+                        throw new IllegalStateException("member '" + slot.name + "' was bound more than once");
                     }
                     if (entry.kind == KIND_TASK) {
                         taskBodies[slot.memberIndex] = (Callable<?>) entry.body;
@@ -904,12 +904,12 @@ public final class TaskGroup implements AutoCloseable {
                 }
                 for (TaskGroupDefinition.Slot slot : plain) {
                     if (taskBodies[slot.memberIndex] == null) {
-                        throw new IllegalArgumentException("No Callable bound for member '" + slot.name + "'");
+                        throw new IllegalArgumentException("no Callable bound for member '" + slot.name + "'");
                     }
                 }
                 TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
                 if (combineSlot != null && combineBody == null) {
-                    throw new IllegalArgumentException("No CombineBody bound for combine '" + combineSlot.name + "'");
+                    throw new IllegalArgumentException("no CombineBody bound for combine '" + combineSlot.name + "'");
                 }
                 state = State.DRAINED;
                 clearRecorded();
@@ -1088,7 +1088,7 @@ public final class TaskGroup implements AutoCloseable {
             }
             MemberState state = members.get(member);
             if (state == null) {
-                throw new IllegalArgumentException("No member named '" + member.name() + "'");
+                throw new IllegalArgumentException("no member named '" + member.name() + "'");
             }
             try {
                 return (T) Futures.getDone(state.future);

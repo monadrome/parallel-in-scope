@@ -669,7 +669,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                 throw closedWrite("add");
             }
             if (count.get() == capacity) {
-                throw new IllegalStateException("Queue full");
+                throw new IllegalStateException("queue full");
             }
             last = last.next = new Node<>(element);
             oldCount = count.getAndIncrement();
@@ -767,7 +767,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                 throw closedWrite("addAll");
             }
             if (additions.size() > capacity - count.get()) {
-                throw new IllegalStateException("Queue full");
+                throw new IllegalStateException("queue full");
             }
             if (additions.isEmpty()) {
                 return false;
