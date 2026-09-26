@@ -96,9 +96,10 @@ final class SlidingWindowSubmitter<V> {
         for (int i = 0; i < start; i++) {
             try {
                 resultBuilder.add(fallbackSubmit(tasks, i));
-            } catch (RuntimeException failure) {
-                // The rejection is the batch's shared verdict for every element; wrapping it keeps
-                // each element attributed as a submission failure rather than a user one.
+            } catch (RuntimeException | Error failure) {
+                // A handoff failure — rejection or the executor throwing mid-handoff — is the
+                // batch's shared verdict for every element; wrapping it keeps each element
+                // attributed as a submission failure rather than a user one.
                 Throwable rejected = new SubmissionException(failure);
                 resultBuilder.add(rejectedTask(rejected));
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
@@ -231,7 +232,7 @@ final class SlidingWindowSubmitter<V> {
             }
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | Error e) {
                 abandonRemaining(tasks, result, index, e);
                 throw e;
             }
