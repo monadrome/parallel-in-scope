@@ -10,7 +10,6 @@
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .taskListener(metricsListener)
         .register(ParId.of("database"), databaseExecutor, "blocking", "database")
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
@@ -200,6 +199,28 @@ if (future instanceof TaskFuture) {
 有一个句柄刻意保持裸 future：`TaskBatchResult.submitCanceller()` 用于停止提交，不代表一次任务执行，因此不是 `TaskFuture`。
 
 需要链式编排时用 `FluentFuture.from(task)` 获得完整的 `FluentFuture` API。链上派生的 future 是普通 `FluentFuture`：它们不是库执行的任务，没有 token 归因它们。
+
+## 观测任务完成快照 {#completion-snapshots}
+
+归因回答任务如何结束；观测 future 给出完整记录。每个 `TaskFuture` 都带一个 `completionFuture()`——`ListenableFuture<TaskCompletion<T>>`，以任务的终态不可变快照完成：身份、submit/start/end 时刻、queue wait、outcome、failure，以及成功时的结果。`TaskBatchResult` 以 `ListenableFuture<List<TaskCompletion<T>>>` 按输入顺序聚合同样的数据，包括从未开始的元素（被拒绝、被取消、或被滑窗放弃）——它们的 start/end 时刻为零，但 outcome 是真实的。
+
+快照只在任务 future 终态**且**任务体退出（或被确定不会进入）之后发布，因此记录的 end 时刻一定是最终值——callback 不会撞上"future 已落定而用户 `finally` 尚未执行完"的窗口。所在作用域完成后观测数据即可得：`awaitBodyCompletion(...)` 返回 `true` 蕴含 `completionFuture()` 已完成。需要知道的边界：`close()` 在任务体忽略中断、close grace 耗尽时可能提前返回，此时观测 future 可以继续 pending，并随剩余任务体退出而陆续完成——计时保持诚实，而不是假装完整。
+
+任务失败、取消、拒绝都以**成功完成**的观测 future 携带真实 outcome 数据——无需轮询，无需解包。用 Guava 在你选择的 executor 上组合即时反应：
+
+```java
+Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<Account>>>() {
+    @Override public void onSuccess(List<TaskCompletion<Account>> completions) {
+        for (TaskCompletion<Account> completion : completions) {
+            metrics.record(completion.unitId(), completion.outcome(),
+                    completion.waitTime(), completion.executionTime());
+        }
+    }
+    @Override public void onFailure(Throwable failure) { /* 实现缺陷；上报 */ }
+}, callbackExecutor);
+```
+
+观测 future 忽略取消（`cancel(...)` 返回 `false`），也绝不会在执行路径上运行你的代码——callback 的线程、并发度和背压由你决定。任务组保留既有入口：`group.completionFuture()` 以 `TaskGroupResult` 完成，其 `members()` 与 `terminal()` 快照携带成员自身观测看不到的、收敛后的更丰富归因（例如 `FAIL_FAST`）；组完成 future 自身的 `completionFuture()` 则携带该结果的单条组级摘要。
 
 ## 取消与嵌套批次
 

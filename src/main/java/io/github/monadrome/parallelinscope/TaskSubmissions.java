@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TtlCallable;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -31,28 +30,27 @@ final class TaskSubmissions {
      * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the current
      * thread's TTL context for replay on the worker thread.
      */
-    public static <V> Callable<V> wrapScoped(
-            TaskExecutionContext taskContext, Callable<V> callable, List<TaskListener> taskListeners) {
-        return TtlCallable.get(new ScopedCallable<>(taskContext, callable, taskListeners), true, true);
+    public static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
+        return TtlCallable.get(new ScopedCallable<>(taskContext, callable), true, true);
     }
 
     /**
      * Prepares one scoped task as an {@link ExecutionPhaseHintFuture}. The returned future is not
-     * running yet; the caller decides when and where to submit it.
+     * running yet; the caller decides when and where to submit it. Its {@link TaskObservation} is
+     * attached here, so every later {@code Task} view of the future exposes the same observation
+     * future.
      *
      * @param taskContext per-task execution context carrying the batch and task index
      * @param callable user task
-     * @param taskListeners SPI listeners notified when the task completes
      * @param phaseObserver consumer of execution-phase hints for queue maintenance
      * @return the prepared future, still in {@code SUBMITTED} phase
      */
     public static <V> ExecutionPhaseHintFuture<V> prepare(
-            TaskExecutionContext taskContext,
-            Callable<V> callable,
-            List<TaskListener> taskListeners,
-            Consumer<? super ExecutionPhase> phaseObserver) {
-        return ExecutionPhaseHintFuture.create(
-                wrapScoped(taskContext, callable, taskListeners), phaseObserver, taskContext.bodyState());
+            TaskExecutionContext taskContext, Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
+        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(
+                wrapScoped(taskContext, callable), phaseObserver, taskContext.bodyState());
+        future.observation(TaskObservation.forTask(taskContext, future));
+        return future;
     }
 
     /**

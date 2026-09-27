@@ -74,4 +74,27 @@ public interface TaskFuture<T> extends ListenableFuture<T> {
     /** Returns the failure behind a {@link TaskOutcome#USER_FAILURE} or {@code SUBMISSION_FAILURE}; null otherwise. */
     @Nullable
     Throwable failure();
+
+    /**
+     * Returns the observation future of this task: a {@code ListenableFuture} of the task's final
+     * immutable {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
+     * outcome, failure, and on success the result.
+     *
+     * <p>The snapshot is published only after this future is terminal <em>and</em> the task body
+     * has exited (or was determined to never run), so the recorded end time is always final: a
+     * callback consuming it never hits the window in which the future settled before the user
+     * {@code finally}. A task that never started reports zero start/end times and durations with
+     * its real outcome — submission failure and pre-execution cancellation included. Once the
+     * enclosing scope has completed (every future terminal and every task body exited), this future
+     * is guaranteed to be done; {@link TaskBatchResult#awaitBodyCompletion(Duration)} returning
+     * {@code true} implies the data is already available.
+     *
+     * <p>User task failure, cancellation, and rejection all complete this future successfully with
+     * the real outcome data. The future never returns {@code null}, never requires polling, and
+     * ignores cancellation ({@code cancel(...)} returns {@code false} and propagates nowhere).
+     * Compose it with {@code Futures.addCallback} on an executor of the caller's choice for
+     * immediate reaction; the attribution here is the task's own direct one — a group member's
+     * authoritative post-convergence attribution remains {@link TaskGroupResult#members()}.
+     */
+    ListenableFuture<TaskCompletion<T>> completionFuture();
 }

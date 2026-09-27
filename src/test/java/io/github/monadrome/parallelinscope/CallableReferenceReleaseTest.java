@@ -9,7 +9,6 @@ import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -285,7 +284,7 @@ class CallableReferenceReleaseTest {
             MultiTaskContext unit, BodyCompletionTracker tracker, int index, Callable<String> body) {
         TaskExecutionContext context =
                 new TaskExecutionContext(unit, index, Ticker.systemTicker().read(), tracker.register(unit));
-        Callable<String> wrapped = TaskSubmissions.wrapScoped(context, body, Collections.emptyList());
+        Callable<String> wrapped = TaskSubmissions.wrapScoped(context, body);
         ScopedCallable<String> scoped = (ScopedCallable<String>) ((TtlCallable<String>) wrapped).unwrap();
         ExecutionPhaseHintFuture<String> future =
                 ExecutionPhaseHintFuture.create(wrapped, phase -> {}, context.bodyState());
