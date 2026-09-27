@@ -493,9 +493,13 @@ class SlidingWindowSubmitterTest {
         }
     }
 
-    /** The same escalation path observes a sliding-window handoff {@code Error} with no shape difference. */
+    /**
+     * The same escalation path observes a sliding-window handoff {@code Error} with no shape
+     * difference, and the batch stays closeable afterwards: body-completion tracking settles and
+     * the abandoned prepared future releases its user callable.
+     */
     @Test
-    void valuesOrThrowEscalatesASlidingWindowHandoffError() {
+    void valuesOrThrowEscalatesASlidingWindowHandoffError() throws Exception {
         AtomicInteger submissions = new AtomicInteger();
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
             if (submissions.getAndIncrement() == 0) command.run();
@@ -505,12 +509,16 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2);
+            TaskBatchResult<Integer> batch = executor.submitAll(tasks);
 
             assertThatThrownBy(batch::valuesOrThrow)
                     .isInstanceOf(java.util.concurrent.ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
+            batch.close();
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();
