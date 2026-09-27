@@ -88,6 +88,14 @@ List<TaskFuture<Account>> futures = result.results();
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
+A handoff failure follows the same rule at every timing. If the bound executor's `execute()` throws — a rejection, a contract-violating `Error`, or a failure while enqueuing such as `OutOfMemoryError` — every affected element terminates as `SUBMISSION_FAILURE` with a `SubmissionException` that keeps the original throwable as its cause. `Par.map` never rethrows such a failure, whether it happens in the synchronous initial window or in the asynchronous sliding-window refill: the completion shape does not depend on parallelism or scheduling. A handoff `Error` is also logged once at `SEVERE` with the batch name and element index, because it signals a broken executor or a failing VM rather than an ordinary rejection.
+
+When per-element attribution is not needed, `valuesOrThrow()` is the whole-batch path: it waits for every element, returns the values in input order when all succeed, and propagates the first failure — including a submission failure — as an `ExecutionException`:
+
+```java
+List<Account> accounts = httpPar.map(accountIds, client::fetchAccount, options).valuesOrThrow();
+```
+
 A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and every element future has settled, returning `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
 
 A `true` result also implies every element future is terminal, which makes it the supported recipe for terminal reporting: `result.report()` and `result.reportString()` count each element by its future's state at call time, so an element whose body has just exited but whose future has not settled yet still reads `RUNNING`. After `awaitBodyCompletion` returned `true` — or after `close()` returned, which cancels before it waits and therefore settles every element future — the report is terminal:
@@ -158,7 +166,13 @@ so slow binding never consumes the execution budget.
 
 Group completion always returns a `TaskGroupResult`; the group outcome (`result.outcome()`, a
 `TaskOutcome`) is result data rather than a failure of the completion future. Individual member
-futures retain normal Guava success, failure, and cancellation behavior. To observe completion
+futures retain normal Guava success, failure, and cancellation behavior. The batch handoff rule
+applies per member: a member whose executor rejects it — or whose `execute()` throws, including an
+`Error` — terminates as `SUBMISSION_FAILURE` with the original throwable behind a
+`SubmissionException`, `submitGroup` still returns the group once admission has crossed its
+boundary, and the completion future completes normally with the member's failure recorded in the
+snapshot. Only pre-admission contract failures — invalid bindings, foreign handles, a closed
+runtime, a missing enclosing scope — throw synchronously from `submitGroup`. To observe completion
 without blocking, register on the completion future and choose the callback executor explicitly —
 `Futures.addCallback(group.completionFuture(), callback, executor)`; a callback added after
 completion still runs with the finished result, and under a direct executor it may run before

@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -253,6 +254,65 @@ class ParSubmitTest {
             global.close();
             plain.shutdownNow();
             smart.shutdownNow();
+        }
+    }
+
+    /**
+     * A single submit whose executor handoff throws an {@code Error} still returns its future: the
+     * task never reached a worker, so the future terminates as {@code SUBMISSION_FAILURE} with the
+     * original {@code Error} behind the {@code SubmissionException}, and {@code submit} itself does
+     * not rethrow.
+     */
+    @Test
+    void submitFailsFutureWhenExecutorHandoffThrowsError() {
+        ExecutorService broken = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("handoff broken");
+            }
+        };
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("broken"), broken).build();
+        try {
+            TaskFuture<Integer> task = global.par(ParId.of("broken"))
+                    .submit("single", () -> 1, TaskOptions.timeout(Duration.ofSeconds(30)));
+
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(task.failure()).isInstanceOf(SubmissionException.class).hasCauseInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+        } finally {
+            global.close();
+            broken.shutdownNow();
         }
     }
 }

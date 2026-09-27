@@ -20,6 +20,8 @@ executor"的路径；配置期校验先于任何运行状态。`task()`/`combine
 
 executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的成员默认不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；仅当成员选项声明 `runOnCallerThread(true)` 时才在提交线程 inline 执行该成员，属于正常执行路径。
 
+该规则同样覆盖目标 executor 的 `execute()` 抛出的任何失败——含违反契约直接抛出的 `Error` 与借泛型擦除偷渡的受检异常（catch 范围见 [扩展契约 L7](extension-and-wrapping.md)）：它是成员提交结果，必须由公开成员 future 以 `SubmissionException` 终结，不能在 Group 已跨过 admission 边界后从 `submitGroup()` 抛出。`TaskGroup.completionFuture()` 仍正常完成并携带 `TaskGroupResult`；调用方通过组结果或成员 future 观察 `SUBMISSION_FAILURE` 及其原始 cause。Options 不提供把成员 handoff failure 改成同步抛出的开关，因为 Group 的成员提交虽然当前由调用线程发起，统一收敛契约仍必须与 Batch/共享 `TaskSubmissions` 内核一致。
+
 ### 7.2 submit 线性化与步骤
 
 `ParRuntime.submitGroup()` 必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `ParRuntime.whileOpen()` 中；实际 executor 调用仍须在内部锁和 ParRuntime admission 机制外进行：
@@ -52,7 +54,7 @@ executor rejection 只有实际提交时才能知道，因此属于 submit 后�
 `ParRuntime.submitGroup()` 正常返回时必须保证完整 members registry 已发布（`future(member)`
 可立即解析），并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submitGroup()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、binder 校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许 `submitGroup` 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submitGroup()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、binder 校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许 `submitGroup` 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
 
 ### 7.3 Prepared single-task submission
 
@@ -75,7 +77,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 - 区分用户直消与 Group 传播取消、fail-fast、timeout 不靠 `isCancelled()` 事后猜测；归因在
   收敛时读取 member/group token 状态（见 [取消与归因 §8.4](cancellation.md#84-deadline)）；
 - `cancel()` 在线程取得执行权前成功后，之后的 prepared submission 不得进入用户 callable；
-- prepared submission 被 executor 拒绝时，可以把 future 完成为 submission failure，不能遗留 pending future；
+- prepared submission 被 executor 拒绝或 handoff 抛出 `Error` 时，必须把 future 完成为 submission failure，不能遗留 pending future；
 - 用户 callable 最多执行一次；
 - phase 继续区分 `CANCELED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
 - `SubmissionScope` 只包住实际 `executor.execute()`；

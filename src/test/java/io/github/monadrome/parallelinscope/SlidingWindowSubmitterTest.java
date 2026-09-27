@@ -462,6 +462,116 @@ class SlidingWindowSubmitterTest {
     }
 
     /**
+     * The whole-batch escalation path observes an initial-window handoff {@code Error} like any
+     * element failure: {@code valuesOrThrow()} propagates it as an {@code ExecutionException}, and
+     * {@code report()} keeps the {@code SubmissionException} with the original {@code Error} as
+     * its cause.
+     */
+    @Test
+    void valuesOrThrowAndReportEscalateAnInitialWindowHandoffError() {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            TaskBatchResult.BatchReport report = batch.report();
+            assertThat(report.stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+            assertThat(report.firstException())
+                    .isInstanceOf(SubmissionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /** The same escalation path observes a sliding-window handoff {@code Error} with no shape difference. */
+    @Test
+    void valuesOrThrowEscalatesASlidingWindowHandoffError() {
+        AtomicInteger submissions = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            if (submissions.getAndIncrement() == 0) command.run();
+            else throw new AssertionError("handoff broken");
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * An initial-window handoff {@code Error} abandons every prepared body: the batch stays
+     * closeable, {@code awaitBodyCompletion} settles, and no prepared future retains its user
+     * callable.
+     */
+    @Test
+    void initialWindowHandoffErrorReleasesPreparedBodiesAndSettlesTheBatch() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
+            TaskBatchResult<Integer> batch = executor.submitAll(tasks);
+
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
+            batch.close();
+            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * L7's "any failure" is literal: {@code execute(Runnable)} declares no checked exceptions, but
+     * an executor can still throw one through generics erasure. The batch catch sites cover {@code
+     * Throwable}, so even that terminates the batch as a submission failure instead of escaping
+     * {@code submitAll}.
+     */
+    @Test
+    void sneakyCheckedHandoffFailureFailsEveryElementAsSubmissionFailure() {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            sneakyThrow(new java.io.IOException("sneaky handoff"));
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(java.io.IOException.class);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
      * The handoff window: the worker executor blocks inside the second {@code execute} until the
      * cancellation lands, so the submitter loop (running the task and binding the placeholder)
      * races the cancellation callback (abandoning placeholders). The claimed element must stay
@@ -664,6 +774,50 @@ class SlidingWindowSubmitterTest {
         return Arrays.stream(tasks)
                 .map(task -> ExecutionPhaseHintFuture.create(task, phase -> {}))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** An executor service whose {@code execute()} delegates to the given handoff. */
+    private static ExecutorService handoffExecutor(java.util.function.Consumer<Runnable> handoff) {
+        return new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                handoff.accept(command);
+            }
+        };
+    }
+
+    /** Throws a checked throwable past {@code execute()}'s unchecked signature, the way a hostile executor can. */
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrow(Throwable failure) throws T {
+        throw (T) failure;
     }
 
     private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {

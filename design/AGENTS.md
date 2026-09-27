@@ -42,6 +42,7 @@
 | [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) | v0.3 TaskGroup API 重设计（已落地）：结构定义与执行绑定分离、`ParId`、`TaskGroup.Bindings`、`GlobalPar` 更名 `ParRuntime`；§20 实施记录 |
 | [task-type-semantics-v0.3-proposal.md](task-type-semantics-v0.3-proposal.md) | `TaskType` 语义与 executor 拒绝处置（已落地）：拒绝时 inline 回退还是 `SubmissionException`、`rejectEnqueue` 的生效条件；§8 实施记录 |
 | [par-map-throwing-function-v0.3-proposal.md](par-map-throwing-function-v0.3-proposal.md) | `Par.map` 受检异常签名决策（**已否决并关闭**）：保留标准 `java.util.function.Function`；§5–§7 选项与落地清单全部作废，仅作决策历史保留 |
+| [batch-submission-failure-semantics.md](batch-submission-failure-semantics.md) | executor handoff failure 统一语义（已落地）：`execute()` 抛出的任何失败（含 `Error` 与偷渡受检异常）以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future，`Par.map`/`submitGroup` 跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径；handoff `Error` 单点 SEVERE 诊断 |
 | [queue-artifact-boundary-decision.md](queue-artifact-boundary-decision.md) | queue 包产物边界（已拍板归档）：与 core 同产物发布，权威依据 [adr/0006](../adr/0006-queues-ship-with-core.md)；边界已关闭，不要在评审、缺陷分诊或重构提案中重提 |
 | `close-and-quiescence-proposal.md`（本地草案，未进版本库，无链接） | A1 关闭语义与静默等待方案草案；其核心机制已被 `BodyCompletionTracker` / `ParRuntime.awaitQuiescence` 取代，处置方式（加抬头保留或归档）待拍板 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |

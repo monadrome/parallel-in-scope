@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -13,6 +14,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 
@@ -35,6 +38,8 @@ import org.jspecify.annotations.Nullable;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class SlidingWindowSubmitter<V> {
+
+    private static final Logger LOGGER = Logger.getLogger(SlidingWindowSubmitter.class.getName());
 
     private final ListeningExecutorService pool;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
@@ -96,10 +101,14 @@ final class SlidingWindowSubmitter<V> {
         for (int i = 0; i < start; i++) {
             try {
                 resultBuilder.add(fallbackSubmit(tasks, i));
-            } catch (RuntimeException | Error failure) {
+            } catch (Throwable failure) {
+                // Catching Throwable, not only RuntimeException | Error: execute(Runnable) declares
+                // no checked exceptions, but a hostile executor can still throw one through
+                // generics erasure, and any handoff failure must terminate the batch the same way.
                 // A handoff failure — rejection or the executor throwing mid-handoff — is the
                 // batch's shared verdict for every element; wrapping it keeps each element
                 // attributed as a submission failure rather than a user one.
+                logHandoffError(failure, i, "the initial window");
                 Throwable rejected = new SubmissionException(failure);
                 resultBuilder.add(rejectedTask(rejected));
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
@@ -194,6 +203,24 @@ final class SlidingWindowSubmitter<V> {
         return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection));
     }
 
+    /**
+     * Reports an executor handoff {@code Error} once, at the catch site that records it. Rejections
+     * are ordinary control flow and stay quiet; an {@code Error} escaping {@code execute()} signals
+     * a broken executor or a failing VM and is always worth an operator's attention. The batch path
+     * never reaches {@code ExecutionPhaseHintFuture.submitPrepared}, so this is the only place the
+     * failure is logged — no site logs it twice.
+     */
+    private void logHandoffError(Throwable failure, int index, String phase) {
+        if (failure instanceof Error) {
+            LOGGER.log(
+                    Level.SEVERE,
+                    failure,
+                    () -> "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
+                            + " during " + phase
+                            + "; the affected elements are failed as submission failures");
+        }
+    }
+
     private int parallelism() {
         return unit.effectiveParallelism();
     }
@@ -232,9 +259,14 @@ final class SlidingWindowSubmitter<V> {
             }
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
-            } catch (RuntimeException | Error e) {
-                abandonRemaining(tasks, result, index, e);
-                throw e;
+            } catch (Throwable failure) {
+                // Same Throwable audit as the initial window: a sneaky checked throwable must not
+                // escape this loop either. The submission future retains the failure for
+                // diagnostics; unchecked types keep their identity, a checked one is wrapped.
+                logHandoffError(failure, index, "the sliding-window refill");
+                abandonRemaining(tasks, result, index, failure);
+                Throwables.throwIfUnchecked(failure);
+                throw new RuntimeException(failure);
             }
             submitted++;
             index++;

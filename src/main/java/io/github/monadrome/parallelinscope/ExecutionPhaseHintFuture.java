@@ -141,8 +141,24 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             // barrier can never reach its total. A broken executor that throws instead of rejecting
             // and an executor that fails while enqueuing (OutOfMemoryError) both fail the task this
             // way, exactly like an ordinary rejection without the caller-thread fallback.
+            if (failure instanceof Error) {
+                // The single-submit and group-member paths share this kernel, so this one log
+                // covers both; the batch path reports its own handoff Errors in
+                // SlidingWindowSubmitter and never reaches this catch.
+                LOGGER.log(
+                        Level.SEVERE,
+                        failure,
+                        () -> "executor handoff threw an Error; task '" + taskLabel()
+                                + "' never reached a worker and is failed as a submission failure");
+            }
             reject(failure);
         }
+    }
+
+    /** The task name carried by the body slot, for diagnostics on paths with no other identity. */
+    private String taskLabel() {
+        TaskBodyState body = bodyState;
+        return body == null ? "<untracked>" : body.name();
     }
 
     /**
