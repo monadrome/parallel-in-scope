@@ -2,17 +2,17 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Polarity complements to {@link TaskGraphBatchIdentityTest}: clean graphs must evaluate every
  * detection predicate {@code false}, unknown nodes pass through {@code displayNode} unformatted,
- * missing labels fall back to {@code NA}, and a benign graph publishes no deadlock event.
+ * missing labels fall back to {@code NA}, and a benign graph publishes a {@code NO_ISSUE} report.
  */
 class TaskGraphPolarityTest {
 
@@ -83,50 +83,46 @@ class TaskGraphPolarityTest {
     }
 
     @Test
-    void benignGraphPublishesNoDetectionEventOnObservationClose() {
-        AtomicInteger detections = new AtomicInteger();
+    void benignGraphPublishesNoIssueReportOnObservationClose() throws Exception {
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(event -> detections.incrementAndGet())
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
+        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             // Acyclic chain only: no cycle, no self-loop anywhere.
             TaskGraphObservationScope.logTaskPair("r", "r", "x", "x", plainEdge());
-            assertThat(detections.get()).isZero();
+            reportFuture = outer.reportFuture();
         }
-        assertThat(detections.get()).isZero();
+        TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
+        assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+        assertThat(report.anyIssue()).isFalse();
+        assertThat(report.taskEdges()).isEmpty();
+        assertThat(report.executorEdges()).isEmpty();
     }
 
     @Test
-    void taskCycleWithoutExecutorRiskPublishesEventWithFalseExecutorFlags() throws Exception {
-        java.util.concurrent.atomic.AtomicReference<
-                        io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent>
-                captured = new java.util.concurrent.atomic.AtomicReference<>();
+    void taskCycleWithoutExecutorRiskPublishesReportWithFalseExecutorFlags() throws Exception {
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(captured::set)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
             // Task-level cycle a -> b -> a using NON-deadlock-prone edges: the task cycle is real,
             // but no executor dependency edges exist at all.
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
+            reportFuture = scope.reportFuture();
         }
 
-        io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent event =
-                Objects.requireNonNull(captured.get());
-        assertThat(event).isNotNull();
-        assertThat(event.hasTaskCycle()).isTrue();
-        assertThat(event.hasSelfLoop()).isFalse();
-        assertThat(event.hasExecutorCycle()).isFalse();
-        assertThat(event.hasExecutorSelfLoop()).isFalse();
-        assertThat(event.hasAnyIssue()).isTrue();
-        assertThat(event.taskEdges()).contains("task-a[a] -> task-b[b]");
-        assertThat(String.valueOf(event)).isNotEmpty();
+        TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
+        assertThat(report.taskCycle()).isTrue();
+        assertThat(report.selfLoop()).isFalse();
+        assertThat(report.executorCycle()).isFalse();
+        assertThat(report.executorSelfLoop()).isFalse();
+        assertThat(report.anyIssue()).isTrue();
+        assertThat(report.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
+        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]");
+        assertThat(String.valueOf(report)).isNotEmpty();
     }
 
     @Test

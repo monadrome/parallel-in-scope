@@ -77,7 +77,8 @@ fake-group-batch -> A/B/C
 
 - 每次查询（`hasTaskCycle()` / `hasSelfLoop()` / `hasExecutorCycle()` / `hasExecutorSelfLoop()`
   以及导出使用的图）MUST 包含其线性化点之前已完成记录的全部边；新增边之后 MUST NOT 复用旧快照；
-- `close()` 检测事件中的 task graph、executor graph、四个 cycle/self-loop 标志与渲染文本 MUST 来自
+- `close()` 发布的 `TaskGraphReport`（经 `TaskGraphObservationScope.reportFuture()`）中的 task
+  graph、executor graph、四个 cycle/self-loop 标志与渲染文本 MUST 来自
   同一份不可变快照，MUST NOT 混用不同时点的读取结果。
 - 快照是 eager 构建的：无法渲染的边（`executorDeadlockProne` 但没有两个端点的 executor 名，
   或 identity graph 缺少 endpoint identity）MUST 在该派生视图中跳过，MUST NOT 让无关查询失败；

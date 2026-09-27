@@ -2,10 +2,12 @@ package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.graph.ValueGraph;
-import io.github.monadrome.parallelinscope.DeadlockDetectionListener.DeadlockDetectionEvent;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,8 +21,8 @@ import org.jspecify.annotations.Nullable;
  * with identity copy semantics, so every worker thread within the request observes the same
  * instance and shares its {@link TaskGraphData}. Nested scopes stack on the opening thread, and
  * {@link #close()} is idempotent so it can be used with try-with-resources. Closing the scope runs
- * the deadlock detection pass over the recorded graph and notifies the owner's
- * {@code ParRuntimeDeadlockPolicy} listeners.
+ * the deadlock detection pass over the recorded graph once and publishes the resulting {@link
+ * TaskGraphReport} through {@link #reportFuture()}.
  *
  * <p>Lifecycle:
  *
@@ -29,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  *       {@link TaskGraphData}
  *   <li>During request: the ParRuntime execution path records batch-instance relationships via
  *       {@link #logTaskPair}
- *   <li>Request end: {@link #close()} checks for cycles and notifies listeners
+ *   <li>Request end: {@link #close()} checks for cycles and publishes the report
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -46,12 +48,19 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final @Nullable TaskGraphObservationScope previousScope;
     private final TaskGraphData data;
+    private final SettableFuture<TaskGraphReport> reportSink = SettableFuture.create();
+    private final ListenableFuture<TaskGraphReport> reportView = TaskObservation.readOnly(reportSink);
 
     TaskGraphObservationScope(ParRuntime owner) {
+        this(owner, new TaskGraphData());
+    }
+
+    /** Test seam: a scope over externally supplied graph data. */
+    TaskGraphObservationScope(ParRuntime owner, TaskGraphData data) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
+        this.data = Objects.requireNonNull(data, "data cannot be null");
         this.previousScope = CURRENT.get();
         CURRENT.set(this);
-        this.data = new TaskGraphData();
     }
 
     /** Returns the observation scope active on the calling thread, if any. */
@@ -135,6 +144,24 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return data != null && data.executorSelfLoop();
     }
 
+    /**
+     * Returns the future carrying this scope's detection report.
+     *
+     * <p>The future stays pending until {@link #close()} publishes exactly once, then holds the
+     * immutable result forever: a {@link TaskGraphReport} whose {@link TaskGraphReport#status()}
+     * distinguishes a disabled policy, a clean detection, and a detected issue — or a failure whose
+     * cause is the detection exception. Any normally returning {@code close()} guarantees the
+     * future is done when it returns, so a caller may read it with {@code Futures.getDone} right
+     * after the try-with-resources block; registering a callback after close never misses the
+     * report. The view is read-only: {@code cancel(...)} returns {@code false} and neither cancels
+     * business work nor changes the scope's closed state.
+     *
+     * @return the read-only report future
+     */
+    public ListenableFuture<TaskGraphReport> reportFuture() {
+        return reportView;
+    }
+
     ParRuntime owner() {
         return owner;
     }
@@ -143,75 +170,128 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return closed.get();
     }
 
+    /**
+     * Closes the scope: the first caller freezes the graph snapshot, runs the detection pass, and
+     * publishes the report; concurrent callers wait for that publication outside any graph lock and
+     * restore their interrupt flag. Every call restores the calling thread's outer scope binding.
+     */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            publishReport();
+        } else {
             try {
-                runDeadlockDetection();
+                awaitReportPublication();
             } finally {
-                if (CURRENT.get() == this) {
-                    if (previousScope == null) CURRENT.remove();
-                    else CURRENT.set(previousScope);
-                }
+                restoreCurrentScope();
             }
         }
     }
 
-    /** Runs the ParRuntime deadlock policy over this scope's graph and restores the outer scope. */
-    private void runDeadlockDetection() {
+    /** Computes the report from one snapshot, restores the outer scope, then publishes. */
+    private void publishReport() {
+        TaskGraphReport report;
         try {
-            if (!owner.deadlockPolicy().enabled()) {
-                return;
-            }
-            DeadlockDetectionEvent event = buildDetectionEvent(data);
-            if (event != null && event.hasAnyIssue()) {
-                logger.log(Level.WARNING, "[[title=TaskGraph,function=deadlockDetection]]" + event);
-                for (DeadlockDetectionListener listener : owner.deadlockPolicy().listeners()) {
-                    try {
-                        listener.onDetection(event);
-                    } catch (Exception e) {
-                        logger.log(
-                                Level.WARNING,
-                                "DeadlockDetectionListener callback failed: "
-                                        + listener.getClass().getName(),
-                                e);
-                    }
-                }
-            }
-        } catch (Exception e) {
+            report = detect();
+        } catch (RuntimeException detectionFailure) {
             logger.log(
                     Level.WARNING,
                     "[[title=TaskGraph,function=finishObservation]]"
                             + "Failed to run ParRuntime potential-deadlock detection",
-                    e);
+                    detectionFailure);
+            restoreCurrentScope();
+            reportSink.setException(detectionFailure);
+            return;
+        } catch (Throwable error) {
+            // Best effort: publish the failure and restore the context before rethrowing.
+            restoreCurrentScope();
+            try {
+                reportSink.setException(error);
+            } catch (RuntimeException publicationFailure) {
+                error.addSuppressed(publicationFailure);
+            }
+            throw error;
+        }
+        restoreCurrentScope();
+        reportSink.set(report);
+    }
+
+    /** Runs the ParRuntime deadlock policy over this scope's graph snapshot. */
+    private TaskGraphReport detect() {
+        if (!owner.deadlockPolicy().enabled()) {
+            return TaskGraphReport.disabled();
+        }
+        TaskGraphData.Snapshot snapshot = data.snapshot();
+        boolean taskCycle = snapshot.taskCycle();
+        boolean selfLoop = snapshot.taskSelfLoop();
+        boolean executorCycle = snapshot.executorCycle();
+        boolean executorSelfLoop = snapshot.executorSelfLoop();
+        if (!taskCycle && !selfLoop && !executorCycle && !executorSelfLoop) {
+            return TaskGraphReport.detection(false, false, false, false, "", "");
+        }
+        TaskGraphReport report = TaskGraphReport.detection(
+                taskCycle,
+                selfLoop,
+                executorCycle,
+                executorSelfLoop,
+                renderTaskEdges(snapshot),
+                renderExecutorEdges(snapshot));
+        logIssueQuietly(report);
+        return report;
+    }
+
+    /** A logging failure must never skip or corrupt report publication. */
+    private static void logIssueQuietly(TaskGraphReport report) {
+        try {
+            logger.log(Level.WARNING, "[[title=TaskGraph,function=deadlockDetection]]" + report);
+        } catch (RuntimeException loggingFailure) {
+            // JUL handlers are user-replaceable; swallow their failures so the report still lands.
         }
     }
 
-    private static @Nullable DeadlockDetectionEvent buildDetectionEvent(TaskGraphData data) {
-        TaskGraphData.Snapshot snapshot = data.snapshot();
-        boolean hasTaskCycle = snapshot.taskCycle();
-        boolean hasSelfLoop = snapshot.taskSelfLoop();
-        boolean hasExecutorCycle = snapshot.executorCycle();
-        boolean hasExecutorSelfLoop = snapshot.executorSelfLoop();
-
-        if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
-            return null;
+    /** Waits for the winner's publication; the wait ends at the sink's terminal state, not after callbacks. */
+    private void awaitReportPublication() {
+        boolean interrupted = false;
+        try {
+            for (; ; ) {
+                try {
+                    reportSink.get();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                } catch (ExecutionException failedDetection) {
+                    // A failed detection still releases every waiting close.
+                    return;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
+    }
 
+    /** Restores this thread's outer scope binding when this scope is still installed here. */
+    private void restoreCurrentScope() {
+        if (CURRENT.get() == this) {
+            if (previousScope == null) CURRENT.remove();
+            else CURRENT.set(previousScope);
+        }
+    }
+
+    private static String renderTaskEdges(TaskGraphData.Snapshot snapshot) {
         ValueGraph<String, List<TaskEdge>> taskGraph = snapshot.graph();
-        String taskEdges = taskGraph.edges().stream()
+        return taskGraph.edges().stream()
                 .map(p -> snapshot.displayNode(p.source()) + " -> " + snapshot.displayNode(p.target()) + " "
                         + taskGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
+    }
+
+    private static String renderExecutorEdges(TaskGraphData.Snapshot snapshot) {
         ValueGraph<String, List<TaskEdge>> executorGraph = snapshot.executorGraph();
-        String executorEdges = executorGraph.edges().stream()
+        return executorGraph.edges().stream()
                 .map(p -> p.source() + " -> " + p.target() + " "
                         + executorGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
                 .collect(Collectors.joining(", "));
-
-        return new DeadlockDetectionEvent(
-                hasTaskCycle, hasSelfLoop,
-                hasExecutorCycle, hasExecutorSelfLoop,
-                taskEdges, executorEdges);
     }
 }

@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @SuppressWarnings("UnstableApiUsage")
-final class TaskGraphData {
+class TaskGraphData {
 
     private final Object lock = new Object();
     private final List<TaskEdgeEntry> taskEdges = new ArrayList<>();
