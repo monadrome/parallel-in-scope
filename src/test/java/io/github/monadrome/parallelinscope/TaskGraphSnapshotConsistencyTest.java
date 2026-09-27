@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.graph.ValueGraph;
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -10,7 +11,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -105,15 +105,12 @@ class TaskGraphSnapshotConsistencyTest {
     }
 
     @Test
-    void closeUsesTheLatestSingleSnapshotAfterEarlierQueries() {
-        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> captured = new AtomicReference<>();
+    void closeUsesTheLatestSingleSnapshotAfterEarlierQueries() throws Exception {
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(captured::set)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", riskyEdge("pool-a", "pool-b"));
 
             // Negative queries before the reverse edges exist must not pin the close-time answer.
@@ -123,18 +120,18 @@ class TaskGraphSnapshotConsistencyTest {
             assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
             TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", riskyEdge("pool-b", "pool-a"));
+            reportFuture = scope.reportFuture();
         } finally {
             global.close();
         }
 
-        DeadlockDetectionListener.DeadlockDetectionEvent event = captured.get();
-        assertThat(event).isNotNull();
-        assertThat(event.hasTaskCycle()).isTrue();
-        assertThat(event.hasSelfLoop()).isFalse();
-        assertThat(event.hasExecutorCycle()).isTrue();
-        assertThat(event.hasExecutorSelfLoop()).isFalse();
-        assertThat(event.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-a[a]");
-        assertThat(event.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
+        TaskGraphReport report = java.util.Objects.requireNonNull(Futures.getDone(reportFuture));
+        assertThat(report.taskCycle()).isTrue();
+        assertThat(report.selfLoop()).isFalse();
+        assertThat(report.executorCycle()).isTrue();
+        assertThat(report.executorSelfLoop()).isFalse();
+        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-a[a]");
+        assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     @Test

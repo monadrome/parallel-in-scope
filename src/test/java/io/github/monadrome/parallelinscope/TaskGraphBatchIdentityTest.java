@@ -2,11 +2,11 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class TaskGraphBatchIdentityTest {
@@ -106,22 +106,19 @@ class TaskGraphBatchIdentityTest {
     }
 
     @Test
-    void closingObservationPublishesDetectionEventAndRestoresOuterGraph() {
-        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
+    void closingObservationPublishesReportAndRestoresOuterGraph() throws Exception {
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(event::set)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             TaskGraphData outerData = TaskGraphObservationScope.data();
             TaskGraphObservationScope.logTaskPair("outer", "outer", "outer", "outer", edge());
-            try (TaskGraphObservationScope inner = global.openTaskGraphObservation()) {
-                TaskGraphObservationScope.logTaskPair("inner", "inner", "inner", "inner", edge());
-            }
-            assertThat(event.get()).isNotNull();
-            assertThat(Objects.requireNonNull(event.get()).hasSelfLoop()).isTrue();
+            TaskGraphObservationScope inner = global.openTaskGraphObservation();
+            TaskGraphObservationScope.logTaskPair("inner", "inner", "inner", "inner", edge());
+            inner.close();
+            TaskGraphReport report = Objects.requireNonNull(Futures.getDone(inner.reportFuture()));
+            assertThat(report.selfLoop()).isTrue();
+            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
             assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
             assertThat(TaskGraphObservationScope.data()).isSameAs(outerData);
         } finally {
@@ -130,24 +127,21 @@ class TaskGraphBatchIdentityTest {
     }
 
     @Test
-    void closingObservationPublishesExecutorCycleEdges() {
-        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
+    void closingObservationPublishesExecutorCycleEdges() throws Exception {
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(event::set)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
             TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
             TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
+            reportFuture = scope.reportFuture();
         } finally {
             global.close();
         }
 
-        assertThat(event.get()).isNotNull();
-        assertThat(Objects.requireNonNull(event.get()).executorEdges())
-                .contains("pool-a -> pool-b", "pool-b -> pool-a");
+        TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
+        assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     private static MultiTaskContext context() {

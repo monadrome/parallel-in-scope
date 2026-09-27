@@ -330,19 +330,23 @@ try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) 
 - `maximumPoolSize` 为 `Integer.MAX_VALUE` 的执行器 → 不会死锁，因为线程数可以无限增长
 - 其他情况（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能死锁**
 
-检测结果通过 `DeadlockDetectionListener` SPI 回调通知：
+检测结果随请求作用域发布：关闭 `TaskGraphObservationScope` 时对冻结的图运行一次检测，报告经 `reportFuture()` 以 `TaskGraphReport` 交付：
 
 ```java
-ParConfig config = ParConfig.builder()
-    .executor("shared-pool", pool)
-    .deadlockDetectionEnabled(true)
-    .deadlockListener(event -> {
-        if (event.hasExecutorSelfLoop()) {
-            log.warn("Potential deadlock: executor self-loop detected! {}",
-                event.getExecutorEdges());
-        }
-    })
+ParRuntime global = ParRuntime.builder()
+    .register(ParId.of("shared-pool"), pool)
+    .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
     .build();
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.executorSelfLoop()) {
+    log.warn("Potential deadlock: executor self-loop detected! {}",
+        report.executorEdges());
+}
 ```
 
 > 死锁检测不应该是事后分析工具，应该是运行时守护。问题在发生的瞬间就被发现。
@@ -440,7 +444,7 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 
 潜龙勿用——但如果用了，就用对。
 
-如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `deadlockDetectionEnabled(true)`——一行配置，零代码改动。至少，下次卡死的时候你能知道为什么。
+如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `ParRuntimeDeadlockPolicy` 检测并保存作用域的 `reportFuture()`——一处配置加一个 future。至少，下次卡死的时候你能知道为什么。
 
 ---
 

@@ -21,7 +21,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".BatchOptions",
             BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",
-            BASE_PACKAGE + ".DeadlockDetectionListener",
             BASE_PACKAGE + ".ParRuntime",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy",
             BASE_PACKAGE + ".ParRuntimePurgePolicy",
@@ -33,6 +32,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskCompletion",
             BASE_PACKAGE + ".TaskFuture",
             BASE_PACKAGE + ".TaskGraphObservationScope",
+            BASE_PACKAGE + ".TaskGraphReport",
             BASE_PACKAGE + ".TaskGroup",
             BASE_PACKAGE + ".TaskGroupDefinition",
             BASE_PACKAGE + ".TaskGroupResult",
@@ -44,11 +44,11 @@ class PublicApiSurfaceTest {
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.
             BASE_PACKAGE + ".CancellationToken$State",
-            BASE_PACKAGE + ".DeadlockDetectionListener$DeadlockDetectionEvent",
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
             BASE_PACKAGE + ".ParRuntimePurgePolicy$Builder",
             BASE_PACKAGE + ".TaskBatchResult$BatchReport",
+            BASE_PACKAGE + ".TaskGraphReport$Status",
             BASE_PACKAGE + ".TaskGroup$Bindings",
             BASE_PACKAGE + ".TaskGroup$CombineBody",
             BASE_PACKAGE + ".TaskGroup$CombineContext",
