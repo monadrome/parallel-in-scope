@@ -70,8 +70,10 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
 
     /**
-     * The task-body completion slot, or null when the submission carries no shared tracker (a
-     * single {@code Par.submit} or a non-scoped completion-service task). Driven by the same
+     * The task-body completion slot. Every production submission carries one — batches, single
+     * {@code Par.submit} tasks, group members, and combines all register a slot before
+     * preparation; a null slot occurs only when a future is prepared outside any tracked
+     * submission, which today means tests. Driven by the same
      * claim/cancel race as the phase machine: run() claims it, cancel-before-run and rejection
      * skip it, and the body-exit publish (inner, with this future's finally as fallback) releases
      * it — each exactly once.
