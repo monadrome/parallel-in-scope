@@ -80,6 +80,14 @@ List<TaskFuture<Account>> futures = result.results();
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
+handoff 失败在任何时序下遵循同一规则。绑定执行器的 `execute()` 抛出时——拒绝、违反契约的 `Error`，或入队失败（如 `OutOfMemoryError`）——每个受影响元素以 `SUBMISSION_FAILURE` 终结，`SubmissionException` 的 cause 保留原始 throwable。无论失败发生在同步的初始窗口还是异步的滑动窗口 refill，`Par.map` 都不会把它重新抛出：完成形态不依赖并行度与调度。handoff `Error` 还会以 `SEVERE` 记录一次（携带批次名与元素下标），因为它意味着执行器损坏或 VM 故障，而非普通拒绝。
+
+不需要逐元素归因时，`valuesOrThrow()` 是整批路径：它等待所有元素，全部成功时按输入顺序返回值，并把第一个失败——包括 submission failure——以 `ExecutionException` 传播：
+
+```java
+List<Account> accounts = httpPar.map(accountIds, client::fetchAccount, options).valuesOrThrow();
+```
+
 future 完成只表示值已落定，并不证明用户函数已经退出。`result.awaitBodyCompletion(Duration)` 等待每个元素的任务体真正退出——或被原子确定为永远不会启动——并且每个元素 future 都已落定，预算耗尽时返回 `false`。它自身不取消任何任务。`true` 结果对每个任务体的写入建立 happens-before，因此它是释放任务体所使用资源之前应确认的条件。
 
 `true` 结果还蕴含每个元素 future 均已终态，这使它成为终态报告的标准配方：`result.report()` 与 `result.reportString()` 按调用时刻的 future 状态计数，任务体刚退出而 future 尚未落定的元素仍会计为 `RUNNING`。在 `awaitBodyCompletion` 返回 `true` 之后——或在 `close()` 返回之后（`close()` 先取消再等待，取消会把每个元素 future 同步落定）——报告即为终态：
@@ -123,7 +131,7 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 
 `Builder.task(name, par)` 只记录成员的名称、`Par` 和选项——它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务；`Par` 必须属于创建该 builder 的同一个 `ParRuntime`。每次声明显式返回一个类型化的 `Member<T>` 句柄：它由库创建、按对象身份识别，同时约束 `Bindings.task(member, callable)` 的返回值与 `group.future(member)` 的结果类型为同一个 `T`；来自其他 definition 的句柄或 kind 不匹配的用法一律抛 `IllegalArgumentException`。binder 在调用线程上恰好同步执行一次，返回后 bindings 即冻结：每个成员恰好一个 body，binder 抛异常会在 admission 前拒绝整次提交，binder 返回后或从其他线程使用 `Bindings` 都抛 `IllegalStateException`。组 deadline 从 binder 返回时起算，因此绑定阶段耗时不会消耗执行预算。
 
-组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。要异步观测完成，请在 completion future 上显式选择回调 executor 登记——`Futures.addCallback(group.completionFuture(), callback, executor)`；future 完成后追加的 callback 仍会以已完成结果运行，direct executor 下 callback 可能在 `submitGroup` 返回前执行。
+组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。批次的 handoff 规则同样适用于每个成员：成员被执行器拒绝——或 `execute()` 抛出（含 `Error`）——时以 `SUBMISSION_FAILURE` 终结，原始 throwable 保留在 `SubmissionException` 的 cause 中；admission 跨过边界后 `submitGroup` 仍返回组，completion future 正常完成，成员失败记录在快照里。只有 admission 前的契约失败——绑定非法、外来句柄、runtime 已关闭、缺少外层作用域——才从 `submitGroup` 同步抛出。要异步观测完成，请在 completion future 上显式选择回调 executor 登记——`Futures.addCallback(group.completionFuture(), callback, executor)`；future 完成后追加的 callback 仍会以已完成结果运行，direct executor 下 callback 可能在 `submitGroup` 返回前执行。
 
 组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 只发出取消请求；`close()` 取消未完成成员后，再在组的 close grace 内有界等待任务体退出——close grace 是清理预算，用 `TaskGroupDefinition.Builder.closeGrace(Duration)` 配置；未配置时派生自关闭时组的剩余 deadline：超时引发的关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待，等价于 `cancel()`。grace 耗尽而任务体仍在运行时，未退出成员的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor，忽略中断的任务体可能在它返回后继续运行；释放任务体使用的资源前，用 `group.awaitBodyCompletion(Duration)` 以独立预算确认任务体退出。在本组成员任务体内（含同线程嵌套 inline 调用）调用这两个等待会被拒绝并抛 `IllegalStateException`。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。执行顺序由 definition 固定——普通成员按声明顺序、终端 combine 永远在最后——与 binder 的登记顺序无关。
 

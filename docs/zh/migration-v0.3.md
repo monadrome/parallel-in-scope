@@ -310,11 +310,44 @@ admission 仍是全量边界：绑定缺失、重复、foreign 或 kind 不匹�
 | `ParRuntime` 已关闭（或关闭竞争获胜） | admission | 否 |
 | inherit 组无外层 scoped task | 运行准备期 | 否 |
 | 运行准备失败 | admission 回滚 | 否 |
-| executor 拒绝 | 运行提交期 | 是，记入结果 |
+| executor 拒绝或 `execute()` 抛出的 handoff `Error` | 运行提交期 | 是，记入结果 |
 | callable/combine body 抛异常 | 运行执行期 | 是，fail-fast/结果 |
 
 成功提交之后发生的业务失败只通过 future 与 `TaskGroupResult` 表达，绝不从 `submitGroup`
 抛出，因此 direct executor 与异步 executor 得到相同的 API 行为。
+
+## executor handoff 失败记入 future，不再抛出
+
+提交契约对 executor handoff 的所有失败统一——拒绝、`execute()` 违反契约抛出的 `Error`，或
+入队失败（如 `OutOfMemoryError`）。受影响的元素或成员 future 以 `SUBMISSION_FAILURE` 终结，
+`SubmissionException` 的 cause 保留原始 throwable；admission 跨过公开边界后，`Par.map` 与
+`submitGroup` 都不再重新抛出该失败。完成形态不再取决于失败发生在同步初始窗口还是异步滑动窗口
+refill——同一个执行器缺陷过去会呈现两种可观测形态。
+
+针对早期 snapshot 编写、预期 `Par.map` 本身抛出 handoff `Error` 的代码，必须把升级点移到结果
+句柄上：
+
+```java
+// 旧的、依赖时序的预期
+try {
+    TaskBatchResult<Result> batch = par.map(inputs, mapper, options);
+    // 使用 batch
+} catch (Error failure) {
+    // 不再是批次提交契约
+}
+
+// 新的稳定契约
+try {
+    List<Result> values = par.map(inputs, mapper, options).valuesOrThrow();
+} catch (ExecutionException failure) {
+    Throwable cause = failure.getCause();
+    // SubmissionException.getCause() 是执行器抛出的原始 throwable
+}
+```
+
+已经在使用 `results()`、`report()` 或成员 future 的代码无需行为迁移；只需注意
+`SUBMISSION_FAILURE` 现在可能包装来自 handoff 的 `Error`。handoff `Error` 还会以 `SEVERE`
+记录一次（携带批次或成员身份），因为它意味着执行器损坏或 VM 故障，而非普通拒绝。
 
 ## executor 拒绝后默认不再执行用户代码
 
