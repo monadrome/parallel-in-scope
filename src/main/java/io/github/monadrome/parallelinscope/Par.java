@@ -77,8 +77,7 @@ public final class Par {
 
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
             Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
-        return TaskSubmissions.prepare(
-                taskContext, callable, runtime.taskListenersFor(id), executorRuntime.phaseObserver());
+        return TaskSubmissions.prepare(taskContext, callable, executorRuntime.phaseObserver());
     }
 
     ExecutorIdentity executorIdentity() {
@@ -119,8 +118,8 @@ public final class Par {
      *
      * <p>This is the unary entry point of the same pipeline {@link #map} uses: the task gets its
      * own child {@link CancellationToken} with the resolved deadline, a TTL snapshot taken on this
-     * thread, task-listener notification, and structured cancellation from any enclosing scope. A
-     * deadline that expires before the task starts never enters user code.
+     * thread, an observation future published on completion, and structured cancellation from any
+     * enclosing scope. A deadline that expires before the task starts never enters user code.
      *
      * @param taskName the task name reported on the returned future
      * @param task the task body
@@ -172,8 +171,8 @@ public final class Par {
         }
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
-        ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(
-                taskContext, task, runtime.taskListenersFor(id), executorRuntime.phaseObserver());
+        ExecutionPhaseHintFuture<T> future =
+                TaskSubmissions.prepare(taskContext, task, executorRuntime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
@@ -252,7 +251,6 @@ public final class Par {
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
-                        runtime.taskListenersFor(id),
                         executorRuntime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(

@@ -21,7 +21,7 @@
 
 | 编号 | 目标 |
 |---|---|
-| G1 | 用户可给任务体加横切能力（MDC/普通 ThreadLocal、追踪、指标、重试）；指标走现成的 `TaskListener`（§5.4），其余自助包装（§5） |
+| G1 | 用户可给任务体加横切能力（MDC/普通 ThreadLocal、追踪、指标、重试）；指标走现成的观测快照（§5.4），其余自助包装（§5） |
 | G2 | 上下文回放是任务体栈的最外层，由**构造**保证，不靠文档约定 |
 | G3 | batch 元素、group 成员、terminal combine 三条路径语义一致 |
 | G4 | 不牺牲任何现有结构化语义：取消、deadline、fail-fast、上下文恢复、outcome 归因 |
@@ -142,7 +142,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 
 ## 5. 自助包装：四个场景的现成做法
 
-库的构造保证用户 body 位于上下文层与生命周期层之内（§2 调用栈）：body 内的代码自动获得 I1/I2，抛出的异常按 `USER_FAILURE` 归因、计入 timing、`TaskListener` 可见。自助包装不需要库提供任何扩展点。
+库的构造保证用户 body 位于上下文层与生命周期层之内（§2 调用栈）：body 内的代码自动获得 I1/I2，抛出的异常按 `USER_FAILURE` 归因、计入 timing、进观测快照。自助包装不需要库提供任何扩展点。
 
 ### 5.1 守则
 
@@ -152,7 +152,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 | R2 | **精确恢复**：`finally` 里 MUST 还原为捕获到的原值，而非清空（P5） |
 | R3 | **快照逐提交独立**：MUST NOT 跨提交共享同一捕获对象（P6） |
 | R4 | **不得逃逸**：横切逻辑只覆盖本次 body 的同步动态范围；MUST NOT 指望逃逸到其它线程的代码看到回放（P4） |
-| R5 | **重试守则**：只重跑自己的 body；每次重试前 MUST `Checkpoints.checkpoint()` 自查取消。语义推论：一次任务 = 一次计时窗口、一次 listener 事件、N 次用户尝试 |
+| R5 | **重试守则**：只重跑自己的 body；每次重试前 MUST `Checkpoints.checkpoint()` 自查取消。语义推论：一次任务 = 一次计时窗口、一份观测快照、N 次用户尝试 |
 | R6 | **不吞异常/中断**：MUST NOT `catch` 后返回正常值抹掉失败；捕获中断后 MUST 恢复中断标志（P12） |
 | R7 | **不假设跨线程**：inline 路径（caller-thread 拒绝回退）上捕获与执行可能同线程，回放 MUST 幂等无害（P13） |
 | R8 | **线程安全**：共享的包装工具实例会被多任务并发调用，MUST NOT 持有每次调用的可变状态 |
@@ -190,14 +190,20 @@ par.map(elements, item -> {
 
 group 成员与 terminal combine 同理：在 `Bindings` 里绑定的 `Callable` 内自行包装。
 
-### 5.4 指标：优先用 TaskListener，不要包 body
+### 5.4 指标：优先用观测快照，不要包 body
 
-库已为每个任务计时并归因。注册 listener 即可拿到全部指标原语（`TaskCompletion`：`taskName()`、`unitId()`、`taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、`enqueued()`）：
+库已为每个任务计时并归因。消费 `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` 的终态快照即可拿到全部指标原语（`TaskCompletion`：`taskName()`、`unitId()`、`taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、`enqueued()`），callback 运行在你自己选择的 executor 上：
 
 ```java
-builder.taskListener(event ->
-    metrics.timer("par.task", "par", event.unitId(), "outcome", event.outcome().name())
-           .record(event.executionTime()));
+Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<T>>>() {
+    @Override public void onSuccess(List<TaskCompletion<T>> completions) {
+        for (TaskCompletion<T> event : completions) {
+            metrics.timer("par.task", "par", event.unitId(), "outcome", event.outcome().name())
+                   .record(event.executionTime());
+        }
+    }
+    @Override public void onFailure(Throwable failure) { /* 实现缺陷；上报 */ }
+}, callbackExecutor);
 ```
 
 ### 5.5 重试
@@ -311,14 +317,14 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 | T5 | 恢复精确性 | worker 预置非 null 值 → 任务结束后仍为该值 |
 | T6 | inline | 拒绝回退路径顺序与正常路径相同 |
 | T7 | executor 契约 | spy 断言调用的是 `execute` 而非 `submit`；拒绝型 executor → future 终态且无悬挂 |
-| T8 | 异常归因 | body 抛异常 → `USER_FAILURE`；listener 收到失败事件 |
+| T8 | 异常归因 | body 抛异常 → `USER_FAILURE`；观测快照携带失败记录 |
 | T9 | 取消 | body 内 `Checkpoints.checkpoint()` 在取消后抛出；带自助包装的取消/fail-fast/timeout 语义不变 |
 
 ## 10. 明确不做
 
 | 方案 | 否决理由 |
 |---|---|
-| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（2026-09-26 拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有 `TaskListener`（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
+| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（2026-09-26 拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
 | executor 包装 SPI | JDK 的 `ExecutorService` 已是扩展点；再加一层只会让身份、内省与上下文范围问题更隐蔽（P9–P11） |
 | future 级包装 | 破坏 phase/purge/取消/身份（P7）；future 级能力应进库扩展 |
 | 关闭/替换上下文包装的开关 | 直接破 I1（P14） |
@@ -330,7 +336,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 1. ~~TTL 包装器检测~~——已落地（2026-09-25，见 §6 落地记录）；
 2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md`——文档定稿（零 SPI 方向）；CHANGELOG 已记上述检测与 L8 两条修复；
-3. 用户文档（中英）：自助包装守则与范例（§5）、`TaskListener` 指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
+3. 用户文档（中英）：自助包装守则与范例（§5）、观测快照指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
 
 ## 12. 参考
 

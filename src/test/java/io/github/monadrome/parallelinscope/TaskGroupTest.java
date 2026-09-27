@@ -81,11 +81,8 @@ class TaskGroupTest {
     @Test
     void memberNameOwnsExecutionDiagnostics() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("worker"), executor)
-                .taskListener(listenerCompletion::set)
-                .build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
             TaskGroupDefinition.Member<String> user = builder.task("user", global.par(ParId.of("worker")));
@@ -105,7 +102,10 @@ class TaskGroupTest {
             assertThat(group.future(user).get(2, TimeUnit.SECONDS)).isEqualTo("alice");
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(Objects.requireNonNull(listenerCompletion.get()).taskName())
+            assertThat(group.future(user)
+                            .completionFuture()
+                            .get(2, TimeUnit.SECONDS)
+                            .taskName())
                     .isEqualTo("user");
             assertThat(Objects.requireNonNull(result.members().get("user")).taskName())
                     .isEqualTo("user");

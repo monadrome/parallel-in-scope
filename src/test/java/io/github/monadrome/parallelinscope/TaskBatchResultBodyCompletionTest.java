@@ -219,7 +219,7 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch releaseObserver = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         ExecutionPhaseHintFuture<Integer> future =
-                TaskSubmissions.prepare(context, executions::incrementAndGet, null, phase -> {
+                TaskSubmissions.prepare(context, executions::incrementAndGet, phase -> {
                     if (phase == ExecutionPhase.RUNNING) {
                         observerEntered.countDown();
                         try {
@@ -698,40 +698,35 @@ class TaskBatchResultBodyCompletionTest {
 
     @Test
     void awaitBodyCompletionWaitsForFutureSettlementBeyondBodyExit() throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        CountDownLatch listenerEntered = new CountDownLatch(1);
-        CountDownLatch releaseListener = new CountDownLatch(1);
-        // The listener runs between the body-exit publish and the future settlement, so blocking
-        // it holds the element's future non-terminal after its body has already exited — the
-        // window where report() used to read RUNNING after a successful wait.
-        ParRuntime global = ParRuntime.builder()
-                .taskListener(event -> {
-                    listenerEntered.countDown();
-                    try {
-                        releaseListener.await(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException interrupted) {
-                        Thread.currentThread().interrupt();
-                    }
-                })
-                .register(ParId.of("worker"), executor)
-                .build();
-        try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(Collections.singletonList(1), value -> value, options("settlement-window"));
-            assertThat(listenerEntered.await(2, TimeUnit.SECONDS)).isTrue();
+        // A body publishes its exit before its future settles; a batch whose element future is
+        // still pending after body exit must not report completion yet — the window where
+        // report() used to read RUNNING after a successful wait.
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("settlement-window").spec(), 1));
+        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        TaskBodyState slot = tracker.register(unit);
+        com.google.common.util.concurrent.SettableFuture<Integer> settle =
+                com.google.common.util.concurrent.SettableFuture.create();
+        Task<Integer> element = Task.of("settlement-window", unit.cancellationToken(), settle);
+        TaskBatchResult<Integer> batch = TaskBatchResult.of(
+                tracker,
+                com.google.common.util.concurrent.Futures.immediateVoidFuture(),
+                Collections.singletonList(element),
+                unit.cancellationToken(),
+                null);
 
-            // The body has exited but the listener holds the future short of settlement: the
-            // conjunction must not report completion yet.
-            assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+        slot.claimRunning();
+        slot.exited();
 
-            releaseListener.countDown();
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
-            assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
-        } finally {
-            releaseListener.countDown();
-            global.close();
-            executor.shutdownNow();
-        }
+        // The body has exited but the element future is still short of settlement: the
+        // conjunction must not report completion yet.
+        assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+        settle.set(1);
+        assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
+        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
+                .allSatisfy(completion -> assertThat(completion.successful()).isTrue());
     }
 
     @Test

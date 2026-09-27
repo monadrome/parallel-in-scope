@@ -32,6 +32,7 @@ except for the `ParName` rename to `ParId`.
 | `CombineFunction<R>` | `TaskGroup.CombineBody<R>` registered on `TaskGroup.Bindings` |
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
+| `TaskListener`, `ParRuntime.Builder.taskListener(...)` / `parTaskListener(...)`, `ParRuntime.taskListeners()` / `taskListenersFor(...)` | `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` + `Futures.addCallback` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` and `TaskGroupDefinition.tasks()` / `combine()` | removed; `TaskGroupDefinition.Member<T>` is the only handle |
 
 The five deleted top-level types have no compatibility aliases: `TaskKey`,
@@ -75,18 +76,18 @@ way to register or obtain a `Par`:
 
 - `ParRuntime.Builder.register(ParId, ExecutorService)` still returns `Builder` — it cannot
   return a `Par`, because a `Par`'s owner and runtime do not exist until `ParRuntime` is built.
-- `ParRuntime.Builder.defaultPar(ParId)` and `parTaskListener(ParId, TaskListener)`.
-- `ParRuntime.par(ParId)`, `ParRuntime.find(ParId)`, `ParRuntime.taskListenersFor(ParId)`,
-  and `ParRuntime.pars()`, which is now a `Map<ParId, Par>`.
+- `ParRuntime.Builder.defaultPar(ParId)`.
+- `ParRuntime.par(ParId)`, `ParRuntime.find(ParId)`, and `ParRuntime.pars()`, which is now a
+  `Map<ParId, Par>`.
 - `Par.id()` returns `ParId`, replacing `Par.name()`; call `.value()` only where a raw string
   is needed.
 - `TaskGroupDefinition.Builder.task(String, Par[, TaskOptions])` and
   `combine(String, Par[, TaskOptions])` still name members with plain strings — member names
   were never `ParName`s.
 
-The `ParRuntime.Builder.build()` consistency checks (default `Par` registered, listener
-overrides registered) are unchanged. A well-formed id still says nothing about registration;
-unknown ids fail at `build()` or at `par(id)` exactly as before.
+The `ParRuntime.Builder.build()` consistency check (default `Par` registered) is unchanged. A
+well-formed id still says nothing about registration; unknown ids fail at `build()` or at
+`par(id)` exactly as before.
 
 ```java
 // 0.2.x
@@ -105,6 +106,55 @@ ParRuntime global = ParRuntime.builder()
 Par io = global.par(ParId.of("io"));
 ParId id = io.id();
 ```
+
+## `TaskListener` is removed; observation is a scoped result
+
+The global push SPI is gone: `TaskListener`, the `ParRuntime.Builder.taskListener(...)` /
+`parTaskListener(...)` registration surface, and the `ParRuntime.taskListeners()` /
+`taskListenersFor(...)` accessors are deleted. Timing and attribution data is not deleted — it
+moves from a runtime-wide side channel onto the submission scope's result, as a pull model with
+explicit callbacks:
+
+- **Unary:** keep the `TaskFuture` and register on `task.completionFuture()`, which completes
+  with the task's final `TaskCompletion<T>` — identity, submit/start/end times, queue wait,
+  outcome, failure, and the result on success.
+- **Batch:** keep the `TaskBatchResult` and register on `batch.completionFuture()`, which
+  completes with the input-ordered immutable `List<TaskCompletion<T>>`, including elements that
+  never started (rejected, cancelled, or abandoned), recorded with zero start/end times and their
+  real outcome.
+- **Group:** delete member listener registrations and read `TaskGroupResult.members()` /
+  `terminal()` in a `group.completionFuture()` callback, as before.
+
+```java
+// 0.2.x
+ParRuntime global = ParRuntime.builder()
+        .register(ParName.of("io"), pool)
+        .taskListener(events::add)
+        .build();
+// ...then wait or poll the shared events list
+
+// 0.3.0
+TaskBatchResult<String> batch = io.map(items, this::work, options);
+Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<String>>>() {
+    @Override public void onSuccess(List<TaskCompletion<String>> completions) {
+        for (TaskCompletion<String> completion : completions) {
+            metrics.record(completion.unitId(), completion.outcome(),
+                    completion.waitTime(), completion.executionTime());
+        }
+    }
+    @Override public void onFailure(Throwable failure) { /* implementation defect; report it */ }
+}, callbackExecutor);
+```
+
+Two completion guarantees replace listener-delivery semantics. A snapshot is published only after
+the task future is terminal *and* the task body has exited, so end times are always final; and
+once the scope has completed — `awaitBodyCompletion(...)` returned `true` — the observation
+future is already done, with no polling. Code that relied on event *order* must now order
+explicitly (batch input order, group member names, or the time fields); code that relied on the
+listener *thread* must now pick a callback executor. What is gone for good: the zero-config
+global event stream across all `Par` entries, the library's unified listener exception logging
+(Guava callback isolation is now your infrastructure's affair), and pre-execution cancellations
+or rejections being invisible — they now appear in the snapshots with zero timings.
 
 ## The three phases
 

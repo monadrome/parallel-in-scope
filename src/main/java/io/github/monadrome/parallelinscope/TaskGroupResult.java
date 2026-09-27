@@ -164,4 +164,14 @@ public final class TaskGroupResult {
         TaskCompletion<?> failed = members.get(failedTaskName);
         return failed != null ? failed : terminal;
     }
+
+    /**
+     * Returns the failure recorded for the first failed member or terminal combine, or null when
+     * the group succeeded or ended with a cancellation-shaped outcome that recorded no failure.
+     */
+    @Nullable
+    Throwable recordedFailure() {
+        TaskCompletion<?> failed = failedTaskSnapshot();
+        return failed == null ? null : failed.failure();
+    }
 }

@@ -210,7 +210,7 @@ parallel-in-scope 的 API 签名是 `map(List<T>, Function<T, R>)` ——输入�
 
 1. **类型安全。** Java 泛型不支持异构列表的类型安全返回。`invokeAll(Callable<A>, Callable<B>, Callable<C>)` 的返回类型只能是 `List<Future<?>>` 或者需要大量的重载（2 参数、3 参数、4 参数……直到 N 参数），Guava 和 CF 的做法也只能到此为止。
 2. **并发控制无意义。** 异构任务通常只有 2-5 个，不需要滑动窗口、并发限制这些 parallel-in-scope 的核心能力。`Futures.allAsList()` 或 `CompletableFuture.allOf()` 已经足够。
-3. **监控粒度不匹配。** parallel-in-scope 的 `TaskListener` 和 `BatchReport` 假设一个批次内所有任务是同名同类型的。异构任务意味着每个任务需要独立的名称、独立的 SPI 回调——这是完全不同的监控模型。
+3. **监控粒度不匹配。** parallel-in-scope 的观测快照和 `BatchReport` 假设一个批次内所有任务是同名同类型的。异构任务意味着每个任务需要独立的名称、独立的观测——这是完全不同的监控模型。
 
 **替代方案：** 用 Guava 原生 API 编排异构任务：
 

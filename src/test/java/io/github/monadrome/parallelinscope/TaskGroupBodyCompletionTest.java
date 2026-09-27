@@ -13,6 +13,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -575,31 +576,44 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void blockingListenerDoesNotBlockBodyCompletion() throws Exception {
+    void blockedObservationCallbackDoesNotBlockBodyCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        CountDownLatch listenerRelease = new CountDownLatch(1);
-        CountDownLatch listenerEntered = new CountDownLatch(1);
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("worker"), executor)
-                .taskListener(event -> {
-                    listenerEntered.countDown();
-                    awaitIgnoringInterrupt(listenerRelease);
-                })
-                .build();
+        ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
+        CountDownLatch callbackRelease = new CountDownLatch(1);
+        CountDownLatch callbackEntered = new CountDownLatch(1);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroupDefinition.Builder builder = global.defineGroup("listener", TIMEOUT);
+            TaskGroupDefinition.Builder builder = global.defineGroup("observation", TIMEOUT);
             TaskGroupDefinition.Member<Integer> quick = builder.task("quick", global.par(ParId.of("worker")));
             TaskGroup group = global.submitGroup(builder.build(), bindings -> bindings.task(quick, () -> 1));
 
-            assertThat(listenerEntered.await(2, TimeUnit.SECONDS)).isTrue();
-            // The listener is still blocked, but the task body has already exited.
+            com.google.common.util.concurrent.Futures.addCallback(
+                    group.future(quick).completionFuture(),
+                    new com.google.common.util.concurrent.FutureCallback<TaskCompletion<Integer>>() {
+                        @Override
+                        public void onSuccess(@Nullable TaskCompletion<Integer> completion) {
+                            callbackEntered.countDown();
+                            awaitIgnoringInterrupt(callbackRelease);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable failure) {}
+                    },
+                    callbackExecutor);
+
+            assertThat(callbackEntered.await(2, TimeUnit.SECONDS)).isTrue();
+            // The observation callback is still blocked, but the task body has already exited and
+            // the observation snapshot is published: callbacks run on the consumer's executor,
+            // never on the execution path.
             assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
 
-            listenerRelease.countDown();
+            callbackRelease.countDown();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
-            listenerRelease.countDown();
+            callbackRelease.countDown();
+            callbackExecutor.shutdownNow();
             global.close();
             executor.shutdownNow();
         }

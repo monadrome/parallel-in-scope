@@ -3,19 +3,19 @@
 > 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
 > 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
 
-## 10. TaskListener 与 Group telemetry
+## 10. 任务观测与 Group telemetry
 
-### 10.1 成员级 TaskListener
+### 10.1 成员级观测快照
 
-真正进入 `ScopedCallable.call()` 的成员继续触发现有 `TaskListener`，投递统一的 `TaskCompletion` 记录：
+每个成员的 `TaskFuture` 携带 `completionFuture()`，投递统一的 `TaskCompletion` 终态快照：
 
 - 成功结果、用户异常（`result()`/`failure()`）；
 - submit/start/end timing；
 - queue wait 分类（`enqueued()` 由等待时长派生）；
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
-- 完成时刻直接观测的 `outcome()`（`SUCCESS`/`USER_FAILURE` 或从 token 读出的取消态）；组收敛后的快照可能携带更丰富的事后归因（如 `FAIL_FAST`）。
+- 完成时刻直接观测的 `outcome()`（`SUCCESS`/`USER_FAILURE` 或从 token 读出的取消态）；组收敛后的快照可能携带更丰富的事后归因（如 `FAIL_FAST`），权威归因仍是 `TaskGroupResult.members()`。
 
-执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskCompletion 事件。它们必须在 `TaskGroupResult` 中可见；组完成观测经 `completionFuture()` 表达（见 §10.2）。
+快照在成员 future 终态**且**任务体进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 outcome 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见；组完成观测经 `completionFuture()` 表达（见 §10.2）。
 
 Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 
@@ -150,8 +150,8 @@ fake-group-batch -> A/B/C
 24. 每个运行成员看到自己的 `TaskExecutionContext.current()`；执行后恢复 previous/null；
 25. inline 嵌套执行呈现 outer -> member -> outer；
 26. `SubmissionScope` 仅覆盖 executor submission，并在 rejection/inline/异常后恢复；
-27. TaskListener 中 current task 为 null，TaskCompletion 的 taskName/unitId/taskIndex 指向正确成员；
-28. 执行前取消和 submission failure 不产生虚假 TaskCompletion 事件；
+27. 成员观测快照的 taskName/unitId/taskIndex 指向正确成员；
+28. 执行前取消和 submission failure 的快照 start/end 为零、outcome 真实，不伪造计时；
 29. ~~Group listener 只调用一次，异常不改变结果~~ **删除转交**：经 `Futures.addCallback` 注册的 callback 恰好触发一次、异常不改变结果，由 Guava future 语义保证（决策增补裁定 §19.8）；
 30. TTL 值以 `submitGroup()` 的 prepare 阶段为捕获时点传播并恢复；`task()`/`Bindings` 登记时的值不构成快照，普通 ThreadLocal 不承诺传播。
 

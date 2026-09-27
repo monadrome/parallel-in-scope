@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TtlUnwrap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
@@ -14,7 +13,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,7 +44,7 @@ import org.jspecify.annotations.Nullable;
  * Immutable application execution topology containing logical {@link Par} entries.
  *
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
- * listeners, policies, and executor bindings cannot change. This is an application-scoped resource, normally
+ * policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
  * timer, submission, and maintenance services; registered executors are borrowed and are never
  * shut down by this object.
@@ -66,8 +64,6 @@ public final class ParRuntime implements AutoCloseable {
     private final ImmutableSetMultimap<ParId, String> executorTagsByPar;
     private final ImmutableSetMultimap<String, ParId> parsByExecutorTag;
     private final @Nullable ParId defaultId;
-    private final List<TaskListener> taskListeners;
-    private final Map<ParId, List<TaskListener>> taskListenerOverrides;
     private final ParRuntimeDeadlockPolicy deadlockPolicy;
     private final ParRuntimePurgePolicy purgePolicy;
     private final AtomicBoolean purgeEnabled;
@@ -85,12 +81,6 @@ public final class ParRuntime implements AutoCloseable {
     private final ListeningExecutorService submitterPool;
 
     private ParRuntime(Builder builder) {
-        this.taskListeners = ImmutableList.copyOf(builder.taskListeners);
-        Map<ParId, List<TaskListener>> overrides = new LinkedHashMap<>();
-        for (Map.Entry<ParId, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
-            overrides.put(entry.getKey(), ImmutableList.copyOf(entry.getValue()));
-        }
-        this.taskListenerOverrides = ImmutableMap.copyOf(overrides);
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
         this.purgeEnabled = new AtomicBoolean(purgePolicy.enabled());
@@ -227,24 +217,6 @@ public final class ParRuntime implements AutoCloseable {
     /** Returns the {@link Par} registered under the given id, or empty when none is. */
     public Optional<Par> find(ParId id) {
         return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
-    }
-
-    /**
-     * Returns the immutable default task-listener snapshot shared by every {@link Par} without an
-     * override. Listener callbacks run on task execution paths and must therefore be non-blocking
-     * and tolerate concurrent invocation.
-     */
-    public List<TaskListener> taskListeners() {
-        return taskListeners;
-    }
-
-    /**
-     * Returns the immutable listener list for the identified {@link Par}: its override when one was
-     * configured, otherwise the default {@link #taskListeners()}.
-     */
-    public List<TaskListener> taskListenersFor(ParId id) {
-        List<TaskListener> override = taskListenerOverrides.get(Objects.requireNonNull(id, "id cannot be null"));
-        return override == null ? taskListeners : override;
     }
 
     public ParRuntimeDeadlockPolicy deadlockPolicy() {
@@ -725,35 +697,11 @@ public final class ParRuntime implements AutoCloseable {
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
         private final SetMultimap<ParId, String> executorTags = LinkedHashMultimap.create();
-        private final List<TaskListener> taskListeners = new ArrayList<>();
-        private final Map<ParId, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
         private ParRuntimePurgePolicy purgePolicy =
                 ParRuntimePurgePolicy.builder().build();
         private @Nullable ParId defaultId;
-
-        /**
-         * Appends a task listener to the default list shared by every {@link Par} without an
-         * override. May be called repeatedly to register several listeners.
-         */
-        public Builder taskListener(TaskListener listener) {
-            taskListeners.add(Objects.requireNonNull(listener));
-            return this;
-        }
-
-        /**
-         * Appends a task listener to the override list of the identified {@link Par}, replacing the
-         * default list for that entry. May be called repeatedly with the same id to register
-         * several listeners; the id must be {@link #register(ParId, ExecutorService)
-         * registered} before {@link #build()}.
-         */
-        public Builder parTaskListener(ParId id, TaskListener listener) {
-            taskListenerOverrides
-                    .computeIfAbsent(Objects.requireNonNull(id, "id cannot be null"), key -> new ArrayList<>())
-                    .add(Objects.requireNonNull(listener));
-            return this;
-        }
 
         public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
             this.deadlockPolicy = Objects.requireNonNull(policy);
@@ -804,11 +752,6 @@ public final class ParRuntime implements AutoCloseable {
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultId);
-            }
-            for (ParId id : taskListenerOverrides.keySet()) {
-                if (!executors.containsKey(id)) {
-                    throw new IllegalArgumentException("task listener override is not registered: " + id);
-                }
             }
             return new ParRuntime(this);
         }

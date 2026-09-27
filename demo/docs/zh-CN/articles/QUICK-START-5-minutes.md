@@ -123,7 +123,7 @@ Throwable firstError = batchReport.firstException();          // null if all suc
 ## 下一步
 
 - **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）区分 IO/CPU 任务，框架会自动选择最优调度策略
-- **TaskListener**：注册 SPI 监听器，获取每个任务的执行时间、排队时间等指标
+- **completionFuture()**：消费每个任务的终态快照——执行时间、排队时间、outcome 等指标（见 G1）
 - **Checkpoints**：在长任务中插入无参的 `Checkpoints.checkpoint()`，实现细粒度的协作式取消
 - **嵌套并行**：`par.map()` 支持嵌套调用，`CancellationToken` 会自动从外层传播到内层
 

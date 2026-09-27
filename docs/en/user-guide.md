@@ -14,7 +14,6 @@ Create `ParRuntime` at the composition root. Register every logical entry with t
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .taskListener(metricsListener)
         .register(ParId.of("database"), databaseExecutor, "blocking", "database")
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
@@ -317,6 +316,47 @@ does not represent a task execution, so it is not a `TaskFuture`.
 Need fluent chaining? `FluentFuture.from(task)` gives the full `FluentFuture` API. The futures on
 such a chain are ordinary `FluentFuture`s: they are not executions the library ran, and no token
 owns them.
+
+## Observe task completion snapshots
+
+Attribution answers how a task ended; the observation futures answer with the full record. Every
+`TaskFuture` carries a `completionFuture()` — a `ListenableFuture<TaskCompletion<T>>` that
+completes with the task's final immutable snapshot: identity, submit/start/end times, queue wait,
+outcome, failure, and on success the result. `TaskBatchResult` aggregates the same data as a
+`ListenableFuture<List<TaskCompletion<T>>>` in input order, including elements that never started
+(rejected, cancelled, or abandoned by the sliding window), which report zero start/end times with
+their real outcome.
+
+A snapshot is published only after the task future is terminal *and* the task body has exited, so
+the recorded end time is always final — a callback never catches the window in which the future
+settled before the user's `finally`. Once the enclosing scope has completed the observation is
+already available: `awaitBodyCompletion(...)` returning `true` implies `completionFuture()` is
+done. The boundary to know: a `close()` that exhausts its close grace while bodies ignore
+interruption may return with observations still pending; they complete as the remaining bodies
+exit, and timings then stay honest rather than complete.
+
+Task failure, cancellation, and rejection all complete the observation future *successfully* with
+the real outcome data — there is nothing to poll and nothing to unwrap. React immediately by
+composing with Guava on an executor of your choice:
+
+```java
+Futures.addCallback(batch.completionFuture(), new FutureCallback<List<TaskCompletion<Account>>>() {
+    @Override public void onSuccess(List<TaskCompletion<Account>> completions) {
+        for (TaskCompletion<Account> completion : completions) {
+            metrics.record(completion.unitId(), completion.outcome(),
+                    completion.waitTime(), completion.executionTime());
+        }
+    }
+    @Override public void onFailure(Throwable failure) { /* implementation defect; report it */ }
+}, callbackExecutor);
+```
+
+The observation future ignores cancellation (`cancel(...)` returns `false`) and never runs your
+code on the execution path — the callback's thread, concurrency, and back-pressure are yours.
+A group keeps its existing entry: `group.completionFuture()` completes with the
+`TaskGroupResult`, whose `members()` and `terminal()` snapshots carry the richer post-convergence
+attribution (for example `FAIL_FAST`) that a member's own observation cannot see; the group
+completion future's own `completionFuture()` carries a single group-level summary of that result.
 
 ## Cancellation and nested batches
 
