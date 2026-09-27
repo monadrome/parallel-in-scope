@@ -80,10 +80,10 @@ def repo_checks(clone: Path, logs: Path) -> Gate:
     for script in REPO_CHECKS:
         if (clone / script).exists() and run_logged([sys.executable, script], logs / (Path(script).stem + ".log"), cwd=clone) != 0:
             failures.append(script)
-    if (clone / "scripts/issue_agent/tests").is_dir():
-        args = [sys.executable, "-m", "unittest", "discover", "-s", "scripts/issue_agent/tests", "-t", "scripts"]
+    if (clone / "scripts").is_dir():
+        args = [sys.executable, "-m", "unittest", "discover", "-s", "scripts", "-t", "scripts"]
         if run_logged(args, logs / "script-tests.log", cwd=clone) != 0:
-            failures.append("scripts/issue_agent tests")
+            failures.append("script tests")
     return Gate("repo-checks", "fail", "failed: " + ", ".join(failures)) if failures else Gate("repo-checks", "pass")
 
 
