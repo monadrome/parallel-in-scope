@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -44,11 +43,10 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void successRunsOnceWithListenerAndRunningPhase(Entry entry) throws Exception {
+    void successRunsOnceWithObservationAndRunningPhase(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        ParRuntime global = globalWithListener(executor, events);
+        ParRuntime global = global(executor);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -65,9 +63,9 @@ class ScopedTaskContractTest {
                     .atMost(1, TimeUnit.SECONDS)
                     .untilAsserted(
                             () -> assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL));
-            assertThat(events).hasSize(1);
-            assertThat(events.get(0).successful()).isTrue();
-            assertThat(events.get(0).result()).isEqualTo("done");
+            TaskCompletion<Object> event = observation(future);
+            assertThat(event.successful()).isTrue();
+            assertThat(event.result()).isEqualTo("done");
         } finally {
             global.close();
             executor.shutdownNow();
@@ -78,8 +76,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void userExceptionIsReportedAsUserFailure(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        List<TaskCompletion<?>> events = synchronizedEvents();
-        ParRuntime global = globalWithListener(executor, events);
+        ParRuntime global = global(executor);
         try {
             IllegalStateException boom = new IllegalStateException("boom");
             ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
@@ -100,9 +97,9 @@ class ScopedTaskContractTest {
                         .isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
             }
-            assertThat(events).hasSize(1);
-            assertThat(events.get(0).successful()).isFalse();
-            assertThat(events.get(0).failure()).isSameAs(boom);
+            TaskCompletion<Object> event = observation(future);
+            assertThat(event.successful()).isFalse();
+            assertThat(event.failure()).isSameAs(boom);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -113,7 +110,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void ttlSnapshotIsVisibleToTheTask(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = global(executor);
         TransmittableThreadLocal<String> ttl = new TransmittableThreadLocal<>();
         try {
             ttl.set("snapshot");
@@ -131,9 +128,8 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void rejectionFallsBackToInlineExecutionWhenOptionsRequestIt(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        ParRuntime global = globalWithListener(rejecting, events);
+        ParRuntime global = global(rejecting);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -146,7 +142,7 @@ class ScopedTaskContractTest {
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("inline");
             assertThat(executions).hasValue(1);
             assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
-            assertThat(events).hasSize(1);
+            assertThat(observation(future).successful()).isTrue();
         } finally {
             global.close();
             rejecting.shutdownNow();
@@ -162,9 +158,8 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void rejectionNeverRunsUserCodeByDefault(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        ParRuntime global = globalWithListener(rejecting, events);
+        ParRuntime global = global(rejecting);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
@@ -176,7 +171,11 @@ class ScopedTaskContractTest {
 
             assertThatThrownBy(() -> future.get(2, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
             assertThat(executions).hasValue(0);
-            assertThat(events).isEmpty();
+            TaskCompletion<Object> event = observation(future);
+            assertThat(event.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(event.failure()).isInstanceOf(SubmissionException.class);
+            assertThat(event.startTimeNanos()).isZero();
+            assertThat(event.endTimeNanos()).isZero();
             assertThat(phases).doesNotContain(ExecutionPhase.RUNNING);
             if (entry == Entry.GROUP) {
                 TaskGroupResult result = lastGroupResult(global);
@@ -195,7 +194,7 @@ class ScopedTaskContractTest {
     void cancelBeforeRunSkipsUserCodeAndHintsThePhase(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        ParRuntime global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = global(executor);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queuedRuns = new AtomicInteger();
         try {
@@ -239,7 +238,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void nestedSubmissionRecordsTaskGraphEdge(Entry entry) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global = globalWithListener(executor, synchronizedEvents());
+        ParRuntime global = global(executor);
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
                 Object value = global.par(ParId.of("worker"))
@@ -346,15 +345,12 @@ class ScopedTaskContractTest {
         return group.completionFuture().get(2, TimeUnit.SECONDS);
     }
 
-    private static List<TaskCompletion<?>> synchronizedEvents() {
-        return Collections.synchronizedList(new ArrayList<>());
+    private static TaskCompletion<Object> observation(ListenableFuture<Object> future) throws Exception {
+        return ((TaskFuture<Object>) future).completionFuture().get(2, TimeUnit.SECONDS);
     }
 
-    private static ParRuntime globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
-        return ParRuntime.builder()
-                .taskListener(events::add)
-                .register(ParId.of("worker"), executor)
-                .build();
+    private static ParRuntime global(ExecutorService executor) {
+        return ParRuntime.builder().register(ParId.of("worker"), executor).build();
     }
 
     private static void observePhases(ParRuntime global, ConcurrentLinkedQueue<ExecutionPhase> phases) {

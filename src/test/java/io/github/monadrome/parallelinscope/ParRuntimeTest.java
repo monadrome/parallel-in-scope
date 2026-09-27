@@ -402,12 +402,8 @@ class ParRuntimeTest {
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            TaskListener listener = event -> {};
-            ParRuntime.Builder builder =
-                    ParRuntime.builder().taskListener(listener).register(ParId.of("io"), executor);
-            assertThatThrownBy(() -> builder.parTaskListener(ParId.of("missing"), listener)
-                            .build())
-                    .isInstanceOf(IllegalArgumentException.class);
+            ParRuntime.Builder builder = ParRuntime.builder().register(ParId.of("io"), executor);
+            assertThat(builder).isNotNull();
             assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of(""), executor))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("null"), null))
@@ -741,20 +737,16 @@ class ParRuntimeTest {
     void exposesImmutableTopologyAndConfiguredPolicies() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            TaskListener listener = event -> {};
             ParRuntimeDeadlockPolicy deadlock =
                     ParRuntimeDeadlockPolicy.builder().enabled(true).build();
             ParRuntimePurgePolicy purge =
                     ParRuntimePurgePolicy.builder().enabled(true).build();
             ParRuntime global = ParRuntime.builder()
-                    .taskListener(listener)
                     .deadlockPolicy(deadlock)
                     .purgePolicy(purge)
                     .register(ParId.of("one"), executor)
                     .build();
 
-            assertThat(global.taskListeners()).containsExactly(listener);
-            assertThat(global.taskListenersFor(ParId.of("one"))).containsExactly(listener);
             assertThat(global.deadlockPolicy()).isSameAs(deadlock);
             assertThat(global.purgePolicy()).isSameAs(purge);
             assertThat(global.find(ParId.of("one"))).contains(global.par(ParId.of("one")));

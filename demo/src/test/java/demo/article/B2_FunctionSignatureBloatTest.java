@@ -159,7 +159,7 @@ public class B2_FunctionSignatureBloatTest {
                     //   - 取消检查（ScopedCallable 内部 checkpoint）
                     //   - 超时控制（CancellationToken.lateBind）
                     //   - 并发限制（滑动窗口调度）
-                    //   - 任务生命周期（TaskListener SPI 回调）
+                    //   - 任务生命周期（completionFuture 终态快照）
                     //
                     // 开发者只需写纯业务代码，无需任何管道参数
                     processedCount.incrementAndGet();

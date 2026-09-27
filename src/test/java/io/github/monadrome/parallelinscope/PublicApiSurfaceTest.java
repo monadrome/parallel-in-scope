@@ -36,7 +36,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskGroup",
             BASE_PACKAGE + ".TaskGroupDefinition",
             BASE_PACKAGE + ".TaskGroupResult",
-            BASE_PACKAGE + ".TaskListener",
             BASE_PACKAGE + ".TaskOptions",
             BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskType",

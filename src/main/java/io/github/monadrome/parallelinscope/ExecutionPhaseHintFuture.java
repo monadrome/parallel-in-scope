@@ -83,6 +83,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private volatile Consumer<? super ExecutionPhase> phaseObserver;
     private volatile @Nullable Thread runner;
 
+    /**
+     * The observation sink of this task, attached by {@link TaskSubmissions#prepare} before the
+     * future escapes. Read by {@link Task} when it wraps this future, so the caller-facing view
+     * and the execution future publish the same observation; null only for futures created
+     * outside the preparation pipeline.
+     */
+    private volatile @Nullable TaskObservation<V> observation;
+
     /** Creates a future with a phase observer. */
     public static <V> ExecutionPhaseHintFuture<V> create(
             Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
@@ -163,6 +171,17 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return body == null ? "<untracked>" : body.name();
     }
 
+    /** The observation attached at preparation, or null when this future was created directly. */
+    @Nullable
+    TaskObservation<V> observation() {
+        return observation;
+    }
+
+    /** Attaches the observation of this task; called once by {@link TaskSubmissions#prepare}. */
+    void observation(TaskObservation<V> observation) {
+        this.observation = Objects.requireNonNull(observation, "observation cannot be null");
+    }
+
     /**
      * Fails the future with a {@link SubmissionException} when it has not started running. A future
      * that already claimed {@code RUNNING} or is otherwise terminal is left untouched.
@@ -236,7 +255,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             releaseCallable();
             // Fallback body-exit publish: covers the paths where ScopedCallable never ran (TTL
             // replay failure, or the body skipped by a cancel that won mid-claim). The normal
-            // publish happens inside ScopedCallable before its listeners; both are guarded by the
+            // publish happens inside ScopedCallable after its markEnded; both are guarded by the
             // same atomic state, so the slot is released exactly once.
             releaseBody();
             runner = null;

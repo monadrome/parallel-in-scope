@@ -153,7 +153,7 @@ Map<TaskOutcome, Integer> counts = r.stateCounts();
 Throwable firstError = r.firstException();
 ```
 
-生产环境中，可以把 `reportString()` 打到日志里，配合 TaskListener 做监控告警。
+生产环境中，可以把 `reportString()` 打到日志里，配合 `completionFuture()` 的终态快照做监控告警（见 G1）。
 
 ### 4. 异常不要吞
 

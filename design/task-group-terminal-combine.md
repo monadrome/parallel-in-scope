@@ -30,7 +30,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 - submitGroup 准备阶段（与 member 同步、在提交线程上、在同一个 `ParRuntime.whileOpen()` 内）完成：combine token（group token 的 child）、`TaskExecutionContext`、TTL 快照、结构 parent、observation、terminal future 的创建与注册；
 - join 时（全部 member 成功收敛之后）只做一件事：对已 prepared 的 terminal future 调用目标 executor 的 `execute()`（包 `SubmissionScope`、在 Group lock 外）；
-- 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、TaskListener 事件、`retainUntilComplete()`。
+- 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、观测快照（`completionFuture()`）、`retainUntilComplete()`。
 
 直接推论：
 
@@ -168,7 +168,7 @@ combine 不是用户编写的 future 编排器，而是框架确认 join 条件�
 据此区分三个线程角色：
 
 1. **收敛回调线程**（最后成功 member 的 worker）：只做框架动作——构造 `CombineContext`、包 `SubmissionScope`、调用 `executor.execute()`，有界且无用户代码；
-2. **目标 `Par` 的 worker 线程**：唯一运行用户 lambda 的线程，`TaskExecutionContext.current()`、TTL 回放、TaskListener 投递与 member 行为一致；
+2. **目标 `Par` 的 worker 线程**：唯一运行用户 lambda 的线程，`TaskExecutionContext.current()`、TTL 回放、观测快照发布与 member 行为一致；
 3. **submitGroup 线程**：仅在空 Group + combine 时承担角色 1（join 条件在 submitGroup 时即满足，提交发生在 submitGroup 流程内，与 member 提交循环同地位）。
 
 ## 7. 结果与 outcome
@@ -200,7 +200,7 @@ terminal future 保持普通 Guava 语义，与 member future 一致：成功返
 
 ## 9. 观测与 TaskGraph
 
-- combine 正常产生 `TaskCompletion` 和 TaskListener 事件；执行前取消不伪造事件，与 member 一致；组完成回调（`completionFuture()` + Guava callback，见观测契约 §10.2）仍在完整结果后触发；
+- combine 正常产生 `TaskCompletion` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组完成回调（`completionFuture()` + Guava callback，见观测契约 §10.2）仍在完整结果后触发；
 - membership 仍不产生 member-to-member 图边。但 combine 是真实的 all-to-one 依赖：
 
 ```text

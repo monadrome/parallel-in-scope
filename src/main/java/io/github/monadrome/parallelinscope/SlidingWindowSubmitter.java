@@ -110,9 +110,9 @@ final class SlidingWindowSubmitter<V> {
                 // attributed as a submission failure rather than a user one.
                 logHandoffError(failure, i, "the initial window");
                 Throwable rejected = new SubmissionException(failure);
-                resultBuilder.add(rejectedTask(rejected));
+                resultBuilder.add(rejectedTask(tasks, i, rejected));
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
-                    resultBuilder.add(rejectedTask(rejected));
+                    resultBuilder.add(rejectedTask(tasks, pending, rejected));
                 }
                 // Prepared futures from the rejected element on never reach the executor and are
                 // never cancelled (the token binds the Task views, not these futures), so their
@@ -141,7 +141,7 @@ final class SlidingWindowSubmitter<V> {
 
         // Async submit remaining tasks
         List<Task<V>> others = IntStream.range(0, remaining)
-                .mapToObj(ignore -> Task.<V>placeholder(unit.name(), unit.cancellationToken()))
+                .mapToObj(j -> placeholderFor(tasks.get(start + j)))
                 .collect(toImmutableList());
 
         ImmutableList<Task<V>> results = resultBuilder.addAll(others).build();
@@ -198,9 +198,32 @@ final class SlidingWindowSubmitter<V> {
         return task;
     }
 
-    /** Wraps one element of a batch whose task will never reach the executor. */
-    private Task<V> rejectedTask(Throwable rejection) {
-        return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection));
+    /**
+     * Wraps one element of a batch whose task will never reach the executor. The element's
+     * observation publishes the never-started snapshot directly: its prepared future never
+     * settles, so the observation barrier cannot fire. A future prepared outside the {@link
+     * TaskSubmissions} pipeline — tests only — carries no observation and falls back to the
+     * plain task view, whose observation publishes on settle.
+     */
+    private Task<V> rejectedTask(List<? extends ExecutionPhaseHintFuture<V>> tasks, int index, Throwable rejection) {
+        TaskObservation<V> observation = tasks.get(index).observation();
+        if (observation == null) {
+            return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection));
+        }
+        observation.publishSkipped(TaskOutcome.SUBMISSION_FAILURE, rejection);
+        return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection), observation);
+    }
+
+    /**
+     * Creates the placeholder for an element beyond the window, carrying the element observation
+     * when the preparation pipeline attached one, so the placeholder and the real task it binds
+     * to expose the same observation future.
+     */
+    private Task<V> placeholderFor(ExecutionPhaseHintFuture<V> prepared) {
+        TaskObservation<V> observation = prepared.observation();
+        return observation != null
+                ? Task.placeholder(unit.name(), unit.cancellationToken(), observation)
+                : Task.placeholder(unit.name(), unit.cancellationToken());
     }
 
     /**
