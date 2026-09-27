@@ -98,12 +98,10 @@ class TaskGraphObservationScopeTest {
     }
 
     @Test
-    void doubleCloseDestroysTheGraphOnlyOnce() throws Exception {
-        java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
+    void doubleClosePublishesTheReportOnlyOnce() throws Exception {
         global = ParRuntime.builder()
                 .deadlockPolicy(io.github.monadrome.parallelinscope.ParRuntimeDeadlockPolicy.builder()
                         .enabled(true)
-                        .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
 
@@ -134,10 +132,13 @@ class TaskGraphObservationScopeTest {
                         java.time.Duration.ofMillis(10)));
 
         context.close();
-        int afterFirstClose = detections.get();
+        assertThat(context.reportFuture().isDone()).isTrue();
+        TaskGraphReport first = java.util.Objects.requireNonNull(
+                com.google.common.util.concurrent.Futures.getDone(context.reportFuture()));
+        assertThat(first.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
         context.close(); // Idempotent: no second detection pass.
-        assertThat(detections.get()).isEqualTo(afterFirstClose);
-        assertThat(afterFirstClose).isEqualTo(1);
+        assertThat(com.google.common.util.concurrent.Futures.getDone(context.reportFuture()))
+                .isSameAs(first);
     }
 
     @Test

@@ -30,10 +30,11 @@ executor 拒绝后不再在你没选择的线程上运行你的代码。批次�
 | `CompletedTaskValues` | `TaskGroup.CombineContext` |
 | `TaskGroupListener` | `Futures.addCallback(group.completionFuture(), callback, executor)` |
 | `TaskListener`、`ParRuntime.Builder.taskListener(...)` / `parTaskListener(...)`、`ParRuntime.taskListeners()` / `taskListenersFor(...)` | `TaskFuture.completionFuture()` / `TaskBatchResult.completionFuture()` + `Futures.addCallback` |
+| `DeadlockDetectionListener`、`ParRuntimeDeadlockPolicy.Builder.listener(...)` / `listeners()` | `TaskGraphObservationScope.reportFuture()`，结果为 `TaskGraphReport` |
 | `TaskGroupDefinition.TaskDefinition` / `CombineDefinition` 及 `TaskGroupDefinition.tasks()` / `combine()` | 已删除；`TaskGroupDefinition.Member<T>` 是唯一句柄 |
 
-五个被删除的顶层类型都不保留兼容别名：`TaskKey`、`CombineFunction`、
-`CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`。`ParName` 不是删除而是
+六个被删除的顶层类型都不保留兼容别名：`TaskKey`、`CombineFunction`、
+`CompletedTaskValues`、`TaskGroupListener`、`TaskGroupOptions`、`DeadlockDetectionListener`。`ParName` 不是删除而是
 更名为 `ParId`——执行器查找边界保留受校验的值类型。`0.x` 阶段不提供
 shim；请同时更新 import、声明和调用点。
 
@@ -143,6 +144,48 @@ future 必然已经终态，无需轮询。原来依赖事件**顺序**的代码
 executor。彻底失去的能力：跨所有 `Par` 的零配置全局事件流、库统一的 listener 异常日志
 （Guava callback 的异常隔离改由你的基础设施负责），以及"执行前取消/拒绝不可见"——它们
 现在以零计时出现在快照里。
+
+## `DeadlockDetectionListener` 已删除；检测报告归宿为作用域
+
+图诊断推送 SPI 同样改为拉取模型：`DeadlockDetectionListener`（含嵌套
+`DeadlockDetectionEvent`）、`ParRuntimeDeadlockPolicy.Builder.listener(...)` 与
+`ParRuntimeDeadlockPolicy.listeners()` 全部删除。policy 本身保留——`enabled()` 与
+`Builder.enabled(boolean)` 仍决定关闭观测作用域时是否运行检测——但检测结果从运行时级
+listener 列表迁移到请求作用域自身。
+
+```java
+// 0.2.x
+AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> event = new AtomicReference<>();
+ParRuntime global = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
+                .enabled(true).listener(event::set).build())
+        .build();
+try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+    handleRequest();
+}
+// event == null 可能是无问题、未启用、或检测异常被吞掉
+
+// 0.3.0
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.status() == TaskGraphReport.Status.ISSUE) {
+    alert(report.taskEdges(), report.executorEdges());
+}
+```
+
+任何正常返回的 `close()` 都保证 `reportFuture().isDone()`，关闭后再注册 callback 也能收到
+结果。`status()` 区分 listener 时代无法分辨的三种结局：`DISABLED`、`NO_ISSUE`、`ISSUE`；
+检测异常让 future 以 failure 终结（同时保留 JUL warning），而不是被静默吞掉。该 future
+只读——`cancel(...)` 返回 `false`——阳性报告的 JUL `WARNING` 保持不变。访问器更名：
+`hasTaskCycle()` → `taskCycle()`、`hasSelfLoop()` → `selfLoop()`、`hasExecutorCycle()` →
+`executorCycle()`、`hasExecutorSelfLoop()` → `executorSelfLoop()`、`hasAnyIssue()` →
+`anyIssue()`；边文本访问器名称不变。彻底失去的能力：一次注册覆盖整个 runtime 的所有请求
+——现在必须向每个作用域索取自己的报告——以及库统一的 listener 异常隔离，后者移交给你
+的 callback executor。
 
 ## 三阶段模型
 

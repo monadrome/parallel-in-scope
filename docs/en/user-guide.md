@@ -390,28 +390,28 @@ Use an [observation scope](#observe-nested-work) when the request needs graph di
 
 ## Observe nested work
 
-Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
+Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, runs the potential-deadlock detection pass over the graph frozen at `close()` and publishes the result through `reportFuture()`. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
 
 ```java
+ParRuntime global = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // Calls made below this scope, including nested calls on other Pars in global,
     // are recorded in the same graph.
+    reportFuture = observation.reportFuture();
     service.handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("Potential deadlock: {}", report);
 }
 ```
 
-Configure the policy while building the topology:
+The report future stays pending until the scope closes; every normally returning `close()` guarantees it is done, so it can be read synchronously with `Futures.getDone` or observed with `Futures.addCallback` — registering a callback after close never misses the result. `status()` distinguishes a disabled policy (`DISABLED`), a clean detection (`NO_ISSUE`), and a detected cycle or self-loop (`ISSUE`); a detection failure ends the future in failure instead of producing a report. The future is read-only: `cancel(...)` returns `false` and affects neither detection nor business tasks. An observation scope does not merge graphs from separate `ParRuntime` instances.
 
-```java
-ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
-        .enabled(true)
-        .listener(event -> log.warn("Potential deadlock: {}", event))
-        .build();
-```
-
-An observation scope does not merge graphs from separate `ParRuntime` instances.
-
-Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the detection event published at `close()` reports its flags and rendered edges from one consistent snapshot of the request graph.
+Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
 
 ## Purge cancelled queue entries
 

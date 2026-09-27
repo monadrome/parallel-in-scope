@@ -118,8 +118,8 @@ corePoolSize 封顶——worker 全部阻塞在子任务 `get()` 上时照样饥
   参数或队列；purger 自身的关闭也不触碰被观测池（`HeuristicPurger.java:121-127`）。
 - **I4 不伪造（G2/G3 的不变量形式）**：分类与检测只陈述结构读出的事实；读不出就是
   `UNKNOWN` / 不标记 / 不启动，绝不按类名、命名约定或统计启发式补数据。
-- **I5 检测只读**：死锁检测只产出事件（日志 + `DeadlockDetectionListener` 回调，
-  `TaskGraphObservationScope.java:157-185`），永不干预执行；listener 异常隔离。
+- **I5 检测只读**：死锁检测只产出诊断（JUL 日志 + `TaskGraphObservationScope.reportFuture()`
+  发布的 `TaskGraphReport`），永不干预执行；callback 异常隔离由调用方 executor/Guava 语义负责。
 - **I6 提交路径不中断**：可看透性问题在任何形态下都不得让任务提交本身失败或改变
   取消/deadline/上下文语义；它是**观测与策略层**的事，不是执行内核的事。
 

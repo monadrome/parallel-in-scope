@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -165,16 +166,13 @@ class TaskGraphExportTest {
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         ExecutorService innerExecutor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
-        java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
         ParRuntime global = ParRuntime.builder()
                 .register(ParId.of("outer"), outerExecutor)
                 .register(ParId.of("inner"), innerExecutor)
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(event -> detections.incrementAndGet())
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         TaskGraphData captured;
+        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
             TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
                     .map(
@@ -207,13 +205,15 @@ class TaskGraphExportTest {
             assertThat(identityGraphOf(captured).nodes()).hasSize(2);
 
             exportScenario("real-path", captured);
+            reportFuture = observation.reportFuture();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
             innerExecutor.shutdownNow();
         }
-        // The acyclic production path must not raise any deadlock event.
-        assertThat(detections.get()).isZero();
+        // The acyclic production path must report no deadlock issue.
+        assertThat(Objects.requireNonNull(Futures.getDone(reportFuture)).status())
+                .isEqualTo(TaskGraphReport.Status.NO_ISSUE);
     }
 
     /**
