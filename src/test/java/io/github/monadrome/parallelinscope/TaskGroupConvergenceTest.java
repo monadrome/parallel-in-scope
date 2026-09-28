@@ -3,13 +3,13 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,26 +60,15 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch ready = new CountDownLatch(MEMBERS);
                 CountDownLatch fire = new CountDownLatch(1);
-                TaskGroupDefinition.Builder builder = global.defineGroup("first-failure-" + round, TIMEOUT);
-                List<TaskGroupDefinition.Member<Integer>> handles = new ArrayList<>();
-                for (int member = 0; member < MEMBERS; member++) {
-                    handles.add(builder.task("m" + member, global.par(ParId.of("worker"))));
-                }
-                TaskGroup group = global.submitGroup(builder.build(), bindings -> {
-                    for (int member = 0; member < MEMBERS; member++) {
-                        int index = member;
-                        bindings.task(handles.get(index), () -> {
-                            ready.countDown();
-                            fire.await(30, TimeUnit.SECONDS);
-                            // Only half the members fail, so the recorded name has to come from
-                            // the failing half rather than from any member of the group.
-                            if (index % 2 == 1) {
-                                throw new IllegalStateException("boom-" + index);
-                            }
-                            return index;
-                        });
-                    }
-                });
+                // The chain's type widens with every member, so the four declarations are written
+                // out rather than looped: MEMBERS is four.
+                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.group(
+                                "first-failure-" + round, TIMEOUT)
+                        .par("m0", global.par(ParId.of("worker")), Integer.class, failingBody(0, ready, fire))
+                        .par("m1", global.par(ParId.of("worker")), Integer.class, failingBody(1, ready, fire))
+                        .par("m2", global.par(ParId.of("worker")), Integer.class, failingBody(2, ready, fire))
+                        .par("m3", global.par(ParId.of("worker")), Integer.class, failingBody(3, ready, fire))
+                        .submitAll();
                 assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
                 fire.countDown();
 
@@ -108,20 +97,15 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch started = new CountDownLatch(MEMBERS);
                 CountDownLatch release = new CountDownLatch(1);
-                TaskGroupDefinition.Builder builder = global.defineGroup("visibility-" + round, TIMEOUT);
-                List<TaskGroupDefinition.Member<Integer>> handles = new ArrayList<>();
-                for (int member = 0; member < MEMBERS; member++) {
-                    handles.add(builder.task("m" + member, global.par(ParId.of("worker"))));
-                }
-                TaskGroup group = global.submitGroup(builder.build(), bindings -> {
-                    for (TaskGroupDefinition.Member<Integer> handle : handles) {
-                        bindings.task(handle, () -> {
-                            started.countDown();
-                            release.await(30, TimeUnit.SECONDS);
-                            return 1;
-                        });
-                    }
-                });
+                // The chain's type widens with every member: MEMBERS is four, so all four are
+                // declared here.
+                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.group(
+                                "visibility-" + round, TIMEOUT)
+                        .par("m0", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
+                        .par("m1", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
+                        .par("m2", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
+                        .par("m3", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
+                        .submitAll();
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
 
@@ -155,21 +139,18 @@ class TaskGroupConvergenceTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroupDefinition.Builder builder = global.defineGroup("callback-error", TIMEOUT);
-            TaskGroupDefinition.Member<Integer> canceled = builder.task("canceled", global.par(ParId.of("worker")));
-            TaskGroupDefinition.Member<Integer> sibling = builder.task("sibling", global.par(ParId.of("worker")));
-            TaskGroup group = global.submitGroup(builder.build(), bindings -> {
-                bindings.task(canceled, () -> {
-                    hold.await();
-                    return 1;
-                });
-                bindings.task(sibling, () -> {
-                    hold.await(30, TimeUnit.SECONDS);
-                    return 2;
-                });
-            });
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.group("callback-error", TIMEOUT)
+                    .par("canceled", global.par(ParId.of("worker")), Integer.class, () -> {
+                        hold.await();
+                        return 1;
+                    })
+                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                        hold.await(30, TimeUnit.SECONDS);
+                        return 2;
+                    })
+                    .submitAll();
             Futures.addCallback(
-                    group.future(sibling),
+                    group.futureOf("sibling", TypeToken.of(Integer.class)),
                     new FutureCallback<Integer>() {
                         @Override
                         public void onSuccess(@Nullable Integer result) {}
@@ -183,7 +164,9 @@ class TaskGroupConvergenceTest {
 
             // Cancelling one member directly cascades through the group token into the sibling's
             // future, where the callback above throws before "canceled" is counted.
-            assertThatThrownBy(() -> group.future(canceled).cancel(true)).isInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> group.futureOf("canceled", TypeToken.of(Integer.class))
+                            .cancel(true))
+                    .isInstanceOf(AssertionError.class);
 
             TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
@@ -196,5 +179,28 @@ class TaskGroupConvergenceTest {
             global.close();
             executor.shutdownNow();
         }
+    }
+
+    // Counts this member in as ready, waits for the common fire signal, then fails the odd members:
+    // only half of the group fails, so the recorded name has to come from the failing half rather
+    // than from any member of the group.
+    private static Callable<Integer> failingBody(int index, CountDownLatch ready, CountDownLatch fire) {
+        return () -> {
+            ready.countDown();
+            fire.await(30, TimeUnit.SECONDS);
+            if (index % 2 == 1) {
+                throw new IllegalStateException("boom-" + index);
+            }
+            return index;
+        };
+    }
+
+    // Counts this member in as started, then returns only once the release latch opens.
+    private static Callable<Integer> blockingBody(CountDownLatch started, CountDownLatch release) {
+        return () -> {
+            started.countDown();
+            release.await(30, TimeUnit.SECONDS);
+            return 1;
+        };
     }
 }

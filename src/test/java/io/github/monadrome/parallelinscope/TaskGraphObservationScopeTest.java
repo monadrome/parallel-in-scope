@@ -126,4 +126,41 @@ class TaskGraphObservationScopeTest {
     void constructorRejectsNullOwner() {
         assertThatThrownBy(() -> new TaskGraphObservationScope(null)).isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void aMultiMemberGroupInsideAScopeRecordsEveryForkAndLeavesTheGraphClean() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        global = ParRuntime.builder()
+                .register(ParId.of("worker"), executor)
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+                .build();
+        Par par = global.par(ParId.of("worker"));
+
+        TaskGraphObservationScope scope = global.openTaskGraphObservation();
+        try {
+            // Two members plus a terminal combine. The group's forking instrumentation walks its
+            // members by declaration position, so a single-member group never reaches the second
+            // iteration and never records the combine's own fork edge.
+            try (TaskGroup<Tuple2<Integer, Integer>, Integer> group = global.group("page", Duration.ofSeconds(30))
+                    .par("left", par, Integer.class, () -> 1)
+                    .par("right", par, Integer.class, () -> 2)
+                    .combine("join", par, Integer.class, values -> {
+                        Tuple2<Integer, Integer> members = Objects.requireNonNull(values);
+                        return Objects.requireNonNull(members.first()) + Objects.requireNonNull(members.second());
+                    })
+                    .submitAll()) {
+                assertThat(group.completionFuture().get(5, TimeUnit.SECONDS).outcome())
+                        .isEqualTo(TaskOutcome.SUCCESS);
+                assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).typedValues())
+                        .isEqualTo(Tuple2.of(1, 2));
+            }
+            assertThat(scope.closed()).isFalse();
+        } finally {
+            scope.close();
+        }
+
+        // Running a group inside the scope is recorded as ordinary forking, not as a cycle.
+        TaskGraphReport report = Objects.requireNonNull(Futures.getDone(scope.reportFuture()));
+        assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+    }
 }

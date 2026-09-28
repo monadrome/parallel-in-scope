@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -342,9 +343,9 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
-            TaskGroupDefinition.Member<String> user = definition.task("user", global.par(ParId.of("worker")));
-            TaskGroup group = global.submitGroup(definition.build(), bindings -> bindings.task(user, () -> "alice"));
+            TaskGroup<String, Void> group = global.group("page", SCOPE_TIMEOUT)
+                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                    .submitAll();
 
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             TaskCompletion<TaskGroupResult> summary =
@@ -360,8 +361,9 @@ class ObservationFutureTest {
 
             // The member's own observation keeps its per-task direct attribution, while the group
             // result remains the authority for post-convergence attribution.
-            TaskCompletion<String> member =
-                    group.future(user).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskCompletion<String> member = group.futureOf("user", TypeToken.of(String.class))
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
             assertThat(member.taskName()).isEqualTo("user");
             assertThat(member.successful()).isTrue();
             assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
@@ -379,13 +381,11 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskGroupDefinition.Builder definition = global.defineGroup("page", SCOPE_TIMEOUT);
-            TaskGroupDefinition.Member<String> user = definition.task("user", global.par(ParId.of("worker")));
-            TaskGroup group = global.submitGroup(
-                    definition.build(),
-                    bindings -> bindings.task(user, () -> {
+            TaskGroup<String, Void> group = global.group("page", SCOPE_TIMEOUT)
+                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         throw boom;
-                    }));
+                    })
+                    .submitAll();
 
             TaskCompletion<TaskGroupResult> summary =
                     group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);

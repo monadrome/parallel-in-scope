@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -346,101 +345,70 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Starts configuring a task group with an explicit group timeout.
+     * Opens a one-shot task-group declaration with an explicit group timeout.
      *
-     * <p>The returned builder accepts only {@link Par}s belonging to this {@code ParRuntime} and
-     * produces an immutable, reusable, structure-only {@link TaskGroupDefinition}: it holds names,
-     * declaration order, resolved {@code Par}s, and {@link TaskOptions} — never a {@code Callable}
-     * or combine body, which are supplied per submission through {@link TaskGroup.Bindings}. The
-     * group timeout is a forced explicit choice: use this entry for an explicit budget, or {@link
-     * #defineGroupInheriting(String)} for a nested group that inherits an enclosing scoped task's
+     * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and nothing runs
+     * while it is built: no cancellation token, future, deadline, timer, or TTL snapshot exists and
+     * no executor is called until {@link GroupStep#submitAll()} or {@link GroupStart#submitAll()}.
+     * The group timeout is a forced explicit choice: use this entry for an explicit budget, or
+     * {@link #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
      * deadline.
+     *
+     * <p>The returned stage is single-use and single-threaded; see {@link GroupStart}.
      *
      * @param groupName the group name; diagnostics and result identity
      * @param timeout the group's explicit execution budget, positive
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
-    public TaskGroupDefinition.Builder defineGroup(String groupName, Duration timeout) {
-        return new TaskGroupDefinition.Builder(this, requireValidGroupName(groupName), requirePositiveTimeout(timeout));
+    public GroupStart group(String groupName, Duration timeout) {
+        return new GroupDraft.Start(
+                new GroupDraft(this, requireValidGroupName(groupName), requirePositiveTimeout(timeout)));
     }
 
     /**
-     * Starts configuring a task group that inherits its deadline from an enclosing scoped task at
-     * submission time.
+     * Opens a one-shot task-group declaration that inherits its deadline from an enclosing scoped
+     * task at submission time.
      *
-     * <p>Submitting the built definition from a thread with no enclosing scoped task fails at run
-     * preparation with {@link IllegalArgumentException}; no {@link TaskGroup} or future is
-     * created. See {@link #defineGroup(String, Duration)} for the general contract.
+     * <p>Submitting the chain from a thread with no enclosing scoped task fails at run preparation
+     * with {@link IllegalArgumentException}; no {@link TaskGroup} or future is created. See {@link
+     * #group(String, Duration)} for the general contract.
      *
      * @param groupName the group name; diagnostics and result identity
      * @throws NullPointerException if {@code groupName} is null
      * @throws IllegalArgumentException if the name is blank
      */
-    public TaskGroupDefinition.Builder defineGroupInheriting(String groupName) {
-        return new TaskGroupDefinition.Builder(this, requireValidGroupName(groupName), null);
+    public GroupStart groupInheriting(String groupName) {
+        return new GroupDraft.Start(new GroupDraft(this, requireValidGroupName(groupName), null));
     }
 
     /**
-     * Freezes one submission of {@code definition} and submits every member at one boundary.
-     *
-     * <p>The {@code binder} runs synchronously on the calling thread, exactly once, before any
-     * admission: it registers this run's {@code Callable}s and combine body on the one-shot {@link
-     * TaskGroup.Bindings}. The bindings freeze when the binder returns: every plain member must
-     * have exactly one {@code Callable}, and a declared combine exactly one {@link
-     * TaskGroup.CombineBody} — a missing, duplicate, foreign, or wrong-kind binding, a null body,
-     * or a binder failure rejects the whole submission before admission, runs no user code, and
-     * releases every registered body. The unified submit start — structural parent, deadline
-     * ceiling, TTL and observation snapshots — is resolved only after the binder returns, so slow
-     * binding never consumes the group's execution budget and inherited-deadline errors surface
-     * before any body can run.
+     * Admits and starts one frozen group run. Called by {@link GroupDraft#submit()} after the
+     * declaration is complete and its bodies have moved into {@code payloads}.
      *
      * <p>The whole preparation is one admission against {@link #close()}: either the group is
      * accepted completely or rejected completely, never partially. A group accepted before the
      * topology closes converges fully; runtime failures (member failure, rejection, timeout,
-     * cancellation) are reported through the member futures and {@link TaskGroupResult}, not by
-     * throwing from this method.
+     * cancellation) are reported through the futures and {@link TaskGroupResult}, not by throwing
+     * from here.
      *
-     * @param definition the immutable group structure, created by this {@code ParRuntime}
-     * @param binder registers this run's bodies; invoked synchronously on the calling thread
+     * <p>The admission boundary is the submission boundary: the submit start — structural parent,
+     * deadline ceiling, TTL and observation snapshots — is resolved here, so a slow declaration
+     * never consumes the group's execution budget and inherited-deadline errors surface before any
+     * body can run.
+     *
+     * @param definition the frozen structure built from the declaration
+     * @param payloads this run's bodies, already owned by the kernel
      * @return the running group, holding the complete member registry
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the definition belongs to a different {@code ParRuntime},
-     *     carries an inherited timeout with no enclosing scoped task, or the frozen bindings are
-     *     incomplete or invalid
-     * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown, or the binder
-     *     reentered or leaked its bindings
+     * @throws IllegalArgumentException if the group inherits its deadline and the calling thread
+     *     has no enclosing scoped task
+     * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown
      */
-    public TaskGroup submitGroup(TaskGroupDefinition definition, Consumer<? super TaskGroup.Bindings> binder) {
-        Objects.requireNonNull(definition, "definition cannot be null");
-        Objects.requireNonNull(binder, "binder cannot be null");
-        if (definition.owner() != this) {
-            throw new IllegalArgumentException(
-                    "definition '" + definition.name() + "' belongs to a different ParRuntime");
-        }
-        if (closed.get()) {
-            throw new IllegalStateException("ParRuntime is closed");
-        }
-        TaskGroup.Bindings bindings = new TaskGroup.Bindings(definition);
-        try {
-            binder.accept(bindings);
-        } catch (RuntimeException | Error failure) {
-            // No admission, no future, no executor call: release whatever the binder registered.
-            bindings.discard();
-            throw failure;
-        }
-        TaskGroup.RunBindings payloads = bindings.freeze();
-        try {
-            TaskGroup group = whileOpen(() -> TaskGroup.prepare(this, definition, payloads));
-            group.start(this);
-            group.submitPrepared();
-            return group;
-        } catch (RuntimeException | Error failure) {
-            // Admission or preparation failed: futures already prepared were cancelled inside
-            // prepare (which releases the bodies the kernel took); clear whatever was never taken.
-            payloads.discard();
-            throw failure;
-        }
+    TaskGroup<?, ?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
+        TaskGroup<?, ?> group = whileOpen(() -> TaskGroup.prepare(this, definition, payloads));
+        group.start(this);
+        group.submitPrepared();
+        return group;
     }
 
     private static String requireValidGroupName(String name) {

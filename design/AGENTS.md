@@ -8,16 +8,23 @@
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
 
+对抗性评审的发现与处置也记在这里：每轮评审的条目、复核结论（保留／降级／驳回）与修复实际改了什么，
+写在它所归属的那篇提案文档末尾（如
+[group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) §10）。后续轮次先读该清单
+再找清单之外的，避免重复报告同一批旧条目。流程见根 [AGENTS.md](../AGENTS.md) 的 Adversarial Review。
+
 ## TaskGroup（独立并行任务组）
 
 | 文档 | 摘要 |
 |---|---|
-| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、`ParRuntime.defineGroup*`/`TaskGroupDefinition`/`Member`/`TaskGroup`/`Bindings` 公共 API、选项类型（`BatchOptions`/`TaskOptions` + `Builder.closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`） |
+| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **TaskGroup 公开 API 的最新决策（已落地，§10 实施记录）**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….submitAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、`valuesFuture()` 完成契约（成功/失败/取消三态，永不 pending）、统一准入与草稿生命周期；§9 列出被取代的文档。与本文冲突的组 API 表述一律以本文为准 |
+| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`）。**公共 API 清单章节已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代** |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
-| [task-group-submission.md](task-group-submission.md) | `ParRuntime.submitGroup` 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
+| [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界（§9 复用边界仍有效）。**`submitGroup`/`Bindings` 的调用形状已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代** |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
 | [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（`completionFuture()` 终态 `TaskCompletion`）与组级完成回调（Guava callback）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
-| [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务（`Builder.combine()` 声明 + `Bindings.combine()` 绑定、`CombineBody`/`CombineContext`）：全量 join、结果、取消、观测、缺点与非目标 |
+| [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标。**声明/绑定入口形状已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代**（§3 的 join 机制与 §准备阶段结论仍有效） |
+| [group-tuple-index-proposal-codex.md](group-tuple-index-proposal-codex.md) | **已取代，仅供追溯**：只增加整数索引重载的局部增量方案，被 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代；其 §4–§6、§8 的签名与校验规则全部作废 |
 
 ## 取消与队列
 
@@ -39,7 +46,7 @@
 | [first-principles.md](first-principles.md) | 项目公理层：结构化并发出发点、推导出的核心决策、新需求评估判据；评估任何新特性/新概念先对照本文 |
 | [axiom-drift-decisions-2026-09-14.md](axiom-drift-decisions-2026-09-14.md) | 2026-09-11 axiom-drift 报告的五条决策汇总（TaskGroup 重做 / queue 产物边界 / executor 可看透性 / TaskType 语义 / Par.map 受检异常），五条已全部拍板或关闭；§7 附录列出无决策负担的剩余重构（B7/C5/C10） |
 | [executor-transparency.md](executor-transparency.md) | executor 可看透性终态（已落地）：`BlockingRisk` 资源分类、`starvationProne` 按提交去向判定、注册期「看不透」告警与 TTL 包装器检测；§8 落地记录 |
-| [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) | v0.3 TaskGroup API 重设计（已落地）：结构定义与执行绑定分离、`ParId`、`TaskGroup.Bindings`、`GlobalPar` 更名 `ParRuntime`；§20 实施记录 |
+| [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) | v0.3 TaskGroup API 重设计（已落地）：结构定义与执行绑定分离、`ParId`、`TaskGroup.Bindings`、`GlobalPar` 更名 `ParRuntime`；§20 实施记录。**组 API 部分已被 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代**（拓扑/命名沿革仍有效） |
 | [task-type-semantics-v0.3-proposal.md](task-type-semantics-v0.3-proposal.md) | `TaskType` 语义与 executor 拒绝处置（已落地）：拒绝时 inline 回退还是 `SubmissionException`、`rejectEnqueue` 的生效条件；§8 实施记录 |
 | [par-map-throwing-function-v0.3-proposal.md](par-map-throwing-function-v0.3-proposal.md) | `Par.map` 受检异常签名决策（**已否决并关闭**）：保留标准 `java.util.function.Function`；§5–§7 选项与落地清单全部作废，仅作决策历史保留 |
 | [batch-submission-failure-semantics.md](batch-submission-failure-semantics.md) | executor handoff failure 统一语义（已落地）：`execute()` 抛出的任何失败（含 `Error` 与偷渡受检异常）以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future，`Par.map`/`submitGroup` 跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径；handoff `Error` 单点 SEVERE 诊断 |
