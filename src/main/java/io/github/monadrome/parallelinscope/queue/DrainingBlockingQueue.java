@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope.queue;
 
 import com.google.common.util.concurrent.Monitor;
+import java.lang.reflect.Array;
 import java.util.AbstractQueue;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -57,7 +59,7 @@ import org.jspecify.annotations.Nullable;
  * #awaitDrained()} waits only for terminal-state publication, not for previously admitted calls to
  * finish returning to their callers.
  *
- * <p>Implementation follows {@link java.util.concurrent.LinkedBlockingQueue}'s two-lock structure
+ * <p>Implementation follows {@link LinkedBlockingQueue}'s two-lock structure
  * with Guava {@link Monitor monitors}: a producer monitor guards enqueue and capacity, a consumer
  * monitor guards dequeue and emptiness, and an {@link AtomicInteger} count publishes size across
  * both monitors. Lifecycle state is volatile so that close and drained publication release waiters
@@ -803,7 +805,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Discards every element. While the queue is draining this is legal and moves it straight to
      * the {@link #drained() DRAINED} terminal state; once drained it follows the policy's
      * {@code mutations} strategy (no-op or {@link IllegalStateException}). In the open state it
-     * has normal {@link java.util.Collection#clear()} semantics and does not close production.
+     * has normal {@link Collection#clear()} semantics and does not close production.
      */
     @Override
     public void clear() {
@@ -1180,8 +1182,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         Object[] snapshot = toArray();
         T[] result = destination.length >= snapshot.length
                 ? destination
-                : (T[]) java.lang.reflect.Array.newInstance(
-                        destination.getClass().getComponentType(), snapshot.length);
+                : (T[]) Array.newInstance(destination.getClass().getComponentType(), snapshot.length);
         for (int index = 0; index < snapshot.length; index++) {
             result[index] = (T) snapshot[index];
         }
@@ -1263,7 +1264,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Returns a weakly consistent, late-binding spliterator with the same characteristics as
-     * {@link java.util.concurrent.LinkedBlockingQueue}. Elements concurrently added or removed may
+     * {@link LinkedBlockingQueue}. Elements concurrently added or removed may
      * be observed or skipped, but are never duplicated, and poison is never exposed. Streams
      * obtained from this queue inherit those traversal semantics.
      */
@@ -1362,7 +1363,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Returns a weakly consistent FIFO iterator over the live node chain, shaped after {@link
-     * java.util.concurrent.LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
+     * LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
      * iterator is created may or may not be reflected. While the queue is draining the iterator
      * observes the remaining elements; once drained it observes none (the poison value is a
      * virtual signal, never an element). {@link Iterator#remove()} removes the last returned
@@ -1560,7 +1561,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
         /**
          * Returns a policy with no poison that rejects ordinary mutations after {@code DRAINED}.
-         * Required-value consumers still throw {@link java.util.NoSuchElementException}, and
+         * Required-value consumers still throw {@link NoSuchElementException}, and
          * special-value consumers still return {@code null}.
          */
         public static <E> ShutdownPolicy<E> throwing() {

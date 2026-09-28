@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -23,8 +24,8 @@ class ParRuntimePoliciesTest {
     @Test
     void registerRejectsDuplicatesAndDefaultParMustBeRegistered() {
         assertThatThrownBy(() -> ParRuntime.builder()
-                        .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor())
-                        .register(ParId.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor()))
+                        .register(ParId.of("same"), Executors.newSingleThreadExecutor())
+                        .register(ParId.of("same"), Executors.newSingleThreadExecutor()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate Par id")
                 .hasMessageContaining("'same'");

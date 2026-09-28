@@ -3,11 +3,18 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.base.Ticker;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -197,8 +204,7 @@ class ScopePrimitivesTest {
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {
-        return new TaskExecutionContext(
-                context, index, com.google.common.base.Ticker.systemTicker().read());
+        return new TaskExecutionContext(context, index, Ticker.systemTicker().read());
     }
 
     // ==================== ParRuntime lifecycle & scheduler adapter ====================
@@ -242,16 +248,15 @@ class ScopePrimitivesTest {
     @Test
     void timeoutSchedulerDelegatesRunnablesAndLifecycleStates() throws Exception {
         ParRuntime global = ParRuntime.builder().build();
-        java.util.concurrent.ScheduledExecutorService scheduler = global.timeoutScheduler();
+        ScheduledExecutorService scheduler = global.timeoutScheduler();
 
-        java.util.concurrent.CountDownLatch ran = new java.util.concurrent.CountDownLatch(1);
-        java.util.concurrent.ScheduledFuture<?> scheduled =
-                scheduler.schedule(ran::countDown, 5, TimeUnit.MILLISECONDS);
-        org.junit.jupiter.api.Assertions.assertNotNull(scheduled);
+        CountDownLatch ran = new CountDownLatch(1);
+        ScheduledFuture<?> scheduled = scheduler.schedule(ran::countDown, 5, TimeUnit.MILLISECONDS);
+        Assertions.assertNotNull(scheduled);
         assertThat(scheduler.isShutdown()).isFalse();
         assertThat(scheduler.isTerminated()).isFalse();
 
-        java.util.concurrent.atomic.AtomicBoolean executed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        AtomicBoolean executed = new AtomicBoolean(false);
         scheduler.execute(() -> executed.set(true));
         awaitTrue(executed);
 
@@ -272,7 +277,7 @@ class ScopePrimitivesTest {
         assertThat(ran.getCount()).isGreaterThanOrEqualTo(0);
     }
 
-    private static void awaitTrue(java.util.concurrent.atomic.AtomicBoolean flag) throws InterruptedException {
+    private static void awaitTrue(AtomicBoolean flag) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
         while (!flag.get() && System.nanoTime() < deadline) {
             Thread.sleep(5);
@@ -280,7 +285,7 @@ class ScopePrimitivesTest {
         assertThat(flag.get()).isTrue();
     }
 
-    private static void awaitTrue(java.util.function.BooleanSupplier condition) throws InterruptedException {
+    private static void awaitTrue(BooleanSupplier condition) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
         while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
             Thread.sleep(5);

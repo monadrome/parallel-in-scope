@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -18,8 +19,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -59,7 +62,7 @@ class ScopedTaskContractTest {
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(executions).hasValue(1);
             // set(result) precedes the TERMINAL emission inside the worker, so wait for it.
-            org.awaitility.Awaitility.await()
+            Awaitility.await()
                     .atMost(1, TimeUnit.SECONDS)
                     .untilAsserted(
                             () -> assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL));
@@ -202,7 +205,7 @@ class ScopedTaskContractTest {
             if (entry == Entry.BATCH) {
                 ListenableFuture<Object> queued = global.par(ParId.of("worker"))
                         .map(
-                                java.util.Arrays.asList("blocker", "queued"),
+                                Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
                                 BatchOptions.timeout("cancel", Duration.ofSeconds(30))
                                         .parallelism(2))
@@ -251,7 +254,7 @@ class ScopedTaskContractTest {
                                     } catch (InterruptedException e) {
                                         Thread.currentThread().interrupt();
                                         throw new IllegalStateException(e);
-                                    } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
+                                    } catch (ExecutionException | TimeoutException e) {
                                         throw new IllegalStateException(e);
                                     }
                                 },

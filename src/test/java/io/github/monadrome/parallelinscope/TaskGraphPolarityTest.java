@@ -3,9 +3,12 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -87,7 +90,7 @@ class TaskGraphPolarityTest {
         ParRuntime global = ParRuntime.builder()
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             // Acyclic chain only: no cycle, no self-loop anywhere.
             TaskGraphObservationScope.logTaskPair("r", "r", "x", "x", plainEdge());
@@ -105,7 +108,7 @@ class TaskGraphPolarityTest {
         ParRuntime global = ParRuntime.builder()
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> reportFuture;
+        ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
             // Task-level cycle a -> b -> a using NON-deadlock-prone edges: the task cycle is real,
             // but no executor dependency edges exist at all.
@@ -127,8 +130,8 @@ class TaskGraphPolarityTest {
 
     @Test
     void distinctExecutorIdentitiesFormNoSelfLoopEvenWhenTheTaskGraphCycles() {
-        java.util.concurrent.ExecutorService firstPool = java.util.concurrent.Executors.newSingleThreadExecutor();
-        java.util.concurrent.ExecutorService secondPool = java.util.concurrent.Executors.newSingleThreadExecutor();
+        ExecutorService firstPool = Executors.newSingleThreadExecutor();
+        ExecutorService secondPool = Executors.newSingleThreadExecutor();
         try {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);

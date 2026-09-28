@@ -4,21 +4,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -618,7 +623,7 @@ class TaskGroupTest {
             assertThat(result.outcome()).isIn(TaskOutcome.TIMEOUT, TaskOutcome.USER_FAILURE);
             // The member token is never bound, so only constructor-listener propagation from the
             // group token can move it; await the cascade, which runs after the group converges.
-            org.awaitility.Awaitility.await()
+            Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> Objects.requireNonNull(memberToken.get()).state()
                                     == CancellationToken.State.PROPAGATED_CANCELED
@@ -757,7 +762,7 @@ class TaskGroupTest {
             TaskGroup group = global.submitGroup(builder.build(), bindings -> bindings.task(one, () -> 1));
             Futures.addCallback(
                     group.completionFuture(),
-                    new com.google.common.util.concurrent.FutureCallback<TaskGroupResult>() {
+                    new FutureCallback<TaskGroupResult>() {
                         @Override
                         public void onSuccess(@Nullable TaskGroupResult result) {
                             observed.set(result);
@@ -1160,7 +1165,7 @@ class TaskGroupTest {
 
             // The outer batch deadline cancels the outer task and propagates into the nested
             // group's token tree; the group keeps the originating timeout reason.
-            org.awaitility.Awaitility.await()
+            Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> Objects.requireNonNull(nestedGroup.get()) != null);
             TaskGroupResult nested =
@@ -1280,7 +1285,7 @@ class TaskGroupTest {
                                     } catch (InterruptedException interrupted) {
                                         // cancellation reached this task before the group settled;
                                         // keep waiting for the group's terminal reason
-                                    } catch (java.util.concurrent.ExecutionException failure) {
+                                    } catch (ExecutionException failure) {
                                         throw new RuntimeException(failure);
                                     }
                                 }
@@ -1294,7 +1299,7 @@ class TaskGroupTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELED);
-            org.awaitility.Awaitility.await()
+            Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> observedReason.get() != null
                             && outerBatch.results().get(0).isDone());
@@ -1407,9 +1412,9 @@ class TaskGroupTest {
         }
 
         @Override
-        public java.util.List<Runnable> shutdownNow() {
+        public List<Runnable> shutdownNow() {
             shutdown = true;
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         @Override
@@ -1444,9 +1449,9 @@ class TaskGroupTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
