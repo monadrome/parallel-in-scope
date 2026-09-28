@@ -128,6 +128,9 @@
                          javac internal packages are opened via .mvn/jvm.config. -->
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
+                        <!-- Required by Error Prone when javac runs on JDK 21; on JDK 22+ javac
+                             adds type annotations to symbols by default and ignores this. -->
+                        <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
                         <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
                     </compilerArgs>
