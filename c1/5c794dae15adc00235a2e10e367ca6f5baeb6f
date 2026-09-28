@@ -1,0 +1,14 @@
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  h_a991f50801869b 181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c15c794dae15adc00235a2e10e367ca6f5baeb6f",
+  "prompts": {},
+  "humans": {
+    "h_a991f50801869b": {
+      "author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
