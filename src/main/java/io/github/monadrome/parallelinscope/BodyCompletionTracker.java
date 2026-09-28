@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Shared task-body completion signal for one submission — a task group or a batch.
@@ -44,6 +45,13 @@ final class BodyCompletionTracker {
     private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
     private final List<TaskBodyState> slots;
 
+    /**
+     * The unit of the most recent registration. Batch submissions register the same unit once
+     * per task, and only the first identity-set insert carries information; registration is
+     * confined to the single submitting thread, so a plain field suffices.
+     */
+    private @Nullable MultiTaskContext lastRegisteredUnit;
+
     private BodyCompletionTracker(int taskCount) {
         this.outstanding = new AtomicInteger(taskCount);
         this.slots = new ArrayList<>(taskCount);
@@ -70,7 +78,10 @@ final class BodyCompletionTracker {
      * exactly once per task counted at creation, before any task is submitted.
      */
     TaskBodyState register(MultiTaskContext unit) {
-        identityUnits.add(unit);
+        if (lastRegisteredUnit != unit) {
+            identityUnits.add(unit);
+            lastRegisteredUnit = unit;
+        }
         TaskBodyState slot = new TaskBodyState(this, unit.name());
         slots.add(slot);
         return slot;
