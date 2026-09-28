@@ -22,12 +22,12 @@ import org.jspecify.annotations.Nullable;
  * edges, however each was built. Algorithms such as the executor projection ({@link
  * ExecutorGraph#projectedFrom}) are functions over a graph, not part of it.
  *
- * <p>Edges point from a unit that already exists to the unit an admission creates: a {@link
- * Dependency#FORK} from the waiter to the awaited, a {@link Dependency#JOIN} from the input to its
- * consumer. Every admission creates new unit ids, so the graphs the library records are acyclic by
- * construction and unit creation order is a topological order. The type itself does not enforce
- * acyclicity — a test may write any shape — so no analysis relies on it. Self-dependencies are
- * rejected: no unit is its own waiter or input.
+ * <p>Edges point from an earlier-created unit to a later-created one: a {@link Dependency#FORK} from
+ * the waiter to the awaited, a {@link Dependency#JOIN} from the input to its consumer. A caller exists
+ * before every unit it admits, and a batch or a group member is created before the combine that
+ * consumes it, so the graphs the library records are acyclic by construction and unit creation order
+ * is a topological order. The type itself does not enforce acyclicity — a test may write any shape —
+ * so no analysis relies on it. Self-dependencies are rejected: no unit is its own waiter or input.
  *
  * <p>Nodes iterate in insertion order and each node's edges in a stable order, so rendering and
  * projection evidence are reproducible. See {@code design/task-graph.md}.

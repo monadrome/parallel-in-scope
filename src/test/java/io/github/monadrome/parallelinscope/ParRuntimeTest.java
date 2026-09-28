@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -228,8 +227,7 @@ class ParRuntimeTest {
                 .register(ParId.of("outer"), outerExecutor)
                 .register(ParId.of("inner"), innerExecutor)
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphData expectedGraph = TaskGraphObservationScope.data();
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
             TaskBatch<Integer> outer = global.par(ParId.of("outer"))
                     .submitBatch(
                             Collections.singletonList(2),
@@ -248,8 +246,8 @@ class ParRuntimeTest {
                             BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(TaskGraphObservationScope.data()).isSameAs(expectedGraph);
-            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).isNotEmpty();
+            assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
+            assertThat(observation.graph().asValueGraph().edges()).isNotEmpty();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -266,14 +264,13 @@ class ParRuntimeTest {
                 .register(ParId.of("outer"), outerExecutor)
                 .register(ParId.of("inner"), innerExecutor)
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphData expectedGraph = TaskGraphObservationScope.data();
-            AtomicReference<TaskGraphData> graphOnOuterWorker = new AtomicReference<>();
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            AtomicReference<TaskGraphObservationScope> scopeOnOuterWorker = new AtomicReference<>();
             TaskBatch<Integer> outer = global.par(ParId.of("outer"))
                     .submitBatch(
                             Collections.singletonList(2),
                             value -> {
-                                graphOnOuterWorker.set(TaskGraphObservationScope.data());
+                                scopeOnOuterWorker.set(TaskGraphObservationScope.current());
                                 TaskBatch<Integer> inner = global.par(ParId.of("inner"))
                                         .submitBatch(
                                                 Collections.singletonList(value),
@@ -288,8 +285,9 @@ class ParRuntimeTest {
                             BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
-            assertThat(Objects.requireNonNull(expectedGraph).graph().edges()).hasSize(2);
+            assertThat(scopeOnOuterWorker.get()).isSameAs(observation);
+            assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
+            assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
         } finally {
             global.close();
             outerExecutor.shutdownNow();

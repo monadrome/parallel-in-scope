@@ -36,6 +36,9 @@ combine）已终态、不可变结果已发布，不存在组完成回调的注�
 
 ## 11. TaskGraph 规则
 
+图模型（节点、`FORK`/`JOIN` 边、准入片段、执行器投影与检测）的契约在
+[task-graph.md](task-graph.md)。本节只约束 Group 侧与 scope 生命周期。
+
 Group membership 不是依赖关系：
 
 ```text
@@ -55,22 +58,19 @@ fake-group-batch -> A/B/C
 
 规则：
 
-- 请求线程创建的 Group，其 members 不因同组而写 TaskGraph edge；
-- scoped task 内创建的 Group，可以为真实 outer batch 到各 member batch 写边；
+- 一次 `runAll` 的成员与汇总作为**一个**片段并入：caller（scoped task 内创建时）`FORK` 每个成员与汇总，
+  每个成员 `JOIN` 汇总；请求线程创建的 Group 没有 caller，只写节点与 `JOIN`；
+- 成员之间 MUST NOT 有边，MUST NOT 虚构 group 节点；groupId/memberName 的 membership 只写入 Group telemetry；
 - member callable 内部调用 `Par.map()` 时，现有 `TaskExecutionContext.current()` 使该 Batch 成为 member 的真实结构化 child；
-- groupId/memberName 的 membership 只写入 Group telemetry；
-- 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警。
+- 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警（`JOIN` 不进入执行器投影）。
 
 派生视图的一致性：
 
-- 每次查询（`hasTaskCycle()` / `hasSelfLoop()` / `hasExecutorCycle()` / `hasExecutorSelfLoop()`
-  以及导出使用的图）MUST 包含其线性化点之前已完成记录的全部边；新增边之后 MUST NOT 复用旧快照；
-- `close()` 发布的 `TaskGraphReport`（经 `TaskGraphObservationScope.reportFuture()`）中的 task
-  graph、executor graph、四个 cycle/self-loop 标志与渲染文本 MUST 来自
-  同一份不可变快照，MUST NOT 混用不同时点的读取结果。
-- 快照是 eager 构建的：无法渲染的边（`executorDeadlockProne` 但没有两个端点的 executor 名，
-  或 identity graph 缺少 endpoint identity）MUST 在该派生视图中跳过，MUST NOT 让无关查询失败；
-  这些边仍保留在 task graph 中。
+- 每次查询（`hasExecutorCycle()` / `hasExecutorSelfLoop()` 以及导出使用的图）MUST 包含其线性化点之前
+  已完成并入的全部片段；并入新片段之后 MUST NOT 复用旧快照；
+- `close()` 发布的 `TaskGraphReport`（经 `TaskGraphObservationScope.reportFuture()`）中的任务图、执行器投影、
+  两个标志与渲染文本 MUST 来自同一份不可变快照，MUST NOT 混用不同时点的读取结果。
+- 没有执行器身份的节点 MUST 在投影中跳过，MUST NOT 让无关查询失败；这些节点仍保留在任务图中。
 - scope `close()` MUST 先恢复调用线程的外层 scope 并完成 `reportFuture()` 的发布，再运行任何
   可替换的 JUL 日志 handler：handler 是用户代码，可以重入同一个 scope 的 `close()`；重入调用
   等待的正是这次发布，先日志后发布会形成自等待死锁。
@@ -157,9 +157,9 @@ fake-group-batch -> A/B/C
 
 ### 14.6 TaskGraph 与关闭
 
-31. 请求线程 Group 不产生 membership dependency edge；
-32. outer scoped task 创建 Group 时，只产生 outer->member 的真实边；
-33. member 内嵌套 `Par.map()` 产生 member->child Batch 的真实边；
+31. 请求线程 Group 不产生 membership dependency edge，只有成员→汇总的 `JOIN`；
+32. outer scoped task 创建 Group 时，只产生 outer `FORK` 成员与汇总、成员 `JOIN` 汇总的真实边，且作为一个片段并入；
+33. member 内嵌套 `Par.map()` 产生 member `FORK` child Batch 的真实边；
 34. 同一 executor 的 siblings 不因 membership 产生 self-loop；
 35. ParRuntime close 后拒绝新提交；先于 close 完成 admission 的完整 Group 可继续运行；
 36. close 前完整冻结的成员继续走终止、timeout 和 telemetry；

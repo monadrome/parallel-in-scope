@@ -108,6 +108,7 @@ Java 无法强制任意 body/close 停止，库不发现捕获/返回对象、�
 | ParOptions 等批次配置 | BatchOptions / 成员与 combine 的 TaskOptions |
 | TaskListener/TaskGroupListener | 返回结果的终态观测与普通结果处理 |
 | DeadlockDetectionListener | TaskGraphObservationScope.reportFuture / TaskGraphReport |
+| TaskGraphObservationScope.hasTaskCycle() / hasSelfLoop() | hasExecutorCycle() / hasExecutorSelfLoop()；任务节点按单元实例标识，任务图按构造无环，任务级查询恒为 false，重入风险由执行器自环报告 |
 | public Task、实现子包及 bridge | 公开终态 API，根包包私有执行内核 |
 | JSR-305/Checker 注解 | JSpecify @NullMarked / 显式 @Nullable |
 

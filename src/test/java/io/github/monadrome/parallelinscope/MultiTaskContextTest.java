@@ -29,18 +29,48 @@ class MultiTaskContextTest {
                 .parallelism(99)
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false);
-        ExecutorServiceStub executor = new ExecutorServiceStub();
-        ExecutorIdentity identity = new ExecutorIdentity(executor);
-        MultiTaskContext context = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), 3)
-                .executorIdentity(identity)
-                .executorLabel("http"));
+        ExecutorRuntime executor = new ExecutorRuntime(new ExecutorServiceStub());
+        MultiTaskContext context = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options.spec(), 3).executor(executor, ParId.of("http")));
 
         assertThat(context.effectiveParallelism()).isEqualTo(3);
-        assertThat(context.executorIdentity()).isSameAs(identity);
-        assertThat(context.executorLabel()).isEqualTo("http");
+        assertThat(context.node().executor()).isSameAs(executor.identity());
+        assertThat(context.node().executorLabel()).isEqualTo("http");
+        assertThat(context.node().starvationProne()).isEqualTo(executor.starvationProne());
         assertThat(context.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(context.rejectEnqueue()).isFalse();
         assertThat(context.remaining().isNegative()).isFalse();
+    }
+
+    @Test
+    void theUnitResolvesExactlyOneNodeCarryingItsOwnFacts() {
+        ManualClock clock = new ManualClock();
+        MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("outer", Duration.ofSeconds(30)).spec(), 1)
+                .ticker(clock.ticker())
+                .timeoutScheduler(clock.scheduler()));
+        clock.advance(Duration.ofSeconds(10));
+        MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("inner", Duration.ofSeconds(60))
+                                .parallelism(4)
+                                .taskType(TaskType.CPU_BOUND)
+                                .spec(),
+                        6)
+                .structuralParent(parent));
+
+        TaskNode node = child.node();
+        assertThat(child.node()).isSameAs(node);
+        assertThat(node.id()).isEqualTo(child.unitId());
+        assertThat(node.name()).isEqualTo("inner");
+        assertThat(node.taskCount()).isEqualTo(6);
+        assertThat(node.parallelism()).isEqualTo(4);
+        assertThat(node.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(node.budget()).isEqualTo(Duration.ofSeconds(20));
+        assertThat(node.executor()).isNull();
+        assertThat(node.starvationProne()).isFalse();
+        assertThat(child.structuralParentNode()).isSameAs(parent.node());
+        assertThat(parent.structuralParentNode()).isNull();
+        assertThat(node).isNotEqualTo(parent.node());
     }
 
     @Test
@@ -130,8 +160,8 @@ class MultiTaskContextTest {
             assertThat(child.taskGraphObservationScope()).isNull();
             assertThat(parent.taskGraphObservationScope()).isSameAs(observation);
             assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
-            assertThat(child.executorIdentity()).isNull();
-            assertThat(child.executorLabel()).isNull();
+            assertThat(child.node().executor()).isNull();
+            assertThat(child.node().executorLabel()).isNull();
         } finally {
             observation.close();
             global.close();

@@ -1,108 +1,53 @@
 package io.github.monadrome.parallelinscope;
 
+import static io.github.monadrome.parallelinscope.TaskGraphFixtures.node;
+import static io.github.monadrome.parallelinscope.TaskGraphFixtures.twoPoolCycle;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+/** Node identity through the real admission path, and what a closing scope publishes and restores. */
 class TaskGraphBatchIdentityTest {
+
+    @AfterEach
+    void clearThreadState() {
+        TaskGraphObservationScope.restore(null);
+    }
+
     @Test
     void sameTaskNameInIndependentBatchesDoesNotCollapseNodes() {
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            MultiTaskContext first = context();
-            MultiTaskContext second = context();
-            TaskGraphObservationScope.logTaskPair(null, "root", first.unitId(), first.name(), edge());
-            TaskGraphObservationScope.logTaskPair(null, "root", second.unitId(), second.name(), edge());
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("pool"), pool).build();
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+            Par par = global.par(ParId.of("pool"));
+            par.map(Arrays.asList(1, 2), value -> value, BatchOptions.timeout("same-name", Duration.ofSeconds(30)));
+            par.map(Arrays.asList(3, 4), value -> value, BatchOptions.timeout("same-name", Duration.ofSeconds(30)));
 
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
-            assertThat(data.graph().nodes()).contains(first.unitId(), second.unitId());
-            assertThat(first.unitId()).isNotEqualTo(second.unitId());
-            assertThat(data.graph().edges()).hasSize(2);
-            assertThat(data.selfLoop()).isFalse();
+            assertThat(scope.graph().asValueGraph().nodes())
+                    .hasSize(2)
+                    .allMatch(unit -> unit.name().equals("same-name"))
+                    .extracting(TaskNode::id)
+                    .doesNotHaveDuplicates();
+            assertThat(scope.graph().asValueGraph().edges()).isEmpty();
         } finally {
             global.close();
+            pool.shutdownNow();
         }
     }
 
     @Test
-    void detectsTaskCyclesSelfLoopsAndPreservesParallelEdges() {
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", edge());
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", edge());
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", edge());
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", edge());
-
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
-            assertThat(TaskGraphObservationScope.hasTaskCycle()).isTrue();
-            assertThat(TaskGraphObservationScope.hasSelfLoop()).isTrue();
-            assertThat(data.graph().edgeValueOrDefault("a", "b", Collections.emptyList()))
-                    .hasSize(2);
-            assertThat(data.graph()).isSameAs(data.graph());
-        } finally {
-            global.close();
-        }
-    }
-
-    @Test
-    void detectsExecutorCyclesAndSkipsNonRiskyEdges() {
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
-            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isTrue();
-            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
-        } finally {
-            global.close();
-        }
-
-        ParRuntime nonRisky = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = nonRisky.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool", "pool", false));
-            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
-            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
-        } finally {
-            nonRisky.close();
-        }
-    }
-
-    @Test
-    void detectsCyclesAndSelfLoopsByExecutorObjectIdentity() {
-        ExecutorService first = Executors.newSingleThreadExecutor();
-        ExecutorService second = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
-            ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
-            TaskGraphObservationScope.logTaskPair(
-                    "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity));
-            TaskGraphObservationScope.logTaskPair(
-                    "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity));
-            TaskGraphObservationScope.logTaskPair(
-                    "self", "self", "self", "self", identityEdge(firstIdentity, firstIdentity));
-
-            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isTrue();
-            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isTrue();
-        } finally {
-            global.close();
-            first.shutdownNow();
-            second.shutdownNow();
-        }
-    }
-
-    @Test
-    void absentOrRestoredGraphHasNoIssues() {
+    void outsideAnyScopeTheExecutorQueriesAreFalse() {
         TaskGraphObservationScope.restore(null);
-        assertThat(TaskGraphObservationScope.data()).isNull();
-        assertThat(TaskGraphObservationScope.hasTaskCycle()).isFalse();
-        assertThat(TaskGraphObservationScope.hasSelfLoop()).isFalse();
+        assertThat(TaskGraphObservationScope.current()).isNull();
         assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
         assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
     }
@@ -113,16 +58,18 @@ class TaskGraphBatchIdentityTest {
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
-            TaskGraphData outerData = TaskGraphObservationScope.data();
-            TaskGraphObservationScope.logTaskPair("outer", "outer", "outer", "outer", edge());
+            outer.record(TaskGraph.builder().admit(null, node("outer")).build());
+            TaskGraph outerGraph = outer.graph();
             TaskGraphObservationScope inner = global.openTaskGraphObservation();
-            TaskGraphObservationScope.logTaskPair("inner", "inner", "inner", "inner", edge());
+            inner.record(twoPoolCycle());
             inner.close();
+
             TaskGraphReport report = Objects.requireNonNull(Futures.getDone(inner.reportFuture()));
-            assertThat(report.selfLoop()).isTrue();
+            assertThat(report.executorCycle()).isTrue();
             assertThat(report.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
             assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
-            assertThat(TaskGraphObservationScope.data()).isSameAs(outerData);
+            assertThat(outer.graph()).isSameAs(outerGraph);
+            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
         } finally {
             global.close();
         }
@@ -135,8 +82,7 @@ class TaskGraphBatchIdentityTest {
                 .build();
         ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
+            scope.record(twoPoolCycle());
             reportFuture = scope.reportFuture();
         } finally {
             global.close();
@@ -144,22 +90,6 @@ class TaskGraphBatchIdentityTest {
 
         TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
         assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
-    }
-
-    private static MultiTaskContext context() {
-        return MultiTaskContext.resolve(MultiTaskContext.resolution(
-                BatchOptions.timeout("same-name", Duration.ofSeconds(30)).spec(), 1));
-    }
-
-    private static TaskEdge edge() {
-        return new TaskEdge(1, TaskType.CPU_BOUND, null, null, "executor", "parent", 1, Duration.ZERO, false);
-    }
-
-    private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);
-    }
-
-    private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, "target", "source", 1, Duration.ZERO, true);
+        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-c[c]");
     }
 }

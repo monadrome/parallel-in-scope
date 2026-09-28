@@ -8,7 +8,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -52,29 +51,21 @@ class TaskGraphReportFutureTest {
         return global;
     }
 
-    /** Records the task cycle a -> b -> a in the current scope with non-deadlock-prone edges. */
-    private static void recordTaskCycle() {
-        TaskGraphObservationScope.logTaskPair(
-                "a",
-                "task-a",
-                "b",
-                "task-b",
-                new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(10), false));
-        TaskGraphObservationScope.logTaskPair(
-                "b",
-                "task-b",
-                "a",
-                "task-a",
-                new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(10), false));
+    /** Records two starvation-prone pools waiting on each other into {@code scope}. */
+    private static void recordExecutorCycle(TaskGraphObservationScope scope) {
+        scope.record(TaskGraphFixtures.twoPoolCycle());
     }
 
+    /**
+     * A disabled policy publishes a DISABLED report, while graph recording and the static queries are
+     * unaffected by it.
+     */
     @Test
     void disabledPolicyPublishesDisabledReportAndKeepsStaticQueries() throws Exception {
         ParRuntime global = runtimeWithDetection(false);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        recordTaskCycle();
-        // Graph recording and the static queries are unaffected by the disabled policy.
-        assertThat(TaskGraphObservationScope.hasTaskCycle()).isTrue();
+        recordExecutorCycle(scope);
+        assertThat(TaskGraphObservationScope.hasExecutorCycle()).isTrue();
         scope.close();
 
         assertThat(scope.reportFuture().isDone()).isTrue();
@@ -89,12 +80,9 @@ class TaskGraphReportFutureTest {
     void enabledCleanGraphPublishesNoIssueReport() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        TaskGraphObservationScope.logTaskPair(
-                "r",
-                "r",
-                "x",
-                "x",
-                new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(10), false));
+        scope.record(TaskGraph.builder()
+                .admit(TaskGraphFixtures.node("r"), TaskGraphFixtures.node("x"))
+                .build());
         scope.close();
 
         TaskGraphReport report = doneReport(scope.reportFuture());
@@ -106,15 +94,16 @@ class TaskGraphReportFutureTest {
     void enabledCyclicGraphPublishesIssueReportWithEdges() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        recordTaskCycle();
+        recordExecutorCycle(scope);
         scope.close();
 
         TaskGraphReport report = doneReport(scope.reportFuture());
         assertThat(report.status()).isEqualTo(TaskGraphReport.Status.ISSUE);
         assertThat(report.anyIssue()).isTrue();
-        assertThat(report.taskCycle()).isTrue();
-        assertThat(report.selfLoop()).isFalse();
-        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-a[a]");
+        assertThat(report.executorCycle()).isTrue();
+        assertThat(report.executorSelfLoop()).isFalse();
+        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-c[c]");
+        assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     @Test
@@ -201,7 +190,7 @@ class TaskGraphReportFutureTest {
         observationLogger.setLevel(Level.ALL);
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             TaskGraphObservationScope inner = global.openTaskGraphObservation();
-            recordTaskCycle();
+            recordExecutorCycle(inner);
 
             // A handler Error on the real-ISSUE path must not replace the computed report with the
             // logging failure, and must not escape close().
@@ -268,7 +257,7 @@ class TaskGraphReportFutureTest {
     void repeatedClosePublishesOnceAndKeepsTheSameReport() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        recordTaskCycle();
+        recordExecutorCycle(scope);
         scope.close();
         TaskGraphReport first = doneReport(scope.reportFuture());
         scope.close();
@@ -280,7 +269,7 @@ class TaskGraphReportFutureTest {
     void concurrentCloseAllReturnWithPublishedReport() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        recordTaskCycle();
+        recordExecutorCycle(scope);
         ExecutorService closers = Executors.newFixedThreadPool(4);
         try {
             CountDownLatch start = new CountDownLatch(1);
@@ -304,24 +293,24 @@ class TaskGraphReportFutureTest {
         assertThat(TaskGraphObservationScope.current()).isNull();
     }
 
+    /**
+     * A late write cannot reach the published report: not through the closed scope, which records
+     * nothing, and not through a reference to its recorder, which keeps accepting writes the frozen
+     * report never sees.
+     */
     @Test
     void lateEdgesNeverRewriteThePublishedReport() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
-        TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        TaskGraphData data = TaskGraphObservationScope.data();
+        TaskGraphData data = new TaskGraphData();
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(global, data);
         scope.close();
         TaskGraphReport report = doneReport(scope.reportFuture());
         assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
 
-        // A late write through the already-obtained data reference still cannot reach the report.
-        assertThat(data).isNotNull();
-        data.logTaskPair(
-                "a",
-                "task-a",
-                "a",
-                "task-a",
-                new TaskEdge(1, TaskType.IO_BOUND, "e", "e", 1, Duration.ofMillis(10), false));
-        assertThat(data.selfLoop()).isTrue();
+        recordExecutorCycle(scope);
+        assertThat(scope.graph().asValueGraph().nodes()).isEmpty();
+        data.record(TaskGraphFixtures.twoPoolCycle());
+        assertThat(data.snapshot().executors().cycle()).isTrue();
         assertThat(doneReport(scope.reportFuture())).isSameAs(report);
         assertThat(doneReport(scope.reportFuture()).anyIssue()).isFalse();
     }
@@ -416,7 +405,7 @@ class TaskGraphReportFutureTest {
         assertThat(scope.reportFuture().isCancelled()).isFalse();
         assertThat(scope.closed()).isFalse();
 
-        recordTaskCycle();
+        recordExecutorCycle(scope);
         scope.close();
         // Cancellation attempts did not disturb detection or the published report.
         assertThat(doneReport(scope.reportFuture()).status()).isEqualTo(TaskGraphReport.Status.ISSUE);
@@ -450,7 +439,7 @@ class TaskGraphReportFutureTest {
     void reportsAreIsolatedPerRuntimeAndNestedScope() throws Exception {
         ParRuntime disabledRuntime = runtimeWithDetection(false);
         TaskGraphObservationScope disabledScope = disabledRuntime.openTaskGraphObservation();
-        recordTaskCycle();
+        recordExecutorCycle(disabledScope);
         disabledScope.close();
         assertThat(doneReport(disabledScope.reportFuture()).status()).isEqualTo(TaskGraphReport.Status.DISABLED);
 
@@ -460,7 +449,7 @@ class TaskGraphReportFutureTest {
         runtime.set(other);
         TaskGraphObservationScope outer = other.openTaskGraphObservation();
         TaskGraphObservationScope inner = other.openTaskGraphObservation();
-        recordTaskCycle(); // lands in the inner scope's graph only
+        recordExecutorCycle(Objects.requireNonNull(TaskGraphObservationScope.resolveFor(null, other)));
         inner.close();
         assertThat(doneReport(inner.reportFuture()).status()).isEqualTo(TaskGraphReport.Status.ISSUE);
         // The outer scope has not closed, so its report is still pending.
@@ -542,6 +531,61 @@ class TaskGraphReportFutureTest {
             @Override
             public void close() {}
         };
+    }
+
+    /**
+     * The interleaving the closed-check leaves open: a writer passes {@code record}'s check while the
+     * scope is open and is held there while another thread closes the scope. The report is frozen from
+     * the snapshot taken at close and never sees the fragment; the fragment then lands in the recorder
+     * whole, never as a part.
+     */
+    @Test
+    void aRecordRacingCloseLandsWholeAfterTheFrozenReport() throws Exception {
+        ParRuntime global = runtimeWithDetection(true);
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        GatedGraphData data = new GatedGraphData(entered, release);
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(global, data);
+        ExecutorService writer = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> write = writer.submit(() -> scope.record(TaskGraphFixtures.twoPoolCycle()));
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+
+            scope.close();
+            TaskGraphReport report = doneReport(scope.reportFuture());
+            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+
+            release.countDown();
+            write.get(10, TimeUnit.SECONDS);
+            assertThat(data.snapshot().tasks().asValueGraph().nodes()).hasSize(3);
+            assertThat(data.snapshot().tasks().asValueGraph().edges()).hasSize(2);
+            assertThat(doneReport(scope.reportFuture())).isSameAs(report);
+        } finally {
+            release.countDown();
+            writer.shutdownNow();
+        }
+    }
+
+    /** Graph data that holds a writer after the scope's closed-check, before the merge takes the lock. */
+    private static final class GatedGraphData extends TaskGraphData {
+        private final CountDownLatch entered;
+        private final CountDownLatch release;
+
+        GatedGraphData(CountDownLatch entered, CountDownLatch release) {
+            this.entered = entered;
+            this.release = release;
+        }
+
+        @Override
+        void record(TaskGraph fragment) {
+            entered.countDown();
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            super.record(fragment);
+        }
     }
 
     /** Graph data whose snapshot computation fails with the given throwable. */

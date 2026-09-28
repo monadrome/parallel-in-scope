@@ -32,12 +32,24 @@ class TaskNodeTest {
         Set<Class<?>> ownFacts = new HashSet<>(Arrays.asList(
                 String.class, ExecutorIdentity.class, boolean.class, TaskType.class, int.class, long.class));
 
-        List<Class<?>> declared = Arrays.stream(TaskNode.class.getDeclaredFields())
+        List<Field> declared = Arrays.stream(TaskNode.class.getDeclaredFields())
                 .filter(field -> !field.isSynthetic() && !Modifier.isStatic(field.getModifiers()))
-                .map(Field::getType)
                 .collect(Collectors.toList());
 
-        assertThat(declared).isNotEmpty().allMatch(ownFacts::contains);
+        assertThat(declared).extracting(Field::getType).allMatch(ownFacts::contains);
+        assertThat(declared)
+                .as("a new field must be reviewed: an allowed type can still smuggle in a neighbour's data")
+                .extracting(Field::getName)
+                .containsExactlyInAnyOrder(
+                        "id",
+                        "name",
+                        "executor",
+                        "executorLabel",
+                        "starvationProne",
+                        "taskType",
+                        "parallelism",
+                        "taskCount",
+                        "budgetNanos");
     }
 
     @Test

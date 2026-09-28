@@ -59,9 +59,15 @@
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、声明期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员直消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
-| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
+| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、Group 侧 TaskGraph 规则与 scope 生命周期（图模型见 task-graph.md）、并发不变量、必测矩阵、验收标准 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
+
+## 观测与诊断
+
+| 文档 | 摘要 |
+|---|---|
+| [task-graph.md](task-graph.md) | **任务依赖图契约**：借鉴 Guava `common.graph` 的设计原则（节点只描述自己、邻接只属于图、图可独立编写、一个节点可进多张图）、`TaskNode`/`TaskGraph`/`ExecutorGraph` 模型、`FORK`/`JOIN` 边与各准入点的原子片段、执行器 waits-for 投影与检测、报告只渲染环上的边、被排除的替代方案（任务级环检测、`root` 哨兵、标签投影、图驱动执行） |
 
 ## 取消与队列
 

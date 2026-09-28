@@ -1,17 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,10 +31,14 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>Request start: {@link ParRuntime#openTaskGraphObservation()} creates the scope and a fresh
  *       {@link TaskGraphData}
- *   <li>During request: the ParRuntime execution path records batch-instance relationships via
- *       {@link #logTaskPair}
- *   <li>Request end: {@link #close()} checks for cycles and publishes the report
+ *   <li>During request: every admission of the owning ParRuntime records its whole graph fragment —
+ *       the units it created and who waits for or consumes whom — via {@link #record}
+ *   <li>Request end: {@link #close()} projects the graph onto executors, checks for waits-for cycles,
+ *       and publishes the report
  * </ul>
+ *
+ * <p>The graph model — nodes that describe only their own unit, fork and join edges, and the
+ * executor projection — is specified in {@code design/task-graph.md}.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -126,16 +126,6 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return null;
     }
 
-    /**
-     * Gets the current scope's graph data.
-     *
-     * @return the current request data, or {@code null} outside an observation scope
-     */
-    static @Nullable TaskGraphData data() {
-        TaskGraphObservationScope scope = current();
-        return scope == null ? null : scope.data;
-    }
-
     /** Installs an observation scope on the current worker thread. */
     static void install(TaskGraphObservationScope scope) {
         CURRENT.set(Objects.requireNonNull(scope, "scope cannot be null"));
@@ -148,77 +138,44 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Records one parent-to-child edge into <em>this</em> scope's graph.
+     * Merges one admission's whole graph fragment into <em>this</em> scope's graph.
      *
-     * <p>Submission paths call this with the scope {@link #resolveFor} returned. The distinction from
-     * {@link #logTaskPair} is ownership: that form records into whatever scope the calling thread
-     * carries, and a {@link TransmittableThreadLocal} binding may belong to another
-     * {@code ParRuntime}. A closed scope records nothing.
+     * <p>Admission paths call this on the scope {@link #resolveFor} returned, never on the scope the
+     * calling thread happens to carry: a {@link TransmittableThreadLocal} binding may belong to
+     * another {@code ParRuntime}. A closed scope records nothing.
      */
-    void recordEdge(
-            @Nullable String parentId,
-            @Nullable String parentLabel,
-            String childId,
-            @Nullable String childLabel,
-            TaskEdge edge) {
+    void record(TaskGraph fragment) {
         if (closed()) {
             return;
         }
-        data.logTaskPair(parentId, parentLabel, childId, childLabel, edge);
+        data.record(fragment);
     }
 
-    /** Records an edge into the calling thread's scope, if any; ownership-agnostic. */
-    static void logTaskPair(
-            @Nullable String parentId,
-            @Nullable String parentLabel,
-            String childId,
-            @Nullable String childLabel,
-            TaskEdge edge) {
-        TaskGraphObservationScope scope = current();
-        if (scope == null) return;
-        scope.recordEdge(parentId, parentLabel, childId, childLabel, edge);
+    /** The task graph recorded so far; package-private for tests and diagnostics. */
+    TaskGraph graph() {
+        return data.snapshot().tasks();
     }
 
     /**
-     * Checks if any task cycle exists as of the edges recorded so far.
-     *
-     * @return {@code true} when the current request graph contains a task cycle
-     */
-    public static boolean hasTaskCycle() {
-        TaskGraphData data = data();
-        return data != null && data.taskCycle();
-    }
-
-    /**
-     * Checks if any task self-loop exists as of the edges recorded so far.
-     *
-     * @return {@code true} when the current request graph contains a task self-loop
-     */
-    public static boolean hasSelfLoop() {
-        TaskGraphData data = data();
-        return data != null && data.selfLoop();
-    }
-
-    /**
-     * Returns whether the current request graph contains an executor cycle as of the edges recorded
-     * so far.
+     * Returns whether the calling thread's request graph, projected onto executors, contains a
+     * waits-for cycle as of the fragments recorded so far. A self-loop counts as a cycle.
      *
      * @return {@code true} when an executor cycle exists
      */
     public static boolean hasExecutorCycle() {
-        TaskGraphData data = data();
-        return data != null && data.executorCycle();
+        TaskGraphObservationScope scope = current();
+        return scope != null && scope.data.snapshot().executors().cycle();
     }
 
     /**
-     * Returns whether the current request graph contains an executor self-loop as of the edges
-     * recorded so far.
+     * Returns whether the calling thread's request graph, projected onto executors, contains an
+     * executor waiting on itself as of the fragments recorded so far.
      *
      * @return {@code true} when an executor self-loop exists
      */
     public static boolean hasExecutorSelfLoop() {
-        TaskGraphData data = data();
-        return data != null && data.executorSelfLoop();
+        TaskGraphObservationScope scope = current();
+        return scope != null && scope.data.snapshot().executors().selfLoop();
     }
 
     /**
@@ -306,21 +263,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         if (!owner.deadlockPolicy().enabled()) {
             return TaskGraphReport.disabled();
         }
-        TaskGraphData.Snapshot snapshot = data.snapshot();
-        boolean taskCycle = snapshot.taskCycle();
-        boolean selfLoop = snapshot.taskSelfLoop();
-        boolean executorCycle = snapshot.executorCycle();
-        boolean executorSelfLoop = snapshot.executorSelfLoop();
-        if (!taskCycle && !selfLoop && !executorCycle && !executorSelfLoop) {
-            return TaskGraphReport.detection(false, false, false, false, "", "");
-        }
-        return TaskGraphReport.detection(
-                taskCycle,
-                selfLoop,
-                executorCycle,
-                executorSelfLoop,
-                renderTaskEdges(snapshot),
-                renderExecutorEdges(snapshot));
+        return TaskGraphReport.detection(data.snapshot().executors());
     }
 
     /** A logging failure must never skip or corrupt report publication. */
@@ -397,21 +340,5 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         }
         if (restore == null) CURRENT.remove();
         else CURRENT.set(restore);
-    }
-
-    private static String renderTaskEdges(TaskGraphData.Snapshot snapshot) {
-        ValueGraph<String, List<TaskEdge>> taskGraph = snapshot.graph();
-        return taskGraph.edges().stream()
-                .map(p -> snapshot.displayNode(p.source()) + " -> " + snapshot.displayNode(p.target()) + " "
-                        + taskGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
-                .collect(Collectors.joining(", "));
-    }
-
-    private static String renderExecutorEdges(TaskGraphData.Snapshot snapshot) {
-        ValueGraph<String, List<TaskEdge>> executorGraph = snapshot.executorGraph();
-        return executorGraph.edges().stream()
-                .map(p -> p.source() + " -> " + p.target() + " "
-                        + executorGraph.edgeValueOrDefault(p.source(), p.target(), Collections.emptyList()))
-                .collect(Collectors.joining(", "));
     }
 }
