@@ -178,7 +178,7 @@ final class SlidingWindowSubmitter<V> {
 
     /**
      * Submits a prepared future to the worker pool and returns it. The listener is registered
-     * before the handoff, so a task rejected or cancelled before it runs still reaches the
+     * before the handoff, so a task rejected or canceled before it runs still reaches the
      * completion queue that drives the sliding window.
      */
     private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
@@ -305,7 +305,9 @@ final class SlidingWindowSubmitter<V> {
      *
      * <p>The prepared futures behind the abandoned placeholders are never submitted and never
      * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
-     * same atomic state the cancel-before-run path uses.
+     * same atomic state the cancel-before-run path uses. The skip runs before the placeholder is
+     * settled so that a caller observing the abandonment (a thrown {@code valuesOrThrow}, a
+     * report) already finds the prepared body released and its slot published.
      *
      * @param tasks the prepared task futures, positionally aligned with {@code result}
      * @param result the batch futures
@@ -319,8 +321,8 @@ final class SlidingWindowSubmitter<V> {
             int fromIndex,
             @Nullable Throwable reason) {
         for (int i = fromIndex; i < result.size(); i++) {
-            result.get(i).abandon(reason);
             tasks.get(i).skipBody();
+            result.get(i).abandon(reason);
         }
     }
 }
