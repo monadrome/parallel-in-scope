@@ -4,6 +4,8 @@
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
+它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).submitAll()`——每个成员在同一个 `par(...)` 里同时写出名称、`Par`、声明类型与本次运行的 body；它不是可动态增长的批次。
+
 ## 构建执行拓扑
 
 在 composition root 创建 `ParRuntime`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
@@ -57,7 +59,7 @@ Par defaultPar = ParRuntime.global().defaultPar();
 
 ## 执行批次
 
-`BatchOptions` 是一次批次调用的不可变输入。选项类型与作用域一一对应：批次用 `BatchOptions`，任务组的 timeout 来自 `defineGroup*` 调用、清理预算来自 `TaskGroupDefinition.Builder.closeGrace`，单个成员或 combine 用 `TaskOptions`。库把作用域的 name、并发度与执行策略，连同任务数量、父批次和绑定的执行器 identity，一起解析为内部 `MultiTaskContext`。
+`BatchOptions` 是一次批次调用的不可变输入。选项类型与作用域一一对应：批次用 `BatchOptions`，任务组的 timeout 来自 `ParRuntime.group` 或 `groupInheriting`、清理预算来自 `GroupStart.closeGrace`，单个成员或 combine 用 `TaskOptions`。库把作用域的 name、并发度与执行策略，连同任务数量、父批次和绑定的执行器 identity，一起解析为内部 `MultiTaskContext`。
 
 ```java
 BatchOptions options = BatchOptions.timeout("fetch-account", Duration.ofSeconds(5))
@@ -103,36 +105,54 @@ try (TaskBatchResult<Account> batch = httpPar.map(accountIds, client::fetchAccou
 
 ## 执行异构任务组
 
-当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组经历三个阶段：`ParRuntime.defineGroup*` 创建 `TaskGroupDefinition.Builder`，记录不可变、可复用、只含结构的 `TaskGroupDefinition`；`ParRuntime.submitGroup(definition, binder)` 通过一次性的 `TaskGroup.Bindings` 收集本次运行的 body，并在单个边界统一接纳；返回的 `TaskGroup` 是运行中的可关闭作用域。definition 不保存 `Callable`、combine body、listener 或 request 对象，因此可跨线程共享、用不同 bindings 反复提交；每次请求的捕获只存在于一次性的 `Bindings`/`TaskGroup` 中。
+当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组用一条流式的一次性链声明并提交：`ParRuntime.group(name, timeout)`（嵌套组用 `groupInheriting(name)`）开启草稿，每个 `par(...)` 写出一个成员的名称、`Par`、声明类型与**本次运行**的 body，`submitAll()` 是唯一的准入与提交边界。链在构建期什么都不执行：不调用任何 body，不创建取消 token、future、deadline、timer 或 TTL 快照，也不调用 executor。草稿被 `submitAll()` 消耗——一条链只运行一次——因此要重复同一拓扑的请求只能重新建链；草稿同时是单线程的，只有提交后返回的 `TaskGroup` 可以跨线程使用。
 
-组 timeout 仍是强制的显式二选一：`defineGroup(name, timeout)` 设置正数显式预算，`defineGroupInheriting(name)` 继承外层 scoped task 的 deadline——没有第三个状态。用 `defineGroupInheriting` 构建的组必须在 scoped task 内提交，否则 `submitGroup` 在运行准备期抛 `IllegalArgumentException`，不产生组或 future。成员需要收紧时才声明 `TaskOptions`：省略即等价于 `TaskOptions.inheritTimeout()`，成员永远不会因此超出组 deadline；成员的显式 timeout 会被组 deadline 截断。`Builder.closeGrace(Duration)` 配置 `close()` 等待所用的清理预算。
+组 timeout 仍是强制的显式二选一：`group(name, timeout)` 设置正数显式预算，`groupInheriting(name)` 继承外层 scoped task 的 deadline——没有第三个状态。用 `groupInheriting` 建链后必须在 scoped task 内提交，否则 `submitAll()` 在运行准备期抛 `IllegalArgumentException`，不产生组或 future。组 deadline 从提交边界起算，因此构建声明本身不会消耗执行预算。成员或 combine 需要收紧时才声明 `TaskOptions`：省略即等价于 `TaskOptions.inheritTimeout()`，它永远不会因此超出组 deadline；成员的显式 timeout 会被组 deadline 截断。`closeGrace(Duration)` 配置 `close()` 等待所用的清理预算；它属于链首，必须写在第一个 `par(...)` 之前，写晚了不能编译。
 
 ```java
-TaskGroupDefinition.Builder builder =
-        global.defineGroup("account-page", Duration.ofSeconds(3));
+TypeToken<List<Order>> ordersType = new TypeToken<List<Order>>() {};
 
-TaskGroupDefinition.Member<User> user = builder.task("user", databasePar);
-TaskGroupDefinition.Member<List<Order>> orders = builder.task(
-        "orders", httpPar,
-        TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
-
-TaskGroupDefinition accountPage = builder.build();
-
-try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
-    bindings.task(user, () -> userRepository.load(request.userId()));
-    bindings.task(orders, () -> orderClient.load(request.userId()));
-})) {
-    User userValue = group.future(user).get();
-    List<Order> orderValues = group.future(orders).get();
+try (TaskGroup<Tuple2<User, List<Order>>, Void> group = global
+        .group("account-page", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> userRepository.load(request.userId()))
+        .par("orders", httpPar,
+                TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND),
+                ordersType, () -> orderClient.load(request.userId()))
+        .submitAll()) {
+    GroupValues<Tuple2<User, List<Order>>> values = group.valuesFuture().get();
+    Tuple2<User, List<Order>> typed = checkNotNull(values.typedValues());   // 分量可能为 null
+    User userValue = checkNotNull(typed.first());
+    List<Order> orderValues = checkNotNull(values.valueAt(1, ordersType));
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-`Builder.task(name, par)` 只记录成员的名称、`Par` 和选项——它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务；`Par` 必须属于创建该 builder 的同一个 `ParRuntime`。每次声明显式返回一个类型化的 `Member<T>` 句柄：它由库创建、按对象身份识别，同时约束 `Bindings.task(member, callable)` 的返回值与 `group.future(member)` 的结果类型为同一个 `T`；来自其他 definition 的句柄或 kind 不匹配的用法一律抛 `IllegalArgumentException`。binder 在调用线程上恰好同步执行一次，返回后 bindings 即冻结：每个成员恰好一个 body，binder 抛异常会在 admission 前拒绝整次提交，binder 返回后或从其他线程使用 `Bindings` 都抛 `IllegalStateException`。组 deadline 从 binder 返回时起算，因此绑定阶段耗时不会消耗执行预算。
+每个 `par(...)` 在同一次调用里把声明类型与产生它的 body 绑定在一起，两者不可能走偏。类型用 Guava 的 `TypeToken<T>`（任何泛型结果）或裸 `Class<T>`（普通类）：`User.class` 完全等价于 `TypeToken.of(User.class)`，校验相同、运行期类型检查相同，没有第二条代码路径。裸类重载只提供省略 `TaskOptions` 的形态，从而把每个阶段的重载数控制在有限范围内；要同时自定义选项又使用普通类，写成 `TypeToken.of(Foo.class)`。token 必须是具体的引用类型——原始类型、或仍含类型变量的 token 会在声明时被拒绝；null 参数、空白名、与已声明成员或 combine 重名的名称、以及来自其他 `ParRuntime` 的 `Par` 同样在声明时被拒绝。这些校验都由声明它的那次调用完成，此时还没有任何运行状态。用保存的旧阶段引用回到链上——分叉、在 `submitAll()` 之后追加、或二次提交——抛 `IllegalStateException`。
 
-组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。批次的 handoff 规则同样适用于每个成员：成员被执行器拒绝——或 `execute()` 抛出（含 `Error`）——时以 `SUBMISSION_FAILURE` 终结，原始 throwable 保留在 `SubmissionException` 的 cause 中；admission 跨过边界后 `submitGroup` 仍返回组，completion future 正常完成，成员失败记录在快照里。只有 admission 前的契约失败——绑定非法、外来句柄、runtime 已关闭、缺少外层作用域——才从 `submitGroup` 同步抛出。要异步观测完成，请在 completion future 上显式选择回调 executor 登记——`Futures.addCallback(group.completionFuture(), callback, executor)`；future 完成后追加的 callback 仍会以已完成结果运行，direct executor 下 callback 可能在 `submitGroup` 返回前执行。
+链的类型参数承载整个结果形状。`TaskGroup<V, R>` 中 `V` 是装配后的成员值类型，`R` 是 combine 的声明结果类型；链上没有 combine 时为 `Void`。单成员组的 `V` 就是该成员的类型，之后是左结合的 `Tuple2`：两个成员为 `Tuple2<T1, T2>`，三个成员为 `Tuple2<Tuple2<T1, T2>, T3>`。这层嵌套由 step builder 生成，因此 `valuesFuture().get().typedValues()` 直接给出元组、无需强转，`first()`/`second()` 取出分量；`Tuple2` 具备值语义的相等性，可直接用于断言与日志。链也可以完全不声明成员：在首阶段调用 `submitAll()` 返回 `TaskGroup<Void, Void>`，其值视图已完成且为空。
 
-组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 只发出取消请求；`close()` 取消未完成成员后，再在组的 close grace 内有界等待任务体退出——close grace 是清理预算，用 `TaskGroupDefinition.Builder.closeGrace(Duration)` 配置；未配置时派生自关闭时组的剩余 deadline：超时引发的关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待，等价于 `cancel()`。grace 耗尽而任务体仍在运行时，未退出成员的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor，忽略中断的任务体可能在它返回后继续运行；释放任务体使用的资源前，用 `group.awaitBodyCompletion(Duration)` 以独立预算确认任务体退出。在本组成员任务体内（含同线程嵌套 inline 调用）调用这两个等待会被拒绝并抛 `IllegalStateException`。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。执行顺序由 definition 固定——普通成员按声明顺序、终端 combine 永远在最后——与 binder 的登记顺序无关。
+`valuesFuture()` 是聚合视图：它在组收敛时完成，永远先于 `completionFuture()` 进入终态，并且永不停留在 pending。它的终态是契约的一部分：
+
+| 组终态 | `valuesFuture()` |
+|---|---|
+| 全部成员与已声明的 combine 成功 | 正常完成，携带有序的 `GroupValues` |
+| 成员或 combine 记录了失败（`USER_FAILURE` / `SUBMISSION_FAILURE`） | 异常完成，cause 为该失败；`get()` 抛 `ExecutionException` |
+| 无记录失败的取消——成员被直接取消、组或父级取消、或超时 | 以取消终态完成；`get()` 抛 `CancellationException` |
+
+因此 `valuesFuture().get()` 在失败的组上不会永久阻塞：失败或取消由这个 future 自己表达。它是聚合而非任务——没有执行上下文、没有归因、没有自己的观测快照——也不会携带部分值。
+
+`GroupValues` 用两种方式寻址同一批槽位：零起始的声明位置，以及链上写下的名称——顺序永远是声明顺序，而不是完成顺序。每个访问器都有未类型化与类型化两种形态：`valueOf(name)` 与 `valueAt(index)` 返回 `Object`；`valueOf(name, token)` 与 `valueAt(index, token)` 先要求查询 token 与声明 token **精确相等**（不做向父类型的放宽），然后才返回 `T`。token 不匹配在查询时即抛 `IllegalArgumentException`，而不是在取值处表现为 `ClassCastException`；即使存储的值为 null 也会执行这次比较，因为 null 是合法的成功值，不是通配符。`typeAt(index)` 与 `typeOf(name)` 暴露该槽位的声明 token，供确实需要动态寻址的调用方使用；未知名称抛 `IllegalArgumentException`，越界下标抛 `IndexOutOfBoundsException`。成员 body 返回 null 仍是成功的成员：它的 future 以 null 完成、槽位持有 null，上面例子里的 `checkNotNull` 是调用方自己的空值策略，而不是 API 的特例。
+
+同一套查找规则也适用于逐成员 future：`futureOf(name)` 与 `futureAt(index)` 返回未类型化的 `TaskFuture<?>`，它们的类型化重载接收声明 token，并在取得 future 时就拒绝不匹配的 token，而不是等到 `get()`；`members()` 按声明顺序以名称返回整个注册表，`findMember(name)` 返回 `Optional`。
+
+```java
+TaskFuture<User> userFuture = group.futureOf("user", TypeToken.of(User.class));
+TaskFuture<?> secondMember = group.futureAt(1);
+```
+
+批次的 handoff 规则同样适用于每个成员：成员被执行器拒绝——或 `execute()` 抛出（含 `Error`）——时以 `SUBMISSION_FAILURE` 终结，原始 throwable 保留在 `SubmissionException` 的 cause 中；admission 跨过边界后 `submitAll()` 仍返回组，completion future 正常完成，成员失败记录在快照里。只有契约或准备失败才同步抛出——由声明该成员的那次链式调用，或由 `submitAll()`（runtime 已关闭、缺少外层作用域）抛出。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败；单个成员 future 保持普通 Guava 的成功、失败和取消语义。要异步观测完成，请在 completion future 上显式选择回调 executor 登记——`Futures.addCallback(group.completionFuture(), callback, executor)`；future 完成后追加的 callback 仍会以已完成结果运行，direct executor 下 callback 可能在 `submitAll()` 返回前执行。
+
+组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 只发出取消请求；`close()` 取消未完成成员后，再在组的 close grace 内有界等待任务体退出——close grace 是清理预算，用链首的 `closeGrace(Duration)` 配置；未配置时派生自关闭时组的剩余 deadline：超时引发的关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。`closeGrace(Duration.ZERO)` 使 `close()` 只取消不等待，等价于 `cancel()`。grace 耗尽而任务体仍在运行时，未退出成员的名称会以 WARN 级别记录，而不是沉默泄漏。`close()` 从不关闭 executor，忽略中断的任务体可能在它返回后继续运行；释放任务体使用的资源前，用 `group.awaitBodyCompletion(Duration)` 以独立预算确认任务体退出。在本组成员任务体内（含同线程嵌套 inline 调用）调用这两个等待会被拒绝并抛 `IllegalStateException`。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。执行顺序由链固定——普通成员按声明顺序、终端 combine 永远在最后。
 
 ### 捕获资源与任务体退出
 
@@ -144,26 +164,23 @@ try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
 
 ### 终端汇合
 
-当请求最终要把各成员的值组装成一个结果时，用 `Builder.combine(name, par)` 声明一个终端 combine，并用普通的 `build()` 完成定义——而不必自己编排 `Futures` 回调。combine 是真实的 scoped 任务——submit 时与成员一样完成准备，但只在所有成员成功后才提交到它自己的 `Par`——因此它继承组的结构化取消、deadline 和可观测性：
+当请求最终要把各成员的值组装成一个结果时，用链尾的 `combine(name, par, type, body)` 声明唯一一个终端 combine——而不必自己编排 `Futures` 回调。它的 body 直接接收组装配后的值 `V`，即 `valuesFuture()` 暴露的同一个元组，因此输入在编译期就有类型，它既取不到成员 future，也无法取消或编排底层任务：
 
 ```java
-TaskGroupDefinition.Member<AccountPage> page =
-        builder.combine("assemble-page", global.par(ParId.of("cpu")));
-
-TaskGroupDefinition accountPage = builder.build();
-
-try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
-    bindings.task(user, () -> userRepository.load(request.userId()));
-    bindings.task(orders, () -> orderClient.load(request.userId()));
-    bindings.combine(
-            page,
-            values -> new AccountPage(values.value(user), values.value(orders)));
-})) {
-    AccountPage assembled = group.future(page).get();
+try (TaskGroup<Tuple2<User, List<Order>>, AccountPage> group = global
+        .group("account-page", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> userRepository.load(request.userId()))
+        .par("orders", httpPar, ordersType, () -> orderClient.load(request.userId()))
+        .combine("assemble-page", global.par(ParId.of("cpu")), AccountPage.class,
+                values -> new AccountPage(values.first(), values.second()))
+        .submitAll()) {
+    AccountPage assembled = group.terminalFuture().orElseThrow(IllegalStateException::new).get();
 }
 ```
 
-`CombineContext` 视图不阻塞，只通过 `Member` 句柄暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine body 恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`——它没有可借用的 caller thread，`runOnCallerThread` 对它不适用），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，`submitGroup` 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine；第二次调用 `combine()` 在定义配置期抛 `IllegalStateException`，`group.future(combineMember)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedTaskName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
+combine 是真实的 scoped 任务——提交时与成员一样完成准备，但只在所有成员成功后才提交到它自己的 `Par`——因此它继承组的结构化取消、deadline 和可观测性。它恰好执行一次，运行在指定 `Par` 的 worker 线程上，绝不在最后一个成员的完成回调线程上运行；被拒绝的 executor handoff 记 `SUBMISSION_FAILURE`，body 完全不执行：`runOnCallerThread` 对它不适用，因为它没有可借用的 caller thread。它的 body 必须是成员值与声明期捕获环境的纯函数——它在最后一个成员成功的瞬间被调度，`submitAll()` 返回后提交线程上创建的状态对它不可见，那种场景请直接读成员 future 自行组装。声明的类型与成员一样受运行期检查：非 null 结果与 token 原始类不符时，combine 以 `ClassCastException` 失败并记 `USER_FAILURE`。元组的分量可能为 null，因为成员 body 返回 null 是成功的成员。
+
+combine 是终端且唯一的，这一点由链在编译期保证：`combine(...)` 进入的最终阶段只暴露 `submitAll()`，因此在它之后追加成员、第二个 combine 或 `closeGrace` 都不能编译，combine 的名称与成员共用同一命名空间。它的值通过 `terminalFuture()` 取得——返回类型化的 `TaskFuture<R>`；链未声明 combine 时为 `Optional.empty()`。空值表达的是“没有声明”，而不是结果类型：声明为 `Void` 结果的 combine 依然给出一个存在、且以 null 成功完成的 future。任一成员失败时 combine 不会执行，它的 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedTaskName()` 携带 combine 的名称。combine 从不占用 `GroupValues` 的槽位，且组只在它的 future 终态后才完成。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
 
 ## 从 future 读取任务归因 {#task-attribution}
 
