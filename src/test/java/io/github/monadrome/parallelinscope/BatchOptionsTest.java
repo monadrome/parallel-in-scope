@@ -31,16 +31,19 @@ class BatchOptionsTest {
         BatchOptions derived = base.parallelism(3)
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false)
-                .runOnCallerThread(true);
+                .runOnCallerThread(true)
+                .closeGrace(Duration.ofMillis(200));
 
         assertThat(base.parallelism()).isEqualTo(-1);
         assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(base.rejectEnqueue()).isTrue();
         assertThat(base.runOnCallerThread()).isFalse();
+        assertThat(base.closeGrace()).isEmpty();
         assertThat(derived.parallelism()).isEqualTo(3);
         assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(derived.rejectEnqueue()).isFalse();
         assertThat(derived.runOnCallerThread()).isTrue();
+        assertThat(derived.closeGrace()).contains(Duration.ofMillis(200));
         assertThat(derived.timeout()).isEmpty();
     }
 
@@ -61,6 +64,22 @@ class BatchOptionsTest {
         assertThatThrownBy(() -> BatchOptions.timeout("load", Duration.ofMillis(-1)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> BatchOptions.timeout("load", null)).isInstanceOf(NullPointerException.class);
+    }
+
+    /**
+     * The close grace is a cleanup budget, not an execution timeout, so {@link Duration#ZERO} is a
+     * meaningful value — it makes {@code close()} cancel-only — while a negative one is not a budget
+     * at all. That is the one validation difference from the execution timeout above.
+     */
+    @Test
+    void closeGraceAcceptsZeroAndRejectsNegativeOrNull() {
+        BatchOptions base = BatchOptions.timeout("load", Duration.ofSeconds(30));
+
+        assertThat(base.closeGrace(Duration.ZERO).closeGrace()).contains(Duration.ZERO);
+        assertThatThrownBy(() -> base.closeGrace(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("closeGrace must not be negative");
+        assertThatThrownBy(() -> base.closeGrace(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
