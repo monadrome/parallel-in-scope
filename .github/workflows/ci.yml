@@ -96,8 +96,13 @@ jobs:
           cache: maven
 
       - name: Run the public API consumer on the Java 8 runtime
+        working-directory: verification/maven-central-consumer
+        env:
+          # The root .mvn/jvm.config carries the --add-exports/--add-opens flags Error Prone
+          # needs on the build JDK; JDK 8 rejects them at JVM creation. MAVEN_BASEDIR points
+          # Maven's jvm.config lookup at the consumer project, which has no .mvn directory.
+          MAVEN_BASEDIR: ${{ github.workspace }}/verification/maven-central-consumer
         run: >-
           mvn -B -ntp
-          -f verification/maven-central-consumer/pom.xml
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           clean test
