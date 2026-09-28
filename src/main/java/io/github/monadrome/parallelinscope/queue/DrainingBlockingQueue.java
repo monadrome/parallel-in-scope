@@ -447,11 +447,20 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Override
     public boolean offer(E element) {
         requireElement(element);
+        // Lock-free admission: a full or closed queue rejects without touching the producer
+        // monitor (LinkedBlockingQueue's offer does the same). The in-monitor recheck below
+        // stays mandatory because close or a racing producer can intervene before the lock.
+        if (!open() || count.get() == capacity) {
+            return false;
+        }
+        // Allocate outside the monitor so allocation and its GC pressure never extend the
+        // critical section; the node is simply garbage if the recheck rejects it.
+        Node<E> node = new Node<>(element);
         int oldCount = -1;
         putMonitor.enter();
         try {
             if (open() && count.get() < capacity) {
-                last = last.next = new Node<>(element);
+                last = last.next = node;
                 oldCount = count.getAndIncrement();
             }
         } finally {
@@ -538,6 +547,13 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      */
     @Override
     public @Nullable E poll() {
+        // Lock-free empty path: count read before the lifecycle read, so a queue observed
+        // non-empty is re-checked under the monitor while a queue observed empty and not yet
+        // drained legitimately answers null without entering it (LinkedBlockingQueue's poll
+        // fast path does the same for the open case).
+        if (count.get() == 0) {
+            return drained() ? drainedSpecialValue() : null;
+        }
         E item = null;
         int oldCount = -1;
         takeMonitor.enter();
