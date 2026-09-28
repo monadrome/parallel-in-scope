@@ -1,5 +1,9 @@
 # TaskGroup 设计契约：提交与 rejection
 
+> ⚠️ **调用形状已被取代**：`ParRuntime.submitGroup(definition, binder)` 与 `TaskGroup.Bindings`
+> 的冻结/校验入口已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 的
+> `submitAll()` 取代。§9「单任务运行内核的复用边界」与统一提交、rejection 处置的结论仍然有效。
+>
 > 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
 > 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
 

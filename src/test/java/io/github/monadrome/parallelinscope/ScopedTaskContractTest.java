@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.Arrays;
@@ -213,16 +214,22 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroupDefinition.Builder definition = global.defineGroup("cancel", Duration.ofSeconds(30));
-                TaskGroupDefinition.Member<Object> blocker = definition.task(
-                        "blocker", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskGroupDefinition.Member<Object> queued = definition.task(
-                        "queued", global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)));
-                TaskGroup group = global.submitGroup(definition.build(), bindings -> {
-                    bindings.task(blocker, () -> runUnlessQueued("blocker", release, queuedRuns));
-                    bindings.task(queued, () -> runUnlessQueued("queued", release, queuedRuns));
-                });
-                assertThat(group.future(queued).cancel(true)).isTrue();
+                TypeToken<Object> memberType = TypeToken.of(Object.class);
+                TaskGroup<Tuple2<Object, Object>, Void> group = global.group("cancel", Duration.ofSeconds(30))
+                        .par(
+                                "blocker",
+                                global.par(ParId.of("worker")),
+                                TaskOptions.timeout(Duration.ofSeconds(30)),
+                                memberType,
+                                () -> runUnlessQueued("blocker", release, queuedRuns))
+                        .par(
+                                "queued",
+                                global.par(ParId.of("worker")),
+                                TaskOptions.timeout(Duration.ofSeconds(30)),
+                                memberType,
+                                () -> runUnlessQueued("queued", release, queuedRuns))
+                        .submitAll();
+                assertThat(group.futureOf("queued", memberType).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
@@ -314,14 +321,19 @@ class ScopedTaskContractTest {
                     .results()
                     .get(0);
         }
-        TaskGroupDefinition.Builder definition = global.defineGroup("contract", Duration.ofSeconds(30));
-        TaskGroupDefinition.Member<Object> key = definition.task(
-                name,
-                global.par(ParId.of("worker")),
-                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType).runOnCallerThread(runOnCallerThread));
-        TaskGroup group = global.submitGroup(definition.build(), bindings -> bindings.task(key, task));
+        TypeToken<Object> memberType = TypeToken.of(Object.class);
+        TaskGroup<Object, Void> group = global.group("contract", Duration.ofSeconds(30))
+                .par(
+                        name,
+                        global.par(ParId.of("worker")),
+                        TaskOptions.timeout(Duration.ofSeconds(30))
+                                .taskType(taskType)
+                                .runOnCallerThread(runOnCallerThread),
+                        memberType,
+                        task)
+                .submitAll();
         LAST_GROUP.set(group);
-        return group.future(key);
+        return group.futureOf(name, memberType);
     }
 
     private static Object callUnchecked(Callable<Object> task) {
@@ -337,10 +349,10 @@ class ScopedTaskContractTest {
     // Tracks the group built by submitSingle so assertions can inspect the terminal snapshot
     // without changing the submission call sites. Tests are single-threaded per entry case.
 
-    private static final ThreadLocal<TaskGroup> LAST_GROUP = new ThreadLocal<>();
+    private static final ThreadLocal<TaskGroup<?, ?>> LAST_GROUP = new ThreadLocal<>();
 
     private static TaskGroupResult lastGroupResult(ParRuntime global) throws Exception {
-        TaskGroup group = LAST_GROUP.get();
+        TaskGroup<?, ?> group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");
         }

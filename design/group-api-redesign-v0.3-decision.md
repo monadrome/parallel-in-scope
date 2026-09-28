@@ -1,5 +1,9 @@
 # TaskGroup v0.3 API 重设计决策：结构定义与执行绑定分离
 
+> ⚠️ **组 API 部分已被取代**：结构定义与执行绑定分离、`TaskGroupDefinition`/`Member<T>`/`TaskGroup.Bindings`
+> 的三阶段模型已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 的一次性链式
+> API 取代（该文 §9 列出取代范围）。本文保留作为沿革记录：拓扑装配、`ParId` 更名与应用装配部分的结论仍然有效。
+>
 > 状态：**已落地**。本决策已于 `dev/v0.3.0` 实施完成（三个提交，见 §20 实施记录：
 > `feb35b1` 三阶段重设计、`fc75ffa` 更名 `ParRuntime`、`6e4e870` 查找键更名 `ParId`；
 > 落地时全量 599/599 测试通过）。
