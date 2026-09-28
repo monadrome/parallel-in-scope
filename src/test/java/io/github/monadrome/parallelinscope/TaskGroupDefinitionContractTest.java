@@ -68,6 +68,32 @@ class TaskGroupDefinitionContractTest {
         }
     }
 
+    /**
+     * The close grace is validated where it is declared, before any run state exists. {@link
+     * Duration#ZERO} is a legitimate budget — it makes {@code close()} cancel-only — so only a
+     * negative or null grace is rejected, which is what separates it from the group deadline above.
+     */
+    @Test
+    void closeGraceIsValidatedAtTheDeclarationSite() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            TaskGroupDefinition.Builder builder = global.defineGroup("page", TIMEOUT);
+
+            assertThat(builder.closeGrace(Duration.ZERO)).isSameAs(builder);
+            assertThatThrownBy(() -> builder.closeGrace(Duration.ofMillis(-1)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("closeGrace must not be negative");
+            assertThatThrownBy(() -> builder.closeGrace(null)).isInstanceOf(NullPointerException.class);
+            // A rejected grace leaves the builder usable: validation does not seal it.
+            assertThat(builder.closeGrace(Duration.ofMillis(50)).build().name()).isEqualTo("page");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
     @Test
     void foreignParsAreRejectedAtConfigurationTime() {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
