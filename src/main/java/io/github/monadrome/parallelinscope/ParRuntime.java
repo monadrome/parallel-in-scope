@@ -605,8 +605,9 @@ public final class ParRuntime implements AutoCloseable {
         ListenableFuture<Void> signal = tracker.bodyExit();
         if (signal.isDone()) return;
         liveBodySignals.add(signal);
-        // directExecutor: the listener runs inside set(), so a completed signal is always removed
-        // before the completing thread returns — the quiescence check never sees a stale entry.
+        // directExecutor: the listener runs inside the signal's completion, so a completed
+        // signal is always removed before the completing thread returns — the quiescence check
+        // never sees a stale entry.
         signal.addListener(
                 () -> {
                     liveBodySignals.remove(signal);
