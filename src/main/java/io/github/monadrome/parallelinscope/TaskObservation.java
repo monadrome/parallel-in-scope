@@ -10,6 +10,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -36,6 +38,7 @@ import org.jspecify.annotations.Nullable;
  * @param <T> the task result type
  */
 final class TaskObservation<T> {
+    private static final Logger LOGGER = Logger.getLogger(TaskObservation.class.getName());
 
     private final SettableFuture<TaskCompletion<T>> sink = SettableFuture.create();
     private final ListenableFuture<TaskCompletion<T>> view;
@@ -117,7 +120,7 @@ final class TaskObservation<T> {
      */
     void publishSkipped(TaskOutcome outcome, @Nullable Throwable failure) {
         Verify.verify(unitId != null, "custom-snapshot observation cannot publish a skipped snapshot");
-        sink.set(TaskCompletion.snapshot(
+        publish(TaskCompletion.snapshot(
                 Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, outcome, null, failure));
     }
 
@@ -128,7 +131,36 @@ final class TaskObservation<T> {
 
     private void signal() {
         if (pendingSignals.decrementAndGet() == 0) {
-            sink.set(settledSnapshot.get());
+            publish(settledSnapshot.get());
+        }
+    }
+
+    /**
+     * Publishes the finalized snapshot without letting a caller's listener escape into the path
+     * that runs this.
+     *
+     * <p>The sink is caller-reachable through {@link TaskFuture#completionFuture()}, and a listener
+     * registered with a direct executor runs inline here, on whichever thread completed the task.
+     * Guava's listener fan-out catches {@code RuntimeException} but not {@code Error}, and this
+     * method is itself a listener on the task future — registered before the framework's own
+     * completion listener — so an {@code Error} escaping a caller's listener would abort the rest of
+     * the fan-out and the task would never be counted by its group. The snapshot is committed before
+     * Guava runs any listener, so swallowing here cannot lose it.
+     */
+    private void publish(TaskCompletion<T> snapshot) {
+        try {
+            sink.set(snapshot);
+        } catch (Throwable failure) {
+            logQuietly(failure);
+        }
+    }
+
+    /** A caller-supplied JUL handler must not be able to break the path it is only observing. */
+    private static void logQuietly(Throwable failure) {
+        try {
+            LOGGER.log(Level.SEVERE, "an observation listener failed", failure);
+        } catch (Throwable ignored) {
+            // Deliberately swallowed: the publication above matters more than the diagnostic.
         }
     }
 

@@ -13,8 +13,8 @@ import java.util.Objects;
  * {@link ParRuntime#find(ParId)}, and the registration endpoints on {@link ParRuntime.Builder}.
  *
  * <p>Instances are immutable value objects compared by {@link #value()}. Construction is the single
- * validation boundary: an id is never null and never blank, so {@link ParRuntime} and {@link
- * TaskGroupDefinition} no longer repeat that check. The value is used verbatim — no trimming,
+ * validation boundary: an id is never null and never blank, so {@link ParRuntime} no longer repeats
+ * that check. The value is used verbatim — no trimming,
  * lower-casing, or other normalization — so {@code of(" db ")} and {@code of("db")} are different
  * ids and lookup semantics do not change.
  *

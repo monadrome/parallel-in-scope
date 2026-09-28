@@ -43,7 +43,7 @@ item -> () -> function.apply(item)
 |---|---|
 | `Par.submit`（`Par.java:125`） | `Callable<T>`（`call() throws Exception`） |
 | group 成员任务 | `Callable<T>` |
-| group combine（v0.3 起为 `TaskGroup.CombineBody`） | `R apply(CombineContext) throws Exception` |
+| group combine（v0.3 起为顶层 `CombineBody<V, R>`） | `R apply(V values) throws Exception` |
 | **`Par.map`** | `Function<? super T, ? extends R>`（**不可抛**） |
 
 按 JDK 习语，"会抛的工作"的标准形态是 `Callable`；`Function` 是"纯映射"的形态。
