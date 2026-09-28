@@ -3,7 +3,12 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
@@ -13,6 +18,11 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -273,12 +283,11 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        java.util.logging.Logger groupLogger = java.util.logging.Logger.getLogger(TaskGroup.class.getName());
-        java.util.List<java.util.logging.LogRecord> records =
-                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-        java.util.logging.Handler capture = new java.util.logging.Handler() {
+        Logger groupLogger = Logger.getLogger(TaskGroup.class.getName());
+        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
+        Handler capture = new Handler() {
             @Override
-            public void publish(java.util.logging.LogRecord record) {
+            public void publish(LogRecord record) {
                 records.add(record);
             }
 
@@ -307,7 +316,7 @@ class TaskGroupBodyCompletionTest {
             // The grace elapsed with the body still running: the leak is visible data, naming the
             // group and the outstanding member.
             assertThat(records).anySatisfy(record -> {
-                assertThat(record.getLevel()).isEqualTo(java.util.logging.Level.WARNING);
+                assertThat(record.getLevel()).isEqualTo(Level.WARNING);
                 assertThat(record.getMessage()).contains("warn-visible").contains("blocked");
             });
 
@@ -509,9 +518,9 @@ class TaskGroupBodyCompletionTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -588,9 +597,9 @@ class TaskGroupBodyCompletionTest {
             TaskGroupDefinition.Member<Integer> quick = builder.task("quick", global.par(ParId.of("worker")));
             TaskGroup group = global.submitGroup(builder.build(), bindings -> bindings.task(quick, () -> 1));
 
-            com.google.common.util.concurrent.Futures.addCallback(
+            Futures.addCallback(
                     group.future(quick).completionFuture(),
-                    new com.google.common.util.concurrent.FutureCallback<TaskCompletion<Integer>>() {
+                    new FutureCallback<TaskCompletion<Integer>>() {
                         @Override
                         public void onSuccess(@Nullable TaskCompletion<Integer> completion) {
                             callbackEntered.countDown();
@@ -676,7 +685,7 @@ class TaskGroupBodyCompletionTest {
             assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
             // The future's own holder release sits in run()'s finally, just after completion:
             // await the probe instead of racing it.
-            org.awaitility.Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.callableReleased(value)).isTrue();
                 assertThat(group.callableReleased(assemble)).isTrue();
             });

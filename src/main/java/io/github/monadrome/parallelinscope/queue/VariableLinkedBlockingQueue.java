@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope.queue;
 
+import java.lang.reflect.Array;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -388,7 +389,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         try {
             int size = count.get();
             if (a.length < size) {
-                a = (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), size);
+                a = (T[]) Array.newInstance(a.getClass().getComponentType(), size);
             }
             int k = 0;
             for (Node<E> p = head.next; p != null; p = p.next) {

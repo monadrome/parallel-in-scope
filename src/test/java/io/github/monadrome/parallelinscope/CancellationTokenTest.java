@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -279,7 +282,7 @@ public class CancellationTokenTest {
     @Test
     public void losingStateTransitionDoesNotNotifyListeners() {
         CancellationToken token = CancellationToken.create();
-        java.util.concurrent.atomic.AtomicInteger notifications = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicInteger notifications = new AtomicInteger();
         token.addStateListener(state -> notifications.incrementAndGet());
 
         token.cancel(true);
@@ -296,9 +299,8 @@ public class CancellationTokenTest {
         SettableFuture<String> task = SettableFuture.create();
         token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), TIMER);
 
-        java.util.concurrent.atomic.AtomicReference<CancellationToken.State> observed =
-                new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicBoolean taskStillPending = new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicReference<CancellationToken.State> observed = new AtomicReference<>();
+        AtomicBoolean taskStillPending = new AtomicBoolean();
         token.addStateListener(state -> {
             observed.set(state);
             taskStillPending.set(!task.isDone());

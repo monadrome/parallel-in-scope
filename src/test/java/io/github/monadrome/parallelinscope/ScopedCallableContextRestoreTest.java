@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.base.Ticker;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +87,6 @@ class ScopedCallableContextRestoreTest {
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {
-        return new TaskExecutionContext(
-                context, index, com.google.common.base.Ticker.systemTicker().read());
+        return new TaskExecutionContext(context, index, Ticker.systemTicker().read());
     }
 }

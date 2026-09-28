@@ -10,6 +10,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,7 +26,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
  *
  * <p>A group is described by a reusable {@link TaskGroupDefinition} and submitted via {@link
- * ParRuntime#submitGroup(TaskGroupDefinition, java.util.function.Consumer)}, which binds this run's
+ * ParRuntime#submitGroup(TaskGroupDefinition, Consumer)}, which binds this run's
  * bodies, builds, starts, and submits all members in one call. Member futures are looked up by
  * name ({@link #members()}, {@link #findMember(String)}) or through the typed {@link
  * TaskGroupDefinition.Member} handles declared while configuring the definition ({@link
@@ -57,8 +60,7 @@ public final class TaskGroup implements AutoCloseable {
     private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     /** Process-local group identities: diagnostics only, never persisted. */
-    private static final java.util.concurrent.atomic.AtomicLong GROUP_SEQUENCE =
-            new java.util.concurrent.atomic.AtomicLong();
+    private static final AtomicLong GROUP_SEQUENCE = new AtomicLong();
 
     private final String groupId = "group-" + GROUP_SEQUENCE.incrementAndGet();
     private final String groupName;
@@ -628,7 +630,7 @@ public final class TaskGroup implements AutoCloseable {
 
     /**
      * Classifies an exceptionally completed member. A failure that merely signals observed
-     * cancellation — a checkpoint threw a {@link java.util.concurrent.CancellationException}, or
+     * cancellation — a checkpoint threw a {@link CancellationException}, or
      * the worker thread was interrupted — can win the race against the cascade cancel on the
      * member future; it is attributed through the tokens like a cancellation instead of being
      * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
@@ -1047,7 +1049,7 @@ public final class TaskGroup implements AutoCloseable {
 
         /** Clears every payload still held; used when preparation or admission never consumed them. */
         void discard() {
-            java.util.Arrays.fill(taskBodies, null);
+            Arrays.fill(taskBodies, null);
             combineBody = null;
         }
 

@@ -9,6 +9,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -129,7 +130,7 @@ final class HeuristicPurger {
 
     /**
      * Returns the queued-cancellation callback bound to the submitted task's executor. Queues
-     * without a finite positive capacity — {@link java.util.concurrent.SynchronousQueue} and
+     * without a finite positive capacity — {@link SynchronousQueue} and
      * unbounded queues such as {@code new LinkedBlockingQueue()} — receive a static no-op callback.
      *
      * <p>The returned callback must be invoked only when a submitted task is canceled before it

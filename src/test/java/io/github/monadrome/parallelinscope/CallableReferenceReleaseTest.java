@@ -6,16 +6,20 @@ import static org.awaitility.Awaitility.await;
 
 import com.alibaba.ttl.TtlCallable;
 import com.google.common.base.Ticker;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -91,7 +95,7 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isDone()).isTrue();
         assertThatThrownBy(() -> fixture.future.get(5, TimeUnit.SECONDS))
-                .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(SubmissionException.class);
         assertThat(fixture.future.callableReleased()).isTrue();
         assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
@@ -323,12 +327,11 @@ class CallableReferenceReleaseTest {
         }
     }
 
-    private static void awaitDone(com.google.common.util.concurrent.ListenableFuture<?> future)
-            throws InterruptedException, java.util.concurrent.ExecutionException,
-                    java.util.concurrent.TimeoutException {
+    private static void awaitDone(ListenableFuture<?> future)
+            throws InterruptedException, ExecutionException, TimeoutException {
         try {
             future.get(5, TimeUnit.SECONDS);
-        } catch (java.util.concurrent.CancellationException | java.util.concurrent.ExecutionException ignored) {
+        } catch (CancellationException | ExecutionException ignored) {
             // Abandoned placeholders may cancel or fail with the abandonment cause; only
             // completion matters here.
         }

@@ -13,6 +13,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -360,7 +361,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
-    public TaskGroupDefinition.Builder defineGroup(String groupName, java.time.Duration timeout) {
+    public TaskGroupDefinition.Builder defineGroup(String groupName, Duration timeout) {
         return new TaskGroupDefinition.Builder(this, requireValidGroupName(groupName), requirePositiveTimeout(timeout));
     }
 
@@ -370,7 +371,7 @@ public final class ParRuntime implements AutoCloseable {
      *
      * <p>Submitting the built definition from a thread with no enclosing scoped task fails at run
      * preparation with {@link IllegalArgumentException}; no {@link TaskGroup} or future is
-     * created. See {@link #defineGroup(String, java.time.Duration)} for the general contract.
+     * created. See {@link #defineGroup(String, Duration)} for the general contract.
      *
      * @param groupName the group name; diagnostics and result identity
      * @throws NullPointerException if {@code groupName} is null
@@ -448,7 +449,7 @@ public final class ParRuntime implements AutoCloseable {
         return name;
     }
 
-    private static java.time.Duration requirePositiveTimeout(java.time.Duration timeout) {
+    private static Duration requirePositiveTimeout(Duration timeout) {
         Objects.requireNonNull(timeout, "timeout cannot be null");
         if (timeout.isNegative() || timeout.isZero()) {
             throw new IllegalArgumentException("timeout must be positive when configured");
@@ -503,7 +504,7 @@ public final class ParRuntime implements AutoCloseable {
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
      * @throws InterruptedException if the calling thread is interrupted while waiting
      */
-    public boolean awaitQuiescence(java.time.Duration timeout) throws InterruptedException {
+    public boolean awaitQuiescence(Duration timeout) throws InterruptedException {
         Objects.requireNonNull(timeout, "timeout cannot be null");
         long remainingNanos;
         try {
@@ -525,7 +526,7 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Returns the in-flight work this topology still tracks — admissions setting up a batch plus
-     * undrained batches — which is what {@link #awaitQuiescence(java.time.Duration)} waits on.
+     * undrained batches — which is what {@link #awaitQuiescence(Duration)} waits on.
      */
     public int inFlight() {
         return activeAdmissions.get() + activeBatches.get();
@@ -666,7 +667,7 @@ public final class ParRuntime implements AutoCloseable {
         }
 
         @Override
-        public java.util.List<Runnable> shutdownNow() {
+        public List<Runnable> shutdownNow() {
             throw new UnsupportedOperationException("timeout scheduler lifecycle is owned by ParRuntime");
         }
 
