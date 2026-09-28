@@ -3,10 +3,13 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -14,6 +17,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -176,7 +182,7 @@ class TaskGroupBindingsTest {
     void binderFailureRunsNoExecutorAndClearsEveryRegisteredBody() {
         ExecutorService delegate = Executors.newSingleThreadExecutor();
         AtomicInteger executeCalls = new AtomicInteger();
-        ExecutorService wrapped = new java.util.concurrent.AbstractExecutorService() {
+        ExecutorService wrapped = new AbstractExecutorService() {
             @Override
             public void shutdown() {
                 delegate.shutdown();
@@ -242,7 +248,7 @@ class TaskGroupBindingsTest {
     void admissionRejectionAfterFreezeStillClearsTheTransferredPayloads() {
         ExecutorService delegate = Executors.newSingleThreadExecutor();
         AtomicInteger executeCalls = new AtomicInteger();
-        ExecutorService wrapped = new java.util.concurrent.AbstractExecutorService() {
+        ExecutorService wrapped = new AbstractExecutorService() {
             @Override
             public void shutdown() {
                 delegate.shutdown();
@@ -427,7 +433,7 @@ class TaskGroupBindingsTest {
     @Test
     void rejectedCancelledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
         ExecutorService worker = Executors.newSingleThreadExecutor();
-        ExecutorService direct = com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = ParRuntime.builder()
                 .register(ParId.of("worker"), worker)
                 .register(ParId.of("direct"), direct)
@@ -461,7 +467,7 @@ class TaskGroupBindingsTest {
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
             // The never-run victim released its holder through the cancel-before-run path.
-            org.awaitility.Awaitility.await()
+            Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> group.future(victim).isDone());
             assertThat(victimRuns).hasValue(0);
@@ -472,7 +478,7 @@ class TaskGroupBindingsTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
 
             // The entered members released theirs through run()'s finally.
-            org.awaitility.Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.callableReleased(blocker)).isTrue();
                 assertThat(group.callableReleased(failing)).isTrue();
             });
@@ -514,7 +520,7 @@ class TaskGroupBindingsTest {
 
     @Test
     void bindingOrderDoesNotChangeDeclarationOrderExecution() throws Exception {
-        ExecutorService direct = com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try {
@@ -582,7 +588,7 @@ class TaskGroupBindingsTest {
 
             int submissions = 16;
             List<Thread> threads = new ArrayList<>();
-            List<Integer> observed = java.util.Collections.synchronizedList(new ArrayList<>());
+            List<Integer> observed = Collections.synchronizedList(new ArrayList<>());
             CountDownLatch ready = new CountDownLatch(submissions);
             CountDownLatch go = new CountDownLatch(1);
             for (int i = 0; i < submissions; i++) {
@@ -610,9 +616,8 @@ class TaskGroupBindingsTest {
             // Every run saw exactly its own request: closures, futures, tokens, and results never
             // crossed submissions.
             assertThat(observed)
-                    .containsExactlyInAnyOrderElementsOf(java.util.stream.IntStream.range(0, submissions)
-                            .boxed()
-                            .collect(java.util.stream.Collectors.toList()));
+                    .containsExactlyInAnyOrderElementsOf(
+                            IntStream.range(0, submissions).boxed().collect(Collectors.toList()));
         } finally {
             global.close();
             executor.shutdownNow();

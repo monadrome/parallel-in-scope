@@ -8,7 +8,7 @@ package io.github.monadrome.parallelinscope;
  * TaskGroupMemberReason} (group member result) enums: the terminal values are a strict refinement
  * of the old four-state future view, and {@link #RUNNING} absorbs the "not yet terminal" case.
  *
- * <p>{@link io.github.monadrome.parallelinscope.FutureInspector} maps an arbitrary {@code
+ * <p>{@link FutureInspector} maps an arbitrary {@code
  * Future} onto these values conservatively; richer outcomes are available when the task exposes a
  * phase hint (see {@code ExecutionPhaseHintFuture}).
  *

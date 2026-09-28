@@ -4,22 +4,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class SlidingWindowSubmitterTest {
@@ -60,8 +68,7 @@ class SlidingWindowSubmitterTest {
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(workers, context(0, 1, TaskType.IO_BOUND), submitter);
-            assertThat(executor.submitAll(java.util.Collections.emptyList()).results())
-                    .isEmpty();
+            assertThat(executor.submitAll(Collections.emptyList()).results()).isEmpty();
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();
@@ -101,10 +108,10 @@ class SlidingWindowSubmitterTest {
                     () -> 3));
             assertThat(batch.submitCanceller().cancel(true)).isTrue();
             release.countDown();
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
+            for (ListenableFuture<Integer> result : batch.results()) {
                 try {
                     result.get(2, TimeUnit.SECONDS);
-                } catch (java.util.concurrent.ExecutionException | java.util.concurrent.CancellationException ignored) {
+                } catch (ExecutionException | CancellationException ignored) {
                     // Abandoned placeholders may fail or cancel, but must not remain pending.
                 }
                 assertThat(result.isDone()).isTrue();
@@ -125,8 +132,8 @@ class SlidingWindowSubmitterTest {
                     new SlidingWindowSubmitter<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter);
             TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
             assertThat(batch.results()).hasSize(3);
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
-                assertThatThrownBy(result::get).isInstanceOf(java.util.concurrent.ExecutionException.class);
+            for (ListenableFuture<Integer> result : batch.results()) {
+                assertThatThrownBy(result::get).isInstanceOf(ExecutionException.class);
             }
         } finally {
             submitter.shutdownNow();
@@ -236,7 +243,7 @@ class SlidingWindowSubmitterTest {
                     () -> 2));
 
             assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
@@ -255,7 +262,7 @@ class SlidingWindowSubmitterTest {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
-        java.util.concurrent.atomic.AtomicBoolean bodyRan = new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicBoolean bodyRan = new AtomicBoolean();
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
@@ -266,7 +273,7 @@ class SlidingWindowSubmitterTest {
             }));
 
             assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(bodyRan).isFalse();
@@ -287,9 +294,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -322,12 +329,12 @@ class SlidingWindowSubmitterTest {
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(RejectedExecutionException.class);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(RejectedExecutionException.class);
         } finally {
             workers.shutdownNow();
@@ -352,9 +359,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -390,7 +397,7 @@ class SlidingWindowSubmitterTest {
                 int index = i;
                 assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
                 assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
-                        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                        .isInstanceOf(ExecutionException.class)
                         .hasCauseInstanceOf(SubmissionException.class)
                         .hasRootCauseInstanceOf(AssertionError.class);
             }
@@ -413,9 +420,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -448,12 +455,12 @@ class SlidingWindowSubmitterTest {
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
         } finally {
             workers.shutdownNow();
@@ -479,7 +486,7 @@ class SlidingWindowSubmitterTest {
             TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
 
             assertThatThrownBy(batch::valuesOrThrow)
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
             TaskBatchResult.BatchReport report = batch.report();
@@ -513,7 +520,7 @@ class SlidingWindowSubmitterTest {
             TaskBatchResult<Integer> batch = executor.submitAll(tasks);
 
             assertThatThrownBy(batch::valuesOrThrow)
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
@@ -561,7 +568,7 @@ class SlidingWindowSubmitterTest {
     @Test
     void sneakyCheckedHandoffFailureFailsEveryElementAsSubmissionFailure() {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
-            sneakyThrow(new java.io.IOException("sneaky handoff"));
+            sneakyThrow(new IOException("sneaky handoff"));
         }));
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
@@ -570,9 +577,9 @@ class SlidingWindowSubmitterTest {
             TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
 
             assertThatThrownBy(batch::valuesOrThrow)
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
-                    .hasRootCauseInstanceOf(java.io.IOException.class);
+                    .hasRootCauseInstanceOf(IOException.class);
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();
@@ -602,9 +609,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -781,11 +788,11 @@ class SlidingWindowSubmitterTest {
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
                 .map(task -> ExecutionPhaseHintFuture.create(task, phase -> {}))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     /** An executor service whose {@code execute()} delegates to the given handoff. */
-    private static ExecutorService handoffExecutor(java.util.function.Consumer<Runnable> handoff) {
+    private static ExecutorService handoffExecutor(Consumer<Runnable> handoff) {
         return new AbstractExecutorService() {
             private volatile boolean shutdown;
 
@@ -795,9 +802,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override

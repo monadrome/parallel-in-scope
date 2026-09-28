@@ -2,7 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 /**
  * Task type classification. Currently drives only the enqueue decision of {@link
- * io.github.monadrome.parallelinscope.SmartBlockingQueue SmartBlockingQueue}.
+ * SmartBlockingQueue}.
  *
  * <p>The type describes the work, not what to do when the work cannot be scheduled: it does not
  * affect what happens when an executor rejects a task, which is {@code runOnCallerThread} on

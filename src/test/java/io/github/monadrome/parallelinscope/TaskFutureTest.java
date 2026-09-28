@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -656,7 +657,7 @@ class TaskFutureTest {
             assertThat(recovered.get(2, TimeUnit.SECONDS)).isEqualTo("fallback");
             assertThatThrownBy(() -> bounded.get(2, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
-                    .hasCauseInstanceOf(java.util.concurrent.TimeoutException.class);
+                    .hasCauseInstanceOf(TimeoutException.class);
         } finally {
             scheduler.shutdownNow();
         }

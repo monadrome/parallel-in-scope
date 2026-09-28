@@ -9,9 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,7 +22,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Signal-path additions over {@link VariableLinkedBlockingQueueTest}: blocked producers and
  * consumers must be released by the complementary operation (take/put/clear/setCapacity), and
- * array snapshots must follow {@link java.util.concurrent.LinkedBlockingQueue} semantics.
+ * array snapshots must follow {@link LinkedBlockingQueue} semantics.
  */
 class VariableLinkedBlockingQueueSignalTest {
 
@@ -188,7 +190,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     /** Tiny helper keeping iterator assertions off the main test body. */
     private static final class IteratorDrivenAssertions {
-        private static void assertExhausted(java.util.Iterator<?> iterator) {
+        private static void assertExhausted(Iterator<?> iterator) {
             assertFalse(iterator.hasNext());
         }
     }

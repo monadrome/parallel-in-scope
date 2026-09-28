@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -324,7 +325,7 @@ class ObservationFutureTest {
                     callbackExecutor);
 
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("value");
-            org.awaitility.Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> captured.get() != null);
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> captured.get() != null);
             assertThat(Objects.requireNonNull(captured.get()).result()).isEqualTo("value");
             assertThat(Objects.requireNonNull(callbackThread.get()).getName())
                     .isNotEqualTo(Thread.currentThread().getName());

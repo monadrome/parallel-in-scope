@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -131,11 +134,11 @@ class MultiTaskContextTest {
     }
 
     /** Minimal executor identity object; no tasks are submitted by this test. */
-    private static final class ExecutorServiceStub extends java.util.concurrent.AbstractExecutorService {
+    private static final class ExecutorServiceStub extends AbstractExecutorService {
         public void shutdown() {}
 
-        public java.util.List<Runnable> shutdownNow() {
-            return java.util.Collections.emptyList();
+        public List<Runnable> shutdownNow() {
+            return Collections.emptyList();
         }
 
         public boolean isShutdown() {
@@ -146,7 +149,7 @@ class MultiTaskContextTest {
             return false;
         }
 
-        public boolean awaitTermination(long timeout, java.util.concurrent.TimeUnit unit) {
+        public boolean awaitTermination(long timeout, TimeUnit unit) {
             return true;
         }
 

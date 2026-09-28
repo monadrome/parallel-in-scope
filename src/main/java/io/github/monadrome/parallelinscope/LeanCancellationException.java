@@ -1,11 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
+import java.util.concurrent.CancellationException;
+
 /**
  * Cancellation exception that omits its stack trace to reduce cancellation overhead.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public class LeanCancellationException extends java.util.concurrent.CancellationException {
+public class LeanCancellationException extends CancellationException {
 
     private static final long serialVersionUID = 1L;
 

@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -392,11 +394,10 @@ class TaskGraphReportFutureTest {
     }
 
     /** Reads a report known to be published; an unexpected detection failure fails the test. */
-    private static TaskGraphReport doneReport(
-            com.google.common.util.concurrent.ListenableFuture<TaskGraphReport> future) {
+    private static TaskGraphReport doneReport(ListenableFuture<TaskGraphReport> future) {
         try {
-            return java.util.Objects.requireNonNull(Futures.getDone(future));
-        } catch (java.util.concurrent.ExecutionException unexpected) {
+            return Objects.requireNonNull(Futures.getDone(future));
+        } catch (ExecutionException unexpected) {
             throw new AssertionError("report future failed unexpectedly", unexpected);
         }
     }

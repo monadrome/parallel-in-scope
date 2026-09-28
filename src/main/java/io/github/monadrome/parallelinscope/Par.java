@@ -6,15 +6,18 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Logger;
+import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -84,7 +87,7 @@ public final class Par {
         return executorRuntime.identity();
     }
 
-    java.util.concurrent.Executor submissionExecutor() {
+    Executor submissionExecutor() {
         return executorRuntime.submissionExecutor();
     }
 
@@ -247,7 +250,7 @@ public final class Par {
         }
         Ticker ticker = Ticker.systemTicker();
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
-        List<ExecutionPhaseHintFuture<R>> tasks = java.util.stream.IntStream.range(0, list.size())
+        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
@@ -268,7 +271,7 @@ public final class Par {
      *
      * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
      * nothing tells the caller that the protection they selected — on by default, for {@link
-     * TaskOptions#timeout(java.time.Duration)} — is not running. The diagnostic belongs on the
+     * TaskOptions#timeout(Duration)} — is not running. The diagnostic belongs on the
      * submission path rather than at registration because options are per task and per batch:
      * registration cannot know whether the default will ever be used. It stays a warning: throwing
      * would fail every caller that legitimately runs on a plain pool.
