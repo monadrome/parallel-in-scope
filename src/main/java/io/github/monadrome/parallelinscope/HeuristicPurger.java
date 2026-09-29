@@ -39,13 +39,11 @@ final class HeuristicPurger {
     }
 
     private static final class CancellationMarker {
-        private final long generation;
         private final long sequence;
         private final long timestampNanos;
 
-        /** Captures the latest idle cancellation evaluated in one reset generation. */
-        private CancellationMarker(long generation, long sequence, long timestampNanos) {
-            this.generation = generation;
+        /** Captures the latest idle cancellation evaluated for one pool. */
+        private CancellationMarker(long sequence, long timestampNanos) {
             this.sequence = sequence;
             this.timestampNanos = timestampNanos;
         }
@@ -56,7 +54,6 @@ final class HeuristicPurger {
     private final AtomicDouble canceledTaskRatioThreshold;
     private final Ticker ticker;
     private final long estimateExpiryNanos;
-    private final AtomicLong resetGeneration = new AtomicLong();
     private final ConcurrentHashMap<ThreadPoolExecutor, PoolState> states = new ConcurrentHashMap<>();
     private final ScheduledExecutorService maintenanceExecutor;
 
@@ -106,17 +103,6 @@ final class HeuristicPurger {
                 .setDaemon(true)
                 .setNameFormat("ThreadPoolPurger-%d")
                 .build());
-    }
-
-    /**
-     * Discards cancellation estimates issued before this reset generation.
-     *
-     * <p>Already running maintenance is not interrupted. The generation check instead prevents stale
-     * cancellation observations from scheduling a later purge after the reset.
-     */
-    public void clearPendingCancellations() {
-        resetGeneration.incrementAndGet();
-        states.values().forEach(PoolState::settleCurrentGeneration);
     }
 
     /**
@@ -171,7 +157,7 @@ final class HeuristicPurger {
         private final AtomicLong settledThrough = new AtomicLong();
         private final AtomicReference<MaintenanceState> maintenanceState = new AtomicReference<>(MaintenanceState.IDLE);
         private final AtomicReference<CancellationMarker> lastCancellation =
-                new AtomicReference<>(new CancellationMarker(0L, 0L, 0L));
+                new AtomicReference<>(new CancellationMarker(0L, 0L));
         private final AtomicReference<String> lastLoggedDecision = new AtomicReference<>();
         private final String executorId;
 
@@ -188,9 +174,10 @@ final class HeuristicPurger {
             if (!enabled.get()) {
                 return;
             }
-            long generation = resetGeneration.get();
             long sequence = issuedSequence.incrementAndGet();
-            if (!enabled.get() || generation != resetGeneration.get()) {
+            // Re-read the switch after claiming the sequence: a disable that raced this claim must
+            // not leave the estimate outstanding, or a later re-enable would purge on it.
+            if (!enabled.get()) {
                 settleThrough(sequence);
                 return;
             }
@@ -198,8 +185,8 @@ final class HeuristicPurger {
                 return;
             }
 
-            recordIdleCancellation(generation, sequence, ticker.read());
-            if (!enabled.get() || generation != resetGeneration.get()) {
+            recordIdleCancellation(sequence, ticker.read());
+            if (!enabled.get()) {
                 settleThrough(sequence);
                 return;
             }
@@ -210,16 +197,13 @@ final class HeuristicPurger {
         }
 
         /** Expires only the old sequence boundary observed by one atomic marker update. */
-        private void recordIdleCancellation(long generation, long sequence, long now) {
+        private void recordIdleCancellation(long sequence, long now) {
             // the marker reference is never nulled; CAS swaps only between non-null markers
             CancellationMarker previous = Objects.requireNonNull(lastCancellation.get());
-            while (generation > previous.generation
-                    || (generation == previous.generation && sequence > previous.sequence)) {
-                CancellationMarker next = new CancellationMarker(generation, sequence, now);
+            while (sequence > previous.sequence) {
+                CancellationMarker next = new CancellationMarker(sequence, now);
                 if (lastCancellation.compareAndSet(previous, next)) {
-                    if (generation == previous.generation
-                            && previous.timestampNanos != 0L
-                            && now - previous.timestampNanos > estimateExpiryNanos) {
+                    if (previous.timestampNanos != 0L && now - previous.timestampNanos > estimateExpiryNanos) {
                         settleThrough(previous.sequence);
                     }
                     return;
@@ -293,19 +277,6 @@ final class HeuristicPurger {
             while (sequence > settled && !settledThrough.compareAndSet(settled, sequence)) {
                 settled = settledThrough.get();
             }
-        }
-
-        /** Settles all signals visible to a disable/reset operation. */
-        private void settleCurrentGeneration() {
-            settleThrough(issuedSequence.get());
-            lastLoggedDecision.set(null);
-            long generation = resetGeneration.get();
-            CancellationMarker marker = Objects.requireNonNull(lastCancellation.get());
-            while (marker.generation < generation
-                    && !lastCancellation.compareAndSet(marker, new CancellationMarker(generation, 0L, 0L))) {
-                marker = Objects.requireNonNull(lastCancellation.get());
-            }
-            logCurrentDecision("disabled", 0L);
         }
 
         /** Evaluates advisory queue pressure and garbage ratio snapshots. */
