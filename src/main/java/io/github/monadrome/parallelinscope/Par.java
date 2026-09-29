@@ -276,7 +276,7 @@ public final class Par {
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
-        Task<C> terminalView = Task.of(unit.name(), unit.cancellationToken(), terminalFuture);
+        Task<C> terminalView = Task.attributedOnSettle(unit.name(), unit.cancellationToken(), terminalFuture);
         if (observation != null) {
             // The batch->combine edge is a data dependency, recorded honestly in the task graph,
             // but it is not deadlock-relevant: the combine is submitted by the converging thread

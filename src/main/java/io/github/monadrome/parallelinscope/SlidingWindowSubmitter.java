@@ -74,13 +74,17 @@ final class SlidingWindowSubmitter<V> {
      * cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the
      * thread actually running the body — including a caller thread running it inline.
      *
+     * <p>Each view also pins its element's attribution when the element settles ({@link
+     * Task#attributedOnSettle}); building the views before the bind is what orders that pin ahead
+     * of the fail-fast commit the element's own failure triggers.
+     *
      * @param tasks prepared task futures, in element order
      * @return the element views, positionally aligned with {@code tasks}
      */
     ImmutableList<Task<V>> viewsFor(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         ImmutableList.Builder<Task<V>> views = ImmutableList.builderWithExpectedSize(tasks.size());
         for (ExecutionPhaseHintFuture<V> task : tasks) {
-            views.add(Task.of(unit.name(), unit.cancellationToken(), task));
+            views.add(Task.attributedOnSettle(unit.name(), unit.cancellationToken(), task));
         }
         return views.build();
     }
