@@ -50,6 +50,36 @@ class TaskGraphReportTest {
                 .isTrue();
     }
 
+    /**
+     * Each flag accessor has to report its own constructor argument in the {@code true} state, not
+     * merely feed {@code anyIssue()}. The suite's positive assertions on executor self-loops all
+     * read {@code TaskGraphData}'s same-named method, so this report's accessors had only ever been
+     * observed returning {@code false} — a reader stuck on {@code false} would be invisible, and
+     * these four accessors are the whole public surface of the detection verdict.
+     */
+    @Test
+    void eachFlagAccessorReportsItsOwnDetectionResult() {
+        TaskGraphReport taskCycle = TaskGraphReport.detection(true, false, false, false, "t", "e");
+        assertThat(taskCycle.taskCycle()).isTrue();
+        assertThat(taskCycle.selfLoop()).isFalse();
+        assertThat(taskCycle.executorCycle()).isFalse();
+        assertThat(taskCycle.executorSelfLoop()).isFalse();
+
+        TaskGraphReport selfLoop = TaskGraphReport.detection(false, true, false, false, "t", "e");
+        assertThat(selfLoop.selfLoop()).isTrue();
+        assertThat(selfLoop.taskCycle()).isFalse();
+
+        TaskGraphReport executorCycle = TaskGraphReport.detection(false, false, true, false, "t", "e");
+        assertThat(executorCycle.executorCycle()).isTrue();
+        assertThat(executorCycle.executorSelfLoop()).isFalse();
+
+        TaskGraphReport executorSelfLoop = TaskGraphReport.detection(false, false, false, true, "t", "e");
+        assertThat(executorSelfLoop.executorSelfLoop()).isTrue();
+        assertThat(executorSelfLoop.executorCycle()).isFalse();
+        assertThat(executorSelfLoop.taskCycle()).isFalse();
+        assertThat(executorSelfLoop.selfLoop()).isFalse();
+    }
+
     @Test
     void anyIssueIsEquivalentToIssueStatus() {
         assertThat(TaskGraphReport.disabled().anyIssue()).isFalse();

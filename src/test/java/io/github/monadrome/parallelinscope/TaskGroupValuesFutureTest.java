@@ -44,6 +44,9 @@ class TaskGroupValuesFutureTest {
             assertThat(values.typedValues()).isEqualTo(Tuple2.of("alice", 41));
             assertThat(values.valueAt(0)).isEqualTo("alice");
             assertThat(values.valueOf("count")).isEqualTo(41);
+            // The values view names its slots in declaration order when printed, which is what a
+            // caller logging a group result sees.
+            assertThat(values).hasToString("GroupValues[user, count]");
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             // The documented ordering invariant: a done completion future implies a done values
