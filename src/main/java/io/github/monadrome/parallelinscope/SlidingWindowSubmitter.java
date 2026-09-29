@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -198,11 +197,7 @@ final class SlidingWindowSubmitter<V> {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            if (unit.runOnCallerThread()) {
-                submitOrRunInline(task);
-            } else {
-                submit(task);
-            }
+            submit(task);
         } finally {
             SubmissionScope.restore(previous);
         }
@@ -216,20 +211,6 @@ final class SlidingWindowSubmitter<V> {
     private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
         task.addListener(() -> blockingQueue.add(task), directExecutor());
         pool.execute(task);
-        return task;
-    }
-
-    /** Submits a prepared future, running it on the calling thread when the pool rejects it. */
-    private ListenableFuture<V> submitOrRunInline(ExecutionPhaseHintFuture<V> task) {
-        task.addListener(() -> blockingQueue.add(task), directExecutor());
-        try {
-            pool.execute(task);
-        } catch (RejectedExecutionException rejected) {
-            // The borrowed thread's interrupt flag is isolated inside the task's own run(), which
-            // covers this thread, the submitter thread, and any thread a user's
-            // RejectedExecutionHandler borrows.
-            directExecutor().execute(task);
-        }
         return task;
     }
 

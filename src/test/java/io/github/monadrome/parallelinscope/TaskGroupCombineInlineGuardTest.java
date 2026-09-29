@@ -18,13 +18,13 @@ import org.junit.jupiter.api.Test;
  * Par}.
  *
  * <p>The combine is submitted at join time by the convergence callback, so the thread handing it to
- * the executor is a framework thread whose contract forbids user code. Fixing {@code
- * runOnCallerThread=false} for the combine expresses that, but only covers this library's own inline
- * fallback: a pool whose {@code RejectedExecutionHandler} runs the task inside {@code execute()} —
+ * the executor is a framework thread whose contract forbids user code; the combine therefore
+ * declares {@code forbidInlineExecution}. A submission-time refusal alone cannot enforce that
+ * contract: a pool whose {@code RejectedExecutionHandler} runs the task inside {@code execute()} —
  * the JDK's {@code CallerRunsPolicy} — reaches the body without ever raising {@code
- * RejectedExecutionException}. The group then reported {@code SUCCESS} while the user function had
- * run on the convergence callback thread, which is the first candidate the design rejects because
- * which member finishes last is a race.
+ * RejectedExecutionException}. Without the execution-time guard the group then reported {@code
+ * SUCCESS} while the user function had run on the convergence callback thread, which is the first
+ * candidate the design rejects because which member finishes last is a race.
  *
  * <p>The guard is deliberately not a refusal to accept such a pool. {@code CallerRunsPolicy} only
  * runs inline under genuine saturation, so a pool that never saturates never violates anything and

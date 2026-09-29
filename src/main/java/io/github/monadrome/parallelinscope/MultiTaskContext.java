@@ -31,7 +31,6 @@ final class MultiTaskContext {
     private final @Nullable String executorLabel;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
 
     private MultiTaskContext(
             String name,
@@ -44,8 +43,7 @@ final class MultiTaskContext {
             @Nullable ExecutorIdentity executorIdentity,
             @Nullable String executorLabel,
             TaskType taskType,
-            boolean rejectEnqueue,
-            boolean runOnCallerThread) {
+            boolean rejectEnqueue) {
         this.unitId = "unit-" + UNIT_SEQUENCE.incrementAndGet();
         this.name = name;
         this.taskCount = taskCount;
@@ -58,7 +56,6 @@ final class MultiTaskContext {
         this.executorLabel = executorLabel;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
     }
 
     /**
@@ -186,8 +183,7 @@ final class MultiTaskContext {
                 resolution.executorIdentity,
                 resolution.executorLabel,
                 spec.taskType(),
-                spec.rejectEnqueue(),
-                spec.runOnCallerThread());
+                spec.rejectEnqueue());
     }
 
     /**
@@ -270,10 +266,5 @@ final class MultiTaskContext {
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
-    }
-
-    /** Whether a rejected task of this unit runs on the submitting thread. */
-    boolean runOnCallerThread() {
-        return runOnCallerThread;
     }
 }

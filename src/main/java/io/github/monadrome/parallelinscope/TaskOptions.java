@@ -23,19 +23,16 @@ import org.jspecify.annotations.Nullable;
  * declarations cannot appear together.
  */
 public final class TaskOptions {
-    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.IO_BOUND, false, false);
+    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.IO_BOUND, false);
 
     private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
 
-    private TaskOptions(
-            @Nullable Duration timeout, TaskType taskType, boolean rejectEnqueue, boolean runOnCallerThread) {
+    private TaskOptions(@Nullable Duration timeout, TaskType taskType, boolean rejectEnqueue) {
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
     }
 
     /** Returns options whose deadline is inherited from the enclosing scope. */
@@ -50,37 +47,22 @@ public final class TaskOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskOptions timeout(Duration timeout) {
-        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, false);
+        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false);
     }
 
     /** Returns a copy of these options with the given task type. */
     public TaskOptions taskType(TaskType taskType) {
-        return new TaskOptions(
-                this.timeout, checkNotNull(taskType, "taskType cannot be null"), rejectEnqueue, runOnCallerThread);
+        return new TaskOptions(this.timeout, checkNotNull(taskType, "taskType cannot be null"), rejectEnqueue);
     }
 
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
-     * <p>The policy is honored only when the registered executor's queue is a {@link
+     * <p>The policy is honoured only when the registered executor's queue is a {@link
      * SmartBlockingQueue}; with any other queue this flag is inert.
      */
     public TaskOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new TaskOptions(timeout, taskType, rejectEnqueue, runOnCallerThread);
-    }
-
-    /**
-     * Returns a copy of these options with the given caller-thread fallback policy: whether this
-     * task runs on the submitting thread when its executor rejects it.
-     *
-     * <p>{@code true} borrows the submitting thread for the task body, which is back-pressure
-     * rather than queueing — but it also means user code runs on a thread the caller may not
-     * expect. {@code false} (the default) fails the task with a {@link SubmissionException}
-     * without entering user code. The policy is honored by any executor and is independent of
-     * {@link #taskType()}: no task type implies a caller-thread fallback.
-     */
-    public TaskOptions runOnCallerThread(boolean runOnCallerThread) {
-        return new TaskOptions(timeout, taskType, rejectEnqueue, runOnCallerThread);
+        return new TaskOptions(timeout, taskType, rejectEnqueue);
     }
 
     /** The explicit execution timeout; empty means the enclosing scope's deadline is inherited. */
@@ -96,13 +78,8 @@ public final class TaskOptions {
         return rejectEnqueue;
     }
 
-    /** Whether a rejected task runs on the submitting thread; false means it fails instead. */
-    public boolean runOnCallerThread() {
-        return runOnCallerThread;
-    }
-
     /** Adapts this policy to the kernel carrier of the task named {@code name}. */
     UnitSpec spec(String name) {
-        return new UnitSpec(name, 1, timeout, taskType, rejectEnqueue, runOnCallerThread);
+        return new UnitSpec(name, 1, Optional.ofNullable(timeout), taskType, rejectEnqueue);
     }
 }

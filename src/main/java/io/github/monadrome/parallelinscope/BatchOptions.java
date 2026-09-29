@@ -25,7 +25,6 @@ public final class BatchOptions {
     private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
     private final @Nullable Duration closeGrace;
 
     private BatchOptions(
@@ -34,20 +33,18 @@ public final class BatchOptions {
             @Nullable Duration timeout,
             TaskType taskType,
             boolean rejectEnqueue,
-            boolean runOnCallerThread,
             @Nullable Duration closeGrace) {
         this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
         this.closeGrace = closeGrace;
     }
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, -1, null, TaskType.IO_BOUND, false, false, null);
+        return new BatchOptions(name, -1, null, TaskType.IO_BOUND, false, null);
     }
 
     /**
@@ -58,12 +55,12 @@ public final class BatchOptions {
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
-                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, false, null);
+                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, null);
     }
 
     /** Returns a copy of these options with the given requested parallelism. */
     public BatchOptions parallelism(int parallelism) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
     }
 
     /** Returns a copy of these options with the given task type. */
@@ -74,33 +71,18 @@ public final class BatchOptions {
                 timeout,
                 checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
-                runOnCallerThread,
                 closeGrace);
     }
 
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
-     * <p>The policy is honored only when the registered executor's queue is a {@link
+     * <p>The policy is honoured only when the registered executor's queue is a {@link
      * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
      * flag is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
-    }
-
-    /**
-     * Returns a copy of these options with the given caller-thread fallback policy: whether an
-     * element runs on the submitting thread when its executor rejects it.
-     *
-     * <p>{@code true} borrows the submitting thread for the element body, which is back-pressure
-     * rather than queueing — but it also means user code runs on a thread the caller may not
-     * expect. {@code false} (the default) fails the element with a {@link SubmissionException}
-     * without entering user code. The policy is honored by any executor and is independent of
-     * {@link #taskType()}: no task type implies a caller-thread fallback.
-     */
-    public BatchOptions runOnCallerThread(boolean runOnCallerThread) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
     }
 
     /**
@@ -122,7 +104,6 @@ public final class BatchOptions {
                 timeout,
                 taskType,
                 rejectEnqueue,
-                runOnCallerThread,
                 Validation.requireNonNegative(closeGrace, "closeGrace"));
     }
 
@@ -149,11 +130,6 @@ public final class BatchOptions {
         return rejectEnqueue;
     }
 
-    /** Whether a rejected element runs on the submitting thread; false means it fails instead. */
-    public boolean runOnCallerThread() {
-        return runOnCallerThread;
-    }
-
     /**
      * The explicit close grace used by {@link TaskBatchResult#close()}; empty means the wait budget
      * is derived from the batch's remaining deadline at close time.
@@ -164,6 +140,6 @@ public final class BatchOptions {
 
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
-        return new UnitSpec(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread);
+        return new UnitSpec(name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue);
     }
 }

@@ -180,7 +180,7 @@ public final class Par {
                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
-        TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor(), unit.runOnCallerThread());
+        TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor());
         return view;
     }
 
