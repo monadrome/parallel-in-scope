@@ -88,12 +88,22 @@ public final class TaskGraphObservationScope implements AutoCloseable {
      * @return the scope to join and record into, or null when there is none owned by {@code owner}
      */
     static @Nullable TaskGraphObservationScope resolveFor(@Nullable MultiTaskContext parent, ParRuntime owner) {
+        // The calling thread's binding comes first, and not merely as a top-level fallback: nested
+        // scopes stack on the thread, so a body that opens its own scope around this submission means
+        // that scope, not the one its parent was submitted under. Consulting the parent first would
+        // record the work into the enclosing scope and leave the scope the caller opened empty.
+        TaskGraphObservationScope ambient = current();
+        if (ambient != null && ambient.owner() == owner) {
+            return ambient;
+        }
+        // No usable scope on this thread — it may be carrying another ParRuntime's, or none at all
+        // because this is a worker thread the binding did not reach. Fall back to what the structural
+        // parent joined, which is this unit's scope by inheritance.
         if (parent != null) {
             TaskGraphObservationScope inherited = parent.taskGraphObservationScope();
             return inherited != null && inherited.owner() == owner ? inherited : null;
         }
-        TaskGraphObservationScope ambient = current();
-        return ambient != null && ambient.owner() == owner ? ambient : null;
+        return null;
     }
 
     /**

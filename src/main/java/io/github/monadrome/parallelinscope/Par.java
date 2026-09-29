@@ -15,6 +15,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
@@ -165,8 +166,12 @@ public final class Par {
         }
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, System.nanoTime(), bodyCompletion.register(unit));
-        ExecutionPhaseHintFuture<T> future =
-                TaskSubmissions.prepare(taskContext, task, executorRuntime.phaseObserver());
+        // TaskSubmissions.prepare captures this thread's TTL bindings for replay on the worker, and
+        // the observation scope is one of them. Install the scope this unit actually joined -- which
+        // may be none -- so the worker does not inherit a binding the ownership rule rejected and
+        // hand it to whatever the body submits next.
+        ExecutionPhaseHintFuture<T> future = prepareUnderResolvedScope(
+                observation, () -> TaskSubmissions.prepare(taskContext, task, executorRuntime.phaseObserver()));
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
@@ -237,12 +242,16 @@ public final class Par {
             logForking(observation, unit, edge);
         }
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
-        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
-                .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
-                        callableMapper.apply(list.get(index)),
-                        executorRuntime.phaseObserver()))
-                .collect(toImmutableList());
+        // Same reason as Par.submit: the elements' TTL capture must reflect the scope this batch
+        // joined, not whatever this thread happens to be carrying.
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareUnderResolvedScope(
+                observation,
+                () -> IntStream.range(0, list.size())
+                        .mapToObj(index -> TaskSubmissions.prepare(
+                                new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                                callableMapper.apply(list.get(index)),
+                                executorRuntime.phaseObserver()))
+                        .collect(toImmutableList()));
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
                         executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace)
                 .submitAll(tasks);
@@ -279,6 +288,27 @@ public final class Par {
                     + " happens to an element that cannot start at once is left to the executor's"
                     + " own queue and rejection policy. Register a ThreadPoolExecutor whose work"
                     + " queue is a SmartBlockingQueue to make the option effective.");
+        }
+    }
+
+    /**
+     * Runs one preparation with {@code observation} installed as this thread's scope, restoring the
+     * previous binding afterwards.
+     *
+     * <p>Preparation is where the TTL snapshot replayed on the worker thread is taken, so the scope
+     * bound here is the one every task body of this unit will observe — and the one a nested
+     * submission inside that body will resolve against. Installing the resolved scope, including
+     * clearing it when the unit joined none, is what keeps a worker of one {@code ParRuntime} from
+     * carrying another's scope. {@code TaskGroup.prepare} does the same around its member loop.
+     */
+    private static <T> T prepareUnderResolvedScope(
+            @Nullable TaskGraphObservationScope observation, Supplier<T> preparation) {
+        TaskGraphObservationScope previous = TaskGraphObservationScope.current();
+        TaskGraphObservationScope.restore(observation);
+        try {
+            return preparation.get();
+        } finally {
+            TaskGraphObservationScope.restore(previous);
         }
     }
 
