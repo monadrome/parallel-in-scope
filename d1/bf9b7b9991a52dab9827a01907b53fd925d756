@@ -1,0 +1,21 @@
+design/adversarial-review-handoff-2026-09-29.md
+  s_ede93b60fe0bb3::t_ed36884bcc14d3 173-204
+  s_ede93b60fe0bb3::t_72082bed765303 125-172
+  s_ede93b60fe0bb3::t_3b9a48a73fcd58 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d1bf9b7b9991a52dab9827a01907b53fd925d756",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
