@@ -11,6 +11,10 @@
 > **deadline 无法解救的死锁**。所有结论附实测输出与 `path:line` 锚点。
 > 基线：`main` HEAD（`0.3.0-SNAPSHOT`）、JDK 21 源码、`guava-33.6.0-jre`。
 > 中断相关的两处见 [interruption-contract.md](interruption-contract.md) 第 7.3 节，本文不重复。
+>
+> 后续（2026-09-29）：本文分析的 `runOnCallerThread` 选项已在 0.3.0 发布前删除
+> （拒绝处置归执行器的 `RejectedExecutionHandler`）；中断与 `SubmissionScope` 隔离机制保留。
+> 本文余下内容保留为分析记录。
 
 ## 1. 问题与路径
 
