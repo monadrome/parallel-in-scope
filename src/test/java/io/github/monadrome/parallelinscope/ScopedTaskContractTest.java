@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +23,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -128,35 +130,46 @@ class ScopedTaskContractTest {
         }
     }
 
+    /**
+     * Inline execution is still reachable, but only by registering an executor that does it. This
+     * replaces a test of the {@code runOnCallerThread} option, which asked the library to elect the
+     * submitting thread on rejection: that decision now belongs to the executor alone, declared once
+     * where it is registered. A direct executor is the clearest way to ask for it, and the observation
+     * it produces must be indistinguishable from a pooled one.
+     */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void rejectionFallsBackToInlineExecutionWhenOptionsRequestIt(Entry entry) throws Exception {
-        ExecutorService rejecting = new RejectingExecutor();
+    void aDirectExecutorRunsTheBodyOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
-        ParRuntime global = global(rejecting);
+        ParRuntime global = global(direct);
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
+            AtomicReference<String> ranOn = new AtomicReference<>();
+            String caller = Thread.currentThread().getName();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, true, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
                 executions.incrementAndGet();
+                ranOn.set(Thread.currentThread().getName());
                 return "inline";
             });
 
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("inline");
             assertThat(executions).hasValue(1);
+            assertThat(ranOn.get()).isEqualTo(caller);
             assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
             assertThat(observation(future).successful()).isTrue();
         } finally {
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     /**
-     * The default for every task type, {@code CPU_BOUND} included: a rejected task fails without
-     * entering user code. The type is no longer what selects this — {@code runOnCallerThread} is,
-     * and it defaults to off.
+     * A rejected task fails without entering user code, for every task type including {@code
+     * CPU_BOUND}. Nothing selects otherwise: the library has no option that elects the submitting
+     * thread, so what a rejection means is decided entirely by the executor's own handler.
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
@@ -300,24 +313,17 @@ class ScopedTaskContractTest {
      */
     private static ListenableFuture<Object> submitSingle(
             ParRuntime global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.CPU_BOUND, false, task);
+        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
     }
 
     private static ListenableFuture<Object> submitSingle(
-            ParRuntime global,
-            Entry entry,
-            String name,
-            TaskType taskType,
-            boolean runOnCallerThread,
-            Callable<Object> task) {
+            ParRuntime global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
         if (entry == Entry.BATCH) {
             return global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
-                            BatchOptions.timeout(name, Duration.ofSeconds(30))
-                                    .taskType(taskType)
-                                    .runOnCallerThread(runOnCallerThread))
+                            BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
                     .results()
                     .get(0);
         }
@@ -326,9 +332,7 @@ class ScopedTaskContractTest {
                 .par(
                         name,
                         global.par(ParId.of("worker")),
-                        TaskOptions.timeout(Duration.ofSeconds(30))
-                                .taskType(taskType)
-                                .runOnCallerThread(runOnCallerThread),
+                        TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType),
                         memberType,
                         task)
                 .submitAll();

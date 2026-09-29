@@ -173,11 +173,10 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * <p>Used by the terminal combine, whose contract names exactly one legal execution site: a
      * worker of the combine's own {@code Par}. At join time the submitting thread is the convergence
      * callback thread — a framework thread whose contract forbids user code — so a body that runs
-     * there has violated the guarantee rather than merely taken a slower path. The submitted-phase
-     * {@code runOnCallerThread=false} cannot express this: it only suppresses the library's own
-     * inline fallback, while a pool whose {@code RejectedExecutionHandler} runs the task inside
-     * {@code execute()} (the JDK's {@code CallerRunsPolicy}) reaches the body without ever raising
-     * {@code RejectedExecutionException}.
+     * there has violated the guarantee rather than merely taken a slower path. Nothing about the
+     * submission itself can express that: a pool whose {@code RejectedExecutionHandler} runs the task
+     * inside {@code execute()} (the JDK's {@code CallerRunsPolicy}) reaches the body without ever
+     * raising {@code RejectedExecutionException}, so there is no rejection to decline.
      *
      * <p>Only meaningful for a {@link java.util.concurrent.ThreadPoolExecutor}-backed target, and
      * callers must not set it otherwise: a TPE never runs {@code execute()} on the calling thread
@@ -185,27 +184,25 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * violation. An executor that always runs inline — {@code directExecutor()} and friends — is a
      * deliberate, documented choice by whoever registered it, so it is left alone.
      *
-     * <p>It also assumes the caller passes {@code runOnCallerThread=false}, which the combine always
-     * does. The two are contradictory by construction — one forbids the submitting thread, the other
-     * elects it — and the guard would not catch the contradiction: this library's own fallback runs
-     * the body from the rejection catch block, after the handoff window has closed, so the check sees
-     * no violation and the body runs on the caller anyway. Declaring both is a caller error, not a
-     * case this guard covers.
      */
     void forbidInlineExecution() {
         this.inlineForbidden = true;
     }
 
     /**
-     * Submits this deferred future to {@code executor} exactly once. A task whose options request
-     * the caller-thread fallback runs inline when the executor rejects it; any other rejection, or
-     * any other failure of the handoff, fails the future with a {@link SubmissionException} without
-     * running user code.
+     * Submits this deferred future to {@code executor} exactly once. A rejection, or any other failure
+     * of the handoff, fails the future with a {@link SubmissionException} without running user code.
+     *
+     * <p>The library never elects to run the body on the submitting thread. What an executor does on
+     * rejection is the executor's own decision, declared once where it is registered as its {@link
+     * java.util.concurrent.RejectedExecutionHandler}, rather than a per-submission option here that
+     * would duplicate that decision in a second place. A pool that answers rejection by running the
+     * task inline — {@code CallerRunsPolicy} — still does so, and {@link #run()} isolates the thread it
+     * borrows.
      *
      * @param executor target executor
-     * @param runOnCallerThread whether the task may run on the submitting thread on rejection
      */
-    public void submitPrepared(Executor executor, boolean runOnCallerThread) {
+    public void submitPrepared(Executor executor) {
         try {
             // Marks the handoff window for the inline guard; see submittingThread. Cleared as soon as
             // execute() returns, so a task that merely gets queued is never mistaken for an inline
@@ -221,21 +218,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 executor.execute(this);
             }
         } catch (RejectedExecutionException rejected) {
-            if (runOnCallerThread) {
-                // The borrowed thread's interrupt flag is isolated inside run() itself, which also
-                // covers the submitter thread and any thread a user's RejectedExecutionHandler
-                // borrows.
-                run();
-            } else {
-                reject(rejected);
-            }
+            reject(rejected);
         } catch (Throwable failure) {
             // Errors are caught on purpose. Once the handoff throws, no worker holds this future
             // and nothing else can terminate it, so letting the failure propagate would leave a
             // pending future behind: a batch that never drains, or a task group whose convergence
             // barrier can never reach its total. A broken executor that throws instead of rejecting
             // and an executor that fails while enqueuing (OutOfMemoryError) both fail the task this
-            // way, exactly like an ordinary rejection without the caller-thread fallback.
+            // way, exactly like an ordinary rejection.
             if (failure instanceof Error) {
                 // The single-submit and group-member paths share this kernel, so this one log
                 // covers both; the batch path reports its own handoff Errors in
