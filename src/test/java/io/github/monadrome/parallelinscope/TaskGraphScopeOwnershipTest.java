@@ -129,6 +129,50 @@ class TaskGraphScopeOwnershipTest {
     }
 
     @Test
+    void aForeignMiddleFrameCannotLaunderTheScopeIntoTheNextNestingLevel() throws Exception {
+        // Nesting owner work inside owner work needs more than one worker, so this case builds its
+        // own pools rather than the single-threaded owner pool the other cases use.
+        ownerPool = Executors.newFixedThreadPool(4);
+        foreignPool = Executors.newFixedThreadPool(4);
+        owner = ParRuntime.builder().register(ParId.of("owner"), ownerPool).build();
+        foreign =
+                ParRuntime.builder().register(ParId.of("foreign"), foreignPool).build();
+        try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
+            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
+            Par ownerPar = owner.par(ParId.of("owner"));
+            Par foreignPar = foreign.par(ParId.of("foreign"));
+
+            // owner -> foreign -> owner. The middle frame belongs to the other topology, so it is not
+            // a node in this scope's graph. The innermost unit does belong to the owner, but reaching
+            // it means passing through that middle frame -- and the middle frame must not be able to
+            // hand the scope it inherited back to its own child.
+            TaskFuture<Integer> outer = ownerPar.submit(
+                    "owner-outer",
+                    () -> foreignPar
+                            .submit(
+                                    "foreign-middle",
+                                    () -> ownerPar.map(
+                                                    Arrays.asList(1, 2),
+                                                    value -> value + 1,
+                                                    BatchOptions.timeout("owner-inner", Duration.ofSeconds(5)))
+                                            .valuesOrThrow()
+                                            .size(),
+                                    TaskOptions.timeout(Duration.ofSeconds(5)))
+                            .get(5, TimeUnit.SECONDS),
+                    TaskOptions.timeout(Duration.ofSeconds(5)));
+            assertThat(outer.get(10, TimeUnit.SECONDS)).isEqualTo(2);
+
+            // Only the owner's own top-level task is recorded. The innermost batch is left out rather
+            // than attached to a parent this graph does not contain: an edge needs both endpoints, and
+            // inventing one would fabricate a structural relationship that does not exist.
+            assertThat(data.graph().edges()).hasSize(1);
+            assertThat(data.snapshot().nodeLabels()).doesNotContainValue("foreign-middle");
+            assertThat(data.snapshot().nodeLabels()).doesNotContainValue("owner-inner");
+            assertThat(data.snapshot().executorIdentityGraph().edges()).isEmpty();
+        }
+    }
+
+    @Test
     void theOwnRuntimeStillRecordsItsBatchAndTaskEdges() throws Exception {
         twoTopologies(false);
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {

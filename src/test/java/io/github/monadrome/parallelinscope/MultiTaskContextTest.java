@@ -104,7 +104,7 @@ class MultiTaskContextTest {
     }
 
     @Test
-    void inheritsParentObservationAndCreatesLinkedCancellationToken() {
+    void doesNotInheritTheParentObservationAndCreatesLinkedCancellationToken() {
         ParRuntime global = ParRuntime.builder().build();
         TaskGraphObservationScope observation = global.openTaskGraphObservation();
         try {
@@ -123,7 +123,13 @@ class MultiTaskContextTest {
             assertThat(parent.taskCount()).isEqualTo(2);
             assertThat(parent.structuralParent()).isNull();
             assertThat(child.structuralParent()).isSameAs(parent);
-            assertThat(child.taskGraphObservationScope()).isSameAs(observation);
+            // The observation scope is not a parent-inherited default. Ownership decides it, and only
+            // the caller knows which ParRuntime is admitting this unit, so an unstated scope stays
+            // unset rather than being taken from the parent -- a parent that may belong to another
+            // topology entirely. Every production caller states it from
+            // TaskGraphObservationScope.resolveFor.
+            assertThat(child.taskGraphObservationScope()).isNull();
+            assertThat(parent.taskGraphObservationScope()).isSameAs(observation);
             assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
             assertThat(child.executorIdentity()).isNull();
             assertThat(child.executorLabel()).isNull();
