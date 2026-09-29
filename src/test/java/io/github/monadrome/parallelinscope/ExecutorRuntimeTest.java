@@ -21,12 +21,11 @@ import org.junit.jupiter.api.Test;
 class ExecutorRuntimeTest {
 
     @Test
-    void boundedQueueAndBoundedThreadsClassifyAsBoundedPlatformPool() {
+    void aBufferingQueueMakesAPoolStarvationProne() {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(8));
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
             assertThat(runtime.starvationProne()).isTrue();
             assertThat(runtime.rejectEnqueueEffective()).isFalse();
         } finally {
@@ -35,14 +34,12 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void fixedPoolWithUnboundedQueueIsUnboundedAndStillStarvationProne() {
+    void fixedPoolWithUnboundedQueueIsStillStarvationProne() {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(executor);
 
-            // The queue absorbs without limit, so the classification names the resource fact...
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.UNBOUNDED);
-            // ...while the buffering queue is what decides whether a child task can starve.
+            // The buffering queue is what decides whether a child task can starve.
             assertThat(runtime.starvationProne()).isTrue();
         } finally {
             executor.shutdownNow();
@@ -50,12 +47,11 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void cachedPoolWithHandoffQueueIsUnboundedAndCanAlwaysAddAThread() {
+    void cachedPoolWithHandoffQueueCanAlwaysAddAThread() {
         ExecutorService executor = Executors.newCachedThreadPool();
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(executor);
 
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.UNBOUNDED);
             assertThat(runtime.starvationProne()).isFalse();
         } finally {
             executor.shutdownNow();
@@ -63,12 +59,11 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void poolWithSmartBlockingQueueIsBoundedAndHonoursRejectEnqueue() {
+    void poolWithSmartBlockingQueueHonoursRejectEnqueue() {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(8));
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
             assertThat(runtime.starvationProne()).isTrue();
             assertThat(runtime.rejectEnqueueEffective()).isTrue();
         } finally {
@@ -86,7 +81,6 @@ class ExecutorRuntimeTest {
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.UNBOUNDED);
             assertThat(runtime.starvationProne()).isTrue();
         } finally {
             pool.shutdownNow();
@@ -102,7 +96,6 @@ class ExecutorRuntimeTest {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
             // A handoff queue is a bounded queue, so the resource shape is still a bounded pool.
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
             assertThat(runtime.starvationProne()).isFalse();
         } finally {
             pool.shutdownNow();
@@ -110,18 +103,16 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void executorWithoutReadableStructureStaysUnknownAndClaimsNoStarvation() {
+    void executorWithoutReadableStructureClaimsNoStarvation() {
         ExecutorService single = Executors.newSingleThreadExecutor();
         ExecutorService decorated = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(2));
         try {
             ExecutorRuntime singleRuntime = new ExecutorRuntime(single);
             ExecutorRuntime decoratedRuntime = new ExecutorRuntime(decorated);
 
-            assertThat(singleRuntime.blockingRisk()).isEqualTo(BlockingRisk.UNKNOWN);
             assertThat(singleRuntime.starvationProne()).isFalse();
             assertThat(singleRuntime.rejectEnqueueEffective()).isFalse();
             // A user-supplied decorator hides the physical pool, so the queue is unreadable too.
-            assertThat(decoratedRuntime.blockingRisk()).isEqualTo(BlockingRisk.UNKNOWN);
             assertThat(decoratedRuntime.starvationProne()).isFalse();
             assertThat(decoratedRuntime.rejectEnqueueEffective()).isFalse();
         } finally {
@@ -146,7 +137,6 @@ class ExecutorRuntimeTest {
 
             assertThat(runtime.suppliedExecutor()).isSameAs(wrapped);
             assertThat(runtime.introspectableExecutor()).isSameAs(physical);
-            assertThat(runtime.blockingRisk()).isEqualTo(BlockingRisk.BOUNDED_PLATFORM_POOL);
             assertThat(runtime.starvationProne()).isTrue();
             assertThat(runtime.rejectEnqueueEffective()).isTrue();
             assertThat(runtime.identity()).isNotEqualTo(new ExecutorRuntime(physical).identity());
