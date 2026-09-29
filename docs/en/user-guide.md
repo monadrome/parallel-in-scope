@@ -30,7 +30,7 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. `ParRuntime` is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
+Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. Automatic purge is the one runtime-adjustable knob: `setPurgeEnabled(boolean)` and `adjustPurgeThresholds(double, double)` re-tune it after build. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
 
@@ -226,7 +226,7 @@ completion still runs with the finished result, and under a direct executor it m
 `submitAll()` returns.
 
 Group cancellation is fully structured, matching batch semantics: the first member failure, a
-direct cancellation of any member future or member token, the group deadline, or any single member
+direct cancellation of any member future, the group deadline, or any single member
 deadline cancels every unfinished member. `group.cancel()` only issues the cancellation request.
 `close()` cancels unfinished members and then waits for their task bodies to exit within the
 group's close grace — the cleanup budget configured with `closeGrace(Duration)` at the head of the
@@ -244,8 +244,8 @@ member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` ra
 cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
 member deadlines start at the submission boundary, and member deadlines are capped by the group
 deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
-ceiling; cancellation propagated from an ancestor keeps its originating reason
-(`CancellationToken.originState()`), so an ancestor deadline expiring still converges the group as
+ceiling; cancellation propagated from an ancestor keeps its originating reason,
+so an ancestor deadline expiring still converges the group as
 `TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while
 membership itself does not add dependency edges between siblings. Execution order is fixed by the
 chain — plain members in declaration order, a terminal combine always last.
@@ -409,7 +409,7 @@ completion future's own `completionFuture()` carries a single group-level summar
 
 ## Cancellation and nested batches
 
-Any task failure triggers fail-fast cancellation for its batch. A timeout, explicit `CancellationToken` cancellation, or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
+Any task failure triggers fail-fast cancellation for its batch. A timeout, an explicit cancel (`TaskBatchResult.close()`, `TaskGroup.cancel()`, or cancelling a member future), or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
 
 ```java
 httpPar.map(accountIds, id -> {

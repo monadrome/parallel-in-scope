@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> Historical examples in this note may use the pre-v0.2 API. Current application wiring uses `ParRuntime.builder()` and the per-scope option types (`BatchOptions`/`TaskGroupOptions`/`TaskOptions`); see the [migration guide](../migration-v0.2.md).
+> Historical examples in this note may use pre-0.2 API. Current application wiring uses `ParRuntime.builder()` and the per-scope option types (`BatchOptions`/`TaskOptions`); see the [v0.3 migration guide](../migration-v0.3.md).
 
 This page records features we seriously considered but ultimately decided not to implement, together with the reasons for rejecting them.
 
