@@ -42,7 +42,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 - combine 的用户 body 只在 join 后、在目标 executor 线程上**执行**；准备阶段创建的是执行管道，不触碰用户 body。它不得在 builder、`build()`、`Bindings` 登记、submitGroup 准备阶段或 member 完成回调中运行；
 - TTL 快照时点与 member 一致（submitGroup 的 prepare 阶段），不捕获 join 回调线程的上下文；
 - combine 在 submitGroup 时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"submitGroup 后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
-- combine 禁用拒绝后的 caller-thread fallback（`runOnCallerThread` 对 combine 不生效）：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`。注意这个禁用只覆盖库自己的 inline 分支——用户池的拒绝处理器若在 `execute()` 内部同步跑掉 body（`CallerRunsPolicy`），不会抛 `RejectedExecutionException`，该分支永远看不到它；这条缺口由 `forbidInlineExecution()` 在执行期按线程身份补上（§9 验收项 1）；
+- combine 不得在任何借用线程上执行：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`；用户池的拒绝处理器若在 `execute()` 内部同步跑掉 body（`CallerRunsPolicy`），不会抛 `RejectedExecutionException`，这条缺口由 `forbidInlineExecution()` 在执行期按线程身份拦下（§9 验收项 1）；
 - combine 的结构 parent 与 member 相同（submitGroup 现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
 完成计数不变式调整为 `totalTasks == memberCount + (combine ? 1 : 0)`（收敛屏障的目标计数）：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending public future。
@@ -125,8 +125,7 @@ public final class CombineContext {
   `group.future(combineMember)` 取回，类型安全、foreign handle 校验和 Guava 终态语义全部
   复用成员路径；
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
-  timeout/taskType/rejectEnqueue/runOnCallerThread，与 member 一致，但 combine 忽略
-  `runOnCallerThread`——join 时无可借用的 caller thread，被拒绝即记 `SUBMISSION_FAILURE`；
+  timeout/taskType/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
   若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），body 同样不执行、记
   `SUBMISSION_FAILURE`（§9 验收项 1）。`taskType`/`rejectEnqueue` 对 combine 仍然有效：
   默认 `IO_BOUND` + `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
@@ -250,11 +249,11 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 最低验收：
 
 1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
-   这条保证由两个机制共同承担，缺一不可：`runOnCallerThread=false` 挡住库自己的 inline 回退（它只在
-   `RejectedExecutionException` 抛出时才有机会触发）；而用户池的 `RejectedExecutionHandler` 在
-   `execute()` 内部同步跑掉 body 时**根本不抛那个异常**，由 `forbidInlineExecution()` 在 `run()` 里按
-   线程身份拦下（仅对 `ThreadPoolExecutor` 启用，见下）。只有前者时，`CallerRunsPolicy` 池饱和会让
-   combine 静默跑在收敛回调线程上，group 仍报 `SUCCESS`——这正是曾经的实际行为。
+   库自身没有任何 inline 回退路径（`runOnCallerThread` 已删除）；剩下的缺口是用户池的
+   `RejectedExecutionHandler` 在 `execute()` 内部同步跑掉 body 时**根本不抛异常**，这条由
+   `forbidInlineExecution()` 在 `run()` 里按线程身份拦下（仅对 `ThreadPoolExecutor` 启用，见下）。
+   没有它时，`CallerRunsPolicy` 池饱和会让 combine 静默跑在收敛回调线程上，group 仍报
+   `SUCCESS`——这正是曾经的实际行为。
 
    **为什么按执行期线程身份判定，而不是在提交期按拒绝策略拒绝：** `CallerRunsPolicy` 只在池真正饱和时
    inline，池从不饱和的用户其 combine 从未违反过任何保证。按策略株连会把这批合规用户直接改成必然失败，
