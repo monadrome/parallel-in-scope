@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -78,8 +77,7 @@ public final class Par {
         return executorRuntime;
     }
 
-    ExecutionPhaseHintFuture<Object> prepareGroupTask(
-            Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
+    ExecutionPhaseHintFuture<Object> prepareGroupTask(Callable<Object> callable, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(taskContext, callable, executorRuntime.phaseObserver());
     }
 
@@ -166,7 +164,7 @@ public final class Par {
             logForking(observation, unit, edge);
         }
         TaskExecutionContext taskContext =
-                new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
+                new TaskExecutionContext(unit, 0, System.nanoTime(), bodyCompletion.register(unit));
         ExecutionPhaseHintFuture<T> future =
                 TaskSubmissions.prepare(taskContext, task, executorRuntime.phaseObserver());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
@@ -238,11 +236,10 @@ public final class Par {
                     executorRuntime.starvationProne());
             logForking(observation, unit, edge);
         }
-        Ticker ticker = Ticker.systemTicker();
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
         List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, ticker.read(), bodyCompletion.register(unit)),
+                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index)),
                         executorRuntime.phaseObserver()))
                 .collect(toImmutableList());
