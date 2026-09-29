@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
  * declarations cannot appear together.
  */
 public final class TaskOptions {
-    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.CPU_BOUND, true, false);
+    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.IO_BOUND, false, false);
 
     private final @Nullable Duration timeout;
     private final TaskType taskType;
@@ -50,7 +50,7 @@ public final class TaskOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskOptions timeout(Duration timeout) {
-        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.CPU_BOUND, true, false);
+        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, false);
     }
 
     /** Returns a copy of these options with the given task type. */

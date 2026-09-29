@@ -227,16 +227,27 @@ class ParSubmitTest {
             assertThat(records).isEmpty();
 
             // A fixed pool's default queue never reads the flag: say so once, not once per task.
-            par.submit("loud", () -> "b", TaskOptions.timeout(Duration.ofSeconds(30)))
+            // The flag is requested explicitly because it is off by default: an inert-flag warning
+            // presupposes a caller who asked for enqueue rejection, and the default no longer does.
+            par.submit(
+                            "loud",
+                            () -> "b",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
                     .get(2, TimeUnit.SECONDS);
-            par.submit("loud-again", () -> "c", TaskOptions.timeout(Duration.ofSeconds(30)))
+            par.submit(
+                            "loud-again",
+                            () -> "c",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
                     .get(2, TimeUnit.SECONDS);
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
             assertThat(records.get(0).getMessage()).contains("plain", "inert");
 
             global.par(ParId.of("plain-two"))
-                    .submit("loud-other", () -> "d", TaskOptions.timeout(Duration.ofSeconds(30)))
+                    .submit(
+                            "loud-other",
+                            () -> "d",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
                     .get(2, TimeUnit.SECONDS);
             assertThat(records).hasSize(2);
 

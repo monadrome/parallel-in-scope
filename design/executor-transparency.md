@@ -13,7 +13,14 @@
 
 ### 1.1 A3：`rejectEnqueue` 默认开启，却在主流配置下永不生效
 
-机制：`TaskOptions`/`BatchOptions` 的 `rejectEnqueue` **默认 `true`**
+> **后续变更（本节描述的是变更前的状态）。** `rejectEnqueue` 的默认值已改为 `false`，
+> 默认 `TaskType` 已改为 `IO_BOUND`。本节诊断的是"默认开启却在普通队列上无声失效"，
+> 落地方案是 §6.2 的每 `Par` 一次警告，该警告仍在。而默认值改动针对的是它的**互补面**：
+> 在 `SmartBlockingQueue` 池上，旧默认组合（`CPU_BOUND` ∨ `rejectEnqueue` 任一成立即拒绝入队）
+> 会让队列拒收每一个用默认选项提交的任务，配置的容量永不被使用。两个方向的问题都来自
+> 同一个事实——这个选项的后果高度依赖池的形态。本节余下内容按当时的默认值阅读。
+
+机制：`TaskOptions`/`BatchOptions` 的 `rejectEnqueue` 当时**默认 `true`**
 （`TaskOptions.java:24,52`、`BatchOptions.java:46`）。它的唯一读者是
 `SmartBlockingQueue.offer`（`SmartBlockingQueue.java:63-70`）：提交线程上的任务单元
 为 `CPU_BOUND` 或 `rejectEnqueue()` 为 true 时，`offer` 直接返回 false，迫使

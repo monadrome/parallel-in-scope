@@ -67,6 +67,12 @@
 | 拒绝时处置 | `runOnCallerThread` | `false`（失败） | 任意 executor |
 | 入队拒绝 | `TaskType.CPU_BOUND` ∨ `rejectEnqueue` | `rejectEnqueue` 默认 `true` | 仅 `SmartBlockingQueue` |
 
+> **后续变更。** 上表末行的默认值已不成立：`rejectEnqueue` 默认改为 `false`，默认 `TaskType`
+> 改为 `IO_BOUND`。判定式 `CPU_BOUND ∨ rejectEnqueue` 本身不变，变的是两个操作数的默认值——
+> 正因为是"或"，任一取拒绝值就足以让 `SmartBlockingQueue` 拒收每一个用默认选项提交的任务，
+> 使其容量永不被使用。要那个行为需显式声明 `CPU_BOUND` 或 `rejectEnqueue(true)`。
+> 本文余下内容按落地当时的默认值阅读。
+
 `runOnCallerThread(true)` 时该任务在 executor 抛出 `RejectedExecutionException` 后由
 提交线程直接运行（现 `ExecutionPhaseHintFuture.submitPrepared` 的 `run()` 分支）；
 `false` 时 future 以 `SubmissionException` 失败，`ExecutionPhase` 停在 `TERMINAL`，
