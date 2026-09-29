@@ -1,0 +1,50 @@
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_fe4a7aedc30bc2::t_4c4a4410757b58 87,91,93-94,115,117
+  s_fe4a7aedc30bc2::t_04c3730f111873 88-90,92
+  s_fe4a7aedc30bc2::t_b55633abd2e131 95-105,116
+  s_fe4a7aedc30bc2::t_29f180a0ef7aa4 106
+  s_fe4a7aedc30bc2::t_21eed86a414547 107-114
+  s_fe4a7aedc30bc2::t_d14a52d4906f3b 170-175,180-185,187-191
+  s_fe4a7aedc30bc2::t_c4dab8fd399b2a 186
+  s_fe4a7aedc30bc2::t_7f2fc0505bbb01 202,193-201,205
+  s_fe4a7aedc30bc2::t_847644ee13d193 207-219
+  s_fe4a7aedc30bc2::t_9c2ad8800fdda0 361,372-378
+  s_fe4a7aedc30bc2::t_1fd3651a68317f 391-395,398,405-409
+  s_fe4a7aedc30bc2::t_3cc33441b78b4f 396
+  s_fe4a7aedc30bc2::t_f4e7a24cd85de6 399-404
+  s_fe4a7aedc30bc2::t_fb56bbe49fb2cc 456-459,454
+  s_fe4a7aedc30bc2::t_3d02bc5eda6806 176-179
+  s_fe4a7aedc30bc2::t_3029b9c5b978a8 221
+  s_fe4a7aedc30bc2::t_51610d418b4e25 228
+src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java
+  s_fe4a7aedc30bc2::t_8d343ddece980c 133-139,142-143,145,149-150,152,154,160,165
+src/main/java/io/github/monadrome/parallelinscope/TaskSubmissions.java
+  s_fe4a7aedc30bc2::t_2eda60b79c3404 58-63,65,68
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fe4a7aedc30bc2::t_5f6778706eb2ec 550,552,555-557
+  s_fe4a7aedc30bc2::t_1e910db6b6fa28 576
+  s_fe4a7aedc30bc2::t_ce857a79f0449e 577-578
+  s_fe4a7aedc30bc2::t_741bb5821f08ee 546-549,551,553-554
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  s_fe4a7aedc30bc2::t_e0eae822a55497 145
+src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java
+  s_fe4a7aedc30bc2::t_7d7851b428189f 245-250,252-255,262-265
+  s_fe4a7aedc30bc2::t_5206cd811d0f5e 61-66,68,73,75,77-82,84-91
+  s_fe4a7aedc30bc2::t_f3487d139ff0d5 271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f860e903a16eb407fe8ae5ca080f84b9d8776e0c",
+  "prompts": {},
+  "sessions": {
+    "s_fe4a7aedc30bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d2aface-7dc7-4c13-8d6f-b471230ac849",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
