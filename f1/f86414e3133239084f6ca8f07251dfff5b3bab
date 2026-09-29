@@ -1,0 +1,46 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskCompletion.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 55
+src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java
+  s_ede93b60fe0bb3::t_28902ef867c063 3-4,53
+  s_ede93b60fe0bb3::t_56b7621efa4797 59
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  s_ede93b60fe0bb3::t_7e691a921235b8 39
+  s_ede93b60fe0bb3::t_56b7621efa4797 60-61,120-126
+  s_ede93b60fe0bb3::t_28902ef867c063 3-4,75
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 149
+src/main/java/io/github/monadrome/parallelinscope/ParId.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 39
+src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java
+  s_ede93b60fe0bb3::t_56b7621efa4797 215
+  s_ede93b60fe0bb3::t_170f196c0e7d70 3-6,96,100-104,116,121-125,134,139-140,144-147,157-166,214,219-221
+src/main/java/io/github/monadrome/parallelinscope/BodyCompletionTracker.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 65,169
+src/test/java/io/github/monadrome/parallelinscope/ValidationTest.java
+  s_ede93b60fe0bb3::t_68a171bf739481 52
+  s_ede93b60fe0bb3::t_cf0000795af655 1-16,19-51,53-88
+  s_ede93b60fe0bb3::t_82aaf3545019f8 17-18
+src/main/java/io/github/monadrome/parallelinscope/TaskExecutionContext.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 31
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 324
+  s_ede93b60fe0bb3::t_56b7621efa4797 307-308
+src/main/java/io/github/monadrome/parallelinscope/Validation.java
+  s_ede93b60fe0bb3::t_f85939df9d3000 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f1f86414e3133239084f6ca8f07251dfff5b3bab",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
