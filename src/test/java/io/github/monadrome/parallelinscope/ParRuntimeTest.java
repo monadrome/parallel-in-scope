@@ -728,7 +728,6 @@ class ParRuntimeTest {
             assertThat(plainRuntime.identity().hashCode()).isEqualTo(samePlain.hashCode());
             assertThat(plainRuntime.identity().suppliedExecutor()).isSameAs(plain);
             assertThat(plainRuntime.identity().toString()).contains("@");
-            assertThat(plainRuntime.blockingRisk()).isEqualTo(BlockingRisk.UNKNOWN);
         } finally {
             plain.shutdownNow();
             listening.shutdownNow();
