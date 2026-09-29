@@ -1,0 +1,35 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskEdgeEntry.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 16
+src/main/java/io/github/monadrome/parallelinscope/ExecutorIdentity.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 24,29
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 47,54,63,72,82,91,100,122,127
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_ede93b60fe0bb3::t_6d58f0b044f14c 239-240,244-245,249-250,255-256
+  s_ede93b60fe0bb3::t_a32c35ca314464 204,209,213,217,221,226,230,260,264,269
+src/main/java/io/github/monadrome/parallelinscope/HeuristicPurger.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 66,77,112,129
+src/main/java/io/github/monadrome/parallelinscope/TaskEdge.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 37,58,78,104,113,142,151,160
+  s_ede93b60fe0bb3::t_6d58f0b044f14c 122-123,132-133,165-166,171-172
+src/main/java/io/github/monadrome/parallelinscope/TaskSubmissions.java
+  s_ede93b60fe0bb3::t_a32c35ca314464 33,48,62
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_ede93b60fe0bb3::t_ff5e7d56f06d6d 11,50,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "da3ddd4ddab9f5d48cd6ac7a74d063537788244e",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
