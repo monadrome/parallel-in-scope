@@ -4,7 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.SettableFuture;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -105,5 +112,82 @@ class BodyCompletionBarrierInterruptTest {
         });
         thread.setDaemon(true);
         thread.start();
+    }
+
+    @Test
+    void thePublicBatchAwaitAlsoThrowsRatherThanReportingAnElapsedBudget() throws Exception {
+        // An empty body tracker makes phase one pass at once, so the wait reaches the element-future
+        // phase -- which is where the interrupt has to stay an interrupt. Going through the public
+        // method matters: pinning only the tracker helper would let a caller re-wrap these calls in
+        // the very catch that caused the original defect.
+        SettableFuture<String> neverSettles = SettableFuture.create();
+        CancellationToken token = new CancellationToken();
+        TaskBatchResult<String> batch =
+                TaskBatchResult.of(Collections.singletonList(Task.of("element", token, neverSettles)));
+
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        AtomicBoolean returnedFalse = new AtomicBoolean();
+        CountDownLatch entered = new CountDownLatch(1);
+        Thread waiter = new Thread(() -> {
+            entered.countDown();
+            try {
+                returnedFalse.set(!batch.awaitBodyCompletion(Duration.ofSeconds(30)));
+            } catch (Throwable t) {
+                thrown.set(t);
+            }
+        });
+        waiter.setDaemon(true);
+        waiter.start();
+
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        // Give the waiter time to park inside the element-future wait, then interrupt it there.
+        Thread.sleep(150L);
+        waiter.interrupt();
+        waiter.join(TimeUnit.SECONDS.toMillis(10));
+
+        assertThat(thrown.get())
+                .as("an interrupt in the element-future phase must surface as InterruptedException")
+                .isInstanceOf(InterruptedException.class);
+        assertThat(returnedFalse).isFalse();
+    }
+
+    @Test
+    void thePublicGroupAwaitAlsoThrowsRatherThanReportingAnElapsedBudget() throws Exception {
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try (ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("p"), pool).build()) {
+            CountDownLatch release = new CountDownLatch(1);
+            TaskGroup<String, Void> group = runtime.group("g", Duration.ofSeconds(30))
+                    .par("member", runtime.par(ParId.of("p")), String.class, () -> {
+                        release.await();
+                        return "done";
+                    })
+                    .submitAll();
+
+            AtomicReference<Throwable> thrown = new AtomicReference<>();
+            CountDownLatch entered = new CountDownLatch(1);
+            Thread waiter = new Thread(() -> {
+                entered.countDown();
+                try {
+                    group.awaitBodyCompletion(Duration.ofSeconds(30));
+                } catch (Throwable t) {
+                    thrown.set(t);
+                }
+            });
+            waiter.setDaemon(true);
+            waiter.start();
+
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            Thread.sleep(150L);
+            waiter.interrupt();
+            waiter.join(TimeUnit.SECONDS.toMillis(10));
+            release.countDown();
+
+            assertThat(thrown.get())
+                    .as("an interrupt while awaiting group bodies must surface as InterruptedException")
+                    .isInstanceOf(InterruptedException.class);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }
