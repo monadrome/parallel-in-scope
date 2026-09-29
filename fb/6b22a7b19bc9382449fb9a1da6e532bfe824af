@@ -1,0 +1,20 @@
+CHANGELOG.md
+  s_ede93b60fe0bb3::t_1305cefdf5cc53 103
+  s_ede93b60fe0bb3::t_c30de2f3c03f74 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fb6b22a7b19bc9382449fb9a1da6e532bfe824af",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
