@@ -262,8 +262,7 @@ body 绑到另一份 definition，也不会忘记提交而留下永久 pending �
 路径——`Class` 形态内部就是 `TypeToken.of(type)`，运行期类型检查与错误时机完全一致。需要
 自定义 `TaskOptions` 时只提供 `TypeToken` 形态：
 `par(name, par, options, TypeToken.of(Foo.class), body)`。省略成员 `TaskOptions` 等价于
-`TaskOptions.inheritTimeout()`；只有需要更紧预算、不同 task type、不同入队策略或显式的
-拒绝时 caller-thread 回退（`runOnCallerThread(true)`）时才显式传入选项。
+`TaskOptions.inheritTimeout()`；只有需要更紧预算、不同 task type 或不同入队策略时才显式传入选项。
 
 声明阶段不创建取消 token、future、绝对 deadline、timer 或 TTL 快照，也不调用 executor；
 组 timeout 从 `submitAll()` 的提交边界起算，所以声明耗时不吃执行预算。`submitAll()` 是唯一
@@ -555,7 +554,7 @@ try {
 > 两者都取拒绝值会让该队列拒收每一个用默认选项提交的任务，配置的容量永不被使用。
 > 本节描述的是 0.2.x 的行为与它的迁移，不是当前默认值。
 
-该回退现在是显式选项，且默认关闭：
+0.3.0 中拒绝一律使元素失败；让被拒绝的任务在提交线程上执行是执行器自身的契约，在构建执行器时一次性声明：
 
 ```java
 // 0.2.x：拒绝后会在提交线程执行——CPU_BOUND 隐含 inline
@@ -564,30 +563,47 @@ BatchOptions.timeout("load", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND)
 // 0.3.0：同样的选项改为以 SUBMISSION_FAILURE 失败
 BatchOptions.timeout("load", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND);
 
-// 0.3.0：显式恢复旧行为
-BatchOptions.timeout("load", Duration.ofSeconds(5))
-        .taskType(TaskType.CPU_BOUND)
-        .runOnCallerThread(true);
+// 0.3.0：要保留"被拒绝后在提交线程执行"，在执行器上声明
+new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
 ```
 
 | | `0.2.x` | `0.3.0` |
 |---|---|---|
-| `TaskOptions` / `BatchOptions` 公开面 | `taskType`、`rejectEnqueue` | `taskType`、`rejectEnqueue`、`runOnCallerThread` |
+| `TaskOptions` / `BatchOptions` 公开面 | `taskType`、`rejectEnqueue` | 不变 |
 | `CPU_BOUND` 任务被拒绝 | 在提交线程执行 | 以 `SUBMISSION_FAILURE` 失败，任务体不进入 |
 | `IO_BOUND` / `MIXED` 任务被拒绝 | 以 `SUBMISSION_FAILURE` 失败 | 不变 |
-| 声明 `runOnCallerThread(true)` 后被拒绝 | — | 在提交线程执行 |
+| 被拒绝后在提交线程执行 | `CPU_BOUND` 隐含 | 执行器的 `RejectedExecutionHandler`（`CallerRunsPolicy`），或 `MoreExecutors.newDirectExecutorService()` |
 
-`runOnCallerThread` 对任意执行器、任意任务类型都生效。请有意地启用它：任务体此后在提交
-线程上运行，这是背压而非排队，并且会阻塞该线程当时在做的事——对批次而言，就是驱动提交
-窗口的那个线程。
+把该决策移到执行器侧有两个注意事项。`CallerRunsPolicy` 只存在于 `ThreadPoolExecutor`；要让其他
+`ExecutorService` 具备 caller-runs 行为，可以包一层装饰器，在委托拒绝时自己运行任务：
+
+```java
+class CallerRunsExecutor extends AbstractExecutorService {
+    private final ExecutorService delegate;
+    // ... 生命周期方法转发给 delegate ...
+    @Override
+    public void execute(Runnable command) {
+        try {
+            delegate.execute(command);
+        } catch (RejectedExecutionException rejected) {
+            command.run();
+        }
+    }
+}
+```
+
+另外，背压的时序不再是库能给你的：库内建的回退会把提交线程占在提交机制内部，池饱和时
+后续元素的提交自然变慢。执行器侧的处理器能复现执行本身，但复现不了批次提交内部的那种节流。
 
 `TaskType` 不再影响拒绝路径。它现在只驱动一件事：`SmartBlockingQueue` 是否拒绝入队
 （`CPU_BOUND` 即使 `rejectEnqueue(false)` 也拒绝；其他值可入队）。在任何其他队列上，
 `TaskType` 不改变任何行为，且 `IO_BOUND` 与 `MIXED` 不可区分——`MIXED` 保留为对意图的
 声明，不是调度指令。
 
-终端 combine 不读 `runOnCallerThread`：它没有 caller thread，由框架在 join 时提交。被
-拒绝的 combine 仍以 `SUBMISSION_FAILURE` 失败。
+终端 combine 没有 caller thread：它由框架在 join 时提交。被拒绝的 combine 以
+`SUBMISSION_FAILURE` 失败；拒绝处理器想把它放到提交线程上 inline 执行时，会被拒绝并记为
+submission failure。
 
 ## 关闭作用域现在会等待
 

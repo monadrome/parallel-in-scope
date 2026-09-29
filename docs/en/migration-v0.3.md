@@ -282,8 +282,7 @@ parameterized one. Both take the same code path — the `Class` form is `TypeTok
 internally, with identical runtime type checking and error timing. Custom `TaskOptions` are
 available only in the `TypeToken` form: `par(name, par, options, TypeToken.of(Foo.class), body)`.
 Omitting a member's `TaskOptions` is exactly `TaskOptions.inheritTimeout()`; pass options only
-for a tighter budget, a different task type, a different enqueue policy, or an explicit
-caller-thread fallback on rejection (`runOnCallerThread(true)`).
+for a tighter budget, a different task type, or a different enqueue policy.
 
 Declaration creates no cancellation token, future, absolute deadline, timer, or TTL snapshot, and
 calls no executor; the group timeout starts at the `submitAll()` submission boundary, so
@@ -618,7 +617,8 @@ rejection.
 > submitted with default options, leaving its configured capacity unused. This section describes
 > 0.2.x behaviour and its migration, not the current defaults.
 
-The fallback is now an explicit option, and it defaults to off:
+In 0.3.0 a rejection always fails the element, and running rejected work on the submitting thread
+is the executor's own contract, declared once where the executor is built:
 
 ```java
 // 0.2.x: rejection ran this on the submitting thread, because CPU_BOUND implies inline
@@ -627,23 +627,41 @@ BatchOptions.timeout("load", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND)
 // 0.3.0: the same options fail the element with SUBMISSION_FAILURE instead
 BatchOptions.timeout("load", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND);
 
-// 0.3.0: opt back into the old behaviour explicitly
-BatchOptions.timeout("load", Duration.ofSeconds(5))
-        .taskType(TaskType.CPU_BOUND)
-        .runOnCallerThread(true);
+// 0.3.0: to keep running rejected tasks on the submitting thread, say so on the executor
+new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
 ```
 
 | | `0.2.x` | `0.3.0` |
 |---|---|---|
-| `TaskOptions` / `BatchOptions` surface | `taskType`, `rejectEnqueue` | `taskType`, `rejectEnqueue`, `runOnCallerThread` |
+| `TaskOptions` / `BatchOptions` surface | `taskType`, `rejectEnqueue` | unchanged |
 | Rejected `CPU_BOUND` task | runs on the submitting thread | fails with `SUBMISSION_FAILURE`; body never runs |
 | Rejected `IO_BOUND` / `MIXED` task | fails with `SUBMISSION_FAILURE` | unchanged |
-| Rejection with `runOnCallerThread(true)` | — | runs on the submitting thread |
+| Running rejected work on the submitting thread | implicit for `CPU_BOUND` | the executor's `RejectedExecutionHandler` (`CallerRunsPolicy`), or `MoreExecutors.newDirectExecutorService()` |
 
-`runOnCallerThread` applies to any executor and to every task type. Ask for it deliberately: the
-task body then runs on the submitting thread, which is back-pressure rather than queueing, and
-which can block whatever that thread was doing — including, for a batch, the thread driving the
-submission window.
+Two caveats come with moving the decision to the executor. `CallerRunsPolicy` exists only on
+`ThreadPoolExecutor`; to get caller-runs behaviour from another `ExecutorService`, decorate it and
+run the command when the delegate rejects:
+
+```java
+class CallerRunsExecutor extends AbstractExecutorService {
+    private final ExecutorService delegate;
+    // ... lifecycle methods forward to delegate ...
+    @Override
+    public void execute(Runnable command) {
+        try {
+            delegate.execute(command);
+        } catch (RejectedExecutionException rejected) {
+            command.run();
+        }
+    }
+}
+```
+
+And the back-pressure timing is no longer the library's to give you: a library-driven fallback
+held the submitting thread inside the submission machinery, so a saturated pool naturally slowed
+the submission of later elements. An executor-side handler reproduces the execution but not that
+throttling inside batch submission.
 
 `TaskType` no longer affects the rejection path at all. It now drives exactly one thing: whether
 `SmartBlockingQueue` refuses to enqueue a task (`CPU_BOUND` refuses even when `rejectEnqueue` is
@@ -651,8 +669,9 @@ submission window.
 `IO_BOUND` and `MIXED` are indistinguishable — `MIXED` is retained as a declaration of intent,
 not a scheduling instruction.
 
-The terminal combine does not read `runOnCallerThread`: it has no caller thread, because it is
-submitted by the framework at join time. A rejected combine keeps failing as `SUBMISSION_FAILURE`.
+The terminal combine has no caller thread: it is submitted by the framework at join time. A
+rejected combine fails as `SUBMISSION_FAILURE`, and a rejection handler that would run it inline
+on the convergence thread is refused as a submission failure instead.
 
 ## Closing a scope now waits
 
