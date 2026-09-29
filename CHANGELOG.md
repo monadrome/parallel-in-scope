@@ -100,8 +100,7 @@
   removed without compatibility shims.
 - Hide implementation-only API that was public solely for cross-package access, including runtime
   contexts, task graph data, execution-phase futures, submission helpers, purge machinery, and
-  internal `CancellationToken` transitions. `ActionGate` is retained as package-private pending a
-  separate removal decision.
+  internal `CancellationToken` transitions.
 - Rename `TaskGroupSpec` to `TaskGroupDefinition`, its nested `MemberSpec` to `TaskDefinition`, and `members()` to `tasks()`. These objects record reusable task definitions rather than specifications for execution.
 - Move the Maven coordinates and the root Java package from the account's former name to its current one after the GitHub account rename `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` → `io.github.monadrome:parallel-in-scope`, and `io.github.huatalk.parallelinscope` → `io.github.monadrome.parallelinscope` for imports, `package` declarations, and service loading. `0.1.0` remains published under the old coordinates on Maven Central; the `0.1.0` section below keeps the historical coordinate.
 - Rename `GlobalParLivelockPolicy` to `GlobalParDeadlockPolicy` and `LivelockListener` to `DeadlockDetectionListener`; the graph reports potential deadlock structures, not runtime livelock.
@@ -122,6 +121,7 @@
 - Make the timeout a type-level invariant instead of a `build()`-time check: `timeout(name, Duration)` and `inheritTimeout(name)` are the only factories (`TaskOptions` factories take no name), so a missing or doubled declaration cannot be constructed at all. Options are now built with static factories and immutable withers rather than a builder, and `MultiTaskContext.resolve` takes the package-private `UnitSpec` carrier instead of a public option type, so the kernel no longer depends on public options and a member no longer resolves an unused parallelism.
 - Narrow every task execution future to `TaskFuture`: `TaskBatchResult.results()` elements, `TaskGroup.members()`, `TaskGroup.findMember(String)`, `TaskGroup.future(TaskKey)` (including the terminal combine), and `TaskGroup.completionFuture()` now declare `TaskFuture` instead of `ListenableFuture`. Source compatible (the interface extends `ListenableFuture`), binary incompatible: recompile against this version. `TaskBatchResult.submitCanceller()` deliberately stays a plain `ListenableFuture` — it is a control handle, not a task execution.
 - Wrap an abandoned batch element's cause in `SubmissionException`. A batch rejected at initial submission, or one whose remaining elements are abandoned by an interrupted submitter, now fails those elements with a `SubmissionException` carrying the original cause, so they report `SUBMISSION_FAILURE` instead of `USER_FAILURE`. Read the original rejection or interruption through `getCause()`.
+- Remove the package-private `ActionGate`. It was introduced as a public count- and duration-based gate, privatized when the `.control` package was dissolved, and never acquired a caller: the purge cadence it was meant to amortize is coalesced by `HeuristicPurger`'s own maintenance state machine instead. No public API changes.
 
 ### Features
 
