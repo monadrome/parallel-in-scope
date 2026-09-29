@@ -231,6 +231,75 @@ final class BodyCompletionTracker {
         }
     }
 
+    /**
+     * Derives the close wait budget shared by {@code TaskGroup.close()} and {@code
+     * TaskBatchResult.close()}: the configured close grace when the scope declared one, otherwise
+     * what is left of its execution deadline.
+     *
+     * @param configured the declared close grace, or null to derive from the deadline
+     * @param deadlineNanos the scope's absolute deadline, or {@link Long#MAX_VALUE} for none
+     * @return the budget in nanoseconds; {@code 0} means cancel without waiting, which is what a
+     *     scope with no finite deadline and no configured grace gets — there is nothing to derive a
+     *     budget from. A saturated {@link Long#MAX_VALUE} is not that case: it means the derived
+     *     budget is astronomical.
+     */
+    static long closeGraceBudgetNanos(@Nullable Duration configured, long deadlineNanos) {
+        if (configured != null) {
+            return Deadlines.saturatedNanos(configured);
+        }
+        if (deadlineNanos == Long.MAX_VALUE) {
+            return 0;
+        }
+        return Deadlines.remaining(deadlineNanos, System.nanoTime());
+    }
+
+    /**
+     * Waits for one future to settle inside an already-running budget, without letting the wait
+     * itself become a failure.
+     *
+     * <p>{@code awaitBodyCompletion} needs this twice over: body exit and future settlement ride the
+     * same signals, but a future's {@code get()} waiters can wake before its listeners have run, so
+     * a caller that must see the published observation has to wait out that window too. The budget
+     * is the caller's total, measured from {@code startNanos}, so successive calls consume one
+     * shared allowance rather than each getting the full timeout.
+     *
+     * @param future the future to wait on
+     * @param budgetNanos the caller's whole budget in nanoseconds
+     * @param startNanos the {@link System#nanoTime()} reading the budget started at
+     * @param cannotFail what this future is, when a failure would be an implementation defect rather
+     *     than an outcome — an {@link AssertionError} names it; null accepts failure and
+     *     cancellation as settled
+     * @return true if the future is settled, false if the budget elapsed first
+     */
+    static boolean awaitSettled(
+            ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail) {
+        if (future.isDone()) {
+            return true;
+        }
+        long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
+        if (remainingNanos <= 0) {
+            return false;
+        }
+        try {
+            future.get(remainingNanos, TimeUnit.NANOSECONDS);
+            return true;
+        } catch (ExecutionException | CancellationException settled) {
+            if (cannotFail != null) {
+                throw new AssertionError(cannotFail + " cannot fail", settled);
+            }
+            // A terminal future is all this wait needs; the outcome is the report's business.
+            return true;
+        } catch (TimeoutException elapsed) {
+            return false;
+        } catch (InterruptedException interrupted) {
+            // The caller's own interruptible wait already returned, so an interrupt here is not the
+            // documented "interrupted before or during the wait" case. Restore the flag and report
+            // the budget as spent rather than adding a checked exception to every caller.
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
     private boolean awaitNanos(long nanos) throws InterruptedException {
         try {
             bodyExit.get(nanos, TimeUnit.NANOSECONDS);

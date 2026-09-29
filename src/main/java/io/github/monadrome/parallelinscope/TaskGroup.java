@@ -21,8 +21,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -340,27 +338,9 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                     }
                 },
                 bodyCompletion,
-                closeGraceBudgetNanos(),
+                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanos),
                 "TaskGroup '" + groupName + "'",
                 LOGGER);
-    }
-
-    /**
-     * The close wait budget: the configured close grace when present, otherwise the remaining
-     * execution deadline. {@code 0} means cancel-only, which is what a group with no finite deadline
-     * gets: there is no deadline to derive a budget from, so the close is cancel-only by
-     * construction. A saturated {@code Long.MAX_VALUE} is not that case — it means the derived
-     * budget is astronomical.
-     */
-    private long closeGraceBudgetNanos() {
-        Duration configured = closeGrace;
-        if (configured != null) {
-            return Deadlines.saturatedNanos(configured);
-        }
-        if (deadlineNanos == Long.MAX_VALUE) {
-            return 0;
-        }
-        return Deadlines.remaining(deadlineNanos, System.nanoTime());
     }
 
     /**
@@ -399,20 +379,8 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // every member's completionFuture() already carries its final snapshot.
         long budgetNanos = Deadlines.saturatedNanos(timeout);
         for (MemberState member : membersAndTerminal()) {
-            ListenableFuture<?> observation = member.view.observationView();
-            if (observation.isDone()) {
-                continue;
-            }
-            long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
-            if (remainingNanos <= 0) {
-                return false;
-            }
-            try {
-                observation.get(remainingNanos, TimeUnit.NANOSECONDS);
-            } catch (ExecutionException | CancellationException defect) {
-                // Member observations never fail; a failed observation is an implementation defect.
-                throw new AssertionError("member observation signal cannot fail", defect);
-            } catch (TimeoutException elapsed) {
+            if (!BodyCompletionTracker.awaitSettled(
+                    member.view.observationView(), budgetNanos, startNanos, "member observation signal")) {
                 return false;
             }
         }
