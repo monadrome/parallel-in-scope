@@ -181,7 +181,7 @@ final class BodyCompletionTracker {
         if (bodyExit.isDone()) {
             return true;
         }
-        return awaitNanos(saturatedNanos(timeout));
+        return awaitNanos(Deadlines.saturatedNanos(timeout));
     }
 
     /**
@@ -240,14 +240,6 @@ final class BodyCompletionTracker {
         } catch (ExecutionException | CancellationException impossible) {
             // The signal is only ever set to null on completion; it cannot fail or be cancelled.
             throw new AssertionError("body-exit signal cannot fail", impossible);
-        }
-    }
-
-    private static long saturatedNanos(Duration timeout) {
-        try {
-            return timeout.toNanos();
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
         }
     }
 }
