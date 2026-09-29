@@ -296,10 +296,10 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 |---|---|---|
 | INV-1 | 上下文层位于所有用户代码之外（I1） | 顺序断言 + body 内上下文可见 |
 | INV-2 | 对任务体同步同线程动态范围内的代码，回放生效（I2） | body 内读上下文 == 提交线程值；逃逸负例 |
-| INV-3 | 精确恢复：成功、异常、Error、中断、拒绝、inline 都恢复 worker 原状态 | 单线程池连续执行污染/失败/后继任务 |
+| INV-3 | 精确恢复：成功、异常、Error、中断、拒绝、inline 都恢复 worker 原状态 | 单线程池连续执行污染/失败/后继任务；中断与 inline 两项由 `InlineSubmissionLivenessTest` 锁住（含池化路径对照组），见 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) |
 | INV-4 | 快照独立：每次 prepare 独立捕获，不跨任务复用 | 并发提交不同上下文值 |
 | INV-5 | 传播集合封闭：只传播登记的 `TransmittableThreadLocal` | 登记/未登记对照测试 |
-| INV-6 | prepared future 身份唯一：提交给 executor 的就是 prepare 产出的实例；窗口内任务返回给调用方的也是它，窗口外元素由占位符 `bind` 桥接到该实例 | spy executor 引用相等断言 |
+| INV-6 | prepared future 身份唯一：提交给 executor 的就是 prepare 产出的实例；返回给调用方的视图从创建起就包住该实例，窗口内外一致，无占位符、无 `bind` 桥接 | spy executor 引用相等断言 |
 | INV-7 | 归因不变：body 异常 → `USER_FAILURE`，不新增词汇 | 异常 body → 批/组 outcome 断言 |
 | INV-8 | 取消/deadline/fail-fast 语义与用户是否自助包装无关 | 带自助包装的取消/fail-fast/timeout 测试 |
 | INV-9 | inline 路径与正常路径顺序相同 | 拒绝回退测试 |

@@ -297,6 +297,22 @@ stub 必须换成真实 Guava future + 真实 `interrupt()`。
 
 ### 7.3 `runOnCallerThread` 路径把任务体的中断标志泄漏给提交线程（违反 5.4）
 
+> **已修复**（`8de2122`，见 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）。
+> 隔离没有放在本节指出的 `submitOrRunInline`，而是放进 `ExecutionPhaseHintFuture.run()`：
+> 那是唯一同时覆盖三条被借用线程的位置——调用方线程、库的 submitter 线程、以及用户
+> `RejectedExecutionHandler` 借用的任意线程。进入时清标志，退出时恢复到进入时状态，
+> 与 `ThreadPoolExecutor.runWorker` 对池化 worker 做的事一致；池化 worker 本来就免疫，
+> 所以那条路径上是 no-op。清理在任务体退出之后才做，不在中途——否则会吞掉取消中断，
+> 而在这条路径上取消中断是唯一能解救被占住的线程的机制。
+>
+> 取舍：一个 bit 无法区分三个来源（任务体自己的恢复、库的取消中断、真正发给被借用线程的
+> 中断），所以三者一律丢弃。被牺牲的是第三种——`map()` 执行期间发给调用方线程的真中断会
+> 丢失。这一点已写进 `docs/{en,zh}/user-guide.md` 的 `runOnCallerThread` 说明。
+>
+> 回归锁 `InlineSubmissionLivenessTest`；7.3.1 的"12 个只跑 3 个"由
+> `aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch` 锁住。
+> 本节余下内容保留为当时的缺陷记录。
+
 `runOnCallerThread` 是公开选项（`BatchOptions.java:100`、`TaskOptions.java:88`）。
 打开后，executor 拒绝任务时库在**提交者线程**上 inline 执行任务体
 （`SlidingWindowSubmitter.java:158` → `ListenableCompletionService.java:136-143`）：
@@ -399,7 +415,8 @@ deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线�
 三个缺陷共享同一根因：一条同步路径借用了不属于它的线程，借用前后没有做隔离。前两个
 （中断相关）能靠恢复标志修掉，第三个不能——同步占用无法用恢复标志解决。
 
-**修法有两个选项，需拍板**：
+**修法有两个选项，需拍板**（已拍板：选项 1，但隔离点改在 `run()`，见 7.3 顶部的已修复说明；
+第三个缺陷同时修掉，修法是所有入口都改为先 bind 后提交）：
 
 - **选项 1（推荐）：inline 执行的前后做标志隔离。** 在 `ListenableCompletionService`
   的 inline 分支（`:141`）记录进入时的标志，执行后恢复到进入时的状态。语义上等价于
