@@ -18,8 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
@@ -237,26 +235,15 @@ public final class TaskBatchResult<T> implements AutoCloseable {
                     }
                 },
                 bodyCompletion,
-                closeGraceBudgetNanos(),
+                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone()),
                 "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
                 LOGGER);
     }
 
-    /**
-     * The close wait budget: the configured close grace when present, otherwise the remaining
-     * execution deadline carried by the batch token. A non-positive result — or no derivable
-     * budget — means cancel-only.
-     */
-    private long closeGraceBudgetNanos() {
-        Duration configured = closeGrace;
-        if (configured != null) {
-            return Deadlines.saturatedNanos(configured);
-        }
+    /** The batch's execution deadline, or the no-deadline sentinel when it carries no token. */
+    private long deadlineNanosOrNone() {
         CancellationToken batchToken = token;
-        if (batchToken == null || batchToken.deadlineNanos() == Long.MAX_VALUE) {
-            return 0;
-        }
-        return Deadlines.remaining(batchToken.deadlineNanos(), System.nanoTime());
+        return batchToken == null ? Long.MAX_VALUE : batchToken.deadlineNanos();
     }
 
     /**
@@ -298,18 +285,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
             return false;
         }
         for (TaskFuture<T> future : results) {
-            if (future.isDone()) {
-                continue;
-            }
-            long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
-            if (remainingNanos <= 0) {
-                return false;
-            }
-            try {
-                future.get(remainingNanos, TimeUnit.NANOSECONDS);
-            } catch (ExecutionException | CancellationException settled) {
-                // A terminal future is all this wait needs; the outcome is report()'s business.
-            } catch (TimeoutException elapsed) {
+            if (!BodyCompletionTracker.awaitSettled(future, budgetNanos, startNanos, null)) {
                 return false;
             }
         }
@@ -317,19 +293,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         // be: the publication barrier fires on the same signals this method just waited out, but a
         // future's get() waiters can wake before its listeners run. Wait out that window too, so a
         // true result guarantees completionFuture() already carries the final snapshots.
-        long remainingNanos = budgetNanos - (System.nanoTime() - startNanos);
-        if (remainingNanos <= 0) {
-            return completionView.isDone();
-        }
-        try {
-            completionView.get(remainingNanos, TimeUnit.NANOSECONDS);
-            return true;
-        } catch (ExecutionException | CancellationException defect) {
-            // Element observations never fail; a failed aggregate is an implementation defect.
-            throw new AssertionError("batch observation signal cannot fail", defect);
-        } catch (TimeoutException elapsed) {
-            return false;
-        }
+        return BodyCompletionTracker.awaitSettled(completionView, budgetNanos, startNanos, "batch observation signal");
     }
 
     /**
