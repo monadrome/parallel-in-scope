@@ -267,7 +267,7 @@ final class GroupDraft {
             slots.add(new TaskGroupDefinition.Slot(
                     combine.name, combine.par, combine.options, TaskGroupDefinition.Kind.COMBINE, combine.type));
         }
-        return new TaskGroupDefinition(owner, name, timeout, closeGrace, slots);
+        return new TaskGroupDefinition(name, timeout, closeGrace, slots);
     }
 
     /**
