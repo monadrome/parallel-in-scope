@@ -173,6 +173,44 @@ class TaskGraphScopeOwnershipTest {
     }
 
     @Test
+    void aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork() throws Exception {
+        ownerPool = Executors.newFixedThreadPool(4);
+        owner = ParRuntime.builder().register(ParId.of("owner"), ownerPool).build();
+        Par ownerPar = owner.par(ParId.of("owner"));
+
+        try (TaskGraphObservationScope outer = owner.openTaskGraphObservation()) {
+            TaskGraphData outerData = Objects.requireNonNull(TaskGraphObservationScope.data());
+
+            TaskFuture<Integer> task = ownerPar.submit(
+                    "outer-task",
+                    () -> {
+                        // A body that opens its own scope means that scope for the work it submits
+                        // next. Resolving through the structural parent instead would record the
+                        // batch into the enclosing scope and leave this one reporting nothing.
+                        try (TaskGraphObservationScope inner = owner.openTaskGraphObservation()) {
+                            TaskGraphData innerData = Objects.requireNonNull(TaskGraphObservationScope.data());
+                            ownerPar.map(
+                                            Arrays.asList(1, 2),
+                                            value -> value + 1,
+                                            BatchOptions.timeout("inner-batch", Duration.ofSeconds(5)))
+                                    .valuesOrThrow();
+                            assertThat(innerData.graph().edges())
+                                    .as("the batch belongs to the scope its caller opened")
+                                    .hasSize(1);
+                            assertThat(innerData.snapshot().nodeLabels()).containsValue("inner-batch");
+                            return 1;
+                        }
+                    },
+                    TaskOptions.timeout(Duration.ofSeconds(5)));
+
+            assertThat(task.get(10, TimeUnit.SECONDS)).isEqualTo(1);
+            // The outer scope keeps only its own edge: the task it submitted, not that task's batch.
+            assertThat(outerData.snapshot().nodeLabels()).doesNotContainValue("inner-batch");
+            assertThat(outerData.graph().edges()).hasSize(1);
+        }
+    }
+
+    @Test
     void theOwnRuntimeStillRecordsItsBatchAndTaskEdges() throws Exception {
         twoTopologies(false);
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
