@@ -13,38 +13,32 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>It is not a public type any more: a group is declared and submitted in one fluent chain, so
  * there is nothing for a caller to reuse or hold. What remains is the shape the preparation kernel
- * needs — the owning runtime's identity, the group name, the forced choice between an explicit
- * timeout and an inherited one, the optional close grace, and the ordered slots — each carrying its
- * name, the owner-bound {@link Par} resolved at declaration time, immutable {@link TaskOptions}, and
- * the {@link TypeToken} that the member's runtime type check and every later typed lookup compare
- * against.
+ * needs — the group name, the forced choice between an explicit timeout and an inherited one, the
+ * optional close grace, and the ordered slots — each carrying its name, the {@link Par} resolved at
+ * declaration time, immutable {@link TaskOptions}, and the {@link TypeToken} that the member's
+ * runtime type check and every later typed lookup compare against.
+ *
+ * <p>The owning runtime is not carried here: the kernel already receives it as an explicit
+ * argument, and the draft that builds this structure is bound to that same runtime at creation, so
+ * a stored copy could only ever agree with the argument.
  *
  * <p>The instance is created only after the declaration is complete and is never mutated, so the
  * kernel can read it without synchronization.
  */
 final class TaskGroupDefinition {
-    private final ParRuntime owner;
     private final String name;
     private final @Nullable Duration timeout;
     private final @Nullable Duration closeGrace;
-    private final ImmutableList<Slot> slots;
     private final ImmutableList<Slot> members;
     private final @Nullable Slot combine;
 
-    TaskGroupDefinition(
-            ParRuntime owner,
-            String name,
-            @Nullable Duration timeout,
-            @Nullable Duration closeGrace,
-            List<Slot> slots) {
-        this.owner = owner;
+    TaskGroupDefinition(String name, @Nullable Duration timeout, @Nullable Duration closeGrace, List<Slot> slots) {
         this.name = name;
         this.timeout = timeout;
         this.closeGrace = closeGrace;
-        this.slots = ImmutableList.copyOf(slots);
         ImmutableList.Builder<Slot> memberBuilder = ImmutableList.builder();
         Slot combineSlot = null;
-        for (Slot slot : this.slots) {
+        for (Slot slot : slots) {
             if (slot.kind == Kind.MEMBER) {
                 memberBuilder.add(slot);
             } else {
@@ -59,10 +53,6 @@ final class TaskGroupDefinition {
         return name;
     }
 
-    ParRuntime owner() {
-        return owner;
-    }
-
     /** The explicit group timeout; empty means the enclosing scope's deadline is inherited. */
     Optional<Duration> timeout() {
         return Optional.ofNullable(timeout);
@@ -71,11 +61,6 @@ final class TaskGroupDefinition {
     /** The explicit close grace used by {@link TaskGroup#close()}; empty means it is derived. */
     Optional<Duration> closeGrace() {
         return Optional.ofNullable(closeGrace);
-    }
-
-    /** Every declared slot in declaration order, including the terminal combine when present. */
-    List<Slot> slots() {
-        return slots;
     }
 
     /** The plain members in declaration order. */
