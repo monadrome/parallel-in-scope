@@ -1,0 +1,36 @@
+src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java
+  s_fe4a7aedc30bc2::t_3553b015a6a28b 1-51,57,59-126,141-276
+  s_fe4a7aedc30bc2::t_88e7710f1476d6 52-56,58
+  s_fe4a7aedc30bc2::t_bbec111d4c7690 127-140
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_fe4a7aedc30bc2::t_4c4a4410757b58 87,91,93-94,115,117
+  s_fe4a7aedc30bc2::t_04c3730f111873 88-90,92
+  s_fe4a7aedc30bc2::t_b55633abd2e131 95-105,116
+  s_fe4a7aedc30bc2::t_29f180a0ef7aa4 106
+  s_fe4a7aedc30bc2::t_21eed86a414547 107-114
+  s_fe4a7aedc30bc2::t_d14a52d4906f3b 170-175,181-186,194-198
+  s_fe4a7aedc30bc2::t_c4dab8fd399b2a 187
+  s_fe4a7aedc30bc2::t_7f2fc0505bbb01 204
+  s_fe4a7aedc30bc2::t_847644ee13d193 210-222
+  s_fe4a7aedc30bc2::t_9c2ad8800fdda0 371,382-388
+  s_fe4a7aedc30bc2::t_1fd3651a68317f 401-405,408,415-419
+  s_fe4a7aedc30bc2::t_3cc33441b78b4f 406
+  s_fe4a7aedc30bc2::t_f4e7a24cd85de6 409-414
+  s_fe4a7aedc30bc2::t_fb56bbe49fb2cc 466-469,464
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "01962ebf4afb3104af8ad00f6164e402a2f3487d",
+  "prompts": {},
+  "sessions": {
+    "s_fe4a7aedc30bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d2aface-7dc7-4c13-8d6f-b471230ac849",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
