@@ -1,0 +1,20 @@
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_ede93b60fe0bb3::t_b917c5838167ae 528
+  s_ede93b60fe0bb3::t_20699e19973468 76-82,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "40c970b8d18a6f503142b181dc483842c689086b",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
