@@ -30,7 +30,7 @@ final class TaskSubmissions {
      * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the current
      * thread's TTL context for replay on the worker thread.
      */
-    public static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
+    static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
         return TtlCallable.get(new ScopedCallable<>(taskContext, callable), true, true);
     }
 
@@ -45,7 +45,7 @@ final class TaskSubmissions {
      * @param phaseObserver consumer of execution-phase hints for queue maintenance
      * @return the prepared future, still in {@code SUBMITTED} phase
      */
-    public static <V> ExecutionPhaseHintFuture<V> prepare(
+    static <V> ExecutionPhaseHintFuture<V> prepare(
             TaskExecutionContext taskContext, Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
         ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(
                 wrapScoped(taskContext, callable), phaseObserver, taskContext.bodyState());
@@ -59,7 +59,7 @@ final class TaskSubmissions {
      * caller-thread fallback runs inline when rejected; any other rejection fails the future with
      * a {@link SubmissionException} without running user code.
      */
-    public static void submitScoped(
+    static void submitScoped(
             ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean runOnCallerThread) {
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
