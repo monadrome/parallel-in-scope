@@ -73,6 +73,13 @@ public final class ParRuntime implements AutoCloseable {
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
 
+    /**
+     * Deadline scheduler handed to every {@link CancellationToken#bind}. Immutable and stateless
+     * over its two services, so one instance serves every bind: a group allocated one per member
+     * plus one for itself when this was built per call.
+     */
+    private final ScheduledExecutorService timeoutScheduler;
+
     private ParRuntime(Builder builder) {
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
@@ -87,6 +94,7 @@ public final class ParRuntime implements AutoCloseable {
         this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
+        this.timeoutScheduler = new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
         this.defaultId = builder.defaultId;
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
@@ -517,7 +525,7 @@ public final class ParRuntime implements AutoCloseable {
 
     /** Scheduler adapter that keeps deadline detection separate from timeout actions. */
     ScheduledExecutorService timeoutScheduler() {
-        return new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
+        return timeoutScheduler;
     }
 
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
