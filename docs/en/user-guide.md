@@ -15,7 +15,7 @@ Create `ParRuntime` at the composition root. Register every logical entry with t
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("database"), databaseExecutor, "blocking", "database")
+        .register(ParId.of("database"), databaseExecutor)
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
         .build();
@@ -44,16 +44,6 @@ ExecutorService reportPool = new ThreadPoolExecutor(
 ```
 
 Whether a pool's task-graph edges are marked deadlock-prone follows where a submission goes when every worker is busy. `ThreadPoolExecutor` offers to its queue before it grows past `corePoolSize`, so a buffering queue accepts the child, parks it behind the blocked worker, and the pool never gets to add a thread — whatever `maximumPoolSize` says, finite or not. A zero-capacity handoff queue is the opposite: it refuses the offer, which forces a new worker or an explicit rejection, so a cached pool is never marked deadlock-prone. Neither fact is ever inferred from a class name or a runtime statistic; register the physical pool you want observed.
-
-Registration may attach any number of non-blank diagnostic tags to an executor. Tags are stored in an immutable set multimap and are merged by physical executor identity, so aliases of one pool see the same union of tags:
-
-```java
-ImmutableSetMultimap<ParId, String> tags = global.executorTags();
-ImmutableSet<String> databaseTags = global.executorTags(ParId.of("database"));
-ImmutableSet<ParId> blocking = global.parsWithExecutorTag("blocking");
-```
-
-Tags are metadata only. They do not change scheduling, cancellation, queue handling, or executor graph identity. The snapshot is read-only after `build()`; an unknown id or executor returns an empty set.
 
 For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
