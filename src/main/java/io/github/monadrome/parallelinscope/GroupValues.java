@@ -62,13 +62,6 @@ public final class GroupValues<V> {
         return new GroupValues<>(names, declaredTypes, values, typedValues);
     }
 
-    /** The empty snapshot of a group with no plain members; {@link #typedValues()} is null. */
-    @SuppressWarnings("unchecked")
-    static <V> GroupValues<V> empty() {
-        return (GroupValues<V>)
-                new GroupValues<Object>(ImmutableList.of(), ImmutableList.of(), Collections.emptyList(), null);
-    }
-
     /** The number of plain members; the terminal combine never occupies a slot. */
     public int size() {
         return names.size();
