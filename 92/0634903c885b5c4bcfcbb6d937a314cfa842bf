@@ -1,0 +1,23 @@
+docs/zh/migration-v0.3.md
+  s_ede93b60fe0bb3::t_8ea2c0f227153e 613
+CHANGELOG.md
+  s_ede93b60fe0bb3::t_d81eefed3af14b 126
+docs/en/migration-v0.3.md
+  s_ede93b60fe0bb3::t_84b7f6da49d399 676
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "920634903c885b5c4bcfcbb6d937a314cfa842bf",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
