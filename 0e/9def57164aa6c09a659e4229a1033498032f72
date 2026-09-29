@@ -1,0 +1,31 @@
+src/main/java/io/github/monadrome/parallelinscope/BodyCompletionTracker.java
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 184
+  s_ede93b60fe0bb3::t_1b56189a397e40 231-302
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_ede93b60fe0bb3::t_7560af12d85ec9 321
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 279
+  s_ede93b60fe0bb3::t_117342c6419c28 238,243-244,246
+  s_ede93b60fe0bb3::t_3f8ba6b9af84bc 288
+  s_ede93b60fe0bb3::t_a2fcb07978b912 296
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 380
+  s_ede93b60fe0bb3::t_a6a97a4cc9d149 462
+  s_ede93b60fe0bb3::t_fa61d9770d8c96 341
+  s_ede93b60fe0bb3::t_9f6ec61a08c8b0 382-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0e9def57164aa6c09a659e4229a1033498032f72",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

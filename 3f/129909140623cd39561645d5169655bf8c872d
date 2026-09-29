@@ -1,0 +1,23 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_ede93b60fe0bb3::t_7560af12d85ec9 365
+src/main/java/io/github/monadrome/parallelinscope/TaskOutcome.java
+  s_ede93b60fe0bb3::t_17c7cd22777edb 11-13
+src/test/java/io/github/monadrome/parallelinscope/FutureInspectorTest.java
+  s_ede93b60fe0bb3::t_5e5838f46e0b9f 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3f129909140623cd39561645d5169655bf8c872d",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

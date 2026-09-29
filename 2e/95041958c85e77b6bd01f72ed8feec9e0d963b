@@ -1,0 +1,25 @@
+src/main/java/io/github/monadrome/parallelinscope/HeuristicPurger.java
+  s_ede93b60fe0bb3::t_6a129e97b9b1dc 45-46
+  s_ede93b60fe0bb3::t_b1691e806d75fe 160
+  s_ede93b60fe0bb3::t_0913e5989c0680 178-180,188-189,200,203-204,206
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_ede93b60fe0bb3::t_1907cecfa03cb6 243-248
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerExpiryTest.java
+  s_ede93b60fe0bb3::t_e976e06207ba3b 95-98,100,110-111,118,120-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2e95041958c85e77b6bd01f72ed8feec9e0d963b",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

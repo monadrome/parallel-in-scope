@@ -1,0 +1,25 @@
+docs/zh/user-guide.md
+  s_ede93b60fe0bb3::t_525ca28394bc98 15
+docs/en/user-guide.md
+  s_ede93b60fe0bb3::t_525ca28394bc98 18
+CHANGELOG.md
+  s_ede93b60fe0bb3::t_1305cefdf5cc53 103
+  s_ede93b60fe0bb3::t_c30de2f3c03f74 124
+  s_ede93b60fe0bb3::t_d93679459b4fdf 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "4e93a6e686e38e29f5afbd7f67ab4052819955e3",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

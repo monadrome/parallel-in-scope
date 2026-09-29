@@ -1,0 +1,36 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 400
+  s_ede93b60fe0bb3::t_a6a97a4cc9d149 494
+src/main/java/io/github/monadrome/parallelinscope/Checkpoints.java
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 132,161,203,251,314,341,367,397,436
+src/main/java/io/github/monadrome/parallelinscope/BodyCompletionTracker.java
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 184
+  s_ede93b60fe0bb3::t_1b56189a397e40 231-233
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_ede93b60fe0bb3::t_234051a0769bc4 195
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_ede93b60fe0bb3::t_7560af12d85ec9 357
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 292
+src/main/java/io/github/monadrome/parallelinscope/Deadlines.java
+  s_ede93b60fe0bb3::t_f98c4956a95695 3-4
+  s_ede93b60fe0bb3::t_ec3384c4a3d146 21-37
+src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java
+  s_ede93b60fe0bb3::t_21e48a4519781e 5-6
+  s_ede93b60fe0bb3::t_9677e4eb165940 79-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "06ab9363e370d5a7ecefbd5489e8a166af2a3a75",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

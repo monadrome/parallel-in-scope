@@ -1,0 +1,33 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphObservationScope.java
+  s_ede93b60fe0bb3::t_2aca9def03fe2e 73-98
+  s_ede93b60fe0bb3::t_79909679bbf726 120-122,127,134-136
+  s_ede93b60fe0bb3::t_9da022549a17ee 123-126,128,140-149
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphScopeOwnershipTest.java
+  s_ede93b60fe0bb3::t_6bbedde10106b0 1-11,13-54,58-63,66-113,115-147,151-153
+  s_ede93b60fe0bb3::t_d975617b2d9b86 12
+  s_ede93b60fe0bb3::t_db29e69da439e7 55-57
+  s_ede93b60fe0bb3::t_5133cddf280168 64-65,114,148-150
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_ede93b60fe0bb3::t_b253e31a2beb8c 147,166
+  s_ede93b60fe0bb3::t_75fdec5f2e30eb 197,208,217-218
+  s_ede93b60fe0bb3::t_bfcea1a54e56e6 221-224
+  s_ede93b60fe0bb3::t_2e0b4b741a8e9e 239
+  s_ede93b60fe0bb3::t_80386045b1fb3d 289-291,293
+  s_ede93b60fe0bb3::t_01c8c19cb3a25e 295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "dd9dbb97041310c3fa15cbd33f227cc00151603c",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
