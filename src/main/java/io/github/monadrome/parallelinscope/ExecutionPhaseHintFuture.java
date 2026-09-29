@@ -84,6 +84,38 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private volatile @Nullable Thread runner;
 
     /**
+     * Set by {@link #forbidInlineExecution()} before the future is submitted, and read in {@link
+     * #run()} on the executing thread. Written once and never cleared, so the {@code execute()}
+     * handoff already carries the edge to any worker; {@code volatile} anyway, because a field written
+     * on one thread and read on another should not require the reader to reconstruct why it is safe.
+     */
+    private volatile boolean inlineForbidden;
+
+    /**
+     * The thread currently inside {@code executor.execute(this)} for this future, set only when
+     * {@link #inlineForbidden} is set and cleared as soon as the call returns. Non-null therefore
+     * means "the handoff has not finished yet", and {@link #run()} observing itself on this thread
+     * means the executor ran the body synchronously inside {@code execute()}.
+     *
+     * <p>The window matters: comparing against the submitting thread without it gives a false
+     * positive whenever a pool is shared. A combine submitted from a convergence callback running on
+     * worker N is enqueued normally, that worker finishes its member and returns to the pool, then
+     * picks the combine off the queue — legitimately, on worker N. Identity alone cannot tell that
+     * apart from an inline run; identity <em>during the handoff</em> can, because a queued task can
+     * only start after {@code execute()} has returned.
+     *
+     * <p>Correctness does not rest on the clearing write being visible across threads, which is worth
+     * recording because it is easy to break while tidying up. Only two cases exist at the read in
+     * {@link #run()}. If the executing thread is not the submitting one, the comparison is false
+     * whichever value is read, stale or fresh — one thread cannot be mistaken for another. If it is
+     * the submitting thread, then either the body is running inside {@code execute()}, where the field
+     * still holds that thread by program order, or the task was queued and picked up later by that
+     * same thread, in which case the clearing write precedes the read in that thread's own program
+     * order. Both cases are settled within a single thread.
+     */
+    private volatile @Nullable Thread submittingThread;
+
+    /**
      * The observation sink of this task, attached by {@link TaskSubmissions#prepare} before the
      * future escapes. Read by {@link Task} when it wraps this future, so the caller-facing view
      * and the execution future publish the same observation; null only for futures created
@@ -135,6 +167,36 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     /**
+     * Declares that this task's body must never run on the thread that submits it, and that a
+     * submission which would do so must fail as a {@link SubmissionException} instead of executing.
+     *
+     * <p>Used by the terminal combine, whose contract names exactly one legal execution site: a
+     * worker of the combine's own {@code Par}. At join time the submitting thread is the convergence
+     * callback thread — a framework thread whose contract forbids user code — so a body that runs
+     * there has violated the guarantee rather than merely taken a slower path. The submitted-phase
+     * {@code runOnCallerThread=false} cannot express this: it only suppresses the library's own
+     * inline fallback, while a pool whose {@code RejectedExecutionHandler} runs the task inside
+     * {@code execute()} (the JDK's {@code CallerRunsPolicy}) reaches the body without ever raising
+     * {@code RejectedExecutionException}.
+     *
+     * <p>Only meaningful for a {@link java.util.concurrent.ThreadPoolExecutor}-backed target, and
+     * callers must not set it otherwise: a TPE never runs {@code execute()} on the calling thread
+     * except through its rejection handler, which makes thread identity a sound proof of the
+     * violation. An executor that always runs inline — {@code directExecutor()} and friends — is a
+     * deliberate, documented choice by whoever registered it, so it is left alone.
+     *
+     * <p>It also assumes the caller passes {@code runOnCallerThread=false}, which the combine always
+     * does. The two are contradictory by construction — one forbids the submitting thread, the other
+     * elects it — and the guard would not catch the contradiction: this library's own fallback runs
+     * the body from the rejection catch block, after the handoff window has closed, so the check sees
+     * no violation and the body runs on the caller anyway. Declaring both is a caller error, not a
+     * case this guard covers.
+     */
+    void forbidInlineExecution() {
+        this.inlineForbidden = true;
+    }
+
+    /**
      * Submits this deferred future to {@code executor} exactly once. A task whose options request
      * the caller-thread fallback runs inline when the executor rejects it; any other rejection, or
      * any other failure of the handoff, fails the future with a {@link SubmissionException} without
@@ -145,7 +207,19 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     public void submitPrepared(Executor executor, boolean runOnCallerThread) {
         try {
-            executor.execute(this);
+            // Marks the handoff window for the inline guard; see submittingThread. Cleared as soon as
+            // execute() returns, so a task that merely gets queued is never mistaken for an inline
+            // one even when the worker that later picks it up is this very thread.
+            if (inlineForbidden) {
+                submittingThread = Thread.currentThread();
+                try {
+                    executor.execute(this);
+                } finally {
+                    submittingThread = null;
+                }
+            } else {
+                executor.execute(this);
+            }
         } catch (RejectedExecutionException rejected) {
             if (runOnCallerThread) {
                 // The borrowed thread's interrupt flag is isolated inside run() itself, which also
@@ -317,8 +391,25 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         // releases the slot through the existing fallback.
         @Nullable Callable<V> body = callable;
         boolean canceled = isCancelled();
+        // A task that declared its body must not run on the submitting thread, yet reached run() on
+        // exactly that thread, was executed inside execute() by a rejection handler. The guarantee is
+        // already broken; running the body would break it silently, so fail instead. Terminating here
+        // rather than at submission keeps a pool that never saturates working: the handler only runs
+        // inline under real saturation, and nothing is refused on the strength of its mere presence.
+        boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
         try {
-            if (!skipped && !canceled && body != null) {
+            if (inlineViolation) {
+                // No skipBody() here. The phase claim above already moved the body slot to RUNNING, so
+                // the skip transition would silently fail its CAS and release nothing; the finally's
+                // releaseCallable() drops the user closure and releaseBody() publishes the exit that
+                // the claim made this future responsible for. Classification comes from the exception
+                // type alone (see TaskGroup.classifyFailure), so SubmissionException is what makes
+                // this a SUBMISSION_FAILURE rather than a USER_FAILURE.
+                setException(new SubmissionException(new RejectedExecutionException(
+                        "task '" + taskLabel() + "' was run on the submitting thread by its executor's"
+                                + " RejectedExecutionHandler, but its contract permits only a worker of its"
+                                + " target Par; the pool was saturated at submission")));
+            } else if (!skipped && !canceled && body != null) {
                 set(body.call());
             }
         } catch (Throwable failure) {

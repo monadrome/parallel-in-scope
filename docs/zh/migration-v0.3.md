@@ -446,6 +446,20 @@ Futures.addCallback(
 
 ## 需要适应的行为变化
 
+- **默认任务类型与入队策略改为放行值。** `TaskType` 默认从 `CPU_BOUND` 改为 `IO_BOUND`，
+  `rejectEnqueue` 默认从 `true` 改为 `false`。`SmartBlockingQueue.offer` 在"类型是 `CPU_BOUND`"
+  **或**"`rejectEnqueue` 为真"时拒绝入队，所以旧的默认组合会让该队列拒收每一个用默认选项提交的
+  任务：配置的容量永不被使用，池涨到最大线程数，之后每个任务都走拒绝处理器。如果你依赖这个行为
+  做背压——用 `CallerRunsPolicy` 池时最明显，它会把活丢回提交线程——现在需要显式声明
+  `taskType(TaskType.CPU_BOUND)` 或 `rejectEnqueue(true)`，显式声明后行为与过去完全一致。
+  注意另一面：过去被拒绝的任务现在会占用队列槽位，于是一个此前形同虚设的容量变成了真实的内存
+  上限。请按实际需要设置它，不要沿用一个从未生效过的数字。
+- **combine 的池若会把它跑在收敛线程上，现在记为失败。** combine 的 body 只允许在它自己 `Par`
+  的 worker 上执行。当目标池是 `ThreadPoolExecutor` 且其拒绝处理器在 `execute()` 内部同步跑掉
+  任务（`CallerRunsPolicy`）时，饱和的池过去会让 combine 跑在收敛回调线程上并报 `SUCCESS`；
+  现在这次执行记为 `SUBMISSION_FAILURE`，body 完全不执行。这类池不会在注册期被拒绝：它只在真正
+  饱和时才 inline，从不饱和的池不受影响。由 direct executor 支撑的 `Par` 保留其既有豁免，
+  combine 仍然 inline 执行。
 - **owner 绑定显式化。** 链只接受创建它的 `ParRuntime` 的 `Par` 句柄；foreign `Par` 在
   `par`/`combine` 当次调用就失败。`ParRuntime.close()` 之后已提交的组照常收敛，但新的
   `submitAll()` 会失败。
@@ -533,8 +547,13 @@ try {
 ## executor 拒绝后默认不再执行用户代码
 
 `TaskType.CPU_BOUND` 过去隐含一条调度规则：绑定的执行器拒绝任务时，任务在提交线程上执行。
-而 `CPU_BOUND` 同时是默认任务类型，因此每个未声明类型的任务在拒绝时都会静默地在调用方
+而 `CPU_BOUND` 在 0.2.x 同时是默认任务类型，因此每个未声明类型的任务在拒绝时都会静默地在调用方
 线程上运行用户代码。
+
+> 注：`CPU_BOUND` 不再是默认类型。0.3 的默认是 `IO_BOUND` + `rejectEnqueue=false`，因为
+> `SmartBlockingQueue.offer` 在"类型是 `CPU_BOUND`"或"`rejectEnqueue` 为真"时拒绝入队，
+> 两者都取拒绝值会让该队列拒收每一个用默认选项提交的任务，配置的容量永不被使用。
+> 本节描述的是 0.2.x 的行为与它的迁移，不是当前默认值。
 
 该回退现在是显式选项，且默认关闭：
 

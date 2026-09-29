@@ -12,13 +12,30 @@ import org.jspecify.annotations.Nullable;
  * because a member body returning null is a successful member.
  *
  * <p>The body runs exactly once, inside the same scoped-task machinery as a member (execution
- * context, TTL replay, deadline, cooperative cancellation, observation snapshot). The framework
- * never schedules it onto the convergence callback thread of the last member to finish: the
- * caller-thread fallback is disabled for a combine, so a rejected handoff to its executor is
- * recorded as {@link TaskOutcome#SUBMISSION_FAILURE} instead of running the body on that thread.
- * A combine whose {@code Par} is backed by a direct executor is the ordinary exception — it runs
+ * context, TTL replay, deadline, cooperative cancellation, observation snapshot). It runs on a
+ * worker of its own {@code Par}, never on the convergence callback thread of the last member to
+ * finish. Two mechanisms hold that: the caller-thread fallback is disabled for a combine, so a
+ * handoff that raises {@code RejectedExecutionException} is recorded as {@link
+ * TaskOutcome#SUBMISSION_FAILURE}; and when the {@code Par} is backed by a {@link
+ * java.util.concurrent.ThreadPoolExecutor}, a body that reaches the executing thread while the
+ * handoff is still in progress — which is what the JDK's {@code CallerRunsPolicy} does under
+ * saturation, without ever raising that exception — is also recorded as {@code SUBMISSION_FAILURE}
+ * and never entered. Such a pool is not refused outright: it runs inline only under genuine
+ * saturation, so a pool that never saturates keeps working normally.
+ *
+ * <p>A combine whose {@code Par} is backed by a direct executor is the ordinary exception — it runs
  * inline on whichever thread submits it, exactly as registering a direct executor means everywhere
- * else in this library, and that has nothing to do with the group's convergence path.
+ * else in this library, and that has nothing to do with the group's convergence path. The guard
+ * above is scoped to a {@code ThreadPoolExecutor} for exactly this reason: there, inline execution
+ * can only come from a rejection handler, whereas an always-inline executor is a deliberate choice
+ * by whoever registered it rather than a symptom of load.
+ *
+ * <p>What the guard covers is the convergence callback thread, which is the case that arises under
+ * load without anyone asking for it. It is not a general proof of which thread ran the body: an
+ * executor is free to run a submitted task wherever it likes, and a rejection handler that forwards
+ * to a different pool, for instance, satisfies the guard while still running the combine off its own
+ * {@code Par}. Registering an executor that reroutes work is a decision about where work runs, and
+ * this library reports where each task ran rather than trying to prevent it.
  *
  * <p>The body is supplied at declaration, next to its {@code TypeToken<R>}, and may capture this
  * run's request. It must still be a pure function of member values and its declaration-time

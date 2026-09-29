@@ -42,7 +42,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 - combine 的用户 body 只在 join 后、在目标 executor 线程上**执行**；准备阶段创建的是执行管道，不触碰用户 body。它不得在 builder、`build()`、`Bindings` 登记、submitGroup 准备阶段或 member 完成回调中运行；
 - TTL 快照时点与 member 一致（submitGroup 的 prepare 阶段），不捕获 join 回调线程的上下文；
 - combine 在 submitGroup 时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"submitGroup 后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
-- combine 禁用拒绝后的 caller-thread fallback（`runOnCallerThread` 对 combine 不生效）：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`；
+- combine 禁用拒绝后的 caller-thread fallback（`runOnCallerThread` 对 combine 不生效）：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`。注意这个禁用只覆盖库自己的 inline 分支——用户池的拒绝处理器若在 `execute()` 内部同步跑掉 body（`CallerRunsPolicy`），不会抛 `RejectedExecutionException`，该分支永远看不到它；这条缺口由 `forbidInlineExecution()` 在执行期按线程身份补上（§9 验收项 1）；
 - combine 的结构 parent 与 member 相同（submitGroup 现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
 完成计数不变式调整为 `totalTasks == memberCount + (combine ? 1 : 0)`（收敛屏障的目标计数）：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending public future。
@@ -127,6 +127,10 @@ public final class CombineContext {
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
   timeout/taskType/rejectEnqueue/runOnCallerThread，与 member 一致，但 combine 忽略
   `runOnCallerThread`——join 时无可借用的 caller thread，被拒绝即记 `SUBMISSION_FAILURE`；
+  若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），body 同样不执行、记
+  `SUBMISSION_FAILURE`（§9 验收项 1）。`taskType`/`rejectEnqueue` 对 combine 仍然有效：
+  默认 `IO_BOUND` + `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
+  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。
   身份取 combine 的声明名。`TaskOptions`
   不含 name/listeners，因此 combine 不可能通过选项覆盖 Group 名称或取消策略（见
   [API 与选项 §3.2](task-group-api-and-options.md)）；
@@ -186,6 +190,7 @@ terminal future 保持普通 Guava 语义，与 member future 一致：成功返
 | member 非成功 | 不执行 | 按 group token 归因取消（`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELED`） | member 的组级 outcome |
 | combine 用户失败 | 执行 | 失败（`ExecutionException`） | `USER_FAILURE` |
 | combine 被拒绝 | 提交但被拒（无 inline） | 失败 | `SUBMISSION_FAILURE` |
+| combine 的池会 inline 跑它（`CallerRunsPolicy` 饱和） | 进入 `run()` 后被拦，body 不执行 | 失败 | `SUBMISSION_FAILURE` |
 | combine 自身 deadline 先到 | 升级 `groupToken.timeoutCancel()` | 取消 | `TIMEOUT` |
 | group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
 | `group.cancel()` / close | 不执行或中断 | 取消 | `GROUP_CANCELED` |
@@ -245,6 +250,24 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 最低验收：
 
 1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
+   这条保证由两个机制共同承担，缺一不可：`runOnCallerThread=false` 挡住库自己的 inline 回退（它只在
+   `RejectedExecutionException` 抛出时才有机会触发）；而用户池的 `RejectedExecutionHandler` 在
+   `execute()` 内部同步跑掉 body 时**根本不抛那个异常**，由 `forbidInlineExecution()` 在 `run()` 里按
+   线程身份拦下（仅对 `ThreadPoolExecutor` 启用，见下）。只有前者时，`CallerRunsPolicy` 池饱和会让
+   combine 静默跑在收敛回调线程上，group 仍报 `SUCCESS`——这正是曾经的实际行为。
+
+   **为什么按执行期线程身份判定，而不是在提交期按拒绝策略拒绝：** `CallerRunsPolicy` 只在池真正饱和时
+   inline，池从不饱和的用户其 combine 从未违反过任何保证。按策略株连会把这批合规用户直接改成必然失败，
+   那是误伤而非"安全优先"（对比 `ParRuntime` 拒绝 Discard 系：Discard 的危害是无条件的，注册即必然丢任务）。
+   判定条件是"body 在 `execute()` 尚未返回时就到达执行线程"，而不是"执行线程等于提交线程"——后者在共享池上
+   会误判：收敛回调跑在 worker N 上提交 combine，combine 正常入队，worker N 跑完自己的 member 回到池中，
+   再从队列里取出 combine 执行，这完全合法，而两次都是 worker N。入队的任务只可能在 `execute()` 返回之后
+   才开始，这就是区分二者的依据。
+
+   **为什么只对 `ThreadPoolExecutor` 启用：** TPE 要么派发给 worker 要么抛异常，唯一能走到调用方栈上的路径
+   就是它的拒绝处理器，所以"body 跑在提交线程上"与"拒绝处理器跑了它"是同一件事。而 `directExecutor()`
+   这类总是 inline 的 executor，inline 不是饱和症状而是它的全部契约，由注册者显式选择，
+   `CombineBody` 的 javadoc 明确把它列为已接受的例外，因此放行。
 2. 任一 member 非成功时 combine callable 不执行，terminal future 按 token 归因终态，不留下 pending public future；
 3. combine 的 `Member` handle、`TaskExecutionContext`、TTL 快照和结构 parent 都在 submitGroup 准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
 4. combine 在 submitGroup 时完成 admission/retain：submitGroup 返回后 `ParRuntime.close()` 与 join 竞争时，combine 仍正常提交并终态；
