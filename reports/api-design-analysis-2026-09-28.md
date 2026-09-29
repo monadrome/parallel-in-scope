@@ -324,7 +324,7 @@ failed.failure();   // combine 失败时 NPE：members() 里没有这个 key
 - `close-and-quiescence-proposal.md`
 - `task-listener-removal-proposal.md`
 
-**它们在整个工作区都不存在**（`find /Users/qinghualin/Documents/projects` 全盘搜索无结果）。
+**它们在整个工作区都不存在**（对 `~/Documents/projects` 全盘搜索无结果）。
 
 后果：索引里留着若干"待拍板"的登记行，读者却打不开文档。其中 `api-surface-reduction`
 那条尤其可惜——按索引摘要它已做过 38 个公开类型的全量盘点并列出三个缩减候选，与本次独立
