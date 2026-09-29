@@ -125,12 +125,20 @@ public final class ParRuntime implements AutoCloseable {
                             ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
                     if (policy instanceof ThreadPoolExecutor.DiscardPolicy
                             || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
+                        // AbortPolicy alone is named as the recommendation. CallerRunsPolicy is a
+                        // legitimate choice and is not refused, but it is not the one to point a
+                        // caller at who has just misconfigured rejection handling: rejection as a
+                        // thrown exception is the more direct contract, and the library records it as
+                        // SUBMISSION_FAILURE with the original throwable as the cause. Running the
+                        // body on the submitting thread instead carries consequences a caller has to
+                        // opt into knowingly — see the class javadoc.
                         throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
                                 + introspectable.getClass().getName() + " using "
                                 + policy.getClass().getName()
                                 + ", which discards rejected tasks silently: submission of an"
                                 + " overflowing task would never complete and the batch would hang. Register a"
-                                + " pool with AbortPolicy or CallerRunsPolicy instead.");
+                                + " pool with AbortPolicy instead, which fails such a submission as"
+                                + " SUBMISSION_FAILURE.");
                     }
                 }
                 if (TtlUnwrap.isWrapper(entry.getValue())) {
