@@ -8,9 +8,9 @@ package io.github.monadrome.parallelinscope;
  * TaskGroupMemberReason} (group member result) enums: the terminal values are a strict refinement
  * of the old four-state future view, and {@link #RUNNING} absorbs the "not yet terminal" case.
  *
- * <p>{@link FutureInspector} maps an arbitrary {@code
- * Future} onto these values conservatively; richer outcomes are available when the task exposes a
- * phase hint (see {@code ExecutionPhaseHintFuture}).
+ * <p>Every value is reported by {@link TaskFuture#outcome()}, which reads the task's own
+ * cancellation token rather than inferring from {@code Future} state alone: that is what separates
+ * {@link #SUBMISSION_FAILURE} from {@link #USER_FAILURE} and names a cancellation's cause.
  *
  * <p>This enum is also the terminal vocabulary of a whole task group: {@link
  * TaskGroupResult#outcome()} reports one of {@link #SUCCESS}, {@link #USER_FAILURE}, {@link
