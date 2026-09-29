@@ -240,9 +240,12 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Enables or disables automatic purge at runtime. Disabling settles nothing: pending
-     * cancellation estimates stay advisory and are dropped only by generation expiry; re-enabling
-     * resumes evaluation from whatever estimates are still live.
+     * Enables or disables automatic purge at runtime.
+     *
+     * <p>Disabling stops evaluation, not accounting. An estimate whose cancellation signal arrives
+     * while purge is off is settled immediately rather than held, so re-enabling never purges on a
+     * signal observed during the disabled window; estimates already outstanding when the switch
+     * flipped stay live and are dropped only by the expiry of their own idle boundary.
      */
     public void setPurgeEnabled(boolean enabled) {
         purgeEnabled.set(enabled);
