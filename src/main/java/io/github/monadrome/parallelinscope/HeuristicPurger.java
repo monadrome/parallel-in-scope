@@ -63,7 +63,7 @@ final class HeuristicPurger {
      * @param queuePressureThreshold minimum queue-size-to-capacity ratio
      * @param canceledTaskRatioThreshold minimum estimated canceled-task ratio
      */
-    public HeuristicPurger(AtomicDouble queuePressureThreshold, AtomicDouble canceledTaskRatioThreshold) {
+    HeuristicPurger(AtomicDouble queuePressureThreshold, AtomicDouble canceledTaskRatioThreshold) {
         this(new AtomicBoolean(true), queuePressureThreshold, canceledTaskRatioThreshold);
     }
 
@@ -74,7 +74,7 @@ final class HeuristicPurger {
      * @param queuePressureThreshold minimum queue-size-to-capacity ratio
      * @param canceledTaskRatioThreshold minimum estimated canceled-task ratio
      */
-    public HeuristicPurger(
+    HeuristicPurger(
             AtomicBoolean enabled, AtomicDouble queuePressureThreshold, AtomicDouble canceledTaskRatioThreshold) {
         this(
                 enabled,
@@ -109,7 +109,7 @@ final class HeuristicPurger {
      * Stops this purger's scheduler and releases its pool-level state. This method never shuts down
      * or otherwise mutates an observed application executor.
      */
-    public void close() {
+    void close() {
         maintenanceExecutor.shutdownNow();
         states.clear();
     }
@@ -126,7 +126,7 @@ final class HeuristicPurger {
      * @param executor actual supplied executor used to run the task
      * @return executor-bound cancellation callback
      */
-    public Runnable cancellationObserverFor(ThreadPoolExecutor executor) {
+    Runnable cancellationObserverFor(ThreadPoolExecutor executor) {
         BlockingQueue<Runnable> queue = executor.getQueue();
         if (!hasFiniteCapacity(queue)) {
             return NOOP;
