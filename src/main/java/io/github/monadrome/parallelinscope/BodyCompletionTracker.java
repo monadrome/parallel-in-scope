@@ -263,9 +263,13 @@ final class BodyCompletionTracker {
      *     than an outcome — an {@link AssertionError} names it; null accepts failure and
      *     cancellation as settled
      * @return true if the future is settled, false if the budget elapsed first
+     * @throws InterruptedException if the calling thread is interrupted while waiting, which the
+     *     public {@code awaitBodyCompletion} methods document and must not convert into a
+     *     budget-elapsed {@code false}
      */
     static boolean awaitSettled(
-            ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail) {
+            ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail)
+            throws InterruptedException {
         if (future.isDone()) {
             return true;
         }
@@ -283,12 +287,6 @@ final class BodyCompletionTracker {
             // A terminal future is all this wait needs; the outcome is the report's business.
             return true;
         } catch (TimeoutException elapsed) {
-            return false;
-        } catch (InterruptedException interrupted) {
-            // The caller's own interruptible wait already returned, so an interrupt here is not the
-            // documented "interrupted before or during the wait" case. Restore the flag and report
-            // the budget as spent rather than adding a checked exception to every caller.
-            Thread.currentThread().interrupt();
             return false;
         }
     }
