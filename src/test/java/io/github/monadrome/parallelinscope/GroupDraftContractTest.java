@@ -7,7 +7,9 @@ import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -159,6 +161,54 @@ class GroupDraftContractTest {
         }
     }
 
+    /**
+     * The type-variable walk has to recurse through array components and through both wildcard
+     * bounds, not only through a parameterized type's own arguments. A variable that escapes the
+     * walk produces a declared token that can never equal the concrete token a caller queries with,
+     * which is the whole reason the check exists.
+     */
+    @Test
+    void typeVariablesInsideArraysAndWildcardBoundsAreRejectedAtDeclarationTime() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            Par par = global.par(ParId.of("worker"));
+            // A generic array whose component type is the variable itself.
+            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("array", par, arrayToken(), () -> null))
+                    .isInstanceOf(IllegalArgumentException.class);
+            // The variable reached through an upper bound.
+            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("upper", par, upperBoundToken(), () -> null))
+                    .isInstanceOf(IllegalArgumentException.class);
+            // And through a lower bound, which is a separate bounds list on the same wildcard.
+            assertThatThrownBy(() -> global.group("page", TIMEOUT).par("lower", par, lowerBoundToken(), () -> null))
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            // A generic array with a concrete component type is a concrete type and is accepted:
+            // the walk must reject variables, not arrays.
+            assertThat(global.group("page", TIMEOUT)
+                            .par("concrete-array", par, new TypeToken<List<String>[]>() {}, () -> null)
+                            .submitAll()
+                            .groupName())
+                    .isEqualTo("page");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    private static <T> TypeToken<T[]> arrayToken() {
+        return new TypeToken<T[]>() {};
+    }
+
+    private static <T> TypeToken<List<? extends T>> upperBoundToken() {
+        return new TypeToken<List<? extends T>>() {};
+    }
+
+    private static <T> TypeToken<List<? super T>> lowerBoundToken() {
+        return new TypeToken<List<? super T>>() {};
+    }
+
     private static <T> TypeToken<List<T>> unresolvedToken() {
         return new TypeToken<List<T>>() {};
     }
@@ -170,6 +220,40 @@ class GroupDraftContractTest {
 
     private static <T> TypeToken<Outer<T>.Inner> unresolvedInnerToken() {
         return new TypeToken<Outer<T>.Inner>() {};
+    }
+
+    /**
+     * {@code combine} has a {@code TypeToken} overload beside its {@code Class} one, and every other
+     * test in the suite reaches the combine through the {@code Class} form — so the token form's
+     * success path had never been executed. It has to declare the terminal exactly like the class
+     * form: same slot, same declared token, same assembled result.
+     */
+    @Test
+    void theCombineTypeTokenOverloadDeclaresTheTerminalLikeTheClassOverload() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        Par par = global.par(ParId.of("worker"));
+        try (TaskGroup<Tuple2<String, Integer>, List<String>> group = global.group("page", TIMEOUT)
+                .par("user", par, String.class, () -> "alice")
+                .par("count", par, Integer.class, () -> 41)
+                .combine("assemble", par, new TypeToken<List<String>>() {}, values -> {
+                    Tuple2<String, Integer> members = Objects.requireNonNull(values);
+                    return Arrays.asList(members.first(), String.valueOf(members.second()));
+                })
+                .submitAll()) {
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            // The terminal is declared, so its future is present and carries the assembled value
+            // typed as the parameterized token — which is exactly what the Class overload cannot
+            // express.
+            assertThat(group.terminalFuture()).isPresent();
+            assertThat(group.terminalFuture().get().get(2, TimeUnit.SECONDS)).containsExactly("alice", "41");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
     }
 
     @Test
