@@ -258,16 +258,16 @@ final class GroupDraft {
     }
 
     private TaskGroupDefinition freeze() {
-        List<TaskGroupDefinition.Slot> slots = new ArrayList<>();
+        List<TaskGroupDefinition.Slot> memberSlots = new ArrayList<>();
         for (MemberDecl member : members) {
-            slots.add(new TaskGroupDefinition.Slot(
-                    member.name, member.par, member.options, TaskGroupDefinition.Kind.MEMBER, member.type));
+            memberSlots.add(new TaskGroupDefinition.Slot(member.name, member.par, member.options, member.type));
         }
-        if (combine != null) {
-            slots.add(new TaskGroupDefinition.Slot(
-                    combine.name, combine.par, combine.options, TaskGroupDefinition.Kind.COMBINE, combine.type));
-        }
-        return new TaskGroupDefinition(name, timeout, closeGrace, slots);
+        CombineDecl declaredCombine = combine;
+        TaskGroupDefinition.Slot combineSlot = declaredCombine == null
+                ? null
+                : new TaskGroupDefinition.Slot(
+                        declaredCombine.name, declaredCombine.par, declaredCombine.options, declaredCombine.type);
+        return new TaskGroupDefinition(name, timeout, closeGrace, memberSlots, combineSlot);
     }
 
     /**
