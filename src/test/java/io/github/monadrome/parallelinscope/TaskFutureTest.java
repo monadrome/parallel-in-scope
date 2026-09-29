@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -489,50 +490,85 @@ class TaskFutureTest {
         }
     }
 
-    // ==================== placeholder bridging ====================
+    /** A prepared future with no observation and no body slot, standing in for a batch element. */
+    private static <V> ExecutionPhaseHintFuture<V> preparedFuture(Callable<V> body) {
+        return ExecutionPhaseHintFuture.create(body, phase -> {});
+    }
 
     @Test
-    void placeholderDeliversListenersRegisteredBeforeTheBind() {
-        Task<String> placeholder = Task.placeholder("orders", new CancellationToken());
-        SettableFuture<String> real = SettableFuture.create();
+    void unsubmittedElementDeliversListenersRegisteredBeforeItRuns() {
+        ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> "done");
+        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
         AtomicReference<String> observed = new AtomicReference<>();
 
-        placeholder.addListener(() -> observed.set(placeholder.outcome().name()), Runnable::run);
-        assertThat(placeholder.toString()).contains("placeholder=pending");
+        // The view is the element's final handle from creation on, so a listener registered before
+        // anything is submitted fires with the executed outcome — no bind step swaps the delegate.
+        element.addListener(() -> observed.set(element.outcome().name()), Runnable::run);
+        assertThat(element.outcome()).isEqualTo(TaskOutcome.RUNNING);
 
-        placeholder.bind(real);
-        real.set("done");
+        prepared.run();
 
         assertThat(observed.get()).isEqualTo("SUCCESS");
-        assertThat(placeholder.toString()).contains("placeholder=handed-off").doesNotContain("pending");
+        assertThat(element.outcome()).isEqualTo(TaskOutcome.SUCCESS);
     }
 
     @Test
-    void cancellingAPlaceholderBeforeTheBindCancelsTheRealFuture() {
-        Task<String> placeholder = Task.placeholder("orders", new CancellationToken());
-        SettableFuture<String> real = SettableFuture.create();
+    void cancellingAnElementBeforeSubmissionKeepsItsBodyUnentered() {
+        AtomicBoolean bodyRan = new AtomicBoolean();
+        ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> {
+            bodyRan.set(true);
+            return "done";
+        });
+        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
 
-        assertThat(placeholder.cancel(true)).isTrue();
-        placeholder.bind(real);
+        assertThat(element.cancel(true)).isTrue();
+        // Cancelling the view forwards to the prepared future: the executor may still invoke it, and
+        // the phase claim is what keeps the body unentered.
+        assertThat(prepared.isCancelled()).isTrue();
+        prepared.run();
 
-        assertThat(real.isCancelled()).isTrue();
-        assertThat(placeholder.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(bodyRan).isFalse();
+        assertThat(element.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
     }
 
     @Test
-    void abandonedPlaceholderAttributesTheAbandonment() {
-        Task<String> rejected = Task.placeholder("orders", new CancellationToken());
-        Task<String> cancelled = Task.placeholder("orders", new CancellationToken());
+    void submissionFailureAndCancellationAttributeTheirOwnCause() {
+        ExecutionPhaseHintFuture<String> rejected = preparedFuture(() -> "unreachable");
+        ExecutionPhaseHintFuture<String> cancelled = preparedFuture(() -> "unreachable");
+        Task<String> rejectedView = Task.of("orders", new CancellationToken(), rejected);
+        Task<String> cancelledView = Task.of("orders", new CancellationToken(), cancelled);
 
-        rejected.abandon(new InterruptedException("submitter interrupted"));
-        cancelled.abandon(null);
+        assertThat(rejected.claimSubmissionFailure(new InterruptedException("submitter interrupted")))
+                .isTrue();
+        rejected.settleSubmissionFailure();
+        cancelled.skipBody();
+        cancelled.cancel(true);
 
-        assertThat(rejected.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-        assertThat(rejected.failure())
+        assertThat(rejectedView.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+        assertThat(rejectedView.failure())
                 .isInstanceOf(SubmissionException.class)
                 .hasCauseInstanceOf(InterruptedException.class);
-        assertThat(cancelled.isCancelled()).isTrue();
-        assertThat(cancelled.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(cancelledView.isCancelled()).isTrue();
+        assertThat(cancelledView.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+    }
+
+    @Test
+    void aClaimedSubmissionFailureOutranksACascadeCancellationThatRacesIt() {
+        ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> "unreachable");
+        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
+
+        // The batch claims every element on a handoff failure, then settles them. A fail-fast
+        // cascade fired by an earlier settle can cancel this element in between; its recorded
+        // attribution must still win, or the batch would report a cancellation instead of the
+        // submission failure that actually ended it.
+        assertThat(prepared.claimSubmissionFailure(new IllegalStateException("handoff broken")))
+                .isTrue();
+        prepared.cancel(true);
+
+        assertThat(element.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+        assertThat(element.failure())
+                .isInstanceOf(SubmissionException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
     }
 
     // ==================== delegation transparency ====================

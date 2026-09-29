@@ -5,6 +5,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -252,13 +253,27 @@ public final class Par {
                                 callableMapper.apply(list.get(index)),
                                 executorRuntime.phaseObserver()))
                         .collect(toImmutableList()));
-        TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
-                        executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace)
-                .submitAll(tasks);
+        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
+                executorRuntime.submissionExecutor(), unit, runtime.submitterPool(), bodyCompletion, closeGrace);
+        ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
+        // Bind before submitting, for the same reason Par.submit does: submission can run user code
+        // on this very thread. The batch's initial window hands off synchronously here, and on a
+        // rejection the element's body runs inline on this thread, so a body that waits for a later
+        // element of its own batch wedges the submitting thread itself. Arming the deadline first is
+        // what makes that recoverable — the timer cancels the element, whose interrupt reaches this
+        // thread — and it extends the deadline to cover the submission window rather than starting
+        // only once every element is handed off.
+        //
+        // The submission canceller cannot come from submitAll, which has not run yet, so it is
+        // pre-built here and pointed at the real one afterwards. Cancelling it before then is not
+        // lost: setFuture propagates the cancellation on to the submitting future.
+        SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion =
-                unit.cancellationToken().bind(result.results(), result.submitCanceller(), runtime.timeoutScheduler());
+                unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
+        TaskBatchResult<R> result = submitter.submitAll(tasks, views);
+        submitCanceller.setFuture(result.submitCanceller());
         return result;
     }
 
