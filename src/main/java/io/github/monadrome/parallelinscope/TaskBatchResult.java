@@ -362,7 +362,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      */
     public BatchReport report() {
         Map<TaskOutcome, Integer> outcomeMap =
-                results.stream().collect(toImmutableEnumMap(FutureInspector::outcome, x -> 1, Integer::sum));
+                results.stream().collect(toImmutableEnumMap(TaskFuture::outcome, x -> 1, Integer::sum));
         Throwable firstException = results.stream()
                 .map(TaskFuture::failure)
                 .filter(Objects::nonNull)

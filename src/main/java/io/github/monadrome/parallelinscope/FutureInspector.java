@@ -14,39 +14,6 @@ final class FutureInspector {
     private FutureInspector() {}
 
     /**
-     * Returns the current {@link TaskOutcome} of the given future.
-     *
-     * <p>A {@link TaskFuture} reports its own attribution, which is richer than a bare future can
-     * express: it distinguishes submission failure from user failure and derives a cancellation's
-     * cause from the task's token chain. Any other {@code Future} exposes only done/cancelled
-     * state, so the mapping is conservative: a failed future reads as {@link
-     * TaskOutcome#USER_FAILURE} and a cancelled one as {@link TaskOutcome#MEMBER_CANCELED}.
-     *
-     * @param future the future to inspect
-     * @return the current {@link TaskOutcome}
-     */
-    public static TaskOutcome outcome(Future<?> future) {
-        if (future instanceof TaskFuture) {
-            return ((TaskFuture<?>) future).outcome();
-        }
-        if (!future.isDone()) {
-            return TaskOutcome.RUNNING;
-        }
-        if (future.isCancelled()) {
-            return TaskOutcome.MEMBER_CANCELED;
-        }
-        try {
-            future.get();
-            return TaskOutcome.SUCCESS;
-        } catch (ExecutionException e) {
-            return TaskOutcome.USER_FAILURE;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return TaskOutcome.USER_FAILURE;
-        }
-    }
-
-    /**
      * Returns the exception from a failed future.
      *
      * @param future the future to inspect (must be done and failed)
