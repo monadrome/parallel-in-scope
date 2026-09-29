@@ -355,20 +355,12 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     private long closeGraceBudgetNanos() {
         Duration configured = closeGrace;
         if (configured != null) {
-            return saturatedNanos(configured);
+            return Deadlines.saturatedNanos(configured);
         }
         if (deadlineNanos == Long.MAX_VALUE) {
             return 0;
         }
         return Deadlines.remaining(deadlineNanos, System.nanoTime());
-    }
-
-    private static long saturatedNanos(Duration duration) {
-        try {
-            return duration.toNanos();
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
     }
 
     /**
@@ -405,7 +397,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // barrier fires on the same signals, but a member future's get() waiters can wake before
         // its observation listener runs. Wait out that window too, so a true result guarantees
         // every member's completionFuture() already carries its final snapshot.
-        long budgetNanos = saturatedNanos(timeout);
+        long budgetNanos = Deadlines.saturatedNanos(timeout);
         for (MemberState member : membersAndTerminal()) {
             ListenableFuture<?> observation = member.view.observationView();
             if (observation.isDone()) {
@@ -499,14 +491,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
-        TaskGraphObservationScope observation = structuralParent != null
-                        && structuralParent.taskGraphObservationScope() != null
-                        && structuralParent.taskGraphObservationScope().owner() == env
-                ? structuralParent.taskGraphObservationScope()
-                : structuralParent == null && currentObservation != null && currentObservation.owner() == env
-                        ? currentObservation
-                        : null;
+        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(structuralParent, env);
         long start = System.nanoTime();
         Optional<Duration> groupTimeout = definition.timeout();
         if (!groupTimeout.isPresent() && structuralParent == null) {

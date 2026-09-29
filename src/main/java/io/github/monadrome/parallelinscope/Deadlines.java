@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import java.time.Duration;
+
 /**
  * Saturated arithmetic on {@link System#nanoTime()} deadlines, shared by every place that turns a
  * timeout into a deadline or a deadline back into a remaining wait.
@@ -14,6 +16,24 @@ package io.github.monadrome.parallelinscope;
 final class Deadlines {
 
     private Deadlines() {}
+
+    /**
+     * Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} when it does not fit.
+     *
+     * <p>{@link Duration#toNanos()} throws {@link ArithmeticException} past about 292 years, which
+     * every caller here would have to turn into the same sentinel anyway: a budget that large is
+     * indistinguishable from "no limit", and the sentinel already means that.
+     *
+     * @param duration the duration to convert
+     * @return the duration in nanoseconds, saturated to {@link Long#MAX_VALUE}
+     */
+    static long saturatedNanos(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
+    }
 
     /**
      * Returns the nanoseconds left until {@code deadlineNanos}: {@code 0} once the deadline has

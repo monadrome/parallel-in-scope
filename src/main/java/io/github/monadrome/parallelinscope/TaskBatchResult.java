@@ -92,14 +92,6 @@ public final class TaskBatchResult<T> implements AutoCloseable {
         return TaskObservation.readOnly(sink);
     }
 
-    private static long saturatedNanos(Duration duration) {
-        try {
-            return duration.toNanos();
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
-    }
-
     /**
      * Provides the future running the sliding-window submission loop. Cancelling it stops further
      * submissions and interrupts the submitter. Any unsubmitted placeholders then fail with the
@@ -258,7 +250,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     private long closeGraceBudgetNanos() {
         Duration configured = closeGrace;
         if (configured != null) {
-            return saturatedNanos(configured);
+            return Deadlines.saturatedNanos(configured);
         }
         CancellationToken batchToken = token;
         if (batchToken == null || batchToken.deadlineNanos() == Long.MAX_VALUE) {
@@ -297,7 +289,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * @throws InterruptedException if the calling thread is interrupted before or during the wait
      */
     public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
-        long budgetNanos = saturatedNanos(Objects.requireNonNull(timeout, "timeout cannot be null"));
+        long budgetNanos = Deadlines.saturatedNanos(Objects.requireNonNull(timeout, "timeout cannot be null"));
         if (timeout.isNegative()) {
             throw new IllegalArgumentException("timeout must not be negative: " + timeout);
         }
