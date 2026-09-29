@@ -84,8 +84,8 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Timeout, explicit, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
-- CPU / IO task-aware scheduling
-- Monitoring SPI for execution, queueing, and failures
+- Task-type-aware queue admission (`TaskType` drives `SmartBlockingQueue` refusal, not scheduling)
+- Pull-based task observation: `completionFuture` snapshots with `Futures.addCallback`
 - Cycle detection across task and executor graphs
 
 ## Documentation

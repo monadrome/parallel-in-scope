@@ -138,7 +138,7 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；如果不是则什么都不做，让后续的异常处理逻辑继续执行。
+`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；否则照常返回，让后续的异常处理逻辑继续执行——**除非当前作用域已被取消**，此时它会抛出 `LeanCancellationException` 而不是返回。
 
 ## 用 `Checkpoints.sleep()` 替代 `Thread.sleep()`
 

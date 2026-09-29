@@ -75,7 +75,7 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`propagateCancellation` re-throws every `CancellationException` and leaves ordinary exceptions unchanged.
+`propagateCancellation` re-throws every `CancellationException`. Any other exception is passed through unchanged — unless the current scope is already cancelled, in which case it throws `LeanCancellationException` instead of returning.
 
 ## Cancellation sources
 
