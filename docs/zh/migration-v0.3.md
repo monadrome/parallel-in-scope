@@ -610,6 +610,7 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | `TaskGroup` 现在带两个类型参数 `TaskGroup<V, R>` | 声明该类型的位置要写全：无 combine 的组是 `TaskGroup<V, Void>`，空组是 `TaskGroup<Void, Void>`；用 `var` 之外的写法时请照抄 `submitAll()` 推出的形状。 |
 | `TaskGroup.future(TaskKey<T>)` 与 `CompletedTaskValues` 已删除 | 取 future 改用 `futureOf(name, TypeToken)` / `futureAt(index, TypeToken)`，取终端用 `terminalFuture()`；读值改用 `valuesFuture()` 的 `GroupValues`。 |
 | combine body 的入参从 `CompletedTaskValues`（`value(TaskKey)` 返回未标注的 `T`）换成装配好的元组成员值 | 分量标注 `@Nullable`——成员值本来就可能为 null，现在需要显式判空；位置解构见上文。 |
+| 删除 `TaskGroupResult.memberCount()` | 改用 `members().size()`。该访问器返回的就是这个值，而库与测试中都没有调用者；成员映射本身已经是其他读取路径都走的成员视图。 |
 | `ParRuntime.installGlobal` 与实例 `close()` 对称 | 对已安装实例调用 `close()` 会释放全局槽位，重启的上下文可以再次安装。 |
 | `VariableLinkedBlockingQueue` 不再实现 `Serializable` | 它沿用 JDK `LinkedBlockingQueue` 的形态，但哨兵节点链使得反序列化出来的实例表现为空队列、并在首次使用时抛 `NullPointerException`——该声明只承诺了它做不到的事，`DrainingBlockingQueue` 也从未声明过。队列不是序列化格式：需要时重建队列，或序列化元素后重新灌入。 |
 

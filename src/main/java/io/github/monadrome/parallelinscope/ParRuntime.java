@@ -270,10 +270,6 @@ public final class ParRuntime implements AutoCloseable {
         return purger;
     }
 
-    ScheduledExecutorService timerService() {
-        return timerService;
-    }
-
     ListeningExecutorService submitterPool() {
         return submitterPool;
     }
