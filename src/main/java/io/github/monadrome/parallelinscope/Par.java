@@ -144,14 +144,7 @@ public final class Par {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
-        TaskGraphObservationScope observation = parent != null
-                        && parent.taskGraphObservationScope() != null
-                        && parent.taskGraphObservationScope().owner() == runtime
-                ? parent.taskGraphObservationScope()
-                : parent == null && currentObservation != null && currentObservation.owner() == runtime
-                        ? currentObservation
-                        : null;
+        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
                 .structuralParent(parent)
                 .taskGraphObservationScope(observation)
@@ -170,7 +163,7 @@ public final class Par {
                     1,
                     unit.remaining(),
                     executorRuntime.starvationProne());
-            logForking(unit, edge);
+            logForking(observation, unit, edge);
         }
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, Ticker.systemTicker().read(), bodyCompletion.register(unit));
@@ -201,14 +194,7 @@ public final class Par {
         // The deadline check above stays first so the documented @throws contract is unchanged.
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
-        TaskGraphObservationScope observation = parent != null
-                        && parent.taskGraphObservationScope() != null
-                        && parent.taskGraphObservationScope().owner() == runtime
-                ? parent.taskGraphObservationScope()
-                : parent == null && currentObservation != null && currentObservation.owner() == runtime
-                        ? currentObservation
-                        : null;
+        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
                 .structuralParent(parent)
                 .taskGraphObservationScope(observation)
@@ -219,6 +205,7 @@ public final class Par {
                 elements,
                 item -> () -> function.apply(item),
                 unit,
+                observation,
                 options.closeGrace().orElse(null));
     }
 
@@ -227,11 +214,14 @@ public final class Par {
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            java.time.@Nullable Duration closeGrace) {
+            @Nullable TaskGraphObservationScope observation,
+            @Nullable Duration closeGrace) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // Graph bookkeeping only pays off when a request-level observation scope is recording;
-        // skip the edge allocation and remaining() read on the common unobserved path.
-        if (TaskGraphObservationScope.current() != null) {
+        // skip the edge allocation and remaining() read on the common unobserved path. The test is
+        // the scope this unit resolved to, not whatever scope the calling thread carries: a thread
+        // inside another ParRuntime's scope must not record this batch's edge there.
+        if (observation != null) {
             TaskEdge edge = new TaskEdge(
                     unit.effectiveParallelism(),
                     unit.taskType(),
@@ -246,7 +236,7 @@ public final class Par {
                     list.size(),
                     unit.remaining(),
                     executorRuntime.starvationProne());
-            logForking(unit, edge);
+            logForking(observation, unit, edge);
         }
         Ticker ticker = Ticker.systemTicker();
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
@@ -296,12 +286,13 @@ public final class Par {
     }
 
     /**
-     * Records one parent-to-child unit edge. Unit IDs, rather than reusable task names, preserve
-     * graph correctness when the same named operation is invoked concurrently.
+     * Records one parent-to-child unit edge into the scope this unit resolved to. Unit IDs, rather
+     * than reusable task names, preserve graph correctness when the same named operation is invoked
+     * concurrently.
      */
-    private static void logForking(MultiTaskContext context, TaskEdge edge) {
+    private static void logForking(TaskGraphObservationScope observation, MultiTaskContext context, TaskEdge edge) {
         MultiTaskContext parent = context.structuralParent();
-        TaskGraphObservationScope.logTaskPair(
+        observation.recordEdge(
                 parent == null ? null : parent.unitId(),
                 parent == null ? null : parent.name(),
                 context.unitId(),
