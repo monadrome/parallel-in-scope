@@ -27,7 +27,7 @@ id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言队列 purge 与阻塞风险检测失效。
 
-注册时按执行器自身的结构做分类，读不出的事实不做任何声明。工作队列容量有限、且 `maximumPoolSize` 有限的 `ThreadPoolExecutor` 是有界池；队列无界（fixed pool 默认的 `LinkedBlockingQueue`）或线程上界无界（cached pool 的 `SynchronousQueue` + `Integer.MAX_VALUE`）的则是无界池——前者无限吸收任务，后者不设线程上限。其余形态（包括注册前已被你自己包装过的池）保持未知。
+注册时读取执行器自身的结构，读不出的事实不做任何声明。这次读取只得到两项事实：队列 purge 能否观测这个池（需要是 `ThreadPoolExecutor` 且队列容量有限且为正），以及池上的任务体在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——两项都取保守答案，并在组成根提示一次。
 
 因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，队列 purge 与阻塞风险检测完整可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
 
