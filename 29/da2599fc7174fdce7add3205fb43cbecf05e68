@@ -1,0 +1,27 @@
+CHANGELOG.md
+  s_ede93b60fe0bb3::t_186ed4609787e9 126
+src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java
+  s_ede93b60fe0bb3::t_f6f3626d891759 24,37,42,50,62,106
+design/executor-transparency.md
+  s_ede93b60fe0bb3::t_077eb5f3e1388d 211-229
+  s_ede93b60fe0bb3::t_65e77a39dd3c08 183
+src/main/java/io/github/monadrome/parallelinscope/ExecutorRuntime.java
+  s_ede93b60fe0bb3::t_d7897d49ad470f 89
+  s_ede93b60fe0bb3::t_7d5588af94166b 16-23,25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "29da2599fc7174fdce7add3205fb43cbecf05e68",
+  "prompts": {},
+  "sessions": {
+    "s_ede93b60fe0bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6598f8-afc0-499b-ac4e-5f3ecb8cc9d8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
