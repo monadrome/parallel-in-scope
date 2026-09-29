@@ -1,0 +1,56 @@
+src/main/java/io/github/monadrome/parallelinscope/CombineBody.java
+  s_fe4a7aedc30bc2::t_b60068da36ea96 15-26,28-31
+  s_fe4a7aedc30bc2::t_4af0c6c80321f4 33-38
+docs/zh/migration-v0.3.md
+  s_fe4a7aedc30bc2::t_359855d70e8eee 449-462
+  s_fe4a7aedc30bc2::t_715c392f38ba1a 550,553-556
+docs/en/migration-v0.3.md
+  s_fe4a7aedc30bc2::t_d2b20677f7620d 492-509
+  s_fe4a7aedc30bc2::t_bf2c10cd31abfc 611-619
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_fe4a7aedc30bc2::t_04c3730f111873 88-90,92
+  s_fe4a7aedc30bc2::t_847644ee13d193 202-214
+  s_fe4a7aedc30bc2::t_1fd3651a68317f 319-323,326,333-337
+  s_fe4a7aedc30bc2::t_21eed86a414547 107-114
+  s_fe4a7aedc30bc2::t_c4dab8fd399b2a 179-185
+  s_fe4a7aedc30bc2::t_f4e7a24cd85de6 327-332
+  s_fe4a7aedc30bc2::t_29f180a0ef7aa4 106
+  s_fe4a7aedc30bc2::t_d14a52d4906f3b 162-178,186-190
+  s_fe4a7aedc30bc2::t_b55633abd2e131 95-105,116
+  s_fe4a7aedc30bc2::t_4c4a4410757b58 87,91,93-94,115,117
+  s_fe4a7aedc30bc2::t_3cc33441b78b4f 324
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineInlineGuardTest.java
+  s_fe4a7aedc30bc2::t_d1c81a33e6dbac 113-162
+  s_fe4a7aedc30bc2::t_c68eb1cd8fcf5c 85-89
+  s_fe4a7aedc30bc2::t_6b4801fae35335 1-84,90-112,163-291
+design/task-group-terminal-combine.md
+  s_fe4a7aedc30bc2::t_8e22343e3f79d3 45
+  s_fe4a7aedc30bc2::t_a87fe660b0f35e 130-133
+  s_fe4a7aedc30bc2::t_25df2ddf0d6a4e 253-270
+  s_fe4a7aedc30bc2::t_b34a33db1eb2d4 193
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_fe4a7aedc30bc2::t_69a851b6358595 128-134,140-141
+src/main/java/io/github/monadrome/parallelinscope/ExecutorRuntime.java
+  s_fe4a7aedc30bc2::t_a3747be7afbb1b 125-126,128-140,142
+  s_fe4a7aedc30bc2::t_c069b56325940d 127,141,143-145
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fe4a7aedc30bc2::t_ce857a79f0449e 578-579
+  s_fe4a7aedc30bc2::t_5f6778706eb2ec 551-558
+  s_fe4a7aedc30bc2::t_1e910db6b6fa28 577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d49d02abd48038b7fafa7685a08d14db47d9b281",
+  "prompts": {},
+  "sessions": {
+    "s_fe4a7aedc30bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d2aface-7dc7-4c13-8d6f-b471230ac849",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
