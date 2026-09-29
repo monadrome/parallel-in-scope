@@ -12,7 +12,7 @@
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("database"), databaseExecutor, "blocking", "database")
+        .register(ParId.of("database"), databaseExecutor)
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
         .build();
@@ -37,16 +37,6 @@ ExecutorService reportPool = new ThreadPoolExecutor(
 ```
 
 任务图边是否标记为死锁易感，取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
-
-注册时可以为 executor 附加任意数量的非空白诊断标签。标签构建为不可变的 set multimap，并按物理 executor identity 合并，因此同一个线程池被多个 id 共享时，各个别名看到的都是标签并集：
-
-```java
-ImmutableSetMultimap<ParId, String> tags = global.executorTags();
-ImmutableSet<String> databaseTags = global.executorTags(ParId.of("database"));
-ImmutableSet<ParId> blocking = global.parsWithExecutorTag("blocking");
-```
-
-标签只用于元数据，不改变调度、取消、队列处理或 executor 图身份。`build()` 后快照只读；未知 id 或 executor 返回空集合。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
