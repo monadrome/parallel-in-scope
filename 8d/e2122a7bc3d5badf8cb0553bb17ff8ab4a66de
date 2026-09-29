@@ -1,0 +1,42 @@
+src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java
+  s_00c0ca58d01782::t_fc90a5f205f6e8 224-225,266-267
+  s_00c0ca58d01782::t_afab9193ad0f84 35-40
+src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_00c0ca58d01782::t_35f0726acbe3db 493,495-496
+  s_00c0ca58d01782::t_e8704aab42a504 499-501,504-507,509,516-531,535-548,551-571
+  s_00c0ca58d01782::t_f2da330534115f 512
+  s_00c0ca58d01782::t_fcdb1b042d573d 494
+  s_00c0ca58d01782::t_e2595d3642ba10 17
+design/inline-fallback-path-analysis.md
+  s_00c0ca58d01782::t_1c8ba5a11ed6f6 1-317
+AGENTS.md
+  s_00c0ca58d01782::t_c22b163a1bb386 51-62
+src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java
+  s_00c0ca58d01782::t_e50d050783dda7 235-237,241-243
+  s_00c0ca58d01782::t_2117194b1f71c1 1-217,227-234,238-240,244-324
+  s_00c0ca58d01782::t_a3fd2b6d04e317 218-226
+design/caller-runs-support-after-inline-deletion.md
+  s_00c0ca58d01782::t_1c8ba5a11ed6f6 1-942
+src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java
+  s_00c0ca58d01782::t_4f341bcc44bcd1 34-44
+  s_00c0ca58d01782::t_fc90a5f205f6e8 45,83-84,98-99,116-124,167-175,198-203,223-226,262-268,676-687,727-737
+  s_00c0ca58d01782::t_f952327bb2414d 63,149,242,295,353,418,479,511,545,575,602,800
+design/interruption-contract.md
+  s_00c0ca58d01782::t_1c8ba5a11ed6f6 1-448
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8de2122a7bc3d5badf8cb0553bb17ff8ab4a66de",
+  "prompts": {},
+  "sessions": {
+    "s_00c0ca58d01782": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11606e58-85b6-4ee2-830f-946c456d7f31",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
