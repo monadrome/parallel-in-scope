@@ -39,6 +39,15 @@ refactor proposals. Treat it as part of this library's public product — the `q
 their own contract (`design/draining-queue-contract.md`) and tests, and their defects are this
 repository's to fix.
 
+It is also outside the core mechanism, and outside the default reading scope. These are standalone
+queues: no cancellation, no context propagation, no execution kernel, no imports from the root
+package. Do not read or review `queue` during repository-wide sweeps — comment audits, overdesign
+or deletion reviews, adversarial review rounds, mutation-testing passes — unless the task names
+queue behavior, `DrainingBlockingQueue`, `VariableLinkedBlockingQueue`, or the draining close
+contract. Its tests still run in `mvn test` and must stay green. When a task does target the
+package, read `src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md` first; it governs
+both the main and test queue directories.
+
 Two invariants to respect:
 
 - Parent propagation is wired in the `CancellationToken` constructor;
