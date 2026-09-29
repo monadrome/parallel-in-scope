@@ -523,7 +523,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // The wrapper is what turns a body that violates its declared token into an ordinary
                 // member failure instead of a later ClassCastException at a caller's use site.
                 Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, unit, taskContext);
+                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
                 MemberState state = new MemberState(
                         slot.name, slot.type, taskContext, future, par.submissionExecutor(), unit.runOnCallerThread());
                 states.put(slot.name, state);
@@ -565,7 +565,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 String combineName = combineSlot.name;
                 TypeToken<?> combineType = combineSlot.type;
                 Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, unit, taskContext);
+                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
                 terminal =
                         new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor(), false);
                 if (observation != null) {
