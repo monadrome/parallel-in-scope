@@ -1,0 +1,42 @@
+design/task-group-submission.md
+  s_00c0ca58d01782::t_39a45120de7ff0 114-117
+adr/0007-bind-before-submit-and-borrowed-thread-isolation.md
+  s_00c0ca58d01782::t_f5de6d5c8d11a6 1-169
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  s_00c0ca58d01782::t_6c458986332898 7-22
+adr/0001-layered-cartesian-concurrency-testing.md
+  s_00c0ca58d01782::t_bc426172ef6c3f 91-98
+docs/zh/user-guide.md
+  s_00c0ca58d01782::t_337f5d9193a432 70
+design/batch-submission-failure-semantics.md
+  s_00c0ca58d01782::t_b33722f644e688 9-19
+design/interruption-contract.md
+  s_00c0ca58d01782::t_55a2471b9a2677 418-419
+  s_00c0ca58d01782::t_ad68e7c67a3bed 300-315
+docs/en/user-guide.md
+  s_00c0ca58d01782::t_0e66ce020ee24b 77
+design/extension-and-wrapping.md
+  s_00c0ca58d01782::t_821388538758e9 302
+  s_00c0ca58d01782::t_fe09296a643e02 299
+design/task-listener-removal-proposal-codex.md
+  s_00c0ca58d01782::t_ef71d431dbe559 118-122
+CHANGELOG.md
+  s_00c0ca58d01782::t_5c48974d4268e9 27
+  s_00c0ca58d01782::t_4c5f613b2916d2 68-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a805c5d7412b393e91dde801cf18bea45e6befc0",
+  "prompts": {},
+  "sessions": {
+    "s_00c0ca58d01782": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11606e58-85b6-4ee2-830f-946c456d7f31",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
