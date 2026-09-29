@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -63,10 +62,7 @@ final class BodyCompletionTracker {
 
     /** Creates a tracker whose outstanding count starts at {@code taskCount}. */
     static BodyCompletionTracker create(int taskCount) {
-        if (taskCount < 0) {
-            throw new IllegalArgumentException("taskCount must not be negative");
-        }
-        return new BodyCompletionTracker(taskCount);
+        return new BodyCompletionTracker(Validation.requireNonNegative(taskCount, "taskCount"));
     }
 
     /** Creates a tracker for an empty submission: the signal is already complete. */
@@ -170,10 +166,7 @@ final class BodyCompletionTracker {
      *     the interrupt flag is cleared per Java interruption convention
      */
     boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        if (timeout.isNegative()) {
-            throw new IllegalArgumentException("timeout must not be negative: " + timeout);
-        }
+        Validation.requireNonNegative(timeout, "timeout");
         checkNotSelfAwait();
         if (Thread.interrupted()) {
             throw new InterruptedException();
