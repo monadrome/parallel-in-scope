@@ -115,8 +115,11 @@ ListenableFuture<TaskCompletion<T>> completionFuture();
 
 实现上 `Task` 持有 package-private 的 observation `SettableFuture` 和快照工厂；执行 future
 终态与 body exit 两个条件都满足后 set，异常路径也必须 set。不得重新调用用户代码或
-listener。所有已发布的 TaskFuture（含滑动窗口 placeholder）都必须暴露同一个 observation
-future；placeholder 在绑定真实任务后透传真实 observation future，放弃/拒绝路径也必须终结。
+listener。所有已发布的 TaskFuture 都必须暴露同一个 observation future，放弃/拒绝路径也必须
+终结。（原文这里还要求"滑动窗口 placeholder 在绑定真实任务后透传真实 observation future"。
+placeholder 已随 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)
+删除：视图从创建起就包住 prepared future，两者本来就是同一个 observation，透传要求随之消失。
+要求本身不变。）
 
 ### 4.3 `TaskBatchResult` 的观测 future
 
