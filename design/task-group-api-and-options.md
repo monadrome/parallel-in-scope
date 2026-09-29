@@ -9,7 +9,7 @@
 > 实现者只依赖本系列和当前代码库即可完成开发，不需要再参考早期草稿。文中的 MUST、
 > MUST NOT、SHOULD 分别表示必须、禁止和推荐。
 > 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
-> 面向使用者的 API 说明见 [使用指南](../../docs/zh/user-guide.md) 与 [v0.2 迁移指南](../../docs/zh/migration-v0.2.md)。
+> 面向使用者的 API 说明见 [使用指南](../docs/zh/user-guide.md) 与 [v0.2 迁移指南](../docs/zh/migration-v0.2.md)。
 
 ## 1. 目标与非目标
 

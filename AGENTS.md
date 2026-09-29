@@ -262,8 +262,11 @@ Load documents when their subject affects the task:
 
 - `design/AGENTS.md` - Entry point for execution-engine, cancellation,
   task-group, queue, or extension behavior changes. Load only contracts whose
-  summaries match the change. Current `design/` contracts take precedence over
-  historical ADRs.
+  summaries match the change. It indexes committed documents only; in-flight
+  proposals stay untracked by policy, so check `git status --short design/` too.
+  Current `design/` contracts take precedence over historical ADRs, except for
+  boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
+  boundary, and the `design/` document on it is an archive copy.
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
@@ -271,6 +274,12 @@ Load documents when their subject affects the task:
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
 - `adr/` - Historical decision rationale; existing records are immutable.
+- `BACKLOG.md` - Known defects and deferred work, each with an evidence grade.
+  It is pinned to the commit named at its top, so re-verify any line number it
+  cites before acting on an entry.
+- `mkdocs/mkdocs.yml` - Site navigation, i18n locales, and the redirect map for
+  previously published URLs. Update when adding, renaming, or moving a page
+  under `docs/`.
 - `.github/ISSUE_TEMPLATE/` - The forms a capability, defect, or documentation
   issue must use; the design proposal form mirrors the `design/first-principles.md`
   evaluation.
