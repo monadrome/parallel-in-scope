@@ -100,6 +100,9 @@ class TaskGroupCombineInlineGuardTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(combineThread.get()).isNull();
             assertThat(result.failedTaskName()).isEqualTo("sum");
+            // Safe in this direction where an equality on a positive count would not be: the counter
+            // only ever lags what has actually finished, so it cannot report work that never ran. The
+            // two occupying tasks are still parked on the latch, which is released in the finally.
             assertThat(combinePool.getCompletedTaskCount()).isEqualTo(0);
         } finally {
             release.countDown();
