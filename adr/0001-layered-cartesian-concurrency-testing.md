@@ -271,8 +271,10 @@ When a new test exposes a production defect during diagnostic work:
 4. the observed behavior, expected behavior, impact, and source evidence are
    recorded in the deep test report.
 
-The current report is
-[`../tmp/deep-concurrency-test-report.md`](../tmp/deep-concurrency-test-report.md).
+The report this record referred to lived at `todo/deep-concurrency-test-report.md` and was
+removed with the rest of the exploratory notes in `82e886a` (2026-08-27). It is recoverable from
+history with `git show 82e886a^:todo/deep-concurrency-test-report.md`; later deep-test material
+lives in `reports/`.
 
 ## Alternatives Considered
 

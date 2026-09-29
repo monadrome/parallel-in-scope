@@ -60,7 +60,7 @@ failedTaskName
 TaskGraphObservationScope snapshot（可空）
 ```
 
-其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation、成员被直接取消。单个成员被调用方直接取消会级联取消整个 Group（见 [取消与归因 §8.2](cancellation.md#82-成员主动取消)）。Group 对象在调用方、成员完成 listener 或 completion future 仍引用它时继续存活；它不属于任何物理线程。
+其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation、成员被直接取消。单个成员被调用方直接取消会级联取消整个 Group（见 [取消与归因 §8.2](task-group-cancellation.md#82-成员主动取消)）。Group 对象在调用方、成员完成 listener 或 completion future 仍引用它时继续存活；它不属于任何物理线程。
 
 ### 4.3 MemberState
 
