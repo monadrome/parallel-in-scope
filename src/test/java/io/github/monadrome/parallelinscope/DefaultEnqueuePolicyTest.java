@@ -53,10 +53,14 @@ class DefaultEnqueuePolicyTest {
                     .valuesOrThrow();
 
             // Every body ran on a pool worker. With the old defaults the queue refused all 12, the
-            // pool saturated at two threads, and the remaining ten ran on the caller.
+            // pool saturated at its two threads, and the remaining ten ran on the caller.
+            //
+            // The thread names are the whole assertion. getCompletedTaskCount() is not used: a worker
+            // completes the future inside the task and only increments that counter afterwards in
+            // afterExecute, so a run that has observed every value can still read 11 — the JDK
+            // documents the count as approximate for exactly this reason.
             assertThat(threads).doesNotContain(callerThread);
             assertThat(threads).allMatch(name -> name.equals("worker"));
-            assertThat(pool.getCompletedTaskCount()).isEqualTo(12);
         } finally {
             runtime.close();
             pool.shutdownNow();
@@ -81,9 +85,15 @@ class DefaultEnqueuePolicyTest {
                     .valuesOrThrow();
 
             // The control group: asking for CPU_BOUND must still reach the rejection handler, which
-            // with CallerRunsPolicy means the caller runs the overflow. Otherwise the new defaults
-            // would have silently removed the capability rather than stopped imposing it.
-            assertThat(threads).contains(callerThread);
+            // with CallerRunsPolicy means the submitting thread runs the overflow. Otherwise the new
+            // defaults would have silently removed the capability rather than stopped imposing it.
+            //
+            // The assertion is "something ran off the pool", not "the test thread ran it": a batch
+            // submits its first window from the calling thread and refills from a library submitter
+            // thread, so which of the two absorbs a given overflow element is not this test's claim.
+            assertThat(threads).isNotEmpty();
+            assertThat(threads).anyMatch(name -> !name.equals("cpu-worker"));
+            assertThat(callerThread).isNotEqualTo("cpu-worker");
         } finally {
             runtime.close();
             pool.shutdownNow();
@@ -108,8 +118,11 @@ class DefaultEnqueuePolicyTest {
                     .valuesOrThrow();
 
             // The other half of the control group: the flag is an independent opt-in, so it must
-            // reach the handler on its own without the task type being changed too.
-            assertThat(threads).contains(callerThread);
+            // reach the handler on its own without the task type being changed too. Same reasoning as
+            // above for why this asserts "off the pool" rather than naming a specific thread.
+            assertThat(threads).isNotEmpty();
+            assertThat(threads).anyMatch(name -> !name.equals("flag-worker"));
+            assertThat(callerThread).isNotEqualTo("flag-worker");
         } finally {
             runtime.close();
             pool.shutdownNow();
