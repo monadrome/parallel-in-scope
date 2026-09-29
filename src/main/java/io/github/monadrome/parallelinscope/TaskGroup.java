@@ -78,6 +78,13 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     /** The same members as {@link #memberStates}, addressable by declaration position. */
     private final ImmutableList<MemberState> orderedMembers;
 
+    /**
+     * Every task the group waits on: the members in declaration order, then the combine when one
+     * is declared. Fixed at construction, so the cancel cascade in {@link #memberCompleted} walks
+     * it without rebuilding it once per completing task.
+     */
+    private final ImmutableList<MemberState> membersAndTerminal;
+
     private final ImmutableList<String> memberNames;
     private final ImmutableList<TypeToken<?>> memberTypes;
     private final @Nullable MemberState terminal;
@@ -148,7 +155,13 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         this.memberNames = names.build();
         this.memberTypes = types.build();
         this.terminal = terminal;
-        this.totalTasks = this.memberStates.size() + (terminal == null ? 0 : 1);
+        this.membersAndTerminal = terminal == null
+                ? this.orderedMembers
+                : ImmutableList.<MemberState>builder()
+                        .addAll(this.orderedMembers)
+                        .add(terminal)
+                        .build();
+        this.totalTasks = this.membersAndTerminal.size();
         // The group's own terminal future is a task like any other: it carries the group name and
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
         // as on a member future. Its observation is the single group-level summary — the result is
@@ -378,7 +391,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // its observation listener runs. Wait out that window too, so a true result guarantees
         // every member's completionFuture() already carries its final snapshot.
         long budgetNanos = Deadlines.saturatedNanos(timeout);
-        for (MemberState member : membersAndTerminal()) {
+        for (MemberState member : membersAndTerminal) {
             if (!BodyCompletionTracker.awaitSettled(
                     member.view.observationView(), budgetNanos, startNanos, "member observation signal")) {
                 return false;
@@ -691,7 +704,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
         // attribution reads the group token instead (see classifyCancelled). The combine follows
         // the same rule: its own tighter deadline escalates to the group as TIMEOUT.
-        for (MemberState member : membersAndTerminal()) {
+        for (MemberState member : membersAndTerminal) {
             CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
             if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
                 continue;
@@ -706,24 +719,8 @@ public final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     private List<ListenableFuture<Object>> observedFutures() {
-        List<ListenableFuture<Object>> futures = memberFutures();
-        if (terminal != null) {
-            futures.add(terminal.future);
-        }
-        return futures;
-    }
-
-    private List<MemberState> membersAndTerminal() {
-        List<MemberState> all = new ArrayList<>(orderedMembers);
-        if (terminal != null) {
-            all.add(terminal);
-        }
-        return all;
-    }
-
-    private List<ListenableFuture<Object>> memberFutures() {
-        List<ListenableFuture<Object>> futures = new ArrayList<>();
-        for (MemberState member : orderedMembers) {
+        List<ListenableFuture<Object>> futures = new ArrayList<>(membersAndTerminal.size());
+        for (MemberState member : membersAndTerminal) {
             futures.add(member.future);
         }
         return futures;
@@ -807,7 +804,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // canceled first so members cancelled through their tokens read a terminal group
                 // state.
                 groupToken.cancel();
-                for (MemberState other : membersAndTerminal()) {
+                for (MemberState other : membersAndTerminal) {
                     if (!other.future.isDone()) {
                         other.context.multiTaskContext().cancellationToken().cancel();
                     }
