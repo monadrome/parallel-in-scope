@@ -1,0 +1,28 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+  s_fe4a7aedc30bc2::t_19b22d720ddbec 1-236
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+  s_fe4a7aedc30bc2::t_260a599efdfee6 88
+  s_fe4a7aedc30bc2::t_17f2fb9ce49c07 18-20,22-28,30-37
+  s_fe4a7aedc30bc2::t_0dacfb1c7840b6 62-68
+  s_fe4a7aedc30bc2::t_0ee8ffc568c4a6 109,111-112
+  s_fe4a7aedc30bc2::t_93fdd84664e7bf 170
+  s_fe4a7aedc30bc2::t_27f20f45d693c8 41-46
+  s_fe4a7aedc30bc2::t_8edc7be43bfa10 1-17,21,29,38-40,47-61,69-87,89-108,110,113-123,129-169,171-181
+  s_fe4a7aedc30bc2::t_d70e30de749b52 124-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "88a01a1f61b8a2d3afd405c4385e7ea196e89fb4",
+  "prompts": {},
+  "sessions": {
+    "s_fe4a7aedc30bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d2aface-7dc7-4c13-8d6f-b471230ac849",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
