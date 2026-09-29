@@ -1,0 +1,19 @@
+reports/mutation-testing-2026-09-29.md
+  s_9adb225d9d4dbe::t_0a9cb666ce3386 3-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d05f8d96ada4ae9abb11c424ebb8ec925d529e19",
+  "prompts": {},
+  "sessions": {
+    "s_9adb225d9d4dbe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4aa449c6-c32f-433f-ad52-9cd3d2af7491",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
