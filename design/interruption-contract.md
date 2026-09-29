@@ -223,7 +223,7 @@ directExecutor      : caller's next await() THREW InterruptedException
 ```
 
 **规范：库在任何"任务体可能跑在非池化线程上"的路径上，必须自己恢复边界卫生。**
-本库存在这样的路径（`runOnCallerThread`），当前没有做，见 7.3。
+本库存在这样的路径（执行器借用的线程：direct executor、`CallerRunsPolicy`、拒绝处理器），修复见 7.3。
 
 这条不是新规定——`extension-and-wrapping.md:307` 的 INV-3 早已写明：
 
@@ -309,7 +309,11 @@ stub 必须换成真实 Guava future + 真实 `interrupt()`。
 >
 > 取舍：一个 bit 无法区分三个来源（任务体自己的恢复、库的取消中断、真正发给被借用线程的
 > 中断），所以三者一律丢弃。被牺牲的是第三种——`map()` 执行期间发给调用方线程的真中断会
-> 丢失。这一点已写进 `docs/{en,zh}/user-guide.md` 的 `runOnCallerThread` 说明。
+> 丢失。这一点已写进 `docs/{en,zh}/user-guide.md` 的拒绝处置说明。
+>
+> 后续：`runOnCallerThread` 选项本身已在 0.3.0 发布前删除（拒绝处置归执行器的
+> `RejectedExecutionHandler`）；上述隔离机制保留，覆盖 direct executor 与
+> `CallerRunsPolicy` 借用的线程。
 >
 > 回归锁 `InlineSubmissionLivenessTest`；7.3.1 的"12 个只跑 3 个"由
 > `aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch` 锁住。
@@ -445,7 +449,7 @@ deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线�
 | 1 | 带中断标志读 `TaskFuture.outcome()` | 结论不变、不抛、返回时标志仍在 |
 | 2 | 带中断标志读 `TaskFuture.failure()`（失败任务） | 返回真实 cause、不抛、标志仍在 |
 | 3 | 带中断标志读裸 `Future` 的 `FutureInspector.outcome` | 成功仍读成 `SUCCESS`，不是 `USER_FAILURE` |
-| 4 | `runOnCallerThread(true)` + 任务体恢复标志 | 提交线程在 `map` 返回后标志为 false |
+| 4 | direct executor / `CallerRunsPolicy`（任务体 inline 于提交线程）+ 任务体恢复标志 | 提交线程在 `map` 返回后标志为 false |
 | 4b | 同上，12 元素批次 | **12 个全部执行**，无 `SUBMISSION_FAILURE`（7.3.1 的丢任务回归锁） |
 | 4c | 同上，随后调 `reportString()` | 正常返回，不抛（7.3.2 的复合回归锁） |
 | 5 | 非 inline 路径 + 任务体恢复标志 | 提交线程标志始终为 false（现已成立，作为对照锁定） |
