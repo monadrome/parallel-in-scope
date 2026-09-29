@@ -3,15 +3,12 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.reflect.TypeToken;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,47 +35,11 @@ class InlineSubmissionLivenessTest {
     private static final Duration DEADLINE = Duration.ofSeconds(2);
     private static final Duration WATCHDOG = Duration.ofSeconds(20);
 
-    /** Rejects every handoff, so every element takes the caller-thread fallback. */
-    private static final class RejectingExecutor extends AbstractExecutorService {
-        private volatile boolean shutdown;
-
-        @Override
-        public void shutdown() {
-            shutdown = true;
-        }
-
-        @Override
-        public List<Runnable> shutdownNow() {
-            shutdown = true;
-            return Collections.emptyList();
-        }
-
-        @Override
-        public boolean isShutdown() {
-            return shutdown;
-        }
-
-        @Override
-        public boolean isTerminated() {
-            return shutdown;
-        }
-
-        @Override
-        public boolean awaitTermination(long timeout, TimeUnit unit) {
-            return true;
-        }
-
-        @Override
-        public void execute(Runnable command) {
-            throw new RejectedExecutionException("rejected");
-        }
-    }
-
     @Test
     void aBatchWhoseInlineBodyWaitsForALaterElementStillConvergesOnItsDeadline() throws Exception {
-        RejectingExecutor rejecting = new RejectingExecutor();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("worker"), direct).build();
         CountDownLatch lastElementStarted = new CountDownLatch(1);
         AtomicBoolean returned = new AtomicBoolean();
         AtomicBoolean flagLeaked = new AtomicBoolean();
@@ -111,8 +72,7 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-liveness", DEADLINE)
                                             .parallelism(6)
-                                            .taskType(TaskType.CPU_BOUND)
-                                            .runOnCallerThread(true));
+                                            .taskType(TaskType.CPU_BOUND));
                     returned.set(true);
                     flagLeaked.set(Thread.currentThread().isInterrupted());
                     assertThat(batch.report().stateCounts()).containsOnlyKeys(TaskOutcome.TIMEOUT);
@@ -135,15 +95,15 @@ class InlineSubmissionLivenessTest {
         } finally {
             lastElementStarted.countDown();
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     @Test
     void aCallerFreedByTheDeadlineCanStillReadTheBatchVerdict() throws Exception {
-        RejectingExecutor rejecting = new RejectingExecutor();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("worker"), direct).build();
         CountDownLatch lastElementStarted = new CountDownLatch(1);
         AtomicBoolean awaitAnswered = new AtomicBoolean();
         AtomicBoolean awaitThrew = new AtomicBoolean();
@@ -169,8 +129,7 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-verdict", DEADLINE)
                                             .parallelism(3)
-                                            .taskType(TaskType.CPU_BOUND)
-                                            .runOnCallerThread(true));
+                                            .taskType(TaskType.CPU_BOUND));
                     // The first thing any real caller does after map() returns. A leaked flag makes
                     // this throw, so the caller learns nothing about why the batch ended.
                     try {
@@ -193,7 +152,7 @@ class InlineSubmissionLivenessTest {
         } finally {
             lastElementStarted.countDown();
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
@@ -205,16 +164,15 @@ class InlineSubmissionLivenessTest {
      */
     @Test
     void aGroupWhoseInlineMemberWaitsForAnotherConvergesAndReportsItsOutcome() throws Exception {
-        RejectingExecutor rejecting = new RejectingExecutor();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("worker"), direct).build();
         CountDownLatch secondStarted = new CountDownLatch(1);
-        TaskOptions inline =
-                TaskOptions.inheritTimeout().taskType(TaskType.CPU_BOUND).runOnCallerThread(true);
+        TaskOptions memberOptions = TaskOptions.inheritTimeout();
 
         try {
             TaskGroup<?, Void> group = global.group("inline-group", DEADLINE)
-                    .par("a", global.par(ParId.of("worker")), inline, TypeToken.of(Integer.class), () -> {
+                    .par("a", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
                         try {
                             secondStarted.await();
                         } catch (InterruptedException e) {
@@ -226,7 +184,7 @@ class InlineSubmissionLivenessTest {
                         }
                         return 1;
                     })
-                    .par("b", global.par(ParId.of("worker")), inline, TypeToken.of(Integer.class), () -> {
+                    .par("b", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
                         secondStarted.countDown();
                         return 2;
                     })
@@ -244,7 +202,7 @@ class InlineSubmissionLivenessTest {
         } finally {
             secondStarted.countDown();
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
@@ -288,11 +246,16 @@ class InlineSubmissionLivenessTest {
      */
     @Test
     void aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {
-        // Core pool of 1 with a zero-capacity queue: the first element occupies the worker and every
-        // later handoff is rejected, so the window-external elements run inline on the submitter
-        // thread rather than the caller's.
+        // Core pool of 1 with a zero-capacity queue and CallerRunsPolicy: the first element
+        // occupies the worker and every later handoff runs inline on the submitting thread, so the
+        // window-external elements run on the library's submitter thread rather than the caller's.
         ThreadPoolExecutor saturated = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new java.util.concurrent.SynchronousQueue<Runnable>());
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new java.util.concurrent.SynchronousQueue<Runnable>(),
+                new ThreadPoolExecutor.CallerRunsPolicy());
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), saturated).build();
         AtomicInteger executed = new AtomicInteger();
@@ -308,8 +271,7 @@ class InlineSubmissionLivenessTest {
                             },
                             BatchOptions.timeout("submitter-thread", Duration.ofSeconds(15))
                                     .parallelism(1)
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .runOnCallerThread(true));
+                                    .taskType(TaskType.CPU_BOUND));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(15))).isTrue();
             assertThat(executed.get())

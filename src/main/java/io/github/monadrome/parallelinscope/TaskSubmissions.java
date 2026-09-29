@@ -55,15 +55,17 @@ final class TaskSubmissions {
 
     /**
      * Submits a prepared future to {@code executor} with the unit's {@link SubmissionScope}
-     * installed, so enqueue policies see the submitting unit. A task whose options request the
-     * caller-thread fallback runs inline when rejected; any other rejection fails the future with
-     * a {@link SubmissionException} without running user code.
+     * installed, so enqueue policies see the submitting unit. A rejection fails the future with a
+     * {@link SubmissionException} without running user code.
+     *
+     * <p>The scope installed here covers the submission only. An executor that runs the task inside
+     * {@code execute()} would otherwise leave it installed around the body as well, which {@link
+     * ExecutionPhaseHintFuture#run()} undoes.
      */
-    static void submitScoped(
-            ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean runOnCallerThread) {
+    static void submitScoped(ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor) {
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            future.submitPrepared(executor, runOnCallerThread);
+            future.submitPrepared(executor);
         } finally {
             SubmissionScope.restore(previous);
         }

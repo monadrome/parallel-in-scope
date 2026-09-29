@@ -20,21 +20,18 @@ final class UnitSpec {
     private final Optional<Duration> timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
 
     UnitSpec(
             String name,
             int requestedParallelism,
             Optional<Duration> timeout,
             TaskType taskType,
-            boolean rejectEnqueue,
-            boolean runOnCallerThread) {
+            boolean rejectEnqueue) {
         this.name = name;
         this.requestedParallelism = requestedParallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
     }
 
     /** The logical unit name: a batch name for batches, the key name for group members. */
@@ -58,9 +55,5 @@ final class UnitSpec {
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
-    }
-
-    boolean runOnCallerThread() {
-        return runOnCallerThread;
     }
 }
