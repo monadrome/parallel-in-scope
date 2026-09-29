@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
@@ -411,30 +412,27 @@ class TaskBatchResultBodyCompletionTest {
     }
 
     @Test
-    void callerThreadFallbackDoesNotLeakSlots() throws Exception {
-        RejectingExecutor rejecting = new RejectingExecutor();
+    void directExecutionDoesNotLeakSlots() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("worker"), direct).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            // Elements whose options request the caller-thread fallback run inline when rejected;
-            // the window-external one runs inline on the submitter thread. All slots must still be
-            // released exactly once. The wait uses a real budget because the submitter thread runs
+            // Every element runs inline: the initial-window one on the caller thread, the
+            // window-external one on the submitter thread. All slots must still be released
+            // exactly once. The wait uses a real budget because the submitter thread runs
             // concurrently.
             TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("inline")
-                                    .parallelism(1)
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .runOnCallerThread(true));
+                            options("inline").parallelism(1).taskType(TaskType.CPU_BOUND));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);
         } finally {
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 

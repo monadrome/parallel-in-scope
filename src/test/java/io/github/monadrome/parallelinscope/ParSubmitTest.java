@@ -17,8 +17,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -58,30 +60,45 @@ class ParSubmitTest {
         }
     }
 
+    /**
+     * Replaces a test of the {@code runOnCallerThread} option, which asked the library to run the body
+     * on the submitting thread when the executor rejected it. There is no such option: a rejection is
+     * a submission failure, and the body does not run. An executor that wants to run tasks on the
+     * submitting thread says so by being that kind of executor.
+     */
     @Test
-    void submitRunsOnTheCallerThreadWhenOptionsRequestIt() throws Exception {
+    void submitFailsWithoutRunningUserCodeWhenTheExecutorRejects() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), rejected).build();
-        Thread caller = Thread.currentThread();
+        AtomicBoolean ran = new AtomicBoolean();
         try {
-            TaskFuture<Thread> task = global.par(ParId.of("worker"))
+            TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
-                            "inline",
-                            Thread::currentThread,
-                            TaskOptions.timeout(Duration.ofSeconds(30)).runOnCallerThread(true));
+                            "rejected",
+                            () -> {
+                                ran.set(true);
+                                return "never";
+                            },
+                            TaskOptions.timeout(Duration.ofSeconds(30)));
 
-            assertThat(task.get(2, TimeUnit.SECONDS)).isSameAs(caller);
-            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isInstanceOf(SubmissionException.class)
+                    .cause()
+                    .isInstanceOf(RejectedExecutionException.class);
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(ran).isFalse();
         } finally {
             global.close();
         }
     }
 
     /**
-     * The default: a rejected task fails without entering user code, for every task type.
-     * {@code CPU_BOUND} is the default type, so this is what an unconfigured task does.
+     * The default: a rejected task fails without entering user code, for every task type. No task
+     * type or rejection handling is declared, so this is what an unconfigured task does.
      */
     @Test
     void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
@@ -252,12 +269,8 @@ class ParSubmitTest {
             assertThat(records).hasSize(2);
 
             // A SmartBlockingQueue reads the flag, so the caller is not warned about an inert one.
-            // runOnCallerThread keeps the run deterministic: this queue rejects the queued task.
             global.par(ParId.of("smart"))
-                    .submit(
-                            "quiet",
-                            () -> "e",
-                            TaskOptions.timeout(Duration.ofSeconds(30)).runOnCallerThread(true))
+                    .submit("quiet", () -> "e", TaskOptions.timeout(Duration.ofSeconds(30)))
                     .get(2, TimeUnit.SECONDS);
             assertThat(records).hasSize(2);
         } finally {

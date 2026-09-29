@@ -258,23 +258,21 @@ class TaskGroupTest {
     }
 
     /**
-     * A member that asks for the caller-thread fallback runs on the thread that submitted the
-     * group when its executor rejects it — the option, not the task type, decides.
+     * A member whose executor is a direct executor service runs on the thread that submitted the
+     * group — the executor, declared at registration, decides.
      */
     @Test
-    void memberRunsOnTheSubmittingThreadWhenOptionsRequestIt() throws Exception {
-        ExecutorService rejecting = new RejectingExecutor();
+    void memberRunsOnTheSubmittingThreadWhenTheExecutorIsDirect() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("reject"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("direct"), direct).build();
         Thread submitter = Thread.currentThread();
         try {
             TaskGroup<Thread, Void> group = global.group("inline-member", TIMEOUT)
                     .par(
                             "inline",
-                            global.par(ParId.of("reject")),
-                            TaskOptions.timeout(Duration.ofSeconds(30))
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .runOnCallerThread(true),
+                            global.par(ParId.of("direct")),
+                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND),
                             TypeToken.of(Thread.class),
                             Thread::currentThread)
                     .submitAll();
@@ -285,14 +283,12 @@ class TaskGroupTest {
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     /**
-     * The default for every member type: a rejected member fails without entering user code. Before
-     * the caller-thread fallback became an option, {@code CPU_BOUND} — the default type — silently
-     * ran rejected members on the submitting thread.
+     * The default for every member type: a rejected member fails without entering user code.
      */
     @Test
     void rejectedCpuMemberFailsWithoutRunningItsBodyByDefault() throws Exception {
