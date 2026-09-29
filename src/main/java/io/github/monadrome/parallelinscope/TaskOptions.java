@@ -1,7 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
@@ -49,20 +50,13 @@ public final class TaskOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskOptions timeout(Duration timeout) {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        if (timeout.isNegative() || timeout.isZero()) {
-            throw new IllegalArgumentException("timeout must be positive when configured");
-        }
-        return new TaskOptions(timeout, TaskType.CPU_BOUND, true, false);
+        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.CPU_BOUND, true, false);
     }
 
     /** Returns a copy of these options with the given task type. */
     public TaskOptions taskType(TaskType taskType) {
         return new TaskOptions(
-                this.timeout,
-                Objects.requireNonNull(taskType, "taskType cannot be null"),
-                rejectEnqueue,
-                runOnCallerThread);
+                this.timeout, checkNotNull(taskType, "taskType cannot be null"), rejectEnqueue, runOnCallerThread);
     }
 
     /**

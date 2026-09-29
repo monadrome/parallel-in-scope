@@ -1,7 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
@@ -35,7 +36,7 @@ public final class BatchOptions {
             boolean rejectEnqueue,
             boolean runOnCallerThread,
             @Nullable Duration closeGrace) {
-        this.name = requireName(name);
+        this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
@@ -56,7 +57,8 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static BatchOptions timeout(String name, Duration timeout) {
-        return new BatchOptions(name, -1, requirePositive(timeout), TaskType.CPU_BOUND, true, false, null);
+        return new BatchOptions(
+                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.CPU_BOUND, true, false, null);
     }
 
     /** Returns a copy of these options with the given requested parallelism. */
@@ -70,7 +72,7 @@ public final class BatchOptions {
                 name,
                 parallelism,
                 timeout,
-                Objects.requireNonNull(taskType, "taskType cannot be null"),
+                checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
                 runOnCallerThread,
                 closeGrace);
@@ -115,7 +117,13 @@ public final class BatchOptions {
      */
     public BatchOptions closeGrace(Duration closeGrace) {
         return new BatchOptions(
-                name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, requireNonNegative(closeGrace));
+                name,
+                parallelism,
+                timeout,
+                taskType,
+                rejectEnqueue,
+                runOnCallerThread,
+                Validation.requireNonNegative(closeGrace, "closeGrace"));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -158,27 +166,5 @@ public final class BatchOptions {
     UnitSpec spec() {
         return new UnitSpec(
                 name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue, runOnCallerThread);
-    }
-
-    private static String requireName(String name) {
-        Objects.requireNonNull(name, "name cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("name cannot be empty");
-        return name;
-    }
-
-    private static Duration requirePositive(Duration timeout) {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        if (timeout.isNegative() || timeout.isZero()) {
-            throw new IllegalArgumentException("timeout must be positive when configured");
-        }
-        return timeout;
-    }
-
-    private static Duration requireNonNegative(Duration closeGrace) {
-        Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
-        if (closeGrace.isNegative()) {
-            throw new IllegalArgumentException("closeGrace must not be negative: " + closeGrace);
-        }
-        return closeGrace;
     }
 }

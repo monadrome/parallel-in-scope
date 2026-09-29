@@ -52,7 +52,7 @@ public final class TaskCompletion<T> {
             @Nullable Throwable failure) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.unitId = Objects.requireNonNull(unitId, "unitId cannot be null");
-        if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+        Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
         this.startTimeNanos = startTimeNanos;

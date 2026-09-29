@@ -1,7 +1,5 @@
 package io.github.monadrome.parallelinscope;
 
-import java.util.Objects;
-
 /**
  * Identity of one {@link Par} entry registered on a {@link ParRuntime}.
  *
@@ -38,9 +36,7 @@ public final class ParId {
      * @throws IllegalArgumentException if {@code value} is blank
      */
     public static ParId of(String value) {
-        Objects.requireNonNull(value, "value cannot be null");
-        if (value.trim().isEmpty()) throw new IllegalArgumentException("Par id cannot be blank");
-        return new ParId(value);
+        return new ParId(Validation.requireName(value, "Par id"));
     }
 
     /** The exact name supplied at construction, without normalization. */

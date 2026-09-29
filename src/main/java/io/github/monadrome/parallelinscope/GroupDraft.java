@@ -1,5 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
@@ -10,7 +14,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
@@ -89,22 +92,16 @@ final class GroupDraft {
         }
     }
 
-    // ---------------------------------------------------------------- declaration
-
     void setCloseGrace(Duration grace) {
-        Objects.requireNonNull(grace, "closeGrace cannot be null");
-        if (grace.isNegative()) {
-            throw new IllegalArgumentException("closeGrace must not be negative: " + grace);
-        }
-        this.closeGrace = grace;
+        this.closeGrace = Validation.requireNonNegative(grace, "closeGrace");
     }
 
     void addMember(String memberName, Par par, TaskOptions options, TypeToken<?> type, Callable<?> body) {
-        Objects.requireNonNull(memberName, "name cannot be null");
-        Objects.requireNonNull(par, "par cannot be null");
-        Objects.requireNonNull(options, "options cannot be null");
-        Objects.requireNonNull(body, "body cannot be null");
-        Objects.requireNonNull(type, "type cannot be null");
+        checkNotNull(memberName, "name cannot be null");
+        checkNotNull(par, "par cannot be null");
+        checkNotNull(options, "options cannot be null");
+        checkNotNull(body, "body cannot be null");
+        checkNotNull(type, "type cannot be null");
         checkNameAvailable(memberName);
         checkPar(par);
         checkConcreteType(memberName, type);
@@ -116,16 +113,16 @@ final class GroupDraft {
     }
 
     void addMember(String memberName, Par par, TaskOptions options, Class<?> type, Callable<?> body) {
-        Objects.requireNonNull(type, "type cannot be null");
+        checkNotNull(type, "type cannot be null");
         addMember(memberName, par, options, TypeToken.of(type), body);
     }
 
     void setCombine(String combineName, Par par, TaskOptions options, TypeToken<?> type, CombineBody<?, ?> body) {
-        Objects.requireNonNull(combineName, "name cannot be null");
-        Objects.requireNonNull(par, "par cannot be null");
-        Objects.requireNonNull(options, "options cannot be null");
-        Objects.requireNonNull(body, "body cannot be null");
-        Objects.requireNonNull(type, "type cannot be null");
+        checkNotNull(combineName, "name cannot be null");
+        checkNotNull(par, "par cannot be null");
+        checkNotNull(options, "options cannot be null");
+        checkNotNull(body, "body cannot be null");
+        checkNotNull(type, "type cannot be null");
         checkNameAvailable(combineName);
         checkPar(par);
         checkConcreteType(combineName, type);
@@ -134,24 +131,20 @@ final class GroupDraft {
     }
 
     void setCombine(String combineName, Par par, TaskOptions options, Class<?> type, CombineBody<?, ?> body) {
-        Objects.requireNonNull(type, "type cannot be null");
+        checkNotNull(type, "type cannot be null");
         setCombine(combineName, par, options, TypeToken.of(type), body);
     }
 
     private void checkNameAvailable(String memberName) {
-        if (memberName.trim().isEmpty()) {
-            throw new IllegalArgumentException("member name cannot be blank");
-        }
-        if (seenNames.contains(memberName)) {
-            throw new IllegalArgumentException("duplicate name '" + memberName + "'");
-        }
+        Validation.requireName(memberName, "member name");
+        checkArgument(!seenNames.contains(memberName), "duplicate name '%s'", memberName);
     }
 
     private void checkPar(Par par) {
-        if (par.runtime() != owner) {
-            throw new IllegalArgumentException(
-                    "Par '" + par.id() + "' does not belong to the ParRuntime that declared this group");
-        }
+        checkArgument(
+                par.runtime() == owner,
+                "Par '%s' does not belong to the ParRuntime that declared this group",
+                par.id());
     }
 
     /**
@@ -161,14 +154,16 @@ final class GroupDraft {
      */
     private static void checkConcreteType(String memberName, TypeToken<?> type) {
         Class<?> rawType = type.getRawType();
-        if (rawType.isPrimitive()) {
-            throw new IllegalArgumentException(
-                    "the declared type of '" + memberName + "' must be a reference type, not " + rawType);
-        }
-        if (containsTypeVariable(type.getType())) {
-            throw new IllegalArgumentException("the declared type of '" + memberName
-                    + "' must be a concrete type without type variables, but was " + type);
-        }
+        checkArgument(
+                !rawType.isPrimitive(),
+                "the declared type of '%s' must be a reference type, not %s",
+                memberName,
+                rawType);
+        checkArgument(
+                !containsTypeVariable(type.getType()),
+                "the declared type of '%s' must be a concrete type without type variables, but was %s",
+                memberName,
+                type);
     }
 
     private static boolean containsTypeVariable(Type type) {
@@ -215,19 +210,15 @@ final class GroupDraft {
         return false;
     }
 
-    // ------------------------------------------------------------------- lifecycle
-
     void checkThread() {
-        if (Thread.currentThread() != ownerThread) {
-            throw new IllegalStateException("a group draft may only be used on the thread that created it");
-        }
+        checkState(
+                Thread.currentThread() == ownerThread, "a group draft may only be used on the thread that created it");
     }
 
     void checkStage(int expectedStage) {
-        if (stage != expectedStage) {
-            throw new IllegalStateException(
-                    "this declaration stage is no longer current: the group was already advanced or submitted");
-        }
+        checkState(
+                stage == expectedStage,
+                "this declaration stage is no longer current: the group was already advanced or submitted");
     }
 
     void advance() {
@@ -237,8 +228,6 @@ final class GroupDraft {
     int stage() {
         return stage;
     }
-
-    // ------------------------------------------------------------------ submission
 
     /**
      * Freezes the declaration, moves the bodies into the submission kernel, and submits. The draft
@@ -293,8 +282,6 @@ final class GroupDraft {
     private static <V, R> TaskGroup<V, R> cast(TaskGroup<?, ?> group) {
         return (TaskGroup<V, R>) group;
     }
-
-    // ---------------------------------------------------------------------- stages
 
     /** Stage one: identity, close grace, the first member, or an empty submission. */
     static final class Start implements GroupStart {
