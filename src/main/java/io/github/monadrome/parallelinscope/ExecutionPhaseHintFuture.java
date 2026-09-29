@@ -379,6 +379,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         // interruptTask(), and on a borrowed thread that interrupt is the only mechanism that can
         // free it. Clearing the flag early would swallow the rescue signal.
         boolean interruptedOnEntry = Thread.interrupted();
+        @Nullable MultiTaskContext borrowedScope = SubmissionScope.current();
+        if (borrowedScope != null) {
+            // The submission action installs this scope and the body runs inside it when the executor
+            // runs inline. Its only reader is SmartBlockingQueue.offer, so leaving it in place would
+            // apply this unit's enqueue policy to a submission the body makes on its own behalf.
+            SubmissionScope.restore(null);
+        }
         runner = Thread.currentThread();
         notifyPhase(ExecutionPhase.RUNNING);
         // A task skipped by cancellation or abandonment before this claim must never enter the
@@ -454,6 +461,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             // delivered to a caller thread while it is running a body inline is dropped. It is the
             // rarer case, and dropping keeps the inline path consistent with the pooled path, where
             // a body's restored flag is cleared by runWorker before the next task.
+            SubmissionScope.restore(borrowedScope);
             if (interruptedOnEntry) {
                 Thread.currentThread().interrupt();
             } else {
