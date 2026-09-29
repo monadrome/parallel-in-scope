@@ -40,33 +40,36 @@ class TaskOptionsTest {
     }
 
     @Test
-    void defaultsAreCpuBoundRejectingAndFailOnRejection() {
+    void defaultsAreIoBoundEnqueueingAndFailOnRejection() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
-        assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(options.rejectEnqueue()).isTrue();
-        // No task type implies the caller-thread fallback, CPU_BOUND included.
+        // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
+        // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
+        // refuse every task submitted with default options, leaving its capacity unused and sending
+        // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
+        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.rejectEnqueue()).isFalse();
         assertThat(options.runOnCallerThread()).isFalse();
     }
 
     @Test
     void withersReturnNewInstancesWithoutMutatingTheOriginal() {
-        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.IO_BOUND);
+        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.CPU_BOUND);
 
         TaskOptions derived =
-                base.rejectEnqueue(false).taskType(TaskType.CPU_BOUND).runOnCallerThread(true);
+                base.rejectEnqueue(true).taskType(TaskType.IO_BOUND).runOnCallerThread(true);
 
-        assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(base.rejectEnqueue()).isTrue();
+        assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(base.rejectEnqueue()).isFalse();
         assertThat(base.runOnCallerThread()).isFalse();
-        assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(derived.rejectEnqueue()).isFalse();
+        assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.runOnCallerThread()).isTrue();
         assertThat(derived.timeout()).contains(Duration.ofSeconds(1));
 
         TaskOptions inherited = TaskOptions.inheritTimeout();
-        assertThat(inherited.taskType(TaskType.IO_BOUND).taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(inherited.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(inherited.taskType(TaskType.CPU_BOUND).taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(inherited.taskType()).isEqualTo(TaskType.IO_BOUND);
     }
 
     // NullAway: deliberate null arguments — probes the null-rejection contract
