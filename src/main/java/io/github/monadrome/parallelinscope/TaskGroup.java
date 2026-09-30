@@ -58,7 +58,7 @@ import org.jspecify.annotations.Nullable;
 public final class TaskGroup<V, R> implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
 
-    /** Null-object submission canceler: group members carry no submission pipeline to stop. */
+    /** Null-object submission canceller: group members carry no submission pipeline to stop. */
     private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     /** Process-local group identities: diagnostics only, never persisted. */
@@ -101,7 +101,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
 
     /**
      * The read-only view handed out by {@link #valuesFuture()}. The sink stays reachable only from
-     * this object, so a caller cannot cancel the group's own value publication — canceling the view
+     * this object, so a caller cannot cancel the group's own value publication — cancelling the view
      * returns {@code false}, exactly like {@link TaskGraphObservationScope#reportFuture()}. Without
      * the wrapper a caller could cancel the future while members were still running, and a group
      * that then converged on SUCCESS would report {@link CancellationException} from
@@ -197,8 +197,8 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      *   <li>a member or the terminal recorded a {@link TaskOutcome#USER_FAILURE} or {@link
      *       TaskOutcome#SUBMISSION_FAILURE}: fails with that failure as the cause, so {@code get()}
      *       throws {@link ExecutionException};
-     *   <li>the group was canceled, a member was canceled directly, or the group or a member
-     *       deadline expired with no recorded failure: is canceled, so {@code get()} throws {@link
+     *   <li>the group was cancelled, a member was cancelled directly, or the group or a member
+     *       deadline expired with no recorded failure: is cancelled, so {@code get()} throws {@link
      *       CancellationException}.
      * </ul>
      *
@@ -322,12 +322,12 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      * <p>The close grace is a cleanup budget set through {@link GroupStart#closeGrace(Duration)}.
      * When never configured, the wait budget is derived from the group's remaining execution
      * deadline at close time: a close triggered by an expired deadline returns right after
-     * canceling, and a body that ignores interruption can hold this method at most until the
+     * cancelling, and a body that ignores interruption can hold this method at most until the
      * deadline. An explicit grace overrides the derivation; {@link Duration#ZERO} makes this method
      * cancel-only, equivalent to {@link #cancel()}.
      *
      * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
-     * the grace never extends the group's execution deadline and does not revive canceled tasks.
+     * the grace never extends the group's execution deadline and does not revive cancelled tasks.
      * When the grace elapses with bodies still running, the outstanding member names are logged at
      * WARN level: a leaked body is visible data, not silence. The group's executors are never shut
      * down, and user code that ignores interruption may keep running after this method returns.
@@ -362,7 +362,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      *
      * <p>Body exit means the user {@code Callable} returned or threw and its {@code finally}
      * completed. A {@code true} result also covers tasks that
-     * will never be entered (canceled, rejected, or never submitted) and establishes a
+     * will never be entered (cancelled, rejected, or never submitted) and establishes a
      * happens-before edge from every task body's writes to this thread; once {@code true}, the
      * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
      * while at least one body had not exited, which may include tasks that have not started yet.
@@ -371,7 +371,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      *
      * <p>This method never cancels tasks and does not require a prior {@link #close()}; the budget
      * is an independent cleanup wait that neither extends the group's execution deadline nor
-     * revives canceled tasks. A zero timeout performs a single check.
+     * revives cancelled tasks. A zero timeout performs a single check.
      *
      * @param timeout the cleanup wait budget
      * @return {@code true} if all task bodies exited within the budget
@@ -466,7 +466,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      *
      * <p>Each member body is wrapped in the type check its declared token promises, and the terminal
      * combine's body is wrapped to receive the assembled member values. On any preparation failure
-     * every prepared future is canceled — releasing the bodies the kernel took — and the exception
+     * every prepared future is cancelled — releasing the bodies the kernel took — and the exception
      * propagates so the caller can discard the untaken payloads; no user code runs on this path.
      */
     static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
@@ -699,10 +699,10 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         // the group converges on TIMEOUT, not FAILED. A member that inherits the group deadline
         // resolves to exactly the same deadlineNanos and skips this step: downward propagation is
         // wired by the CancellationToken constructor listener (group token -> member token
-        // PROPAGATED_CANCELED), and member future cancellation is covered by the group bind above,
+        // PROPAGATED_CANCELLED), and member future cancellation is covered by the group bind above,
         // so a member bind would only arm a redundant timer for the same instant. Note that a
         // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
-        // attribution reads the group token instead (see classifyCanceled). The combine follows
+        // attribution reads the group token instead (see classifyCancelled). The combine follows
         // the same rule: its own tighter deadline escalates to the group as TIMEOUT.
         for (MemberState member : membersAndTerminal) {
             CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
@@ -771,7 +771,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
         }
         try {
             if (member.future.isCancelled()) {
-                member.reason = classifyCanceled(member);
+                member.reason = classifyCancelled(member);
             } else {
                 try {
                     // The listener fires only on a done future, so read the result with
@@ -799,9 +799,9 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 submitTerminalOnce();
             }
 
-            if (observedReason == TaskOutcome.MEMBER_CANCELED) {
-                // A directly canceled member cascades to the whole group; the group token is
-                // canceled first so members canceled through their tokens read a terminal group
+            if (observedReason == TaskOutcome.MEMBER_CANCELLED) {
+                // A directly cancelled member cascades to the whole group; the group token is
+                // cancelled first so members cancelled through their tokens read a terminal group
                 // state.
                 groupToken.cancel();
                 for (MemberState other : membersAndTerminal) {
@@ -849,26 +849,26 @@ public final class TaskGroup<V, R> implements AutoCloseable {
             return TaskOutcome.SUBMISSION_FAILURE;
         }
         if (TokenOutcomes.causedByCancellation(failure)) {
-            return classifyCanceled(member, TaskOutcome.USER_FAILURE);
+            return classifyCancelled(member, TaskOutcome.USER_FAILURE);
         }
         return TaskOutcome.USER_FAILURE;
     }
 
     /**
-     * Classifies a canceled member by reading token states only. The member token records its own
+     * Classifies a cancelled member by reading token states only. The member token records its own
      * deadline; the group token is otherwise the single authority, because it commits its state
-     * before canceling member futures. A group token still RUNNING means no framework path
-     * canceled the member: the user canceled it directly.
+     * before cancelling member futures. A group token still RUNNING means no framework path
+     * cancelled the member: the user cancelled it directly.
      */
-    private TaskOutcome classifyCanceled(MemberState member) {
-        return classifyCanceled(member, TaskOutcome.MEMBER_CANCELED);
+    private TaskOutcome classifyCancelled(MemberState member) {
+        return classifyCancelled(member, TaskOutcome.MEMBER_CANCELLED);
     }
 
-    private TaskOutcome classifyCanceled(MemberState member, TaskOutcome whenUncommitted) {
+    private TaskOutcome classifyCancelled(MemberState member, TaskOutcome whenUncommitted) {
         if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
             return TaskOutcome.TIMEOUT;
         }
-        return TokenOutcomes.forCanceled(groupToken, whenUncommitted);
+        return TokenOutcomes.forCancelled(groupToken, whenUncommitted);
     }
 
     /**
@@ -892,7 +892,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
             // First, the sink has to be terminal. A failure raised *before* `values.set(...)` — a
             // member that was somehow not settled, an allocation failure — would otherwise leave the
             // values future pending forever while the completion future below reports SUCCESS,
-            // breaking the one-directional implication this class documents. Canceling it is the
+            // breaking the one-directional implication this class documents. Cancelling it is the
             // right repair: the group has no values to hand out. When the failure instead came from a
             // caller's listener, `values` is already terminal and this is a no-op.
             //
@@ -955,7 +955,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
      * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
      * outcome no longer depends on completion order. On fail-fast with no failed member the
      * trigger was a direct member cancellation, so the group reports {@link
-     * TaskOutcome#MEMBER_CANCELED}. A token still RUNNING or SUCCESS with no recorded failure
+     * TaskOutcome#MEMBER_CANCELLED}. A token still RUNNING or SUCCESS with no recorded failure
      * means no framework cancellation path committed: the group succeeded only if every member
      * did.
      */
@@ -965,7 +965,7 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 MemberState failFastFailure = failedTask();
                 return failFastFailure != null
                         ? Objects.requireNonNull(failFastFailure.reason)
-                        : TaskOutcome.MEMBER_CANCELED;
+                        : TaskOutcome.MEMBER_CANCELLED;
             case SUCCESS:
             case RUNNING:
                 MemberState recordedFailure = failedTask();
@@ -978,9 +978,9 @@ public final class TaskGroup<V, R> implements AutoCloseable {
                 // allocates an iterator and a capturing lambda.
                 boolean allSuccess = memberSuccesses.get() == memberStates.size()
                         && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
-                return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
+                return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELLED;
             default:
-                return TokenOutcomes.forCanceled(groupToken, TaskOutcome.MEMBER_CANCELED);
+                return TokenOutcomes.forCancelled(groupToken, TaskOutcome.MEMBER_CANCELLED);
         }
     }
 

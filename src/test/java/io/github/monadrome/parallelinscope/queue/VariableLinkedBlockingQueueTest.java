@@ -23,7 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Exercises VariableLinkedBlockingQueue's capacity adjustment and two-lock signaling contracts.
+ * Exercises VariableLinkedBlockingQueue's capacity adjustment and two-lock signalling contracts.
  *
  * <p>The blocking tests run a waiter thread against a mutating main thread and first confirm the
  * waiter is genuinely parked (thread state {@code WAITING}) before acting; a mutation that drops a
@@ -119,7 +119,7 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("second", queue.poll());
     }
 
-    // ==================== blocking put/take signaling ====================
+    // ==================== blocking put/take signalling ====================
 
     /**
      * A putter parked on a full queue must be released when a take frees a slot; the take path's

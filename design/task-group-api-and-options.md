@@ -190,7 +190,7 @@ public final class TaskGroup implements AutoCloseable {
   观测；foreign member handle（其他 definition 的 handle、kind 不匹配的 handle）在
   `Bindings` 绑定、`TaskGroup.future(member)` 与 `CombineContext.value(member)` 处一律抛
   `IllegalArgumentException`；
-- `cancel()` 幂等、非阻塞，固定 `CANCELED`（若尚未固定）并取消未完成成员；
+- `cancel()` 幂等、非阻塞，固定 `CANCELLED`（若尚未固定）并取消未完成成员；
 - `close()` 是异常安全清理：若仍有未完成成员，语义等同 `cancel()`；若所有成员已经终态或空组则无副作用；
 - `completionFuture()` 在全部冻结成员的公开 future 终态后完成，不存在另行封口条件；
 - `members()` 返回按定义顺序排列、不可修改的普通成员集合；terminal combine 使用其
@@ -314,8 +314,8 @@ public enum TaskOutcome {
     SUCCESS,
     USER_FAILURE,
     SUBMISSION_FAILURE,
-    MEMBER_CANCELED,
-    GROUP_CANCELED,
+    MEMBER_CANCELLED,
+    GROUP_CANCELLED,
     FAIL_FAST,
     TIMEOUT
 }
@@ -323,10 +323,10 @@ public enum TaskOutcome {
 
 `TaskOutcome` 是全库统一的单任务终态词汇，同时服务批量报告、组成员结果与组级结果；`RUNNING`
 表示尚未终态，不会出现在完成后的结果快照中。组级只会出现 `SUCCESS`、`USER_FAILURE`、
-`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELED`、`GROUP_CANCELED`：有失败记录时（无论
+`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELLED`、`GROUP_CANCELLED`：有失败记录时（无论
 group token 是否已提交 `FAIL_FAST`）组沿用失败任务自己的 outcome
-（`USER_FAILURE`/`SUBMISSION_FAILURE`），`MEMBER_CANCELED` 表示取消源自
-组员或直接作用于组员，`GROUP_CANCELED` 表示组被整体取消或取消自上传播。
+（`USER_FAILURE`/`SUBMISSION_FAILURE`），`MEMBER_CANCELLED` 表示取消源自
+组员或直接作用于组员，`GROUP_CANCELLED` 表示组被整体取消或取消自上传播。
 
 `TaskGroupResult` 和成员结果必须是完成后的不可变快照：
 
@@ -357,4 +357,4 @@ group 成员共用），字段为 `taskName()`/`unitId()`/`taskIndex()`/三个�
 - 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
 - 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `completionFuture()` 正常完成并返回 `TaskGroupResult`，组的非 `SUCCESS` outcome 是结果数据，不通过 completion future 本身抛错表达；
-- 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 canceled。
+- 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 cancelled。

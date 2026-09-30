@@ -207,8 +207,8 @@ member deadline            = min(requested member deadline, group deadline)
 Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每个 member 与 `outerBatch` 之间可以记录真实的 outer-to-member 依赖边；members 之间不得产生边。若 Group 在请求线程创建，则没有这些边。
 
 外层 token 的取消通过 token 构造期挂接的 parent 监听传播为 group token 的
-`PROPAGATED_CANCELED`，不靠轮询。收敛归因读取 `originState()`（沿 parent 链找首个非传播
-终态）：外层是超时则 Group 固定 `TIMEOUT`，其余外层取消固定 `GROUP_CANCELED`（若失败/超时
+`PROPAGATED_CANCELLED`，不靠轮询。收敛归因读取 `originState()`（沿 parent 链找首个非传播
+终态）：外层是超时则 Group 固定 `TIMEOUT`，其余外层取消固定 `GROUP_CANCELLED`（若失败/超时
 已先固定则不变）。
 
 ## 6. 状态机与完成条件
@@ -230,9 +230,9 @@ Group:   RUNNING -----all members terminal--> CLOSED
 ```text
 null --first member failure--> 失败成员自己的 outcome（USER_FAILURE / SUBMISSION_FAILURE）
 null --deadline-------------> TIMEOUT
-null --group cancel/close----> GROUP_CANCELED
-null --member direct cancel--> GROUP_CANCELED（级联先取消 group token）
-null --parent cancel/timeout-> GROUP_CANCELED / TIMEOUT（按 originState 归因）
+null --group cancel/close----> GROUP_CANCELLED
+null --member direct cancel--> GROUP_CANCELLED（级联先取消 group token）
+null --parent cancel/timeout-> GROUP_CANCELLED / TIMEOUT（按 originState 归因）
 null --all success-----------> SUCCESS
 ```
 
@@ -242,11 +242,11 @@ null --all success-----------> SUCCESS
 - 非成功原因会取消其他未完成成员；
 - `SUCCESS` 只有在所有冻结成员均成功时才能固定；
 - 单个成员被调用方直接取消时立即级联：先取消 group token，再取消其余未完成成员的 token，
-  Group 原因在最终收敛时固定为 `GROUP_CANCELED`（若失败/超时已先固定则不被覆盖）；
-- 全部成员终态且存在直接取消成员时，若没有更早的组级失败/超时，Group 原因固定为 `GROUP_CANCELED`；
+  Group 原因在最终收敛时固定为 `GROUP_CANCELLED`（若失败/超时已先固定则不被覆盖）；
+- 全部成员终态且存在直接取消成员时，若没有更早的组级失败/超时，Group 原因固定为 `GROUP_CANCELLED`；
 - 组在 group token 仍 `RUNNING` 时收敛（成员 observer 先于 group bind 回调触发）：已记录失败
   任务时优先沿用其 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关；无失败
-  记录且并非全部成功时，Group 原因固定为 `MEMBER_CANCELED`；
+  记录且并非全部成功时，Group 原因固定为 `MEMBER_CANCELLED`；
 - `CLOSED` 只由计数屏障的胜出线程发布：`completedTasks` 递增到 `totalTasks` 的那次读-改-写；
 - 收敛由计数屏障决定：member 或 combine 终态时对 `completedTasks` 做一次原子递增，唯一观察到
   计数达到 `totalTasks` 的线程固定完成原因并发布 `CLOSED`；该读-改-写同时把每个任务的归类与

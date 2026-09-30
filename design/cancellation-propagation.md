@@ -7,14 +7,14 @@
 
 ```java
 public <T> void bind(
-        List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceler, ScheduledExecutorService timer) {
+        List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
     // deadline 存在 token 内部（构造时与 parent 取 min），bind 不再接收 Duration
     FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
             .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);
     // 统一取消句柄：successfulAsList 要等全部 input 完成才终态，
     // 所以在「某个成员已失败」的时刻它仍然 pending，取消它能级联到所有 inputs
     ListenableFuture<?> allFutures =
-            Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceler);
+            Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
     failFastFuture.addCallback(new FutureCallback<>() {
         onSuccess: transitionTo(SUCCESS);
@@ -65,9 +65,9 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 
 ### 2.2 bottom-up：取消会以 CancellationException 进 fallback
 
-成员 future 被直接取消时，取消从链基向上传：input 取消 → `transform` 的 `run()` 对 canceled input 执行
+成员 future 被直接取消时，取消从链基向上传：input 取消 → `transform` 的 `run()` 对 cancelled input 执行
 `cancel(false)`（`AbstractTransformFuture.run()`，源码注释 "inputFuture is cancelled... cancel(false)"）
-→ 到达 catchingAsync 时 input 已 canceled、输出未取消 → `getDone(input)` 抛 `CancellationException`
+→ 到达 catchingAsync 时 input 已 cancelled、输出未取消 → `getDone(input)` 抛 `CancellationException`
 → 被 `catch (Throwable t)` 接住（源码原注释 *"this includes CancellationException"*）
 → `exceptionType` 是 `Throwable.class` → 匹配 → **fallback 以 CancellationException 被调用**。
 
@@ -75,7 +75,7 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 
 ### 2.3 addCallback：取消也进 onFailure
 
-`Futures.CallbackListener.run()` 对 future `getUninterruptibly`，canceled future 抛
+`Futures.CallbackListener.run()` 对 future `getUninterruptibly`，cancelled future 抛
 `CancellationException`（RuntimeException）→ `catch (RuntimeException | Error e)` → `onFailure(e)` 被调用。
 **两个方向都进 onFailure**——这是 addCallback 与 catching 系的本质区别。
 
@@ -87,17 +87,17 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 | | `allAsList`（allMustSucceed=true） | `successfulAsList`（allMustSucceed=false） |
 |---|---|---|
 | 某 input 失败 | 组合 future **立即失败**（终态）→ 之后 cancel 它是 no-op，级联不到任何 input | 失败记 null，等**全部** input 完成才终态 → 此刻仍 pending |
-| 某 input 被取消 | `processAllMustSucceedDoneFuture`: `futures = null; cancel(false)` → 组合 future 以 **canceled** 终态完成，**不**级联其他 inputs | 同上保持 pending |
+| 某 input 被取消 | `processAllMustSucceedDoneFuture`: `futures = null; cancel(false)` → 组合 future 以 **cancelled** 终态完成，**不**级联其他 inputs | 同上保持 pending |
 | 取消组合 future（pending 时） | 级联取消全部 inputs | 级联取消全部 inputs |
 | 适用角色 | 「全部成功才算成功」的判定器 | **统一取消句柄** |
 
 结论：**能安全当取消句柄用的，只有还 pending 的组合 future**。
 `allAsList` 在第一个失败/取消时就终态，天然错过取消窗口。
-`successfulAsList(futures, submitCanceler)` 嵌套一层，把任务 futures 和 submitter 拉进同一个可取消句柄。
+`successfulAsList(futures, submitCanceller)` 嵌套一层，把任务 futures 和 submitter 拉进同一个可取消句柄。
 
 ## 4. setFuture 与 cancel 的双向桥
 
-- **cancel-before-bind 生效的原因**：对已 canceled 的 future 调 `setFuture(x)`，返回 false 且
+- **cancel-before-bind 生效的原因**：对已 cancelled 的 future 调 `setFuture(x)`，返回 false 且
   **取消 x**（`AbstractFuture.setFuture` 尾部 `localValue instanceof Cancellation` 分支）。
   所以 `futureToken` 先被 cancel、之后才 bind，链照样被取消。
 - **二次 bind 不误伤**：对已**成功**的 future 调 `setFuture(x)` 只返回 false，x 不受影响。
@@ -111,7 +111,7 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 
 - `maybePropagateCancellationTo`: `related.cancel(wasInterrupted())` — 链式传播不丢中断位
 - `AggregateFuture.afterDone` 级联 inputs 用 `wasInterrupted()`
-- `allAsList` 对 canceled input 的自我取消用 `cancel(false)`——那是「以取消完成」的语义，不是「要求取消」，不该带中断
+- `allAsList` 对 cancelled input 的自我取消用 `cancel(false)`——那是「以取消完成」的语义，不是「要求取消」，不该带中断
 - `cancel(false)` 契约：级联照常，但运行中任务不被中断（有测试钉死此行为）
 
 ## 6. 速查表
@@ -122,7 +122,7 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 | `catching` / `catchingAsync` | 输出未取消：fallback 以 `CancellationException` 跑；输出已取消：早退 | 向 input 传播，fallback 不跑 |
 | `withTimeout` | Fire → `cancel(false)` | 取消 delegate + timer task |
 | `addCallback` | `onFailure(CancellationException)` | `onFailure(CancellationException)` |
-| `allAsList` | 自身变 canceled 终态，不级联 | pending 时级联全部；已 failed 时 no-op |
+| `allAsList` | 自身变 cancelled 终态，不级联 | pending 时级联全部；已 failed 时 no-op |
 | `successfulAsList` | 保持 pending | 级联全部 |
 
 ## 7. 写给我们自己的规则
@@ -140,8 +140,8 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 | setFuture 对已取消 future 取消入参 | `AbstractFuture#setFuture` |
 | cancel 向 DelegatingToFuture 传播 | `AbstractFuture#cancel` |
 | catching 的 isCancelled 早退 / catch Throwable 含取消 | `AbstractCatchingFuture#run` |
-| transform 对 canceled input 的 cancel(false) | `AbstractTransformFuture#run` |
+| transform 对 cancelled input 的 cancel(false) | `AbstractTransformFuture#run` |
 | 超时输出取消时清 timer | `TimeoutFuture#afterDone`、`TimeoutFuture.Fire#run` |
 | 组合 future 取消级联 | `AggregateFuture#afterDone` |
-| allAsList 对 canceled input 的自我取消 | `AggregateFuture#processAllMustSucceedDoneFuture` |
+| allAsList 对 cancelled input 的自我取消 | `AggregateFuture#processAllMustSucceedDoneFuture` |
 | 取消也进 onFailure | `Futures.CallbackListener#run` |

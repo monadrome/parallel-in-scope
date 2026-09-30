@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The library guarantees the interface is present, but not which class implements it: treat the
  * concrete implementation as private and never cast to it. Control handles that do not represent a
- * task execution — a batch's {@code submitCanceler}, for example — stay plain futures.
+ * task execution — a batch's {@code submitCanceller}, for example — stay plain futures.
  *
  * <p>Attribution is per future. {@link #outcome()} reads the cancellation token that owns this one
  * task, so it is available while the enclosing group is still converging. The group's own terminal
@@ -40,8 +40,8 @@ import org.jspecify.annotations.Nullable;
  * future is done and never fall back to {@link TaskOutcome#RUNNING} afterward. A terminal value
  * can still be refined while the enclosing scope settles: a group member learns about its group's
  * cancellation through the token chain, which may commit just after the member future was already
- * canceled, so a caller that canceled a member directly can read {@link
- * TaskOutcome#MEMBER_CANCELED} and then {@link TaskOutcome#GROUP_CANCELED} for the same future.
+ * cancelled, so a caller that cancelled a member directly can read {@link
+ * TaskOutcome#MEMBER_CANCELLED} and then {@link TaskOutcome#GROUP_CANCELLED} for the same future.
  * Reads taken once the enclosing scope has converged agree with each other.
  *
  * @param <T> the task result type
@@ -55,11 +55,11 @@ public interface TaskFuture<T> extends ListenableFuture<T> {
      * Returns how this task ended, or {@link TaskOutcome#RUNNING} while it is still pending.
      *
      * <p>A failed task distinguishes {@link TaskOutcome#SUBMISSION_FAILURE} (it was rejected, or
-     * otherwise failed before user code ran) from {@link TaskOutcome#USER_FAILURE}. A canceled
+     * otherwise failed before user code ran) from {@link TaskOutcome#USER_FAILURE}. A cancelled
      * task is attributed from its token chain, which yields {@link TaskOutcome#TIMEOUT}, {@link
-     * TaskOutcome#FAIL_FAST}, {@link TaskOutcome#GROUP_CANCELED}, or — when no framework
-     * cancellation path committed, meaning the caller canceled the future directly — {@link
-     * TaskOutcome#MEMBER_CANCELED}. A failure that merely reports observed cancellation (a
+     * TaskOutcome#FAIL_FAST}, {@link TaskOutcome#GROUP_CANCELLED}, or — when no framework
+     * cancellation path committed, meaning the caller cancelled the future directly — {@link
+     * TaskOutcome#MEMBER_CANCELLED}. A failure that merely reports observed cancellation (a
      * cooperative checkpoint, or an interrupt racing the cascade cancel) is attributed the same
      * way rather than as a user failure.
      */

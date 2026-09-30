@@ -7,7 +7,7 @@ types, and bodies exactly once — and deletes the name-wrapper and indirection 
 `0.2.x` surface had accumulated. That part
 is a source-breaking migration for any code that builds or submits a `TaskGroup`. The release also
 changes several runtime contracts so the library stops doing things on your behalf without saying
-so: scope close waits instead of only canceling, quiescence means body exit rather than future
+so: scope close waits instead of only cancelling, quiescence means body exit rather than future
 completion, checkpoint guards fail instead of skipping, and executor rejection no longer runs your
 code on a thread you did not choose. Batch (`Par.map`) code is unaffected by the group redesign
 except for the `ParName` rename to `ParId`.
@@ -25,7 +25,9 @@ except for the `ParName` rename to `ParId`.
 | `Par.globalPar()` | `Par.runtime()` |
 | `TaskKey<T>` (anonymous subclass) | removed; members are addressed by the name given to `par(...)` (`futureOf`/`valueOf`) or by zero-based declaration position (`futureAt`/`valueAt`) |
 | `ParName` / `ParName.of(name)` | `ParId` / `ParId.of(name)`; `Par.name()` → `Par.id()` |
-| `TaskBatchResult.submitCanceller()` | `TaskBatchResult.submitCanceler()` (American spelling) |
+| `TaskOutcome.MEMBER_CANCELED` / `GROUP_CANCELED` | `MEMBER_CANCELLED` / `GROUP_CANCELLED` |
+| `CancellationToken.State.CANCELED` / `PROPAGATED_CANCELED` | `CANCELLED` / `PROPAGATED_CANCELLED` |
+| `ParRuntimePurgePolicy.canceledTaskRatioThreshold(double)` (and its `Builder`) | `cancelledTaskRatioThreshold(double)` |
 | `TaskGroupDefinition.builder(TaskGroupOptions)` | `global.group(name, timeout)` / `global.groupInheriting(name)` |
 | `TaskGroupOptions` (name/timeout/listeners) | the `group*` argument list plus `GroupStart.closeGrace` at the head of the chain; listeners move to `Futures.addCallback` |
 | `TaskGroupDefinition.Builder.task(key, parName, callable[, options])` | a `par(name, par, type, body)` link in the chain; with custom options, `par(name, par, options, type, body)` |
@@ -128,7 +130,7 @@ explicit callbacks:
   outcome, failure, and the result on success.
 - **Batch:** keep the `TaskBatchResult` and register on `batch.completionFuture()`, which
   completes with the input-ordered immutable `List<TaskCompletion<T>>`, including elements that
-  never started (rejected, canceled, or abandoned), recorded with zero start/end times and their
+  never started (rejected, cancelled, or abandoned), recorded with zero start/end times and their
   real outcome.
 - **Group:** delete member listener registrations and read `TaskGroupResult.members()` /
   `terminal()` in a `group.completionFuture()` callback, as before.
@@ -383,7 +385,7 @@ it has no execution context, attribution, or observation snapshot of its own; pe
 stay in `completionFuture()`'s `TaskGroupResult`. It **never** stays pending: a recorded failure (a
 member's or the combine's `USER_FAILURE` / `SUBMISSION_FAILURE`) completes it exceptionally with
 that failure as the cause, so `get()` throws `ExecutionException`; a group cancellation, a direct
-member cancellation, or a timeout with no recorded failure completes it as canceled, so `get()`
+member cancellation, or a timeout with no recorded failure completes it as cancelled, so `get()`
 throws `CancellationException`. The publication order is an invariant: it is always terminal
 before `completionFuture()` is, so a done completion future implies a done values future. On a
 failed group it carries no partial values.
@@ -639,7 +641,7 @@ close time.
 
 | | `0.2.x` | `0.3.0` |
 |---|---|---|
-| `TaskGroup.close()` | canceled unfinished members | cancels, then waits within the close grace |
+| `TaskGroup.close()` | cancelled unfinished members | cancels, then waits within the close grace |
 | `TaskBatchResult` | not `AutoCloseable` | `AutoCloseable` with the same semantics |
 | Grace configuration | — | `GroupStart.closeGrace(Duration)` at the head of the chain / `BatchOptions.closeGrace(Duration)` |
 | Cancel-only request | `close()` | `cancel()` (group) — `closeGrace(Duration.ZERO)` also makes `close()` cancel-only |
@@ -652,7 +654,7 @@ exited or is atomically known never to start.
 ## Quiescence means body exit
 
 `ParRuntime.awaitQuiescence(Duration)` now waits for task-body exit, not only for future drain. A
-task canceled while running completes its future immediately but may still be executing user
+task cancelled while running completes its future immediately but may still be executing user
 code, and quiescence means both.
 
 ## Checkpoint guards fail instead of skipping
@@ -671,7 +673,7 @@ information.
 | `Task` is package-private; `TaskFuture` is the public contract | Declare `TaskFuture` where `Task` was used. |
 | `Par.map` takes any `Collection` instead of only `List` | Source compatible; non-`List` inputs are snapshotted on entry. |
 | `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable`; the `BatchReport` constructor is package-private | Remove null checks on `stateCounts()`; obtain reports from the library. |
-| `TaskBatchResult.submitCanceller()` is renamed to `submitCanceler()` | Update call sites. The method's shape (`ListenableFuture<?>`), its role as the submission control handle, and its behavior are unchanged — only the word's spelling moved. |
+| `TaskOutcome` constants, `CancellationToken.State` constants, and `ParRuntimePurgePolicy.canceledTaskRatioThreshold` respell the doubled `l` | Rename the call sites; behavior is unchanged. See "Spelling" below. |
 | `TaskGroup` now takes two type parameters, `TaskGroup<V, R>` | Spell them out wherever the type is named: a group without a combine is `TaskGroup<V, Void>`, an empty group is `TaskGroup<Void, Void>`. |
 | `TaskGroup.future(TaskKey<T>)` and `CompletedTaskValues` are deleted | Read futures with `futureOf(name, TypeToken)` / `futureAt(index, TypeToken)` and the terminal with `terminalFuture()`; read values from `GroupValues` via `valuesFuture()`. |
 | The combine body's input changed from `CompletedTaskValues` (`value(TaskKey)` returning an unannotated `T`) to the assembled tuple of member values | Components are `@Nullable` — a member value could always be null and now needs an explicit null check; position destructuring is described above. |
@@ -679,17 +681,23 @@ information.
 | `ParRuntime.installGlobal` and instance `close()` are symmetric | `close()` on the installed instance releases the global slot, so a restarted context may install again. |
 | `VariableLinkedBlockingQueue` is no longer `Serializable` | It relied on the JDK `LinkedBlockingQueue` shape, but its sentinel-linked node chain made a deserialized instance read as empty and then fail with `NullPointerException` on first use, so the declaration only promised something it could not deliver. `DrainingBlockingQueue` never declared it either. A queue is not a serialization format — rebuild it, or serialize the elements and refill. |
 
-## American English spelling
+## Spelling
 
-`0.3.0` writes the project in American English. The sources mixed both variants — `canceled` 53
-times against `cancelled` 35, in one case within a single sentence — and nothing said which was
-intended, so each reader had to guess. One identifier changes with the prose:
-`TaskBatchResult.submitCanceller()` is now `TaskBatchResult.submitCanceler()`.
+`0.3.0` writes the project in American English, with one exception: the doubled-`l` family keeps
+both `l`s. The sources mixed the two variants — `canceled` 53 times against `cancelled` 35 in
+`src/main/java` alone, in one case inside a single sentence — and nothing recorded which was
+intended, so each reader had to guess.
 
-Third-party names are not respelled, because they are not this library's to rename:
-`Future.isCancelled()`, AssertJ's `isCancelled()`, and Guava's `Futures.immediateCancelledFuture()`
-keep their doubled `l`. `cancel`, `cancellation`, and `CancellationException` are spelled the same
-in both variants and are unaffected. The convention itself is recorded in `AGENTS.md`.
+The exception exists because this library wraps APIs that spell the family with two `l`s:
+`Future.isCancelled()`, Guava's `Futures.immediateCancelledFuture()`, and `CancellationException`.
+Writing `canceled` next to those reads as a mistake, and `cancellation` is spelled with two `l`s in
+every variant anyway. So: `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`,
+`labelled`. Everything else follows American usage (`behavior`, `honored`, `afterward`, `among`,
+`normalize`, `analyze`).
+
+The rule covers identifiers, which is why the `0.3.0` members listed in the tables above move with
+it. `TaskBatchResult.submitCanceller()` is *not* renamed — it already used both `l`s. Third-party
+names are never respelled. The convention is recorded in `AGENTS.md`.
 
 ## Nullability annotations are now JSpecify
 

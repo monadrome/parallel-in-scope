@@ -32,16 +32,16 @@ public class FutureInspectorTest {
     }
 
     @Test
-    public void testExceptionNow_pendingAndCanceledAreRejected() {
+    public void testExceptionNow_pendingAndCancelledAreRejected() {
         SettableFuture<String> pending = SettableFuture.create();
         assertThatThrownBy(() -> FutureInspector.exceptionNow(pending))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not completed");
 
-        ListenableFuture<String> canceled = Futures.immediateCancelledFuture();
-        assertThatThrownBy(() -> FutureInspector.exceptionNow(canceled))
+        ListenableFuture<String> cancelled = Futures.immediateCancelledFuture();
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(cancelled))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("canceled");
+                .hasMessageContaining("cancelled");
     }
 
     @Test
