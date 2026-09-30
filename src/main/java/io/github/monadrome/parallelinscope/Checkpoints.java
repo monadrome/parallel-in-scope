@@ -21,9 +21,9 @@ import org.jspecify.annotations.Nullable;
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
  *
  * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
- * operation. A canceled token produces a {@link LeanCancellationException}, except that {@link
+ * operation. A cancelled token produces a {@link LeanCancellationException}, except that {@link
  * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
- * trace when requested. A token whose deadline has expired is treated as canceled even if the
+ * trace when requested. A token whose deadline has expired is treated as cancelled even if the
  * timer thread has not committed the timeout yet, so deadline enforcement never depends on
  * scheduling punctuality. {@link #checkpoint()} is the primary no-argument form for user code.
  *
@@ -44,18 +44,18 @@ public final class Checkpoints {
      * Checks the current scope's cancellation token unconditionally.
      *
      * <p>This is the primary cooperative-cancellation checkpoint for user code inside a scoped
-     * task: it throws whenever the enclosing scope has been canceled or its deadline has expired.
+     * task: it throws whenever the enclosing scope has been cancelled or its deadline has expired.
      * Outside any scoped task it is a no-op; use {@link #rawCheckpoint()} when the thread's
      * interrupt status should be honored without a scope.
      *
-     * @throws LeanCancellationException if the current scope is canceled
+     * @throws LeanCancellationException if the current scope is cancelled
      */
     public static void checkpoint() {
         checkCancellationToken(true);
     }
 
     /**
-     * Checks whether the named task has been canceled in the current scope.
+     * Checks whether the named task has been cancelled in the current scope.
      *
      * <p>The name must match the current scoped task exactly: a mismatch means the caller is not
      * running in the task it believes it is — a typo, a stale name after a rename, or a call one
@@ -67,8 +67,8 @@ public final class Checkpoints {
      * @param lean whether to omit the cancellation stack trace
      * @throws IllegalStateException if there is no current scoped task, or its name differs from
      *     {@code taskName}
-     * @throws LeanCancellationException if the matching task is canceled and {@code lean} is true
-     * @throws CancellationException if the matching task is canceled and {@code lean} is false
+     * @throws LeanCancellationException if the matching task is cancelled and {@code lean} is true
+     * @throws CancellationException if the matching task is cancelled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
         MultiTaskContext unit = currentContext();
@@ -87,7 +87,7 @@ public final class Checkpoints {
      * Checks the current cancellation token and the current thread's interrupt status. A token is not
      * required when this method is used as a raw interrupt checkpoint.
      *
-     * @throws LeanCancellationException if the current scope is canceled or the thread is interrupted
+     * @throws LeanCancellationException if the current scope is cancelled or the thread is interrupted
      */
     public static void rawCheckpoint() {
         checkCancellationToken(true);
@@ -460,7 +460,7 @@ public final class Checkpoints {
      * @param <X> the exception type that triggers cancellation
      * @param action the action to execute
      * @param declaredType the exception class that triggers cancellation
-     * @throws LeanCancellationException if the current scope is canceled before the action runs
+     * @throws LeanCancellationException if the current scope is cancelled before the action runs
      * @throws CancellationException if the action throws an instance of {@code declaredType}
      * @throws RuntimeException if the action throws a non-matching runtime exception
      * @throws Error if the action throws a non-matching error
@@ -488,7 +488,7 @@ public final class Checkpoints {
      * @param supplier the value supplier to execute
      * @param declaredType the exception class that triggers cancellation
      * @return the value produced by {@code supplier}
-     * @throws LeanCancellationException if the current scope is canceled before the supplier runs
+     * @throws LeanCancellationException if the current scope is cancelled before the supplier runs
      * @throws CancellationException if the supplier throws an instance of {@code declaredType}
      * @throws RuntimeException if the supplier throws a non-matching runtime exception
      * @throws Error if the supplier throws a non-matching error
@@ -513,7 +513,7 @@ public final class Checkpoints {
      *
      * @param ex the exception to check
      * @throws CancellationException if {@code ex} is a cancellation exception or the current scope
-     *     is canceled
+     *     is cancelled
      */
     public static void propagateCancellation(Throwable ex) {
         if (ex instanceof CancellationException) throw (CancellationException) ex;

@@ -130,7 +130,7 @@ class InlineSubmissionLivenessTest {
                     .as("the rescue interrupt must not outlive the body that answered it")
                     .isFalse();
             assertThat(bodiesStarted.get())
-                    .as("elements the expired deadline canceled must never enter user code")
+                    .as("elements the expired deadline cancelled must never enter user code")
                     .isEqualTo(1);
         } finally {
             lastElementStarted.countDown();

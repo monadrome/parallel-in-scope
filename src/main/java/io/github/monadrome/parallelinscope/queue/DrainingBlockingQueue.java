@@ -236,7 +236,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         Objects.requireNonNull(element, "element");
         E poison = policy.poison();
         if (poison != null && poison.equals(element)) {
-            throw new IllegalArgumentException("the poison object is reserved for shutdown signaling");
+            throw new IllegalArgumentException("the poison object is reserved for shutdown signalling");
         }
         return element;
     }

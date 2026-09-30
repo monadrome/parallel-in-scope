@@ -31,8 +31,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /**
      * The wrapped task body, held in a one-way releasable slot: once {@link #releaseCallable()}
      * clears it — after run() returns or once the body is determined to never run — nothing may
-     * restore it, so a completed, rejected, canceled, or abandoned future never pins the user
-     * callable and its captures. Accessed from the worker thread (run) and from canceling or
+     * restore it, so a completed, rejected, cancelled, or abandoned future never pins the user
+     * callable and its captures. Accessed from the worker thread (run) and from cancelling or
      * rejecting threads (afterDone/skipBody), hence the volatile slot. Plain volatile reads and
      * writes are enough: the slot only ever moves from set to cleared, so it needs no CAS.
      */
@@ -48,14 +48,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * --------------------------  -------------------------------------------------------------
      * SUBMITTED                   No worker has claimed the runnable yet.
      * RUNNING                     A worker has claimed the runnable.
-     * CANCELED_BEFORE_RUN         Cancellation won before run() claimed the runnable.
+     * CANCELLED_BEFORE_RUN         Cancellation won before run() claimed the runnable.
      * CANCEL_REQUESTED_RUNNING    Cancellation followed a run() claim.
      * TERMINAL                    run() has returned.
      *
      * State transitions:
      *
      *                          cancellation wins
-     * SUBMITTED ----------------------------------------------> CANCELED_BEFORE_RUN
+     * SUBMITTED ----------------------------------------------> CANCELLED_BEFORE_RUN
      *     |
      *     | worker run() wins
      *     v
@@ -269,7 +269,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     /**
      * Marks the task body as never entered and releases its reference, for prepared futures that
-     * were never submitted and never canceled — the sliding-window abandonment and
+     * were never submitted and never cancelled — the sliding-window abandonment and
      * initial-rejection paths, where only the caller-facing placeholder is completed. Idempotent
      * against the cancel-before-run path, which reaches the same transition through {@link
      * #afterDone()}. A body that can never be entered must not stay reachable through this future.
@@ -316,9 +316,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         // already terminated — no NPE, no user code; the finally's body-exit publish still
         // releases the slot through the existing fallback.
         @Nullable Callable<V> body = callable;
-        boolean canceled = isCancelled();
+        boolean cancelled = isCancelled();
         try {
-            if (!skipped && !canceled && body != null) {
+            if (!skipped && !cancelled && body != null) {
                 set(body.call());
             }
         } catch (Throwable failure) {
@@ -339,8 +339,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             // notification, and observer release are serialized with afterDone() under this monitor
             // so a cancel-phase emission can never be swallowed by an observer release racing it.
             synchronized (this) {
-                boolean canceledNow = canceled || isCancelled();
-                if (canceledNow
+                boolean cancelledNow = cancelled || isCancelled();
+                if (cancelledNow
                         && phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
                     notifyPhase(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
                 }
@@ -393,9 +393,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             ExecutionPhase current = phase.get();
             if (current == ExecutionPhase.SUBMITTED) {
                 // Cancel won before run(): no worker will emit phases, so report it here and release.
-                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELED_BEFORE_RUN)) {
+                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
                     skipBody();
-                    notifyPhase(ExecutionPhase.CANCELED_BEFORE_RUN);
+                    notifyPhase(ExecutionPhase.CANCELLED_BEFORE_RUN);
                     phaseObserver = NOOP;
                 }
             } else if (current == ExecutionPhase.RUNNING) {

@@ -9,12 +9,12 @@ package io.github.monadrome.parallelinscope;
 public final class ParRuntimePurgePolicy {
     private final boolean enabled;
     private final double queuePressureThreshold;
-    private final double canceledTaskRatioThreshold;
+    private final double cancelledTaskRatioThreshold;
 
     private ParRuntimePurgePolicy(Builder builder) {
         this.enabled = builder.enabled;
         this.queuePressureThreshold = builder.queuePressureThreshold;
-        this.canceledTaskRatioThreshold = builder.canceledTaskRatioThreshold;
+        this.cancelledTaskRatioThreshold = builder.cancelledTaskRatioThreshold;
     }
 
     public static Builder builder() {
@@ -29,14 +29,14 @@ public final class ParRuntimePurgePolicy {
         return queuePressureThreshold;
     }
 
-    public double canceledTaskRatioThreshold() {
-        return canceledTaskRatioThreshold;
+    public double cancelledTaskRatioThreshold() {
+        return cancelledTaskRatioThreshold;
     }
 
     public static final class Builder {
         private boolean enabled;
         private double queuePressureThreshold = 0.80;
-        private double canceledTaskRatioThreshold = 0.05;
+        private double cancelledTaskRatioThreshold = 0.05;
 
         public Builder enabled(boolean enabled) {
             this.enabled = enabled;
@@ -49,9 +49,9 @@ public final class ParRuntimePurgePolicy {
             return this;
         }
 
-        public Builder canceledTaskRatioThreshold(double threshold) {
-            validateThreshold(threshold, "canceledTaskRatioThreshold");
-            this.canceledTaskRatioThreshold = threshold;
+        public Builder cancelledTaskRatioThreshold(double threshold) {
+            validateThreshold(threshold, "cancelledTaskRatioThreshold");
+            this.cancelledTaskRatioThreshold = threshold;
             return this;
         }
 

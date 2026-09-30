@@ -135,8 +135,13 @@ cmux set-progress 0.0 --label "senate: 提案中"
 
 **Phase 0.5 就绪门** ✓ 实测结论
 
-`cmux send` 只输入文本、**不提交**，必须补发 `cmux send-key <ref> Enter`。席位 CLI
+`cmux send` 只输入文本、**不提交**，必须补发 `cmux send-key <ref> enter`（键名**小写**；
+`Enter` 会报 `invalid_params: Unknown key`，见 `cmux send-key --help` 示例）。席位 CLI
 启动后还有交互式前置门，不能只等提示符：
+
+**句柄**：本机 cmux 的 `send` / `read-screen` / `send-key` **不接受按名字寻址 workspace**，
+只收 UUID / `workspace:N` / index。`new-workspace` 成功时打印的 `OK workspace:15` 就是要记的 ref；
+`--name` 只用于人眼识别。建院时把每个席位的 ref 写进 `handles.map`，后续命令一律用 ref。
 
 - **Trust 门**：Kimi CLI 在任意新目录首次启动都会问 "Trust this folder?"，且
   "Don't trust" 的语义是直接退出（不是继续运行）——唯一的继续路径是选 Trust。
@@ -150,8 +155,9 @@ cmux set-progress 0.0 --label "senate: 提案中"
 **Phase 1 分发 brief**
 
 ```bash
-cmux send --workspace "senate/$RUN/seat-a" "读取 $RUN/brief-a.md 并执行"
-cmux send-key "senate/$RUN/seat-a" Enter        # send 不提交，必须补 Enter
+# $SEAT_A 是 handles.map 里记的 ref，如 workspace:6（名字不可寻址，见 Phase 0.5）
+cmux send --workspace "$SEAT_A" "读取 $RUN/brief-a.md 并执行"
+cmux send-key --workspace "$SEAT_A" enter        # send 不提交，必须补 Enter（小写键名）
 ```
 
 或用 socket API `workspace.prompt_submit`（需 `workspace_id`；确切参数未验证，见第九节）。
@@ -190,8 +196,8 @@ anchor 文件的预分组内部；乱序由主席跑脚本做真实随机（`shu
 **Phase 6 执行**
 
 ```bash
-# 一次只下发一条
-cmux send --workspace "senate/$RUN/executor" "执行 $RUN/work/I-004.md"
+# 一次只下发一条（$EXEC = handles.map 里的 ref，名字不可寻址）
+cmux send --workspace "$EXEC" "执行 $RUN/work/I-004.md"
 cmux wait-for "senate/$RUN/exec-I-004" --timeout 600
 cmux diff --source branch          # 给人类看总账
 ```
@@ -455,7 +461,9 @@ $0.068；真实仓库巡检的提案轮大概率 $1–5/席。投票轮是 `ball
 落地前需要实测确认的点：
 
 1. ~~`cmux send --workspace <ref> <text>` 是否等价于提交一个 user turn~~ **已实测**：
-   `send` 只输入文本、不提交，必须补 `cmux send-key <ref> Enter`（见 Phase 0.5）。
+   `send` 只输入文本、不提交，必须补 `cmux send-key <ref> enter`（键名小写，`Enter` 报
+   `Unknown key`）。且 `--workspace` **只接受 ref/UUID/index，不接受 `--name` 的名字**；
+   建院时把 ref 记进 `handles.map`（见 Phase 0.5）。
 2. `workspace.prompt_submit` 的确切参数与语义（已确认该方法存在且需要 `workspace_id`）。
 3. ~~席位 CLI 在 workspace 里启动后的**就绪检测**方式~~ **已实测**：Kimi CLI 首次启动
    有 Trust 门（"Don't trust" 即直接退出，唯一继续路径是 Trust）；就绪判据为输入框

@@ -87,7 +87,7 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 System.out.println(result.reportString());
 // 成功时: SUCCESS:100
-// 部分失败时: SUCCESS:95 MEMBER_CANCELED:3 USER_FAILURE:2
+// 部分失败时: SUCCESS:95 MEMBER_CANCELLED:3 USER_FAILURE:2
 // 超时时: 全部取消，线程资源立即释放
 ```
 

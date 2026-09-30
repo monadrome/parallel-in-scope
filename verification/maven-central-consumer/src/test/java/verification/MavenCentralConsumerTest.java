@@ -199,7 +199,7 @@ class MavenCentralConsumerTest {
                                         .taskType(TaskType.IO_BOUND));
                         innerResult.set(nested);
                         // Stay in the body until the test releases it, swallowing the interrupt the
-                        // deadline delivers: the outer element must end canceled by the deadline,
+                        // deadline delivers: the outer element must end cancelled by the deadline,
                         // not by the body racing it with an exception of its own.
                         awaitUninterruptibly(releaseOuter);
                         return outerValue;

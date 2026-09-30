@@ -22,7 +22,7 @@ Java 8 bytecode while exposing the backed reverse-view behavior available on new
 
 Use a one-way `OPEN -> CLOSING -> CLOSED` lifecycle, detach queued elements into a recovery list at
 shutdown, and keep `drainTo(Collection)` available after shutdown to claim recovery elements in FIFO
-order. `remainingList()` remains the post-termination inspection API. Poison signaling is virtual and
+order. `remainingList()` remains the post-termination inspection API. Poison signalling is virtual and
 identity-based; it is never stored in the queue or recovery list.
 
 ## Alternatives Considered
@@ -55,7 +55,7 @@ draft and JDK-difference exploration.
    contract. In particular, use the Java 8 `LinkedBlockingQueue` weakly consistent FIFO iterator
    model rather than a stable iterator snapshot.
 3. Support two constructor-selected shutdown behaviors: exception rejection and poison-object
-   signaling. Producer and collection mutations never succeed after shutdown, except that standard
+   signalling. Producer and collection mutations never succeed after shutdown, except that standard
    `BlockingQueue.drainTo` remains available for recovery transfer.
 4. Make the reverse view behave as a normal backed mutable `List`. On Java 21+, the returned `List`
    is a real `SequencedCollection`, including its endpoint defaults and `reversed()` behavior.

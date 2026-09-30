@@ -42,7 +42,7 @@ total 的派生计算。`TaskCompletion` 已把这些字段、结果/异常、`T
 
 TaskGroup 在收敛时从每个 `MemberState` 生成 `TaskCompletion.memberSnapshot()`，存入
 `TaskGroupResult.members()`；terminal combine 另存于 `terminal()`。该快照可使用收敛后的
-`FAIL_FAST`、`GROUP_CANCELED` 等事后归因，而不是只读取任务刚抛异常时的 token 状态。
+`FAIL_FAST`、`GROUP_CANCELLED` 等事后归因，而不是只读取任务刚抛异常时的 token 状态。
 
 `TaskFuture` 是所有单任务、batch 元素、group 成员和 combine 的公开 future 视图，目前提供
 名称、deadline、剩余时间、终态 outcome 和 failure，但没有 timing 或 `TaskCompletion` 访问器。
@@ -137,7 +137,7 @@ ListenableFuture<List<TaskCompletion<T>>> completionFuture();
 提交 rejection、取消或滑动窗口中止的成员。
 
 `report()`/`reportString()` 继续用于轻量 outcome 汇总；`completionFuture()` 是需要 timing、
-失败异常和 queue wait 的完整结果入口。它不改变 `close()`、`submitCanceler()` 或
+失败异常和 queue wait 的完整结果入口。它不改变 `close()`、`submitCanceller()` 或
 `awaitBodyCompletion()` 的语义。
 
 ### 4.4 Scope 完成、取消与发布顺序

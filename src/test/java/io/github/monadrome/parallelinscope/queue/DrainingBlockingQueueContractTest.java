@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * Contract-focused additions over {@link DrainingBlockingQueueTest}: constructor-with-elements,
  * snapshot queries ({@code toArray}/{@code toString}), spliterator traversal and splitting,
  * iterator removal rules, shutdown-policy mutation matrix, await-drained variants, capacity
- * signaling through blocking producers, and {@code drainTo} bounds.
+ * signalling through blocking producers, and {@code drainTo} bounds.
  */
 class DrainingBlockingQueueContractTest {
 
@@ -394,7 +394,7 @@ class DrainingBlockingQueueContractTest {
         return queue.awaitDrained(timeout, unit);
     }
 
-    // ==================== Capacity signaling across threads ====================
+    // ==================== Capacity signalling across threads ====================
 
     @Test
     void pollFreesCapacitySoBlockedTimedProducerEventuallySucceeds() throws Exception {
