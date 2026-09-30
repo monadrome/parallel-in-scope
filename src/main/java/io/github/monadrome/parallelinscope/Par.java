@@ -213,7 +213,6 @@ public final class Par {
                 options.closeGrace().orElse(null));
     }
 
-    @SuppressWarnings("unchecked")
     private <T, R> TaskBatchResult<R> executeGlobal(
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
