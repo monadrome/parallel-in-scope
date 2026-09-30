@@ -38,5 +38,5 @@ public enum TaskOutcome {
     /** Canceled as fail-fast fallout of a sibling failure. */
     FAIL_FAST,
     /** Canceled because a deadline was reached. */
-    TIMEOUT;
+    TIMEOUT
 }
