@@ -12,6 +12,7 @@ copyright: © parallel-in-scope — Apache License 2.0
 nav:
   - Documentation: index.md
   - Full user guide: user-guide.md
+  - Interactive demo: https://monadrome.github.io/parallel-in-scope/interactive-demo.html
   - Migration:
       - From 0.2.x to 0.3: migration-v0.3.md
       - From 0.1.x to 0.2: migration-v0.2.md
@@ -45,14 +46,14 @@ theme:
       accent: indigo
       toggle:
         icon: material/brightness-7
-        name: 切换到暗色模式
+        name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
-        name: 切换到亮色模式
+        name: Switch to light mode
   features:
     - search.suggest
     - search.highlight
@@ -127,6 +128,21 @@ plugins:
           site_description: 面向 Java 8+ 的结构化并发工具包——协作式取消、快速失败、上下文传播、死锁检测、滑动窗口调度
           theme:
             language: zh
+            palette:
+              - media: "(prefers-color-scheme: light)"
+                scheme: default
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-7
+                  name: 切换到暗色模式
+              - media: "(prefers-color-scheme: dark)"
+                scheme: slate
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-4
+                  name: 切换到亮色模式
           nav:
             - 文档首页: index.md
             - 完整使用指南: user-guide.md
