@@ -67,4 +67,3 @@
 | 文档 | 摘要 |
 |---|---|
 | [adversarial-review-handoff-2026-09-29.md](adversarial-review-handoff-2026-09-29.md) | **评审进行中**：`353d418..8796036` 冗余清理 16 commits 的对抗性评审基线与 findings 记录（席位为独立上下文的 Kimi，只读）。接手该轮评审前先读本文的已知条目清单 |
-| [senate.md](senate.md) | **设计草案，非本库契约**：多模型议会决策 + 廉价模型执行的跨项目工具设计，借 `design/` 暂存。定稿后应迁出本仓库；不要把它当作本库的 API 或行为依据 |
