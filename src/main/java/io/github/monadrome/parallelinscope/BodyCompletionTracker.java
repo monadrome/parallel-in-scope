@@ -41,7 +41,7 @@ import org.jspecify.annotations.Nullable;
 final class BodyCompletionTracker {
 
     private final AtomicInteger outstanding;
-    private final SettableFuture<Void> bodyExit = SettableFuture.create();
+    private final SettableFuture<@Nullable Void> bodyExit = SettableFuture.create();
     private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
     private final List<TaskBodyState> slots;
 
@@ -97,12 +97,12 @@ final class BodyCompletionTracker {
      * NullArgumentForNonNullParameter when javac runs on JDK 21. The completion is equivalent —
      * the signal carries no value and completes synchronously.
      */
-    static void complete(SettableFuture<Void> signal) {
+    static void complete(SettableFuture<@Nullable Void> signal) {
         signal.setFuture(Futures.immediateVoidFuture());
     }
 
     /** The completion signal itself, for composition by the owning topology. */
-    ListenableFuture<Void> bodyExit() {
+    ListenableFuture<@Nullable Void> bodyExit() {
         return bodyExit;
     }
 

@@ -52,7 +52,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ParRuntime implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
-    private static final AtomicReference<ParRuntime> INSTALLED = new AtomicReference<>();
+    private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
@@ -68,7 +68,7 @@ public final class ParRuntime implements AutoCloseable {
     private final AtomicInteger activeBatches = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Object quiescenceMonitor = new Object();
-    private final Set<ListenableFuture<Void>> liveBodySignals = Sets.newConcurrentHashSet();
+    private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
@@ -507,7 +507,7 @@ public final class ParRuntime implements AutoCloseable {
      * empty set is stable.
      */
     void trackBodies(BodyCompletionTracker tracker) {
-        ListenableFuture<Void> signal = tracker.bodyExit();
+        ListenableFuture<@Nullable Void> signal = tracker.bodyExit();
         if (signal.isDone()) return;
         liveBodySignals.add(signal);
         // directExecutor: the listener runs inside the signal's completion, so a completed

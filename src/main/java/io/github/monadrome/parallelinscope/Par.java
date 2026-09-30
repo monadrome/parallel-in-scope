@@ -45,8 +45,8 @@ public final class Par {
 
     private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
 
-    /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
-    private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
+    /** Null-object submission canceler: a single task carries no submission pipeline to stop. */
+    private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;

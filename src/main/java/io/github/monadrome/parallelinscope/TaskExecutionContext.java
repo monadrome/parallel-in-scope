@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 /** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
 final class TaskExecutionContext {
 
-    private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
