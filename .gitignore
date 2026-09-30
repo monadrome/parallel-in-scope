@@ -25,6 +25,9 @@ todo/
 # Claude
 .claude/
 
+# Local senate tooling state and its design draft
+.senate/
+
 # Local agent tooling: symlinks into node_modules, created per-IDE by npm postinstall
 npm-huatalk-hiding-skill-hide
 
