@@ -103,6 +103,6 @@ public final class TaskOptions {
 
     /** Adapts this policy to the kernel carrier of the task named {@code name}. */
     UnitSpec spec(String name) {
-        return new UnitSpec(name, 1, Optional.ofNullable(timeout), taskType, rejectEnqueue, runOnCallerThread);
+        return new UnitSpec(name, 1, timeout, taskType, rejectEnqueue, runOnCallerThread);
     }
 }
