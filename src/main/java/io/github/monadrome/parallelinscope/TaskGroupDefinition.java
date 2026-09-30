@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -55,14 +54,16 @@ final class TaskGroupDefinition {
         return name;
     }
 
-    /** The explicit group timeout; empty means the enclosing scope's deadline is inherited. */
-    Optional<Duration> timeout() {
-        return Optional.ofNullable(timeout);
+    /** The explicit group timeout; null means the enclosing scope's deadline is inherited. */
+    @Nullable
+    Duration timeout() {
+        return timeout;
     }
 
-    /** The explicit close grace used by {@link TaskGroup#close()}; empty means it is derived. */
-    Optional<Duration> closeGrace() {
-        return Optional.ofNullable(closeGrace);
+    /** The explicit close grace used by {@link TaskGroup#close()}; null means it is derived. */
+    @Nullable
+    Duration closeGrace() {
+        return closeGrace;
     }
 
     /** The plain members in declaration order. */
