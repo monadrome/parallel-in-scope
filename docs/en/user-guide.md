@@ -411,9 +411,9 @@ httpPar.map(accountIds, id -> {
 }, options);
 ```
 
-Note the asymmetry: `Checkpoints.checkpoint()` is a silent no-op outside any scoped task, while the
-named `checkpoint(taskName, lean)` throws `IllegalStateException` there; `rawCheckpoint()` works
-without a scope and also honors the thread's interrupt flag.
+The three checkpoint forms behave differently outside a scoped task (silent no-op, fail-fast, or
+scope-free); the forms table lives in
+[Cooperative cancellation](reference/cooperative-cancellation.md#add-checkpoints-to-cpu-bound-work).
 
 Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 

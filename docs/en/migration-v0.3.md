@@ -204,7 +204,8 @@ not distinguish: `DISABLED`, `NO_ISSUE`, and `ISSUE`; a detection failure ends t
 failure (with a JUL warning) instead of being silently swallowed. The future is read-only —
 `cancel(...)` returns `false` — and the JUL `WARNING` on a positive report is unchanged. Accessor
 renames: `hasTaskCycle()` → `taskCycle()`, `hasSelfLoop()` → `selfLoop()`, `hasExecutorCycle()` →
-`executorCycle()`, `hasExecutorSelfLoop()` → `executorSelfLoop()`, `hasAnyIssue()` → `anyIssue()`;
+`executorCycle()`, `hasExecutorSelfLoop()` → `executorSelfLoop()`, `hasAnyIssue()` →
+`anyIssue()`;
 the edge-text accessors keep their names. What is gone for good: one registration covering every
 request of the runtime — each scope must now be asked for its own report — and the library's
 listener-exception isolation, which moves to your callback executor.
@@ -224,75 +225,19 @@ Java 8 offers no type constraint that proves a lambda captures nothing, and runt
 on compiler details and can be bypassed. The `0.3.0` answer is not to move callables into another
 one-shot container but to remove the reusable structure itself: **one run is one chain, and the
 structure, the declared type, and the body are registered in the same `par` call — a chain that
-`submitAll()` consumes.** The moment a structure exists it is tied to this run's bodies, with no
-object in between that the two could drift out of sync with.
+`submitAll()` consumes.** The chain moves through three step-builder stages — `GroupStart`
+(whole-group `closeGrace` and the first `par`), `GroupStep<V>` (more members, the terminal
+`combine`, or `submitAll()`), and `CombinedGroupStep<V, R>` (only `submitAll()`) — so a tail like
+`combine(...).par(...)` or a late `closeGrace` does not compile, and a fork from a saved stage or
+a second `submitAll()` throws `IllegalStateException` at runtime.
 
-```text
-Application / topology lifetime
-ParRuntime --------------------------------------------------------------- close
-
-One run: one chain, declared with its bodies, submitted once
-    runtime.group(name, timeout) / groupInheriting(name)                 GroupStart
-        |-- closeGrace(Duration)           optional, only before the first par
-        |-- par(name, par, type, body)     member: name / Par / declared type / this run's body
-        |-- combine(name, par, type, body)                                 optional, at most once
-        |
-        `-- submitAll()                    the only admission and submission boundary
-              |
-              `-- TaskGroup<V, R>          one-run lifetime, closeable, usable across threads
-                    member futures / values / terminal / token / deadline / context / timer
-```
-
-The three stages are step-builder *interfaces* on that chain; their implementations stay
-package-private, and only the `TaskGroup<V, R>` handed back by submission is a run scope:
-
-- **`GroupStart` (no member declared yet)**: carries the whole-group setting `closeGrace` and the
-  first `par`, and can submit an empty group directly. Declaring a member leaves this stage behind
-  for good, so a `closeGrace` written after one does not compile.
-- **`GroupStep<V>` (at least one member declared)**: add members with `par`, declare the single
-  terminal `combine`, or `submitAll()` directly. `V` is the assembled member-value type so far.
-- **`CombinedGroupStep<V, R>` (combine declared)**: only `submitAll()` remains; adding a member or
-  a second combine after the combine does not compile.
-
-The three interfaces do not extend each other, so a chain tail of `combine(...).par(...)`,
-`combine(...).combine(...)`, or `par(...).closeGrace(...)` simply does not compile in normal
-chained code; behind that compile-time limit sits a runtime stale-stage check (see below).
-
-**Cost and benefit.** The structure is no longer reusable: a caller that runs the same topology
+The cost to plan for: the structure is no longer reusable, so a caller that runs the same topology
 repeatedly must build the chain every time, re-declaring, re-validating, and re-allocating the
 draft per request, and member types must be written out one by one. What that buys is the absence
 of separate state to keep in sync — no definition, `TaskKey` handle, and per-run bindings as three
 objects; no `build()` to forget; no way to bind this run's body to another definition; and no
 permanently pending placeholder left behind by a forgotten submission, because no future exists
 before submission.
-
-### 1. Declare and submit one chain
-
-Only the instance methods `ParRuntime.group(...)` / `groupInheriting(...)` open a chain; there is
-no public static `builder(...)` entry. The group timeout stays a forced explicit choice:
-`group(name, timeout)` for an explicit positive budget, `groupInheriting(name)` for a nested group
-that inherits an enclosing scoped task's deadline. There is no implicit unbounded default.
-
-Each `par` on the chain registers one plain member's name, executor, declared type, and this run's
-body in a single call; `combine(name, par, type, body)` declares the single terminal combine. The
-declaration validates immediately — null, a blank name, a duplicate name, a foreign `Par`, a
-primitive or unresolved token all fail on that call. `closeGrace(Duration)` before the first `par`
-configures the cleanup budget `close()` uses, replacing `TaskGroupOptions.closeGrace`.
-
-A declared type has exactly two spellings: `Foo.class` for a non-generic result, and
-`new TypeToken<List<Order>>() {}` (or an already-declared `TypeToken` variable) for a
-parameterized one. Both take the same code path — the `Class` form is `TypeToken.of(type)`
-internally, with identical runtime type checking and error timing. Custom `TaskOptions` are
-available only in the `TypeToken` form: `par(name, par, options, TypeToken.of(Foo.class), body)`.
-Omitting a member's `TaskOptions` is exactly `TaskOptions.inheritTimeout()`; pass options only
-for a tighter budget, a different task type, a different enqueue policy, or an explicit
-caller-thread fallback on rejection (`runOnCallerThread(true)`).
-
-Declaration creates no cancellation token, future, absolute deadline, timer, or TTL snapshot, and
-calls no executor; the group timeout starts at the `submitAll()` submission boundary, so
-declaration time consumes none of the execution budget. `submitAll()` is the only admission
-boundary: plain members run in the order the `par` calls were written, with the terminal combine
-always last.
 
 ```java
 // 0.2.x: the structure, the callables, and the handles lived in three places
@@ -331,36 +276,18 @@ try (TaskGroup<Tuple2<User, List<Order>>, AccountPage> group = global
 }
 ```
 
-The chain is one-shot and single-threaded. Only the creating thread may call it: `submitAll()`
-consumes the draft, and it cannot be retried whether the submission succeeds or fails; adding to a
-saved stage object, forking from an earlier stage, or a second `submitAll()` throws
-`IllegalStateException`. An empty group submits straight from `GroupStart.submitAll()` as a
-`TaskGroup<Void, Void>`; a one-member group's `V` is that member's type, and only two or more
-members give a `Tuple2` nest. The "zero plain members but a combine" shape no longer exists — use
-`Par.submit` for a single task.
+An empty group submits straight from `GroupStart.submitAll()` as a `TaskGroup<Void, Void>`, and the
+"zero plain members but a combine" shape no longer exists — use `Par.submit` for a single task.
+Declaration validates immediately — null, a blank name, a duplicate name, a foreign `Par`, a
+primitive or unresolved token all fail on the declaring call — and consumes no execution budget:
+the group deadline starts at `submitAll()`. The full current contract — declared types,
+`TaskOptions` defaults, lifecycle, and cancellation semantics — is in
+[Execute a heterogeneous task group](user-guide.md#execute-a-heterogeneous-task-group).
 
-### 2. Read futures from the running group
+### Reading futures and values
 
-Member handles are gone, replaced by two ways of addressing a slot: `futureOf(name, TypeToken)`
-and `futureAt(index, TypeToken)` return a typed `TaskFuture<T>` by name or by zero-based
-declaration position, and the overloads without a token return `TaskFuture<?>` for callers that
-genuinely address slots dynamically. The position is the order the `par` calls were written, not
-the order tasks completed in, and the terminal combine occupies no position. `members()`,
-`findMember(name)`, `completionFuture()`, `cancel()`, `awaitBodyCompletion(Duration)`,
-`groupId()`, and `groupName()` keep their `0.2.x` semantics.
-
-The typed overloads require the query token to be exactly equal to the declared token — no
-widening to a supertype — so a wrong token is rejected on the lookup call
-(`IllegalArgumentException`) instead of surfacing as a `ClassCastException` at the `get()` site.
-The check is independent of whether the member has completed and of whether its value is null:
-null is a legitimate successful value, not a channel that skips type checking. An unknown name
-throws `IllegalArgumentException`, an out-of-range position throws `IndexOutOfBoundsException`,
-and both messages carry the name or position.
-
-The terminal combine's future comes from `terminalFuture()`, which returns
-`Optional<TaskFuture<R>>`: **empty means no combine was declared**, rather than being inferred from
-whether `R` is `Void` — a combine declared with a `Void` result still has a present future, and it
-succeeds with null.
+`TaskKey` handles are gone. Address a member by the name given to `par(...)` or by its zero-based
+declaration position; the terminal combine is reached through `terminalFuture()`:
 
 ```java
 // 0.2.x
@@ -373,69 +300,29 @@ TaskFuture<AccountPage> terminal =
         group.terminalFuture().orElseThrow(() -> new IllegalStateException("no combine declared"));
 ```
 
-### 3. Read member values: `GroupValues`
+The typed overloads require the query token to be exactly equal to the declared token — no
+widening to a supertype — so a wrong token is rejected on the lookup call
+(`IllegalArgumentException`) instead of surfacing as a `ClassCastException` at the `get()` site.
+`terminalFuture()` returns `Optional<TaskFuture<R>>`: **empty means no combine was declared** — a
+combine declared with a `Void` result still has a present future that succeeds with null.
 
-In `0.2.x` you read one member at a time with `group.future(key).get()`; now you can either wait
-per member with `futureOf(name, token).get()`, or wait once on `valuesFuture()` for every
-successful value.
-
-`group.valuesFuture()` is an aggregate `ListenableFuture<GroupValues<V>>` that completes normally,
-with this run's ordered member values, when the whole group succeeds. It is not a `TaskFuture` —
-it has no execution context, attribution, or observation snapshot of its own; per-member outcomes
-stay in `completionFuture()`'s `TaskGroupResult`. It **never** stays pending: a recorded failure (a
-member's or the combine's `USER_FAILURE` / `SUBMISSION_FAILURE`) completes it exceptionally with
-that failure as the cause, so `get()` throws `ExecutionException`; a group cancellation, a direct
-member cancellation, or a timeout with no recorded failure completes it as cancelled, so `get()`
-throws `CancellationException`. The publication order is an invariant: it is always terminal
-before `completionFuture()` is, so a done completion future implies a done values future. On a
-failed group it carries no partial values.
-
-`GroupValues<V>` has two addressing views over the same slots: zero-based declaration position
-(`valueAt` / `typeAt`) and the name declared in the `par` call (`valueOf` / `typeOf`); `size()` is
-the plain member count, and the terminal combine occupies neither a name nor a position.
-`typedValues()` hands the same values back at compile-time type `V` — the single member's type for
-a one-member group, left-nested `Tuple2` for larger groups (two members give `Tuple2<T1,T2>`, three
-give `Tuple2<Tuple2<T1,T2>,T3>`), so reading by name or position needs no cast. Components may be
-null.
-
-The typed `valueAt` / `valueOf` locate the slot, then require the query token to be exactly equal
-to the declared token before returning the (possibly null) value as `@Nullable T`; `typeAt` /
-`typeOf` expose the slot's declared token for callers that genuinely address slots dynamically and
-want to inspect the schema first. A token is not deep validation: it proves which parameterized
-type the caller asked for, not that every element inside a `List<Order>` is an `Order` — that
-information is erased. The snapshot is shallowly immutable; it neither copies nor freezes your
-objects.
-
-```java
-GroupValues<Tuple2<User, List<Order>>> values = group.valuesFuture().get();
-Tuple2<User, List<Order>> typed = values.typedValues();
-User user = values.valueOf("user", TypeToken.of(User.class));
-List<Order> orders = values.valueAt(1, ordersType);
-Object dynamic = values.valueOf("user");   // untyped: cast it yourself
-```
+`CompletedTaskValues` is replaced by `GroupValues<V>`, obtained from `group.valuesFuture()`: it
+completes normally with this run's ordered member values when the group succeeds, fails with the
+recorded cause when a member or the combine failed, and is cancelled on a cancellation with no
+recorded failure — it never stays pending and never carries partial values. `typedValues()`
+returns the same values at the compile-time tuple type `V` (a left-nested `Tuple2` for two or more
+members); `valueOf(name, token)` / `valueAt(index, token)` apply the same exact-token rule as the
+future lookups. The addressing rules and nullability details:
+[Execute a heterogeneous task group](user-guide.md#execute-a-heterogeneous-task-group).
 
 ## Terminal combine
 
 `buildWithCombiner(key, parName, function)` is replaced by the chain's terminal
-`combine(name, par, type, body)`. The combine depends on every plain member, is submitted to its
-own `Par` only after all of them succeed, and is the group's last task: the group completes only
-when its future is terminal. Execution order is the order the `par` calls were written, with the
-terminal always last; a group accepts at most one combine, and `CombinedGroupStep` exposes only
-`submitAll()`, so a second combine or a member after the combine does not compile.
-
-The combine body no longer receives a `CompletedTaskValues`; it receives the assembled member
-values themselves — the same `V` as `GroupValues.typedValues()` — destructured by position: with
-two members, `values.first()` / `values.second()`; with three, `values.first().first()`,
-`values.first().second()`, `values.second()`. Components may be null (a member that succeeds with
-null is legitimate), so express any non-null requirement yourself with
-`Objects.requireNonNull`. `CombineBody.apply` may throw `Exception`.
-
-Like a member, the combine enforces its declared `TypeToken<R>` at runtime: a non-null result whose
-class does not match the token's raw type is recorded as `USER_FAILURE` with a
-`ClassCastException`, and a rejected handoff to its executor is recorded as `SUBMISSION_FAILURE`
-with the body never running. Its value is reached through `terminalFuture()`, and it occupies
-**neither a name nor a position** in `GroupValues` — the values view always holds plain members
-only.
+`combine(name, par, type, body)`: at most one per group, submitted to its own `Par` only after
+every member succeeds, and always the group's last task. The body receives the assembled member
+values — the same `V` as `GroupValues.typedValues()` — instead of a `CompletedTaskValues`,
+destructured by position (`values.first()` / `values.second()`). Components may be null (a member
+that succeeds with null is legitimate), so express any non-null requirement yourself.
 
 ```java
 // 0.2.x
@@ -444,19 +331,15 @@ TaskGroupDefinition built = definition.buildWithCombiner(
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)));
 
-// 0.3.0
-try (TaskGroup<Tuple2<User, List<Order>>, AccountPage> group = global
-        .group("account-page", Duration.ofSeconds(3))
-        .par("user", databasePar, User.class, () -> userRepository.load(request.userId()))
-        .par("orders", httpPar, ordersType, () -> orderClient.load(request.userId()))
-        .combine("assemble-page", cpuPar, AccountPage.class,
-                values -> new AccountPage(values.first(), values.second()))
-        .submitAll()) {
-    AccountPage page = group.terminalFuture()
-            .orElseThrow(() -> new IllegalStateException("no combine declared"))
-            .get();
-}
+// 0.3.0: the terminal link of the chain, as in the example above
+.combine("assemble-page", cpuPar, AccountPage.class,
+        values -> new AccountPage(values.first(), values.second()))
 ```
+
+Its value is reached through `terminalFuture()`; the combine occupies neither a name nor a
+position in `GroupValues` — the values view always holds plain members only. The current
+semantics — scheduling, declared-type enforcement, and failure attribution — are in
+[Terminal combine](user-guide.md#terminal-combine).
 
 ## Group completion callbacks
 
@@ -560,9 +443,9 @@ The submission contract is now uniform for every failure of the executor handoff
 a contract-violating `Error` from `execute()`, or a failure while enqueuing such as
 `OutOfMemoryError`. The affected element or member future terminates as `SUBMISSION_FAILURE` with
 a `SubmissionException` whose cause is the original throwable, and neither `Par.map` nor
-`submitAll` rethrows the failure once admission has crossed its public boundary. The completion
-shape no longer depends on whether the failure happened in the synchronous initial window or the
-asynchronous sliding-window refill — the same executor defect used to have two observable shapes.
+`submitAll` rethrows the failure once admission has crossed its public boundary — the same
+executor defect used to have two observable shapes, depending on whether it happened in the
+synchronous initial window or the asynchronous sliding-window refill.
 
 Code written against an earlier snapshot that expected `Par.map` itself to throw a handoff
 `Error` must move the escalation point to the result handle:
@@ -586,9 +469,10 @@ try {
 ```
 
 Code that already consumes `results()`, `report()`, or member futures needs no behavioral
-migration; note only that `SUBMISSION_FAILURE` may now wrap an `Error` from the handoff. A
-handoff `Error` is additionally logged once at `SEVERE` with the batch or member identity,
-because it signals a broken executor or a failing VM rather than an ordinary rejection.
+migration; note only that `SUBMISSION_FAILURE` may now wrap an `Error` from the handoff, and that a
+handoff `Error` is logged once at `SEVERE` with the batch or member identity, because it signals a
+broken executor or a failing VM rather than an ordinary rejection. The full contract:
+[Execute a batch](user-guide.md#execute-a-batch).
 
 ## Executor rejection no longer runs user code by default
 
@@ -619,18 +503,13 @@ BatchOptions.timeout("load", Duration.ofSeconds(5))
 | Rejection with `runOnCallerThread(true)` | — | runs on the submitting thread |
 
 `runOnCallerThread` applies to any executor and to every task type. Ask for it deliberately: the
-task body then runs on the submitting thread, which is back-pressure rather than queueing, and
-which can block whatever that thread was doing — including, for a batch, the thread driving the
-submission window.
-
-`TaskType` no longer affects the rejection path at all. It now drives exactly one thing: whether
-`SmartBlockingQueue` refuses to enqueue a task (`CPU_BOUND` refuses even when `rejectEnqueue` is
-`false`; the other values are enqueued). With any other queue, `TaskType` changes nothing, and
-`IO_BOUND` and `MIXED` are indistinguishable — `MIXED` is retained as a declaration of intent,
-not a scheduling instruction.
-
-The terminal combine does not read `runOnCallerThread`: it has no caller thread, because it is
-submitted by the framework at join time. A rejected combine keeps failing as `SUBMISSION_FAILURE`.
+task body then runs on the submitting thread, which is back-pressure rather than queueing — the
+consequences of borrowing that thread are described in
+[Execute a batch](user-guide.md#execute-a-batch). `TaskType` no longer affects the rejection path
+at all: it now drives exactly one thing, whether `SmartBlockingQueue` refuses to enqueue a task
+(`CPU_BOUND` refuses even when `rejectEnqueue` is `false`). The terminal combine does not read
+`runOnCallerThread` — it has no caller thread, because it is submitted by the framework at join
+time — and a rejected combine keeps failing as `SUBMISSION_FAILURE`.
 
 ## Closing a scope now waits
 
@@ -647,9 +526,9 @@ close time.
 | Cancel-only request | `close()` | `cancel()` (group) — `closeGrace(Duration.ZERO)` also makes `close()` cancel-only |
 
 A `close()` that returns normally still does not prove the task bodies exited: an
-interrupt-ignoring body can outlive the grace. Before releasing resources the bodies used,
-confirm with `awaitBodyCompletion(Duration)`, which returns `true` only when every body has
-exited or is atomically known never to start.
+interrupt-ignoring body can outlive the grace. Before releasing resources the bodies used, confirm
+with `awaitBodyCompletion(Duration)` — see
+[Captured resources and task-body exit](user-guide.md#captured-resources-and-task-body-exit).
 
 ## Quiescence means body exit
 
@@ -663,7 +542,8 @@ code, and quiescence means both.
 current scoped task — or a call outside any scoped task — throws `IllegalStateException` instead
 of silently skipping the cancellation check. The no-argument `Checkpoints.checkpoint()` is the
 primary form and needs no name; migrate by dropping the name argument where it carried no
-information.
+information. The behavior of all three checkpoint forms, inside and outside a scoped task, is
+tabulated in [Cooperative cancellation](reference/cooperative-cancellation.md#add-checkpoints-to-cpu-bound-work).
 
 ## Narrowed signatures and shapes
 
@@ -684,20 +564,12 @@ information.
 ## Spelling
 
 `0.3.0` writes the project in American English, with one exception: the doubled-`l` family keeps
-both `l`s. The sources mixed the two variants — `canceled` 53 times against `cancelled` 35 in
-`src/main/java` alone, in one case inside a single sentence — and nothing recorded which was
-intended, so each reader had to guess.
-
-The exception exists because this library wraps APIs that spell the family with two `l`s:
-`Future.isCancelled()`, Guava's `Futures.immediateCancelledFuture()`, and `CancellationException`.
-Writing `canceled` next to those reads as a mistake, and `cancellation` is spelled with two `l`s in
-every variant anyway. So: `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`,
-`labelled`. Everything else follows American usage (`behavior`, `honored`, `afterward`, `among`,
-`normalize`, `analyze`).
-
-The rule covers identifiers, which is why the `0.3.0` members listed in the tables above move with
-it. `TaskBatchResult.submitCanceller()` is *not* renamed — it already used both `l`s. Third-party
-names are never respelled. The convention is recorded in `AGENTS.md`.
+both `l`s (`cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`),
+because this library wraps APIs that spell the family that way — `Future.isCancelled()`,
+`Futures.immediateCancelledFuture()`, `CancellationException` — and `cancellation` has two `l`s in
+every variant anyway. The rule covers identifiers, which is why the respelled members listed above
+moved with it. `TaskBatchResult.submitCanceller()` is *not* renamed — it already used both `l`s.
+Third-party names are never respelled. The convention is recorded in `AGENTS.md`.
 
 ## Nullability annotations are now JSpecify
 
