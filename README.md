@@ -6,6 +6,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.monadrome/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.monadrome/parallel-in-scope)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
+[![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
 > Current development version: `0.3.0-SNAPSHOT`, published to the Central snapshot repository.
 > Latest stable release: `0.2.0`. The `0.3.0` line is a breaking redesign of the task-group API —
@@ -93,6 +94,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 | Entry | Contents |
 |---|---|
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
+| [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
 | [English documentation](docs/en/index.md) | User guide, API contracts, design notes, and case studies |
 | [v0.3 migration guide](docs/en/migration-v0.3.md) | Breaking changes from the `0.2.x` task-group API |
 | [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
