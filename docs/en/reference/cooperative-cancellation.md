@@ -49,14 +49,11 @@ The three checkpoint forms differ in what they do **outside** any scoped task:
 | `Checkpoints.checkpoint(taskName, lean)` | Throws `IllegalStateException` | `lean=true`: `LeanCancellationException`; `lean=false`: `CancellationException` with a stack trace |
 | `Checkpoints.rawCheckpoint()` | Works — no scope required; also honors the thread's interrupt flag | Throws `LeanCancellationException` |
 
-## Checkpoints API
+Two utilities round out the API:
 
 | Method | Purpose |
 |---|---|
-| `Checkpoints.checkpoint()` | Check the current scope's cancellation token unconditionally and throw when cancelled or past the deadline |
-| `Checkpoints.checkpoint(taskName, lean)` | Same check, but requires the task name to match; a mismatch throws `IllegalStateException` |
 | `Checkpoints.sleep(millis)` | Sleep while converting interruption into a cancellation exception |
-| `Checkpoints.rawCheckpoint()` | Check only the thread interrupt flag |
 | `Checkpoints.propagateCancellation(ex)` | Re-throw cancellation exceptions from a catch block |
 
 Add checkpoints at a reasonable granularity: every N iterations of a long loop, between expensive phases, or at the entry to a recursive walk. I/O calls and very short functions normally need no manual checkpoint.
@@ -86,12 +83,4 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 | Manual cancellation | `CANCELLED` | Application code called `CancellationToken.cancel()` |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
 
-All sources are observed through the same token state check. Nested `Par.map` calls inherit a parent token, so cancellation propagates to child tasks at their next checkpoint or blocking operation.
-
-## Summary
-
-1. CPU-bound tasks need explicit checkpoints.
-2. The checkpoint task name must match the current scope.
-3. Use `propagateCancellation` before handling other exceptions.
-4. Prefer `Checkpoints.sleep()` inside a `Par` task.
-5. I/O tasks already benefit from interrupt-based cancellation.
+All sources are observed through the same token state check. Nested `Par.map` calls inherit a parent token, so cancellation propagates to child tasks at their next checkpoint or blocking operation. The attribution a `TaskFuture` reports — `TIMEOUT`, `FAIL_FAST`, `GROUP_CANCELLED`, `MEMBER_CANCELLED` — is derived from these token states; see [Read task attribution from a future](../user-guide.md#read-task-attribution-from-a-future).
