@@ -160,7 +160,7 @@ Guava 的 SEVERE 日志里。
 |---|---|---|
 | `TaskCompletion.succeeded(...)` / `failed(...)` | `TaskCompletion.java:66, :87` | 8/9 个位置参数 + 3 个裸纳秒时间戳；仅同包测试用；且让用户能**伪造看起来由库产出的归因记录** |
 | `SmartBlockingQueue.create(int)` | `SmartBlockingQueue.java:82` | 零调用；`capacity <= 0` 返回 `SynchronousQueue`，与公开构造器（`:29`）抛 `IllegalArgumentException` 冲突——一类两契约 |
-| `TaskGroupResult.memberCount()` | `TaskGroupResult.java:91` | 零调用，等于 `members().size()` |
+| ~~`TaskGroupResult.memberCount()`~~ | ~~`TaskGroupResult.java:91`~~ | 已随 `5d598ac` 删除（零调用，等于 `members().size()`） |
 | `ParRuntime` purge setter + 4 个 live getter | `ParRuntime.java:237-272` | 仅测试调用；构建期 `ParRuntimePurgePolicy` 已能表达。**待确认**是否有运维用途 |
 
 前三项去掉后：公开类型 37 → 35、顶层公开成员 289 → 约 285。
@@ -187,9 +187,7 @@ Guava 的 SEVERE 日志里。
 
 ## 待决策
 
-1. **两份提案是否入库**：`design/jspecify-null-safety-v0.3-proposal.md`、`design/scope-close-and-termination-proposal.md`
-   已标"已实施"但仍是未跟踪文件。按 `AGENTS.md`，提案本应随实施它的变更提交，而实施早已完成。
-2. **测量仪器是否入库**：`/tmp/pisbench/` 的 4 个 `.java`（`Bench`/`Probe`/`FailureShape`/`TimerProbe`）。
+1. **测量仪器是否入库**：`/tmp/pisbench/` 的 4 个 `.java`（`Bench`/`Probe`/`FailureShape`/`TimerProbe`）。
    不迁入则性能报告的数字无法复现，且 `/tmp` 会被清空。需注意别让 spotless 扫到。
 
 ## 建议的起步顺序
