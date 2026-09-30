@@ -41,6 +41,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [extension-and-wrapping.md](extension-and-wrapping.md) | 扩展边界契约：唯一用户扩展点是任务体本身（自助包装，不提供装饰器 SPI——含暂缓理由与重开条件）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、用户能包装的三个对象（线程池/Callable/FutureTask）、必须避免的 14 类问题、自助包装守则（MDC/追踪/指标/重试）、契约与验证矩阵 |
+| [interruption-contract.md](interruption-contract.md) | 中断处理跨层规范（已落地）：中断标志与 `InterruptedException` 四原则、分角色规范（任务体/库的阻塞方法/状态检查/executor 边界）、§7 三处违反及修复（7.3 见 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）；§9 仅余「P1–P4 是否摘要进根 AGENTS.md」一个开放点 |
 
 ## 设计哲学与决策记录
 
@@ -53,6 +54,8 @@
 | [task-type-semantics-v0.3-proposal.md](task-type-semantics-v0.3-proposal.md) | `TaskType` 语义与 executor 拒绝处置（已落地）：拒绝时 inline 回退还是 `SubmissionException`、`rejectEnqueue` 的生效条件；§8 实施记录 |
 | [par-map-throwing-function-v0.3-proposal.md](par-map-throwing-function-v0.3-proposal.md) | `Par.map` 受检异常签名决策（**已否决并关闭**）：保留标准 `java.util.function.Function`；§5–§7 选项与落地清单全部作废，仅作决策历史保留 |
 | [batch-submission-failure-semantics.md](batch-submission-failure-semantics.md) | executor handoff failure 统一语义（已落地）：`execute()` 抛出的任何失败（含 `Error` 与偷渡受检异常）以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future，`Par.map`/组提交（`submitAll()`）跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径；handoff `Error` 单点 SEVERE 诊断 |
+| [inline-fallback-path-analysis.md](inline-fallback-path-analysis.md) | inline 回退路径分析（已落地）：幂等性双层保护、inline 死锁风险、deadline 失效三缺陷；§6 选项 A + §6.1 中断隔离已随 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 落地 |
+| [caller-runs-support-after-inline-deletion.md](caller-runs-support-after-inline-deletion.md) | **待拍板，在途**：删除 `runOnCallerThread` 后如何最大化支持 `CallerRunsPolicy`——inline 回退从库选项变为用户 `RejectedExecutionHandler` 之后，库应为这条路径提供什么；被 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 引用 |
 | [queue-artifact-boundary-decision.md](queue-artifact-boundary-decision.md) | queue 包产物边界（已拍板归档）：与 core 同产物发布，权威依据 [adr/0006](../adr/0006-queues-ship-with-core.md)；边界已关闭，不要在评审、缺陷分诊或重构提案中重提 |
 | [jspecify-null-safety-v0.3-proposal.md](jspecify-null-safety-v0.3-proposal.md) | JSpecify + NullAway null 安全迁移（已实施，§9 实施记录）：从 JSR-305/Checker 混合注解迁到编译期强制。现行约定以根 [AGENTS.md](../AGENTS.md) 与 [nullability-annotations](../docs/en/reference/nullability-annotations.md) 为准，本文是决策依据 |
 | [scope-close-and-termination-proposal.md](scope-close-and-termination-proposal.md) | Scope 关闭与任务体终止（已实施，§9 实施记录）：「取消 + 有界等待」语义与 body-exit 状态机（`TaskGroup`/`TaskBatchResult`/`BodyCompletionTracker`）。注意三处沿革：§3 的「不为 Batch 新增 close 入口」在实施中被反转、§2 依赖的 `TaskListener` SPI 已删除、§6 的 `GlobalPar` 已更名 `ParRuntime` |
