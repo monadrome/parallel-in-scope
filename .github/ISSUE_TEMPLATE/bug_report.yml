@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time to report this. This is a concurrency library, so the report is
-        only actionable with a reproduction: a minimal batch or task group that shows the behaviour
+        only actionable with a reproduction: a minimal batch or task group that shows the behavior
         is worth more than a long description.
 
         If an AI tool drafted this report, please run the reproduction yourself before submitting —
@@ -58,7 +58,7 @@ body:
     attributes:
       label: Minimal reproduction
       description: |
-        The smallest code that shows the behaviour, plus how to run it. If it only appears under
+        The smallest code that shows the behavior, plus how to run it. If it only appears under
         timing pressure, say how often it reproduces (for example "11 of 300 runs").
       render: java
       placeholder: |
@@ -70,7 +70,7 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: Expected behaviour
+      label: Expected behavior
       description: What the javadoc, the user guide, or your reading of the contract leads you to expect.
     validations:
       required: true
@@ -78,7 +78,7 @@ body:
   - type: textarea
     id: actual
     attributes:
-      label: Actual behaviour
+      label: Actual behavior
       description: What happened instead, including any exception message or stack trace.
       render: text
     validations:

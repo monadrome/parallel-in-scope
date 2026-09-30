@@ -186,7 +186,7 @@ class CallableReferenceReleaseTest {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(fixture.future.cancel(true)).isTrue();
-            // Rule 4: a cancelled future whose body is still running must not drop the reference
+            // Rule 4: a canceled future whose body is still running must not drop the reference
             // early — the body and its captures are still in use.
             assertThat(fixture.future.callableReleased()).isFalse();
             assertThat(fixture.scoped.delegateReleased()).isFalse();
@@ -267,7 +267,7 @@ class CallableReferenceReleaseTest {
                     submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
-            assertThat(result.submitCanceller().cancel(true)).isTrue();
+            assertThat(result.submitCanceler().cancel(true)).isTrue();
             release.countDown();
             for (int i = 0; i < fixtures.size(); i++) {
                 awaitDone(result.results().get(i));

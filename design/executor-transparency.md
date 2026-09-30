@@ -21,7 +21,7 @@
 CPU 密集任务排队积压。
 
 缝：池的队列是任何其他实现（如默认 `LinkedBlockingQueue`）时，**没有任何代码读这个
-选项**——它既不拒绝入队，也不产生任何信号。两个 options 的 javadoc 写了"only honoured
+选项**——它既不拒绝入队，也不产生任何信号。两个 options 的 javadoc 写了"only honored
 with SmartBlockingQueue; with any other queue this flag is inert"
 （`TaskOptions.java:61-66`、`BatchOptions.java:76-82`），但这是**文档里的声明，不是
 运行期的显眼**：用户开着默认值跑在普通池上，什么都不会发生，也什么都不会被告知。

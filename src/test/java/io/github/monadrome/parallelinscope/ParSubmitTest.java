@@ -192,7 +192,7 @@ class ParSubmitTest {
     }
 
     @Test
-    void inertRejectEnqueueIsReportedOncePerParAndNeverForAQueueThatHonoursIt() throws Exception {
+    void inertRejectEnqueueIsReportedOncePerParAndNeverForAQueueThatHonorsIt() throws Exception {
         ExecutorService plain = Executors.newFixedThreadPool(2);
         ThreadPoolExecutor smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(4));
         ParRuntime global = ParRuntime.builder()

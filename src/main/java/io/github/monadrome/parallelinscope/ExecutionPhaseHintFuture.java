@@ -31,8 +31,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /**
      * The wrapped task body, held in a one-way releasable slot: once {@link #releaseCallable()}
      * clears it — after run() returns or once the body is determined to never run — nothing may
-     * restore it, so a completed, rejected, cancelled, or abandoned future never pins the user
-     * callable and its captures. Accessed from the worker thread (run) and from cancelling or
+     * restore it, so a completed, rejected, canceled, or abandoned future never pins the user
+     * callable and its captures. Accessed from the worker thread (run) and from canceling or
      * rejecting threads (afterDone/skipBody), hence the volatile slot. Plain volatile reads and
      * writes are enough: the slot only ever moves from set to cleared, so it needs no CAS.
      */
@@ -205,7 +205,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     /**
      * Claims this future for a submission failure without settling it, and records the attribution
-     * so it survives a cancellation that arrives afterwards.
+     * so it survives a cancellation that arrives afterward.
      *
      * <p>Split from {@link #settleSubmissionFailure()} for the batch paths, which must fail several
      * elements on one handoff failure while the batch's {@link CancellationToken} is already bound.
@@ -269,7 +269,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     /**
      * Marks the task body as never entered and releases its reference, for prepared futures that
-     * were never submitted and never cancelled — the sliding-window abandonment and
+     * were never submitted and never canceled — the sliding-window abandonment and
      * initial-rejection paths, where only the caller-facing placeholder is completed. Idempotent
      * against the cancel-before-run path, which reaches the same transition through {@link
      * #afterDone()}. A body that can never be entered must not stay reachable through this future.

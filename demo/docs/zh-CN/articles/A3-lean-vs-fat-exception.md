@@ -13,7 +13,7 @@
 // 模拟 10000 次取消异常的创建
 long start = System.nanoTime();
 for (int i = 0; i < 10000; i++) {
-    Exception e = new CancellationException("task-" + i + " cancelled");
+    Exception e = new CancellationException("task-" + i + " canceled");
     // fillInStackTrace() 在构造时自动调用，开销已被付出
 }
 long elapsed = System.nanoTime() - start;

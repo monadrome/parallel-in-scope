@@ -42,7 +42,7 @@ wait every frozen public future terminal
 publish CLOSED/result/event
 ```
 
-被传播取消的 siblings 记录 `FAIL_FAST`，不能仅显示为笼统 cancelled。
+被传播取消的 siblings 记录 `FAIL_FAST`，不能仅显示为笼统 canceled。
 
 ### 8.4 Deadline
 
@@ -74,7 +74,7 @@ memberDeadline = min(member requested deadline, groupDeadline)
 
 若成员自己的 deadline 先到并导致该成员失败/取消，Group 应固定 `TIMEOUT`，因为结果 API 已明确区分 timeout；不得把它误报成普通 user failure。
 
-deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min），`bind(List, submitCanceller, timer)`
+deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min），`bind(List, submitCanceler, timer)`
 不再接收 Duration。Group 的 `start()` 按序做三件事：
 
 1. 先给每个成员的公开 future 挂完成 observer，保证后续 bind 触发的取消都被计数；
@@ -112,7 +112,7 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 ### 8.4.1 token → outcome 归因映射（单一实现）
 
 上述"读 token 归因 outcome"的映射在 `internal/TokenOutcomes.forCanceled(token, whenUncommitted)`
-中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome`、`ScopedCallable` 的监听器事件、
+中实现且仅此一份，`TaskGroup.classifyCanceled`/`deriveOutcome`、`ScopedCallable` 的监听器事件、
 `TaskBatchResult.report()` 三方共用：
 
 | token state | 归因 outcome |
@@ -128,7 +128,7 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
 - `ScopedCallable` 是**直接观察**：任务在 `CANCELED` token 下抛出（如中断）时，监听器事件记
   `MEMBER_CANCELED`，先拦截 `CANCELED` 再调用共享映射；组快照保持事后归因
   `GROUP_CANCELED`，两者允许不一致（见观测契约）。
-- `TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
+- `TaskGroup.classifyCanceled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
   共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务 outcome）与
   `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 

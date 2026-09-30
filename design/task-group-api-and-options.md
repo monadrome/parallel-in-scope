@@ -357,4 +357,4 @@ group 成员共用），字段为 `taskName()`/`unitId()`/`taskIndex()`/三个�
 - 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
 - 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `completionFuture()` 正常完成并返回 `TaskGroupResult`，组的非 `SUCCESS` outcome 是结果数据，不通过 completion future 本身抛错表达；
-- 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 cancelled。
+- 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 canceled。

@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
  * never run (rejected or abandoned before submission) are published directly through {@link
  * #publishSkipped} because the prepared future they were prepared with never settles.
  *
- * <p>The two barrier signals arrive on arbitrary threads (the worker, a cancelling thread, or a
+ * <p>The two barrier signals arrive on arbitrary threads (the worker, a canceling thread, or a
  * rejecting submitter); an atomic countdown publishes on whichever signal arrives last, and the
  * happens-before edges of the countdown make the other signal's writes — the final end time, the
  * terminal future state — visible to the publishing thread.

@@ -118,7 +118,7 @@ class TaskGraphData {
         }
     }
 
-    /** Returns the node prefixed with its display label, or the bare node when unlabelled. */
+    /** Returns the node prefixed with its display label, or the bare node when unlabeled. */
     String displayNode(String node) {
         return snapshot().displayNode(node);
     }
@@ -226,7 +226,7 @@ class TaskGraphData {
             return executorSelfLoop;
         }
 
-        /** Returns the node prefixed with its display label, or the bare node when unlabelled. */
+        /** Returns the node prefixed with its display label, or the bare node when unlabeled. */
         String displayNode(String node) {
             String label = nodeLabels.get(node);
             return label == null ? node : label + "[" + node + "]";

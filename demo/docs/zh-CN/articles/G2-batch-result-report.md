@@ -6,11 +6,11 @@
 并行执行完 N 个任务后，最常见也最烦人的事情就是统计结果：多少成功了？多少失败了？多少被取消了？用原生 Java `Future` 做这件事，代码又臭又长：
 
 ```java
-int success = 0, failed = 0, cancelled = 0;
+int success = 0, failed = 0, canceled = 0;
 Throwable firstError = null;
 for (Future<String> f : futures) {
     if (f.isCancelled()) {
-        cancelled++;
+        canceled++;
     } else if (f.isDone()) {
         try {
             f.get();

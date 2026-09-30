@@ -96,16 +96,16 @@ public class CancellationTokenTest {
         SettableFuture<String> pending = SettableFuture.create();
         SettableFuture<String> alreadySucceeded = SettableFuture.create();
         alreadySucceeded.set("kept");
-        SettableFuture<Void> submitCanceller = SettableFuture.create();
+        SettableFuture<Void> submitCanceler = SettableFuture.create();
 
-        token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceller, TIMER);
+        token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceler, TIMER);
 
         // The commit is synchronous: bind returns with the token already TIMEOUT and the pending
         // work already canceled, so no submitted task can still enter user code in the window a
         // zero-delay timer would leave open.
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertThat(pending).isCancelled();
-        assertThat(submitCanceller).isCancelled();
+        assertThat(submitCanceler).isCancelled();
         assertThat(alreadySucceeded).isNotCancelled();
         assertThat(alreadySucceeded.get()).isEqualTo("kept");
     }
@@ -182,38 +182,38 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void testBind_failFast_cancelsSiblingAndSubmitCanceller() {
+    public void testBind_failFast_cancelsSiblingAndSubmitCanceler() {
         CancellationToken token = CancellationToken.create();
 
         SettableFuture<String> failed = SettableFuture.create();
         SettableFuture<String> sibling = SettableFuture.create();
-        SettableFuture<Void> submitCanceller = SettableFuture.create();
+        SettableFuture<Void> submitCanceler = SettableFuture.create();
 
-        token.bind(Arrays.asList(failed, sibling), submitCanceller, TIMER);
+        token.bind(Arrays.asList(failed, sibling), submitCanceler, TIMER);
 
         failed.setException(new RuntimeException("boom"));
 
         await().untilAsserted(() -> {
             assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
             assertThat(sibling).isCancelled();
-            assertThat(submitCanceller).isCancelled();
+            assertThat(submitCanceler).isCancelled();
         });
     }
 
     @Test
-    public void testBind_manualCancel_cancelsBoundWorkAndSubmitCanceller() {
+    public void testBind_manualCancel_cancelsBoundWorkAndSubmitCanceler() {
         CancellationToken token = CancellationToken.create();
 
         SettableFuture<String> task = SettableFuture.create();
-        SettableFuture<Void> submitCanceller = SettableFuture.create();
+        SettableFuture<Void> submitCanceler = SettableFuture.create();
 
-        token.bind(ImmutableList.of(task), submitCanceller, TIMER);
+        token.bind(ImmutableList.of(task), submitCanceler, TIMER);
 
         token.cancel(true);
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
         assertThat(task).isCancelled();
-        assertThat(submitCanceller).isCancelled();
+        assertThat(submitCanceler).isCancelled();
     }
 
     @Test
@@ -263,7 +263,7 @@ public class CancellationTokenTest {
         SettableFuture<String> f1 = SettableFuture.create();
         child.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
-        // The future should be cancelled immediately because parent is already canceled
+        // The future should be canceled immediately because parent is already canceled
         assertThat(f1).isCancelled();
     }
 
