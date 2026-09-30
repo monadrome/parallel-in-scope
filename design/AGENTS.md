@@ -28,7 +28,6 @@
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
 | [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（`completionFuture()` 终态 `TaskCompletion`）与组级完成回调（Guava callback）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标。**声明/绑定入口形状已由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代**（§3 的 join 机制与 §准备阶段结论仍有效） |
-| [group-tuple-index-proposal-codex.md](group-tuple-index-proposal-codex.md) | **已取代，仅供追溯**：只增加整数索引重载的局部增量方案，被 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 取代；其 §4–§6、§8 的签名与校验规则全部作废 |
 
 ## 取消与队列
 

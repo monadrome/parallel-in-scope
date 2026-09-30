@@ -191,8 +191,6 @@ Guava 的 SEVERE 日志里。
    已标"已实施"但仍是未跟踪文件。按 `AGENTS.md`，提案本应随实施它的变更提交，而实施早已完成。
 2. **测量仪器是否入库**：`/tmp/pisbench/` 的 4 个 `.java`（`Bench`/`Probe`/`FailureShape`/`TimerProbe`）。
    不迁入则性能报告的数字无法复现，且 `/tmp` 会被清空。需注意别让 spotless 扫到。
-3. **`reports/` 的旧文件**：`mutation-testing-2026-09-14.md`、`mutation-testing-2026-09-18.md`、
-   `outer-batch-cancellation-race-analysis.html` 至今未跟踪（整个目录此前都未跟踪）。
 
 ## 建议的起步顺序
 
