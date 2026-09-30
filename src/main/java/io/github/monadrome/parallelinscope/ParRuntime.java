@@ -386,7 +386,7 @@ public final class ParRuntime implements AutoCloseable {
             // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
             // The purger's maintenance service is deliberately NOT closed here: admitted batches
-            // keep draining after close(), and cancelling their queued tasks is what feeds the
+            // keep draining after close(), and canceling their queued tasks is what feeds the
             // purger. Closing it now would reject every post-close signal and silently drop purge
             // coverage exactly during the cancellation storm it exists for. It shuts down with the
             // other framework services once the topology drains.
@@ -400,7 +400,7 @@ public final class ParRuntime implements AutoCloseable {
      * framework-owned services have shut down. Call {@link #close()} first; without it this method
      * simply waits out the timeout.
      *
-     * <p>Task-body exit is tracked separately from future completion: a task cancelled while
+     * <p>Task-body exit is tracked separately from future completion: a task canceled while
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *

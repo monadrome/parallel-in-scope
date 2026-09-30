@@ -125,28 +125,28 @@ public final class CancellationToken {
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
      * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
      * when any future fails. Every canceling transition cancels the futures and the submission
-     * canceller; cancelling an already-successful future is a no-op, so a late cancel never
+     * canceler; canceling an already-successful future is a no-op, so a late cancel never
      * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
      * synchronously and cancels the futures before this method returns, so no submitted task can
      * still enter user code on an expired deadline.
      *
      * @param <T> the task result type
      * @param futures the submitted task futures
-     * @param submitCanceller the submission future to cancel with the tasks
+     * @param submitCanceler the submission future to cancel with the tasks
      * @param timer scheduler used to detect the deadline
      * @return the aggregate that completes when every submitted future and the submission
-     *     canceller are done, so callers tracking completion reuse it instead of building a
+     *     canceler are done, so callers tracking completion reuse it instead of building a
      *     second aggregate over the same futures
      */
     <T> ListenableFuture<?> bind(
             List<? extends ListenableFuture<T>> futures,
-            ListenableFuture<?> submitCanceller,
+            ListenableFuture<?> submitCanceler,
             ScheduledExecutorService timer) {
         Objects.requireNonNull(timer);
-        // A pending successfulAsList is the one cancellable handle that reaches both the task
-        // futures and the submission canceller: it stays pending until every input is done, so
-        // cancelling it still propagates after one task already failed or was cancelled.
-        ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
+        // A pending successfulAsList is the one cancelable handle that reaches both the task
+        // futures and the submission canceler: it stays pending until every input is done, so
+        // canceling it still propagates after one task already failed or was canceled.
+        ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceler);
         if (Deadlines.remaining(deadlineNanos, System.nanoTime()) == 0L) {
             // The deadline already expired: behave as if the timeout callback had already run.
             // Scheduling a zero-delay timeout would leave the token RUNNING until the timer
@@ -174,7 +174,7 @@ public final class CancellationToken {
 
                     @Override
                     public void onFailure(Throwable failure) {
-                        // Commit the state before cancelling: a listener can still fix a cause (a
+                        // Commit the state before canceling: a listener can still fix a cause (a
                         // task group escalating a member timeout) before cascade cancellation makes
                         // every path look like fail-fast.
                         transitionTo(failure instanceof TimeoutException ? TIMEOUT : FAIL_FAST);
@@ -255,7 +255,7 @@ public final class CancellationToken {
      * state is not {@code PROPAGATED_CANCELED} and returns that originating state. A token that
      * reached its terminal state on its own (or is still running) simply reports {@link #state()}.
      * The walk is safe at any moment: a token only transitions to {@code PROPAGATED_CANCELED}
-     * after its parent committed a terminal state, and terminal states never change afterwards.
+     * after its parent committed a terminal state, and terminal states never change afterward.
      *
      * @return the originating terminal state, or the current state when nothing propagated
      */

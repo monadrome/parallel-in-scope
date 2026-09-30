@@ -25,8 +25,8 @@ import org.jspecify.annotations.Nullable;
  * Immutable result wrapper for a batch of parallel tasks.
  *
  * <p>Bundles the list of individual {@link TaskFuture} results together with a {@code
- * submitCanceller} future used to cancel ongoing submission. Each element carries its own task
- * name, deadline, and cancellation attribution; the canceller is a control handle, not a task, and
+ * submitCanceler} future used to cancel ongoing submission. Each element carries its own task
+ * name, deadline, and cancellation attribution; the canceler is a control handle, not a task, and
  * stays a plain future.
  *
  * @param <T> the result type of individual tasks
@@ -36,7 +36,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
 
     private static final Logger LOGGER = Logger.getLogger(TaskBatchResult.class.getName());
 
-    private final ListenableFuture<?> submitCanceller;
+    private final ListenableFuture<?> submitCanceler;
     private final List<TaskFuture<T>> results;
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable CancellationToken token;
@@ -44,12 +44,12 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     private final ListenableFuture<List<TaskCompletion<T>>> completionView;
 
     private TaskBatchResult(
-            ListenableFuture<?> submitCanceller,
+            ListenableFuture<?> submitCanceler,
             List<? extends TaskFuture<T>> results,
             BodyCompletionTracker bodyCompletion,
             @Nullable CancellationToken token,
             @Nullable Duration closeGrace) {
-        this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
+        this.submitCanceler = submitCanceler != null ? submitCanceler : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.token = token;
@@ -91,14 +91,14 @@ public final class TaskBatchResult<T> implements AutoCloseable {
     }
 
     /**
-     * Provides the future running the sliding-window submission loop. Cancelling it stops further
+     * Provides the future running the sliding-window submission loop. Canceling it stops further
      * submissions and interrupts the submitter. Any unsubmitted placeholders then fail with the
-     * interruption cause; canceling a placeholder directly completes it as {@code CANCELLED}.
+     * interruption cause; canceling a placeholder directly completes it as {@code CANCELED}.
      *
      * @return the submission-loop future
      */
-    public ListenableFuture<?> submitCanceller() {
-        return submitCanceller;
+    public ListenableFuture<?> submitCanceler() {
+        return submitCanceler;
     }
 
     /**
@@ -121,7 +121,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * <p>Each element snapshot is published only after its future is terminal <em>and</em> its
      * task body has exited (or was determined to never run), so the recorded end times are always
      * final; the aggregate completes only once every element snapshot is published. Elements that
-     * never started — rejected, cancelled, or abandoned by the sliding window — are included with
+     * never started — rejected, canceled, or abandoned by the sliding window — are included with
      * zero start/end times and their real outcome. Once the batch scope has completed this future
      * is guaranteed to be done: {@link #awaitBodyCompletion(Duration)} returning {@code true}
      * implies the data is already available, with no extra wait. A {@link #close()} that exhausts
@@ -146,13 +146,13 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * me the results, fail if any failed" path in one call.
      *
      * <p>Unlike {@link #results()}, forgetting to handle failure is not possible here: the first
-     * element failure propagates, a cancelled element surfaces as {@link CancellationException},
+     * element failure propagates, a canceled element surfaces as {@link CancellationException},
      * and an interrupted wait restores the interrupt flag and throws {@link
      * LeanCancellationException}.
      *
      * @return the element values in input order
      * @throws ExecutionException if any element failed
-     * @throws CancellationException if any element was cancelled
+     * @throws CancellationException if any element was canceled
      * @throws LeanCancellationException if the calling thread is interrupted while waiting
      */
     public List<T> valuesOrThrow() throws ExecutionException {
@@ -184,7 +184,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      *
      * @param <T> the element result type
      * @param bodyCompletion shared task-body completion signal of this submission
-     * @param submitCanceller the future running the remaining submissions
+     * @param submitCanceler the future running the remaining submissions
      * @param results the individual result futures
      * @param token the batch cancellation token used by {@link #close()}
      * @param closeGrace the close grace used by {@link #close()}
@@ -192,11 +192,11 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      */
     static <T> TaskBatchResult<T> of(
             BodyCompletionTracker bodyCompletion,
-            ListenableFuture<?> submitCanceller,
+            ListenableFuture<?> submitCanceler,
             List<? extends TaskFuture<T>> results,
             CancellationToken token,
             @Nullable Duration closeGrace) {
-        return new TaskBatchResult<>(submitCanceller, results, bodyCompletion, token, closeGrace);
+        return new TaskBatchResult<>(submitCanceler, results, bodyCompletion, token, closeGrace);
     }
 
     /**
@@ -205,7 +205,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      *
      * <p>This is the batch's structured-close entry, symmetric with {@link TaskGroup#close()}:
      * cancellation goes through the batch token, so every element and the submission loop are
-     * cancelled with the usual attribution. The close grace is a cleanup budget configured on
+     * canceled with the usual attribution. The close grace is a cleanup budget configured on
      * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout.
      * When never configured, the wait budget is derived from the batch's remaining deadline at
      * close time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with
@@ -231,7 +231,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
                     if (batchToken != null) {
                         batchToken.cancel();
                     } else {
-                        submitCanceller.cancel(true);
+                        submitCanceler.cancel(true);
                     }
                 },
                 bodyCompletion,
@@ -255,7 +255,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * terminal future; this method waits out that window as well. A {@code true} result therefore
      * implies every future in {@link #results()} is terminal —
      * {@link #report()} and {@link #reportString()} called after it read a terminal snapshot — and
-     * also covers tasks that will never be entered (cancelled, rejected, or abandoned before
+     * also covers tasks that will never be entered (canceled, rejected, or abandoned before
      * execution). It additionally waits out the observation publication barrier, so a {@code true}
      * result also implies {@link #completionFuture()} is already done with the final snapshots.
      * It establishes a happens-before edge from every task body's writes to this
@@ -264,7 +264,7 @@ public final class TaskBatchResult<T> implements AutoCloseable {
      * settled, which may include tasks that have not started yet.
      *
      * <p>This method never cancels tasks and does not require prior cancellation: cancel through
-     * {@link #submitCanceller()} or the element futures first when shutdown is intended, then wait
+     * {@link #submitCanceler()} or the element futures first when shutdown is intended, then wait
      * here. A zero timeout performs a single check.
      *
      * @param timeout the cleanup wait budget; independent of the batch's execution deadline

@@ -262,7 +262,7 @@ class ObservationFutureTest {
             assertThat(bodyEntered.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(task.cancel(true)).isTrue();
 
-            // The future is already cancelled, but the body is still inside its finally: the
+            // The future is already canceled, but the body is still inside its finally: the
             // observation must wait for the body exit and its final end time.
             assertThat(task.completionFuture().isDone()).isFalse();
 

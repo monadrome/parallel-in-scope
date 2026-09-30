@@ -54,7 +54,7 @@
 - **实测**：`Par.submit` **4578 B/op、2727 ns/op**；`Par.map` 每元素 **1935 B/op**（2.4×）。
   参照：裸 `direct.execute(noop)` 16 ns / 0 B。
 - **修复**：`futures.size() == 1` 时走快路径（`bind` 的返回值只用于保留，四个调用点都不读值），
-  但必须保持"外层聚合是唯一同时覆盖任务 future 与 submitCanceller 的可取消句柄"。
+  但必须保持"外层聚合是唯一同时覆盖任务 future 与 submitCanceler 的可取消句柄"。
 - **风险**：中——落在取消传播核心路径，按仓库惯例需独立对抗性审查。
 
 ### P-P2 · `TaskBatchResult` 无条件预建观测聚合

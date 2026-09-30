@@ -394,7 +394,7 @@ class TaskGroupTest {
 
     /**
      * A group deadline that already expired before submission commits TIMEOUT synchronously during
-     * bind: members are cancelled before their submission loop runs, so no member enters user
+     * bind: members are canceled before their submission loop runs, so no member enters user
      * code and the group reports TIMEOUT rather than SUCCESS.
      */
     @Test
@@ -1369,7 +1369,7 @@ class TaskGroupTest {
             assertThat(success.orThrow()).isSameAs(success);
             assertThat(success.reportString()).contains("SUCCESS:1", "outcome=SUCCESS");
 
-            TaskGroupResult cancelled = global.group("cancelled-page", TIMEOUT)
+            TaskGroupResult canceled = global.group("canceled-page", TIMEOUT)
                     .par("text", global.par(ParId.of("worker")), String.class, () -> {
                         Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
@@ -1381,7 +1381,7 @@ class TaskGroupTest {
                     .submitAll()
                     .completionFuture()
                     .get(2, TimeUnit.SECONDS);
-            assertThatThrownBy(cancelled::orThrow).isInstanceOf(CancellationException.class);
+            assertThatThrownBy(canceled::orThrow).isInstanceOf(CancellationException.class);
         } finally {
             global.close();
             executor.shutdownNow();

@@ -149,8 +149,8 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public @Nullable Throwable failure() {
-        // Read the recorded failure directly: a claimed element may have been cancelled by the
-        // cascade before it was settled, and exceptionNow() rejects a cancelled future.
+        // Read the recorded failure directly: a claimed element may have been canceled by the
+        // cascade before it was settled, and exceptionNow() rejects a canceled future.
         SubmissionException recorded = recordedSubmissionFailure();
         if (recorded != null) {
             return recorded;

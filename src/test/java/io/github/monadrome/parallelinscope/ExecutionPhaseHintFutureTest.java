@@ -51,9 +51,9 @@ public class ExecutionPhaseHintFutureTest {
         return future;
     }
 
-    /** Verifies cancellation runs the observer once on the cancelling thread. */
+    /** Verifies cancellation runs the observer once on the canceling thread. */
     @Test
-    public void cancellationRunsObserverOnCancellingThread() throws Exception {
+    public void cancellationRunsObserverOnCancelingThread() throws Exception {
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
         AtomicInteger observations = new AtomicInteger();
         AtomicReference<Thread> observerThread = new AtomicReference<>();
@@ -65,12 +65,12 @@ public class ExecutionPhaseHintFutureTest {
                     observerThread.set(Thread.currentThread());
                 },
                 () -> 1);
-        Thread cancellingThread = Thread.currentThread();
+        Thread cancelingThread = Thread.currentThread();
 
         assertThat(task.cancel(false)).isTrue();
         assertThat(completions.take()).isSameAs(task);
         assertThat(observations).hasValue(1);
-        assertThat(observerThread).hasValue(cancellingThread);
+        assertThat(observerThread).hasValue(cancelingThread);
         assertThat(task.cancel(false)).isFalse();
         assertThat(observations).hasValue(1);
     }
@@ -113,7 +113,7 @@ public class ExecutionPhaseHintFutureTest {
             AtomicReference<Runnable> submitted = new AtomicReference<>();
             AtomicInteger observations = new AtomicInteger();
             AtomicInteger calls = new AtomicInteger();
-            AtomicBoolean cancelled = new AtomicBoolean();
+            AtomicBoolean canceled = new AtomicBoolean();
             ListenableFuture<Integer> future = submit(
                     submitted::set, new LinkedBlockingQueue<>(), observations::incrementAndGet, calls::incrementAndGet);
             CountDownLatch start = new CountDownLatch(1);
@@ -123,21 +123,21 @@ public class ExecutionPhaseHintFutureTest {
                 Objects.requireNonNull(submitted.get()).run();
                 done.countDown();
             });
-            Thread canceller = new Thread(() -> {
+            Thread canceler = new Thread(() -> {
                 awaitUninterruptibly(start);
-                cancelled.set(future.cancel(false));
+                canceled.set(future.cancel(false));
                 done.countDown();
             });
 
             runner.start();
-            canceller.start();
+            canceler.start();
             start.countDown();
             assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(observations.get()).isBetween(0, 1);
             assertThat(calls.get()).isBetween(0, 1);
             assertThat(observations.get() + calls.get()).isLessThanOrEqualTo(1);
-            if (!cancelled.get()) {
+            if (!canceled.get()) {
                 assertThat(calls).hasValue(1);
             }
         }
@@ -152,11 +152,11 @@ public class ExecutionPhaseHintFutureTest {
 
         assertThat(phaseObserver(completed)).isNotSameAs(completedObserver);
 
-        Consumer<ExecutionPhase> cancelledObserver = phase -> {};
-        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledObserver);
-        assertThat(cancelled.cancel(false)).isTrue();
+        Consumer<ExecutionPhase> canceledObserver = phase -> {};
+        ExecutionPhaseHintFuture<Integer> canceled = ExecutionPhaseHintFuture.create(() -> 2, canceledObserver);
+        assertThat(canceled.cancel(false)).isTrue();
 
-        assertThat(phaseObserver(cancelled)).isNotSameAs(cancelledObserver);
+        assertThat(phaseObserver(canceled)).isNotSameAs(canceledObserver);
 
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -195,11 +195,11 @@ public class ExecutionPhaseHintFutureTest {
 
         assertThat(completedPhases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
 
-        List<ExecutionPhase> cancelledPhases = new CopyOnWriteArrayList<>();
-        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledPhases::add);
+        List<ExecutionPhase> canceledPhases = new CopyOnWriteArrayList<>();
+        ExecutionPhaseHintFuture<Integer> canceled = ExecutionPhaseHintFuture.create(() -> 2, canceledPhases::add);
 
-        assertThat(cancelled.cancel(false)).isTrue();
-        assertThat(cancelledPhases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
+        assertThat(canceled.cancel(false)).isTrue();
+        assertThat(canceledPhases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
 
         List<ExecutionPhase> runningCancellationPhases = new CopyOnWriteArrayList<>();
         CountDownLatch started = new CountDownLatch(1);
@@ -235,12 +235,12 @@ public class ExecutionPhaseHintFutureTest {
 
         assertThat(completed.get()).isEqualTo(1);
 
-        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, phase -> {
+        ExecutionPhaseHintFuture<Integer> canceled = ExecutionPhaseHintFuture.create(() -> 2, phase -> {
             throw new IllegalStateException("observer failed");
         });
 
-        assertThat(cancelled.cancel(false)).isTrue();
-        assertThat(cancelled.isCancelled()).isTrue();
+        assertThat(canceled.cancel(false)).isTrue();
+        assertThat(canceled.isCancelled()).isTrue();
     }
 
     /**

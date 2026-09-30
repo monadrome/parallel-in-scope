@@ -122,7 +122,7 @@ class TaskGroupBodyCompletionTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // The deadline lapses before close: the derived budget is exhausted, so close returns
-            // right after cancelling, with the body still parked.
+            // right after canceling, with the body still parked.
             Thread.sleep(400);
             long closeStart = System.nanoTime();
             group.close();
@@ -367,7 +367,7 @@ class TaskGroupBodyCompletionTest {
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
-    void awaitBodyCompletionValidatesArgumentsAndHonoursInterruption() throws Exception {
+    void awaitBodyCompletionValidatesArgumentsAndHonorsInterruption() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -638,7 +638,7 @@ class TaskGroupBodyCompletionTest {
                     .submitAll();
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // Cancelling before the join leaves the combine unsubmitted; its slot is released as
+            // Canceling before the join leaves the combine unsubmitted; its slot is released as
             // skipped, so body completion still converges.
             group.close();
             assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();

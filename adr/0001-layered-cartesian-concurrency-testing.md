@@ -9,14 +9,14 @@
 
 The library coordinates task submission, executor admission, Future state,
 cancellation propagation, timeout handling, context relay, sliding-window
-progress, blocking queues, and cancelled-task cleanup. These mechanisms overlap
+progress, blocking queues, and canceled-task cleanup. These mechanisms overlap
 in time but do not share one authoritative state.
 
 For example:
 
 - `ExecutionPhase.RUNNING` means that a Future wrapper claimed `run()`; it does
   not prove that the task body received a CPU time slice.
-- A cancelled Future does not prove that running work stopped.
+- A canceled Future does not prove that running work stopped.
 - A cancellation signal does not prove that the corresponding Future is still
   physically present in an executor queue.
 - A completion event may advance the submission window even when the completed
@@ -50,7 +50,7 @@ assert only state that the fixture directly controls or observes.
 |---|---|---|
 | Admission | not submitted, initial submission, placeholder, later submission, rejected, direct fallback | worker execution |
 | Executor | queued identity, queue membership, worker claim, executing thread, terminal removal | Future or token state |
-| Future | pending, success, failure, cancelled before run, cancellation requested while running, terminal | task-body side effects |
+| Future | pending, success, failure, canceled before run, cancellation requested while running, terminal | task-body side effects |
 | Cancellation | trigger, token state, propagation direction, interrupt request, interrupt observation, checkpoint response | worker termination |
 | User code | not entered, entered, gated, side effect, exception, return, ignores interruption | queue cleanup |
 | Cleanup | completion publication, window advancement or stop, purge result, estimate retention or expiry | cancellation cause |
@@ -71,7 +71,7 @@ plane.
 | `CPU_BOUNDED` | bounded arithmetic or cooperative polling | scheduling and caller-runs behavior |
 | `MIXED` | bounded CPU stage followed by a gate | cancellation between workload phases |
 | `LONG_COOPERATIVE` | loop with interruption or checkpoint checks | propagation and prompt exit |
-| `LONG_IGNORES_INTERRUPT` | record interruption but wait for an independent release | cancelled Future while capacity remains occupied |
+| `LONG_IGNORES_INTERRUPT` | record interruption but wait for an independent release | canceled Future while capacity remains occupied |
 
 Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 `CPU_BOUND` is not sufficient evidence that its body is CPU-bound.
@@ -90,7 +90,7 @@ Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 
 > Vocabulary note: `PLACEHOLDER` and `ABANDONED_PLACEHOLDER` are legacy names.
 > The states they model are unchanged and still required — an element outside the
-> initial window while earlier work is gated, and an element cancelled or
+> initial window while earlier work is gated, and an element canceled or
 > abandoned before admission — but no placeholder future backs them any more; the
 > element's handle wraps its prepared future from creation on
 > ([ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)). The
@@ -106,13 +106,13 @@ Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 | `INITIAL_REJECTED` | reject during the caller's initial loop |
 | `LATER_REJECTED` | reject from the submitter after a completion event |
 | `DIRECT_FALLBACK` | combine rejection with `CPU_BOUND` |
-| `ABANDONED_PLACEHOLDER` | cancel a placeholder or submission loop before admission; direct placeholder cancellation is `CANCELLED`, submitter interruption records its cause |
+| `ABANDONED_PLACEHOLDER` | cancel a placeholder or submission loop before admission; direct placeholder cancellation is `CANCELED`, submitter interruption records its cause |
 
 #### L4. Task outcome
 
 The modeled outcomes are success, failure, cancellation before run,
 cancellation requested while running, timeout, and non-terminal work after its
-Future is cancelled.
+Future is canceled.
 
 #### L5. Cancellation trigger
 
@@ -178,7 +178,7 @@ Tests use these deterministic substitutes for scheduler state:
   controlled gate;
 - an interrupt flag plus exit latch distinguishes interruption from worker
   termination;
-- a cancelled Future plus an unreleased exit latch proves that work remains
+- a canceled Future plus an unreleased exit latch proves that work remains
   active after cancellation.
 
 `Thread.State` MAY establish that a waiter reached a blocking precondition, but
@@ -202,8 +202,8 @@ The following surfaces use full products:
 1. Future lifecycle: `{before-run, running, terminal}` x
    `{cancel(false), cancel(true)}`.
 2. Rejection: `{initial, later}` x `{CPU_BOUND, IO_BOUND}`.
-3. Sliding window: `{success, failure, cancelled}` x
-   `{live placeholder, pre-cancelled placeholder}`.
+3. Sliding window: `{success, failure, canceled}` x
+   `{live placeholder, pre-canceled placeholder}`.
 4. Cancellation: `{timeout, manual interrupt}` x
    `{pending, IO gate, CPU cooperative, mixed, ignores interruption}`.
 5. Parent propagation: `{before child bind, after child bind}` x

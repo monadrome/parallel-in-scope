@@ -90,7 +90,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 任务终态分类已统一为单个枚举 `TaskOutcome`，取代原先的
 早期内部的 `FutureState` 与 `TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
 之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
-`TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
+`TaskOutcome.USER_FAILURE`，`FutureState.CANCELED` → `TaskOutcome.MEMBER_CANCELED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
 `TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
 组成员的终端快照（`TaskGroupResult.members()` 的值，统一为 `TaskCompletion` 类型）的成员终态
@@ -123,7 +123,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 发起者时请使用任务组。`TaskBatchResult` 实例由执行 API 构造；原先公开的
 `of(...)` 工厂现已改为包私有。
 
-`ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
+`ExecutionPhase.CANCELED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
 单 L `CANCELED` 拼写一致。
 
 `GlobalExecutionPolicy` 已删除：它的唯一内容是 `TaskListener` 列表，监听器现在直接注册在

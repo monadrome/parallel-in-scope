@@ -53,7 +53,7 @@ class TaskGraphScopeOwnershipTest {
     private void twoTopologies(boolean detectionEnabled) {
         ownerPool = Executors.newSingleThreadExecutor();
         // A bounded buffering queue: starvation-prone, so the edges this pool's work records are the
-        // deadlock-prone ones the detection pass actually analyses.
+        // deadlock-prone ones the detection pass actually analyzes.
         foreignPool = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         ParRuntime.Builder ownerBuilder = ParRuntime.builder().register(ParId.of("owner"), ownerPool);
         if (detectionEnabled) {

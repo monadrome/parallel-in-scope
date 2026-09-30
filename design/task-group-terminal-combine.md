@@ -178,7 +178,7 @@ combine 不是用户编写的 future 编排器，而是框架确认 join 条件�
 
 ## 7. 结果与 outcome
 
-terminal future 保持普通 Guava 语义，与 member future 一致：成功返回 `R`、失败抛 `ExecutionException`、取消表现为 cancelled。`completionFuture()` 继续以正常 future 完成并返回 `TaskGroupResult`，Group outcome 是结果数据，不用异常编码。
+terminal future 保持普通 Guava 语义，与 member future 一致：成功返回 `R`、失败抛 `ExecutionException`、取消表现为 canceled。`completionFuture()` 继续以正常 future 完成并返回 `TaskGroupResult`，Group outcome 是结果数据，不用异常编码。
 
 | 情况 | combine | terminal future | Group outcome |
 |---|---|---|---|

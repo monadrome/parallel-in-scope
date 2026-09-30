@@ -34,7 +34,7 @@
 [inline-fallback-path-analysis.md](inline-fallback-path-analysis.md) §9，这里只记结论：
 
 - `viewsFor(tasks)` 在提交任何东西之前构造全部调用方可见视图，`Par.executeGlobal` 改为
-  `viewsFor` → `bind` → `submitAll`，canceller 预建为 `SettableFuture` 再 `setFuture`
+  `viewsFor` → `bind` → `submitAll`，canceler 预建为 `SettableFuture` 再 `setFuture`
   指向真的；
 - placeholder 与 `bind()`/`abandon()` 的桥接已删除——视图直接包住 prepared future。
   `placeholderFor`、`rejectedTask`、`Task.placeholder`、`Task.abandon` 一并删除；

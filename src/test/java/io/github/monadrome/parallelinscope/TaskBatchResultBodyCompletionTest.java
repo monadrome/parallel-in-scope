@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Acceptance tests for {@link TaskBatchResult#awaitBodyCompletion(Duration)} and the
  * body-completion bookkeeping of the sliding-window paths: every prepared task must release its
- * slot exactly once, whether it ran, was cancelled, rejected, or abandoned.
+ * slot exactly once, whether it ran, was canceled, rejected, or abandoned.
  */
 class TaskBatchResultBodyCompletionTest {
 
@@ -328,7 +328,7 @@ class TaskBatchResultBodyCompletionTest {
                             options("placeholder-cancel").parallelism(1).taskType(TaskType.IO_BOUND));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // Cancelling the placeholder of the window-external element cascades fail-fast: the
+            // Canceling the placeholder of the window-external element cascades fail-fast: the
             // running first body exits via interruption, the second body never starts.
             batch.results().get(1).cancel(true);
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
@@ -340,7 +340,7 @@ class TaskBatchResultBodyCompletionTest {
     }
 
     @Test
-    void cancellingTheSubmitterAbandonsWindowExternalSlots() throws Exception {
+    void cancelingTheSubmitterAbandonsWindowExternalSlots() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -359,7 +359,7 @@ class TaskBatchResultBodyCompletionTest {
                             options("abandon").parallelism(1).taskType(TaskType.IO_BOUND));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            batch.submitCanceller().cancel(true);
+            batch.submitCanceler().cancel(true);
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(1);
         } finally {
@@ -445,7 +445,7 @@ class TaskBatchResultBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         // Element 2 must throw only after element 1's body has run: the fail-fast cancellation
         // it triggers cancels the sibling future, and an unordered throw wins that race on a
-        // slow runner, cancelling element 1 instead of observing its SUCCESS.
+        // slow runner, canceling element 1 instead of observing its SUCCESS.
         CountDownLatch firstBodyRan = new CountDownLatch(1);
         try {
             TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
@@ -504,7 +504,7 @@ class TaskBatchResultBodyCompletionTest {
             closing.start();
 
             // Cancellation lands through the batch token while the body stays parked: close keeps
-            // waiting for the body instead of returning with the cancelled future.
+            // waiting for the body instead of returning with the canceled future.
             long pollDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (!batch.results().get(0).isDone() && System.nanoTime() < pollDeadline) {
                 Thread.sleep(5);
@@ -534,7 +534,7 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             // No closeGrace configured: the wait budget is the batch's remaining deadline at close
-            // time, so a close after the deadline lapsed returns right after cancelling.
+            // time, so a close after the deadline lapsed returns right after canceling.
             TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList(1),

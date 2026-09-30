@@ -52,7 +52,7 @@ class TaskGroupConvergenceTest {
         // The group bind aggregates member futures, so a run with several failing members makes
         // Guava log a SEVERE "more than one input Future failure" per extra failure. This loop
         // provokes that deliberately and its own assertions cover the behavior, so the noise is
-        // muted for the duration and the level restored afterwards.
+        // muted for the duration and the level restored afterward.
         Logger aggregateFuture = Logger.getLogger("com.google.common.util.concurrent.AggregateFuture");
         Level previousLevel = aggregateFuture.getLevel();
         try {
@@ -162,7 +162,7 @@ class TaskGroupConvergenceTest {
                     },
                     MoreExecutors.directExecutor());
 
-            // Cancelling one member directly cascades through the group token into the sibling's
+            // Canceling one member directly cascades through the group token into the sibling's
             // future, where the callback above throws before "canceled" is counted.
             assertThatThrownBy(() -> group.futureOf("canceled", TypeToken.of(Integer.class))
                             .cancel(true))
