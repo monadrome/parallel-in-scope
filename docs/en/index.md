@@ -10,7 +10,7 @@ This page is the English entry point for the user guide, API references, design 
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Demo project](https://github.com/monadrome/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
-| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/en/README.md) | English entry point for the example catalog |
+| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/en/README.md) | Documentation map for the example catalog (the articles themselves are in Chinese) |
 
 ## API and Contracts
 
