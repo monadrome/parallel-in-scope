@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Frozen, package-private structure of one group run, produced by {@link GroupDraft#freeze()} at the
+ * Frozen, package-private structure of one group run, produced by {@code GroupDraft#freeze()} at the
  * {@code submitAll()} boundary.
  *
  * <p>It is not a public type any more: a group is declared and submitted in one fluent chain, so

@@ -56,7 +56,7 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
      * body-completion signal and close grace. The tracker must have registered one slot per
-     * prepared task before {@link #submitAll(List)} runs.
+     * prepared task before {@link #submitAll(List, List)} runs.
      */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool,
