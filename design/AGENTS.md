@@ -64,9 +64,3 @@
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
 | [adr/](../adr/) | 架构决策记录（不可变；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准；例外是已在 ADR 里关闭的边界问题（如 [adr/0006](../adr/0006-queues-ship-with-core.md) 的 queue 产物边界），那类结论由 ADR 持有，`design/` 侧的同题文档只作归档 |
-
-## 非契约文档（不描述本库行为）
-
-| 文档 | 摘要 |
-|---|---|
-| [adversarial-review-handoff-2026-09-29.md](adversarial-review-handoff-2026-09-29.md) | **评审进行中**：`353d418..8796036` 冗余清理 16 commits 的对抗性评审基线与 findings 记录（席位为独立上下文的 Kimi，只读）。接手该轮评审前先读本文的已知条目清单 |

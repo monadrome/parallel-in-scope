@@ -2,11 +2,13 @@
 
 **截至** `dev/v0.3.0` @ `c9f4c19`（2026-09-28）。
 来源：2026-09-28 的运行时性能与公共 API 调研，结论经独立席位（`kimi-code/k3`）复核。
-细节与完整证据在 [`reports/`](reports/investigation-2026-09-28.md)：
+细节与完整证据在分支 `backup/scratch-materials` 的 `reports/` 下（`reports/` 按 0.3.0
+发行说明移出主干，见 [CHANGELOG](CHANGELOG.md) 的 Packaging and documentation）：
 
-- 性能：[reports/perf-analysis-2026-09-28.md](reports/perf-analysis-2026-09-28.md)
-- API 与设计：[reports/api-design-analysis-2026-09-28.md](reports/api-design-analysis-2026-09-28.md)
-- 独立验证（原始判定）：[reports/independent-verification-kimi-2026-09-28.md](reports/independent-verification-kimi-2026-09-28.md)
+- 调研入口：[investigation-2026-09-28.md](https://github.com/monadrome/parallel-in-scope/blob/backup/scratch-materials/reports/investigation-2026-09-28.md)
+- 性能：[perf-analysis-2026-09-28.md](https://github.com/monadrome/parallel-in-scope/blob/backup/scratch-materials/reports/perf-analysis-2026-09-28.md)
+- API 与设计：[api-design-analysis-2026-09-28.md](https://github.com/monadrome/parallel-in-scope/blob/backup/scratch-materials/reports/api-design-analysis-2026-09-28.md)
+- 独立验证（原始判定）：[independent-verification-kimi-2026-09-28.md](https://github.com/monadrome/parallel-in-scope/blob/backup/scratch-materials/reports/independent-verification-kimi-2026-09-28.md)
 
 **证据强度**：`实测` = 跑过程序拿到数字；`复核` = 经独立模型验证；`读码` = 静态追踪。
 修复前请按仓库惯例复核每条（含本文件中的引用行号）。

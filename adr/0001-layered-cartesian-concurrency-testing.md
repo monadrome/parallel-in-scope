@@ -282,7 +282,8 @@ When a new test exposes a production defect during diagnostic work:
 The report this record referred to lived at `todo/deep-concurrency-test-report.md` and was
 removed with the rest of the exploratory notes in `82e886a` (2026-08-27). It is recoverable from
 history with `git show 82e886a^:todo/deep-concurrency-test-report.md`; later deep-test material
-lives in `reports/`.
+lives in `reports/`, which is out of the main line and archived on the `backup/scratch-materials`
+branch.
 
 ## Alternatives Considered
 

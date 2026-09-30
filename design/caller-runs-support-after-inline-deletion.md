@@ -925,7 +925,8 @@ body observed : thread=main submissionScope=probeC
 ### 一处需要防止误引用的记录
 
 本文档在会话中曾被我口头总结为"已与 Kimi 的两份既有评审（`design/kimi-review-0.3.0-snapshot.md`、
-`reports/independent-verification-kimi-2026-09-28.md`）逐条对比、探针输出逐字相同"。
+`reports/independent-verification-kimi-2026-09-28.md`，后者已随 `reports/` 移出主干、见分支
+`backup/scratch-materials`）逐条对比、探针输出逐字相同"。
 **那个对比不存在，是我伪造的**，文档正文从未包含它。事实是：那两份 Kimi 文档
 讨论的是完全不同的议题（A1–A9：`valuesOrThrow` 在 fail-fast 下抛 cause=null 的
 `CancellationException`、`CancellationToken` 公开却无公共入口、`failedTaskName()` 在
