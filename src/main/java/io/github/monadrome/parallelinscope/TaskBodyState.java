@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Per-task body lifecycle slot registered with a {@link BodyCompletionTracker} before submission.
@@ -44,7 +45,7 @@ final class TaskBodyState {
      * or {@code SKIPPED}, before the shared tracker is released. Observation futures key on it so
      * a waiter that observes body completion through the tracker already finds this slot terminal.
      */
-    private final SettableFuture<Void> terminal = SettableFuture.create();
+    private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
 
     TaskBodyState(BodyCompletionTracker tracker, String name) {
         this.tracker = tracker;
@@ -93,7 +94,7 @@ final class TaskBodyState {
     }
 
     /** The terminal signal of this slot, for observation-future barriers. */
-    ListenableFuture<Void> terminal() {
+    ListenableFuture<@Nullable Void> terminal() {
         return terminal;
     }
 }

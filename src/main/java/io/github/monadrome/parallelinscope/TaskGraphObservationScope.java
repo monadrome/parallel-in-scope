@@ -41,8 +41,8 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     private static final Logger logger = Logger.getLogger(TaskGraphObservationScope.class.getName());
 
     /** Identity-propagating TTL: the default copy returns the same scope reference to workers. */
-    private static final TransmittableThreadLocal<TaskGraphObservationScope> CURRENT =
-            new TransmittableThreadLocal<TaskGraphObservationScope>() {};
+    private static final TransmittableThreadLocal<@Nullable TaskGraphObservationScope> CURRENT =
+            new TransmittableThreadLocal<@Nullable TaskGraphObservationScope>() {};
 
     private final ParRuntime owner;
     private final AtomicBoolean closed = new AtomicBoolean();
