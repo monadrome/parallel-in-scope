@@ -15,7 +15,7 @@
 - [A2. 嵌套任务取消传播](articles/A2-nested-cancel-propagation.md)
 - [A3. Lean 与 Fat 取消异常](articles/A3-lean-vs-fat-exception.md)
 - [D1. get(timeout) 后任务仍运行](articles/D1-get-timeout-task-still-running.md)
-- [D2. 延迟绑定竞态](articles/D2-late-bind-race-condition.md)
+- [D2. 批次统一超时](articles/D2-late-bind-race-condition.md)
 - [G3. 协作式取消检查点](articles/G3-checkpoints-cooperative-cancel.md)
 
 ## 上下文与 API

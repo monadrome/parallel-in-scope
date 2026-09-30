@@ -31,10 +31,9 @@ for (int i = 0; i < taskCount; i++) {
 
 `parallel-in-scope` 为批次建立一个统一超时：
 
-1. `SlidingWindowSubmitter.submitAll()` 提交初始窗口，并为其余逻辑任务创建 Future 槽位；异步提交循环随后按完成事件补充任务。
-2. `CancellationToken.lateBind()` 将全部逻辑 Future 和提交循环绑定到同一个聚合 Future。
-3. `FluentFuture.withTimeout()` 只为这个聚合 Future 设置一次超时，形成整个批次共享的截止时间。
-4. 截止时间到达或任一任务失败时，提交循环和所有未完成任务一起取消。
+1. `SlidingWindowSubmitter` 为每个逻辑任务预先创建 Future 视图（包括尚未进入窗口的元素），异步提交循环随后按完成事件补充任务。
+2. 批次的 `CancellationToken` 携带统一 deadline；每个元素的视图在进入执行器**之前**就完成绑定（bind-before-submit）——不存在"提交后才补绑"的窗口，晚提交的元素也不会得到一个更晚的截止时间。
+3. deadline 到期或任一任务失败时，提交循环和所有未完成任务经同一个 token 级联取消。
 
 这种设计让 `BatchOptions.timeout()` 成为清晰的批次级契约：计时从批次调度建立完成后开始，后续任务不会因为提交较晚而延长整个批次的期限。
 
