@@ -17,7 +17,7 @@ as pull requests still follow the rules below.)
 **An issue is required first for:**
 
 - a new capability; a new public type, method, or option
-- a change to existing behaviour or to a documented contract
+- a change to existing behavior or to a documented contract
 - a signature change; anything that needs a `design/` proposal
 
 **No issue needed for:**
@@ -43,7 +43,7 @@ The issue forms live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/):
 | Form | Use it for |
 |---|---|
 | **Bug report** | Something behaves differently from what the documentation promises |
-| **Design proposal** | A new capability, or a change to existing behaviour or API |
+| **Design proposal** | A new capability, or a change to existing behavior or API |
 | **Documentation issue** | A page, javadoc, or example that is wrong, missing, or misleading |
 
 Blank issues are also enabled for anything that does not fit a form. The
@@ -102,7 +102,7 @@ either way. Whether in an issue or a PR, a proposal that touches public API or
 a documented contract must state specifically: the best code a user can write
 today, the same code with the change applied, and the failure mode the change
 removes; breaking changes additionally name the migration path. Before changing
-execution-engine, cancellation, task-group, or queue behaviour, read
+execution-engine, cancellation, task-group, or queue behavior, read
 [design/AGENTS.md](design/AGENTS.md) — it routes you to the current design
 contracts, which are the authority for how the library behaves.
 

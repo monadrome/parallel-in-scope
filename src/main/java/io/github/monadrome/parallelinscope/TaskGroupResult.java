@@ -80,7 +80,7 @@ public final class TaskGroupResult {
 
     /**
      * Returns the terminal combine's snapshot, or null when the group declares no combine. A
-     * combine cancelled before running never marks a start or end time, following the member
+     * combine canceled before running never marks a start or end time, following the member
      * snapshot convention.
      */
     public @Nullable TaskCompletion<?> terminal() {
@@ -97,7 +97,7 @@ public final class TaskGroupResult {
      * failure surfaces as {@link CancellationException} naming the outcome and the triggering task.
      *
      * @return this result, when the group succeeded
-     * @throws CancellationException if the group was cancelled, timed out, or lost a member to
+     * @throws CancellationException if the group was canceled, timed out, or lost a member to
      *     cancellation
      * @throws RuntimeException the recorded failure, when a member or the combine failed
      * @throws Error the recorded failure, when a member or the combine threw an error

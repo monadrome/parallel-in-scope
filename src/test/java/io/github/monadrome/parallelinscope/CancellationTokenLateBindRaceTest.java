@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The original analysis claimed that calling {@code cancel()} before {@code lateBind()} causes
  * {@code IllegalStateException} because {@code SettableFuture.setFuture} would throw on an already
- * cancelled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
+ * canceled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
  * {@code false} and <em>cancels the supplied future</em>, so cancellation still propagates to the
  * submitted tasks. The real latent issue is that {@code lateBind} is not idempotent: a second call
  * is silently ignored and immediately cancels its own futures, while the token state stays tied to
@@ -80,19 +80,19 @@ class CancellationTokenLateBindRaceTest {
         token.bind(Collections.singletonList(secondTask), Futures.immediateVoidFuture(), timer);
 
         // The second futures are not tracked; the token stays SUCCESS and the second task is not
-        // cancelled by the framework.
+        // canceled by the framework.
         assertThat(secondTask).isNotCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
     /**
      * In a race, either cancel wins (and cancels failFastFuture) or lateBind wins (and futureToken
-     * cancels failFastFuture later). In both cases the submitted task should end up cancelled.
+     * cancels failFastFuture later). In both cases the submitted task should end up canceled.
      */
     @Test
     void concurrentCancelAndBind_cancelsTasksEitherWay() throws InterruptedException {
         int attempts = 1000;
-        int notCancelled = 0;
+        int notCanceled = 0;
 
         for (int i = 0; i < attempts; i++) {
             CancellationToken token = CancellationToken.create();
@@ -117,15 +117,15 @@ class CancellationTokenLateBindRaceTest {
             binder.join();
 
             if (!task.isCancelled()) {
-                notCancelled++;
+                notCanceled++;
             }
         }
 
-        // In all observed outcomes the task is cancelled; if it were not, that would be a bug.
-        assertThat(notCancelled)
+        // In all observed outcomes the task is canceled; if it were not, that would be a bug.
+        assertThat(notCanceled)
                 .withFailMessage(
-                        "Expected all tasks to be cancelled in cancel/lateBind race, but %s out of %s were not",
-                        notCancelled, attempts)
+                        "Expected all tasks to be canceled in cancel/lateBind race, but %s out of %s were not",
+                        notCanceled, attempts)
                 .isZero();
     }
 

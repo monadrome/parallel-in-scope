@@ -264,16 +264,16 @@ public final class Par {
         // thread — and it extends the deadline to cover the submission window rather than starting
         // only once every element is handed off.
         //
-        // The submission canceller cannot come from submitAll, which has not run yet, so it is
-        // pre-built here and pointed at the real one afterwards. Cancelling it before then is not
+        // The submission canceler cannot come from submitAll, which has not run yet, so it is
+        // pre-built here and pointed at the real one afterward. Canceling it before then is not
         // lost: setFuture propagates the cancellation on to the submitting future.
-        SettableFuture<Object> submitCanceller = SettableFuture.create();
+        SettableFuture<Object> submitCanceler = SettableFuture.create();
         ListenableFuture<?> completion =
-                unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
+                unit.cancellationToken().bind(views, submitCanceler, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         TaskBatchResult<R> result = submitter.submitAll(tasks, views);
-        submitCanceller.setFuture(result.submitCanceller());
+        submitCanceler.setFuture(result.submitCanceler());
         return result;
     }
 
@@ -308,7 +308,7 @@ public final class Par {
 
     /**
      * Runs one preparation with {@code observation} installed as this thread's scope, restoring the
-     * previous binding afterwards.
+     * previous binding afterward.
      *
      * <p>Preparation is where the TTL snapshot replayed on the worker thread is taken, so the scope
      * bound here is the one every task body of this unit will observe — and the one a nested

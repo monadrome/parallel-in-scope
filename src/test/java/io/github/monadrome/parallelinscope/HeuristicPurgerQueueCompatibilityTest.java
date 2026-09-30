@@ -29,9 +29,9 @@ class HeuristicPurgerQueueCompatibilityTest {
         executors.forEach(ThreadPoolExecutor::shutdownNow);
     }
 
-    /** A bounded plain LinkedBlockingQueue purges cancelled tasks like SmartBlockingQueue. */
+    /** A bounded plain LinkedBlockingQueue purges canceled tasks like SmartBlockingQueue. */
     @Test
-    void boundedLinkedBlockingQueuePurgesCancelledTasks() throws Exception {
+    void boundedLinkedBlockingQueuePurgesCanceledTasks() throws Exception {
         LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(20);
         CountingExecutor executor = executor(queue);
         List<ListenableFutureTask<Void>> tasks = enqueue(queue, 16);

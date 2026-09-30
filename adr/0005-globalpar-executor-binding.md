@@ -419,7 +419,7 @@ GlobalPar
     └─ GlobalParPurgePolicy
          ├─ enabled
          ├─ queue pressure threshold
-         ├─ cancelled-task ratio threshold
+         ├─ canceled-task ratio threshold
          └─ Map<ExecutorIdentity, ExecutorRuntime>
 ```
 

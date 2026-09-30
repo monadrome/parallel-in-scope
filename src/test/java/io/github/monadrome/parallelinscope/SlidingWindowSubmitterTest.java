@@ -106,7 +106,7 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cancellingSubmitterAbandonsRemainingPlaceholders() throws Exception {
+    void cancelingSubmitterAbandonsRemainingPlaceholders() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
@@ -122,7 +122,7 @@ class SlidingWindowSubmitterTest {
                             },
                             () -> 2,
                             () -> 3));
-            assertThat(batch.submitCanceller().cancel(true)).isTrue();
+            assertThat(batch.submitCanceler().cancel(true)).isTrue();
             release.countDown();
             for (ListenableFuture<Integer> result : batch.results()) {
                 try {
@@ -157,7 +157,7 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cancelledPlaceholderStopsSlidingWindowAndCancelsLaterPlaceholders() throws Exception {
+    void canceledPlaceholderStopsSlidingWindowAndCancelsLaterPlaceholders() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
@@ -244,7 +244,7 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2);
-            assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThat(batch.submitCanceler().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
             submitter.shutdownNow();
         }
@@ -271,7 +271,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
-            assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThat(batch.submitCanceler().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
             submitter.shutdownNow();
         }
@@ -358,7 +358,7 @@ class SlidingWindowSubmitterTest {
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(RejectedExecutionException.class);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> batch.submitCanceler().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(RejectedExecutionException.class);
         } finally {
@@ -484,7 +484,7 @@ class SlidingWindowSubmitterTest {
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> batch.submitCanceler().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
         } finally {
@@ -527,7 +527,7 @@ class SlidingWindowSubmitterTest {
 
     /**
      * The same escalation path observes a sliding-window handoff {@code Error} with no shape
-     * difference, and the batch stays closeable afterwards: body-completion tracking settles and
+     * difference, and the batch stays closeable afterward: body-completion tracking settles and
      * the abandoned prepared future releases its user callable.
      */
     @Test
@@ -687,7 +687,7 @@ class SlidingWindowSubmitterTest {
                             }));
 
             assertThat(secondExecuteEntered.await(5, TimeUnit.SECONDS)).isTrue();
-            batch.submitCanceller().cancel(true);
+            batch.submitCanceler().cancel(true);
             release.countDown();
 
             // The claimed element ran and its caller sees the real result, not a submission failure.
@@ -755,7 +755,7 @@ class SlidingWindowSubmitterTest {
                     default:
                         Thread.yield();
                 }
-                batch.submitCanceller().cancel(true);
+                batch.submitCanceler().cancel(true);
 
                 await().atMost(5, TimeUnit.SECONDS)
                         .until(() -> batch.results().get(0).isDone()
@@ -778,8 +778,8 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cancelledQueuedTaskIsTheSameObjectThePoolPurgeRemoves() throws Exception {
-        // Regression for the old completion-service wrapper: cancelling the future returned to the
+    void canceledQueuedTaskIsTheSameObjectThePoolPurgeRemoves() throws Exception {
+        // Regression for the old completion-service wrapper: canceling the future returned to the
         // caller must be visible on the exact runnable held by the worker pool's queue, so
         // ThreadPoolExecutor.purge can release it.
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
