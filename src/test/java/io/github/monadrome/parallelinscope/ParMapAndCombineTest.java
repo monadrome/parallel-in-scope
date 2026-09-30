@@ -427,10 +427,13 @@ class ParMapAndCombineTest {
         }
     }
 
+    /**
+     * The task graph records the honest batch-to-combine edge (root, batch, combine) on bounded,
+     * starvation-prone pools, while neither executor projection holds an edge: the deferred combine
+     * edge is not deadlock-relevant, and a top-level batch's fork edge has no parent executor.
+     */
     @Test
     void combineEdgeIsRecordedInTheObservationGraph() throws Exception {
-        // Bounded pools are starvation-prone, so the batch->combine edge survives the executor
-        // projection's deadlock-relevance filter.
         ExecutorService io = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         ExecutorService cpu = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
@@ -449,14 +452,11 @@ class ParMapAndCombineTest {
                                 BatchOptions.timeout("batch", TIMEOUT),
                                 runtime.par(ParId.of("cpu")),
                                 values -> Objects.requireNonNull(values).size());
-                // The graph records the honest batch-to-combine edge in the task graph (root ->
-                // batch -> combine), while the executor projection drops the deferred combine edge
-                // as not deadlock-relevant and keeps the batch's own fork edge.
                 TaskGraphData data = TaskGraphObservationScope.data();
                 assertThat(data).isNotNull();
                 assertThat(data.graph().edges()).hasSize(2);
-                assertThat(data.executorGraph().hasEdgeConnecting("NA", "io")).isTrue();
-                assertThat(data.executorGraph().hasEdgeConnecting("io", "cpu")).isFalse();
+                assertThat(data.executorGraph().edges()).isEmpty();
+                assertThat(data.snapshot().executorIdentityGraph().edges()).isEmpty();
             } finally {
                 scope.close();
             }

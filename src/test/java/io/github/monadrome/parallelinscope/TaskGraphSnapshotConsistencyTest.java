@@ -5,10 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -202,12 +205,28 @@ class TaskGraphSnapshotConsistencyTest {
         return new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(1_000), false);
     }
 
-    /** Executor-name edge with no supplied-executor identities. */
+    /** Deadlock-prone edge between named pools, keyed by identity and labelled by name. */
     private static TaskEdge riskyEdge(String sourceExecutor, String targetExecutor) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, targetExecutor, sourceExecutor, 1, Duration.ZERO, true);
+        return new TaskEdge(
+                1,
+                TaskType.CPU_BOUND,
+                pool(targetExecutor),
+                pool(sourceExecutor),
+                targetExecutor,
+                sourceExecutor,
+                1,
+                Duration.ZERO,
+                true);
     }
 
     private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, "target", "source", 1, Duration.ZERO, true);
+    }
+
+    private static final Map<String, ExecutorIdentity> POOLS = new ConcurrentHashMap<>();
+
+    /** One executor identity per pool name, so equal names in one test denote the same pool. */
+    private static ExecutorIdentity pool(String name) {
+        return POOLS.computeIfAbsent(name, ignored -> new ExecutorIdentity(MoreExecutors.newDirectExecutorService()));
     }
 }

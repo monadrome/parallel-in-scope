@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
@@ -55,8 +58,8 @@ class TaskGraphBatchIdentityTest {
     void detectsExecutorCyclesAndSkipsNonRiskyEdges() {
         ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", namedEdge("pool-a", "pool-b"));
+            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", namedEdge("pool-b", "pool-a"));
             assertThat(TaskGraphObservationScope.hasExecutorCycle()).isTrue();
             assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
         } finally {
@@ -65,7 +68,21 @@ class TaskGraphBatchIdentityTest {
 
         ParRuntime nonRisky = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = nonRisky.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool", "pool", false));
+            TaskGraphObservationScope.logTaskPair(
+                    "a",
+                    "task-a",
+                    "a",
+                    "task-a",
+                    new TaskEdge(
+                            1,
+                            TaskType.CPU_BOUND,
+                            pool("pool"),
+                            pool("pool"),
+                            "pool",
+                            "pool",
+                            1,
+                            Duration.ZERO,
+                            false));
             assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
             assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
         } finally {
@@ -135,8 +152,8 @@ class TaskGraphBatchIdentityTest {
                 .build();
         ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", legacyEdge("pool-b", "pool-a", true));
+            TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", namedEdge("pool-a", "pool-b"));
+            TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", namedEdge("pool-b", "pool-a"));
             reportFuture = scope.reportFuture();
         } finally {
             global.close();
@@ -155,11 +172,19 @@ class TaskGraphBatchIdentityTest {
         return new TaskEdge(1, TaskType.CPU_BOUND, null, null, "executor", "parent", 1, Duration.ZERO, false);
     }
 
-    private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);
+    /** Deadlock-prone edge between named pools, keyed by identity and labelled by name. */
+    private static TaskEdge namedEdge(String source, String target) {
+        return new TaskEdge(1, TaskType.CPU_BOUND, pool(target), pool(source), target, source, 1, Duration.ZERO, true);
     }
 
     private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, "target", "source", 1, Duration.ZERO, true);
+    }
+
+    private static final Map<String, ExecutorIdentity> POOLS = new ConcurrentHashMap<>();
+
+    /** One executor identity per pool name, so equal names in one test denote the same pool. */
+    private static ExecutorIdentity pool(String name) {
+        return POOLS.computeIfAbsent(name, ignored -> new ExecutorIdentity(MoreExecutors.newDirectExecutorService()));
     }
 }
