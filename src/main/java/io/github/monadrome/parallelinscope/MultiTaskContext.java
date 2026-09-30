@@ -155,7 +155,7 @@ final class MultiTaskContext {
         // Inheriting a deadline requires something to inherit from: a structural parent or an
         // explicitly supplied ceiling (a task-group member takes the group deadline even at the
         // top level, where it has no structural parent).
-        if (!spec.timeout().isPresent() && parent == null && resolution.deadlineCeilingNanos == null) {
+        if (spec.timeout() == null && parent == null && resolution.deadlineCeilingNanos == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         CancellationToken cancellationParent = resolution.cancellationParent != null
@@ -174,7 +174,7 @@ final class MultiTaskContext {
         TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
         int requested = spec.requestedParallelism();
         int effective = requested <= 0 ? resolution.taskCount : Math.min(requested, resolution.taskCount);
-        long deadline = resolveDeadlineNanos(spec.timeout().orElse(null), deadlineCeiling, resolutionTime);
+        long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
         return new MultiTaskContext(
                 spec.name(),
                 resolution.taskCount,
