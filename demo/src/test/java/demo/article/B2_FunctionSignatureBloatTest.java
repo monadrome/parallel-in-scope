@@ -50,7 +50,7 @@ public class B2_FunctionSignatureBloatTest {
     private static String fetchWithBloat(String url, String traceId, long timeoutMs, boolean[] cancelFlag) {
         // 手动检查取消
         if (cancelFlag[0]) {
-            return "CANCELED";
+            return "CANCELLED";
         }
         // 手动传递 traceId（模拟 MDC 设置）
         String oldTrace = Thread.currentThread().getName();

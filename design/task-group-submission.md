@@ -83,7 +83,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 - `cancel()` 在线程取得执行权前成功后，之后的 prepared submission 不得进入用户 callable；
 - prepared submission 被 executor 拒绝或 handoff 抛出 `Error` 时，必须把 future 完成为 submission failure，不能遗留 pending future；
 - 用户 callable 最多执行一次；
-- phase 继续区分 `CANCELED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
+- phase 继续区分 `CANCELLED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
 - `SubmissionScope` 只包住实际 `executor.execute()`；
 - 支持 `runOnCallerThread(true)` 显式声明的 rejection 后 inline 执行策略，但 inline 也必须遵守已注册和执行权竞态；
 - 每个冻结 future 最终达到终态。

@@ -189,7 +189,7 @@ class CheckpointsOutcomeTest {
         ReentrantLock lock = new ReentrantLock();
         Condition condition = lock.newCondition();
         AtomicBoolean done = new AtomicBoolean(false);
-        Thread signaler = new Thread(() -> {
+        Thread signaller = new Thread(() -> {
             while (!done.get()) {
                 lock.lock();
                 try {
@@ -205,7 +205,7 @@ class CheckpointsOutcomeTest {
                 }
             }
         });
-        signaler.start();
+        signaller.start();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
         boolean result = false;
         while (!result && System.nanoTime() < deadline) {
@@ -217,7 +217,7 @@ class CheckpointsOutcomeTest {
             }
         }
         done.set(true);
-        signaler.join(TimeUnit.SECONDS.toMillis(2));
+        signaller.join(TimeUnit.SECONDS.toMillis(2));
         assertThat(result).isTrue();
     }
 

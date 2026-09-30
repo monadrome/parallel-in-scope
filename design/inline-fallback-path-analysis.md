@@ -131,7 +131,7 @@ WATCHDOG: map() still has not returned after 4s -> wedged
 ```java
 TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(...).submitAll(tasks);   // 244
 ListenableFuture<?> completion =
-        unit.cancellationToken().bind(result.results(), result.submitCanceler(), ...);  // 246
+        unit.cancellationToken().bind(result.results(), result.submitCanceller(), ...);  // 246
 ```
 
 `bind()` 才接线 deadline timer，而它在 `submitAll` **之后**。`submitAll` 被 inline 卡死，
@@ -220,7 +220,7 @@ group: TIMEOUT:2 | outcome=TIMEOUT
 group 已经这么做了（`TaskGroup.java:435-439`），证明技术上可行。
 
 - 优点：根治，deadline 语义两条路径统一；不削减任何现有能力。
-- 代价：`bind` 需要 `result.submitCanceler()`，而它由 `submitAll` 产出。需要把 canceler
+- 代价：`bind` 需要 `result.submitCanceller()`，而它由 `submitAll` 产出。需要把 canceller
   的创建与提交循环解耦——这是真实的重构成本，也是本选项唯一的风险点。
 - 附带收益：deadline 覆盖"提交期间"这段窗口，而不只是"提交完成之后"。即便没有 inline，
   一个慢 executor 的 `execute()` 调用也会延长这段无保护窗口。
@@ -285,13 +285,13 @@ group 已经这么做了（`TaskGroup.java:435-439`），证明技术上可行�
    写在 `run()` 的注释里。
 
 2. **选项 A 的实现方式是删掉 placeholder，不是"把初始窗口也改成 placeholder"。**
-   本文 §6.2 把 `submitCanceler` 由 `submitAll` 产出列为唯一风险点。实际做下来，
+   本文 §6.2 把 `submitCanceller` 由 `submitAll` 产出列为唯一风险点。实际做下来，
    真正的约束是另一条：**token 必须绑定调用方手里的那个 handle**，因为调用方 cancel 的是
    它，而 fail-fast 级联正是释放 body slot 的东西。绑定 prepared future 而不绑定视图会让
    两个测试挂在这条接缝上。解法是让视图从创建起就直接包住 prepared future
    （`SlidingWindowSubmitter.viewsFor`），一个对象同时满足"能取消到 runner"与"就是调用方
    可见的 handle"，placeholder / `bind` / `abandon` 整套桥接随之删除。
-   canceler 预建为 `SettableFuture` 再 `setFuture` 指向真的即可，不是难点。
+   canceller 预建为 `SettableFuture` 再 `setFuture` 指向真的即可，不是难点。
 
 3. **拒绝清扫必须分两趟。** 本文没预见这一点。token 先 bind 之后，任何一个元素
    `setException` 都会在当前线程上**同步**触发 fail-fast 级联，级联取消其余还是

@@ -11,7 +11,7 @@
 
 | 能力 | 稳定契约 | 测试层级 |
 |---|---|---|
-| 状态分类 | 每个 Future 被归入 `RUNNING`、`SUCCESS`、`FAILED`、`CANCELED` 之一 | 核心单元测试 |
+| 状态分类 | 每个 Future 被归入 `RUNNING`、`SUCCESS`、`FAILED`、`CANCELLED` 之一 | 核心单元测试 |
 | 状态计数 | 所有状态计数之和等于结果 Future 数量 | 单元测试、集成测试 |
 | 首异常 | 返回 results 列表中第一个失败 Future 的 cause；没有失败时为 null | 核心单元测试 |
 | 快照语义 | `report()` 反映调用时状态；Future 后续完成时需再次调用以获取新快照 | 核心单元测试 |

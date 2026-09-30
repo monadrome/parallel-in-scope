@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Fills freed slots incrementally with remaining tasks
  * </ol>
  *
- * <p>Each submitted future is also the exact runnable handed to the worker pool, so canceling it
+ * <p>Each submitted future is also the exact runnable handed to the worker pool, so cancelling it
  * is directly visible to queue maintenance such as {@code ThreadPoolExecutor.purge()}.
  *
  * @param <V> the result type of tasks
@@ -78,7 +78,7 @@ final class SlidingWindowSubmitter<V> {
      * creation on — no placeholder stands in for an element still waiting for a free slot, and no
      * later bind step swaps a delegate. That is what lets the caller bind its {@link
      * CancellationToken} before submission: the token holds the same objects the caller does, and
-     * canceling one forwards to the prepared future, whose {@code interruptTask()} reaches the
+     * cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the
      * thread actually running the body — including a caller thread running it inline.
      *
      * @param tasks prepared task futures, in element order
@@ -152,7 +152,7 @@ final class SlidingWindowSubmitter<V> {
                                 tasks,
                                 results,
                                 nextIndex.get(),
-                                new InterruptedException("remaining task submission canceled"));
+                                new InterruptedException("remaining task submission cancelled"));
                     }
                 },
                 directExecutor());
@@ -174,7 +174,7 @@ final class SlidingWindowSubmitter<V> {
      * cancellation and lose the reason the batch failed. No settle order avoids this: whichever
      * element settles first triggers the cascade against the rest. So pass one claims each element
      * and records its attribution without settling anything (invisible to the token, which watches
-     * the futures rather than the observations), and pass two settles them. An element canceled by
+     * the futures rather than the observations), and pass two settles them. An element cancelled by
      * the cascade in between still reports its recorded submission failure.
      *
      * <p>The cascade does still cancel the elements before {@code fromIndex} — the ones already
@@ -210,7 +210,7 @@ final class SlidingWindowSubmitter<V> {
 
     /**
      * Submits a prepared future to the worker pool and returns it. The listener is registered
-     * before the handoff, so a task rejected or canceled before it runs still reaches the
+     * before the handoff, so a task rejected or cancelled before it runs still reaches the
      * completion queue that drives the sliding window.
      */
     private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
@@ -271,7 +271,7 @@ final class SlidingWindowSubmitter<V> {
             }
             // Claim the index as soon as a slot is taken, before the completion check: the
             // cancellation callback abandons only indexes strictly beyond nextIndex, so it can
-            // never overwrite an index this iteration already claimed. The canceled/done branch
+            // never overwrite an index this iteration already claimed. The cancelled/done branch
             // below still abandons from index locally, covering this iteration as well.
             nextIndex.set(index + 1);
             if (completed.isCancelled() || result.get(index).isDone()) {
@@ -307,12 +307,12 @@ final class SlidingWindowSubmitter<V> {
 
     /**
      * Completes every future that will never receive a submission so the batch always reaches a
-     * terminal state. Direct placeholder cancellation produces {@code CANCELED}; an interrupted
+     * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
      * submitter or rejected submission records its cause. Without this cleanup, {@link
      * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
      *
      * <p>The prepared futures behind the abandoned placeholders are never submitted and never
-     * canceled, so their body slots are released here as skipped — exactly once, guarded by the
+     * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
      * same atomic state the cancel-before-run path uses. The skip runs before the placeholder is
      * settled so that a caller observing the abandonment (a thrown {@code valuesOrThrow}, a
      * report) already finds the prepared body released and its slot published.
@@ -321,7 +321,7 @@ final class SlidingWindowSubmitter<V> {
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
-     *     when the batch is already being canceled
+     *     when the batch is already being cancelled
      */
     private static <V> void abandonRemaining(
             List<? extends ExecutionPhaseHintFuture<V>> tasks,

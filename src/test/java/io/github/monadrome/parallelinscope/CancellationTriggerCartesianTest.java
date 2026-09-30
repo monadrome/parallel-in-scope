@@ -64,10 +64,10 @@ public class CancellationTriggerCartesianTest {
             }
 
             CancellationToken.State expected =
-                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELED;
+                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELLED;
             awaitState(token, expected);
-            awaitCanceled(fixture.future);
-            awaitCanceled(submitter);
+            awaitCancelled(fixture.future);
+            awaitCancelled(submitter);
 
             if (workload == Workload.PENDING) {
                 assertThat(fixture.interrupted).isFalse();
@@ -97,8 +97,8 @@ public class CancellationTriggerCartesianTest {
             token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             token.cancel(false);
 
-            awaitState(token, CancellationToken.State.CANCELED);
-            awaitCanceled(fixture.future);
+            awaitState(token, CancellationToken.State.CANCELLED);
+            awaitCancelled(fixture.future);
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")
                     .isFalse();
@@ -118,8 +118,8 @@ public class CancellationTriggerCartesianTest {
         assertThat(token.state()).isEqualTo(expected);
     }
 
-    /** Waits for Future cancellation; the token commits its state before canceling bound work. */
-    private static void awaitCanceled(ListenableFuture<?> future) throws InterruptedException {
+    /** Waits for Future cancellation; the token commits its state before cancelling bound work. */
+    private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!future.isCancelled() && System.nanoTime() < deadline) {
             Thread.yield();

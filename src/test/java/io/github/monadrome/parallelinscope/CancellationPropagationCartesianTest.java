@@ -61,7 +61,7 @@ public class CancellationPropagationCartesianTest {
                 parent.cancel(true);
             }
 
-            awaitCanceled(fixture.future);
+            awaitCancelled(fixture.future);
             assertThat(child.state().shouldInterruptCurrentThread()).isTrue();
             if (childWork == ChildWork.RUNNING) {
                 awaitTrue(fixture.interrupted);
@@ -74,9 +74,9 @@ public class CancellationPropagationCartesianTest {
         }
     }
 
-    /** Specifies consistent propagation classification when the parent was already canceled. */
+    /** Specifies consistent propagation classification when the parent was already cancelled. */
     @Test
-    public void alreadyCanceledParentClassifiesChildAsPropagatingCancellation() {
+    public void alreadyCancelledParentClassifiesChildAsPropagatingCancellation() {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         try {
             CancellationToken parent = CancellationToken.create();
@@ -89,14 +89,14 @@ public class CancellationPropagationCartesianTest {
             assertThat(childFuture).isCancelled();
             assertThat(child.state())
                     .as("parent cancellation should have one state regardless of bind timing")
-                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         } finally {
             timer.shutdownNow();
         }
     }
 
     /** Waits for Future cancellation without relying on a fixed sleep. */
-    private static void awaitCanceled(ListenableFuture<?> future) throws InterruptedException {
+    private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!future.isCancelled() && System.nanoTime() < deadline) {
             Thread.yield();

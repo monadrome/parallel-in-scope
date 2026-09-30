@@ -177,6 +177,6 @@ public class G5_BatchHttpCallsTest {
         // 验证：report 区分根失败和由 fail-fast 级联取消的兄弟任务
         String report = result.reportString();
         assertThat(report).as("Report should show USER_FAILURE task (payment)").contains("USER_FAILURE");
-        assertThat(report).as("Report should show tasks canceled by fail-fast").contains("FAIL_FAST");
+        assertThat(report).as("Report should show tasks cancelled by fail-fast").contains("FAIL_FAST");
     }
 }

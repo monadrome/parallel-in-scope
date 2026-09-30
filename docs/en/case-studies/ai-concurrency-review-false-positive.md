@@ -6,7 +6,7 @@ An AI review flagged the cancellation and future aggregation code as unsafe. The
 
 ## Where the false positive came from
 
-The review treated an exception handled by `catchingAsync` as proof that the operation had recovered successfully. It also treated a canceled future as equivalent to an ordinary failed future. In Guava, cancellation is a distinct terminal state and can propagate through aggregation independently of ordinary exceptions.
+The review treated an exception handled by `catchingAsync` as proof that the operation had recovered successfully. It also treated a cancelled future as equivalent to an ordinary failed future. In Guava, cancellation is a distinct terminal state and can propagate through aggregation independently of ordinary exceptions.
 
 The review also assumed that a timeout callback immediately stopped every task. The implementation uses cooperative cancellation: blocked I/O can respond to interruption, while CPU-bound work responds at its next checkpoint.
 

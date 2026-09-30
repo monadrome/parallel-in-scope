@@ -64,8 +64,8 @@ public class CancellationDemo {
                     },
                     options);
 
-            // Wait until every task has succeeded, failed, or been canceled. Unlike allAsList,
-            // successfulAsList itself completes normally when individual tasks are canceled.
+            // Wait until every task has succeeded, failed, or been cancelled. Unlike allAsList,
+            // successfulAsList itself completes normally when individual tasks are cancelled.
             Futures.successfulAsList(result.results()).get();
             long endTime = System.currentTimeMillis();
 

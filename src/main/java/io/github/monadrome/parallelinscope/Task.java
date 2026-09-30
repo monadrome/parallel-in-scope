@@ -108,7 +108,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             return TaskOutcome.RUNNING;
         }
         if (delegate.isCancelled()) {
-            return TokenOutcomes.forCanceled(token, TaskOutcome.MEMBER_CANCELED);
+            return TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED);
         }
         try {
             // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
@@ -132,7 +132,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             return TaskOutcome.SUBMISSION_FAILURE;
         }
         if (TokenOutcomes.causedByCancellation(cause)) {
-            return TokenOutcomes.forCanceled(token, TaskOutcome.USER_FAILURE);
+            return TokenOutcomes.forCancelled(token, TaskOutcome.USER_FAILURE);
         }
         return TaskOutcome.USER_FAILURE;
     }
@@ -149,8 +149,8 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public @Nullable Throwable failure() {
-        // Read the recorded failure directly: a claimed element may have been canceled by the
-        // cascade before it was settled, and exceptionNow() rejects a canceled future.
+        // Read the recorded failure directly: a claimed element may have been cancelled by the
+        // cascade before it was settled, and exceptionNow() rejects a cancelled future.
         SubmissionException recorded = recordedSubmissionFailure();
         if (recorded != null) {
             return recorded;

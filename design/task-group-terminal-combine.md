@@ -178,17 +178,17 @@ combine 不是用户编写的 future 编排器，而是框架确认 join 条件�
 
 ## 7. 结果与 outcome
 
-terminal future 保持普通 Guava 语义，与 member future 一致：成功返回 `R`、失败抛 `ExecutionException`、取消表现为 canceled。`completionFuture()` 继续以正常 future 完成并返回 `TaskGroupResult`，Group outcome 是结果数据，不用异常编码。
+terminal future 保持普通 Guava 语义，与 member future 一致：成功返回 `R`、失败抛 `ExecutionException`、取消表现为 cancelled。`completionFuture()` 继续以正常 future 完成并返回 `TaskGroupResult`，Group outcome 是结果数据，不用异常编码。
 
 | 情况 | combine | terminal future | Group outcome |
 |---|---|---|---|
 | 全部成功 | 执行并成功 | 成功返回 `R` | `SUCCESS` |
-| member 非成功 | 不执行 | 按 group token 归因取消（`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELED`） | member 的组级 outcome |
+| member 非成功 | 不执行 | 按 group token 归因取消（`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELLED`） | member 的组级 outcome |
 | combine 用户失败 | 执行 | 失败（`ExecutionException`） | `USER_FAILURE` |
 | combine 被拒绝 | 提交但被拒（无 inline） | 失败 | `SUBMISSION_FAILURE` |
 | combine 自身 deadline 先到 | 升级 `groupToken.timeoutCancel()` | 取消 | `TIMEOUT` |
 | group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
-| `group.cancel()` / close | 不执行或中断 | 取消 | `GROUP_CANCELED` |
+| `group.cancel()` / close | 不执行或中断 | 取消 | `GROUP_CANCELLED` |
 
 `TaskGroupResult` 增加 `@Nullable TaskCompletion<?> terminal()`：无 combine 时为 null；注册即携带快照，执行前取消时 start/end 为零，与执行前取消的 member 快照惯例一致（"不伪造事件"仅指监听器事件）。`members()`/`memberCount()` 保持只含 member。combine 失败或拒绝时 `failedTaskName()` 取 combine 的注册名；字段名使用 task 而非 member，避免把 combine failure 伪装成 member failure。
 

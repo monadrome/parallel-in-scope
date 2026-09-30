@@ -2,15 +2,15 @@
 
 - Status: Accepted
 - Date: 2026-07-26
-- Decision scope: Canceled-task purge maintenance protocol
+- Decision scope: Cancelled-task purge maintenance protocol
 - Supersedes: None
 
 ## Context
 
-Canceled Futures can remain as references in a `ThreadPoolExecutor` work queue
+Cancelled Futures can remain as references in a `ThreadPoolExecutor` work queue
 until the executor consumes them or `purge()` removes them. The library can
 observe a queue-relevant cancellation only when `ExecutionPhaseHintFuture`
-reports `CANCELED_BEFORE_RUN`; cancellation exceptions, batch reports, and
+reports `CANCELLED_BEFORE_RUN`; cancellation exceptions, batch reports, and
 placeholder Futures do not prove queue membership. `purge()` must remain the
 cleanup operation, and it cannot stop a task that is already running.
 
@@ -51,7 +51,7 @@ the unsettled cancellation estimate. Both conditions must hold:
 
 ```text
 P >= capacityPressureThreshold
-R >= canceledRatioThreshold
+R >= cancelledRatioThreshold
 ```
 
 The first qualifying signal CASes `IDLE` to `SUBMITTED` and schedules one

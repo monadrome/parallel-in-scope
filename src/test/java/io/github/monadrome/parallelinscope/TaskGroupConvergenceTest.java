@@ -140,7 +140,7 @@ class TaskGroupConvergenceTest {
         CountDownLatch hold = new CountDownLatch(1);
         try {
             TaskGroup<Tuple2<Integer, Integer>, Void> group = global.group("callback-error", TIMEOUT)
-                    .par("canceled", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par("cancelled", global.par(ParId.of("worker")), Integer.class, () -> {
                         hold.await();
                         return 1;
                     })
@@ -162,18 +162,18 @@ class TaskGroupConvergenceTest {
                     },
                     MoreExecutors.directExecutor());
 
-            // Canceling one member directly cascades through the group token into the sibling's
-            // future, where the callback above throws before "canceled" is counted.
-            assertThatThrownBy(() -> group.futureOf("canceled", TypeToken.of(Integer.class))
+            // Cancelling one member directly cascades through the group token into the sibling's
+            // future, where the callback above throws before "cancelled" is counted.
+            assertThatThrownBy(() -> group.futureOf("cancelled", TypeToken.of(Integer.class))
                             .cancel(true))
                     .isInstanceOf(AssertionError.class);
 
             TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
-            assertThat(Objects.requireNonNull(result.members().get("canceled")).outcome())
-                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
         } finally {
             hold.countDown();
             global.close();

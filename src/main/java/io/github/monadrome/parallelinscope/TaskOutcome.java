@@ -14,12 +14,12 @@ package io.github.monadrome.parallelinscope;
  *
  * <p>This enum is also the terminal vocabulary of a whole task group: {@link
  * TaskGroupResult#outcome()} reports one of {@link #SUCCESS}, {@link #USER_FAILURE}, {@link
- * #SUBMISSION_FAILURE}, {@link #TIMEOUT}, {@link #MEMBER_CANCELED}, or {@link #GROUP_CANCELED} —
+ * #SUBMISSION_FAILURE}, {@link #TIMEOUT}, {@link #MEMBER_CANCELLED}, or {@link #GROUP_CANCELLED} —
  * a group with a recorded failed task adopts that task's own outcome, whether or not the group
  * token has committed fail-fast yet, so the outcome does not depend on completion order. At group
- * level, {@link #MEMBER_CANCELED}
+ * level, {@link #MEMBER_CANCELLED}
  * means the cancellation originated from (or was applied directly to) a single member, while
- * {@link #GROUP_CANCELED} means the group was canceled as a whole or the cancellation propagated
+ * {@link #GROUP_CANCELLED} means the group was cancelled as a whole or the cancellation propagated
  * down from an enclosing scope.
  */
 public enum TaskOutcome {
@@ -31,12 +31,12 @@ public enum TaskOutcome {
     USER_FAILURE,
     /** Rejected or failed before user code ran. */
     SUBMISSION_FAILURE,
-    /** Canceled directly by the caller. */
-    MEMBER_CANCELED,
-    /** Canceled because its owning group was canceled. */
-    GROUP_CANCELED,
-    /** Canceled as fail-fast fallout of a sibling failure. */
+    /** Cancelled directly by the caller. */
+    MEMBER_CANCELLED,
+    /** Cancelled because its owning group was cancelled. */
+    GROUP_CANCELLED,
+    /** Cancelled as fail-fast fallout of a sibling failure. */
     FAIL_FAST,
-    /** Canceled because a deadline was reached. */
+    /** Cancelled because a deadline was reached. */
     TIMEOUT
 }

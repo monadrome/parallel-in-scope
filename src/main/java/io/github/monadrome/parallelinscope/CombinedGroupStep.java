@@ -20,7 +20,7 @@ public interface CombinedGroupStep<V, R> {
      * Submits the declared group; the terminal combine runs after every plain member succeeds.
      *
      * <p>Consumes the draft whether the submission succeeds or fails. A combine that fails, is
-     * rejected by its executor, is skipped because a member failed, or is canceled is reported
+     * rejected by its executor, is skipped because a member failed, or is cancelled is reported
      * through {@link TaskGroup#completionFuture()} and {@link TaskGroup#terminalFuture()}, never by
      * throwing from this method.
      *

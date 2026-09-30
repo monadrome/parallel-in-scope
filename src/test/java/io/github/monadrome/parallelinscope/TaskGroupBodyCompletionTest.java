@@ -78,7 +78,7 @@ class TaskGroupBodyCompletionTest {
             // The cancel lands and the future converges while the body is still parked: close must
             // keep waiting for the body to exit rather than returning with the future.
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
             assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
 
@@ -122,7 +122,7 @@ class TaskGroupBodyCompletionTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // The deadline lapses before close: the derived budget is exhausted, so close returns
-            // right after canceling, with the body still parked.
+            // right after cancelling, with the body still parked.
             Thread.sleep(400);
             long closeStart = System.nanoTime();
             group.close();
@@ -262,7 +262,7 @@ class TaskGroupBodyCompletionTest {
             // returned far below any grace.
             assertThat(closeElapsedMillis).isLessThan(1000);
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(bodyExited.getCount()).isEqualTo(1);
             assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
 
@@ -353,7 +353,7 @@ class TaskGroupBodyCompletionTest {
                 Thread.interrupted();
             }
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELED);
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
 
             release.countDown();
             assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
@@ -638,7 +638,7 @@ class TaskGroupBodyCompletionTest {
                     .submitAll();
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // Canceling before the join leaves the combine unsubmitted; its slot is released as
+            // Cancelling before the join leaves the combine unsubmitted; its slot is released as
             // skipped, so body completion still converges.
             group.close();
             assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();

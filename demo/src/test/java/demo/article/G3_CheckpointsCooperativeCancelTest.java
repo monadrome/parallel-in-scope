@@ -145,24 +145,24 @@ public class G3_CheckpointsCooperativeCancelTest {
         assertThat(elapsed).as("Par.map() 超时取消生效，耗时远小于 20 秒").isLessThan(5000);
 
         // 验证：任务因中断而失败（CancellationException 或 ExecutionException）
-        boolean anyFailedOrCanceled = false;
+        boolean anyFailedOrCancelled = false;
         for (int i = 0; i < result.results().size(); i++) {
             Future<String> future = result.results().get(i);
             if (future.isDone()) {
                 if (future.isCancelled()) {
-                    anyFailedOrCanceled = true;
+                    anyFailedOrCancelled = true;
                 } else {
                     try {
                         future.get(1, TimeUnit.SECONDS);
                     } catch (ExecutionException e) {
                         // InterruptedException wrapped in RuntimeException
-                        anyFailedOrCanceled = true;
+                        anyFailedOrCancelled = true;
                         assertThat(e.getCause()).as("任务因中断而抛出异常").isInstanceOf(RuntimeException.class);
                     }
                 }
             }
         }
-        assertThat(anyFailedOrCanceled).as("至少有一个任务因超时取消而失败").isTrue();
+        assertThat(anyFailedOrCancelled).as("至少有一个任务因超时取消而失败").isTrue();
 
         // reportString() 将 deadline 取消精确归因为 TIMEOUT
         String report = result.reportString();

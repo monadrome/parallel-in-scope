@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The original analysis claimed that calling {@code cancel()} before {@code lateBind()} causes
  * {@code IllegalStateException} because {@code SettableFuture.setFuture} would throw on an already
- * canceled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
+ * cancelled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
  * {@code false} and <em>cancels the supplied future</em>, so cancellation still propagates to the
  * submitted tasks. The real latent issue is that {@code lateBind} is not idempotent: a second call
  * is silently ignored and immediately cancels its own futures, while the token state stays tied to
@@ -43,7 +43,7 @@ class CancellationTokenLateBindRaceTest {
     /**
      * When cancel() wins before lateBind(), {@code futureToken.setFuture(failFastFuture)} returns
      * false. Guava cancels the supplied {@code failFastFuture}, which propagates cancellation to
-     * the actual task futures. The token remains in CANCELED.
+     * the actual task futures. The token remains in CANCELLED.
      */
     @Test
     void cancelBeforeBind_stillCancelsTasks() {
@@ -57,7 +57,7 @@ class CancellationTokenLateBindRaceTest {
         token.bind(futures, Futures.immediateVoidFuture(), timer);
 
         assertThat(task).isCancelled();
-        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
     /**
@@ -80,19 +80,19 @@ class CancellationTokenLateBindRaceTest {
         token.bind(Collections.singletonList(secondTask), Futures.immediateVoidFuture(), timer);
 
         // The second futures are not tracked; the token stays SUCCESS and the second task is not
-        // canceled by the framework.
+        // cancelled by the framework.
         assertThat(secondTask).isNotCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
     /**
      * In a race, either cancel wins (and cancels failFastFuture) or lateBind wins (and futureToken
-     * cancels failFastFuture later). In both cases the submitted task should end up canceled.
+     * cancels failFastFuture later). In both cases the submitted task should end up cancelled.
      */
     @Test
     void concurrentCancelAndBind_cancelsTasksEitherWay() throws InterruptedException {
         int attempts = 1000;
-        int notCanceled = 0;
+        int notCancelled = 0;
 
         for (int i = 0; i < attempts; i++) {
             CancellationToken token = CancellationToken.create();
@@ -101,7 +101,7 @@ class CancellationTokenLateBindRaceTest {
 
             CountDownLatch start = new CountDownLatch(1);
 
-            Thread canceler = new Thread(() -> {
+            Thread canceller = new Thread(() -> {
                 await(start);
                 token.cancel(true);
             });
@@ -110,22 +110,22 @@ class CancellationTokenLateBindRaceTest {
                 token.bind(futures, Futures.immediateVoidFuture(), timer);
             });
 
-            canceler.start();
+            canceller.start();
             binder.start();
             start.countDown();
-            canceler.join();
+            canceller.join();
             binder.join();
 
             if (!task.isCancelled()) {
-                notCanceled++;
+                notCancelled++;
             }
         }
 
-        // In all observed outcomes the task is canceled; if it were not, that would be a bug.
-        assertThat(notCanceled)
+        // In all observed outcomes the task is cancelled; if it were not, that would be a bug.
+        assertThat(notCancelled)
                 .withFailMessage(
-                        "Expected all tasks to be canceled in cancel/lateBind race, but %s out of %s were not",
-                        notCanceled, attempts)
+                        "Expected all tasks to be cancelled in cancel/lateBind race, but %s out of %s were not",
+                        notCancelled, attempts)
                 .isZero();
     }
 
