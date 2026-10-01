@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
@@ -275,6 +276,24 @@ class ScopePrimitivesTest {
         assertThat(scheduler.isTerminated()).isTrue();
         assertThatThrownBy(() -> scheduler.execute(ran::countDown)).isInstanceOf(RejectedExecutionException.class);
         assertThat(ran.getCount()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void deadlineTimerRemovesCancelledTasksFromItsQueue() throws Exception {
+        ParRuntime global = ParRuntime.builder().build();
+        try {
+            java.lang.reflect.Field field = ParRuntime.class.getDeclaredField("timerService");
+            field.setAccessible(true);
+            ScheduledThreadPoolExecutor timer = (ScheduledThreadPoolExecutor) field.get(global);
+            assertThat(timer.getRemoveOnCancelPolicy()).isTrue();
+
+            ScheduledFuture<?> scheduled = timer.schedule(() -> {}, 1, TimeUnit.HOURS);
+            assertThat(timer.getQueue()).contains((Runnable) scheduled);
+            assertThat(scheduled.cancel(false)).isTrue();
+            assertThat(timer.getQueue()).doesNotContain((Runnable) scheduled);
+        } finally {
+            global.close();
+        }
     }
 
     private static void awaitTrue(AtomicBoolean flag) throws InterruptedException {
