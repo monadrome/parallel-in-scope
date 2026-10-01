@@ -11,7 +11,7 @@ import java.util.concurrent.Callable;
  * <p>A group is declared and submitted in a single fluent chain: each {@link #par} states a member's
  * name, its {@link Par}, its declared result type, and <em>this run's</em> body. Nothing executes
  * while the chain is built — no cancellation token, future, deadline, timer, or TTL snapshot exists
- * yet, and no executor is called. {@link #submitAll()} is the only admission and submission
+ * yet, and no executor is called. {@link #runAll()} is the only admission and submission
  * boundary, and it may be called exactly once: the chain is consumed by the submission and cannot
  * be retried, extended, or reused.
  *
@@ -20,10 +20,10 @@ import java.util.concurrent.Callable;
  * GroupStep}, which never exposes these settings again, so a late {@code closeGrace} does not
  * compile.
  *
- * <p>The draft is mutable and single-threaded: every method, including {@code submitAll}, must be
- * called from the thread that created it. Only the {@link TaskGroup} returned by submission is
- * usable across threads. Holding an earlier stage's reference and continuing from it — after a
- * {@code par}, {@code combine}, or {@code submitAll} has already advanced the chain — throws {@link
+ * <p>The draft is mutable and single-threaded: every method, including {@code runAll}, must be
+ * called from the thread that created it. The frozen {@link TaskGroupResult} can be used across
+ * threads. Holding an earlier stage's reference and continuing from it — after a
+ * {@code par}, {@code combine}, or {@code runAll} has already advanced the chain — throws {@link
  * IllegalStateException}, because Java cannot express move semantics and a saved reference is not a
  * second draft.
  *
@@ -33,13 +33,13 @@ import java.util.concurrent.Callable;
 public interface GroupStart {
 
     /**
-     * Sets the close grace: the bounded wait {@link TaskGroup#close()} performs for task bodies to
-     * exit after requesting cancellation.
+     * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores
+     * interruption and restores the flag; it does not extend task execution deadlines.
      *
      * <p>Callable only before the first member is declared. When never configured, the close budget
      * is derived from the group's remaining execution deadline at close time.
      *
-     * @param grace the close wait budget; zero makes {@code close()} cancel-only
+     * @param grace the cleanup wait budget; zero skips waiting for body exit
      * @return this stage, for chaining
      * @throws NullPointerException if {@code grace} is null
      * @throws IllegalArgumentException if {@code grace} is negative
@@ -99,16 +99,15 @@ public interface GroupStart {
     <T> GroupStep<T> par(String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body);
 
     /**
-     * Submits an empty group: no members, no combine, immediately successful.
+     * Executes an empty group: no members, no combine, immediately successful.
      *
-     * <p>Consumes the draft. The returned group owns no executor work; its {@link
-     * TaskGroup#valuesFuture()} is already complete with an empty {@link GroupValues}, and its
-     * {@link TaskGroup#completionFuture()} with a successful {@link TaskGroupResult}.
+     * <p>Consumes the draft and returns a frozen result with empty GroupValues. Like every runAll,
+     * waiting is uninterruptible and preserves the interrupt flag. There is no running handle.
      *
-     * @return the submitted empty group
+     * @return the frozen empty result
      * @throws IllegalStateException if this stage is stale, or the draft is used from another thread
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */
-    TaskGroup<Void, Void> submitAll();
+    TaskGroupResult<Void, Void> runAll();
 }

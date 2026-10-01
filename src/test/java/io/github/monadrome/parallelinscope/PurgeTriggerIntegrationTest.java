@@ -31,8 +31,8 @@ class PurgeTriggerIntegrationTest {
                 .build();
         try {
             List<Integer> elements = IntStream.range(0, 6).boxed().collect(Collectors.toList());
-            TaskBatchResult<Integer> result = runtime.par(ParId.of("io"))
-                    .map(
+            TaskBatch<Integer> result = runtime.par(ParId.of("io"))
+                    .submitBatch(
                             elements,
                             ignored -> {
                                 workerStarted.countDown();

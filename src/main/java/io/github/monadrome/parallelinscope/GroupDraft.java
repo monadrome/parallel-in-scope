@@ -292,7 +292,7 @@ final class GroupDraft {
         }
 
         @Override
-        public GroupStart closeGrace(Duration grace) {
+        public Start closeGrace(Duration grace) {
             draft.checkThread();
             draft.checkStage(0);
             draft.setCloseGrace(grace);
@@ -300,7 +300,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<T> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
+        public <T> Step<T> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
             draft.checkThread();
             draft.checkStage(0);
             draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
@@ -308,7 +308,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<T> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
+        public <T> Step<T> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
             // Thread and stage are checked before the argument null checks, so a stale-stage or
             // foreign-thread call reports the lifecycle violation it is, even when the type argument
             // is also null. The TypeToken overloads order their checks the same way.
@@ -319,7 +319,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<T> par(
+        public <T> Step<T> par(
                 String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body) {
             draft.checkThread();
             draft.checkStage(0);
@@ -328,14 +328,18 @@ final class GroupDraft {
         }
 
         @Override
-        public TaskGroup<Void, Void> submitAll() {
+        public TaskGroupResult<Void, Void> runAll() {
+            return submitAll().finish();
+        }
+
+        TaskGroup<Void, Void> submitAll() {
             draft.checkThread();
             draft.checkStage(0);
             draft.advance();
             return draft.submit();
         }
 
-        private <T> GroupStep<T> next() {
+        private <T> Step<T> next() {
             draft.advance();
             return new Step<>(draft, draft.stage());
         }
@@ -352,7 +356,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<Tuple2<V, T>> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
+        public <T> Step<Tuple2<V, T>> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
@@ -360,7 +364,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<Tuple2<V, T>> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
+        public <T> Step<Tuple2<V, T>> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
@@ -368,7 +372,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> GroupStep<Tuple2<V, T>> par(
+        public <T> Step<Tuple2<V, T>> par(
                 String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
@@ -377,7 +381,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <R> CombinedGroupStep<V, R> combine(
+        public <R> Combined<V, R> combine(
                 String name, Par par, TypeToken<R> type, CombineBody<? super V, ? extends R> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
@@ -386,7 +390,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <R> CombinedGroupStep<V, R> combine(
+        public <R> Combined<V, R> combine(
                 String name, Par par, Class<R> type, CombineBody<? super V, ? extends R> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
@@ -395,7 +399,7 @@ final class GroupDraft {
         }
 
         @Override
-        public <R> CombinedGroupStep<V, R> combine(
+        public <R> Combined<V, R> combine(
                 String name,
                 Par par,
                 TaskOptions options,
@@ -408,19 +412,23 @@ final class GroupDraft {
         }
 
         @Override
-        public TaskGroup<V, Void> submitAll() {
+        public TaskGroupResult<V, Void> runAll() {
+            return submitAll().finish();
+        }
+
+        TaskGroup<V, Void> submitAll() {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.advance();
             return draft.submit();
         }
 
-        private <T> GroupStep<Tuple2<V, T>> next() {
+        private <T> Step<Tuple2<V, T>> next() {
             draft.advance();
             return new Step<>(draft, draft.stage());
         }
 
-        private <R> CombinedGroupStep<V, R> nextCombined() {
+        private <R> Combined<V, R> nextCombined() {
             draft.advance();
             return new Combined<>(draft, draft.stage());
         }
@@ -437,7 +445,11 @@ final class GroupDraft {
         }
 
         @Override
-        public TaskGroup<V, R> submitAll() {
+        public TaskGroupResult<V, R> runAll() {
+            return submitAll().finish();
+        }
+
+        TaskGroup<V, R> submitAll() {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.advance();

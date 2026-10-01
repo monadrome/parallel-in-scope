@@ -102,6 +102,15 @@ public final class Par {
      * {@code Par}. Once the owning {@link ParRuntime} is closed, this method throws {@link
      * IllegalStateException} before submitting any task.
      *
+     * <p>This call waits for all results, ignoring interruptions while waiting and restoring the
+     * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
+     * fail-fast, and ancestor cancellation still interrupt task runners. Cleanup waits within
+     * {@link BatchOptions#closeGrace(Duration)} (or the remaining deadline when unset); inspect
+     * {@link TaskBatchResult#bodyCompletionConfirmed()} before releasing resources shared by direct
+     * bodies; nested calls must confirm their own exit separately. Direct
+     * executors and CallerRunsPolicy may execute bodies on this caller; their existing interrupt
+     * isolation applies during that body, separately from the uninterruptible waiting policy.
+     *
      * @param elements input elements, or {@code null} for an empty batch
      * @param function synchronous mapping function, run at most once for each submitted element; it
      *     may return {@code null}, which completes the element as {@code SUCCESS} with a null value
@@ -111,6 +120,11 @@ public final class Par {
      * @throws IllegalStateException if the owning ParRuntime has begun shutdown
      */
     public <T, R> TaskBatchResult<R> map(
+            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
+        return this.<T, R>submitBatch(elements, function, options).finish();
+    }
+
+    <T, R> TaskBatch<R> submitBatch(
             @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
         return runtime.whileOpen(() -> mapWhileOpen(elements, function, options));
@@ -132,7 +146,7 @@ public final class Par {
      *     task encloses this call
      * @throws IllegalStateException if the owning ParRuntime has begun shutdown
      */
-    public <T> TaskFuture<T> submit(String taskName, Callable<T> task, TaskOptions options) {
+    <T> TaskFuture<T> submit(String taskName, Callable<T> task, TaskOptions options) {
         Objects.requireNonNull(task, "task cannot be null");
         Objects.requireNonNull(options, "options cannot be null");
         return runtime.whileOpen(() -> submitWhileOpen(taskName, task, options));
@@ -184,7 +198,7 @@ public final class Par {
         return view;
     }
 
-    private <T, R> TaskBatchResult<R> mapWhileOpen(
+    private <T, R> TaskBatch<R> mapWhileOpen(
             @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
         int taskCount = elements == null ? 0 : elements.size();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
@@ -213,7 +227,7 @@ public final class Par {
                 options.closeGrace().orElse(null));
     }
 
-    private <T, R> TaskBatchResult<R> executeGlobal(
+    private <T, R> TaskBatch<R> executeGlobal(
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
@@ -271,7 +285,7 @@ public final class Par {
                 unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
-        TaskBatchResult<R> result = submitter.submitAll(tasks, views);
+        TaskBatch<R> result = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(result.submitCanceller());
         return result;
     }
@@ -341,7 +355,7 @@ public final class Par {
                 edge);
     }
 
-    private static <T> TaskBatchResult<T> emptyBatchResult() {
-        return TaskBatchResult.of(ImmutableList.of());
+    private static <T> TaskBatch<T> emptyBatchResult() {
+        return TaskBatch.of(ImmutableList.of());
     }
 }

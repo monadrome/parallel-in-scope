@@ -26,6 +26,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".GroupStart",
             BASE_PACKAGE + ".GroupStep",
             BASE_PACKAGE + ".GroupValues",
+            BASE_PACKAGE + ".ImmediateResult",
             BASE_PACKAGE + ".ParRuntime",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy",
             BASE_PACKAGE + ".ParRuntimePurgePolicy",
@@ -35,10 +36,8 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".SmartBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskCompletion",
-            BASE_PACKAGE + ".TaskFuture",
             BASE_PACKAGE + ".TaskGraphObservationScope",
             BASE_PACKAGE + ".TaskGraphReport",
-            BASE_PACKAGE + ".TaskGroup",
             BASE_PACKAGE + ".TaskGroupResult",
             BASE_PACKAGE + ".TaskOptions",
             BASE_PACKAGE + ".TaskOutcome",
@@ -65,6 +64,23 @@ class PublicApiSurfaceTest {
                 .collect(Collectors.toCollection(TreeSet::new));
 
         assertThat(actual).isEqualTo(EXPECTED_PUBLIC_TYPES);
+    }
+
+    @Test
+    void executionSurfaceOnlyExposesTerminalResults() {
+        assertThat(Arrays.stream(Par.class.getMethods()).map(java.lang.reflect.Method::getName))
+                .doesNotContain("submit", "submitBatch");
+        for (Class<?> type : new Class<?>[] {GroupStart.class, GroupStep.class, CombinedGroupStep.class}) {
+            assertThat(Arrays.stream(type.getMethods()).map(java.lang.reflect.Method::getName))
+                    .contains("runAll")
+                    .doesNotContain("submitAll");
+        }
+        for (Class<?> type : new Class<?>[] {ImmediateResult.class, TaskBatchResult.class, TaskGroupResult.class}) {
+            assertThat(java.util.concurrent.Future.class.isAssignableFrom(type)).isFalse();
+            assertThat(AutoCloseable.class.isAssignableFrom(type)).isFalse();
+            assertThat(Arrays.stream(type.getMethods()).map(java.lang.reflect.Method::getName))
+                    .doesNotContain("cancel", "close", "awaitBodyCompletion", "completionFuture", "submitCanceller");
+        }
     }
 
     private static Set<String> declaredClassNames() throws Exception {

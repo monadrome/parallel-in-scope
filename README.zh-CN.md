@@ -47,8 +47,8 @@ BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
 TaskBatchResult<User> result = runtime.par(ParId.of("io"))
         .map(userIds, userService::findById, options);
 
-for (TaskFuture<User> future : result.results()) {
-    System.out.println(future.taskName() + " -> " + future.outcome());
+for (ImmediateResult<User> item : result.results()) {
+    System.out.println(item.outcome());
 }
 ```
 
@@ -58,8 +58,8 @@ for (TaskFuture<User> future : result.results()) {
   `BatchOptions.inheritTimeout(name)`，不存在第三种状态：批次不会因为漏写超时而无界运行，显式超时会被外层
   deadline 封顶。
 - **批次默认快速失败。** 第一个元素失败会取消同批其余元素，包括尚未提交的元素。逐元素的结论读
-  `TaskFuture.outcome()`（`USER_FAILURE`、`TIMEOUT`、`FAIL_FAST` …），用 `TaskBatchResult.close()`
-  释放批次。
+  `ImmediateResult.outcome()`（`USER_FAILURE`、`TIMEOUT`、`FAIL_FAST` …），执行同步返回，结果无需 close；释放直接任务共享的资源前检查
+  `bodyCompletionConfirmed()`，嵌套任务须分别确认退出。
 
 `ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器。
 
@@ -82,7 +82,7 @@ traceId.set("req-42");
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
 - 任务类型感知的入队判定（`TaskType` 只驱动 `SmartBlockingQueue` 的拒绝，不影响调度）
-- 拉取式任务观测：`completionFuture` 终态快照 + `Futures.addCallback`
+- 终态任务观测：`completions()` / 组 `members()` 与 `terminal()`
 - 任务图与执行器图的环路检测
 
 ## 文档

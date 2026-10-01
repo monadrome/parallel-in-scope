@@ -34,7 +34,7 @@ class TaskGroupValuesFutureTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                 .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
                 .submitAll()) {
@@ -64,7 +64,7 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("boom");
-        try (TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> {
                     throw boom;
                 })
@@ -89,7 +89,7 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch secondSettled = new CountDownLatch(1);
-        TaskGroup<Tuple2<String, Integer>, Void> group = global.group("page", TIMEOUT)
+        TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("first", global.par(ParId.of("worker")), String.class, () -> {
                     // Two workers, so this one blocks while the member declared after it finishes.
                     if (!secondSettled.await(10, TimeUnit.SECONDS)) {
@@ -126,13 +126,13 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("combine boom");
-        try (TaskGroup<String, String> group = global.group("page", TIMEOUT)
+        try (TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
                 .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
                     throw boom;
                 })
                 .submitAll()) {
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
 
@@ -157,7 +157,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -185,7 +185,7 @@ class TaskGroupValuesFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", Duration.ofMillis(150))
+            TaskGroup<String, Void> group = global.groupDraft("page", Duration.ofMillis(150))
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         release.await(10, TimeUnit.SECONDS);
                         return "late";
@@ -208,7 +208,7 @@ class TaskGroupValuesFutureTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Void, Void> group = global.group("empty", TIMEOUT).submitAll()) {
+        try (TaskGroup<Void, Void> group = global.groupDraft("empty", TIMEOUT).submitAll()) {
             GroupValues<Void> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(values.size()).isZero();
@@ -229,7 +229,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -266,7 +266,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);

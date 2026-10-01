@@ -45,7 +45,8 @@ for (int i = 0; i < 10; i++) {
 
 ## 解决方法
 
-`TaskBatchResult` 封装了所有任务的 `ListenableFuture`，一行调用 `reportString()` 即可拿到人类可读的状态概览。报告反映的是调用时每个 Future 的真实终态，包括 `SUCCESS`、`USER_FAILURE` 和 `MEMBER_CANCELLED`。
+`TaskBatchResult` 封装了所有任务的终态 `ImmediateResult`，一行调用 `reportString()` 即可拿到状态概览。
+报告冻结在 `Par.map()` 返回时，包括 `SUCCESS`、`USER_FAILURE`、`FAIL_FAST`、`TIMEOUT` 等归因；读取不等待。
 
 ```
 SUCCESS:6
@@ -100,7 +101,7 @@ assert total == items.size();
 assert report.firstException() != null;
 ```
 
-报告示例可能是 `USER_FAILURE:1,MEMBER_CANCELLED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
+报告示例可能是 `USER_FAILURE:1,FAIL_FAST:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
 
 对比两种方式：
 

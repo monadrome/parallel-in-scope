@@ -86,13 +86,13 @@ public final class BatchOptions {
     }
 
     /**
-     * Returns a copy of these options with the given close grace: the bounded wait {@link
-     * TaskBatchResult#close()} performs for task bodies to exit after requesting cancellation.
+     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle,
+     * waiting for direct task bodies and their final observations before returning.
      *
-     * <p>The grace is a cleanup budget that starts when {@code close()} is called, after the tasks
-     * have already been asked to stop. {@link Duration#ZERO} makes {@code close()} cancel-only.
-     * When never configured, {@code close()} derives its wait budget from the batch's remaining
-     * execution deadline at close time.
+     * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
+     * waiting. When unset, the budget is derived from the remaining execution deadline. A terminal
+     * cancellation result can coexist with a body still closing resources; inspect
+     * {@link TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
@@ -131,8 +131,8 @@ public final class BatchOptions {
     }
 
     /**
-     * The explicit close grace used by {@link TaskBatchResult#close()}; empty means the wait budget
-     * is derived from the batch's remaining deadline at close time.
+     * The explicit post-convergence cleanup budget used by {@link Par#map}; empty means the budget
+     * is derived from the batch's remaining deadline.
      */
     public Optional<Duration> closeGrace() {
         return Optional.ofNullable(closeGrace);

@@ -134,9 +134,8 @@ all.orTimeout(30, TimeUnit.SECONDS).join();
 List<Future<String>> results = pool.invokeAll(callables); // 阻塞到全部完成
 ```
 
-`invokeAll` 有两个问题：一是内存压力——1000 个任务一次性全部提交到队列；二是阻塞——你必须等所有任务完成才能拿到结果，无法逐个处理。
-
-`Par.map` 用**滑动窗口**解决了这两个问题。
+`invokeAll` 会把 1000 个任务一次性全部提交到队列。
+`Par.map` 用**滑动窗口**限制已提交的在途任务数；两者都同步等待结果。
 
 打个比方：`invokeAll` 就像一家餐厅把所有预约的客人全塞进大堂——100 个人同时挤进去，谁也坐不下。滑动窗口则是翻台制：大堂只有 10 个桌子（parallelism=10），客人走一桌才进一桌。大堂永远满座，但永远不会拥挤。
 
@@ -144,57 +143,32 @@ List<Future<String>> results = pool.invokeAll(callables); // 阻塞到全部完�
 
 ---
 
-## 三、晚绑定：一个反直觉的并发原语
+## 三、先准备、再绑定、最后提交
 
-大多数框架在创建 Future 时就绑定超时和取消。parallel-in-scope 先创建完整的结果 Future 列表（未提交任务使用占位 Future），再统一绑定取消和超时。
+每个元素在准备阶段就有完整的执行 future，尚未进入窗口的元素也一样。
+父取消传播在 token 构造期挂接；`bind()` 把 prepared futures、提交循环、deadline 与
+fail-fast 接好，之后才允许提交。deadline 位于 token 中，取请求与父 deadline 的最小值。
 
-为什么？
-
-**直觉做法的问题：**
-
-```
-任务 1 创建 → 绑定超时 3s
-任务 2 创建 → 绑定超时 3s
-...（还在创建任务 3-100）
-任务 1 超时 → 触发取消 → 任务 3-100 还没提交就被冤杀了
-```
-
-滑动窗口的逻辑被破坏了——你本来想"完成一个补一个"，结果变成了"超时一个杀全部"。
-
-**晚绑定的做法（简化示意）：**
-
-```java
-// 阶段 1：启动滑动窗口提交
-// 前 parallelism 个任务立即提交，剩余任务用 SettableFuture 占位并按完成情况补充
-// 每完成一个任务，从队列中取下一个占位符，用 SettableFuture.setFuture() 补充实际任务
-TaskBatchResult<?> result = SlidingWindowSubmitter
-    .create(executor, options, submitterPool)
-    .submitAll(wrappedTasks);
-
-// 阶段 2：绑定结果 Future、提交循环、超时和 fail-fast
-//（deadline 存在 token 内部，构造时已与 parent 取 min）
-cancellationToken.bind(
-    result.results(), result.submitCanceller(), timer);
+```text
+创建所有 prepared futures 与 Task 视图
+    → 绑定取消、deadline、fail-fast
+    → 按滑动窗口提交
+    → 等待全部结果确定并尝试有界清理
+    → 返回冻结的 ImmediateResult 数据
 ```
 
-> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
+没有 placeholder，也没有事后交换 delegate 的绑定步骤。
+视图从创建起就指向实际执行 future，因此取消能到达正在运行任务体的线程。
+滑动窗口仅决定同一 prepared future 何时进入线程池。
 
-父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELLED`）；`bind()` 再绑定两条链路：
-
-1. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
-2. **超时** — `FluentFuture.withTimeout()` 在全局定时器上按 token 内 deadline 设置超时
-
-**晚绑定的本质是显式分离"提交调度"和"取消绑定"。** `submitAll()` 返回按输入顺序排列的 Future（尚未实际提交的任务由占位 Future 表示），随后再把这些 Future、提交循环和超时连接到同一个取消令牌。
-
-> **提交调度与取消绑定各负其责。** 结果 Future 列表先完整建立，任务仍按滑动窗口逐步提交；取消令牌同时覆盖已提交任务、占位 Future 和提交循环。
-
-> 并发编程中最危险的不是竞态条件，而是"看起来没问题但时序依赖巧合"的代码。晚绑定消除了这类隐式依赖。
+绑定必须先于任何提交：direct executor 或 CallerRunsPolicy 可能在 `execute()` 内运行用户任务体，
+deadline 是这条同步执行路径的取消来源。公开同步出口不改变内部并行和取消拓扑。
 
 ---
 
 ## 四、双异常：零开销与可调试性的平衡
 
-晚绑定解决了"什么时候取消"的问题。但取消之后呢？你需要告诉任务"你被取消了"——这就是检查点的职责。
+取消绑定接通了取消来源。但取消之后呢？你需要告诉任务"你被取消了"——这就是检查点的职责。
 
 **传统做法的问题：** `Thread.interrupt()` 只设置一个 boolean 标志。你只知道"我被取消了"，不知道是哪个子任务失败触发的 fail-fast、还是整批超时、还是父任务级联传播。而且在高频循环中，你需要不断检查 `Thread.interrupted()`——这个检查本身不花钱，但如果你要在检查到中断时抛异常来中断执行流，`new InterruptedException()` 的 `fillInStackTrace()` 就是另一回事了。
 

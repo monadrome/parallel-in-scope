@@ -46,8 +46,8 @@ class GroupDraftLifecycleTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            GroupStart start = global.group("page", TIMEOUT);
-            GroupStep<String> first = start.par("one", par, String.class, () -> "1");
+            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
+            GroupDraft.Step<String> first = start.par("one", par, String.class, () -> "1");
 
             // A saved reference to an earlier stage is not a second draft: Java has no move
             // semantics, so the stale-stage check is the correctness guard behind the compile-time
@@ -57,7 +57,7 @@ class GroupDraftLifecycleTest {
             assertThatThrownBy(start::submitAll).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> start.closeGrace(Duration.ZERO)).isInstanceOf(IllegalStateException.class);
 
-            GroupStep<Tuple2<String, Integer>> second = first.par("two", par, Integer.class, () -> 2);
+            GroupDraft.Step<Tuple2<String, Integer>> second = first.par("two", par, Integer.class, () -> 2);
             assertThatThrownBy(() -> first.par("three", par, Integer.class, () -> 3))
                     .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(first::submitAll).isInstanceOf(IllegalStateException.class);
@@ -83,7 +83,7 @@ class GroupDraftLifecycleTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            GroupStart start = global.group("page", TIMEOUT);
+            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
             CountDownLatch attempted = new CountDownLatch(1);
             AtomicReference<Throwable> failure = new AtomicReference<>();
             Thread other = new Thread(() -> {
@@ -122,7 +122,7 @@ class GroupDraftLifecycleTest {
             // The second declaration is rejected after the first one registered a body: nothing has
             // been admitted, no executor has been called, and no cell of the draft is reachable from
             // the framework.
-            assertThatThrownBy(() -> global.group("page", TIMEOUT)
+            assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
                             .par("one", par, Integer.class, () -> 1)
                             .par("one", par, Integer.class, () -> 2))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -143,8 +143,8 @@ class GroupDraftLifecycleTest {
                 .build();
         try {
             Par par = global.par(ParId.of("worker"));
-            GroupStep<Integer> step =
-                    global.group("page", TIMEOUT).par("one", par, Integer.class, runs::incrementAndGet);
+            GroupDraft.Step<Integer> step =
+                    global.groupDraft("page", TIMEOUT).par("one", par, Integer.class, runs::incrementAndGet);
 
             // Closing the owner before the submission loses the admission race deterministically:
             // the declaration is complete and the bodies have moved into the kernel, and only then
@@ -205,7 +205,7 @@ class GroupDraftLifecycleTest {
             // member runs inline on the direct Par during the submit loop, so the fail-fast
             // cascade reaches the not-yet-submitted victim before it can ever run: deterministic.
             AtomicInteger victimRuns = new AtomicInteger();
-            TaskGroup<Tuple2<Tuple2<Integer, Integer>, Integer>, Void> group = global.group(
+            TaskGroup<Tuple2<Tuple2<Integer, Integer>, Integer>, Void> group = global.groupDraft(
                             "fail-fast-release", TIMEOUT)
                     .par("blocker", global.par(ParId.of("worker")), Integer.class, () -> {
                         started.countDown();
@@ -231,7 +231,7 @@ class GroupDraftLifecycleTest {
             assertThat(group.callableReleased("victim")).isTrue();
 
             release.countDown();
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
 
             // The entered members released theirs through run()'s finally.
@@ -255,11 +255,11 @@ class GroupDraftLifecycleTest {
         try {
             // The deadline expires before the submission loop: the bind cancels every member
             // before any of them is submitted, and the holders are released without running.
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.group("timeout-release", Duration.ofNanos(1))
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("timeout-release", Duration.ofNanos(1))
                     .par("one", global.par(ParId.of("worker")), Integer.class, () -> 1)
                     .par("two", global.par(ParId.of("worker")), Integer.class, () -> 2)
                     .submitAll();
-            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(group.callableReleased("one")).isTrue();
@@ -277,7 +277,7 @@ class GroupDraftLifecycleTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        try (TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+        try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                 .par("user", global.par(ParId.of("worker")), String.class, () -> {
                     started.countDown();
                     release.await(10, TimeUnit.SECONDS);
@@ -317,7 +317,7 @@ class GroupDraftLifecycleTest {
         try {
             List<String> executionOrder = new ArrayList<>();
             Par par = global.par(ParId.of("direct"));
-            TaskGroup<Tuple2<Tuple2<Integer, Integer>, Integer>, Void> group = global.group("order", TIMEOUT)
+            TaskGroup<Tuple2<Tuple2<Integer, Integer>, Integer>, Void> group = global.groupDraft("order", TIMEOUT)
                     .par("a", par, Integer.class, record(executionOrder, "a", 1))
                     .par("b", par, Integer.class, record(executionOrder, "b", 2))
                     .par("c", par, Integer.class, record(executionOrder, "c", 3))
@@ -346,10 +346,10 @@ class GroupDraftLifecycleTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par par = global.par(ParId.of("worker"));
-            TaskGroup<String, Void> first = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> first = global.groupDraft("page", TIMEOUT)
                     .par("load", par, String.class, () -> "request-1")
                     .submitAll();
-            TaskGroup<String, Void> second = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> second = global.groupDraft("page", TIMEOUT)
                     .par("load", par, String.class, () -> "request-2")
                     .submitAll();
 
@@ -383,7 +383,7 @@ class GroupDraftLifecycleTest {
                         go.await(5, TimeUnit.SECONDS);
                         // Each run declares its own chain on its own thread: the draft is never
                         // shared, so closures, futures, tokens, and results cannot cross runs.
-                        TaskGroup<Integer, Void> group = global.group("page", TIMEOUT)
+                        TaskGroup<Integer, Void> group = global.groupDraft("page", TIMEOUT)
                                 .par("load", par, Integer.class, () -> request)
                                 .submitAll();
                         observed.add(group.futureOf("load", TypeToken.of(Integer.class))

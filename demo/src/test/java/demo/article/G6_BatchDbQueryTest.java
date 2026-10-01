@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -138,8 +138,18 @@ class G6_BatchDbQueryTest {
 
         // 收集所有分片结果
         List<User> allUsers = new ArrayList<>();
-        for (int i = 0; i < result.results().size(); i++) {
-            allUsers.addAll(result.results().get(i).get(30, TimeUnit.SECONDS));
+        for (int i = 0;
+                i
+                        < result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList())
+                                .size();
+                i++) {
+            allUsers.addAll(result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())
+                    .get(i)
+                    .get(30, TimeUnit.SECONDS));
         }
 
         long elapsed = System.currentTimeMillis() - start;
@@ -190,8 +200,18 @@ class G6_BatchDbQueryTest {
                 options);
 
         // 等待所有分片完成
-        for (int i = 0; i < result.results().size(); i++) {
-            result.results().get(i).get(30, TimeUnit.SECONDS);
+        for (int i = 0;
+                i
+                        < result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList())
+                                .size();
+                i++) {
+            result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())
+                    .get(i)
+                    .get(30, TimeUnit.SECONDS);
         }
 
         // 并发峰值受控

@@ -175,12 +175,12 @@ class TaskGraphExportTest {
         TaskGraphData captured;
         ListenableFuture<TaskGraphReport> reportFuture;
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
-                                        .map(
+                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
+                                        .submitBatch(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30)));
@@ -232,12 +232,12 @@ class TaskGraphExportTest {
                 .register(ParId.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
-                                        .map(
+                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
+                                        .submitBatch(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30)));
@@ -276,8 +276,8 @@ class TaskGraphExportTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("direct"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("direct"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> value + 1,
                             BatchOptions.timeout("direct", Duration.ofSeconds(30)));

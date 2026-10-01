@@ -29,7 +29,9 @@ Future<String> future = pool.submit(() -> {
 
 ## 解决方法
 
-`parallel-in-scope` 把任务观测做成提交作用域的结果数据：`Par.map` 返回的 `TaskBatchResult` 携带 `completionFuture()`——一个按输入顺序交付每个任务终态快照的 `ListenableFuture<List<TaskCompletion<T>>>`。单任务 `Par.submit` 返回的 `TaskFuture` 同样有自己的 `completionFuture()`。用 Guava 的 `Futures.addCallback` 在你选择的 executor 上消费，无需侵入业务代码。
+`parallel-in-scope` 把任务观测做成同步执行的结果数据：`Par.map` 等待结果确定并尝试有界清理后，
+返回的 `TaskBatchResult.completions()` 按输入顺序提供可用的终态快照。
+可以直接读取，或交给自己的监控 executor 消费，无需侵入业务代码。
 
 `TaskCompletion` 包含完整的任务生命周期信息：
 - `taskName()` / `unitId()` / `taskIndex()` — 任务名称（来自传给 `Par.map` 的 `BatchOptions` 名称）、批次标识和输入下标
@@ -39,7 +41,10 @@ Future<String> future = pool.submit(() -> {
 - `totalTime()` — 总耗时（等待 + 执行），返回 `Duration`
 - `outcome()` / `failure()` — 终态归因与任务异常（成功时 failure 为 null）
 
-快照只在任务 future 终态**且**任务体退出后发布，计时一定是最终值；任务失败、取消、被拒绝都以成功完成的观测 future 携带真实 outcome——包括从未开始的任务（start/end 为零）。这些数据足以对接任何监控系统：用 `executionTime().toMillis()` 计算延迟直方图，用 `outcome()` 统计成功率，用 `waitTime().toMillis()` 监控线程池水位。
+快照只在结果确定**且**直接任务体退出后可用，计时为最终值；失败、取消、拒绝均保留真实 outcome，
+从未开始的任务 start/end 为零。清理预算耗尽时，尚无最终快照的项为 null，返回后不会补写。
+此时用 `results()` / `report()` 统计全部任务状态，用 `unfinishedBodies()` 报告未确认退出项；
+不要把缺失快照计作零耗时。可用快照通过 `executionTime()`、`waitTime()` 接入延迟和排队监控。
 
 ## 代码
 
@@ -56,30 +61,22 @@ TaskBatchResult<Order> result = par.map(orderIds, id -> {
     return orderService.query(id);  // 纯业务逻辑，不碰监控
 }, opts);
 
-// 在批次观测 future 上登记 callback：线程、并发度、异常策略由你选择
-Futures.addCallback(result.completionFuture(),
-        new FutureCallback<List<TaskCompletion<Order>>>() {
-            @Override
-            public void onSuccess(List<TaskCompletion<Order>> completions) {
-                for (TaskCompletion<Order> event : completions) {
-                    if (event.failure() != null) {
-                        log.error("Task {} failed: {}", event.taskName(),
-                                event.failure().getMessage());
-                    }
-                    // 推送到 Prometheus / Micrometer
-                    Timer.builder("task.duration")
-                        .tag("name", event.taskName())
-                        .register(meterRegistry)
-                        .record(event.executionTime().toNanos(), TimeUnit.NANOSECONDS);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable failure) {
-                // 观测 future 不会失败；走到这里说明是实现缺陷，应当上报
-            }
-        },
-        callbackExecutor);
+// 结果已冻结；监控线程、并发度和异常策略由消费者选择
+callbackExecutor.execute(() -> {
+    for (TaskCompletion<Order> event : result.completions()) {
+        if (event == null) {
+            continue; // 清理预算内未拿到最终观测
+        }
+        if (event.failure() != null) {
+            log.error("Task {} failed: {}", event.taskName(),
+                    event.failure().getMessage());
+        }
+        Timer.builder("task.duration")
+            .tag("name", event.taskName())
+            .register(meterRegistry)
+            .record(event.executionTime().toNanos(), TimeUnit.NANOSECONDS);
+    }
+});
 ```
 
 ---

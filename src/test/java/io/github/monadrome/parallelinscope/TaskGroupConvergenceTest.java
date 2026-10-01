@@ -62,7 +62,7 @@ class TaskGroupConvergenceTest {
                 CountDownLatch fire = new CountDownLatch(1);
                 // The chain's type widens with every member, so the four declarations are written
                 // out rather than looped: MEMBERS is four.
-                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.group(
+                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "first-failure-" + round, TIMEOUT)
                         .par("m0", global.par(ParId.of("worker")), Integer.class, failingBody(0, ready, fire))
                         .par("m1", global.par(ParId.of("worker")), Integer.class, failingBody(1, ready, fire))
@@ -72,7 +72,7 @@ class TaskGroupConvergenceTest {
                 assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
                 fire.countDown();
 
-                TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
                 String named = result.failedTaskName();
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(named).isIn("m1", "m3");
@@ -99,7 +99,7 @@ class TaskGroupConvergenceTest {
                 CountDownLatch release = new CountDownLatch(1);
                 // The chain's type widens with every member: MEMBERS is four, so all four are
                 // declared here.
-                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.group(
+                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "visibility-" + round, TIMEOUT)
                         .par("m0", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
                         .par("m1", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
@@ -109,7 +109,7 @@ class TaskGroupConvergenceTest {
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
 
-                TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
                 assertThat(result.members()).hasSize(MEMBERS);
                 for (TaskCompletion<?> member : result.members().values()) {
@@ -139,7 +139,7 @@ class TaskGroupConvergenceTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.group("callback-error", TIMEOUT)
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("callback-error", TIMEOUT)
                     .par("cancelled", global.par(ParId.of("worker")), Integer.class, () -> {
                         hold.await();
                         return 1;
@@ -168,7 +168,7 @@ class TaskGroupConvergenceTest {
                             .cancel(true))
                     .isInstanceOf(AssertionError.class);
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
                     .isEqualTo(TaskOutcome.MEMBER_CANCELLED);

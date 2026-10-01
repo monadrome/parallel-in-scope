@@ -85,7 +85,10 @@ public class DeadlockDetectionDemo {
 
             // 等待完成 — 由于死锁，会超时
             try {
-                Futures.allAsList(result.results()).get(6, TimeUnit.SECONDS);
+                Futures.allAsList(result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList()))
+                        .get(6, TimeUnit.SECONDS);
                 System.out.println("[main] 所有任务完成（意外！）");
             } catch (TimeoutException e) {
                 long elapsed = System.currentTimeMillis() - start;
@@ -142,7 +145,10 @@ public class DeadlockDetectionDemo {
                 optionsB);
 
         try {
-            Futures.allAsList(resultB.results()).get(5, TimeUnit.SECONDS);
+            Futures.allAsList(resultB.results().stream()
+                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                            .collect(java.util.stream.Collectors.toList()))
+                    .get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             System.out.println(
                     "  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());

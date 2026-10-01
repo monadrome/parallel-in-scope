@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -146,8 +146,17 @@ public class G3_CheckpointsCooperativeCancelTest {
 
         // 验证：任务因中断而失败（CancellationException 或 ExecutionException）
         boolean anyFailedOrCancelled = false;
-        for (int i = 0; i < result.results().size(); i++) {
-            Future<String> future = result.results().get(i);
+        for (int i = 0;
+                i
+                        < result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList())
+                                .size();
+                i++) {
+            Future<String> future = result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())
+                    .get(i);
             if (future.isDone()) {
                 if (future.isCancelled()) {
                     anyFailedOrCancelled = true;

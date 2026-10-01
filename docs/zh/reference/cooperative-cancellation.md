@@ -19,18 +19,14 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 | I/O 阻塞期间 | `futureToken.cancel(true)` 发送 `Thread.interrupt()`，阻塞操作抛出 `InterruptedException` | 无需任何操作 |
 | 滑动窗口提交循环 | `SlidingWindowSubmitter` 在每次提交前检查取消状态，发现取消后停止提交剩余任务 | 无需任何操作 |
 
-## 滑动窗口占位 Future 的终态
+## 滑动窗口准备与终态
 
-滑动窗口会先为尚未提交的任务创建 placeholder，保证结果列表保持输入顺序。停止 admission
-后，框架不会让这些 placeholder 永久保持 `LIVE`：
+每个元素在提交前就有完整的内部执行 future。取消和 deadline 绑定完成后才开始提交，
+滑动窗口只决定 prepared task 何时进入线程池；没有 placeholder 或后续 delegate 绑定。
+因此取消既能中断正在运行的任务，也能阻止尚未提交的任务开始。
 
-- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELLED`；
-- 取消 `TaskBatchResult.submitCanceller()`：submitter 收到 interrupt，剩余 placeholder
-  以 `InterruptedException` 失败；
-- 后续提交被执行器拒绝：剩余 placeholder 以拒绝异常失败。
-
-因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceller()` 表示
-“停止后续提交”，不保证已提交任务立即停止；任务本身仍遵循协作式取消规则。
+`Par.map` 等待所有结果确定并尝试有界清理，返回冻结的 `ImmediateResult` 数据。
+`unfinishedBodies()` 报告尚未确认退出的直接任务体；取消终态不代表任务体已经停止。
 
 这意味着：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
@@ -151,7 +147,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 
 `Checkpoints.sleep()` 将 `InterruptedException` 统一转换为 `LeanCancellationException`，使得中断驱动的取消和协作式取消在异常类型上保持一致，同时避免为正常取消采集无用堆栈。
 
-## 取消的四种触发源
+## 取消的触发源
 
 了解取消可能从何而来，有助于理解为什么需要 checkpoint：
 
@@ -159,10 +155,13 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 |---|---|---|
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
 | 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
-| 手动取消 | `CANCELLED` | 代码调用了 `CancellationToken.cancel()` |
 | 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
-所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELLED`/`PROPAGATED_CANCELLED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。`TaskFuture` 对用户呈现的归因（`TIMEOUT`/`FAIL_FAST`/`GROUP_CANCELLED`/`MEMBER_CANCELLED`）由这些 token 状态推导，见[从 future 读取任务归因](../user-guide.md#task-attribution)。
+所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
+任务体也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
+见[即时结果](../user-guide.md#task-future-attribution)。
+中断等待 `map` / `runAll` 的调用线程不会取消执行；等待结束恢复中断标志。
+结果不暴露执行所属的 token 或运行中的 future，`asFuture().cancel(...)` 始终返回 false。
 
 ## 嵌套作用域的取消传播
 

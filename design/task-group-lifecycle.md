@@ -1,5 +1,10 @@
 # TaskGroup 设计契约：生命周期与状态机
 
+> 公开执行/结果及中断等待形状已由
+> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
+> 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
+
 > 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
 > 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [监听、观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
 

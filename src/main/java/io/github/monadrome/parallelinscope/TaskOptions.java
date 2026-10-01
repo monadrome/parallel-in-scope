@@ -7,13 +7,13 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable execution policy for exactly one task — a {@code Par.submit} task, a task-group
+ * Immutable execution policy for exactly one task — a task-group
  * member, or a terminal combine.
  *
  * <p>This type carries only what one task execution reads: its deadline policy, its task type, its
  * enqueue-rejection policy. Identity is not an option — a
  * task's name is the member name declared to {@link GroupStart#par} or {@link GroupStep#combine},
- * or the explicit name passed to {@code Par.submit} — and fan-out is not an option either — a
+ * — and fan-out is not an option either — a
  * single task has no parallelism to limit. A batch declares {@link BatchOptions}; group-level
  * configuration is declared by {@link ParRuntime#group} and {@link GroupStart#closeGrace}.
  *

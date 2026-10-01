@@ -5,25 +5,14 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable terminal snapshot of one completed task — a {@code Par.submit} task, a {@code
- * Par.map} batch element, a task-group member, or the group-level summary.
+ * Immutable final observation of a task whose result is terminal and body has exited or can never
+ * start. Synchronous batches expose available observations through TaskBatchResult.completions;
+ * groups expose them through TaskGroupResult.members and terminal.
  *
- * <p>The same record serves every observation point: {@link TaskFuture#completionFuture()} and
- * {@link TaskBatchResult#completionFuture()} publish one per task (carrying the task result on
- * success), and a {@link TaskGroupResult} embeds one per member — plus one for the optional
- * terminal combine — as its terminal snapshot. Two fields are delivery-specific: {@link #result()}
- * is only non-null on a successful unary or batch snapshot (a group member's result stays in its
- * future), and {@link #taskIndex()} is always zero for group members.
- *
- * <p>A per-task snapshot attributes the outcome observed directly from the task's own future and
- * token — {@link TaskOutcome#SUCCESS}, {@link TaskOutcome#USER_FAILURE}, or a cancellation state
- * read from the task token. A group snapshot may carry richer post-hoc attribution (for example
- * {@link TaskOutcome#FAIL_FAST}) derived after the group converges, and remains the authority for
- * group-level attribution.
- *
- * <p>A task cancelled or rejected before running never marks a start or end time; its {@code
- * startTimeNanos} and {@code endTimeNanos} stay zero and the derived durations report zero, while
- * its real {@link TaskOutcome} and failure are still recorded.
+ * <p>Successful observations contain the actual value, including null. Outcomes agree with the
+ * enclosing execution's frozen results. A never-started task has zero start/end times and
+ * durations. Missing observations are represented explicitly by the enclosing result, rather than
+ * by records with provisional end times.
  */
 public final class TaskCompletion<T> {
 
@@ -125,8 +114,7 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Creates the terminal snapshot published by {@link TaskFuture#completionFuture()} and
-     * aggregated by {@link TaskBatchResult#completionFuture()}: the full per-task record with its
+     * Creates the internal final observation snapshot: the full per-task record with its
      * real identity, timings, outcome, and — on success — result.
      */
     static <T> TaskCompletion<T> snapshot(
@@ -143,14 +131,36 @@ public final class TaskCompletion<T> {
                 taskName, unitId, taskIndex, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, result, failure);
     }
 
+    /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
+    static <T> TaskCompletion<T> withResult(TaskCompletion<?> timing, ImmediateResult<T> result) {
+        @Nullable T value = null;
+        if (result.outcome() == TaskOutcome.SUCCESS) {
+            try {
+                value = result.valueOrThrow();
+            } catch (java.util.concurrent.ExecutionException impossible) {
+                throw new AssertionError("successful result cannot fail", impossible);
+            }
+        }
+        return snapshot(
+                timing.taskName(),
+                timing.unitId(),
+                timing.taskIndex(),
+                timing.submitTimeNanos(),
+                timing.startTimeNanos(),
+                timing.endTimeNanos(),
+                result.outcome(),
+                value,
+                result.failure());
+    }
+
     /**
      * Creates the single group-level summary carried by the observation of {@link
      * TaskGroup#completionFuture()}: the group name and id stand in for the task identity, the
      * index is zero, submit/start/end are the group-level times, and the result is the {@link
-     * TaskGroupResult} itself. The summary describes no additional task body, so it is not counted
+     * TaskGroupReport} itself. The summary describes no additional task body, so it is not counted
      * among the members or in the TaskGraph.
      */
-    static TaskCompletion<TaskGroupResult> groupSummary(TaskGroupResult result) {
+    static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
         return new TaskCompletion<>(
                 result.groupName(),
                 result.groupId(),
@@ -207,9 +217,7 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the task result of a successful unary or batch snapshot (or the {@link
-     * TaskGroupResult} of a group completion summary); null for a failed task, a successful null
-     * result, or any group member snapshot.
+     * Returns the successful task's value, including null; null also represents a failed task.
      */
     public @Nullable T result() {
         return result;

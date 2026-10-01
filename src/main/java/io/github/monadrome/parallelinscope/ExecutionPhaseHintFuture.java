@@ -410,7 +410,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 set(body.call());
             }
         } catch (Throwable failure) {
-            setException(failure);
+            if (!setException(failure) && isCancelled()) {
+                try {
+                    // Cancellation-shaped exceptions can also come from resource close failures.
+                    LOGGER.log(Level.WARNING, "task '" + taskLabel() + "' failed after cancellation", failure);
+                } catch (Throwable ignored) {
+                    // Diagnostics cannot break runner cleanup.
+                }
+            }
         } finally {
             // The user body's finally has exited by now (or the body never ran), so the one-way
             // release clears the wrapper chain before the fallback body-exit publish: a waiter that

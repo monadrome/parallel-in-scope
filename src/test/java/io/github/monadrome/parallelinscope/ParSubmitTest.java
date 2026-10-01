@@ -178,8 +178,8 @@ class ParSubmitTest {
                 .register(ParId.of("inner"), inner)
                 .build();
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Arrays.asList("a"),
                             ignored -> Futures.getUnchecked(global.par(ParId.of("inner"))
                                     .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),

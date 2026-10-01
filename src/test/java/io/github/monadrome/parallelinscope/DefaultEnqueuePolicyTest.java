@@ -46,7 +46,7 @@ class DefaultEnqueuePolicyTest {
         String callerThread = Thread.currentThread().getName();
         try {
             List<String> threads = runtime.par(ParId.of("w"))
-                    .map(
+                    .submitBatch(
                             inputs,
                             i -> Thread.currentThread().getName(),
                             BatchOptions.timeout("b", Duration.ofSeconds(30)))
@@ -78,7 +78,7 @@ class DefaultEnqueuePolicyTest {
         String callerThread = Thread.currentThread().getName();
         try {
             List<String> threads = runtime.par(ParId.of("w"))
-                    .map(
+                    .submitBatch(
                             inputs,
                             i -> Thread.currentThread().getName(),
                             BatchOptions.timeout("b", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND))
@@ -111,7 +111,7 @@ class DefaultEnqueuePolicyTest {
         String callerThread = Thread.currentThread().getName();
         try {
             List<String> threads = runtime.par(ParId.of("w"))
-                    .map(
+                    .submitBatch(
                             inputs,
                             i -> Thread.currentThread().getName(),
                             BatchOptions.timeout("b", Duration.ofSeconds(30)).rejectEnqueue(true))

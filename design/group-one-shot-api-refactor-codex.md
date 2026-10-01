@@ -1,5 +1,10 @@
 # TaskGroup 一次性链式 API 重构方案
 
+> 公开执行/结果及中断等待形状已由
+> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
+> ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
+> 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
+
 > 状态：**已落地**。本文是 TaskGroup 公开 API 的最新决策；与本文冲突的既有 design 文档一律以本文为准（§9 列出被取代的文档，各文档已加取代标注）。实施记录见 §10。
 > 本方案取代仅增加整数索引重载的局部提案。目标用法只运行一次，因此不留与三阶段签名的兼容层。
 > 基线说明：被删除的 `defineGroup*`/`TaskGroupDefinition.Member`/`TaskGroup.Bindings` **从未随任何发布版交付**（`pom.xml` 为 `0.3.0-SNAPSHOT`，最近 tag 为 `v0.2.0`），所以这是发布前重塑，不是已发布契约的破坏性变更。真正的成本在仓库内：测试、`docs/`、`demo/`、Maven-Central 消费者，见 §8。

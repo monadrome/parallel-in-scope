@@ -60,7 +60,7 @@ TaskBatchResult<String> result = par.map( urls, url -> {
     //   - CancellationToken 取消检查（ScopedCallable 内部）
     //   - 超时控制（批次级 CancellationToken，提交前绑定）
     //   - 并发限制（SlidingWindowSubmitter 滑动窗口）
-    //   - 完成观测（completionFuture 终态快照）
+    //   - 完成观测（返回结果中可用的最终快照）
     // 只需关注业务逻辑
     return doFetch(url);
 }, opts);

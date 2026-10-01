@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -130,7 +130,10 @@ public class B2_FunctionSignatureBloatTest {
                 opts);
 
         // Par.map() returns immediately; wait for the terminal states before reporting.
-        Futures.allAsList(result.results()).get();
+        Futures.allAsList(result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .get();
 
         // 验证所有任务成功完成
         String report = result.reportString();
