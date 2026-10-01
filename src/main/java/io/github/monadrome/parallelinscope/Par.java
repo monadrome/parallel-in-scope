@@ -54,8 +54,8 @@ public final class Par {
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
 
-    /** One-shot latch for the inert-{@code rejectEnqueue} diagnostic; see {@link #warnIfRejectEnqueueInert}. */
-    private final AtomicBoolean rejectEnqueueWarningIssued = new AtomicBoolean();
+    /** One-shot latch for the inert enqueue-refusal diagnostic; see {@link #warnIfEnqueueRefusalInert}. */
+    private final AtomicBoolean enqueueRefusalWarningIssued = new AtomicBoolean();
 
     private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
@@ -202,7 +202,7 @@ public final class Par {
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
-        warnIfRejectEnqueueInert(unit);
+        warnIfEnqueueRefusalInert(unit);
         return executeCombined(
                 elements,
                 item -> () -> function.apply(item),
@@ -405,7 +405,7 @@ public final class Par {
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
-        warnIfRejectEnqueueInert(unit);
+        warnIfEnqueueRefusalInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -463,7 +463,7 @@ public final class Par {
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
-        warnIfRejectEnqueueInert(unit);
+        warnIfEnqueueRefusalInert(unit);
         return executeGlobal(
                 elements,
                 item -> () -> function.apply(item),
@@ -527,30 +527,36 @@ public final class Par {
     }
 
     /**
-     * Reports once per Par that a requested enqueue rejection cannot take effect here.
+     * Reports once per Par that a requested enqueue refusal cannot take effect here.
      *
-     * <p>Only {@link SmartBlockingQueue#offer} reads the flag, so on any other queue it is inert:
-     * nothing tells the caller that the protection they opted into is not running. The diagnostic
-     * belongs on the submission path rather than at registration because options are per task and
-     * per batch: registration cannot know whether the option will ever be used. It stays a warning:
-     * throwing would fail every caller that legitimately runs on a plain pool.
+     * <p>A unit asks for its tasks to be refused enqueue in two ways: {@code rejectEnqueue}, or
+     * {@link TaskType#CPU_BOUND}. Only {@link SmartBlockingQueue#offer} reads either, so on any
+     * other queue both are inert: nothing tells the caller that the protection they opted into is
+     * not running. The two share one latch because they are one capability with one fix. The
+     * diagnostic belongs on the submission path rather than at registration because options are per
+     * task and per batch: registration cannot know whether the option will ever be used. It stays a
+     * warning: throwing would fail every caller that legitimately runs on a plain pool.
      *
      * <p>The message claims only what the library knows. It cannot say what the executor will do
      * with an element that cannot start immediately — an inline executor runs it, a bounded queue
      * with an abort policy rejects it, a buffering queue holds it — so it reports the inert option
      * and the fix, not the executor's behavior.
      */
-    void warnIfRejectEnqueueInert(MultiTaskContext unit) {
-        if (!unit.rejectEnqueue() || executorRuntime.rejectEnqueueEffective()) {
+    void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
+        boolean cpuBound = unit.taskType() == TaskType.CPU_BOUND;
+        if (!(unit.rejectEnqueue() || cpuBound) || executorRuntime.enqueueRefusalEffective()) {
             return;
         }
-        if (rejectEnqueueWarningIssued.compareAndSet(false, true)) {
-            LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
+        if (enqueueRefusalWarningIssued.compareAndSet(false, true)) {
+            LOGGER.warning("Par '" + id + "' requested "
+                    + (unit.rejectEnqueue() ? "rejectEnqueue" : "TaskType.CPU_BOUND")
+                    + ", but its executor "
                     + executorRuntime.introspectableExecutor().getClass().getName()
-                    + " does not use a SmartBlockingQueue, so the option is inert there: what"
-                    + " happens to an element that cannot start at once is left to the executor's"
-                    + " own queue and rejection policy. Register a ThreadPoolExecutor whose work"
-                    + " queue is a SmartBlockingQueue to make the option effective.");
+                    + " does not use a SmartBlockingQueue, so enqueue refusal is inert there for both"
+                    + " rejectEnqueue and TaskType.CPU_BOUND: what happens to an element that cannot"
+                    + " start at once is left to the executor's own queue and rejection policy."
+                    + " Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make"
+                    + " the option effective.");
         }
     }
 
