@@ -95,8 +95,8 @@ a{color:inherit;text-decoration:none}
 .attr{display:inline-block;font-size:9px;border-radius:4px;padding:1px 5px;border:1px solid;white-space:nowrap}
 .attr.TIMEOUT{color:#fbbf24;border-color:rgba(251,191,36,.4)}
 .attr.FAIL_FAST{color:#f87171;border-color:rgba(248,113,113,.4)}
-.attr.GROUP_CANCELED{color:#93c5fd;border-color:rgba(147,197,253,.35)}
-.attr.MEMBER_CANCELED{color:#c4b5fd;border-color:rgba(196,181,253,.35)}
+.attr.GROUP_CANCELLED{color:#93c5fd;border-color:rgba(147,197,253,.35)}
+.attr.MEMBER_CANCELLED{color:#c4b5fd;border-color:rgba(196,181,253,.35)}
 
 .bubble{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%) translateY(5px);width:215px;background:#1a1a1e;border:1px solid rgba(239,68,68,.5);border-radius:8px;padding:9px 11px;font-size:11px;line-height:1.55;color:#fecaca;opacity:0;pointer-events:none;transition:.25s;z-index:5;text-align:left}
 .bubble.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -244,7 +244,7 @@ TaskBatchResult&lt;Account&gt; batch =
       <span class="sc-num">02</span>
       <div>
         <h2>Fail-fast 取消级联</h2>
-        <p>任一元素失败，整批立即进入 fail-fast：运行中的兄弟任务收到中断（FAIL_FAST），从未进入窗口的按 GROUP_CANCELED 丢弃。每次取消都携带归因，不再是一声不吭的 cancel(true)。</p>
+        <p>任一元素失败，整批立即进入 fail-fast：运行中的兄弟任务收到中断（FAIL_FAST），从未进入窗口的按 GROUP_CANCELLED 丢弃。每次取消都携带归因，不再是一声不吭的 cancel(true)。</p>
       </div>
     </div>
     <div class="sc-body">
@@ -264,13 +264,13 @@ TaskBatchResult&lt;Account&gt; batch =
           <span>⚠</span>
           <span><b>fail-fast 已触发：</b>T3 失败 → 运行中的 T4 / T5 / T6 按
             <span class="attr FAIL_FAST">FAIL_FAST</span> 中断，排队中的 T7 / T8 按
-            <span class="attr GROUP_CANCELED">GROUP_CANCELED</span> 丢弃；归因随 LeanCancellationException 一路带回调用方。</span>
+            <span class="attr GROUP_CANCELLED">GROUP_CANCELLED</span> 丢弃；归因随 LeanCancellationException 一路带回调用方。</span>
         </div>
         <div class="legend">
           <span class="li"><span class="attr TIMEOUT">TIMEOUT</span>自身或父级截止到期</span>
           <span class="li"><span class="attr FAIL_FAST">FAIL_FAST</span>兄弟任务失败牵连</span>
-          <span class="li"><span class="attr GROUP_CANCELED">GROUP_CANCELED</span>批次取消时仍在排队</span>
-          <span class="li"><span class="attr MEMBER_CANCELED">MEMBER_CANCELED</span>成员被单独取消</span>
+          <span class="li"><span class="attr GROUP_CANCELLED">GROUP_CANCELLED</span>批次取消时仍在排队</span>
+          <span class="li"><span class="attr MEMBER_CANCELLED">MEMBER_CANCELLED</span>成员被单独取消</span>
         </div>
         <div class="stat" id="s2stat">待运行 · T3 将在 2s 时失败</div>
       </div>
@@ -282,7 +282,7 @@ TaskBatchResult&lt;Account&gt; batch =
 
 // 任一元素失败 → 整批 fail-fast：
 // 运行中的兄弟任务按 FAIL_FAST 中断，
-// 排队中的按 GROUP_CANCELED 丢弃
+// 排队中的按 GROUP_CANCELLED 丢弃
 TaskBatchResult&lt;Order&gt; batch =
         httpPar.map(userIds, client::fetchOrders, options);</code></pre>
       </div>
@@ -513,7 +513,7 @@ function s2Fail(){
   c.className='task failed';c.querySelector('.tstate').textContent='失败 · RuntimeException';
   document.getElementById('s2bubble').classList.add('show');
   [3,4,5].forEach(i=>s2Cancel(i,'FAIL_FAST'));
-  [6,7].forEach(i=>s2Cancel(i,'GROUP_CANCELED'));
+  [6,7].forEach(i=>s2Cancel(i,'GROUP_CANCELLED'));
   document.getElementById('s2banner').classList.remove('hidden');
   s2Stat('fail-fast 完成 · 1 失败 / 2 成功 / 5 取消');
 }

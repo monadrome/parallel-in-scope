@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
  * member, or a terminal combine.
  *
  * <p>This type carries only what one task execution reads: its deadline policy, its task type, its
- * enqueue-rejection policy, and its caller-thread fallback policy. Identity is not an option — a
+ * enqueue-rejection policy. Identity is not an option — a
  * task's name is the member name declared to {@link GroupStart#par} or {@link GroupStep#combine},
  * or the explicit name passed to {@code Par.submit} — and fan-out is not an option either — a
  * single task has no parallelism to limit. A batch declares {@link BatchOptions}; group-level
@@ -80,6 +80,6 @@ public final class TaskOptions {
 
     /** Adapts this policy to the kernel carrier of the task named {@code name}. */
     UnitSpec spec(String name) {
-        return new UnitSpec(name, 1, Optional.ofNullable(timeout), taskType, rejectEnqueue);
+        return new UnitSpec(name, 1, timeout, taskType, rejectEnqueue);
     }
 }

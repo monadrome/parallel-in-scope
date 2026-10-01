@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>What these tests deliberately do <em>not</em> claim to cover: the narrow interleaving in which a
  * cancellation lands between the phase claim in {@code run()} and the guard's {@code setException} a
  * few instructions later. Measured over the repetitions below, that window is never hit — the first
- * test settles as {@code SUBMISSION_FAILURE} every time and the second as {@code GROUP_CANCELED}
+ * test settles as {@code SUBMISSION_FAILURE} every time and the second as {@code GROUP_CANCELLED}
  * every time, because a cancellation that wins at all wins early enough that the combine is never
  * submitted and the guard never runs. Constructing the interleaving would require injecting a barrier
  * into {@code run()}.
@@ -45,7 +45,7 @@ class TaskGroupCombineGuardCancellationTest {
      * worth seeing, and the exact assertion is what would show it.
      */
     private static final Set<TaskOutcome> LEGITIMATE = EnumSet.of(
-            TaskOutcome.SUBMISSION_FAILURE, TaskOutcome.TIMEOUT, TaskOutcome.FAIL_FAST, TaskOutcome.GROUP_CANCELED);
+            TaskOutcome.SUBMISSION_FAILURE, TaskOutcome.TIMEOUT, TaskOutcome.FAIL_FAST, TaskOutcome.GROUP_CANCELLED);
 
     private static ThreadPoolExecutor saturatingPool(String threadName) {
         return new ThreadPoolExecutor(
@@ -64,7 +64,7 @@ class TaskGroupCombineGuardCancellationTest {
         // and must settle identically. The deadline is generous on purpose: at 1ms the member itself
         // gets cancelled before it finishes, the combine is then never submitted, and the run measures
         // deadline attribution rather than the guard. (That path has a pre-existing attribution race of
-        // its own — an uncommitted group token reports MEMBER_CANCELED where TIMEOUT is expected, see
+        // its own — an uncommitted group token reports MEMBER_CANCELLED where TIMEOUT is expected, see
         // TaskGroup.classifyCancelled — which is not this test's subject.)
         for (int attempt = 0; attempt < 40; attempt++) {
             ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
@@ -167,7 +167,7 @@ class TaskGroupCombineGuardCancellationTest {
                 TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+                assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
                 assertThat(bodyRan).isFalse();
                 assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             } finally {
