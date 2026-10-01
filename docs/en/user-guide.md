@@ -230,13 +230,13 @@ still be running when it returns; call `group.awaitBodyCompletion(Duration)` wit
 budget to confirm body exit before releasing resources the bodies used. Calling either wait from
 inside a task body of the same group is rejected with `IllegalStateException`. Member outcomes are
 attributed from the cancellation tokens, so a cancelled
-member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
+member reports `MEMBER_CANCELLED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELLED` rather than a bare
 cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
 member deadlines start at the submission boundary, and member deadlines are capped by the group
 deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
 ceiling; cancellation propagated from an ancestor keeps its originating reason,
 so an ancestor deadline expiring still converges the group as
-`TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while
+`TIMEOUT` rather than a plain `GROUP_CANCELLED`. Each member remains a real child task, while
 membership itself does not add dependency edges between siblings. Execution order is fixed by the
 chain — plain members in declaration order, a terminal combine always last.
 
@@ -336,8 +336,8 @@ if (future instanceof TaskFuture) {
 
 `outcome()` is why the interface exists: it removes the "the future is cancelled, so guess why"
 step. A cancelled task is attributed from its cancellation token — `TIMEOUT` for a deadline,
-`FAIL_FAST` for the cascade after a sibling failed, `GROUP_CANCELED` for its group's or an enclosing
-scope's cancellation, and `MEMBER_CANCELED` when no framework path cancelled it (the caller
+`FAIL_FAST` for the cascade after a sibling failed, `GROUP_CANCELLED` for its group's or an enclosing
+ scope's cancellation, and `MEMBER_CANCELLED` when no framework path cancelled it (the caller
 cancelled that future directly). A failure that only reports observed cancellation — a
 `Checkpoints.checkpoint` interruption that won the race against the cascade — is attributed the same
 way instead of reading as a user failure. A failed task separates `SUBMISSION_FAILURE` (rejected, or
