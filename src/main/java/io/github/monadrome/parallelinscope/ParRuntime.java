@@ -25,6 +25,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +92,9 @@ public final class ParRuntime implements AutoCloseable {
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
                 .build();
-        this.timerService = Executors.newSingleThreadScheduledExecutor(factory);
+        ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, factory);
+        timer.setRemoveOnCancelPolicy(true);
+        this.timerService = timer;
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
         this.timeoutScheduler = new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
