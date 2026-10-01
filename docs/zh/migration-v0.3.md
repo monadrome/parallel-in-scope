@@ -68,9 +68,11 @@ TaskGroup/TaskFuture 收为内部。结果不持有 executor 或用户 Callable�
 ExecutionException、纯取消 CancellationException；组保留 unchecked 原样、checked
 CompletionException。ImmediateResult 的所有 Left 统一以 ExecutionException 包装原 cause。
 
-asFuture 已完成、不可取消；与旧原生 cancelled future 不同，isCancelled 为 false，
-get 抛 ExecutionException，cause 为 CancellationException。两个 get 保留中断标志；
-Future 静态签名仍声明受检异常。listener 归消费者 executor，处于业务资源 scope 之外。
+asFuture 已完成、不可取消，isCancelled 永远 false。成功读取存储值；失败的 get 抛
+ExecutionException，cause 为存储异常。map/runAll 产生的取消使用 CancellationException
+cause，取代旧 cancelled future 直接抛取消异常的行为。手动 failed(outcome, failure)
+保留传入异常，不按标签转换类型。两个 get 保留中断标志；Future 静态签名仍声明受检异常。
+listener 归消费者 executor，处于业务资源 scope 之外。
 
 ## 等待与资源所有权
 

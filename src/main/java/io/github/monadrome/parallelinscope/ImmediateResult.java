@@ -34,7 +34,12 @@ public final class ImmediateResult<T> {
         return new ImmediateResult<>(TaskOutcome.SUCCESS, value, null);
     }
 
-    /** Creates a non-success terminal result; RUNNING and SUCCESS are rejected. */
+    /**
+     * Creates a non-success terminal result; RUNNING and SUCCESS are rejected.
+     *
+     * <p>The outcome is attribution metadata and does not convert the supplied throwable. Reads,
+     * including through {@link #asFuture()}, preserve it as the ExecutionException cause.
+     */
     public static <T> ImmediateResult<T> failed(TaskOutcome outcome, Throwable failure) {
         checkNotNull(outcome, "outcome cannot be null");
         checkArgument(
@@ -64,9 +69,10 @@ public final class ImmediateResult<T> {
 
     /**
      * Returns a completed Guava adapter. Cancellation always returns false, and isCancelled is
-     * always false: a cancellation outcome is a failed value with a CancellationException cause.
-     * Both get methods read immediately and preserve the calling thread's interrupt flag. Listeners
-     * run through the consumer's executor, outside the completed business scope.
+     * always false. Stored failures, including cancellation exceptions, become ExecutionException
+     * causes without conversion. Both get methods read immediately and preserve the calling thread's
+     * interrupt flag. Listeners run through the consumer's executor, outside the completed business
+     * scope.
      */
     public ListenableFuture<@Nullable T> asFuture() {
         ListenableFuture<@Nullable T> delegate =
@@ -90,7 +96,7 @@ public final class ImmediateResult<T> {
         checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
         Throwable recorded = task.failure();
         if (recorded != null) {
-            return failed(outcome, recorded);
+            return fromFailure(task, outcome, recorded);
         }
         try {
             T value = Futures.getDone(task);
@@ -99,15 +105,7 @@ public final class ImmediateResult<T> {
             }
         } catch (ExecutionException failure) {
             Throwable cause = com.google.common.base.Verify.verifyNotNull(failure.getCause());
-            if (outcome == TaskOutcome.USER_FAILURE
-                    || outcome == TaskOutcome.SUBMISSION_FAILURE
-                    || cause instanceof CancellationException) {
-                return failed(outcome, cause);
-            }
-            LeanCancellationException cancellation =
-                    new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
-            cancellation.initCause(cause);
-            return failed(outcome, cancellation);
+            return fromFailure(task, outcome, cause);
         } catch (CancellationException failure) {
             // Guava creates this exception when reading a cancelled future. Freeze it once, with
             // task identity and attribution, so subsequent reads share a useful stable cause.
@@ -117,5 +115,17 @@ public final class ImmediateResult<T> {
             return failed(outcome, cancellation);
         }
         throw new AssertionError("successful task has non-success attribution: " + outcome);
+    }
+
+    private static <T> ImmediateResult<T> fromFailure(TaskFuture<T> task, TaskOutcome outcome, Throwable cause) {
+        if (outcome == TaskOutcome.USER_FAILURE
+                || outcome == TaskOutcome.SUBMISSION_FAILURE
+                || cause instanceof CancellationException) {
+            return failed(outcome, cause);
+        }
+        LeanCancellationException cancellation =
+                new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
+        cancellation.initCause(cause);
+        return failed(outcome, cancellation);
     }
 }

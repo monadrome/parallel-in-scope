@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @Timeout(10)
@@ -196,6 +197,84 @@ class SynchronousExecutionTest {
         assertThatThrownBy(group.valuesResult()::valueOrThrow)
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseReference(failure);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = CancellationToken.State.class, names = {"TIMEOUT", "FAIL_FAST", "CANCELLED"})
+    void groupCancellationWrapsRecordedFailureBeforeMemberPropagation(CancellationToken.State state) throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch fail = new CountDownLatch(1);
+        CountDownLatch committed = new CountDownLatch(1);
+        CountDownLatch propagate = new CountDownLatch(1);
+        CountDownLatch published = new CountDownLatch(1);
+        CountDownLatch completeCallbacks = new CountDownLatch(1);
+        InterruptedException original = new InterruptedException("body failed before member propagation");
+        TaskGroup<Integer, Void> group = runtime.groupDraft("pending-propagation", Duration.ofSeconds(30))
+                .closeGrace(Duration.ZERO)
+                .par("body", par, Integer.class, () -> {
+                    entered.countDown();
+                    fail.await();
+                    throw original;
+                })
+                .submitAll();
+        java.lang.reflect.Field tokenField = TaskGroup.class.getDeclaredField("groupToken");
+        tokenField.setAccessible(true);
+        CancellationToken groupToken = (CancellationToken) Verify.verifyNotNull(tokenField.get(group));
+        // Model preemption after the group commits cancellation, before member propagation.
+        groupToken.addStateListener(terminal -> {
+            committed.countDown();
+            Uninterruptibles.awaitUninterruptibly(propagate);
+        });
+        // Hold later aggregate callbacks so the member's recorded failure stays readable.
+        group.completionFuture().addListener(
+                () -> {
+                    published.countDown();
+                    Uninterruptibles.awaitUninterruptibly(completeCallbacks);
+                },
+                com.google.common.util.concurrent.MoreExecutors.directExecutor());
+        Thread canceller = new Thread(() -> {
+            switch (state) {
+                case TIMEOUT:
+                    groupToken.timeoutCancel();
+                    break;
+                case FAIL_FAST:
+                    groupToken.failFastCancel();
+                    break;
+                case CANCELLED:
+                    groupToken.cancel();
+                    break;
+                default:
+                    throw new AssertionError("unsupported test state: " + state);
+            }
+        });
+        canceller.start();
+        try {
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(committed.await(2, TimeUnit.SECONDS)).isTrue();
+            fail.countDown();
+            assertThat(published.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(group.futureOf("body").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(group.futureOf("body").failure()).isSameAs(original);
+            TaskGroupResult<Integer, Void> result = group.finish();
+            TaskOutcome expected = state == CancellationToken.State.TIMEOUT
+                    ? TaskOutcome.TIMEOUT
+                    : state == CancellationToken.State.FAIL_FAST ? TaskOutcome.FAIL_FAST : TaskOutcome.GROUP_CANCELLED;
+            assertThat(result.outcome())
+                    .isEqualTo(state == CancellationToken.State.FAIL_FAST ? TaskOutcome.MEMBER_CANCELLED : expected);
+            assertThat(result.resultAt(0).outcome()).isEqualTo(expected);
+            assertThat(result.resultAt(0).failure())
+                    .isInstanceOf(java.util.concurrent.CancellationException.class)
+                    .hasCauseReference(original);
+            assertThatThrownBy(result.resultAt(0).asFuture()::get)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseReference(result.resultAt(0).failure());
+        } finally {
+            fail.countDown();
+            propagate.countDown();
+            completeCallbacks.countDown();
+            canceller.join(3000);
+        }
+        assertThat(canceller.isAlive()).isFalse();
     }
 
     @ParameterizedTest
