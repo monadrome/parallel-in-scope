@@ -30,8 +30,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A token may be linked to a parent so that cancellation propagates to child task groups, and a
  * child never outlives its parent: the effective deadline is the minimum of the requested deadline
- * and the parent's. After task submission, {@link #bind(List, ListenableFuture,
- * ScheduledExecutorService)} connects the token to the submitted futures and enforces that
+ * and the parent's. Before task submission, the internal bind operation connects the token to
+ * prepared futures and enforces that
  * deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)

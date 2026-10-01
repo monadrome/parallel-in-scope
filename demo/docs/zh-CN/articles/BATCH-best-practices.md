@@ -28,7 +28,6 @@ TaskBatchResult<Object> result = par.map( tasks, task -> {
 }, opts);
 
 // fail-fast: 任何一个失败，其余自动取消
-Thread.sleep(5500);
 String report = result.reportString();
 ```
 
@@ -74,7 +73,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELLED:1 | firstException=timeout"
+// "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
 
 // 结构化访问
 TaskBatchResult.BatchReport r = result.report();
@@ -82,7 +81,9 @@ Map<TaskOutcome, Integer> counts = r.stateCounts();
 Throwable firstError = r.firstException();
 ```
 
-生产环境中，可以把 `reportString()` 打到日志里，配合 `completionFuture()` 的终态快照做监控告警（见 G1）。
+生产环境中，可以把 `reportString()` 打到日志里，配合 `completions()` 的可用终态快照做监控告警（见 G1）。
+返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unfinishedBodies()`，
+`bodyCompletionConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
 
 ### 4. 异常不要吞
 

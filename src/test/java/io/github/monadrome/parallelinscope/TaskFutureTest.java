@@ -45,8 +45,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("first", "second", "third"),
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(1));
@@ -77,8 +77,8 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), rejected).build();
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("first", "second"),
                             item -> item,
                             BatchOptions.timeout("rejected", SCOPE_TIMEOUT)
@@ -105,7 +105,7 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroup<Tuple2<String, Integer>, String> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             "user",
                             global.par(ParId.of("worker")),
@@ -147,8 +147,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("first", "second"),
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(1));
@@ -170,8 +170,11 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
+                            Collections.singletonList("x"),
+                            item -> "done",
+                            BatchOptions.timeout("orders", SCOPE_TIMEOUT));
 
             TaskFuture<String> element = batch.results().get(0);
             assertThat(element.get(2, TimeUnit.SECONDS)).isEqualTo("done");
@@ -190,8 +193,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             item -> {
                                 throw boom;
@@ -219,7 +222,7 @@ class TaskFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             "slow",
                             global.par(ParId.of("worker")),
@@ -231,7 +234,7 @@ class TaskFutureTest {
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
             assertThat(member.cancel(true)).isTrue();
-            TaskGroupResult snapshot = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport snapshot = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             // The member snapshot records the reason before the group cancels itself for the other
             // members, so it keeps the initiating member distinct from the fall-out.
@@ -259,7 +262,7 @@ class TaskFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             "first",
                             global.par(ParId.of("worker")),
@@ -294,8 +297,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("boom", "victim"),
                             item -> "boom".equals(item) ? boom() : hold(block, item),
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(2));
@@ -318,8 +321,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", Duration.ofMillis(50)));
@@ -352,13 +355,13 @@ class TaskFutureTest {
         CountDownLatch block = new CountDownLatch(1);
         try {
             global.par(ParId.of("outer"))
-                    .map(
+                    .submitBatch(
                             Collections.singletonList("x"),
                             ignored -> {
                                 outerToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken());
-                                TaskGroup<String, Void> group = global.group("inner", SCOPE_TIMEOUT)
+                                TaskGroup<String, Void> group = global.groupDraft("inner", SCOPE_TIMEOUT)
                                         .par(
                                                 "slow",
                                                 global.par(ParId.of("inner")),
@@ -399,8 +402,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             item -> {
                                 try {
@@ -434,8 +437,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList("fast", "slow"),
                             item -> "fast".equals(item) ? item : hold(block, item),
                             BatchOptions.timeout("orders", Duration.ofMillis(60))
@@ -460,8 +463,8 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", Duration.ofMillis(50)));
@@ -581,8 +584,8 @@ class TaskFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch interrupted = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             item -> {
                                 started.countDown();
@@ -616,8 +619,11 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(Collections.singletonList("x"), item -> "done", BatchOptions.timeout("orders", SCOPE_TIMEOUT));
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
+                            Collections.singletonList("x"),
+                            item -> "done",
+                            BatchOptions.timeout("orders", SCOPE_TIMEOUT));
             TaskFuture<String> element = batch.results().get(0);
             AtomicReference<String> listenerThread = new AtomicReference<>();
 
@@ -638,8 +644,9 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(Arrays.asList(1, 2, 3), item -> item + 1, BatchOptions.timeout("orders", SCOPE_TIMEOUT));
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
+                            Arrays.asList(1, 2, 3), item -> item + 1, BatchOptions.timeout("orders", SCOPE_TIMEOUT));
             List<ListenableFuture<Integer>> asPlainFutures = new ArrayList<>(batch.results());
 
             assertThat(Futures.allAsList(asPlainFutures).get(2, TimeUnit.SECONDS))
@@ -659,7 +666,7 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = global.group("page", SCOPE_TIMEOUT)
+            TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             "inherited",
                             global.par(ParId.of("worker")),

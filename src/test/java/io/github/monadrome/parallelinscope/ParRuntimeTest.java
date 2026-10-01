@@ -33,8 +33,8 @@ class ParRuntimeTest {
             executor.submit(() -> {}).get(2, TimeUnit.SECONDS);
             context.set("request-42");
 
-            TaskBatchResult<String> result = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> result = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             ignored -> context.get(),
                             BatchOptions.timeout("ttl", Duration.ofSeconds(30)).parallelism(1));
@@ -101,8 +101,8 @@ class ParRuntimeTest {
             ParRuntime global =
                     ParRuntime.builder().register(ParId.of("io"), executor).build();
 
-            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
-                    .map(
+            TaskBatch<Integer> result = global.par(ParId.of("io"))
+                    .submitBatch(
                             Collections.singletonList(2),
                             value -> value + 1,
                             BatchOptions.timeout("increment", Duration.ofSeconds(30)));
@@ -121,7 +121,7 @@ class ParRuntimeTest {
                     ParRuntime.builder().register(ParId.of("io"), executor).build();
             try {
                 assertThatThrownBy(() -> global.par(ParId.of("io"))
-                                .map(
+                                .submitBatch(
                                         Collections.singletonList(1),
                                         value -> value + 1,
                                         BatchOptions.inheritTimeout("orphan")))
@@ -180,7 +180,7 @@ class ParRuntimeTest {
                 ParRuntime.builder().register(ParId.of("broken"), broken).build();
         try {
             assertThatThrownBy(() -> global.par(ParId.of("broken"))
-                            .map(
+                            .submitBatch(
                                     Collections.singletonList(1),
                                     value -> value + 1,
                                     BatchOptions.inheritTimeout("orphan")))
@@ -200,11 +200,11 @@ class ParRuntimeTest {
                     ParRuntime.builder().register(ParId.of("io"), executor).build();
 
             assertThat(global.par(ParId.of("io"))
-                            .map(null, value -> value, BatchOptions.timeout("empty", Duration.ofSeconds(30)))
+                            .submitBatch(null, value -> value, BatchOptions.timeout("empty", Duration.ofSeconds(30)))
                             .results())
                     .isEmpty();
             assertThat(global.par(ParId.of("io"))
-                            .map(
+                            .submitBatch(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
                                     BatchOptions.timeout("empty", Duration.ofSeconds(30)))
@@ -226,12 +226,12 @@ class ParRuntimeTest {
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
-            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
-                                        .map(
+                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
+                                        .submitBatch(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30)));
@@ -265,13 +265,13 @@ class ParRuntimeTest {
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
             AtomicReference<TaskGraphData> graphOnOuterWorker = new AtomicReference<>();
-            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Collections.singletonList(2),
                             value -> {
                                 graphOnOuterWorker.set(TaskGraphObservationScope.data());
-                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
-                                        .map(
+                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
+                                        .submitBatch(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30)));
@@ -302,12 +302,12 @@ class ParRuntimeTest {
                 .register(ParId.of("inner"), innerExecutor)
                 .build();
         try {
-            TaskBatchResult<Integer> outer = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Arrays.asList(1, 99),
                             ignored -> {
-                                TaskBatchResult<Integer> inner = global.par(ParId.of("inner"))
-                                        .map(
+                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
+                                        .submitBatch(
                                                 Arrays.asList(1, 2),
                                                 value -> value + 1,
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(30))
@@ -335,8 +335,8 @@ class ParRuntimeTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("cpu"), directExecutor).build();
         try {
-            TaskBatchResult<Integer> result = global.par(ParId.of("cpu"))
-                    .map(
+            TaskBatch<Integer> result = global.par(ParId.of("cpu"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> {
                                 global.close();
@@ -407,8 +407,9 @@ class ParRuntimeTest {
         try {
             assertThat(global.awaitQuiescence(Duration.ofMillis(20))).isFalse();
 
-            TaskBatchResult<String> batch = global.par(ParId.of("io"))
-                    .map(Arrays.asList("a", "b"), x -> x, BatchOptions.timeout("quiesce", Duration.ofSeconds(30)));
+            TaskBatch<String> batch = global.par(ParId.of("io"))
+                    .submitBatch(
+                            Arrays.asList("a", "b"), x -> x, BatchOptions.timeout("quiesce", Duration.ofSeconds(30)));
             batch.valuesOrThrow();
             global.close();
 
@@ -448,8 +449,8 @@ class ParRuntimeTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("io"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("io"))
+                    .submitBatch(
                             Collections.singletonList("a"),
                             x -> {
                                 entered.countDown();
@@ -561,7 +562,7 @@ class ParRuntimeTest {
             assertThat(executor.isShutdown()).isFalse();
             assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> global.par(ParId.of("io"))
-                            .map(
+                            .submitBatch(
                                     Collections.singletonList(1),
                                     value -> value + 1,
                                     BatchOptions.timeout("closed", Duration.ofSeconds(30))))
@@ -602,7 +603,7 @@ class ParRuntimeTest {
             close.get(5, TimeUnit.SECONDS);
             assertThat(global.closed()).isTrue();
             assertThatThrownBy(() -> global.par(ParId.of("io"))
-                            .map(
+                            .submitBatch(
                                     Collections.singletonList(1),
                                     value -> value + 1,
                                     BatchOptions.timeout("closed", Duration.ofSeconds(30))))
@@ -623,8 +624,8 @@ class ParRuntimeTest {
         CountDownLatch firstTaskStarted = new CountDownLatch(1);
         CountDownLatch releaseFirstTask = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
-                    .map(
+            TaskBatch<Integer> result = global.par(ParId.of("io"))
+                    .submitBatch(
                             Arrays.asList(1, 2, 3),
                             value -> {
                                 if (value == 1) {
@@ -737,8 +738,8 @@ class ParRuntimeTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
         try {
-            TaskBatchResult<Integer> result = global.par(ParId.of("io"))
-                    .map(
+            TaskBatch<Integer> result = global.par(ParId.of("io"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             ignored -> {
                                 try {

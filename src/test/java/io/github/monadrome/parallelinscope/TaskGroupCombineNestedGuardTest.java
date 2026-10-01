@@ -52,7 +52,7 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> combineThread = new AtomicReference<>();
         AtomicReference<List<String>> nestedThreads = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.group("outer", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -67,7 +67,7 @@ class TaskGroupCombineNestedGuardTest {
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 List<String> ran = runtime.par(ParId.of("c"))
-                                        .map(
+                                        .submitBatch(
                                                 Arrays.asList(1, 2, 3),
                                                 i -> Thread.currentThread().getName(),
                                                 BatchOptions.timeout("inner", Duration.ofSeconds(5)))
@@ -77,7 +77,7 @@ class TaskGroupCombineNestedGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).isEqualTo("combine-worker");
@@ -105,7 +105,7 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> outerThread = new AtomicReference<>();
         AtomicReference<String> innerThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.group("outer", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -119,7 +119,7 @@ class TaskGroupCombineNestedGuardTest {
                             TypeToken.of(String.class),
                             values -> {
                                 outerThread.set(Thread.currentThread().getName());
-                                TaskGroup<?, String> nested = runtime.group("inner", Duration.ofSeconds(5))
+                                TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
                                                 "x",
                                                 runtime.par(ParId.of("m")),
@@ -143,7 +143,7 @@ class TaskGroupCombineNestedGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(outerThread.get()).isEqualTo("outer-combine");
@@ -182,7 +182,7 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> innerThread = new AtomicReference<>();
         AtomicReference<TaskOutcome> innerOutcome = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.group("outer", Duration.ofSeconds(10))
+            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             "a",
                             runtime.par(ParId.of("m")),
@@ -195,7 +195,7 @@ class TaskGroupCombineNestedGuardTest {
                             TaskOptions.inheritTimeout(),
                             TypeToken.of(String.class),
                             values -> {
-                                TaskGroup<?, String> nested = runtime.group("inner", Duration.ofSeconds(5))
+                                TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
                                                 "x",
                                                 runtime.par(ParId.of("m")),
@@ -220,7 +220,7 @@ class TaskGroupCombineNestedGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(innerOutcome.get()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);

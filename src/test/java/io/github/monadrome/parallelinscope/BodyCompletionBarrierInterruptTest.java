@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 /**
  * An interrupt inside the observation-publication barrier is an interrupt, not an elapsed budget.
  *
- * <p>{@code TaskGroup.awaitBodyCompletion} and {@code TaskBatchResult.awaitBodyCompletion} run three
+ * <p>{@code TaskGroup.awaitBodyCompletion} and {@code TaskBatch.awaitBodyCompletion} run three
  * waits under one budget: the body-exit signal, then each future's settlement, then the observation
  * publication. Both declare {@code throws InterruptedException} and both define {@code false} as
  * "the budget elapsed". Those two statements together mean the later phases may not answer an
@@ -122,8 +122,7 @@ class BodyCompletionBarrierInterruptTest {
         // the very catch that caused the original defect.
         SettableFuture<String> neverSettles = SettableFuture.create();
         CancellationToken token = new CancellationToken();
-        TaskBatchResult<String> batch =
-                TaskBatchResult.of(Collections.singletonList(Task.of("element", token, neverSettles)));
+        TaskBatch<String> batch = TaskBatch.of(Collections.singletonList(Task.of("element", token, neverSettles)));
 
         AtomicReference<Throwable> thrown = new AtomicReference<>();
         AtomicBoolean returnedFalse = new AtomicBoolean();
@@ -157,7 +156,7 @@ class BodyCompletionBarrierInterruptTest {
         try (ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("p"), pool).build()) {
             CountDownLatch release = new CountDownLatch(1);
-            TaskGroup<String, Void> group = runtime.group("g", Duration.ofSeconds(30))
+            TaskGroup<String, Void> group = runtime.groupDraft("g", Duration.ofSeconds(30))
                     .par("member", runtime.par(ParId.of("p")), String.class, () -> {
                         release.await();
                         return "done";

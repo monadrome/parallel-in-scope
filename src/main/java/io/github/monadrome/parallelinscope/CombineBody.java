@@ -40,8 +40,8 @@ import org.jspecify.annotations.Nullable;
  * <p>The body is supplied at declaration, next to its {@code TypeToken<R>}, and may capture this
  * run's request. It must still be a pure function of member values and its declaration-time
  * captures: the framework schedules it the moment the last member succeeds, so there is no
- * synchronization edge between it and code the submitting thread runs after {@code submitAll()}
- * returns.
+ * need for the caller to orchestrate it after submission. The synchronous runAll returns only
+ * after the combine result is terminal and bounded cleanup has been attempted.
  *
  * <p>The declared {@code TypeToken<R>} is enforced at runtime exactly like a member's: a non-null
  * result whose class does not match the token's raw type fails the combine with a {@link

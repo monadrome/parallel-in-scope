@@ -141,7 +141,7 @@ class TaskGraphObservationScopeTest {
             // Two members plus a terminal combine. The group's forking instrumentation walks its
             // members by declaration position, so a single-member group never reaches the second
             // iteration and never records the combine's own fork edge.
-            try (TaskGroup<Tuple2<Integer, Integer>, Integer> group = global.group("page", Duration.ofSeconds(30))
+            try (TaskGroup<Tuple2<Integer, Integer>, Integer> group = global.groupDraft("page", Duration.ofSeconds(30))
                     .par("left", par, Integer.class, () -> 1)
                     .par("right", par, Integer.class, () -> 2)
                     .combine("join", par, Integer.class, values -> {

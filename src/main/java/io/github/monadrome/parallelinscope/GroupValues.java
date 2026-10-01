@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Read-only snapshot of one group run's successful member values, published by {@link
- * TaskGroup#valuesFuture()} and handed to a terminal {@link CombineBody}.
+ * TaskGroupResult#valuesOrThrow()} and handed to a terminal {@link CombineBody}.
  *
  * <p>Slots are addressed two ways, and both views read the same slot: by zero-based declaration
  * position ({@link #valueAt(int)}, {@link #typeAt(int)}) and by the member name declared in the

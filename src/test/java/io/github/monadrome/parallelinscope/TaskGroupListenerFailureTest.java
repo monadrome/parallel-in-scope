@@ -35,7 +35,7 @@ class TaskGroupListenerFailureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.group("page", TIMEOUT)
+            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
                     .par("user", global.par(ParId.of("worker")), String.class, () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);

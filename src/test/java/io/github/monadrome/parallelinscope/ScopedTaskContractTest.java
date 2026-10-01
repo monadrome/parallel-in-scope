@@ -93,7 +93,7 @@ class ScopedTaskContractTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCause(boom);
             if (entry == Entry.GROUP) {
-                TaskGroupResult result = lastGroupResult(global);
+                TaskGroupReport result = lastGroupResult(global);
                 // A recorded member failure takes precedence over the group token state: even
                 // though convergence runs while the group token is still RUNNING, the group
                 // adopts the failed member's own outcome.
@@ -195,7 +195,7 @@ class ScopedTaskContractTest {
             assertThat(event.endTimeNanos()).isZero();
             assertThat(phases).doesNotContain(ExecutionPhase.RUNNING);
             if (entry == Entry.GROUP) {
-                TaskGroupResult result = lastGroupResult(global);
+                TaskGroupReport result = lastGroupResult(global);
                 assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
                         .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
                 assertThat(result.members().get("task").failure()).isInstanceOf(SubmissionException.class);
@@ -218,7 +218,7 @@ class ScopedTaskContractTest {
             observePhases(global, phases);
             if (entry == Entry.BATCH) {
                 ListenableFuture<Object> queued = global.par(ParId.of("worker"))
-                        .map(
+                        .submitBatch(
                                 Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
                                 BatchOptions.timeout("cancel", Duration.ofSeconds(30))
@@ -228,7 +228,7 @@ class ScopedTaskContractTest {
                 assertThat(queued.cancel(true)).isTrue();
             } else {
                 TypeToken<Object> memberType = TypeToken.of(Object.class);
-                TaskGroup<Tuple2<Object, Object>, Void> group = global.group("cancel", Duration.ofSeconds(30))
+                TaskGroup<Tuple2<Object, Object>, Void> group = global.groupDraft("cancel", Duration.ofSeconds(30))
                         .par(
                                 "blocker",
                                 global.par(ParId.of("worker")),
@@ -243,7 +243,7 @@ class ScopedTaskContractTest {
                                 () -> runUnlessQueued("queued", release, queuedRuns))
                         .submitAll();
                 assertThat(group.futureOf("queued", memberType).cancel(true)).isTrue();
-                TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+                TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
                         .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
@@ -265,7 +265,7 @@ class ScopedTaskContractTest {
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
                 Object value = global.par(ParId.of("worker"))
-                        .map(
+                        .submitBatch(
                                 Collections.singletonList("outer"),
                                 item -> {
                                     try {
@@ -320,7 +320,7 @@ class ScopedTaskContractTest {
             ParRuntime global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
         if (entry == Entry.BATCH) {
             return global.par(ParId.of("worker"))
-                    .map(
+                    .submitBatch(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
                             BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
@@ -328,7 +328,7 @@ class ScopedTaskContractTest {
                     .get(0);
         }
         TypeToken<Object> memberType = TypeToken.of(Object.class);
-        TaskGroup<Object, Void> group = global.group("contract", Duration.ofSeconds(30))
+        TaskGroup<Object, Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
                 .par(
                         name,
                         global.par(ParId.of("worker")),
@@ -355,7 +355,7 @@ class ScopedTaskContractTest {
 
     private static final ThreadLocal<TaskGroup<?, ?>> LAST_GROUP = new ThreadLocal<>();
 
-    private static TaskGroupResult lastGroupResult(ParRuntime global) throws Exception {
+    private static TaskGroupReport lastGroupResult(ParRuntime global) throws Exception {
         TaskGroup<?, ?> group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");
