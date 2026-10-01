@@ -49,8 +49,8 @@ BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
 TaskBatchResult<User> result = runtime.par(ParId.of("io"))
         .map(userIds, userService::findById, options);
 
-for (TaskFuture<User> future : result.results()) {
-    System.out.println(future.taskName() + " -> " + future.outcome());
+for (ImmediateResult<User> item : result.results()) {
+    System.out.println(item.outcome());
 }
 ```
 
@@ -60,8 +60,9 @@ Two contracts shape that first call:
   or `BatchOptions.inheritTimeout(name)`; there is no third state, so a batch cannot run unbounded
   by omission, and an explicit timeout is capped by any enclosing deadline.
 - **A batch is fail-fast.** The first failure cancels the rest of the batch, including elements that
-  were never submitted. Read `TaskFuture.outcome()` for the per-element verdict (`USER_FAILURE`,
-  `TIMEOUT`, `FAIL_FAST`, …) and close the `TaskBatchResult` to release the batch.
+  were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
+  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `bodyCompletionConfirmed()`
+  before releasing resources shared by direct bodies, and confirm nested exits separately.
 
 `ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
 the executors you registered.
@@ -82,11 +83,11 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 ## Core Capabilities
 
 - Fail-fast cancellation within a task batch
-- Timeout, explicit, and parent-to-child cancellation propagation
+- Deadline, fail-fast, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
 - Task-type-aware queue admission (`TaskType` drives `SmartBlockingQueue` refusal, not scheduling)
-- Pull-based task observation: `completionFuture` snapshots with `Futures.addCallback`
+- Frozen task observations: `completions()` / group `members()` and `terminal()`
 - Cycle detection across task and executor graphs
 
 ## Documentation

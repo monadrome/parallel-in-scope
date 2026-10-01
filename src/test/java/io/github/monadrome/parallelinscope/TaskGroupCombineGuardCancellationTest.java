@@ -85,7 +85,7 @@ class TaskGroupCombineGuardCancellationTest {
             }
             AtomicBoolean bodyRan = new AtomicBoolean();
             try {
-                TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+                TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
                                 "a",
                                 runtime.par(ParId.of("m")),
@@ -103,7 +103,7 @@ class TaskGroupCombineGuardCancellationTest {
                                 })
                         .submitAll();
 
-                TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -145,7 +145,7 @@ class TaskGroupCombineGuardCancellationTest {
             }
             AtomicBoolean bodyRan = new AtomicBoolean();
             try {
-                TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(10))
+                TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
                                 "a",
                                 runtime.par(ParId.of("m")),
@@ -164,7 +164,7 @@ class TaskGroupCombineGuardCancellationTest {
                         .submitAll();
                 group.cancel();
 
-                TaskGroupResult result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);

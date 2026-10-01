@@ -47,8 +47,8 @@ class InlineSubmissionLivenessTest {
 
         Thread caller = new Thread(
                 () -> {
-                    TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                            .map(
+                    TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                            .submitBatch(
                                     Arrays.asList(0, 1, 2, 3, 4, 5),
                                     value -> {
                                         bodiesStarted.incrementAndGet();
@@ -110,8 +110,8 @@ class InlineSubmissionLivenessTest {
 
         Thread caller = new Thread(
                 () -> {
-                    TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                            .map(
+                    TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                            .submitBatch(
                                     Arrays.asList(0, 1, 2),
                                     value -> {
                                         if (value == 2) {
@@ -171,7 +171,7 @@ class InlineSubmissionLivenessTest {
         TaskOptions memberOptions = TaskOptions.inheritTimeout();
 
         try {
-            TaskGroup<?, Void> group = global.group("inline-group", DEADLINE)
+            TaskGroup<?, Void> group = global.groupDraft("inline-group", DEADLINE)
                     .par("a", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
                         try {
                             secondStarted.await();
@@ -197,7 +197,7 @@ class InlineSubmissionLivenessTest {
                     .as("the submitting thread must be handed back clean")
                     .isFalse();
 
-            TaskGroupResult result = group.completionFuture().get(WATCHDOG.toMillis(), TimeUnit.MILLISECONDS);
+            TaskGroupReport result = group.completionFuture().get(WATCHDOG.toMillis(), TimeUnit.MILLISECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             secondStarted.countDown();
@@ -217,8 +217,8 @@ class InlineSubmissionLivenessTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), single).build();
         try {
-            TaskBatchResult<Boolean> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Boolean> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(0, 1),
                             value -> {
                                 boolean flagOnEntry = Thread.currentThread().isInterrupted();
@@ -260,8 +260,8 @@ class InlineSubmissionLivenessTest {
                 ParRuntime.builder().register(ParId.of("worker"), saturated).build();
         AtomicInteger executed = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
                             value -> {
                                 executed.incrementAndGet();
