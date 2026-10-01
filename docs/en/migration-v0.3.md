@@ -72,10 +72,12 @@ for pure cancellation; group aggregate reads rethrow unchecked failures and wrap
 CompletionException. Single ImmediateResult Left reads uniformly throw ExecutionException with the
 stored cause, including cancellation.
 
-`asFuture()` is done and cannot be cancelled. Unlike a formerly cancelled TaskFuture,
-`isCancelled()` is false and get throws ExecutionException whose cause is CancellationException.
-Both get overloads preserve interruption; their static Future signatures still declare checked
-exceptions. Consumer listeners are outside the business scope/resource lifetime.
+`asFuture()` is done and cannot be cancelled, and `isCancelled()` is always false. It returns
+a successful value or throws ExecutionException with the stored failure. Cancellation from `map`
+or `runAll` uses a CancellationException cause, replacing a formerly cancelled TaskFuture's
+unchecked cancellation. The `failed(outcome, failure)` factory keeps its throwable regardless of
+the outcome label. Both get overloads preserve interruption; their static Future signatures still
+declare checked exceptions. Consumer listeners are outside the business scope/resource lifetime.
 
 ## Waiting and resource ownership
 
