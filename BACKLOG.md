@@ -11,8 +11,8 @@
 - 独立验证（原始判定）：[independent-verification-kimi-2026-09-28.md](https://github.com/monadrome/parallel-in-scope/blob/backup/scratch-materials/reports/independent-verification-kimi-2026-09-28.md)
 
 **补充调研**（2026-10-01，`dev/v0.3.0` @ `9f8867c`）：功能与用户使用向，新增 `O-*` 条目（见
-"功能与用户使用"一节）。证据含 JDK 21 实测探针（源码 `/tmp/pisvte/`，未入库）；完整叙述见工作区
-未入库文档 `explore/优化空间分析-功能与用户使用.md`。该轮同时逐一核对旧条目：**P-P0、A-P0 已修复**
+"功能与用户使用"一节）。证据含 JDK 21 实测探针（源码 `/tmp/pisvte/`，未入库）；原调研文档为
+一次性工作材料，条目全部吸收进本节后已删除。该轮同时逐一核对旧条目：**P-P0、A-P0 已修复**
 （`9f8867c`），其余 P/A 条目仍开放。
 
 **证据强度**：`实测` = 跑过程序拿到数字；`复核` = 经独立模型验证；`读码` = 静态追踪。
@@ -197,7 +197,7 @@ Guava 的 SEVERE 日志里。
 ## 功能与用户使用（2026-10-01 补充调研）
 
 **基线** `9f8867c`；证据级别同上，其中 `实测` 指本轮在 JDK 21 上跑过探针（源码 `/tmp/pisvte/`，
-未入库）。完整叙述见工作区未入库文档 `explore/优化空间分析-功能与用户使用.md`。
+未入库）。各条目正文即完整叙述。
 所有条目均已对照 `design/` 已决契约（虚拟线程分类、listener/SPI、`ThrowingFunction` 等不在此重开）。
 
 **同步化重构后的复核**（`d01bf4e` "make scope execution synchronous" + `fd5c310`，复核于 `8523f64`）：
@@ -321,8 +321,11 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ## 待决策
 
-1. **测量仪器是否入库**：`/tmp/pisbench/` 的 4 个 `.java`（`Bench`/`Probe`/`FailureShape`/`TimerProbe`）。
-   不迁入则性能报告的数字无法复现，且 `/tmp` 会被清空。需注意别让 spotless 扫到。
+1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不入库。** 4 个探针
+   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）曾随 `a3ac144` 短暂进入 `benchmarks/`，
+   按 `design/caller-runs-support-after-inline-deletion.md` 的拍板（benchmark 暂缓、源文件
+   未收入库）移出工作树；复现性能数字时从 `a3ac144` 的历史取回
+   （`git show a3ac144:benchmarks/Bench.java` 等），`/tmp/pisbench/` 副本可弃。
 2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
@@ -339,4 +342,5 @@ A-P1（`CancellationToken` 孤岛）仍开放。
    顺带 A-P2（`has*()` 三态化）、A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
    同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P3 的
    `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
-4. **开放问题**（走六问清单）：待决策 2–4（parallelism 强制化、batch+combine、TimeSource）。
+4. **开放问题**（走六问清单）：待决策两项——batch+combine（O-6）与 TimeSource（O-11）。
+   （parallelism 强制化已随 O-2 定案：保持默认。）
