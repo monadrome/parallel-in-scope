@@ -95,13 +95,17 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 则记 `TIMEOUT`，否则记 `GROUP_CANCELLED`；两个 token 都仍是 `RUNNING` 说明没有框架路径碰过
 该成员，即用户直消，记 `MEMBER_CANCELLED`。
 
-组级 outcome 同样读 group token 推导（`TaskGroupResult.outcome()`）：`TIMEOUT` → `TIMEOUT`；
-`FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
-无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELLED`；`PROPAGATED_CANCELLED` 按
-`originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELLED`；`CANCELLED`（用户直接 cancel 组或成员直消
-级联）→ `GROUP_CANCELLED`；token 仍在 `RUNNING`/`SUCCESS` 时，已记录失败任务优先沿用其
-outcome（失败归因不随完成顺序漂移），否则全部成员成功记 `SUCCESS`，否则
-`MEMBER_CANCELLED`。
+组级 outcome 同样读 group token 推导（`TaskGroupResult.outcome()`）：提交的组状态先选分支，
+`TIMEOUT` → `TIMEOUT`，`CANCELLED` 与 `PROPAGATED_CANCELLED`（按 `originState()` 归因
+`TIMEOUT` 或 `GROUP_CANCELLED`）不查成员直接上报；其余分支（`FAIL_FAST`/`SUCCESS`/`RUNNING`）
+内有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），无失败成员但已
+有成员记 `TIMEOUT` 则记 `TIMEOUT`（deadline 级联的受害者，见下），token 仍在
+`RUNNING`/`SUCCESS` 时全部成员成功记 `SUCCESS`。成员直消走的是另一条路：成员直消在
+`memberCompleted` 里先 `groupToken.cancel()`，组 token 提交 `CANCELLED`，
+`TaskGroupTest#directMemberCancellationCascadesToUnfinishedSibling` 锁定的实际结果是
+成员 `MEMBER_CANCELLED`、组与兄弟成员 `GROUP_CANCELLED`。其余情况下 `FAIL_FAST` 分支的
+`MEMBER_CANCELLED` 回退是防御性分支：无失败记录的 `FAIL_FAST` 只能来自 deadline 驱动的聚合
+取消，触发它的成员在回调提交组 token 之前已记 `TIMEOUT`，`recordedTimeout()` 会先命中。
 
 嵌套提交的终态不唯一但归因确定：成员 callable 内部的嵌套 batch 继承组 deadline 后自身也会被
 bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIMEOUT`（自己的 timer 先

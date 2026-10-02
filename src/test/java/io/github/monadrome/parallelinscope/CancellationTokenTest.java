@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -194,6 +195,37 @@ public class CancellationTokenTest {
             assertThat(sibling).isCancelled();
             assertThat(submitCanceller).isCancelled();
         });
+    }
+
+    @Test
+    public void testBind_userTimeoutExceptionWithLiveDeadlineIsFailFast() {
+        CancellationToken token = withDeadlineAfter(10_000);
+
+        SettableFuture<String> failed = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
+        token.bind(Arrays.asList(failed, sibling), Futures.immediateVoidFuture(), TIMER);
+
+        // A body's own TimeoutException reaches allAsList verbatim; the deadline is still live, so
+        // it cannot have come from this token's timer and must not commit TIMEOUT.
+        failed.setException(new TimeoutException("user timeout"));
+
+        await().untilAsserted(() -> {
+            assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
+            assertThat(sibling).isCancelled();
+        });
+    }
+
+    @Test
+    public void testBind_userTimeoutExceptionWithoutDeadlineIsFailFast() {
+        CancellationToken token = CancellationToken.create();
+
+        SettableFuture<String> failed = SettableFuture.create();
+        token.bind(ImmutableList.of(failed), Futures.immediateVoidFuture(), TIMER);
+
+        failed.setException(new TimeoutException("user timeout"));
+
+        // The Long.MAX_VALUE sentinel reports "not elapsed", so the guard lands on FAIL_FAST.
+        await().untilAsserted(() -> assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST));
     }
 
     @Test
