@@ -466,11 +466,9 @@ deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线�
 
 用例 4 是 7.3 的回归锁；用例 5 必须同时存在，否则修复可能把两条路径改成了另一种不一致。
 
-## 9. 待拍板点
+## 9. 待拍板点（全部已关闭）
 
-1. ~~**7.3 选选项 1 还是选项 2。**~~ 已拍板：选项 1，隔离点改在 `ExecutionPhaseHintFuture.run()`
-   （见 7.3 顶部的已修复说明）。
-2. ~~**7.1、7.2 是否与本规范文档同 PR 落地**~~ 已由历史回答：三处违反分别随各自的修复提交落地。
-3. ~~**本文档在 `design/AGENTS.md` 路由表中的位置**~~ 已与 `extension-and-wrapping.md` 并列在
-   「扩展与包装」一节，作为跨层约定。
-4. **是否把 P1–P4 摘要进根 `AGENTS.md`** 的 Key Conventions，让日常改动不必先读全文。（仍开放）
+1. 7.3 拍板选项 1，隔离点落在 `ExecutionPhaseHintFuture.run()`（见 7.3 顶部的已修复说明）。
+2. 7.1、7.2 未与本文同 PR，分别随各自的修复提交落地。
+3. 本文档已与 `extension-and-wrapping.md` 并列列入 `design/AGENTS.md`「扩展与包装」一节。
+4. P1–P4 已摘要进根 `AGENTS.md` Key Conventions；完整规范仍以本文为准。
