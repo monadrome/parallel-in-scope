@@ -284,7 +284,7 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 - `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
 - `defineGroupInheriting` 定义的组要求提交现场存在外层 scoped task，否则 `submitGroup`
   在运行准备期整体失败（`IllegalArgumentException`，无 TaskGroup/Future，见
-  [group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) 增补裁定
+  [group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) 增补裁定
   §19.1）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取声明名（`Member.name()`）；

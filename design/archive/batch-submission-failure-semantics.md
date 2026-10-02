@@ -10,7 +10,7 @@ Status: implemented
 > Mechanism note: "sliding-window placeholder" below means an element beyond the
 > initial parallelism window. Such elements no longer have a placeholder future —
 > every element's handle wraps its prepared future from creation on
-> ([ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)) —
+> ([ADR 0007](../../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)) —
 > and a handoff failure now claims every affected element before settling any of
 > them, because the batch token is bound while submission runs and settling one
 > element would otherwise let the fail-fast cascade overwrite its siblings'
