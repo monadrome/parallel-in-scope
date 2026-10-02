@@ -36,8 +36,6 @@ class TaskFutureTest {
 
     private static final Duration SCOPE_TIMEOUT = Duration.ofSeconds(30);
 
-    // ==================== delivery completeness ====================
-
     @Test
     void batchDeliversEveryElementAsATaskFutureInsideAndOutsideTheWindow() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -161,8 +159,6 @@ class TaskFutureTest {
             pool.shutdownNow();
         }
     }
-
-    // ==================== outcome attribution ====================
 
     @Test
     void succeededTaskReadsSuccessWithoutAFailure() throws Exception {
@@ -393,8 +389,6 @@ class TaskFutureTest {
         }
     }
 
-    // ==================== races and stability ====================
-
     @Test
     void aCancellationSignalRacingTheCascadeIsAttributedToTheDeadline() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -574,8 +568,6 @@ class TaskFutureTest {
                 .hasCauseInstanceOf(IllegalStateException.class);
     }
 
-    // ==================== delegation transparency ====================
-
     @Test
     void cancelInterruptsTheWorkerThroughTheTaskView() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -656,8 +648,6 @@ class TaskFutureTest {
             pool.shutdownNow();
         }
     }
-
-    // ==================== deadline budget ====================
 
     @Test
     void deadlineAndRemainingBudgetComeFromTheOwningScope() throws Exception {
@@ -754,7 +744,20 @@ class TaskFutureTest {
         }
     }
 
-    // ==================== helpers ====================
+    @Test
+    void failureReadsTheBodyFailureEvenWhenTheCallingThreadIsInterrupted() {
+        RuntimeException boom = new RuntimeException("boom");
+        Task<String> failed = Task.of("orders", new CancellationToken(), Futures.immediateFailedFuture(boom));
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(failed.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(failed.failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
 
     private static TaskOptions memberOptions() {
         return TaskOptions.timeout(SCOPE_TIMEOUT);

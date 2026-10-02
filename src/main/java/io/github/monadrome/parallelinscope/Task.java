@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.base.Function;
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
@@ -97,27 +98,98 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public TaskOutcome outcome() {
+        return terminal().outcome();
+    }
+
+    /**
+     * Classifies this task's terminal state in one pass and returns the outcome together with the
+     * value, failure, or cancellation that belongs to it. {@link #outcome()} and {@link #failure()}
+     * each answer for themselves with their own read; a caller that freezes a snapshot takes both
+     * from this one, so a token refinement between two reads can no longer pair an outcome with a
+     * failure from a different terminal state.
+     *
+     * @return the terminal state, or one still in {@link TaskOutcome#RUNNING}
+     */
+    Terminal<T> terminal() {
         // A recorded submission failure outranks the future's own state. A batch element failed by
         // a handoff failure is claimed before it is settled, and the token's fail-fast cascade can
         // cancel it in between; without this the element would report that cancellation instead of
         // the submission failure that actually ended it.
-        if (recordedSubmissionFailure() != null) {
-            return TaskOutcome.SUBMISSION_FAILURE;
+        SubmissionException recorded = recordedSubmissionFailure();
+        if (recorded != null) {
+            return Terminal.failed(TaskOutcome.SUBMISSION_FAILURE, recorded);
         }
         if (!delegate.isDone()) {
-            return TaskOutcome.RUNNING;
+            return Terminal.running();
         }
         if (delegate.isCancelled()) {
-            return TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED);
+            return Terminal.cancelled(TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED));
         }
         try {
             // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
             // throws InterruptedException, and a caller thread that happens to carry the
             // interrupt flag can no longer turn a success into a phantom USER_FAILURE.
-            Futures.getDone(delegate);
-            return TaskOutcome.SUCCESS;
+            return Terminal.succeeded(Futures.getDone(delegate));
         } catch (ExecutionException failure) {
-            return classifyFailure(token, failure.getCause());
+            Throwable cause = Verify.verifyNotNull(failure.getCause());
+            return Terminal.failed(classifyFailure(token, cause), cause);
+        }
+    }
+
+    /**
+     * One terminal state of a task, read in one pass. The outcome says which of the value, the
+     * failure, and the cancellation was read; {@link TaskOutcome#RUNNING} means the delegate had not
+     * settled yet and all three are absent.
+     */
+    static final class Terminal<T> {
+
+        private final TaskOutcome outcome;
+        private final @Nullable T value;
+        private final @Nullable Throwable failure;
+        private final boolean cancelled;
+
+        private Terminal(TaskOutcome outcome, @Nullable T value, @Nullable Throwable failure, boolean cancelled) {
+            this.outcome = outcome;
+            this.value = value;
+            this.failure = failure;
+            this.cancelled = cancelled;
+        }
+
+        static <T> Terminal<T> running() {
+            return new Terminal<>(TaskOutcome.RUNNING, null, null, false);
+        }
+
+        static <T> Terminal<T> succeeded(@Nullable T value) {
+            return new Terminal<>(TaskOutcome.SUCCESS, value, null, false);
+        }
+
+        static <T> Terminal<T> failed(TaskOutcome outcome, Throwable failure) {
+            return new Terminal<>(outcome, null, failure, false);
+        }
+
+        static <T> Terminal<T> cancelled(TaskOutcome outcome) {
+            return new Terminal<>(outcome, null, null, true);
+        }
+
+        TaskOutcome outcome() {
+            return outcome;
+        }
+
+        /** The value read on success, which may itself be null; null on every other state too. */
+        @Nullable
+        T value() {
+            return value;
+        }
+
+        /** The throwable behind the outcome on a failed delegate, or null on success and cancellation. */
+        @Nullable
+        Throwable failure() {
+            return failure;
+        }
+
+        /** Whether the delegate itself was cancelled, the one ending that carries no failure of its own. */
+        boolean cancelled() {
+            return cancelled;
         }
     }
 

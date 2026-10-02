@@ -98,6 +98,17 @@ relevant contract through the document routes below.
   compile time via Error Prone; the build requires JDK 25 (LTS) while the
   bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
+- An inline comment earns its place by recording a fact the code cannot state:
+  a race window, a happens-before edge, an ordering constraint that must not be
+  reordered, or why a deliberate-looking mistake is deliberate. Do not restate
+  what the next line already says, and do not add banner or `region` dividers —
+  they name no fact, drift as sections move, and a divider shaped like a method
+  name invents API that does not exist. Prefer javadoc for contracts. When code
+  moves, re-read the comments above it: a comment that describes a call site,
+  helper, or field that has since been renamed or extracted is worse than no
+  comment. Narrating history ("the previous version had X") belongs in the
+  commit message; a comment may state the bug a line guards against when that
+  is what keeps the line alive.
 - Runtime checks follow Guava's conditional-failure taxonomy: caller violations
   use `Preconditions.checkArgument` for arguments, `checkState` for state, and
   `checkNotNull` for nulls (prefer over `Objects.requireNonNull`); dependency and
@@ -165,7 +176,9 @@ changes, run an independent review with its own budget:
 - Run `mvn -Ppitest`, scoped to the touched `targetClasses` and `targetTests`;
   defaults cover the whole library. Classify every survivor before reporting:
   equivalent mutants are not coverage gaps. PIT needs no permission and touches
-  only `target/`.
+  only `target/`. The PIT goal does not recompile: after reverting or restoring
+  sources mid-investigation, run `mvn test-compile` first or it mutates stale
+  bytecode in `target/classes`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 10; consult them when

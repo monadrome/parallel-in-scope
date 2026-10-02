@@ -224,8 +224,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         count.set(size);
     }
 
-    // region Helpers
-
     /**
      * Validates every write path before it observes queue state. A poison-equivalent value is
      * rejected by {@link Object#equals(Object)}, rather than identity, so a real element can never
@@ -342,10 +340,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return drained() && policy.mutationsStrategy() == MutationsStrategy.NOOP;
     }
 
-    // endregion
-
-    // region Lifecycle
-
     /**
      * Returns whether production has been permanently closed. This is {@code true} in both
      * {@code DRAINING} and {@code DRAINED}; it does not mean that consumers have finished the
@@ -435,10 +429,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         signalTakeReady();
         signalPutReady();
     }
-
-    // endregion
-
-    // region Producer side
 
     /**
      * Inserts the element when capacity is immediately available, returning {@code false}
@@ -535,10 +525,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
         return true;
     }
-
-    // endregion
-
-    // region Consumer side
 
     /**
      * Removes and returns the head, or {@code null} when the queue is open and empty. After
@@ -666,10 +652,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             takeMonitor.leave();
         }
     }
-
-    // endregion
-
-    // region Collection operations
 
     /**
      * Inserts the element, throwing {@link IllegalStateException} when the queue is full. After
@@ -1100,10 +1082,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return drainedElements.size();
     }
 
-    // endregion
-
-    // region Node primitives
-
     /** Removes and returns the first element; caller must hold the consumer monitor. */
     private E dequeue() {
         Node<E> oldHead = head;
@@ -1126,10 +1104,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         count.getAndDecrement();
         return item;
     }
-
-    // endregion
-
-    // region Queries and iteration
 
     /**
      * Returns the current number of real queued elements. The value remains honest while draining
@@ -1508,10 +1482,6 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
     }
 
-    // endregion
-
-    // region Shutdown policy
-
     /** Behavior of ordinary collection mutations after the queue has drained. */
     public enum MutationsStrategy {
         /** Terminal mutations report no change and leave the already empty queue untouched. */
@@ -1615,7 +1585,4 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             }
         }
     }
-
-    // endregion
-
 }

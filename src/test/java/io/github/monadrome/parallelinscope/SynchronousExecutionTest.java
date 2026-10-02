@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,6 +75,49 @@ class SynchronousExecutionTest {
         } finally {
             Thread.interrupted();
         }
+    }
+
+    /**
+     * Locks a batch element's own {@link TimeoutException}, sneaked past the body's unchecked
+     * signature, as a user failure rather than the batch deadline: the element token's deadline is
+     * nowhere near expiry, so the exception cannot have come from its timer. The sibling cancelled
+     * by the resulting fail-fast must read FAIL_FAST, never TIMEOUT — the attribution the unit
+     * token's state drives.
+     */
+    @Test
+    void batchElementSneakyTimeoutExceptionIsUserFailureNotBatchTimeout() throws Exception {
+        CountDownLatch siblingRunning = new CountDownLatch(1);
+        TaskBatchResult<String> batch = par.map(
+                Arrays.asList(1, 2),
+                i -> {
+                    if (i == 2) {
+                        siblingRunning.countDown();
+                        try {
+                            new CountDownLatch(1).await();
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return "two";
+                    }
+                    Uninterruptibles.awaitUninterruptibly(siblingRunning);
+                    sneakyThrow(new TimeoutException("body timed out on its own"));
+                    return "one";
+                },
+                BatchOptions.timeout("batch-user-timeout", TIMEOUT));
+
+        assertThat(batch.results()).hasSize(2);
+        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(batch.report().stateCounts())
+                .containsEntry(TaskOutcome.USER_FAILURE, 1)
+                .containsEntry(TaskOutcome.FAIL_FAST, 1)
+                .doesNotContainKey(TaskOutcome.TIMEOUT);
+    }
+
+    /** Throws a checked throwable past the {@code Function} body's unchecked signature, as a body that owns its own timeout can. */
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrow(Throwable failure) throws T {
+        throw (T) failure;
     }
 
     @Test
@@ -357,6 +401,30 @@ class SynchronousExecutionTest {
         assertThat(failure).hasValue(null);
         assertThat(result).hasValue(42);
         assertThat(preserved).isTrue();
+    }
+
+    @Test
+    void aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted() throws Exception {
+        RuntimeException boom = new RuntimeException("boom");
+
+        Thread.currentThread().interrupt();
+        try {
+            // Freezing reads each element's failure; a read that goes through Future.get() reports
+            // InterruptedException for a failed element whose future settled long before, which used
+            // to fail this whole call.
+            TaskBatchResult<Integer> batch = par.map(
+                    Collections.singletonList(1),
+                    i -> {
+                        throw boom;
+                    },
+                    BatchOptions.timeout("interrupted-freeze", TIMEOUT));
+
+            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.USER_FAILURE, 1);
+            assertThat(batch.results().get(0).failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @ParameterizedTest

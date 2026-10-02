@@ -124,7 +124,10 @@ public final class CancellationToken {
      *
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
      * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
-     * when any future fails. Every cancelling transition cancels the futures and the submission
+     * when any future fails. A {@link TimeoutException} input failure is the token's own deadline
+     * only when that deadline has passed; a task body's own {@code TimeoutException} arrives with
+     * the deadline still live and is therefore an ordinary {@code FAIL_FAST} failure. Every
+     * cancelling transition cancels the futures and the submission
      * canceller; cancelling an already-successful future is a no-op, so a late cancel never
      * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
      * synchronously and cancels the futures before this method returns, so no submitted task can
@@ -177,7 +180,15 @@ public final class CancellationToken {
                         // Commit the state before cancelling: a listener can still fix a cause (a
                         // task group escalating a member timeout) before cascade cancellation makes
                         // every path look like fail-fast.
-                        transitionTo(failure instanceof TimeoutException ? TIMEOUT : FAIL_FAST);
+                        //
+                        // A TimeoutException alone does not identify this token's own deadline:
+                        // allAsList propagates a failing input's cause verbatim, so a body throwing
+                        // java.util.concurrent.TimeoutException must not commit TIMEOUT for a
+                        // deadline that has not expired. The framework's own timeout fires only
+                        // after its deadline passed, so the clock settles what the type cannot --
+                        // and the no-deadline sentinel reports elapsed as false, landing it on
+                        // FAIL_FAST.
+                        transitionTo(failure instanceof TimeoutException && deadlineElapsed() ? TIMEOUT : FAIL_FAST);
                         allFutures.cancel(true);
                     }
                 },
@@ -280,6 +291,14 @@ public final class CancellationToken {
      */
     void addStateListener(Consumer<State> listener) {
         stateListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
+    }
+
+    /**
+     * Returns whether this token's deadline has passed, reading the clock in the same saturated
+     * arithmetic the timer uses. The {@link Long#MAX_VALUE} sentinel is never elapsed.
+     */
+    private boolean deadlineElapsed() {
+        return Deadlines.remaining(deadlineNanos, System.nanoTime()) == 0L;
     }
 
     /** Commits a terminal transition from {@code RUNNING}, notifying state listeners when it wins. */

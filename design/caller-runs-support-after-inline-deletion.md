@@ -1,6 +1,9 @@
 # 删除 `runOnCallerThread` 后，如何最大化支持 `CallerRunsPolicy`
 
 > 状态：**已落地（2026-09-30）**。前置决策已定：删除 `runOnCallerThread`。
+> §12 保留了一次中途落地的过程记录（分支 `feat/default-io-bound-and-combine-enforcement`），
+> 其内容已并入本次最终落地；其中 §12.5 的归因竞态当时未修，已于 2026-10-02 复核并修复
+> （见 §12.5 的修复注记）。
 > 本文只回答随之而来的问题——inline 回退从库的选项变成用户的 `RejectedExecutionHandler`
 > 之后，库应该为这条路径提供什么。
 > 缺陷分析见 [inline-fallback-path-analysis.md](inline-fallback-path-analysis.md)，
@@ -218,7 +221,7 @@ combine pool did : 0 tasks
   但本节的坑以较轻的形式存留。
 
 两档都要同步改 `TaskType` javadoc（它现在把 `CPU_BOUND` 记作默认值）。
-**这是公共 API 默认语义变更，需用户确认后才动手。**
+**这是公共 API 默认语义变更。已由用户拍板选 1a 并落地，见 §12。**
 
 ## 3. 支持项一：线程借用隔离搬进 `run()`
 
@@ -576,7 +579,238 @@ listener 驱动 refill。前者删 `TaskListener` SPI、改 `completionFuture()`
 Kimi 会话可续：`kimi -r session_07524369-b252-4b67-b0c9-d5423ff330d4`。
 （fork 会话已声明不去续这条线，避免两边问同一 session 制造分歧。）
 
-## 附录 A：探针记录（源码已精简出正文）
+## 12. 落地记录：1a 与 A（2026-09-29，历史记录，已并入最终落地）
+
+分支 `feat/default-io-bound-and-combine-enforcement`，基线 `5e5245f`，worktree `/tmp/vf-1a-A`。
+全量 710 测试绿（连跑 2 次；1a+A 落地时的 705 版本连跑 3 次）。四个 commit：
+
+| commit | 内容 |
+|---|---|
+| `60464c8` | 1a：默认 `TaskType`→`IO_BOUND`、`rejectEnqueue`→`false` |
+| `d49d02a` | A：combine 强制，`forbidInlineExecution()` |
+| `4d36eaa` | 测试修正：去掉一个竞态断言，放宽两个线程名断言 |
+| `88a01a1` | 嵌套场景 3 个锁 + 抗取消 2 个锁（见 §12.2 末、§12.5） |
+
+### 12.1 1a 的最终形态
+
+`BatchOptions.java:50,61`、`TaskOptions.java:26,53` 四处构造点改为 `IO_BOUND` + `false`。
+实测确认了本文 §2.4 的判断，并补齐了 12 元素的精确数字（提交信息引用的就是这组）：
+
+```
+旧默认值，12 元素，容量 100 队列，2 核心线程
+bodies on caller : 10 of 12
+pool completed   : 2
+queue size now   : 0
+```
+
+新锁 `DefaultEnqueuePolicyTest`，三个用例：默认值下 12 个 body 全在 worker 上；
+显式 `CPU_BOUND` 仍被拒绝入队；显式 `rejectEnqueue(true)` 单独也仍被拒绝入队。
+后两个是控制组——**证明新默认值只是停止强加该行为，没有顺手删掉这个能力**。
+反向验证：恢复任一旧默认值，第一个用例失败而两个控制组仍过；
+把 `offer` 的拒绝条件改成 `if (false)`，两个控制组都失败。
+
+### 12.2 A 的最终形态：执行期线程身份，而非提交期策略检测
+
+本文 §2.3 原写"在 combine 提交点检测拒绝策略，是则不提交"。**落地时改成了更窄的形态**，
+理由是原形态会误伤：`CallerRunsPolicy` 只在池真正饱和时 inline，池从不饱和的用户其 combine
+从未违反过任何保证，按策略株连会把这批合规用户直接改成必然失败。这与 `ParRuntime` 拒绝
+Discard 系不同——Discard 的危害是无条件的（注册即必然丢任务）。
+
+最终形态：`ExecutionPhaseHintFuture.forbidInlineExecution()` 置位后，提交前记录
+`submittingThread`、`execute()` 返回即清空；`run()` 里若 `submittingThread` 等于当前线程，
+说明 body 是在 `execute()` 内部被拒绝处理器同步跑掉的，于是不执行 body、
+`setException(new SubmissionException(...))`。仅对 `ThreadPoolExecutor` 启用
+（`ExecutorRuntime.threadPoolBacked()`）。
+
+**关键细节：比对的是"提交窗口内"而不是"提交线程"。** 只比线程身份会在共享池上误判：
+收敛回调在 worker N 上提交 combine，combine 正常入队，worker N 跑完自己的 member 回到池中，
+再从队列里取出 combine 执行——完全合法，而两次都是 worker N。入队的任务只可能在 `execute()`
+返回之后才开始，这就是区分二者的依据。这一点由 `TaskGroupCombineInlineGuardTest` 的
+`aSharedPoolWorkerMayStillPickTheCombineOffItsOwnQueue` 锁住。
+
+新锁 5 个，其中 3 个是控制组（不饱和的池照常成功、direct executor 照常 inline、
+共享池 worker 可以合法地从自己队列里取出 combine），另有一个锁 body-completion slot 的释放。
+反向验证：撤掉 `forbidInlineExecution()` 调用，仅强制用例失败。
+scoped PIT 对 `ExecutionPhaseHintFuture` + `ExecutorRuntime`：新判定点
+（`:205`、`:324`、`:326`、`threadPoolBacked`）全部 KILLED，其中 `threadPoolBacked` 双向都被杀，
+说明 direct executor 控制组在真正做事。
+
+### 12.3 评审中被推翻的三处（Kimi 三轮 + 我的复核）
+
+| 我原先的写法 | 问题 | 处置 |
+|---|---|---|
+| 只比"提交线程" | 共享池误判（见 §12.2） | 改为比"提交窗口内" |
+| 违规分支调 `skipBody()` | phase claim 已把 slot 推到 RUNNING，`skipped()` 的 CAS 必然失败、什么都不释放 | 删掉该调用，由 finally 的 `releaseCallable()` + `releaseBody()` 承担 |
+| `CombineBody` javadoc 暗示守卫能证明 body 跑在哪 | 拒绝处理器转发到**另一个池**时守卫看不见，而那同样违反契约 | javadoc 改为只声明覆盖收敛回调线程这一种情形 |
+
+另有两处命名/一致性修正：`inlineOnRejectionPossible()` 过度承诺（TPE + `AbortPolicy`
+返回 true 但永不 inline）→ 改名 `threadPoolBacked()`，按"它测的是什么"而非"它支持什么结论"命名；
+`inlineForbidden` 与 `submittingThread` 的 volatile 论证互相矛盾 → 统一为都 volatile。
+
+第三轮还发现一个测试缺陷：`getCompletedTaskCount()` 由 worker 在 `afterExecute` 递增，
+而 future 在任务体内部就已完成，所以已观测到全部值的运行仍可能读到 11——JDK 明确说该计数是近似值。
+该断言已删除（线程名本来就是真正的断言）。
+
+### 12.4 连带文档改动
+
+`CombineBody` 公开 javadoc、`task-group-terminal-combine.md`（§3 推论、§4 选项、§7 结果表、
+§9 验收项 1）、两份 user-guide、两份 migration-v0.3（各加一条行为变化）、
+`ParRuntime.java` 的 Discard 拒绝消息（不再把 `AbortPolicy` 与 `CallerRunsPolicy` 并列推荐，
+按 §5 的立场只推荐 `AbortPolicy`）。两份已落地的设计记录
+（`executor-transparency.md` §1.1、`task-type-semantics-v0.3-proposal.md` §3 表）
+加前向注记而非改写——它们的诊断对当时的默认值是正确的。
+
+### 12.5 顺带发现的既有缺陷（与 1a/A 无关）——**已修复（2026-10-02，`feat/land-unimplemented-local-changes`）**
+
+写 combine 守卫的抗取消测试时，第一版把 group deadline 扫到 1ms 想制造竞态，
+结果撞出了另一件事：**同一个 `TaskGroupResult` 里，组 outcome 与成员 outcome 会对同一个事件给出
+互相矛盾的归因。**
+
+实测（300 次，group deadline 1–4ms，成员 sleep 200ms，成员 `inheritTimeout()`）：
+
+```
+group  outcomes: {MEMBER_CANCELED=22, TIMEOUT=278}
+member outcomes: {TIMEOUT=300}
+```
+
+成员 100% 正确归因为 `TIMEOUT`，但组有约 7% 报 `MEMBER_CANCELED`——
+组在说"某个成员被直接取消了"，而那个成员自己说"我超时了"。
+
+**这解释了另一件事：** 本次会话中 `TaskGroupTest.groupAndMemberDeadlinesConvergeAsTimeout`
+在一次全量运行里失败过一次（expected `TIMEOUT` but was `MEMBER_CANCELED`），
+随后连跑 5 次单测 + 5 次全量都过。就是那个竞态，不是本次改动引入的。
+
+#### 修复时的复核与根因（2026-10-02，按当前 HEAD 重测）
+
+atomic counting barrier（`98a2055`）之后**仍可复现**：8 线程 × 2000 次、deadline 1–4ms，
+`组=MEMBER_CANCELLED / 成员=TIMEOUT` 139 次（约 7%，与旧基线吻合），另抓到第二种形态
+`组=GROUP_CANCELLED / 成员=MEMBER_CANCELLED` 8 次。根因是同一缺陷族的两个独立窗口，
+都让"组 token 未提交、成员已归因"同时成立：
+
+- **窗口 A（本节原描述的）**：`inheritTimeout()` 让成员 deadline 与组完全相等，于是
+  `TaskGroup.start` 的跳过分支把成员 bind **连同 TIMEOUT→组的 escalation 监听器一起跳过**。
+  成员 body 入口的 checkpoint（wall-clock backstop）发现继承的 deadline 已过，自行把
+  **成员 token** 提交 TIMEOUT；组 token 仍 RUNNING，`deriveOutcome` 的 RUNNING 分支无记录
+  失败且非全成功 → 猜 `MEMBER_CANCELLED`。
+- **窗口 B（复核时新发现）**：`CancellationToken.bind` 在 `withTimeout()` 之后才
+  `addCallback`；1ms deadline 下 bind 自身就可能耗过 deadline，此时定时器先取消成员
+  future、组 token 尚 RUNNING，成员 `classifyCancelled` 读两个 token 都未提交 → 误报
+  `MEMBER_CANCELLED` 并级联取消组 → 组报 `GROUP_CANCELLED`。
+
+修复三处（均在 `TaskGroup.java`）：① `start` 里 escalation 监听器挪到"继承 deadline 则跳过
+bind"判断之前（窗口 A 根因）；② `classifyCancelled` 加 wall-clock backstop——组 token 仍
+RUNNING 且成员自身 deadline 已过时归因 TIMEOUT（窗口 B 成员侧）；③ `deriveOutcome` 无记录
+失败时回退到成员已记录的 TIMEOUT 而不是盲猜 `MEMBER_CANCELLED`（窗口 B 组侧 + 兜底）。
+注意 ② 的代价：在"deadline 已过且组 token 未提交"的窗口内，用户直接取消成员或用户代码
+自发抛取消异常也会被归因 TIMEOUT（deadline 确实已过，属可辩护的既定行为，已写进
+`classifyCancelled`/`classifyFailure` 的 javadoc）；窗口外的直接取消路径不受影响
+（成员 reason 仍是 MEMBER_CANCELLED，组仍可达 MEMBER_CANCELLED）。
+
+回归锁：`TaskGroupTest.inheritedDeadlineTimeoutIsAttributedConsistently`
+（8 线程 × 200 组、deadline 1ms、2 个 `inheritTimeout()` 成员，断言组与成员全部 TIMEOUT；
+其中窗口 B 部分是统计型锁，反向验证实测约 3/1600 触发率，安静机器可能整轮不命中）。
+反向验证逐处撤修复均转红：撤整个修复 `MEMBER_CANCELLED/TIMEOUT` 85/480；仅撤 ①
+464/1600 错；仅撤 ② 3/1600 错（窗口 B）；仅撤 ③ 约 0.2%/次。修复后 5×1600 次零失配。
+scoped PIT（TaskGroup × TaskGroupTest）：改动区判定全部 KILLED；存活 2 个均判为等价
+变异体/概率性覆盖缺口（纳秒相等不可达、稀有竞态分支单轮未命中，反向验证已真实走到）。
+
+#### 评审记录（2026-10-02，codex 独立座位，只审不改）
+
+**第一轮**（verdict：ship-with-changes）。findings 与处置：
+
+1. （Medium，成立，已修）反向交错仍不一致：紧 deadline 成员自身 bind 的窗口 B 让组 token
+   提交无失败的 FAIL_FAST，被级联取消的兄弟成员读 FAIL_FAST，而组经 ③ 报 TIMEOUT。
+   处置选"让 `classifyCancelled` 用同样证据"而非文档化：新增 `deadlineDrivenCancellation`，
+   组 token=FAIL_FAST 且 `failedTaskName==null` 且成员 future 被取消 → TIMEOUT。
+   前置事实经探针各 2000 次实测：真失败必先在 `memberCompleted` 写 `failedTaskName`，
+   真·直接取消必先把组提交为 CANCELLED，故该组合在生产路径只可能由取消驱动。
+   对评审建议的两处修正：加 `member.future.isCancelled()` 限定（否则
+   `SynchronousExecutionTest.groupCancellationWrapsRecordedFailureBeforeMemberPropagation[FAIL_FAST]`
+   挂——成员是异常失败而非 future 被取消）；去掉"该成员 deadline 已过"guard
+   （被复现的交错里受害者继承的是 30s 组 deadline，并未过期）。
+   新锁 `mixedDeadlineVictimsAreNotAttributedFailFast`（8×500，统计型）。
+   反向验证：撤 FAIL_FAST 分支 → 探针复现 8/96000、4/96000；带修复两轮 0/96000。
+2. （Low，成立，行为接受、改 javadoc）backstop 窗口内，deadline 过后的直接取消/自发取消
+   异常也归因 TIMEOUT。delta 窄且 deadline 确实已过，属可辩护行为；`classifyCancelled` 与
+   `classifyFailure` javadoc 已补该例外，本节上文与 CHANGELOG 措辞同步修正。
+3. （Low，成立，改 javadoc）`deriveOutcome` 的"失败优先"表述过度承诺——组 token 已提交
+   TIMEOUT/CANCELLED/PROPAGATED_CANCELLED 时不查 `failedTask()`。javadoc 已重写为实际规则。
+4. （Low，成立）压力测试 javadoc 已声明窗口 B 锁是统计型的；测试内临时把
+   `ExecutionPhaseHintFuture` logger 降到 SEVERE 压掉每轮上千条警告（finally 恢复）。
+无 finding 的面：recordedTimeout 的可见性、Java 8 合法性、泛型、成功/fail-fast/combine
+路径、C 部分两个 commit（`exceptionNow` 的 getDone 改写、`Task.terminal()` 单趟分类、
+`ImmediateResult.fromTask` 行为等价）、D 的 BACKLOG 条目。
+Nits（均确认不改）：`Task.outcome()` 每次分配一个 Terminal（无热路径轮询，缓存反而破坏
+"每次读一份新终态"语义）；`terminal()` 对 null-cause ExecutionException 抛 VerifyException
+（Guava AbstractFuture 必带 cause，不可达）；`Futures.getDone` 对病态 Future 自旋
+（生产与测试都无 isDone()=true 而 get() 抛 InterruptedException 的 Future）。
+
+**第二轮**（针对第一轮的修复，verdict：ship-with-changes）：
+
+- F1（Medium，既有缺陷，成立，已修）：`CancellationToken.bind` 按异常类型归因
+  `TIMEOUT`，而 `allAsList` 原样传播失败输入的 cause、Guava 定时器异常又是私有子类无法按
+  类型区分——**成员 body 抛用户自己的 `java.util.concurrent.TimeoutException`** 会让组 token
+  提交 TIMEOUT（组 TIMEOUT / 该成员 USER_FAILURE / 兄弟被误标 TIMEOUT，且组 outcome 随完成
+  顺序变化，三种形态实测复现）。修复：`transitionTo` 加 wall-clock 守卫
+  （`deadlineElapsed()`，走 `Deadlines.remaining(...) == 0`，哨兵与饱和语义正确）——
+  TimeoutException 只有在该 token deadline 确已过去时才归因 TIMEOUT，否则 FAIL_FAST。
+  新锁 4 个（bind 级 2 个 + 组级顺序无关 2 个），反向验证撤守卫全数转红。
+  batch 公开路径构造不出该缺陷（`Par.map` 的 Function 抛不出受检 TimeoutException）。
+- F2（Low，成立，保持行为 + 文档化）：无失败 fail-fast 下"以取消形异常失败（future 非
+  cancelled）"的受害者仍读 FAIL_FAST。该残余在累计数十万次压力实测中未观测到，但第三轮
+  评审指出它并非构造上不可能（组 bind 聚合 future 以取消形异常**失败**而非被取消时同样
+  构成无失败 FAIL_FAST），故按证据分级记录：窗口内仍可能，选择保留 FAIL_FAST 归因而不是
+  继续猜；方向安全（该标签只在无失败 fail-fast 下可读，永不掩盖真失败）。
+  `deadlineDrivenCancellation` javadoc 已按此重写。
+- F3（Low，成立，文档修正）：组级 `MEMBER_CANCELLED` 回退生产不可达（首个无失败 FAIL_FAST
+  提交必有成员已记 TIMEOUT）；`deriveOutcome` javadoc 与 `design/task-group-cancellation.md`
+  §8.4 已改为实际行为（成员直消 → 组 GROUP_CANCELLED），防御性回退代码保留。
+- F4（Low，成立，全修）：JUL 级别恢复挪到 finally 最前（关池抛异常不再残留全局 SEVERE）；
+  删除修复后已死的 `MEMBER_CANCELLED` 守卫；分支 (b) 补了确定性合成锁
+  `failureLessFailFastDoesNotAttributeCancelledMemberAsFailFast`（反射 + `failFastCancel()`，
+  反向验证撤谓词后确定性失败），统计型压力锁保留。
+- 第一轮两条关键不变量经第二轮独立核实成立：失败必先记录 `failedTaskName` 再提交
+  FAIL_FAST（`memberCompleted` 监听器先于 bind 聚合回调注册，Guava 按注册序执行）；
+  直接取消必先提交组 CANCELLED。可见性/发布无 JMM 缺口。
+
+**第三轮**（针对 F1 修复与 F4 处置，verdict：ship-with-changes，无功能性阻塞）：
+
+- 干净面：四个 `bind` 调用点的框架自身超时归因（定时器只在 deadline 过后触发，
+  `deadlineElapsed()` 在读时必为真；哨兵、饱和、调度抖动逐一排除）；"deadline 已过但
+  定时器未跑"窗口内用户 TimeoutException 归因 TIMEOUT 与 checkpoint backstop 同哲学、
+  窗口严格窄于修复前；窗口 A/B 修复无回归；新测试确定性、反射字段名、JUL 恢复顺序、
+  Java 8、中断规则均干净。
+- F3-1（Low，成立）：见上面 F2 的改写——"生产不可达"断言不成立，javadoc 与记录改为
+  证据分级表述；`mixedDeadlineVictimsAreNotAttributedFailFast` javadoc 声明其断言强于
+  内核保证（残余方向安全）。
+- F3-2（Low，成立）：`failedTaskName` 先于 FAIL_FAST 提交依赖 Guava `ExecutionList` 按
+  注册序执行监听器——其类 javadoc 不保证顺序，33.6.0 靠反转链表恰好满足；已在
+  `deadlineDrivenCancellation` 的 FAIL_FAST 分支就地注释记录该上游实现假设、pom 锁定版本、
+  以及假设失效的后果（兄弟可能被误标 TIMEOUT）。
+- F3-3（Low，成立，我之前"batch 构造不出"的记录是错的）：body sneaky-throw 的受检异常
+  原样进 `setException`（`ExecutionPhaseHintFuture.java:412`），故 F1 同样修正 batch 归因
+  （修复前 sneaky TimeoutException 使 batch token TIMEOUT）。补 batch 级用例
+  `batchElementSneakyTimeoutExceptionIsUserFailureNotBatchTimeout`，反向验证撤守卫确定性
+  转红。
+- Nit（拒绝）：三种 elapsed 判定不合并为共享助手——`Deadlines.remaining(...) == 0` 与裸
+  比较的哨兵语义各自贴合所在类，合并收益不抵跨类耦合。
+
+### 12.6 未做的事
+
+- §2.3 的选项 B（降级承诺）未采用，因为 A 落地了。
+- 守卫只装在 combine 上。group member 与 batch 元素没装，它们有合法的可借用调用方线程。
+- 拒绝处理器转发到另一个池仍是检测不到的违规，已在 javadoc 里明说而非静默。
+- 本文其余各项未动，特别是 §3 的线程借用隔离——另一个会话在
+  `feat/bind-before-submit-and-interrupt-isolation` 上做它。
+- §12.5 的组 outcome 归因竞态当时未修（范围外）；已于 2026-10-02 按当前 HEAD 复核并修复，
+  见 §12.5 的修复注记。
+- combine 守卫与取消之间那个极窄的交错（取消落在 phase claim 与 `setException` 之间）
+  没有测试强制覆盖：实测中该窗口从未被命中，因为能赢的取消都赢得足够早、
+  早到 combine 根本没被提交。强制它需要往 `run()` 里注入屏障。
+  该窗口本身是安全的，论证记在 `TaskGroupCombineGuardCancellationTest` 的类 javadoc 里：
+  `AbstractFuture` 串行化完成，败者是 no-op，而守卫在那条路径上除了一个异常没有引入任何状态。
+
+## 附录 A：探针源码
 
 §2.2、§2.3、§2.4、§5 引用的实测输出来自六个一次性探针（1、2、B、C、D、E）。
 它们是诊断工具而非回归锁——回归锁的落地形态是 §9，探针留下只会占 CI 又需随 API 维护。
