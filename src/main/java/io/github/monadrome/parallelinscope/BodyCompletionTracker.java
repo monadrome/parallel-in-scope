@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -92,14 +91,9 @@ final class BodyCompletionTracker {
         }
     }
 
-    /**
-     * Completes a {@code Void} signal by delegating to the already-completed void future rather
-     * than {@code set(null)}: passing the null literal trips Error Prone's
-     * NullArgumentForNonNullParameter when javac runs on JDK 21. The completion is equivalent —
-     * the signal carries no value and completes synchronously.
-     */
+    /** Completes a valueless signal synchronously, running its listeners on this thread. */
     static void complete(SettableFuture<@Nullable Void> signal) {
-        signal.setFuture(Futures.immediateVoidFuture());
+        signal.set(null);
     }
 
     /** The completion signal itself, for composition by the owning topology. */
