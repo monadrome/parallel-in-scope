@@ -78,6 +78,27 @@ TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；�
 rejectEnqueue 无效并有诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
 SubmissionException 保留原 cause，包括 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
+TaskType 默认 IO_BOUND，rejectEnqueue 默认 false。把 SmartBlockingQueue 装到物理池上，并按批次声明策略：
+
+```java
+ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
+        4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
+
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool)
+        .build();
+
+TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
+        records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5))
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true));
+```
+
+CPU_BOUND 任务会让 offer 返回 false（单独如此，或与 rejectEnqueue(true) 一起），因此池子要么
+开新线程、要么走拒绝处理器，而不会把 CPU 任务排在 IO 任务后面；rejectEnqueue(true) 与它是冗余的，
+只用于表明意图。换成其他任何队列，TaskType 都不改变库的行为，rejectEnqueue 则是惰性的。
+
 ## 执行异构任务组 {#task-group}
 
 声明每个成员的名称、Par、类型和 body。`runAll()` 消耗草稿、执行一次并返回有类型的终态
@@ -118,6 +139,29 @@ TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深�
 组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 保持原异常习惯：unchecked 原样抛、
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
 使聚合成员值失败，但单独的成功成员结果仍可读。
+
+### 三个及以上成员
+
+第一个之后的每次 `par` 都让聚合类型左嵌套一层 `Tuple2`，因此三成员组 combine 里的 `values`
+是 `Tuple2<Tuple2<A, B>, C>`。用 `first()`/`second()` 展开，并在类型仍然明确时就地构造扁平对象：
+
+```java
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par("account", httpPar, Account.class, () -> loadAccount(userId))
+        .par("order", httpPar, Order.class, () -> loadOrder(userId))
+        .combine("profile", httpPar, Profile.class, values -> new Profile(
+                values.first().first(),
+                values.first().second(),
+                values.second()))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+按位置访问不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，应让
+combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
+下游不应为了读一个值而重建成员顺序。
 
 <a id="task-attribution"></a>
 
@@ -171,6 +215,33 @@ runtime 关闭且 awaitQuiescence 成功后，全部已接纳 body 才确认退�
 主异常/suppressed 规则；取消先落定后才抛出的异常按任务身份记录日志，不改写取消结果。
 库不自动发现或关闭捕获/返回对象，也不管理用户额外启动的线程或外部异步操作。
 
+### 应用停机
+
+停机时有三方各自收尾：runtime 停止接纳新工作并释放自身服务，runtime 等待已接纳 body 退出，
+应用关闭自己注册的执行器。按这个顺序执行：
+
+```java
+runtime.close();                                      // 拒绝新工作；释放 timer/submitter 服务
+try {
+    runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 body 退出
+} catch (InterruptedException interrupted) {
+    Thread.currentThread().interrupt();               // 恢复标志；停机流程仍需走完
+} finally {
+    httpExecutor.shutdownNow();                       // 停止应用自己的线程池
+    databaseExecutor.shutdown();                      // 池已静止时的优雅变体
+}
+```
+
+`close()` 幂等，且绝不关闭已注册的执行器；它只释放框架的 timer 与 submitter 服务，也不等待
+在途 body。body 级等待由 `awaitQuiescence(Duration)` 完成，但它必须先 `close()`：不先关闭就
+只是把超时等满，超时返回 false。它可被中断，被中断时恢复标志并继续停机。已注册执行器仍归应用，
+应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器自身的生命周期停止。
+
+不要把 `inFlight()` 当成 body 计数。它统计的是正在装配批次的准入数加上尚未排空的批次数——
+future 级跟踪，不是仍在用户代码里的 body。运行中被取消的任务会立即结束其 future，而 body 可能
+仍在回卷，因此 `inFlight()` 可能已经归零而某个 body 仍在运行。真正同时等待 future 排空与 body
+退出的是 `awaitQuiescence`。
+
 ## 完成观测 {#completion-snapshots}
 
 Batch.completions 是输入顺序的最终 TaskCompletion 列表；null 表示返回前未确认发布。
@@ -178,6 +249,11 @@ Group.members 按名称包含可用最终快照，terminal 是可用 combine 快
 快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
 report/reportString、组 outcomeCounts 仍统计所有终态成员。
+
+`failure()` 承载的是细节而非结论。成功任务一定返回 null。其余 outcome 都带 throwable：
+`USER_FAILURE` 记录 body 自己抛出的异常——包括 body 主动抛出的 InterruptedException 或
+CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常记录一个以 outcome 命名的
+`LeanCancellationException`。判定任务归类要用 `successful()` 或 `outcome()`。
 
 ## 取消与嵌套批次
 
@@ -243,6 +319,145 @@ Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
 关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md)。
+
+## 集成配方 {#integration-recipes}
+
+### 与 MDC（SLF4J）协作
+
+库的上下文传播基于 Alibaba TransmittableThreadLocal：准备任务时捕获，worker 上恢复。MDC 是
+普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在 body 入口
+写入 MDC、在 finally 清理：
+
+```java
+private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
+        new TransmittableThreadLocal<>();
+
+// 提交线程：声明本次调用的诊断字段
+DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
+try {
+    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+} finally {
+    DIAGNOSTIC.remove();
+}
+
+Account fetchAccount(String id) {
+    Map<String, String> fields = DIAGNOSTIC.get();
+    if (fields != null) fields.forEach(MDC::put);   // body 入口：TTL -> MDC
+    try {
+        return load(id);
+    } finally {
+        MDC.clear();
+    }
+}
+```
+
+这只覆盖经本库管理的任务：库在每次任务前后自行做 TTL 捕获与恢复，因此这些 body 无需 TTL agent；
+同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。
+
+### 与 OpenTelemetry 协作
+
+同样的形态可以携带 span 上下文：把 OTel `Context` 放进 TransmittableThreadLocal，在 body 入口
+使其成为当前上下文。
+
+```java
+private static final TransmittableThreadLocal<Context> REQUEST_CONTEXT =
+        new TransmittableThreadLocal<>();
+
+TaskBatchResult<String> batch = databasePar.map(ids, id -> {
+    Context parent = REQUEST_CONTEXT.get();
+    SpanBuilder builder = tracer.spanBuilder("load");
+    if (parent != null) {
+        builder.setParent(parent);
+    }
+    Span span = builder.startSpan();
+    try (Scope ignored = span.makeCurrent()) {
+        return load(id);
+    } finally {
+        span.end();               // 结束本 body 的 span，并恢复此前的当前上下文
+    }
+});
+```
+
+这里用标准 OTel API 命名示意，不引入真实依赖。要点是 `makeCurrent()` 返回的 `Scope` 必须在
+body 内关闭，span 也必须始终 `end()`。库只负责把 TTL 值带到 worker，不感知 span。
+
+### 客户端超时
+
+库的 deadline 是协作式的：它中断 worker，但无法终止阻塞在 socket 读上的线程。因此 body 内的
+每次 HTTP/DB 调用都必须自带 connect/read 超时：
+
+```java
+String fetch(String url) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+    connection.setConnectTimeout(1_000);      // 客户端 connect 预算
+    connection.setReadTimeout(2_000);         // 客户端 read 预算
+    try (InputStream in = connection.getInputStream()) {
+        return new String(ByteStreams.toByteArray(in), StandardCharsets.UTF_8);
+    } finally {
+        connection.disconnect();
+    }
+}
+
+TaskBatchResult<String> bodies = httpPar.map(urls, this::fetch,
+        BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
+```
+
+批 timeout 给出整批预算；客户端的 connect/read 超时才是单次调用的硬边界。
+
+### 指标回调
+
+在调用侧用冻结快照聚合上报：batch 读 `completions()`（输入顺序的 List，元素为 null 表示未确认
+发布），group 读 `members()`（按成员名）。
+
+```java
+TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+        BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+for (TaskCompletion<Account> completion : batch.completions()) {
+    if (completion == null) continue;         // 返回前未确认发布
+    metrics.record(
+            completion.taskName(),
+            completion.successful() ? "ok" : "failed",
+            completion.outcome(),
+            completion.waitTime(),
+            completion.executionTime());
+}
+```
+
+group 用 `members()` 的 `(name, completion)` 逐项上报；`terminal()` 是 combine 的快照。时间与
+outcome 来自同一次冻结，调用返回后不会再变。
+
+### 与 Guava / CompletableFuture 互操作
+
+`ImmediateResult.asFuture()` 返回只读 `ListenableFuture`：已完成，`cancel(...)` 恒为 false，
+取消会表现为带 CancellationException cause 的失败。可用 `Futures.addCallback`/`Futures.transform`
+组合：
+
+```java
+ListenableFuture<Account> account = batch.results().get(0).asFuture();
+Futures.addCallback(account, new FutureCallback<Account>() {
+    @Override public void onSuccess(Account value) { cache.put(value); }
+    @Override public void onFailure(Throwable failure) { log.warn("load failed", failure); }
+}, executor);
+
+ListenableFuture<String> label = Futures.transform(account, Account::displayName, executor);
+```
+
+需要在应用边界暴露 `CompletableFuture` 时，用 listener 桥接：
+
+```java
+CompletableFuture<Account> future = new CompletableFuture<>();
+account.addListener(() -> {
+    try {
+        future.complete(Futures.getDone(account));
+    } catch (ExecutionException failure) {
+        future.completeExceptionally(failure.getCause());
+    }
+}, executor);
+```
+
+因为 `map`/`runAll` 是同步的，互操作发生在结果侧：没有可组合的提交侧 future，只有已经冻结的
+`ImmediateResult`。
 
 ## 运行规则
 

@@ -124,7 +124,12 @@ cancellation are diagnosed without overwriting the settled result.
 
 A group draft belongs to one runtime, is single-use and usable only from its creating thread. Each
 par call binds name, executor, type, and this run's Callable. Class overloads serve plain reference
-types; parameterized types and custom options use TypeToken. First member gives V=T, subsequent
+types; parameterized types and custom options use TypeToken. The same shorthand exists on the read
+side: `GroupValues.valueOf(name, Class)`/`valueAt(index, Class)` and
+`TaskGroupResult.resultOf(name, Class)`/`resultAt(index, Class)` delegate to
+their TypeToken forms, so validation is identical. (A literal-null call such as
+`valueOf(name, null)` no longer compiles once both overloads exist; cast it to
+`(TypeToken<T>) null` if such a call exists.) First member gives V=T, subsequent
 members widen V to left-nested Tuple2; combine yields R. Primitive or unresolved tokens fail at
 declaration, and non-null outputs are checked against the raw class. Duplicate names, foreign Pars,
 stale stages and type-mismatched lookups fail early. Declaration itself starts no timer, captures no

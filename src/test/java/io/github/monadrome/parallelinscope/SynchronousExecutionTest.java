@@ -140,6 +140,31 @@ class SynchronousExecutionTest {
         assertThat(group.orThrow()).isSameAs(group);
     }
 
+    // NullAway: deliberate null argument — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
+    @Test
+    void classOverloadOfResultOfMatchesTheTypeTokenOverload() throws Exception {
+        TaskGroupResult<Tuple2<String, Integer>, Void> group = runtime.group("lookup", TIMEOUT)
+                .par("name", par, String.class, () -> "alice")
+                .par("count", par, Integer.class, () -> 41)
+                .runAll();
+
+        // The Class shorthand reads the same member under the same exact-match rule.
+        assertThat(group.resultOf("name", String.class).valueOrThrow()).isEqualTo("alice");
+        assertThat(group.resultOf("count", Integer.class).valueOrThrow()).isEqualTo(41);
+        assertThat(group.resultOf("name", String.class).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(group.resultAt(0, String.class).valueOrThrow()).isEqualTo("alice");
+
+        assertThatThrownBy(() -> group.resultOf("name", Object.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("java.lang.String")
+                .hasMessageContaining("java.lang.Object");
+        assertThatThrownBy(() -> group.resultOf("absent", String.class)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> group.resultAt(1, String.class)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> group.resultOf("count", int.class)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> group.resultOf("name", (Class<String>) null)).isInstanceOf(NullPointerException.class);
+    }
+
     @Test
     void publicNestedGroupInheritsDeadlineAndAncestorFailFast() throws Exception {
         CountDownLatch childEntered = new CountDownLatch(1);
@@ -200,7 +225,9 @@ class SynchronousExecutionTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = CancellationToken.State.class, names = {"TIMEOUT", "FAIL_FAST", "CANCELLED"})
+    @EnumSource(
+            value = CancellationToken.State.class,
+            names = {"TIMEOUT", "FAIL_FAST", "CANCELLED"})
     void groupCancellationWrapsRecordedFailureBeforeMemberPropagation(CancellationToken.State state) throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch fail = new CountDownLatch(1);
@@ -226,12 +253,13 @@ class SynchronousExecutionTest {
             Uninterruptibles.awaitUninterruptibly(propagate);
         });
         // Hold later aggregate callbacks so the member's recorded failure stays readable.
-        group.completionFuture().addListener(
-                () -> {
-                    published.countDown();
-                    Uninterruptibles.awaitUninterruptibly(completeCallbacks);
-                },
-                com.google.common.util.concurrent.MoreExecutors.directExecutor());
+        group.completionFuture()
+                .addListener(
+                        () -> {
+                            published.countDown();
+                            Uninterruptibles.awaitUninterruptibly(completeCallbacks);
+                        },
+                        com.google.common.util.concurrent.MoreExecutors.directExecutor());
         Thread canceller = new Thread(() -> {
             switch (state) {
                 case TIMEOUT:

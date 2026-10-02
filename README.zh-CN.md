@@ -33,22 +33,49 @@
 </dependency>
 ```
 
-在应用启动阶段构建一次执行拓扑，每个逻辑入口绑定它必须使用的执行器：
+在应用启动阶段构建一次执行拓扑，每个逻辑入口绑定它必须使用的执行器；应用关闭时同时关闭运行
+时与你自己的执行器：
 
 ```java
+ExecutorService ioPool = Executors.newFixedThreadPool(8);
+ExecutorService httpPool = Executors.newFixedThreadPool(4);
+
 ParRuntime runtime = ParRuntime.builder()
-        .register(ParId.of("io"), Executors.newFixedThreadPool(8))
+        .register(ParId.of("io"), ioPool)
+        .register(ParId.of("http"), httpPool)
         .build();
 
-BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
-        .parallelism(4)
-        .taskType(TaskType.IO_BOUND);
+Par ioPar = runtime.par(ParId.of("io"));
+Par httpPar = runtime.par(ParId.of("http"));
 
-TaskBatchResult<User> result = runtime.par(ParId.of("io"))
-        .map(userIds, userService::findById, options);
+try {
+    BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
+            .parallelism(4)
+            .taskType(TaskType.IO_BOUND);
 
-for (ImmediateResult<User> item : result.results()) {
-    System.out.println(item.outcome());
+    TaskBatchResult<User> result = ioPar.map(userIds, userService::findById, options);
+
+    for (ImmediateResult<User> item : result.results()) {
+        System.out.println(item.outcome());
+    }
+
+    TaskGroupResult<Tuple2<User, Account>, Profile> group = runtime
+            .group("profile", Duration.ofSeconds(3))
+            .par("user", ioPar, User.class, () -> loadUser(userId))
+            .par("account", httpPar, Account.class, () -> loadAccount(userId))
+            .combine("profile", httpPar, Profile.class,
+                    values -> buildProfile(values.first(), values.second()))
+            .runAll();
+    Profile profile = group.terminalValueOrThrow();
+} finally {
+    runtime.close();
+    try {
+        runtime.awaitQuiescence(Duration.ofSeconds(30));
+    } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+    }
+    ioPool.shutdownNow();
+    httpPool.shutdownNow();
 }
 ```
 
@@ -64,7 +91,12 @@ for (ImmediateResult<User> item : result.results()) {
   封顶——不写 `.parallelism(...)` 等于整批一次性提交。需要有界窗口就显式设置；0 或负数在入口
   被拒绝。
 
-`ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器。
+同一段示例还声明了一个**任务组**：一组固定的具名任务，每个任务带着自己的 `Par`、声明类型与
+body，最后由一个终端 `combine` 聚合。`runAll()` 只执行一次并返回冻结结果，用
+`terminalValueOrThrow()` 读取终端值。
+
+`ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器——因此
+示例在 `finally` 里自行关闭两个线程池。
 
 跨线程上下文传播基于 Alibaba `TransmittableThreadLocal`（TTL）：任务准备时捕获 TTL 的值，在
 worker 线程上恢复——普通 `ThreadLocal` 不会跨线程池边界：

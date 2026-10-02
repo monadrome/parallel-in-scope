@@ -111,7 +111,11 @@ Java 无法强制任意 body/close 停止，库不发现捕获/返回对象、�
 | JSR-305/Checker 注解 | JSpecify @NullMarked / 显式 @Nullable |
 
 草稿归属于一个 runtime，仅创建线程可用且只执行一次。成员声明绑定本次 Callable 与类型；
-Class 用于普通引用类型，泛型与自定义 options 用 TypeToken。首成员 V=T，后续为左嵌套
+Class 用于普通引用类型，泛型与自定义 options 用 TypeToken。读取侧同样提供 Class 简写：
+GroupValues.valueOf(name, Class)/valueAt(index, Class) 与
+TaskGroupResult.resultOf(name, Class)/resultAt(index, Class) 委托给对应
+TypeToken 形式，校验完全一致。（两类重载并存后，`valueOf(name, null)` 这类 null 字面量
+调用不再可编译；如确有此调用，强转为 `(TypeToken<T>) null`。）首成员 V=T，后续为左嵌套
 Tuple2，combine 类型为 R。原始类型、未解析 token、外国 Par、重名、旧阶段和不匹配查询
 提早失败；非 null 输出校验 raw class。声明期不计时、不捕获 TTL、不调用 executor；
 执行时才解析父级、最小 deadline 与 TTL。

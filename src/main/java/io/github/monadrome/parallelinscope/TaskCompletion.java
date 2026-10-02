@@ -223,7 +223,17 @@ public final class TaskCompletion<T> {
         return result;
     }
 
-    /** Returns the task failure, or null on success. */
+    /**
+     * Returns the throwable recorded for this task, or null on success.
+     *
+     * <p>Every non-success outcome carries a throwable: the body-thrown exception for {@link
+     * TaskOutcome#USER_FAILURE} — including an {@link InterruptedException} or {@link
+     * java.util.concurrent.CancellationException} the body raised itself — and, for
+     * cancellation-attributed endings such as {@link TaskOutcome#TIMEOUT} or {@link
+     * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome.
+     * Read {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
+     * detail.
+     */
     public @Nullable Throwable failure() {
         return failure;
     }
