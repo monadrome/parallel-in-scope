@@ -79,6 +79,11 @@ unchecked cancellation. The `failed(outcome, failure)` factory keeps its throwab
 the outcome label. Both get overloads preserve interruption; their static Future signatures still
 declare checked exceptions. Consumer listeners are outside the business scope/resource lifetime.
 
+`BatchOptions` parallelism no longer uses a `-1` sentinel for "unbounded": the default is
+`Integer.MAX_VALUE` (resolution still caps it by the task count, so default behaviour is unchanged),
+and `parallelism(int)` rejects zero or negative with `IllegalArgumentException` instead of silently
+resolving them to one worker per task.
+
 ## Waiting and resource ownership
 
 map/runAll declare no InterruptedException. Result and cleanup waits ignore interruption and restore

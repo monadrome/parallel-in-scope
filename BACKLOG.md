@@ -207,7 +207,7 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 | 编号 | 一句话 | 类别 | 证据 | 代价 |
 |---|---|---|---|---|
 | ~~O-1~~ | ~~批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline~~ **已被同步化重构取代**（见下） | — | — | — |
-| O-2 | `parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明 | 文档 | 读码 | 低 |
+| ~~O-2~~ | ~~`parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明~~ **已修复（工作区，见下）** | — | — | — |
 | O-3 | 无法显式表达"无 deadline"；超大 `Duration` 静默饱和为哨兵 | API | 读码 | 低-中 |
 | O-4 | 注册虚拟线程 executor 的告警文案事实错误、处方错误 | 用户使用 | 实测 | 极低 |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
@@ -239,6 +239,12 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 （`BatchOptions.java:115-116`）；同步化重构后的中/英指南已不再提默认值（只在示例里出现
 `.parallelism(8)`），所以"不写＝整批立即提交"现在**没有任何一处文档说明**。
 修复：统一措辞并显式写出默认值；"是否改为强制显式选择"列入待决策。
+
+**已修复（工作区，未提交）**：默认值改为 `Integer.MAX_VALUE`（自解释；解析仍按任务总数封顶，
+默认行为不变），`parallelism(int)` 对 0/负数在入口抛 `IllegalArgumentException`——顺带关闭
+`parallelism(0)` 直觉反转一项。javadoc、中/英指南、README 契约块与 v0.3 迁移说明均写明
+"缺省＝整批一次性提交"；demo 文章反模式 #1 同步改写。"是否强制显式选择"随之定案：保持默认，
+默认值自解释 + 非正值拒绝，不强制显式。
 
 ### O-3 · 无法表达"无 deadline"
 
@@ -311,16 +317,15 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 | `9f8867c` | P-P0 定时器残留（显式 `ScheduledThreadPoolExecutor` + `setRemoveOnCancelPolicy(true)`）与 A-P0 失败归因（`valuesOrThrow()` 先扫记录失败再定异常类型）；两处均带回归测试。2026-10-01 复核时逐条确认 |
 | `1ba1937` | 文档漂移 14 个文件：README 两条失效特性、`user-guide` 的"不可变"措辞与"显式 token 取消"、`migration-v0.2` 抬头指向从未发布的 API、`propagateCancellation` 的过度承诺、idea-graveyard/philosophy 的旧类型示例、`TaskBatchResult` javadoc 里已删除的 `FAILED`、`design/AGENTS.md` 三行悬空索引 |
 | 工作区（未提交） | 两份提案标注"已实施"并加 §9 实施记录（经复核逐行核对） |
+| 工作区（未提交） | O-2：`parallelism` 默认改为 `Integer.MAX_VALUE` 并在 javadoc/README 契约块/中英指南写明"缺省＝整批一次性提交"；`parallelism(int)` 拒绝非正值（带回归测试）；CHANGELOG 与 v0.3 迁移说明同步 |
 
 ## 待决策
 
 1. **测量仪器是否入库**：`/tmp/pisbench/` 的 4 个 `.java`（`Bench`/`Probe`/`FailureShape`/`TimerProbe`）。
    不迁入则性能报告的数字无法复现，且 `/tmp` 会被清空。需注意别让 spotless 扫到。
-2. **`parallelism` 是否改为强制显式选择**（O-2 衍生）：对照 timeout 的强制二选一先例；
-   反对面是 2–5 个任务的小批次被迫写多余参数。倾向：保持默认，先把默认值在文档里变显眼。
-3. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
+2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
-4. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
+3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
    先做"如何测试使用本库的代码"指南。
 
 ## 建议的起步顺序
@@ -328,7 +333,7 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 > P-P0、A-P0 已于 `9f8867c` 完成。
 
 1. **用户使用速修（O 组，全部低成本，可合成一次文档+小 API 变更）**：O-4（告警文案）、
-   O-2/O-9/O-10（文档）；O-1 已随同步化重构关闭。
+   O-9/O-10（文档）；O-1 已随同步化重构关闭，O-2 已修复（工作区）。
 2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
 3. **公开面收敛（破坏性，合成一次变更）**：A-P1/A-P6 与 O-12（`TaskGroup`/`TaskGroupReport`），
    顺带 A-P2/A-P3/A-P7 与 O-7 的命名/checked 收敛；同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。

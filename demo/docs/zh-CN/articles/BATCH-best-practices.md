@@ -106,14 +106,15 @@ par.map( items, item -> {
 
 ## 反模式
 
-**1. `parallelism=Integer.MAX_VALUE`**
+**1. 大批量无界提交（不写 `parallelism` 或显式 `Integer.MAX_VALUE`）**
 
 ```java
-// 错误: 等于没有并发控制
+// 错误: 大批量不设限 = 没有并发控制
+// 注意这也是默认状态：缺省 parallelism 即 Integer.MAX_VALUE（解析时被任务总数封顶）
 BatchOptions.timeout("bad", java.time.Duration.ofMillis(3000)).parallelism(Integer.MAX_VALUE);
 ```
 
-正确做法：设一个合理的值，匹配下游资源。
+正确做法：设一个合理的值，匹配下游资源；`.parallelism(n)` 的显式值必须为正。
 
 **2. 不设超时**
 
