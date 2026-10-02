@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
 class BatchOptionsTest {
 
     @Test
-    void defaultsAreOneWorkerPerTaskIoBoundEnqueueingAndFailOnRejection() {
+    void defaultsAreUncappedIoBoundEnqueueingAndFailOnRejection() {
         BatchOptions options = BatchOptions.timeout("load", Duration.ofSeconds(30));
 
         assertThat(options.name()).isEqualTo("load");
-        assertThat(options.parallelism()).isEqualTo(-1);
+        assertThat(options.parallelism()).isEqualTo(Integer.MAX_VALUE);
         // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
         // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
         // refuse every task submitted with default options, leaving its capacity unused and sending
@@ -32,7 +32,7 @@ class BatchOptionsTest {
 
         BatchOptions derived = base.parallelism(3).taskType(TaskType.CPU_BOUND).rejectEnqueue(true);
 
-        assertThat(base.parallelism()).isEqualTo(-1);
+        assertThat(base.parallelism()).isEqualTo(Integer.MAX_VALUE);
         assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(base.rejectEnqueue()).isFalse();
         assertThat(derived.parallelism()).isEqualTo(3);
@@ -83,11 +83,21 @@ class BatchOptionsTest {
     }
 
     @Test
-    void nonPositiveParallelismMeansOneWorkerPerTask() {
+    void defaultParallelismIsCappedByTaskCount() {
         MultiTaskContext context = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("read", Duration.ofSeconds(3)).spec(), 4));
 
         assertThat(context.effectiveParallelism()).isEqualTo(4);
+    }
+
+    @Test
+    void rejectsNonPositiveParallelism() {
+        assertThatThrownBy(() ->
+                        BatchOptions.timeout("read", Duration.ofSeconds(3)).parallelism(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                        BatchOptions.timeout("read", Duration.ofSeconds(3)).parallelism(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

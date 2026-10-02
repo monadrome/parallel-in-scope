@@ -74,6 +74,10 @@ cause，取代旧 cancelled future 直接抛取消异常的行为。手动 faile
 保留传入异常，不按标签转换类型。两个 get 保留中断标志；Future 静态签名仍声明受检异常。
 listener 归消费者 executor，处于业务资源 scope 之外。
 
+BatchOptions 的 parallelism 不再用 -1 哨兵表示"不限制"：缺省值改为 Integer.MAX_VALUE
+（解析时被任务总数封顶，默认行为不变），且 parallelism(int) 对 0/负数抛
+IllegalArgumentException，不再静默当作"每任务一 worker"。
+
 ## 等待与资源所有权
 
 map/runAll 不声明 InterruptedException；等待结果和有界清理均不因中断退出，结束恢复
