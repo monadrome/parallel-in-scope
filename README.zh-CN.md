@@ -52,7 +52,7 @@ for (ImmediateResult<User> item : result.results()) {
 }
 ```
 
-第一次调用前，有两条契约值得知道：
+第一次调用前，有三条契约值得知道：
 
 - **超时必须显式二选一。** 批次声明 `BatchOptions.timeout(name, duration)` 或
   `BatchOptions.inheritTimeout(name)`，不存在第三种状态：批次不会因为漏写超时而无界运行，显式超时会被外层
@@ -60,6 +60,9 @@ for (ImmediateResult<User> item : result.results()) {
 - **批次默认快速失败。** 第一个元素失败会取消同批其余元素，包括尚未提交的元素。逐元素的结论读
   `ImmediateResult.outcome()`（`USER_FAILURE`、`TIMEOUT`、`FAIL_FAST` …），执行同步返回，结果无需 close；释放直接任务共享的资源前检查
   `bodyCompletionConfirmed()`，嵌套任务须分别确认退出。
+- **parallelism 默认不设额外上限。** `BatchOptions` 缺省即 `Integer.MAX_VALUE`，解析时被任务总数
+  封顶——不写 `.parallelism(...)` 等于整批一次性提交。需要有界窗口就显式设置；0 或负数在入口
+  被拒绝。
 
 `ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器。
 

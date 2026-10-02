@@ -39,7 +39,10 @@ final class UnitSpec {
         return name;
     }
 
-    /** Requested parallelism; non-positive means one worker per task. */
+    /**
+     * Requested parallelism; always positive. A batch defaults to {@link Integer#MAX_VALUE} — no
+     * cap beyond the task count once resolution applies — and a single task fixes it at 1.
+     */
     int requestedParallelism() {
         return requestedParallelism;
     }

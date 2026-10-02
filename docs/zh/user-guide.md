@@ -65,6 +65,10 @@ ImmediateResult<Account> first = batch.results().get(0);
 入口复制。函数保持 JDK Function；业务受检异常须在函数内处理，需要 Callable 的单任务
 用单成员组。
 
+`.parallelism(n)` 的显式值必须为正，否则入口抛 IllegalArgumentException；缺省值为
+Integer.MAX_VALUE，表示不设额外上限——解析时被任务总数封顶，即整批一次性提交。需要
+有界窗口时显式取一个匹配下游容量的值。
+
 timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `inheritTimeout(name)`。
 继承要求处于库管理的任务内，deadline 不超过父级。首个失败取消未完成的兄弟，包括滑窗外
 尚未提交的元素。`valuesOrThrow()` 即时读取：按输入顺序首个已记录执行失败优先，

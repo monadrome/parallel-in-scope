@@ -54,7 +54,7 @@ for (ImmediateResult<User> item : result.results()) {
 }
 ```
 
-Two contracts shape that first call:
+Three contracts shape that first call:
 
 - **The timeout is a forced choice.** A batch declares either `BatchOptions.timeout(name, duration)`
   or `BatchOptions.inheritTimeout(name)`; there is no third state, so a batch cannot run unbounded
@@ -63,6 +63,9 @@ Two contracts shape that first call:
   were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
   `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `bodyCompletionConfirmed()`
   before releasing resources shared by direct bodies, and confirm nested exits separately.
+- **Parallelism defaults to no cap.** `BatchOptions` starts at `Integer.MAX_VALUE`, which resolution
+  caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
+  explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
 `ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
 the executors you registered.

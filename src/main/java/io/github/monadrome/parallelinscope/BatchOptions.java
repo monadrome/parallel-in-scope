@@ -44,7 +44,7 @@ public final class BatchOptions {
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, -1, null, TaskType.IO_BOUND, false, null);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null);
     }
 
     /**
@@ -55,12 +55,27 @@ public final class BatchOptions {
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
-                name, -1, Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false, null);
+                name,
+                Integer.MAX_VALUE,
+                Validation.requirePositive(timeout, "timeout"),
+                TaskType.IO_BOUND,
+                false,
+                null);
     }
 
-    /** Returns a copy of these options with the given requested parallelism. */
+    /**
+     * Returns a copy of these options with the given requested parallelism.
+     *
+     * @throws IllegalArgumentException if {@code parallelism} is not positive
+     */
     public BatchOptions parallelism(int parallelism) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
+        return new BatchOptions(
+                name,
+                Validation.requirePositive(parallelism, "parallelism"),
+                timeout,
+                taskType,
+                rejectEnqueue,
+                closeGrace);
     }
 
     /** Returns a copy of these options with the given task type. */
@@ -112,7 +127,11 @@ public final class BatchOptions {
         return name;
     }
 
-    /** Requested parallelism; non-positive means one worker per task. */
+    /**
+     * Requested parallelism; always positive. The default {@link Integer#MAX_VALUE} places no limit
+     * beyond the batch size — resolution caps it by the task count, so the whole batch is submitted
+     * at once. Set a lower value to bound the sliding window.
+     */
     public int parallelism() {
         return parallelism;
     }
