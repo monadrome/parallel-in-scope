@@ -118,8 +118,11 @@ public final class ParRuntime implements AutoCloseable {
                     LOGGER.warning("Par '" + entry.getKey() + "' is registered with "
                             + entry.getValue().getClass().getName()
                             + ", which this library cannot see through: queue purge and"
-                            + " blocking-risk detection are disabled for it. Register the physical"
-                            + " ThreadPoolExecutor instead of a decorated wrapper to keep them.");
+                            + " blocking-risk detection are disabled for it. If this executor only"
+                            + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                            + " instead of the wrapper to keep them. An executor that starts a fresh"
+                            + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                            + " has no bounded queue to purge, so neither feature applies to it.");
                 } else {
                     // A discarding policy accepts the task and then drops it without running it
                     // and without throwing, so the framework would keep waiting on a future that
