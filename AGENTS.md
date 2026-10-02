@@ -95,8 +95,8 @@ relevant contract through the document routes below.
 - Every package has `package-info.java` with JSpecify `@NullMarked`;
   annotate only exceptions with `org.jspecify.annotations.Nullable`
   (TYPE_USE position, compile scope). NullAway enforces the annotations at
-  compile time via Error Prone; the build requires JDK 21+ (use JDK 25 LTS)
-  while the bytecode target stays at release 8.
+  compile time via Error Prone; the build requires JDK 25 (LTS) while the
+  bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
 - Runtime checks follow Guava's conditional-failure taxonomy: caller violations
   use `Preconditions.checkArgument` for arguments, `checkState` for state, and

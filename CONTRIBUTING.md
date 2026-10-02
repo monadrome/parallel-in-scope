@@ -68,7 +68,8 @@ request and any accompanying `design/` document.
 ## Set up and verify locally
 
 The library targets Java 8 (`src/main/java` must stay on Java 8 APIs); tests
-compile at release 11, so build with JDK 11 or newer and Maven.
+compile at release 11. Build with JDK 25 and Maven — Error Prone/NullAway run
+at compile time, and the enforcer rejects older build JDKs.
 
 ```bash
 mvn test                               # all tests

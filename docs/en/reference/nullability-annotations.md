@@ -17,8 +17,8 @@ explicit `@Nullable`.
 ## Compile-time enforcement
 
 The build runs NullAway as an Error Prone plugin with `-Xep:NullAway:ERROR` and
-`OnlyNullMarked=true`, so only `@NullMarked` code is checked. Error Prone requires JDK 21+ to run;
-the build uses JDK 25 (LTS) while `release=8` keeps the produced bytecode at Java 8. Maven's
+`OnlyNullMarked=true`, so only `@NullMarked` code is checked. The build requires JDK 25 (LTS) to
+run Error Prone and NullAway, while `release=8` keeps the produced bytecode at Java 8. Maven's
 enforcer plugin fails fast on older JDKs.
 
 Downstream consumers using NullAway, Kotlin, or IntelliJ read the same annotations from the
