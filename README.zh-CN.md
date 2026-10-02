@@ -101,6 +101,7 @@ traceId.set("req-42");
 ## 兼容性与构建
 
 - 运行环境：Java 8+
+- 构建 JDK：25（LTS）——编译期运行 Error Prone/NullAway，产物仍为 Java 8 字节码
 - 构建工具：Maven 3.x
 - 发布构件：仓库根目录的 `parallel-in-scope` 项目
 - 示例：独立的 `demo/` 项目，不发布
