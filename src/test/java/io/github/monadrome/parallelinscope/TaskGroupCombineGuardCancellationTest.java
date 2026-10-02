@@ -21,11 +21,11 @@ import org.junit.jupiter.api.Test;
  *
  * <p>What these tests deliberately do <em>not</em> claim to cover: the narrow interleaving in which a
  * cancellation lands between the phase claim in {@code run()} and the guard's {@code setException} a
- * few instructions later. Measured over the repetitions below, that window is never hit — the first
- * test settles as {@code SUBMISSION_FAILURE} every time and the second as {@code GROUP_CANCELLED}
- * every time, because a cancellation that wins at all wins early enough that the combine is never
- * submitted and the guard never runs. Constructing the interleaving would require injecting a barrier
- * into {@code run()}.
+ * few instructions later. That window is never hit here — the first test settles as {@code
+ * SUBMISSION_FAILURE} every time, and the second gates the member body on a latch so the
+ * cancellation commits before the member can complete, meaning the combine is never submitted and
+ * the guard never runs. Constructing the interleaving would require injecting a barrier into {@code
+ * run()}.
  *
  * <p>That window is nonetheless safe by construction, and the reasoning is the reason no test forces
  * it: {@code AbstractFuture} serialises completion, so exactly one of {@code cancel} and {@code
@@ -122,9 +122,16 @@ class TaskGroupCombineGuardCancellationTest {
 
     @Test
     void aCancelThatBeatsTheSubmissionKeepsItsOwnAttribution() throws Exception {
-        // cancel() immediately after submitAll() wins every time, early enough that the combine is
-        // never submitted and the guard never runs. The outcome must therefore be the cancellation's
-        // own, not SUBMISSION_FAILURE: the guard must not be able to relabel a group that was
+        // The cancellation must beat the combine's submission by construction, not by scheduling
+        // luck. The submission is triggered by the last member's success callback, so an instant
+        // member body can complete, be rejected by the saturated combine pool, and have the
+        // rejection cascade commit FAIL_FAST on the group token — settling the group as
+        // SUBMISSION_FAILURE — before a slow test thread even reaches cancel(). That interleaving
+        // is what CI observed, and it is a legitimate outcome: a cancel that lands after the
+        // commit cannot rewrite it. Gating the member body on a latch released only after cancel()
+        // returns removes the race: the member cannot succeed first, so the group token commits
+        // CANCELLED, the combine is never submitted, and the outcome must be the cancellation's
+        // own, not SUBMISSION_FAILURE — the guard must not be able to relabel a group that was
         // cancelled for an unrelated reason.
         for (int attempt = 0; attempt < 20; attempt++) {
             ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
@@ -143,6 +150,7 @@ class TaskGroupCombineGuardCancellationTest {
                     }
                 });
             }
+            CountDownLatch memberGate = new CountDownLatch(1);
             AtomicBoolean bodyRan = new AtomicBoolean();
             try {
                 TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
@@ -151,7 +159,12 @@ class TaskGroupCombineGuardCancellationTest {
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
                                 TypeToken.of(String.class),
-                                () -> "a")
+                                () -> {
+                                    // Held until cancel() has committed below; the cancellation's
+                                    // interrupt releases this wait early.
+                                    memberGate.await(20, TimeUnit.SECONDS);
+                                    return "a";
+                                })
                         .combine(
                                 "sum",
                                 runtime.par(ParId.of("c")),
@@ -163,6 +176,7 @@ class TaskGroupCombineGuardCancellationTest {
                                 })
                         .submitAll();
                 group.cancel();
+                memberGate.countDown();
 
                 TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
@@ -171,6 +185,7 @@ class TaskGroupCombineGuardCancellationTest {
                 assertThat(bodyRan).isFalse();
                 assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             } finally {
+                memberGate.countDown();
                 release.countDown();
                 runtime.close();
                 memberPool.shutdownNow();
