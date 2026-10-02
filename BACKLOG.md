@@ -307,6 +307,28 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 公开可达签名中。本条记录时的前提（"public final class TaskGroup"）已不成立，无需修复；
 A-P1（`CancellationToken` 孤岛）仍开放。
 
+### O-13 · 纯超时批次的 `report().firstException()` 恒 null
+
+来源：`design/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
+`ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
+但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
+（`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:291` 把 null 钉为期望）。
+待拍板：这是设计如此（firstException 只指用户失败，超时归因读逐元素
+`ImmediateResult.failure()`），还是应为取消类结局提供聚合异常。
+
+### O-14 · `FAIL_FAST` 同时覆盖"在飞被取消"与"从未提交"的元素，指南未说明
+
+来源：同上 B4 的残余，2026-10-02 复核仍成立。窗口占位符概念已删除
+（`SlidingWindowSubmitter.java:74-78`），但被放弃的元素与在飞被取消者读到同一个
+`FAIL_FAST`，用户无法区分"跑了一半被打断"与"从未执行"。不加开关的决策维持
+（`docs/zh/design/idea-graveyard.md:14-20`）；低优先级，在指南补一句语义说明即可。
+
+### O-15 · 无跨版本 API 表面积 diff 治理
+
+来源：同上 C1，2026-10-02 复核仍成立。`PublicApiSurfaceTest` 钉的是当前面，
+跨版本 diff（japicmp/revapi 或发布时 javap 计数）缺失；0.x 政策允许破坏性变更，
+更需要机械手段防止"无意"破坏。非发版阻塞。
+
 ---
 
 ## 已修复（无需再动）
@@ -330,6 +352,11 @@ A-P1（`CancellationToken` 孤岛）仍开放。
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
    先做"如何测试使用本库的代码"指南。
+4. **任务结果穷尽匹配**（工作区提案 `design/task-result-exhaustive-matching-proposal.md`，
+   未入库）：2026-10-02 复核——它声称的两处缺陷已独立修复（`failure()` 中断敏感、
+   快照二次分类）；提案真正独有的剩余价值是 typestate 匹配链与单任务公开获取入口。
+   处置倾向：不新增与 `ImmediateResult` 平行的第二个快照类型，若做则把匹配链收敛到
+   `ImmediateResult` 词汇上；拍板前须过 `design/first-principles.md` 六问。
 
 ## 建议的起步顺序
 
