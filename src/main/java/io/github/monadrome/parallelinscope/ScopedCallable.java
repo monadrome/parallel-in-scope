@@ -49,20 +49,17 @@ final class ScopedCallable<V> implements Callable<V> {
 
     @Override
     public V call() throws Exception {
-        // ==================== prepareContext ====================
+        // The task context is installed explicitly; the observation scope is not, because it is a
+        // TransmittableThreadLocal replayed by the TtlCallable wrapper that
+        // TaskSubmissions.wrapScoped puts around this callable.
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
-        // wrapper created at the Par.map boundary.
-
         try {
-            // ==================== doCall ====================
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
             // the delegate is released only after call() returns (releaseDelegate in finally)
             return Objects.requireNonNull(delegate).call();
         } finally {
-            // ==================== cleanup & metrics ====================
             // delegate.call() has returned, so the user body's finally has exited: release the
             // one-way holder before publishing body exit, and a waiter that observes EXITED never
             // sees this wrapper still referencing the user closure.

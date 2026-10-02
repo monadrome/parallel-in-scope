@@ -74,8 +74,6 @@ public class CancellationTokenTest {
                 .isTrue();
     }
 
-    // ==================== deadline ====================
-
     @Test
     public void deadlineIsCappedByParentDeadline() {
         long later = System.nanoTime() + TimeUnit.HOURS.toNanos(1);
@@ -126,8 +124,6 @@ public class CancellationTokenTest {
         pending.set("done");
         await().untilAsserted(() -> assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS));
     }
-
-    // ==================== bind state transition tests ====================
 
     @Test
     public void testBind_success_allFuturesComplete() throws Exception {
@@ -313,8 +309,6 @@ public class CancellationTokenTest {
         assertThat(task).isCancelled();
     }
 
-    // ==================== originState ====================
-
     @Test
     public void originStateResolvesThroughPropagationChain() {
         CancellationToken grandparent = CancellationToken.create();
@@ -352,8 +346,6 @@ public class CancellationTokenTest {
         assertThat(origin.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(origin.originState()).isEqualTo(CancellationToken.State.RUNNING);
     }
-
-    // ==================== remaining ====================
 
     @Test
     public void remainingWithoutDeadlineIsExactlyTheMaxValueSentinel() {

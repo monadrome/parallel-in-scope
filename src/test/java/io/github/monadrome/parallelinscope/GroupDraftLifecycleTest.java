@@ -37,8 +37,6 @@ class GroupDraftLifecycleTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    // ==================== stale stages and thread ownership ====================
-
     @Test
     void everyEarlierStageGoesStaleOnceTheChainAdvancesOrIsSubmitted() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -109,8 +107,6 @@ class GroupDraftLifecycleTest {
         }
     }
 
-    // ==================== failures before any user code ====================
-
     @Test
     void declarationFailureRunsNoExecutorAndReachesNoAdmission() {
         AtomicInteger executeCalls = new AtomicInteger();
@@ -162,8 +158,6 @@ class GroupDraftLifecycleTest {
         }
     }
 
-    // ==================== payload carrier ====================
-
     @SuppressWarnings("unchecked")
     @Test
     void payloadCarrierClearsEachSlotOnTakeAndEverythingOnDiscard() throws Exception {
@@ -187,8 +181,6 @@ class GroupDraftLifecycleTest {
         assertThat(discarded.taskSlotCleared(0)).isTrue();
         assertThat(discarded.combineSlotCleared()).isTrue();
     }
-
-    // ==================== payload release ====================
 
     @Test
     void rejectedCancelledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
@@ -306,8 +298,6 @@ class GroupDraftLifecycleTest {
             executor.shutdownNow();
         }
     }
-
-    // ==================== per-run isolation ====================
 
     @Test
     void declarationOrderDrivesSubmissionOrder() throws Exception {
