@@ -106,6 +106,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 ## Compatibility and Build
 
 - Runtime: Java 8+
+- Build JDK: 25 (LTS) — Error Prone/NullAway run at compile time; the artifact still targets Java 8 bytecode
 - Build tool: Maven 3.x
 - Published artifact: root `parallel-in-scope` project
 - Examples: independent `demo/` project, not published

@@ -45,10 +45,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Build JDKs, not runtime JDKs: Error Prone and NullAway require 21+ to run, and the
-        # enforcer rejects an older build JDK outright. The bytecode target is unaffected --
-        # the library stays at release 8 and the tests at release 11.
-        java-version: [ 21, 25 ]
+        # Build JDK, not a runtime JDK: Error Prone and NullAway require JDK 25 to run, and
+        # the enforcer rejects an older build JDK outright. The bytecode target is unaffected
+        # -- the library stays at release 8 and the tests at release 11.
+        java-version: [ 25 ]
 
     steps:
       - uses: actions/checkout@v6
@@ -76,10 +76,10 @@ jobs:
 
       # Two different JDKs on purpose: the library is built by a JDK that Error Prone/NullAway
       # support, and the JDK 8 runtime below only exercises the resulting artifact.
-      - name: Set up build JDK 21
+      - name: Set up build JDK 25
         uses: actions/setup-java@v5
         with:
-          java-version: 21
+          java-version: 25
           distribution: temurin
           cache: maven
 

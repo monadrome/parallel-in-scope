@@ -128,9 +128,6 @@
                          javac internal packages are opened via .mvn/jvm.config. -->
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
-                        <!-- Required by Error Prone when javac runs on JDK 21; on JDK 22+ javac
-                             adds type annotations to symbols by default and ignores this. -->
-                        <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
                         <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
                     </compilerArgs>
@@ -154,17 +151,17 @@
                 <version>3.6.2</version>
                 <executions>
                     <execution>
-                        <id>enforce-jdk-21-plus</id>
+                        <id>enforce-jdk-25-plus</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
                         <configuration>
                             <rules>
-                                <!-- Error Prone requires JDK 21+ to run; the bytecode target
-                                     stays at release 8. Use JDK 25 (LTS) to build. -->
+                                <!-- Error Prone/NullAway run on the build JDK; the bytecode
+                                     target stays at release 8. -->
                                 <requireJavaVersion>
-                                    <version>[21,)</version>
-                                    <message>Error Prone/NullAway requires building on JDK 21+ (use JDK 25 LTS); the artifact still targets Java 8 bytecode via release=${java.release}.</message>
+                                    <version>[25,)</version>
+                                    <message>Error Prone/NullAway requires building on JDK 25 (LTS); the artifact still targets Java 8 bytecode via release=${java.release}.</message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

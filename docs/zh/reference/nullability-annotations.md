@@ -16,8 +16,8 @@ Framework 混合策略。
 ## 编译期强制
 
 构建以 Error Prone 插件形式运行 NullAway，配置为 `-Xep:NullAway:ERROR` 且
-`OnlyNullMarked=true`（只检查 `@NullMarked` 包）。Error Prone 需要 JDK 21+ 运行；本仓库
-使用 JDK 25（LTS）构建，同时 `release=8` 保证产物字节码仍是 Java 8。Maven enforcer 插件
+`OnlyNullMarked=true`（只检查 `@NullMarked` 包）。本仓库要求 JDK 25（LTS）构建以运行
+Error Prone/NullAway，同时 `release=8` 保证产物字节码仍是 Java 8。Maven enforcer 插件
 会在过低的 JDK 上快速失败。
 
 下游使用 NullAway、Kotlin 或 IntelliJ 的用户能从编译产物签名中读到同样的注解——
