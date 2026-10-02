@@ -4,7 +4,7 @@
 > 本文只回答随之而来的问题——inline 回退从库的选项变成用户的 `RejectedExecutionHandler`
 > 之后，库应该为这条路径提供什么。
 > 缺陷分析见 [inline-fallback-path-analysis.md](inline-fallback-path-analysis.md)，
-> 中断契约见 [interruption-contract.md](interruption-contract.md) §7.3。
+> 中断契约见 [interruption-contract.md](../interruption-contract.md) §7.3。
 > 基线：`dev/v0.3.0` 工作树（含选项 A 的原型改动，见 §1）。
 >
 > **先读 §2.4。** 它推翻了 §1–§2.3 的一个隐含前提：那些小节把 inline 当作"用户配了

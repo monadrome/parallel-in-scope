@@ -135,7 +135,7 @@ scope/
 `TaskKey`、`CombineFunction`、`CompletedTaskValues`、`TaskGroupListener`、
 `TaskGroupOptions` 及 `TaskGroupDefinition` 的公共嵌套类型 `TaskDefinition`/
 `CombineDefinition` 已删除，不再出现在代码组织中；`ParName` 更名为 `ParId` 保留（见
-[group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) §13.1 及其增补
+[group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) §13.1 及其增补
 裁定 §19.6、§19.10）。
 
 `ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 提供包可见的单任务准备入口

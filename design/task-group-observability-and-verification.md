@@ -27,7 +27,7 @@ Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberNam
 ### 10.2 组级完成回调（原 `TaskGroupListener`，已删除转交）
 
 > **状态：删除/转交。** `TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除
-> （[group-api-redesign-v0.3-decision.md](group-api-redesign-v0.3-decision.md) §13.1）。组完成
+> （[group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md) §13.1）。组完成
 > 观测改由调用方在拿到 `TaskGroup` 后显式注册，并自行选择 callback executor：
 
 ```java
