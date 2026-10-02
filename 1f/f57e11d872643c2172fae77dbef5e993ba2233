@@ -1,0 +1,29 @@
+design/caller-runs-support-after-inline-deletion.md
+  s_3ea18fa2cb94ab::t_49aa22181e8d75 663,681-716,805-806
+  s_b16b817224806c::t_85e09e1cd7a436 4-6,582
+  s_b16b817224806c::t_ec7f7ec0dfd986 224,583-662,664-680,797-804,807-813
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1ff57e11d872643c2172fae77dbef5e993ba2233",
+  "prompts": {},
+  "sessions": {
+    "s_3ea18fa2cb94ab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0fd05-786d-7bc2-923a-8481a7eac358",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_b16b817224806c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0fcae-af9d-7912-8017-90bcf68d0840",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
