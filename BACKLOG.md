@@ -198,10 +198,16 @@ Guava 的 SEVERE 日志里。
 未入库）。完整叙述见工作区未入库文档 `explore/优化空间分析-功能与用户使用.md`。
 所有条目均已对照 `design/` 已决契约（虚拟线程分类、listener/SPI、`ThrowingFunction` 等不在此重开）。
 
+**同步化重构后的复核**（`d01bf4e` "make scope execution synchronous" + `fd5c310`，复核于 `8523f64`）：
+批次与组改为同步出口（`Par.map` 阻塞返回冻结的 `TaskBatchResult`；组用 `runAll()` 返回
+`TaskGroupResult`），**O-1 已被该重构取代**（下文的 `close()`/阻塞实测不再适用），O-6/O-7/O-8 的
+证据按下述更新，其余条目仍成立（个别行号已更新）。P/A 明细的行号仍以 `c9f4c19` 为基准；
+P-P1/P-P2/P-P3 在重构后复核仍存在。
+
 | 编号 | 一句话 | 类别 | 证据 | 代价 |
 |---|---|---|---|---|
-| O-1 | 批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline（实测阻塞 7.0s） | 用户使用 | 实测 | 低 |
-| O-2 | `parallelism` 默认无界（＝库自己文档化的反模式），无处写明；三处措辞不一 | 文档 | 读码 | 低 |
+| ~~O-1~~ | ~~批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline~~ **已被同步化重构取代**（见下） | — | — | — |
+| O-2 | `parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明 | 文档 | 读码 | 低 |
 | O-3 | 无法显式表达"无 deadline"；超大 `Duration` 静默饱和为哨兵 | API | 读码 | 低-中 |
 | O-4 | 注册虚拟线程 executor 的告警文案事实错误、处方错误 | 用户使用 | 实测 | 极低 |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
@@ -211,22 +217,27 @@ Guava 的 SEVERE 日志里。
 | O-9 | 主源码零 `@since`；`package-info` 无入口导引 | 文档 | 读码 | 低 |
 | O-10 | README 快速开始缺 0.3 旗舰（任务组）示例 | 文档 | 读码 | 低 |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
+| O-12 | `TaskGroup` 成了不可达的公开类型；`TaskGroupReport` 包私有却出现在公开签名（A-P1 同类） | 公开面 | 读码 | 低-中 |
 
-### O-1 · 批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline（实测）
+### O-1 ·（已被同步化重构取代）批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline
 
-`TaskGroup` 有 `cancel()`（只发取消）与 `close()`（取消 + 有界等待）；`TaskBatchResult` 只有
-`close()`（`TaskBatchResult.java:248`）。未配置 `closeGrace` 时预算＝批次剩余 deadline
-（`BodyCompletionTracker.closeGraceBudgetNanos`），提前返回的 try-with-resources 可能把调用线程挂到
-deadline。实测（2 元素、8s deadline、body 吞中断，1s 时 `close()`）：**阻塞 7011 ms**，
-WARN 正确报出未退出任务。修复：加 `TaskBatchResult.cancel()`（走批次 token，立即返回），与
-`TaskGroup.cancel()` 对称；README 契约块与 user-guide 写明 `close()` 的等待预算来源。
+原发现基于 `9f8867c` 的异步批次：`TaskBatchResult` 只有 `close()`、默认等待预算＝剩余 deadline，
+实测 8s deadline 批次在 1s 时 `close()` 阻塞 7011 ms。`d01bf4e`/`fd5c310` 后 `TaskBatchResult`
+不再是 `AutoCloseable`（无 `close()`/`submitCanceller()`/逐元素 `TaskFuture` 公开面），
+`Par.map` 阻塞返回冻结结果，旧问题消失。
+
+**残余观察**（不立项，待真实需求）：`Par.map` 等待期间忽略调用方中断并恢复标志
+（`Par.java:105-112`），根级批次只能靠 deadline / fail-fast / 父作用域停止——这是重构的有意设计
+（`design/synchronous-scope-exit-proposal.md`："外部 root 取消不再依赖运行句柄或 caller interrupt"）。
+若"请求已断连须立即止血"的根级用例出现，再考虑父作用域包装或显式句柄。
 
 ### O-2 · `parallelism` 默认值＝无界，且无任何文档声明
 
 两个工厂都置 parallelism=-1（`BatchOptions.java:46-59`），解析为 effective=taskCount
-（`MultiTaskContext.java:172-173`）——与 demo 文章 `BATCH-best-practices.md:106-112` 明确列为反模式的
-`parallelism(Integer.MAX_VALUE)` 行为等价。javadoc（`BatchOptions.java:115-118`："non-positive means
-one worker per task"）与中/英指南（`user-guide.md:68` / `:75`）共三种措辞，均未写"不写＝整批立即提交"。
+（`MultiTaskContext.java:173`）——与 demo 文章 `BATCH-best-practices.md:106-112` 明确列为反模式的
+`parallelism(Integer.MAX_VALUE)` 行为等价。javadoc 仍是 "non-positive means one worker per task"
+（`BatchOptions.java:115-116`）；同步化重构后的中/英指南已不再提默认值（只在示例里出现
+`.parallelism(8)`），所以"不写＝整批立即提交"现在**没有任何一处文档说明**。
 修复：统一措辞并显式写出默认值；"是否改为强制显式选择"列入待决策。
 
 ### O-3 · 无法表达"无 deadline"
@@ -254,18 +265,21 @@ ThreadPoolExecutor instead of a decorated wrapper to keep them."（`ParRuntime.j
 
 ### O-6 · 动态批次 + 终端汇合（开放问题）
 
-`combine` 只服务固定元数 `TaskGroup`；"动态 N → 受作用域保护的汇总"需手工两步
-（`valuesOrThrow()` → `Par.submit`），两步各自起算 deadline，端到端预算语义与 group
-（组 deadline 涵盖 fan-out + combine，`docs/zh/user-guide.md:173`）不同——此差异未文档化。
-先补文档；是否引入 `BatchOptions` 级汇合须过六问（触碰 Batch/Group 抽象边界）。
+`combine` 只服务固定元数的组；"动态 N → 受作用域保护的汇总"没有组合形态，且同步化重构后更收紧：
+`Par.submit` 已变为包私有（`Par.java:149`），旧的"`map` → `submit` 汇总"写法对用户不再可用，
+动态批次的汇总只能落在调用线程，或用固定元数的组包一层。
+先补文档说明可接受写法；是否引入 `BatchOptions` 级汇合须过六问（触碰 Batch/Group 抽象边界）。
 
 ### O-7 / O-8 · 读取面不对称
 
-`BatchReport.stateCounts()`（`TaskBatchResult.java:389`）↔ `TaskGroupResult.outcomeCounts()`（`:126`）
-同名异写；`valuesOrThrow()` checked（`TaskBatchResult.java:159`）↔ `orThrow()` unchecked
-（`TaskGroupResult.java:105`）。O-8：`Par.map` 的 body 是 `Function`（`ThrowingFunction` 已被用户否决，
-不得重开），实测在 body 内直接调用 `valuesOrThrow()` 编译失败；指南嵌套示例用自定义 `collect(...)`
-绕开但未说明这是必须的。修复：文档给出标准写法；是否补 unchecked 读取口与 O-7 同批决策。
+同步化重构后更明显——批次侧 checked、组侧 unchecked：`valuesOrThrow()` 抛 checked
+`ExecutionException`（`TaskBatchResult.java:67`）↔ 组侧 `valuesOrThrow()`/`orThrow()` 均 unchecked
+（`TaskGroupResult.java:151`、`:173`）；计数仍是 `BatchReport.stateCounts()`
+（`TaskBatchResult.java:124`）↔ `TaskGroupResult.outcomeCounts()`（`:190`）两种名字。
+O-8：`Par.map` 的 body 仍是 `Function`（`ThrowingFunction` 已被用户否决，不得重开），实测在 body 内直接
+调用 `valuesOrThrow()` 编译失败；且嵌套 `map` 现在是同步阻塞调用，会占住 worker。修复：文档给出标准
+写法（`Futures.getUnchecked` / 显式 try-catch / 读 `ImmediateResult`）；是否补 unchecked 读取口与
+O-7 同批决策。
 
 ### O-9 / O-10 · 低成本复利（文档）
 
@@ -276,8 +290,17 @@ ThreadPoolExecutor instead of a decorated wrapper to keep them."（`ParRuntime.j
 
 deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无法确定性测试自己的超时/取消行为；
 本仓 70 个测试类同病（真实时间 + Awaitility）。先补"如何测试使用本库的代码"指南
-（direct executor、极小 deadline、`awaitBodyCompletion` 替代 sleep）；`ParRuntime.Builder.timeSource(...)`
-留作开放问题（跨内核改动，须过六问 + 独立对抗性审查）。
+（direct executor、极小 deadline、用 `bodyCompletionConfirmed()`/`unfinishedBodies()` 断言而不是 sleep）；
+`ParRuntime.Builder.timeSource(...)` 留作开放问题（跨内核改动，须过六问 + 独立对抗性审查）。
+
+### O-12 · `TaskGroup` 成为不可达的公开类型（A-P1 同类，同步化重构引入）
+
+同步化重构后 `GroupStep.runAll()` 返回冻结的 `TaskGroupResult`；`public final class TaskGroup` 仍有
+`cancel()`/`close()`/`awaitBodyCompletion()`/`members()` 等约 15 个公开成员，但**没有任何公开 API
+返回或接受它**（生产路径全部包私有：`GroupDraft.submitAll()`、`ParRuntime.submitPreparedGroup`）。
+同时 `TaskGroup.completionFuture()` 的公开签名里出现了包私有类型 `TaskGroupReport`（`TaskGroup.java:220`），
+包外无法命名。修复与 A-P1 同批：`TaskGroup` 连同 `TaskGroupReport` 一并包私有化（或明确重新暴露为
+异步高级入口并补文档）；`PublicApiSurfaceTest` 需同步。
 
 ---
 
@@ -304,9 +327,9 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 
 > P-P0、A-P0 已于 `9f8867c` 完成。
 
-1. **用户使用速修（O 组，全部低成本，可合成一次文档+小 API 变更）**：O-1（批次 `cancel()`）、
-   O-4（告警文案）、O-2/O-9/O-10（文档）。
+1. **用户使用速修（O 组，全部低成本，可合成一次文档+小 API 变更）**：O-4（告警文案）、
+   O-2/O-9/O-10（文档）；O-1 已随同步化重构关闭。
 2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
-3. **公开面收敛（破坏性，合成一次变更）**：A-P1/A-P6，顺带 A-P2/A-P3/A-P7 与 O-7 的
-   命名/checked 收敛；同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。
+3. **公开面收敛（破坏性，合成一次变更）**：A-P1/A-P6 与 O-12（`TaskGroup`/`TaskGroupReport`），
+   顺带 A-P2/A-P3/A-P7 与 O-7 的命名/checked 收敛；同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。
 4. **开放问题**（走六问清单）：待决策 2–4（parallelism 强制化、batch+combine、TimeSource）。
