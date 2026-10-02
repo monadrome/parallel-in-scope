@@ -1,6 +1,6 @@
 # 删除 `runOnCallerThread` 后，如何最大化支持 `CallerRunsPolicy`
 
-> 状态：**待拍板**。前置决策已定：删除 `runOnCallerThread`。
+> 状态：**已落地（2026-09-30）**。前置决策已定：删除 `runOnCallerThread`。
 > 本文只回答随之而来的问题——inline 回退从库的选项变成用户的 `RejectedExecutionHandler`
 > 之后，库应该为这条路径提供什么。
 > 缺陷分析见 [inline-fallback-path-analysis.md](inline-fallback-path-analysis.md)，
@@ -18,6 +18,10 @@
 > §11 回答一个独立问题：滑动窗口的线程 relay 是否必须、它的 bug 能否修。
 > 该节含一次真实的 Kimi 独立评审判定。**注意附录 B 末尾关于"曾伪造 Kimi 对比"的记录**，
 > 以免误引用。
+
+最终拍板与实现：默认选 **1a**（`TaskType.IO_BOUND` + `rejectEnqueue=false`），combine 选
+**A**（提交线程 inline 违反 combine 契约时记录 `SUBMISSION_FAILURE`）。benchmark 暂缓，源文件
+未收入库。`SubmissionScope` 隔离、选项删除及其测试和文档已随本变更落地。
 
 ## 0. 不是前置条件的事
 
@@ -44,7 +48,8 @@
   两趟结算 + 归因优先读记录值，见 §9 偏差 3。
 
 第 2 项（线程借用隔离）的**中断标志**部分同时落地，位置按 §3 放在
-`ExecutionPhaseHintFuture.run()`，不在提交站点。**`SubmissionScope` 那一项（§2.2）尚未做。**
+`ExecutionPhaseHintFuture.run()`，不在提交站点；`SubmissionScope` 隔离（§2.2）随后
+与删除变更在同一位置落地（见 §8 第 2 项）。
 
 回归锁 `InlineSubmissionLivenessTest` 覆盖 §9 的用例 1、2、5、6、13。
 
@@ -357,19 +362,18 @@ if not, ensure thread is **not** interrupted"。另外 `getTask():1020-1022` 的
 §2.4 发现后，顺序相对本文初版有调整：默认值修法提到第一位，因为它决定了后面所有项
 面对的是"默认路径"还是"边缘情况"。
 
-0. **默认值修法**（§2.4 的 1a 或 1b）。**需用户先确认**，因为它改公共 API 默认语义。
-   它让 §2.2、§2.3、§3、§4 面对的 inline 从"默认路径"退回"用户显式配置才触发"，
-   显著缩小其余各项的紧迫性与爆炸半径。同步改 `TaskType` javadoc。
+0. **默认值修法：已落地 1a。** 默认值为 `TaskType.IO_BOUND` + `rejectEnqueue=false`，
+   `TaskType` Javadoc、队列说明和回归测试已同步更新。
 1. ~~**接线选项 A**~~ **已落地**，见 §1。
-2. **线程借用隔离搬进 `run()`**（§3）：**中断标志部分已落地**，`SubmissionScope`
-   部分（§2.2）仍待做。中断标志这一半同时修掉了 §11.3 的静默丢任务
+2. **线程借用隔离搬进 `run()`：已落地。** 中断标志与 `SubmissionScope`
+   均在 prepared future 的 `run()` 内隔离；中断标志修掉了 §11.3 的静默丢任务
    （回归锁 `aBodyRunningInlineOnTheSubmitterThreadDoesNotAbandonTheRestOfTheBatch`：
-   12 元素全部执行，基线上只跑 5 个）。剩下的 `SubmissionScope` 隔离仍须在删除之前或
-   与删除同 PR。
-3. **combine 的取舍**（§2.3 的 A 或 B）必须与删除同 PR——删除会拿走
-   `TaskGroup.java:570` 那个 `false` 的载体，而它承担的承诺现在就已经是空的。
-   这一项独立于 §3：即使不删除，三处承诺也已经可被静默违反，应当先修或先降级。
-4. **删除 `runOnCallerThread`** + **`build()` 警告**（§5）同 PR。
+   12 元素全部执行，基线上只跑 5 个）。
+3. **combine 的取舍：已落地 A。** `ThreadPoolExecutor` handoff 窗口内检测到
+   `CallerRunsPolicy` 等拒绝处理器将 combine 放到收敛线程时，future 以
+   `SUBMISSION_FAILURE` 终结，body 不执行；direct executor 的显式 inline 语义保留。
+4. **删除 `runOnCallerThread` + `build()` 警告：已落地。** 拒绝处置完全归执行器的
+   `RejectedExecutionHandler`。
    理由只写公理 3 与 JDK 习语，**不要挂"修缺陷"的名义**——三个缺陷属于任何 inline
    执行的拒绝策略，删除不消灭它们，只是库不再自带那个需要猜的配置。
 5. **inline 检出上报**（§6 第 1 档）可独立排期。
@@ -572,335 +576,36 @@ listener 驱动 refill。前者删 `TaskListener` SPI、改 `completionFuture()`
 Kimi 会话可续：`kimi -r session_07524369-b252-4b67-b0c9-d5423ff330d4`。
 （fork 会话已声明不去续这条线，避免两边问同一 session 制造分歧。）
 
-## 附录 A：探针源码
+## 附录 A：探针记录（源码已精简出正文）
 
-§5 的 shutdown 窗口与 §3 的中断泄漏引用了实测输出。探针**没有**留在测试树里——
-它们是诊断工具而非回归锁，留下会占 CI 又需随 API 维护；§9 才是它们应有的落地形态。
-但结论既然引用输出，源码就必须可复核，所以原样留在这里，复制到
-`src/test/java/io/github/monadrome/parallelinscope/` 即可重跑，跑完删除。
+§2.2、§2.3、§2.4、§5 引用的实测输出来自六个一次性探针（1、2、B、C、D、E）。
+它们是诊断工具而非回归锁——回归锁的落地形态是 §9，探针留下只会占 CI 又需随 API 维护。
+探针 1、2、B、C 跑在**删除 `runOnCallerThread` 之前**的基线上且显式将该选项设为
+`false`（证明的正是"缺陷不属于这个选项"），使用的 API 已删除，源码无法再编译；
+完整源码保留在提交 `22bc6eb` 的本文件版本中
+（`git show 22bc6eb:design/caller-runs-support-after-inline-deletion.md`）。
+探针 D / E 的池**就是** `SmartBlockingQueue`，其余四个的池不是，因此后者每次运行会打一条
+`warnIfRejectEnqueueInert` 的 `WARNING`，属预期噪声。
 
-共同注意事项：
+各探针结论（实测输出已逐字引用在对应小节）：
 
-- 探针用的池不是 `SmartBlockingQueue`，每次运行会打一条 `warnIfRejectEnqueueInert`
-  的 `WARNING`。与被测行为无关，是预期噪声。
-- 探针 1 的计数在多次运行间会变（观测到 `{SUCCESS=5, SUBMISSION_FAILURE=7}` 与
-  `{SUCCESS=5, SUBMISSION_FAILURE=1, FAIL_FAST=6}`）：脏标志传到提交循环的时机是竞争的。
-  **可靠的是定性结论——标志泄漏、且有任务未执行——不是具体数字。**
-- 探针 1 第一次运行时把 `report()` 放在清标志之前，`FutureInspector.exceptionNow`
-  因脏标志抛了 `IllegalStateException: interrupted while inspecting future`
-  （这就是 §9 用例 2 的来源）。下面的版本先清标志，因此**不会**复现那个抛出；
-  想看它就把 `Thread.interrupted()` 那行移到 `report()` 之后。
-- 这两个探针跑在**删除之前**的基线上，且都把 `runOnCallerThread` 设为 `false`
-  ——证明的正是"缺陷不属于这个选项"。
-- 探针 D/E（§2.4）与上面两个不同：它们的池**就是** `SmartBlockingQueue`，
-  因此没有 `warnIfRejectEnqueueInert` 噪声；它们也不显式设任何选项，
-  用的是 `BatchOptions.timeout(..)` / `TaskOptions.inheritTimeout()` 的默认值——
-  这正是被测对象。
-
-### 探针 D / E：默认配置 + 库推荐的池形态（§2.4）
-
-两个探针共用一个池构造器，注意它**完全按库的推荐**配置，没有任何刻意制造的异常形态：
-
-```java
-/** Exactly the pool shape the library recommends: SmartBlockingQueue + CallerRunsPolicy. */
-private static ThreadPoolExecutor recommendedPool(String name) {
-    return new ThreadPoolExecutor(
-            2, 2, 0, TimeUnit.SECONDS,
-            SmartBlockingQueue.create(100),          // capacity 100 — plenty of room
-            r -> new Thread(r, name),
-            new ThreadPoolExecutor.CallerRunsPolicy());
-}
-```
-
-**探针 D**（6 元素、默认 `BatchOptions`、任务体只返回当前线程名）：
-
-```java
-TaskBatchResult<String> batch = runtime.par(ParId.of("w"))
-        .map(inputs, i -> Thread.currentThread().getName(),
-             BatchOptions.timeout("b", Duration.ofSeconds(5)));
-List<String> threads = batch.valuesOrThrow();
-System.out.println("bodies ran on   : " + threads);
-System.out.println("queue size now  : " + pool.getQueue().size());
-System.out.println("pool completed  : " + pool.getCompletedTaskCount());
-```
-
-实测输出：
-
-```
-caller thread   : main
-bodies ran on   : [worker, worker, main, main, main, main]
-queue size now  : 0
-pool completed  : 2
-```
-
-**探针 E**（2 个 member 在独立池、combine 在 `recommendedPool` 上；
-先用两个普通任务占住 combine 池的两条线程）：
-
-```java
-// The combine Par is a SHARED registered Par, as the library intends. Other work is using
-// it — here two ordinary tasks occupy its two threads. No deliberate saturation trick:
-// with default options the queue refuses everything, so "both workers busy" is the
-// steady state of any loaded pool.
-CountDownLatch busy = new CountDownLatch(1);
-for (int i = 0; i < 2; i++) {
-    combinePool.execute(() -> {
-        try { busy.await(20, TimeUnit.SECONDS); }
-        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-    });
-}
-// ... group with two members on memberPool, combine on ParId.of("c") ...
-//     combine body records Thread.currentThread().getName()
-```
-
-实测输出：
-
-```
-group outcome    : SUCCESS
-combine ran on   : member
-combine pool did : 0 tasks
-```
-
-第一版探针 E **没有**占住 combine 池的两条线程，结果 combine 跑在 `combine-worker` 上——
-`offer` 返回 false 时池若有空闲核心线程，`execute()` 直接新建 worker，`CallerRunsPolicy` 不触发。
-这个对照很重要：它界定了 §2.3 的触发条件是**真实饱和**（核心+最大线程都忙），
-而 §2.4 的探针 D 说明默认配置下饱和是任何有负载池的常态。
-
-```java
-package io.github.monadrome.parallelinscope;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Test;
-
-/** Throwaway probes: the option is OFF; only the user's CallerRunsPolicy is in play. */
-class CallerRunsProbeTest {
-
-    /** A pool whose worker and queue are already occupied, so every later handoff is rejected. */
-    private static ThreadPoolExecutor saturatedCallerRunsPool(CountDownLatch release) throws Exception {
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(
-                1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1),
-                new ThreadPoolExecutor.CallerRunsPolicy());
-        CountDownLatch workerBusy = new CountDownLatch(1);
-        pool.execute(() -> {
-            workerBusy.countDown();
-            try {
-                release.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-        workerBusy.await(5, TimeUnit.SECONDS);
-        pool.execute(() -> {
-            try {
-                release.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }); // fills the capacity-1 queue
-        return pool;
-    }
-```
-
-**探针 1：中断标志泄漏 + 任务丢失**（§3 引用）
-
-```java
-    @Test
-    void callerRunsPolicyLeaksAnInterruptFlagOntoTheCallerWithTheOptionOff() throws Exception {
-        CountDownLatch release = new CountDownLatch(1);
-        ThreadPoolExecutor pool = saturatedCallerRunsPool(release);
-        ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build();
-
-        List<Integer> inputs = new ArrayList<>();
-        for (int i = 0; i < 12; i++) {
-            inputs.add(i);
-        }
-        AtomicInteger bodies = new AtomicInteger();
-        try {
-            TaskBatchResult<String> batch = runtime.par(ParId.of("w"))
-                    .map(
-                            inputs,
-                            i -> {
-                                bodies.incrementAndGet();
-                                Thread.currentThread().interrupt(); // textbook restore
-                                return "v" + i;
-                            },
-                            BatchOptions.timeout("probe1", Duration.ofSeconds(5))
-                                    .parallelism(4)
-                                    .runOnCallerThread(false));
-
-            boolean callerFlag = Thread.currentThread().isInterrupted();
-            Thread.interrupted(); // clear first; see appendix note
-            TaskBatchResult.BatchReport report = batch.report();
-            System.out.println("caller interrupt flag: " + callerFlag + "   <-- leaked onto main");
-            System.out.println("bodies executed      : " + bodies.get() + " of 12");
-            System.out.println("report               : " + report.stateCounts());
-        } finally {
-            Thread.interrupted();
-            release.countDown();
-            runtime.close();
-            pool.shutdownNow();
-        }
-    }
-```
-
-实测输出：
-
-```
-caller interrupt flag: true   <-- leaked onto main
-bodies executed      : 5 of 12
-report               : {SUCCESS=5, SUBMISSION_FAILURE=7}
-```
-
-**探针 2：shutdown 丢弃窗口**（§5 引用）
-
-```java
-    @Test
-    void callerRunsPolicySilentlyDropsTasksAfterPoolShutdown() throws Exception {
-        // CallerRunsPolicy.rejectedExecution: `if (!e.isShutdown()) r.run();`
-        // During shutdown it does nothing: execute() returns, the task never runs, never fails.
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(
-                1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1),
-                new ThreadPoolExecutor.CallerRunsPolicy());
-        ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build();
-        pool.shutdown(); // the user's own pool, the user's own lifecycle
-
-        List<Integer> inputs = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            inputs.add(i);
-        }
-        AtomicInteger bodies = new AtomicInteger();
-        try {
-            long begin = System.nanoTime();
-            TaskBatchResult<String> batch = runtime.par(ParId.of("w"))
-                    .map(
-                            inputs,
-                            i -> {
-                                bodies.incrementAndGet();
-                                return "v" + i;
-                            },
-                            BatchOptions.timeout("probe2", Duration.ofSeconds(2)).parallelism(3));
-            System.out.println("map() returned after : " + (System.nanoTime() - begin) / 1_000_000 + " ms");
-            try {
-                batch.valuesOrThrow();
-                System.out.println("valuesOrThrow        : returned normally");
-            } catch (Throwable t) {
-                System.out.println("valuesOrThrow        : " + t.getClass().getSimpleName());
-            }
-            System.out.println("elapsed total        : " + (System.nanoTime() - begin) / 1_000_000 + " ms");
-            System.out.println("bodies executed      : " + bodies.get() + " of 3");
-            System.out.println("report               : " + batch.report().stateCounts());
-        } finally {
-            runtime.close();
-            pool.shutdownNow();
-        }
-    }
-}
-```
-
-实测输出：
-
-```
-map() returned after : 10 ms
-valuesOrThrow        : CancellationException
-elapsed total        : 2010 ms
-bodies executed      : 0 of 3
-report               : {TIMEOUT=3}
-```
-
-即：池已关闭这个事实完全丢失，只表现为烧完 2s 预算后的 `TIMEOUT`。
-同场景 `AbortPolicy` 会在 10ms 内给出 `SUBMISSION_FAILURE`，cause 是
-`RejectedExecutionException`。
-
-**探针 B：combine 跑在角色 1 的线程上**（§2.3 引用）
-
-```java
-    @Test
-    void callerRunsPolicyRunsTheCombineOnTheConvergenceThread() throws Exception {
-        ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
-        CountDownLatch release = new CountDownLatch(1);
-        ThreadPoolExecutor combinePool = saturatedCallerRunsPool(release); // 见探针 1 的工具方法
-        ParRuntime runtime = ParRuntime.builder()
-                .register(ParId.of("m"), memberPool)
-                .register(ParId.of("c"), combinePool)
-                .build();
-        AtomicReference<String> combineThread = new AtomicReference<>();
-        try {
-            TaskGroup<?, String> group = runtime.group("g", Duration.ofSeconds(5))
-                    .par("a", runtime.par(ParId.of("m")), TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class), () -> "a")
-                    .par("b", runtime.par(ParId.of("m")), TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class), () -> "b")
-                    .combine("sum", runtime.par(ParId.of("c")), TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
-                            values -> {
-                                combineThread.set(Thread.currentThread().getName());
-                                return "combined";
-                            })
-                    .submitAll();
-            TaskGroupResult result = group.completionFuture().get(5, TimeUnit.SECONDS);
-            System.out.println("group outcome  : " + result.outcome());
-            System.out.println("combine thread : " + combineThread.get());
-            System.out.println("caller thread  : " + Thread.currentThread().getName());
-        } finally {
-            release.countDown();
-            runtime.close();
-            memberPool.shutdownNow();
-            combinePool.shutdownNow();
-        }
-    }
-```
-
-实测输出（该用例的 group 形态使 `main` 承担角色 3，即在 submitGroup 流程内承担角色 1）：
-
-```
-group outcome  : SUCCESS
-combine thread : main
-caller thread  : main
-```
-
-即 combine 既没跑在自己 `Par` 的 worker 上，也没跑在成员线程上，而是跑在调用 `execute()`
-的那条框架线程上，group 报 `SUCCESS`，没有任何警告。
-
-**探针 C：`SubmissionScope` 泄漏进 body**（§2.2 引用）
-
-```java
-    @Test
-    void submissionScopeIsVisibleInsideTheBodyOnTheCallerRunsPath() throws Exception {
-        CountDownLatch release = new CountDownLatch(1);
-        ThreadPoolExecutor pool = saturatedCallerRunsPool(release);
-        ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build();
-        try {
-            TaskBatchResult<String> batch = runtime.par(ParId.of("w"))
-                    .map(
-                            java.util.Collections.singletonList(1),
-                            i -> {
-                                MultiTaskContext scope = SubmissionScope.current();
-                                return "thread=" + Thread.currentThread().getName()
-                                        + " submissionScope=" + (scope == null ? "null" : scope.name());
-                            },
-                            BatchOptions.timeout("probeC", Duration.ofSeconds(5)).parallelism(1));
-            System.out.println("body observed : " + batch.results().get(0).get(3, TimeUnit.SECONDS));
-        } finally {
-            release.countDown();
-            runtime.close();
-            pool.shutdownNow();
-        }
-    }
-```
-
-实测输出：
-
-```
-body observed : thread=main submissionScope=probeC
-```
-
-对照：正常池化路径上同样的读取得到 `submissionScope=null`。
+- **探针 1（§3、§11.3 引用）**：饱和 `CallerRunsPolicy` 池 + 任务体教科书式恢复中断标志
+  → 标志泄漏到调用线程，12 元素只跑 5 个。计数在多次运行间会变（脏标志传到提交循环的
+  时机是竞争的）；可靠的定性结论是"标志泄漏、且有任务未执行"，不是具体数字。
+  该探针第一版把 `report()` 放在清标志之前，撞出 `FutureInspector` 的
+  `IllegalStateException`——§9 用例 2 的来源。
+- **探针 2（§5 引用）**：`CallerRunsPolicy` + 已 shutdown 池 → 3 元素 0 执行，
+  烧完 2s deadline 报 `TIMEOUT`，"池已关闭"这一真实原因丢失；`AbortPolicy` 同场景
+  立刻给出 `SUBMISSION_FAILURE`。
+- **探针 B（§2.3 引用）**：combine 的 `Par` 用饱和 `CallerRunsPolicy` 池 → combine body
+  跑在收敛（角色 1）线程上，group 仍报 `SUCCESS`，完全静默。
+- **探针 C（§2.2 引用）**：inline 路径 body 内 `SubmissionScope.current()` 非 null
+  （读到外层 batch 的 unit）；池化路径对照为 null。
+- **探针 D（§2.4 引用）**：池完全按库推荐形态（`SmartBlockingQueue` 容量 100 + 2 核心线程
+  + `CallerRunsPolicy`），默认选项，6 元素 → 4 个跑在调用线程，队列 0 使用。
+- **探针 E（§2.4 引用）**：combine 池被普通任务占住两条线程 → combine 跑在最后完成
+  member 的 worker 上。第一版未占住 combine 池时 combine 正常落在自己的 worker——
+  界定 §2.3 的触发条件是真实饱和，而探针 D 说明默认配置下饱和是有负载池的常态。
 
 ## 附录 B：未验证的推断
 
@@ -940,4 +645,3 @@ combine 失败时导致 NPE、README/migration 文档失效等），全文与本
 同时作废的还有当时基于伪造对比提出的一条修法：把 `SmartBlockingQueue.offer` 的
 `||` 改 `&&`。它无效——`CPU_BOUND` 与 `rejectEnqueue=true` 都是默认值，`true && true` 仍为 true。
 正确的修法见 §2.4 的 1a/1b。
-
