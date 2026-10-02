@@ -165,7 +165,7 @@ final class SlidingWindowSubmitter<V> {
      * <p>A handoff failure is the batch's shared verdict: the element that hit it never reached the
      * executor, and neither will any element after it. Every one of them must report {@code
      * SUBMISSION_FAILURE} with the original throwable as cause, which is the contract in
-     * {@code design/batch-submission-failure-semantics.md}.
+     * {@code design/archive/batch-submission-failure-semantics.md}.
      *
      * <p>Two passes, because the token is already bound by the time this runs. Settling any element
      * exceptionally fires the token's fail-fast cascade synchronously, on this thread, and that
