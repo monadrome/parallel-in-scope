@@ -1,0 +1,25 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphExportTest.java
+  s_b16b817224806c::t_ec7f7ec0dfd986 146
+src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  s_b16b817224806c::t_ec7f7ec0dfd986 52-54
+AGENTS.md
+  s_b16b817224806c::t_ec7f7ec0dfd986 101-111
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_b16b817224806c::t_ec7f7ec0dfd986 915-916
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3ab45493a898914e2f67180b45a17aab176b9f40",
+  "prompts": {},
+  "sessions": {
+    "s_b16b817224806c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0fcae-af9d-7912-8017-90bcf68d0840",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
