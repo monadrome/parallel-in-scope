@@ -35,22 +35,49 @@ repository, so declare the snapshot repository next to the dependency:
 </dependency>
 ```
 
-Register every logical entry with the executor it must use, once at the composition root:
+Register every logical entry with the executor it must use, once at the composition root, and close
+both the runtime and your own executors when the application shuts down:
 
 ```java
+ExecutorService ioPool = Executors.newFixedThreadPool(8);
+ExecutorService httpPool = Executors.newFixedThreadPool(4);
+
 ParRuntime runtime = ParRuntime.builder()
-        .register(ParId.of("io"), Executors.newFixedThreadPool(8))
+        .register(ParId.of("io"), ioPool)
+        .register(ParId.of("http"), httpPool)
         .build();
 
-BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
-        .parallelism(4)
-        .taskType(TaskType.IO_BOUND);
+Par ioPar = runtime.par(ParId.of("io"));
+Par httpPar = runtime.par(ParId.of("http"));
 
-TaskBatchResult<User> result = runtime.par(ParId.of("io"))
-        .map(userIds, userService::findById, options);
+try {
+    BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
+            .parallelism(4)
+            .taskType(TaskType.IO_BOUND);
 
-for (ImmediateResult<User> item : result.results()) {
-    System.out.println(item.outcome());
+    TaskBatchResult<User> result = ioPar.map(userIds, userService::findById, options);
+
+    for (ImmediateResult<User> item : result.results()) {
+        System.out.println(item.outcome());
+    }
+
+    TaskGroupResult<Tuple2<User, Account>, Profile> group = runtime
+            .group("profile", Duration.ofSeconds(3))
+            .par("user", ioPar, User.class, () -> loadUser(userId))
+            .par("account", httpPar, Account.class, () -> loadAccount(userId))
+            .combine("profile", httpPar, Profile.class,
+                    values -> buildProfile(values.first(), values.second()))
+            .runAll();
+    Profile profile = group.terminalValueOrThrow();
+} finally {
+    runtime.close();
+    try {
+        runtime.awaitQuiescence(Duration.ofSeconds(30));
+    } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+    }
+    ioPool.shutdownNow();
+    httpPool.shutdownNow();
 }
 ```
 
@@ -67,8 +94,12 @@ Three contracts shape that first call:
   caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
+The same snippet also declares a **task group**: a fixed set of named tasks, each with its own `Par`,
+declared type, and body, aggregated by one terminal `combine`. `runAll()` executes the chain once and
+returns a frozen result; read the terminal value with `terminalValueOrThrow()`.
+
 `ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
-the executors you registered.
+the executors you registered, so the example closes both pools itself in the `finally` block.
 
 Cross-thread context propagation runs on Alibaba `TransmittableThreadLocal` (TTL): a TTL value is
 captured when the task is prepared and restored on the worker thread — a plain `ThreadLocal` does

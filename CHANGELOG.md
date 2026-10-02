@@ -56,6 +56,7 @@
 - Add `ParRuntime.awaitQuiescence(Duration)` and `inFlight()` so application shutdown hooks can join a closing topology.
 - Checkpoints now treat an expired deadline as cancelled on the wall clock: an expired token commits `TIMEOUT` at the next checkpoint even when the timer thread has not run yet, so deadline enforcement no longer depends on scheduling punctuality.
 - Warn once at `ParRuntime.Builder.build()` when a registered executor is not a `ThreadPoolExecutor` the library can see through (e.g. a pre-wrapped `listeningDecorator`), since queue purge and blocking-risk detection are silently disabled for it; `rejectEnqueue` javadoc now states it is honoured only by `SmartBlockingQueue`-backed pools.
+- Add `Class<T>` query overloads — `GroupValues.valueOf(String, Class<T>)` and `valueAt(int, Class<T>)`, `TaskGroupResult.resultOf(String, Class<T>)` and `resultAt(int, Class<T>)` — the query-side counterparts to the `Class` overloads the declaration chain already offers. Each delegates to its `TypeToken` overload through `TypeToken.of(...)`, so the null check, the unknown-name rejection, and the exact-declared-type requirement are identical; parameterized member types still need a `TypeToken`. Source note: a literal-null call such as `valueOf(name, null)` no longer compiles, because the literal matches both the `Class` and `TypeToken` overloads — cast it (for example `(TypeToken<String>) null`) if such a call exists.
 
 ### Performance
 
@@ -64,6 +65,8 @@
 - Hold one deadline scheduler on `ParRuntime` instead of constructing one per `CancellationToken.bind`: the wrapper is immutable over the two services it dispatches to, so a ten-member group no longer builds eleven identical instances. Precompute the task group's member-and-combine list, which the cancel cascade rebuilt once per completing task.
 
 ### Fixes
+
+- Correct the build-time warning for a registered executor the library cannot see through. It told every caller to "register the physical `ThreadPoolExecutor`", which is wrong advice for an executor that starts a fresh thread per task, such as `Executors.newVirtualThreadPerTaskExecutor()` — that is not a decorator, and Java 21 callers following the advice have no physical pool to register. The warning now scopes the fix to a wrapper around a physical pool and states that a per-task-thread executor has no bounded queue to purge, so the disabled features never applied to it.
 
 - Diagnose body/resource-close failures that arrive after cancellation settled the future, retaining original/suppressed exceptions and protecting runner cleanup from throwing log handlers.
 

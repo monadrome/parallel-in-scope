@@ -142,9 +142,43 @@ public final class TaskGroupResult<V, R> {
         return cast(resultAt(index));
     }
 
+    /**
+     * The result container at a declaration position, checked against the class declared for that
+     * slot.
+     *
+     * <p>Shorthand for {@link #resultAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic member
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
+     *
+     * @throws NullPointerException if {@code expectedType} is null
+     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
+     *     count
+     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
+     */
+    public <T> ImmediateResult<T> resultAt(int index, Class<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        return resultAt(index, TypeToken.of(expectedType));
+    }
+
     public <T> ImmediateResult<T> resultOf(String name, TypeToken<T> expectedType) {
         checkNotNull(expectedType, "expectedType cannot be null");
         return resultAt(locate(name), expectedType);
+    }
+
+    /**
+     * The named member's result container, checked against the class declared for that slot.
+     *
+     * <p>Shorthand for {@link #resultOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic member
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
+     *
+     * @throws NullPointerException if {@code name} or {@code expectedType} is null
+     * @throws IllegalArgumentException if no member was declared with that name, or {@code
+     *     expectedType} is not exactly the declared type
+     */
+    public <T> ImmediateResult<T> resultOf(String name, Class<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        return resultOf(name, TypeToken.of(expectedType));
     }
 
     /** Reads successful group values; rethrows unchecked failures and wraps checked failures. */

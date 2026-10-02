@@ -358,6 +358,62 @@ class GroupDraftContractTest {
         }
     }
 
+    @Test
+    void classOverloadOfValueOfMatchesTheTypeTokenOverload() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
+                .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
+                .submitAll()) {
+            GroupValues<Tuple2<String, Integer>> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
+
+            // The Class shorthand reads the same slot under the same exact-match rule.
+            assertThat(values.valueOf("user", String.class)).isEqualTo("alice");
+            assertThat(values.valueOf("count", Integer.class)).isEqualTo(41);
+            assertThat(values.valueAt(0, String.class)).isEqualTo("alice");
+
+            assertThatThrownBy(() -> values.valueOf("user", Object.class))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("user");
+            assertThatThrownBy(() -> values.valueOf("absent", String.class))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> values.valueAt(1, String.class)).isInstanceOf(IllegalArgumentException.class);
+            // A primitive class is not the boxed token the member was declared with.
+            assertThatThrownBy(() -> values.valueOf("count", int.class)).isInstanceOf(IllegalArgumentException.class);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    // rawtypes: List.class is the point — a Class cannot carry the declared type arguments
+    @SuppressWarnings("rawtypes")
+    @Test
+    void classOverloadRejectsAParameterizedDeclaration() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try (TaskGroup<List<String>, Void> group = global.groupDraft("page", TIMEOUT)
+                .par(
+                        "names",
+                        global.par(ParId.of("worker")),
+                        new TypeToken<List<String>>() {},
+                        () -> Arrays.asList("a", "b"))
+                .submitAll()) {
+            GroupValues<List<String>> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
+
+            // A raw class is not the parameterized token the member was declared with.
+            assertThatThrownBy(() -> values.valueOf("names", List.class)).isInstanceOf(IllegalArgumentException.class);
+            assertThat(values.valueOf("names", new TypeToken<List<String>>() {}))
+                    .isEqualTo(Arrays.asList("a", "b"));
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
     // NullAway: deliberate null argument — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
@@ -375,7 +431,10 @@ class GroupDraftContractTest {
             assertThat(values.valueOf("user", TypeToken.of(String.class))).isNull();
             assertThatThrownBy(() -> values.valueOf("user", TypeToken.of(Integer.class)))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> values.valueOf("user", null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> values.valueOf("user", (TypeToken<String>) null))
+                    .isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> values.valueOf("user", (Class<String>) null))
+                    .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> group.futureOf("user", null)).isInstanceOf(NullPointerException.class);
         } finally {
             global.close();
