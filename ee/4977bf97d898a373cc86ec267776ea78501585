@@ -1,0 +1,44 @@
+design/overdesign-analysis-code-only-2026-10-02.md
+  s_4b52747c67b20f::t_e28cbb58b87e78 217-240,244-265
+  s_4b52747c67b20f::t_ac03e6698c4ea6 310-327,330-363
+  s_4b52747c67b20f::t_baa358a228f2f4 52-80,82-91
+  s_4b52747c67b20f::t_bc10edc935a579 328-329
+  s_4b52747c67b20f::t_f7348a2aa2a08b 364-382,384-411
+  s_4b52747c67b20f::t_fca19fbdd379cf 383
+  s_4b52747c67b20f::t_a7a97eaf594281 1-6,10-51
+  s_4b52747c67b20f::t_74f3495797191e 7-9
+  s_4b52747c67b20f::t_23f5305220e4be 81
+  s_4b52747c67b20f::t_2998a108489582 147-216
+  s_4b52747c67b20f::t_780855d43dd903 241-243
+  s_4b52747c67b20f::t_011287bfeadae2 412-463
+  s_4b52747c67b20f::t_b8e9eef1a36c93 92-146
+  s_4b52747c67b20f::t_3262ebc163efba 266-309
+design/overdesign-analysis-with-docs-2026-10-02.md
+  s_4b52747c67b20f::t_aa085d6c4fc443 12
+  s_4b52747c67b20f::t_ac5b9ae256e717 133-182
+  s_4b52747c67b20f::t_0ce8ec5276a866 183-242
+  s_4b52747c67b20f::t_787e6d7f94945c 29
+  s_4b52747c67b20f::t_10c3c5ec102cdc 76-132
+  s_4b52747c67b20f::t_9dfb0cac8e1108 31-35,37-66,68-75
+  s_4b52747c67b20f::t_341107002afe6d 36
+  s_4b52747c67b20f::t_945323ecec79fe 67
+  s_4b52747c67b20f::t_011c42759133e7 1-11,13-28,30
+design/AGENTS.md
+  s_4b52747c67b20f::t_13c24c1fac0cc5 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ee4977bf97d898a373cc86ec267776ea78501585",
+  "prompts": {},
+  "sessions": {
+    "s_4b52747c67b20f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02d59d2c-4c16-4ba5-aca0-6f6188fe31cd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
