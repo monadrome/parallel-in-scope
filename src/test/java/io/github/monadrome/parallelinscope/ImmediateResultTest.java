@@ -108,7 +108,7 @@ class ImmediateResultTest {
             new CancellationException("checkpoint cancellation"), new InterruptedException("worker interrupted")
         }) {
             CancellationToken token = new CancellationToken();
-            TaskFuture<Integer> task = Task.of("cancel-race", token, Futures.immediateFailedFuture(cause));
+            Task<Integer> task = Task.of("cancel-race", token, Futures.immediateFailedFuture(cause));
             token.failFastCancel();
             assertThat(task.failure()).isNull();
             ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(task, TaskOutcome.FAIL_FAST);
@@ -124,6 +124,37 @@ class ImmediateResultTest {
                     .hasCauseReference(frozen);
             ImmediateResult<Integer> recorded = ImmediateResult.fromTask(task, TaskOutcome.USER_FAILURE);
             assertThat(recorded.failure()).isSameAs(cause);
+        }
+    }
+
+    @Test
+    void frozenCancellationNamesTheAttributionItsSnapshotIsGiven() {
+        for (TaskOutcome attribution : TaskOutcome.values()) {
+            if (attribution == TaskOutcome.RUNNING || attribution == TaskOutcome.SUCCESS) {
+                continue;
+            }
+            for (boolean committed : new boolean[] {false, true}) {
+                CancellationToken token = new CancellationToken();
+                if (committed) {
+                    token.timeoutCancel();
+                }
+                Task<Integer> cancelled = Task.of("cancel-race", token, Futures.<Integer>immediateCancelledFuture());
+
+                ImmediateResult<Integer> frozen = ImmediateResult.fromTask(cancelled, attribution);
+
+                // A cancelled delegate carries no failure of its own: the snapshot names the
+                // outcome the enclosing scope decided, and keeps Guava's cancellation as the cause
+                // so the frozen read reports what a direct read of the delegate would have.
+                assertThat(frozen.outcome()).isEqualTo(attribution);
+                Throwable frozenFailure = Verify.verifyNotNull(frozen.failure());
+                assertThat(frozenFailure)
+                        .isInstanceOf(LeanCancellationException.class)
+                        .hasMessage("task 'cancel-race' ended with " + attribution)
+                        .hasCauseInstanceOf(CancellationException.class);
+                assertThatThrownBy(frozen::valueOrThrow)
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseReference(frozenFailure);
+            }
         }
     }
 }

@@ -359,6 +359,30 @@ class SynchronousExecutionTest {
         assertThat(preserved).isTrue();
     }
 
+    @Test
+    void aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted() throws Exception {
+        RuntimeException boom = new RuntimeException("boom");
+
+        Thread.currentThread().interrupt();
+        try {
+            // Freezing reads each element's failure; a read that goes through Future.get() reports
+            // InterruptedException for a failed element whose future settled long before, which used
+            // to fail this whole call.
+            TaskBatchResult<Integer> batch = par.map(
+                    Collections.singletonList(1),
+                    i -> {
+                        throw boom;
+                    },
+                    BatchOptions.timeout("interrupted-freeze", TIMEOUT));
+
+            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.USER_FAILURE, 1);
+            assertThat(batch.results().get(0).failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void cancelledBodiesGetCleanupGraceEvenWithInterruptedCaller(boolean group) throws Exception {

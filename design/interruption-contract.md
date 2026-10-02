@@ -7,7 +7,9 @@
 > [同步出口契约](synchronous-scope-exit-proposal.md)。
 
 > 状态：**已落地**。本文确立中断标志与 `InterruptedException` 在本库中的处理原则、
-> 分角色规范与验证矩阵。§7 的三处违反均已修复：7.1 随 `15a18e3`，7.2 的声明已补进
+> 分角色规范与验证矩阵。§7 的三处违反均已修复：7.1 的 `outcome` 一半随 `3f12990`
+> （该方法被删除、归因读取并入 `Task.outcome()`），`exceptionNow` 一半于 2026-10-02 落地
+> （见 §7.1 的修复注记），7.2 的声明已补进
 > `Checkpoints.rawCheckpoint()` 的 javadoc，7.3 随 `8de2122`（[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）。
 > 所有关于 JDK / Guava 行为的结论均核对源码并附实测输出；
 > 本库现状结论带 `path:line` 锚点。
@@ -269,6 +271,12 @@ private static LeanCancellationException interrupted(String message, Interrupted
 ## 7. 违反规范的三处
 
 ### 7.1 `FutureInspector` 用 `get()` 读已完成 future（违反 P4）
+
+> **已修复**。`outcome` 一半先落地（该方法后来在 `3f12990` 的归因读取重构中整体删除）；
+> `exceptionNow` 一半实际到 2026-10-02 才落地（`feat/land-unimplemented-local-changes`）：
+> `get()` → `Futures.getDone`，不可达的 `catch (InterruptedException)` 分支删除，
+> 挂死型 stub 测试换成真实 future，并补了"失败任务 + 调用线程带中断标志"的回归用例。
+> 本节其余内容是当时的诊断记录，行号锚点以当时基线为准。
 
 `FutureInspector.outcome`（`:38`）与 `exceptionNow`（`:63`）都对已确认 `isDone()` 的
 future 调 `get()`。按第 3 节，带中断标志的调用线程会让前者把成功读成 `USER_FAILURE`、
