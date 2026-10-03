@@ -61,30 +61,68 @@ public final class TaskGroupResult<V, R> {
         this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
     }
 
+    /**
+     * The identity of this group run, unique within the process: two runs of the same declaration,
+     * or two groups with the same name, never share one. It is the {@code unitId} the members'
+     * {@link TaskCompletion} snapshots point back to.
+     */
     public String groupId() {
         return report.groupId();
     }
 
+    /** The name the group was declared with; not unique, use {@link #groupId()} for identity. */
     public String groupName() {
         return report.groupName();
     }
 
+    /**
+     * The {@link System#nanoTime()} reading taken when the run was admitted, before any member was
+     * prepared. Compare it only with other {@code nanoTime} readings of this process, such as
+     * {@link #endTimeNanos()} and the members' submit times.
+     */
     public long startTimeNanos() {
         return report.startTimeNanos();
     }
-    /** Result-convergence time, independent of task-body exit. */
+
+    /**
+     * The {@link System#nanoTime()} reading taken when the group converged on its outcome: every
+     * member and the combine had a terminal result. Result convergence is independent of task-body
+     * exit; see {@link #bodyCompletionConfirmed()}.
+     */
     public long endTimeNanos() {
         return report.endTimeNanos();
     }
 
+    /**
+     * The group's absolute deadline, the earlier of its own timeout and any enclosing deadline, on
+     * the clock of its cancellation-token tree — the {@code ParRuntime}'s clock for a root group,
+     * the parent's for a nested one. That clock is not necessarily {@link System#nanoTime()}, so
+     * compare this only with other deadlines of the same runtime. {@link Long#MAX_VALUE} means no
+     * deadline.
+     */
     public long deadlineNanos() {
         return report.deadlineNanos();
     }
 
+    /**
+     * How the group as a whole ended. A group with a recorded failure — of a member or of the
+     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code SUBMISSION_FAILURE})
+     * whatever order the tasks completed in; otherwise {@code SUCCESS} or a cancellation outcome
+     * ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}). See {@link TaskOutcome}.
+     */
     public TaskOutcome outcome() {
         return report.outcome();
     }
 
+    /**
+     * The name of the first task recorded as failed, or null when none failed.
+     *
+     * <p>The name may be the terminal combine's rather than a member's: a combine failure is
+     * recorded here like a member failure, but the combine is not a key of {@link #results()} or
+     * {@link #members()}. Read the failed task's result through {@link #failedTaskResult()}, which
+     * covers both, and its observation through {@link #members()} or {@link #terminal()}
+     * accordingly.
+     */
     public @Nullable String failedTaskName() {
         return report.failedTaskName();
     }
@@ -127,10 +165,20 @@ public final class TaskGroupResult<V, R> {
         return terminal;
     }
 
+    /**
+     * Whether every direct task body — each member's and the combine's — had exited, or was
+     * atomically prevented from starting, when {@code runAll} returned. A cancelled member's result
+     * can be terminal while its body is still unwinding, so check this before releasing a resource
+     * the bodies share. Bodies of nested calls made inside them are not covered.
+     */
     public boolean bodyCompletionConfirmed() {
         return unfinishedBodies.isEmpty();
     }
 
+    /**
+     * The direct task bodies whose exit was not confirmed when {@code runAll} returned, counted by
+     * task name; empty exactly when {@link #bodyCompletionConfirmed()} is true.
+     */
     public Map<String, Integer> unfinishedBodies() {
         return unfinishedBodies;
     }
@@ -145,15 +193,37 @@ public final class TaskGroupResult<V, R> {
         return terminalResult;
     }
 
+    /**
+     * The terminal result of the member at a declaration position, untyped. The combine has no
+     * position; read it through {@link #terminalResult()}.
+     *
+     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
+     *     count
+     */
     public ImmediateResult<?> resultAt(int index) {
         checkIndex(index);
         return Verify.verifyNotNull(results.get(names.get(index)));
     }
 
+    /**
+     * The terminal result of the named member, untyped.
+     *
+     * @throws NullPointerException if {@code name} is null
+     * @throws IllegalArgumentException if no member was declared with that name
+     */
     public ImmediateResult<?> resultOf(String name) {
         return resultAt(locate(name));
     }
 
+    /**
+     * The result container at a declaration position, checked against the type token declared for
+     * that slot. The match is exact: a supertype or a raw type of the declared type is rejected.
+     *
+     * @throws NullPointerException if {@code expectedType} is null
+     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
+     *     count
+     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
+     */
     public <T> ImmediateResult<T> resultAt(int index, TypeToken<T> expectedType) {
         checkNotNull(expectedType, "expectedType cannot be null");
         checkIndex(index);
@@ -184,6 +254,14 @@ public final class TaskGroupResult<V, R> {
         return resultAt(index, TypeToken.of(expectedType));
     }
 
+    /**
+     * The named member's result container, checked against the type token declared for that slot.
+     * The match is exact: a supertype or a raw type of the declared type is rejected.
+     *
+     * @throws NullPointerException if {@code name} or {@code expectedType} is null
+     * @throws IllegalArgumentException if no member was declared with that name, or {@code
+     *     expectedType} is not exactly the declared type
+     */
     public <T> ImmediateResult<T> resultOf(String name, TypeToken<T> expectedType) {
         checkNotNull(expectedType, "expectedType cannot be null");
         return resultAt(locate(name), expectedType);
@@ -256,6 +334,11 @@ public final class TaskGroupResult<V, R> {
         return Maps.immutableEnumMap(counts);
     }
 
+    /**
+     * A one-line summary for logs: the {@link #outcomeCounts()}, the group outcome, and the failed
+     * task's name when one was recorded, as in {@code SUCCESS:1,USER_FAILURE:1 |
+     * outcome=USER_FAILURE, failedTask=load}. The format is diagnostic, not a parsing contract.
+     */
     public String reportString() {
         StringBuilder text =
                 new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
