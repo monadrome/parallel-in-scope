@@ -101,6 +101,33 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
+    void removeOnAnEmptyOrShortQueueStillFindsAndRejectsCorrectly() {
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(8);
+        assertFalse(queue.remove(Integer.valueOf(1)));
+
+        queue.add(1);
+        queue.add(2);
+        assertFalse(queue.remove(Integer.valueOf(3)));
+        assertTrue(queue.remove(Integer.valueOf(2)));
+        assertEquals(Collections.singletonList(1), new ArrayList<>(queue));
+    }
+
+    /** Search buffers are sized from the live count; a match is found on either side of a batch. */
+    @Test
+    void removeFindsTheLastElementAtEveryBatchBoundary() {
+        for (int size : new int[] {1, 63, 64, 65, 128, 129}) {
+            DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(size);
+            for (int value = 0; value < size; value++) {
+                queue.add(value);
+            }
+
+            assertTrue(queue.remove(Integer.valueOf(size - 1)), "size " + size);
+            assertEquals(size - 1, queue.size(), "size " + size);
+            assertFalse(queue.remove(Integer.valueOf(size)), "size " + size);
+        }
+    }
+
+    @Test
     void collectionRemovalsReleaseBlockedProducer() throws Exception {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
         queue.addAll(Arrays.asList(1, 2));
