@@ -328,6 +328,14 @@ final class GroupDraft {
         }
 
         @Override
+        public <T> Step<T> par(String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body) {
+            draft.checkThread();
+            draft.checkStage(0);
+            draft.addMember(name, par, options, type, body);
+            return next();
+        }
+
+        @Override
         public TaskGroupResult<Void, Void> runAll() {
             return submitAll().finish();
         }
@@ -381,6 +389,15 @@ final class GroupDraft {
         }
 
         @Override
+        public <T> Step<Tuple2<V, T>> par(
+                String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body) {
+            draft.checkThread();
+            draft.checkStage(expectedStage);
+            draft.addMember(name, par, options, type, body);
+            return next();
+        }
+
+        @Override
         public <R> Combined<V, R> combine(
                 String name, Par par, TypeToken<R> type, CombineBody<? super V, ? extends R> body) {
             draft.checkThread();
@@ -405,6 +422,15 @@ final class GroupDraft {
                 TaskOptions options,
                 TypeToken<R> type,
                 CombineBody<? super V, ? extends R> body) {
+            draft.checkThread();
+            draft.checkStage(expectedStage);
+            draft.setCombine(name, par, options, type, body);
+            return nextCombined();
+        }
+
+        @Override
+        public <R> Combined<V, R> combine(
+                String name, Par par, TaskOptions options, Class<R> type, CombineBody<? super V, ? extends R> body) {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.setCombine(name, par, options, type, body);
