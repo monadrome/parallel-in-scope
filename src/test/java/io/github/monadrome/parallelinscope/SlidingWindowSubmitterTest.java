@@ -366,6 +366,65 @@ class SlidingWindowSubmitterTest {
     }
 
     /**
+     * A task already terminal when the initial window reaches it — cancelled by the deadline
+     * cascade before submission, so its body runs zero times — must not be handed to the worker
+     * pool at all: the handoff is pure waste. Its completion listener still publishes, so the
+     * window accounting is unchanged.
+     */
+    @Test
+    void preCancelledInitialWindowTasksAreNotHandedToThePool() {
+        AtomicInteger handoffs = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            handoffs.incrementAndGet();
+            command.run();
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 3, TaskType.IO_BOUND), submitter);
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
+            tasks.forEach(task -> task.cancel(true));
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThat(handoffs).hasValue(0);
+            assertThat(batch.results()).allMatch(ListenableFuture::isCancelled);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * Skipping a terminal element's handoff must not starve its live window siblings: the
+     * cancelled element still publishes its completion, and the live element runs normally.
+     */
+    @Test
+    void preCancelledWindowElementDoesNotDisturbLiveSiblings() throws Exception {
+        AtomicInteger handoffs = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            handoffs.incrementAndGet();
+            command.run();
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND), submitter);
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2);
+            tasks.get(0).cancel(true);
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThat(batch.results().get(0).isCancelled()).isTrue();
+            assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(handoffs).hasValue(1);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
      * L7 alignment: a handoff that throws an {@code Error} — a broken executor, or one failing
      * while enqueuing — must fail the batch like a rejection. Catching only {@code RuntimeException}
      * let the error escape {@code submitAll}, orphaning the in-flight window and leaving every

@@ -207,10 +207,18 @@ final class SlidingWindowSubmitter<V> {
      * Submits a prepared future to the worker pool and returns it. The listener is registered
      * before the handoff, so a task rejected or cancelled before it runs still reaches the
      * completion queue that drives the sliding window.
+     *
+     * <p>A task already terminal when its turn comes — cancelled by the deadline cascade while
+     * the window was still filling, for example — is not handed to the pool at all: its {@code
+     * run()} would CAS-fail and no-op, so the handoff is pure waste. The listener fires
+     * immediately for a done future, so the window accounting is unchanged. A task cancelled
+     * between the check and the handoff still takes the old no-op path, which stays correct.
      */
     private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
         task.addListener(() -> blockingQueue.add(task), directExecutor());
-        pool.execute(task);
+        if (!task.isDone()) {
+            pool.execute(task);
+        }
         return task;
     }
 
