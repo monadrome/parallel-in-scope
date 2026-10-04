@@ -154,9 +154,12 @@ explicit human confirmation before implementing it.
   produced no `mutations.xml`, is not a pass; never describe a started or partial
   check as passing. Run Maven build/test/PIT serially within one checkout;
   independent verification checkouts may run in parallel.
-- Mockito's dynamic agent self-attach is blocked on the JDK 25 build, so Mockito
-  tests can fail with an attach error. Rerun with the installed jar passed
-  explicitly — this machine uses
+- Mockito's inline mock maker self-attaches its agent. On the JDK 25 build this
+  currently succeeds with only a deprecation warning and the Mockito test classes
+  pass without any javaagent, but self-attach is deprecated and will stop working
+  on a future JDK, so treat an attach error as an environment-specific condition
+  rather than a code defect. If the Mockito tests do fail with an attach error,
+  rerun with the installed jar passed explicitly — this machine uses
   `/Users/qinghualin/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar`:
 
   ```bash
