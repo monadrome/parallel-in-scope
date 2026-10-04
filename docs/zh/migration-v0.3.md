@@ -124,10 +124,39 @@ runOnCallerThread 删除。handoff 失败记录 SUBMISSION_FAILURE 与原 cause�
 由应用拒绝处理器决定。TPE 的 combine 禁止拒绝处理器 inline，明确的 direct executor
 继续支持。TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；
 TaskOptions 默认拒绝入队在普通队列无效并告警。直接注册的 DiscardPolicy/
-DiscardOldestPolicy 在 build 时拒绝；opaque wrapper 接纳但 purge/死锁可见性降低。
+DiscardOldestPolicy 在 build 时拒绝；opaque wrapper 接纳但死锁可见性降低。
 
 checkpoint guard 不再静默跳过取消/过期 body。runtime.close 拒绝新准入、排空已接纳工作、
 不关闭注册 executor；awaitQuiescence 含 body 退出。图报告 future 是关闭观测 scope 后的
-只读诊断，不是业务运行句柄。purge 策略与 queue 产物边界保持不变。
+只读诊断，不是业务运行句柄。queue 产物边界保持不变。
+
+## 执行器队列清理
+
+自动 purge 与 `ParRuntimePurgePolicy` 已移除。删除 `Builder.purgePolicy(...)`、
+`purgePolicy()`、`purgeEnabled()`、`setPurgeEnabled(...)`、`queuePressureThreshold()`、
+`cancelledTaskRatioThreshold()` 和 `adjustPurgeThresholds(...)` 调用。
+
+改前：
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("io"), ioPool)
+        .purgePolicy(ParRuntimePurgePolicy.builder().enabled(true).build())
+        .build();
+```
+
+改后：
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("io"), ioPool)
+        .build();
+ioPool.purge(); // 应用自己的维护边界
+```
+
+取消不再自动移除物理队列项。取消项可能继续占用有界队列容量，导致后续提交被拒绝，直到
+worker 取出或主动 purge。需要周期清理的应用自行管理调度和关闭；一次手动 purge 不等价于
+原取消驱动维护。原实现、配置、测试和文档保存在 `dev/experimental` 分支。此次改动移除了
+执行内核里的维护协调，取消、中断投递、body 退出跟踪和内部 execution phase 查询仍保留。
 
 完整行为见[使用指南](user-guide.md)；0.1.x 历史迁移见[v0.2](migration-v0.2.md)。

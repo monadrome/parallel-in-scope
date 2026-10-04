@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
+
 import com.google.common.util.concurrent.AbstractFuture;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -7,7 +9,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -20,7 +21,6 @@ import org.jspecify.annotations.Nullable;
 final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements RunnableFuture<V> {
 
     private static final Logger LOGGER = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
-    private static final Consumer<ExecutionPhase> NOOP = phase -> {};
 
     /** Cleared permanently when the body exits or becomes ineligible to run. */
     private volatile @Nullable Callable<V> callable;
@@ -30,7 +30,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     private final @Nullable TaskBodyState bodyState;
 
-    private volatile Consumer<? super ExecutionPhase> phaseObserver;
     private volatile @Nullable Thread runner;
 
     /**
@@ -54,21 +53,23 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     private volatile @Nullable SubmissionException submissionFailure;
 
-    public static <V> ExecutionPhaseHintFuture<V> create(
-            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
-        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, null);
+    public static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable) {
+        return new ExecutionPhaseHintFuture<>(callable, null);
     }
 
-    public static <V> ExecutionPhaseHintFuture<V> create(
-            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
-        return new ExecutionPhaseHintFuture<>(callable, phaseObserver, bodyState);
+    public static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskBodyState bodyState) {
+        return new ExecutionPhaseHintFuture<>(callable, bodyState);
     }
 
-    private ExecutionPhaseHintFuture(
-            Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver, @Nullable TaskBodyState bodyState) {
+    private ExecutionPhaseHintFuture(Callable<V> callable, @Nullable TaskBodyState bodyState) {
         this.callable = Objects.requireNonNull(callable, "callable cannot be null");
-        this.phaseObserver = Objects.requireNonNull(phaseObserver);
         this.bodyState = bodyState;
+    }
+
+    /** Nonblocking hint; cancellation is visible even while interrupt delivery is pending. */
+    ExecutionPhase phase() {
+        ExecutionPhase current = verifyNotNull(phase.get());
+        return current == ExecutionPhase.RUNNING && isCancelled() ? ExecutionPhase.CANCEL_REQUESTED_RUNNING : current;
     }
 
     private void releaseCallable() {
@@ -160,8 +161,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     void settleSubmissionFailure() {
         setException(Objects.requireNonNull(submissionFailure, "submission failure was not claimed"));
-        notifyPhase(ExecutionPhase.TERMINAL);
-        phaseObserver = NOOP;
     }
 
     @Nullable
@@ -202,7 +201,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             SubmissionScope.restore(null);
         }
         runner = Thread.currentThread();
-        notifyPhase(ExecutionPhase.RUNNING);
         boolean skipped = !claimBody();
         // Cancellation or abandonment may have cleared the body after the phase claim.
         @Nullable Callable<V> body = callable;
@@ -236,27 +234,17 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             while (interruptDeliveryInProgress) {
                 Thread.yield();
             }
-            // Serialize cancellation notification and observer release with afterDone().
-            synchronized (this) {
-                boolean cancelledNow = cancelled || isCancelled();
-                if (cancelledNow
-                        && phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
-                    notifyPhase(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
-                }
-                ExecutionPhase now = phase.get();
-                if (now == ExecutionPhase.RUNNING || now == ExecutionPhase.CANCEL_REQUESTED_RUNNING) {
-                    phase.set(ExecutionPhase.TERMINAL);
-                }
-                notifyPhase(ExecutionPhase.TERMINAL);
-                phaseObserver = NOOP;
-            }
             // Restore only after delivery completes. External interrupts during inline execution
             // are also discarded; see the user guide's rejection-policy discussion.
-            SubmissionScope.restore(borrowedScope);
-            if (interruptedOnEntry) {
-                Thread.currentThread().interrupt();
-            } else {
-                Thread.interrupted();
+            try {
+                SubmissionScope.restore(borrowedScope);
+                if (interruptedOnEntry) {
+                    Thread.currentThread().interrupt();
+                } else {
+                    Thread.interrupted();
+                }
+            } finally {
+                phase.set(ExecutionPhase.TERMINAL);
             }
         }
     }
@@ -279,28 +267,10 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (!isCancelled()) {
             return;
         }
-        synchronized (this) {
-            ExecutionPhase current = phase.get();
-            if (current == ExecutionPhase.SUBMITTED) {
-                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
-                    skipBody();
-                    notifyPhase(ExecutionPhase.CANCELLED_BEFORE_RUN);
-                    phaseObserver = NOOP;
-                }
-            } else if (current == ExecutionPhase.RUNNING) {
-                // Keep the observer until run() publishes TERMINAL.
-                if (phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
-                    notifyPhase(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
-                }
-            }
-        }
-    }
-
-    private void notifyPhase(ExecutionPhase phase) {
-        try {
-            phaseObserver.accept(phase);
-        } catch (Throwable e) {
-            LOGGER.log(Level.WARNING, "Execution phase observer failed", e);
+        if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
+            skipBody();
+        } else {
+            phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
         }
     }
 }
