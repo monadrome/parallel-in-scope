@@ -23,7 +23,7 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。队列清理由执行器所有者负责。
+id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 与 timeout-action 服务，绝不会关闭它们。队列清理由执行器所有者负责。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
 
@@ -230,7 +230,7 @@ runtime 关闭且 awaitQuiescence 成功后，全部已接纳 body 才确认退�
 应用关闭自己注册的执行器。按这个顺序执行：
 
 ```java
-runtime.close();                                      // 拒绝新工作；释放 timer/submitter 服务
+runtime.close();                                      // 拒绝新工作；释放 timer 服务
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 body 退出
 } catch (InterruptedException interrupted) {
@@ -241,7 +241,7 @@ try {
 }
 ```
 
-`close()` 幂等，且绝不关闭已注册的执行器；它只释放框架的 timer 与 submitter 服务，也不等待
+`close()` 幂等，且绝不关闭已注册的执行器；它只释放框架的 timer 与 timeout-action 服务，也不等待
 在途 body。body 级等待由 `awaitQuiescence(Duration)` 完成，但它必须先 `close()`：不先关闭就
 只是把超时等满，超时返回 false。非正的超时只做一次检查、不等待，直接报告当前状态。它可被
 中断，被中断时恢复标志并继续停机。中断检查先于状态答复，即使在已经静止的 runtime 上用非正超时
