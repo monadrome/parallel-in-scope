@@ -1,9 +1,7 @@
 # 扩展边界与包装契约
 
-> 公开执行/结果及中断等待形状已由
-> [同步出口契约](synchronous-scope-exit-proposal.md) 取代：map/runAll 同步返回
-> ImmediateResult 数据与有界清理状态；运行句柄/业务完成 future 不再公开。
-> 本文的底层取消、直接 body 退出、TTL 与调度不变量仍适用。
+> 公开执行/结果形状（`runAll()`/`Par.map` 同步返回、`ImmediateResult` 数据与有界清理状态）见
+> [同步出口契约](synchronous-scope-exit.md)；本文约束扩展边界与自助包装守则。
 
 > 本文定义 parallel-in-scope 的**扩展边界**：用户如何在不破坏结构化并发语义的前提下，给任务体加上自己的横切能力（MDC、追踪、指标、重试），以及哪些对象归库、哪些归用户。
 > 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
