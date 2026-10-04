@@ -7,13 +7,12 @@ import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.function.Consumer;
 
 /**
  * Runtime capability record for one supplied executor. Internal to the {@code ParRuntime} package.
  *
  * <p>The supplied executor is the resource identity and the submission target. Capability facts —
- * queue inspection, purge, and starvation proneness — are read from the {@linkplain
+ * queue inspection and starvation proneness — are read from the {@linkplain
  * #introspectableExecutor() introspectable executor} instead, which looks through a TTL executor
  * wrapper: a wrapper hides the physical pool, and a registration whose every fact silently
  * downgrades to "unknown" is worse than one diagnostic. The identity deliberately does not follow
@@ -33,7 +32,6 @@ final class ExecutorRuntime {
     private final boolean adapter;
     private final ExecutorIdentity identity;
     private final boolean starvationProne;
-    private volatile Consumer<? super ExecutionPhase> phaseObserver = phase -> {};
 
     ExecutorRuntime(ExecutorService suppliedExecutor) {
         this.suppliedExecutor = Objects.requireNonNull(suppliedExecutor);
@@ -100,14 +98,6 @@ final class ExecutorRuntime {
     boolean rejectEnqueueEffective() {
         return introspectableExecutor instanceof ThreadPoolExecutor
                 && ((ThreadPoolExecutor) introspectableExecutor).getQueue() instanceof SmartBlockingQueue;
-    }
-
-    Consumer<? super ExecutionPhase> phaseObserver() {
-        return phaseObserver;
-    }
-
-    void setPhaseObserver(Consumer<? super ExecutionPhase> observer) {
-        this.phaseObserver = Objects.requireNonNull(observer);
     }
 
     /**

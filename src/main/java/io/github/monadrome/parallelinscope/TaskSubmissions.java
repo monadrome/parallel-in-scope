@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import com.alibaba.ttl.TtlCallable;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 /**
  * Shared single-task preparation and submission used by both entry points.
@@ -42,13 +41,11 @@ final class TaskSubmissions {
      *
      * @param taskContext per-task execution context carrying the batch and task index
      * @param callable user task
-     * @param phaseObserver consumer of execution-phase hints for queue maintenance
      * @return the prepared future, still in {@code SUBMITTED} phase
      */
-    static <V> ExecutionPhaseHintFuture<V> prepare(
-            TaskExecutionContext taskContext, Callable<V> callable, Consumer<? super ExecutionPhase> phaseObserver) {
-        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(
-                wrapScoped(taskContext, callable), phaseObserver, taskContext.bodyState());
+    static <V> ExecutionPhaseHintFuture<V> prepare(TaskExecutionContext taskContext, Callable<V> callable) {
+        ExecutionPhaseHintFuture<V> future =
+                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.bodyState());
         future.observation(TaskObservation.forTask(taskContext, future));
         return future;
     }

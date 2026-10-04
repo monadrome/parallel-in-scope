@@ -1,7 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 /**
- * A best-effort execution phase reported by a submitted future.
+ * A best-effort execution phase queried from a prepared future.
  *
  * <p>These values describe which lifecycle transition won inside the future. They do not prove
  * executor queue membership or that user code has started running.
@@ -13,8 +13,8 @@ enum ExecutionPhase {
     RUNNING,
     /** Cancellation won before {@code run()} claimed execution. */
     CANCELLED_BEFORE_RUN,
-    /** Cancellation succeeded after {@code run()} claimed execution. */
+    /** The future is cancelled and {@code run()} owns execution cleanup. */
     CANCEL_REQUESTED_RUNNING,
-    /** The future's {@code run()} method returned. */
+    /** Execution cleanup finished, or submission failure prevented execution. */
     TERMINAL
 }

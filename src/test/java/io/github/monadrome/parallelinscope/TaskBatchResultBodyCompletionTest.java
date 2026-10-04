@@ -3,6 +3,8 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -275,36 +277,40 @@ class TaskBatchBodyCompletionTest {
     @SuppressWarnings("NullAway")
     @Test
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
-        // Kernel-level: pin the window between the phase claim and the user body with a blocking
-        // phase observer, then cancel. The body is skipped and the outer finally releases the slot.
+        // Pause body eligibility after run() claimed execution, without a production callback.
         MultiTaskContext unit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(options("claimed").spec(), 1));
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState bodyState = tracker.register(unit);
+        TaskBodyState bodyState = spy(tracker.register(unit));
         TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), bodyState);
-        CountDownLatch observerEntered = new CountDownLatch(1);
-        CountDownLatch releaseObserver = new CountDownLatch(1);
+        CountDownLatch claimEntered = new CountDownLatch(1);
+        CountDownLatch releaseClaim = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
-        ExecutionPhaseHintFuture<Integer> future =
-                TaskSubmissions.prepare(context, executions::incrementAndGet, phase -> {
-                    if (phase == ExecutionPhase.RUNNING) {
-                        observerEntered.countDown();
-                        try {
-                            releaseObserver.await(5, TimeUnit.SECONDS);
-                        } catch (InterruptedException interrupted) {
-                            Thread.currentThread().interrupt();
-                        }
-                    }
-                });
+        doAnswer(invocation -> {
+                    claimEntered.countDown();
+                    Uninterruptibles.awaitUninterruptibly(releaseClaim);
+                    return invocation.callRealMethod();
+                })
+                .when(bodyState)
+                .claimRunning();
+        ExecutionPhaseHintFuture<Integer> future = TaskSubmissions.prepare(context, executions::incrementAndGet);
 
         Thread worker = new Thread(future);
-        worker.start();
-        assertThat(observerEntered.await(2, TimeUnit.SECONDS)).isTrue();
-        future.cancel(true);
-        releaseObserver.countDown();
-        worker.join(2000);
+        worker.setDaemon(true);
+        try {
+            worker.start();
+            assertThat(claimEntered.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.RUNNING);
+            assertThat(future.cancel(true)).isTrue();
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
+        } finally {
+            releaseClaim.countDown();
+            worker.join(2000);
+        }
 
+        assertThat(worker.isAlive()).isFalse();
         assertThat(future.isCancelled()).isTrue();
+        assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
         assertThat(executions).hasValue(0);
         assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isTrue();
     }

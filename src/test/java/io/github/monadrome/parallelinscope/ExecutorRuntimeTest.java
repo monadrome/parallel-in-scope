@@ -124,7 +124,7 @@ class ExecutorRuntimeTest {
     @Test
     void ttlWrappedPoolIsReadThroughWhileItsIdentityStaysOnTheRegisteredObject() {
         // A TTL wrapper is not a ThreadPoolExecutor, so reading the registered object would make
-        // every structural fact unknown and would hide the pool from purge. TtlUnwrap is the public
+        // every structural fact unknown and would hide the pool from risk detection. TtlUnwrap is the public
         // way through. Identity deliberately does not follow, so one physical pool registered both
         // bare and wrapped stays two entries in the executor graph.
         ThreadPoolExecutor physical =

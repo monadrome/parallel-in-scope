@@ -30,13 +30,13 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. Automatic purge is the one runtime-adjustable knob: `setPurgeEnabled(boolean)` and `adjustPurgeThresholds(double, double)` re-tune it after build. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
+Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor. Queue cleanup belongs to the executor owner.
 
-Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
+Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: blocking-risk detection is disabled for it.
 
-Registration reads a supplied executor's own structure and claims nothing it cannot read. Two facts come from that read: whether queue purge can observe the pool at all, which needs a `ThreadPoolExecutor` with a finite positive queue capacity, and whether a task body on it can be starved of a thread while blocking on a child task. Anything the library cannot see through — a pool you decorated before registering, a `ForkJoinPool`, a framework-managed executor — yields the conservative answer for both, and says so once at the composition root.
+Registration reads a supplied executor's own structure and claims nothing it cannot read. It determines whether a task body can be starved of a thread while blocking on a child task. Anything the library cannot see through — a pool you decorated before registering, a `ForkJoinPool`, a framework-managed executor — yields the conservative answer, and says so once at the composition root.
 
-So register the physical pool, not a decorator. `Executors.newFixedThreadPool(n)` and `Executors.newCachedThreadPool()` return the `ThreadPoolExecutor` itself, keeping queue purge and blocking-risk detection fully working; `Executors.newSingleThreadExecutor()` and Guava's `listeningDecorator(...)`, by contrast, return wrappers the library cannot see through. When you want a single-thread pool, construct the physical pool explicitly:
+So register the physical pool, not a decorator. `Executors.newFixedThreadPool(n)` and `Executors.newCachedThreadPool()` return the `ThreadPoolExecutor` itself, keeping blocking-risk detection working; `Executors.newSingleThreadExecutor()` and Guava's `listeningDecorator(...)`, by contrast, return wrappers the library cannot see through. When you want a single-thread pool, construct the physical pool explicitly:
 
 ```java
 ExecutorService reportPool = new ThreadPoolExecutor(
@@ -334,22 +334,13 @@ Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge reco
 
 ## Purge cancelled queue entries
 
-Purge is optional and applies only when a supplied executor is a `ThreadPoolExecutor` backed by a bounded `BlockingQueue` (for example `SmartBlockingQueue`, a bounded `LinkedBlockingQueue`, or `ArrayBlockingQueue`). Queues without a finite positive capacity — `SynchronousQueue` and unbounded queues such as `new LinkedBlockingQueue()` — receive a no-op observer. Cancellation before execution emits an execution phase signal; `ParRuntime` coalesces maintenance by physical executor identity, so aliases or multiple `Par` entries backed by the same pool do not start duplicate purge coordinators.
+The library does not automatically purge registered executors. A cancelled task can remain in the physical queue until a worker dequeues it or the executor owner removes it. On a bounded queue, cancelled entries can retain capacity and cause later submissions to be rejected. Cancellation before execution still releases the task's Callable captures and body slot.
 
 ```java
-ParRuntimePurgePolicy purge = ParRuntimePurgePolicy.builder()
-        .enabled(true)
-        .queuePressureThreshold(0.80)
-        .canceledTaskRatioThreshold(0.05)
-        .build();
-
-ParRuntime global = ParRuntime.builder()
-        .purgePolicy(purge)
-        .register(ParId.of("io"), ioThreadPool)
-        .build();
+ioThreadPool.purge(); // executor-owner maintenance
 ```
 
-Both thresholds must be reached before `ThreadPoolExecutor.purge()` is requested. Purge only removes cancelled work still retained in the queue; it cannot stop a task body that ignores interruption.
+For a physical `ThreadPoolExecutor`, the prepared future is also the queued RunnableFuture, so JDK `purge()` can remove cancelled entries. An executor that wraps runnables must manage its actual queue objects. Purge cannot stop a task body that ignores interruption. Applications needing periodic cleanup own that maintenance schedule and its shutdown; the former cancellation-driven purger is preserved on `dev/experimental`.
 
 ## Lifecycle-aware queues
 

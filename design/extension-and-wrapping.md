@@ -54,7 +54,7 @@ worker 线程上的真实调用栈（现状，已实现）：
 
 ```
 executor.execute(future)                    ← 提交线程；SubmissionScope 已 install
-  └─ [worker] future.run()                  ← ExecutionPhaseHintFuture：phase CAS → notifyPhase(RUNNING)
+  └─ [worker] future.run()                  ← ExecutionPhaseHintFuture：phase CAS，当前状态由 phase() 查询
       └─ TtlCallable.call()                 ← 库最后一次包装：replay(captured) … restore(backup)
           └─ ScopedCallable.call()          ← install TaskExecutionContext → checkpoint → delegate
               └─ 用户 Callable / lambda      ← 唯一用户扩展点：可在此自助包装（§5）
@@ -124,14 +124,14 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 
 | 编号 | 问题 | 触发机制 | 后果 | 封堵 |
 |---|---|---|---|---|
-| **P7** | 包装 future | 自建 `Callable`/`FutureTask` 替换 `ExecutionPhaseHintFuture` | phase 状态机丢失、purge 观察者丢失、`cancel(true)` 中断失效、批次的 future 身份被破坏 | 不开放 future 级包装；公开 API 不收已准备对象（L2） |
+| **P7** | 包装 future | 自建 `Callable`/`FutureTask` 替换 `ExecutionPhaseHintFuture` | phase 状态机丢失、`cancel(true)` 中断失效、批次的 future 身份被破坏 | 不开放 future 级包装；公开 API 不收已准备对象（L2） |
 | **P8** | 调用 `executor.submit()` 而非 `execute()` | 想复用 JDK 的提交便利 | executor 再包一层 FutureTask → 返回的 future 与实际执行的 future 分裂，取消/结果/监听器不一致 | 库侧 L7：只调用 `execute()` |
 
 ### D. executor 包装
 
 | 编号 | 问题 | 触发机制 | 后果 | 封堵 |
 |---|---|---|---|---|
-| **P9** | 注册 TTL 包装器 | `TtlExecutors.getTtlExecutorService(pool)` 传入 `register` | ① 出现第二个捕获点（破 I3）；② `ExecutorServiceTtlWrapper` 非 `ThreadPoolExecutor` → purge 观察者不绑定、`BlockingRisk` 静默降为 `UNKNOWN` | 运行时检测（§6）+ WARNING；能力探测时 `TtlUnwrap.unwrap` |
+| **P9** | 注册 TTL 包装器 | `TtlExecutors.getTtlExecutorService(pool)` 传入 `register` | 出现第二个捕获点（破 I3）；包装器隐藏物理池结构 | 运行时检测（§6）+ WARNING；能力探测时 `TtlUnwrap.unwrap` |
 | **P10** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 caller-thread 回退策略被绕过 | 契约 U2 + 注册期守卫（`DiscardPolicy` / `DiscardOldestPolicy` 直接拒绝注册，见 L8）+ 提交失败必终结 future（L7）+ 文档 |
 | **P11** | executor 包装扩大上下文范围 | 包装器给每个 Runnable 套上下文层 | 上下文回放覆盖到 future 记账与完成回调，语义超出"任务体" | 契约 U1：不在 `run()` 之外包上下文 |
 
@@ -329,7 +329,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 |---|---|
 | 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（2026-09-26 拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
 | executor 包装 SPI | JDK 的 `ExecutorService` 已是扩展点；再加一层只会让身份、内省与上下文范围问题更隐蔽（P9–P11） |
-| future 级包装 | 破坏 phase/purge/取消/身份（P7）；future 级能力应进库扩展 |
+| future 级包装 | 破坏 phase/取消/身份（P7）；future 级能力应进库扩展 |
 | 关闭/替换上下文包装的开关 | 直接破 I1（P14） |
 | 承诺覆盖任务体异步逃逸的代码 | Java 8 无法阻止用户代码换线程；只能靠守则 + 负例测试暴露（P4） |
 | 承诺传播任意 `ThreadLocal`/MDC | 传播集合封闭（A3） |

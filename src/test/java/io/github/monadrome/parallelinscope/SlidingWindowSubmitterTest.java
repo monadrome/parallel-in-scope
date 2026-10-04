@@ -814,7 +814,7 @@ class SlidingWindowSubmitterTest {
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
-                .map(task -> ExecutionPhaseHintFuture.create(task, phase -> {}))
+                .map(task -> ExecutionPhaseHintFuture.create(task))
                 .collect(Collectors.toList());
     }
 

@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -25,14 +24,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Cross-entry contract tests: {@code Par.map} and {@code TaskGroup} prepare and submit
  * every task through the same {@code TaskSubmissions} pipeline, so the single-task semantics —
- * instrumentation, TTL capture, phase hints, and rejection handling — must agree across both
+ * instrumentation, TTL capture, and rejection handling — must agree across both
  * entry points.
  */
 class ScopedTaskContractTest {
@@ -49,12 +47,10 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void successRunsOnceWithObservationAndRunningPhase(Entry entry) throws Exception {
+    void successRunsOnceWithObservation(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         ParRuntime global = global(executor);
         try {
-            observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
             ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
@@ -64,11 +60,6 @@ class ScopedTaskContractTest {
 
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(executions).hasValue(1);
-            // set(result) precedes the TERMINAL emission inside the worker, so wait for it.
-            Awaitility.await()
-                    .atMost(1, TimeUnit.SECONDS)
-                    .untilAsserted(
-                            () -> assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL));
             TaskCompletion<Object> event = observation(future);
             assertThat(event.successful()).isTrue();
             assertThat(event.result()).isEqualTo("done");
@@ -141,10 +132,8 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void aDirectExecutorRunsTheBodyOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         ParRuntime global = global(direct);
         try {
-            observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
             AtomicReference<String> ranOn = new AtomicReference<>();
             String caller = Thread.currentThread().getName();
@@ -158,7 +147,6 @@ class ScopedTaskContractTest {
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("inline");
             assertThat(executions).hasValue(1);
             assertThat(ranOn.get()).isEqualTo(caller);
-            assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
             assertThat(observation(future).successful()).isTrue();
         } finally {
             global.close();
@@ -175,10 +163,8 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void rejectionNeverRunsUserCodeByDefault(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         ParRuntime global = global(rejecting);
         try {
-            observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
 
             ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
@@ -193,7 +179,6 @@ class ScopedTaskContractTest {
             assertThat(event.failure()).isInstanceOf(SubmissionException.class);
             assertThat(event.startTimeNanos()).isZero();
             assertThat(event.endTimeNanos()).isZero();
-            assertThat(phases).doesNotContain(ExecutionPhase.RUNNING);
             if (entry == Entry.GROUP) {
                 TaskGroupReport result = lastGroupResult(global);
                 assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
@@ -208,14 +193,12 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void cancelBeforeRunSkipsUserCodeAndHintsThePhase(Entry entry) throws Exception {
+    void cancelBeforeRunSkipsUserCode(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         ParRuntime global = global(executor);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queuedRuns = new AtomicInteger();
         try {
-            observePhases(global, phases);
             if (entry == Entry.BATCH) {
                 ListenableFuture<Object> queued = global.par(ParId.of("worker"))
                         .submitBatch(
@@ -248,7 +231,6 @@ class ScopedTaskContractTest {
                                 .outcome())
                         .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
             }
-            assertThat(phases).contains(ExecutionPhase.CANCELLED_BEFORE_RUN);
             assertThat(queuedRuns).hasValue(0);
         } finally {
             release.countDown();
@@ -370,12 +352,6 @@ class ScopedTaskContractTest {
 
     private static ParRuntime global(ExecutorService executor) {
         return ParRuntime.builder().register(ParId.of("worker"), executor).build();
-    }
-
-    private static void observePhases(ParRuntime global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
-        // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
-        // installed and the phase observer slot is free to claim.
-        global.par(ParId.of("worker")).executorRuntime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

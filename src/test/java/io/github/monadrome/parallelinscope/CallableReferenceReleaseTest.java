@@ -290,8 +290,7 @@ class CallableReferenceReleaseTest {
                 new TaskExecutionContext(unit, index, Ticker.systemTicker().read(), tracker.register(unit));
         Callable<String> wrapped = TaskSubmissions.wrapScoped(context, body);
         ScopedCallable<String> scoped = (ScopedCallable<String>) ((TtlCallable<String>) wrapped).unwrap();
-        ExecutionPhaseHintFuture<String> future =
-                ExecutionPhaseHintFuture.create(wrapped, phase -> {}, context.bodyState());
+        ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.bodyState());
         return new Fixture(context, scoped, future);
     }
 
