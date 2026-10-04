@@ -79,8 +79,13 @@ public final class CancellationToken {
             // this token — and the results carried by its futureToken — alive through the parent's
             // pending listener list until the parent itself finishes.
             ParentLink link = new ParentLink(parent, this);
-            parent.futureToken.addListener(link::parentFinished, directExecutor());
+            // Assign before registering: the parent's future may already be terminal, in which case
+            // the listener runs inline and this token commits PROPAGATED_CANCELLED during
+            // addListener — before this constructor would otherwise have installed the holder.
+            // With the holder already visible, that synchronous terminal transition still severs
+            // it, so no unsevered link survives the construction window.
             this.parentLink = link;
+            parent.futureToken.addListener(link::parentFinished, directExecutor());
         } else {
             this.parentLink = null;
         }
@@ -303,7 +308,13 @@ public final class CancellationToken {
             try {
                 listener.accept(newState);
             } catch (Throwable failure) {
-                LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
+                // Diagnostics must not escape: this runs inside transitionTo, and a throwing handler
+                // would otherwise skip the caller's aftermath (cancel's futureToken cascade).
+                try {
+                    LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
+                } catch (Throwable ignored) {
+                    // A broken log handler is not allowed to alter cancellation behaviour.
+                }
             }
         }
     }
