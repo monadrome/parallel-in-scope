@@ -230,7 +230,7 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 
 **残余观察**（不立项，待真实需求）：`Par.map` 等待期间忽略调用方中断并恢复标志
 （`Par.java:105-112`），根级批次只能靠 deadline / fail-fast / 父作用域停止——这是重构的有意设计
-（`design/synchronous-scope-exit-proposal.md`："外部 root 取消不再依赖运行句柄或 caller interrupt"）。
+（`design/synchronous-scope-exit.md`："外部 root 取消不再依赖运行句柄或 caller interrupt"）。
 若"请求已断连须立即止血"的根级用例出现，再考虑父作用域包装或显式句柄。
 
 ### O-2 · `parallelism` 默认值＝无界，且无任何文档声明

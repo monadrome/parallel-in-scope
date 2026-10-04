@@ -31,9 +31,11 @@ Adversarial Review。
    [interruption-contract.md](interruption-contract.md)，根 AGENTS.md 只留摘要）。
 3. **取代即删除或归档**，不在活文档里加「已取代」注解。
 4. **否决记录比采纳记录更保值**——采纳的理由能从代码推断，否决的理由不能，必须写全。
-5. **生命周期三态且单向**：在途（untracked）→ 活契约 → 归档。归档文档是化石，发现错误
+5. **生命周期三态且单向**：在途（untracked）→ 活契约 → 归档。提案落地即转正：文件名去掉
+   proposal 等提案标记、删除头部状态行，随实现同一提交收录进路由表。归档文档是化石，发现错误
    不改原文，在 [decision-log.md](decision-log.md) 加修正行。
-6. **契约与实现同一提交**，两者互为评审校验。
+6. **契约与实现同一提交**，两者互为评审校验。行为变更的 commit message 或 PR 描述列出本次
+   改变/新增的 MUST/MUST NOT 条目，防止漏节漂移。
 7. **去留判据**：「删了它，决策质量会下降吗？」代码、测试、git 能回答的问题，写下来
    就是负资产。
 8. **活得久的文档写不变量与机制，不写枚举**（写「token 传播树」的规则，不写
@@ -41,19 +43,16 @@ Adversarial Review。
 
 ## TaskGroup（独立并行任务组）
 
-最新执行/结果契约：[同步出口](synchronous-scope-exit-proposal.md)。下表历史公开 API 形状
-以该文为准，底层取消、调度与直接 body 退出机制保持。
-
 | 文档 | 摘要 |
 |---|---|
-| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **组声明契约 + 评审基线**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….submitAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、`valuesFuture()` 完成契约、统一准入与草稿生命周期；§10 是对抗性评审与实施记录 |
-| [synchronous-scope-exit-proposal.md](synchronous-scope-exit-proposal.md) | 同步出口契约：`runAll()` 在调用线程同步执行至完成或失败、外部 root 取消不依赖运行句柄、有界清理等待 |
-| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`）。**公共 API 清单章节已死**（见 group-one-shot），其余仍有效 |
+| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **组声明契约 + 评审基线**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….runAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、统一准入与单次草稿生命周期；§10 是对抗性评审与实施记录 |
+| [synchronous-scope-exit.md](synchronous-scope-exit.md) | **同步出口契约**：`runAll()`/`Par.map` 在调用线程同步执行至完成或失败、外部 root 取消不依赖运行句柄、有界清理等待；§6–§7 是验证与对抗性评审记录 |
+| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`） |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
-| [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界。**`submitGroup`/`Bindings` 的调用形状已死**（见 group-one-shot） |
-| [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
-| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（`completionFuture()` 终态 `TaskCompletion`）与组级完成回调（Guava callback）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
-| [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标。**声明/绑定入口形状已死**（见 group-one-shot）；§3 的 join 机制与准备阶段结论仍有效 |
+| [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、声明期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
+| [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员直消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
+| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
+| [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 
 ## 取消与队列
 

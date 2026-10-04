@@ -124,6 +124,9 @@ relevant contract through the document routes below.
 
 ## Verification And Completion
 
+- Behavior-changing commits list the contract MUST/MUST NOT items they add or
+  change in the commit message or PR description, so no contract section is
+  silently left behind.
 - Add or update tests when changing cancellation, context propagation, executor
   binding, or queue behavior.
 - For code changes, use targeted tests while iterating, run `mvn spotless:apply`,
@@ -153,6 +156,9 @@ changes, run an independent review with its own budget:
 - Use a different model or harness (`cmux codexyolo` runs Codex in this repo).
   The reviewer must not edit files. Name attack surfaces: interleavings,
   contract versus implementation, test quality, Java 8, and generics.
+- Diff each contract MUST/MUST NOT named by the change against the
+  implementation line by line; catching drift is a pre-commit review duty,
+  not a periodic audit.
 - Later rounds target the previous round's fixes. First read settled findings
   as the baseline, then look beyond them. Use a fresh seat when context is nearly
   full or the reviewer starts agreeing with itself.
