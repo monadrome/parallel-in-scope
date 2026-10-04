@@ -34,6 +34,11 @@ npm-huatalk-hiding-skill-hide
 # Playwright MCP scratch output
 .playwright-mcp/
 
+# Local skill installs and Firecrawl fetch cache (per-machine, never committed)
+.agents/
+.firecrawl/
+skills-lock.json
+
 # Scratch assets
 pelican-check.png
 pelican-bicycle-deepseek-v4.1-flash.svg
