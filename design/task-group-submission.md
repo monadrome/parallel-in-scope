@@ -71,12 +71,12 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 取消/phase/TTL/ScopedCallable 实现：
 
 ```java
-ExecutionPhaseHintFuture<Object> prepared = TaskSubmissions.prepare(taskContext, callable, listeners, phaseObserver);
+ExecutionPhaseHintFuture<Object> prepared = TaskSubmissions.prepare(taskContext, callable);
 // prepared 已存在（成员 future），但尚未交给 executor
 
 registerAll(preparedTasks); // 所有 future 同时成为完整冻结集合
 
-TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.execute outside group lock
+TaskSubmissions.submitScoped(prepared, unit, executor); // executor.execute outside group lock
 ```
 
 必须保证：
@@ -89,6 +89,9 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 - prepared submission 被 executor 拒绝或 handoff 抛出 `Error` 时，必须把 future 完成为 submission failure，不能遗留 pending future；
 - 用户 callable 最多执行一次；
 - phase 继续区分 `CANCELLED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
+- `phase()` MUST 提供非阻塞、无中断副作用的当前阶段提示，MUST NOT 依赖通知到达；
+  阶段含义与竞态限制见 [execution future 契约](execution-future-simplification.md#阶段查询契约)；
+- 取消 MUST NOT 被解释为自动移除物理队列项；执行器所有者负责需要的队列清理；
 - `SubmissionScope` 只包住实际 `executor.execute()`；
 - 库自身不做 rejection 后的 inline 回退（提交期选项 `runOnCallerThread` 已在 0.3.0 发布前删除）；若执行器自身的拒绝策略 inline 执行（`CallerRunsPolicy`、direct executor），inline 也必须遵守已注册和执行权竞态；
 - 每个冻结 future 最终达到终态。
@@ -104,13 +107,12 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 | `ParRuntime.whileOpen()` | 整体 submit 与 shutdown 的线性化 |
 | `ParRuntime.timeoutScheduler()` | Group/member deadline |
 | `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
-| `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk、phase observer |
+| `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk |
 | `ScopedCallable` | current task、checkpoint、计时、body exit 发布、恢复 |
 | `TaskExecutionContext` | 单成员任务执行身份与 timing |
 | `SubmissionScope` | 一次 executor submission 的队列策略 |
-| `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与 purge phase |
+| `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |
 | `CancellationToken` | outer→group→member 取消传播和中断 |
-| `HeuristicPurger` | 取消排队任务后的有界队列清理 |
 | `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
 | `TaskGraphObservationScope` | 请求级观测归属 |
 
@@ -143,7 +145,7 @@ io.github.monadrome.parallelinscope/
 裁定 §19.6、§19.10）。
 
 `ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 提供包可见的单任务准备入口
-`prepareGroupTask(...)`，完成 owner、policy、runtime identity、executor 和 phase observer 的解析后
+`prepareGroupTask(...)`，完成 owner、policy、runtime identity 和 executor 的解析后
 调用同包内核。`TaskGroup` 可调用该入口；公共 API 不暴露 runtime。
 
 共享内核至少分离以下阶段：

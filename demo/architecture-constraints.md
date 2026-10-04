@@ -99,7 +99,7 @@ mvn test
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │       根包：package-private 执行内核          │   │
-│  │  context, graph, submission, purge, phase state     │   │
+│  │  context, graph, submission, phase state            │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │

@@ -13,7 +13,7 @@ class ScopedCallableContextRestoreTest {
     void observationReceivesSuccessfulTaskTimingAndMetadata() throws Exception {
         MultiTaskContext context = context("observed");
         TaskExecutionContext taskContext = task(context, 0);
-        ExecutionPhaseHintFuture<String> future = TaskSubmissions.prepare(taskContext, () -> "value", phase -> {});
+        ExecutionPhaseHintFuture<String> future = TaskSubmissions.prepare(taskContext, () -> "value");
 
         future.run();
 
@@ -37,12 +37,9 @@ class ScopedCallableContextRestoreTest {
     void observationReceivesFailureWhileOriginalFailureTerminatesTheFuture() throws Exception {
         MultiTaskContext context = context("failed");
         IllegalStateException failure = new IllegalStateException("boom");
-        ExecutionPhaseHintFuture<String> future = TaskSubmissions.prepare(
-                task(context, 0),
-                () -> {
-                    throw failure;
-                },
-                phase -> {});
+        ExecutionPhaseHintFuture<String> future = TaskSubmissions.prepare(task(context, 0), () -> {
+            throw failure;
+        });
 
         future.run();
 

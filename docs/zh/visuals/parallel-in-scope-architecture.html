@@ -21,7 +21,7 @@
     <p><strong>一次性声明：</strong><code>ParRuntime.group*</code> 返回 step builder 链（<code>GroupStart</code> → <code>GroupStep</code> → <code>CombinedGroupStep</code>）；每个 <code>par</code> 同时声明成员类型与本次 body，<code>submitAll()</code> 是唯一的准入与提交边界。草稿单线程、不可重放，提交后旧阶段全部失效。</p>
     <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；任务组在一次 <code>whileOpen</code> 准入内完成全部准备与注册，再按声明顺序提交各 executor。</p>
     <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；组完成经 <code>completionFuture()</code> 与调用方选择的 executor 回调观测。</p>
-    <p><strong>维护：</strong>取消发生在执行前时，按物理线程池 identity 合并 purge 维护。</p>
+    <p><strong>维护：</strong>队列清理由执行器所有者负责，库不自动 purge；原 purger 保存在 <code>dev/experimental</code> 分支。</p>
   </div>
   <p>完整说明请阅读 <a href="../user-guide.md">使用指南</a>、<a href="../migration-v0.3.md">v0.3 迁移指南</a>、<a href="../migration-v0.2.md">v0.2 迁移指南</a> 和 <a href="../../../adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
 </body>
