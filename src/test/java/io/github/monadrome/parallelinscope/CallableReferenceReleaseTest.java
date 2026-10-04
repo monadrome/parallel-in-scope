@@ -211,10 +211,8 @@ class CallableReferenceReleaseTest {
                 .mapToObj(i -> fixture(batch, tracker, i, () -> "element-" + i))
                 .collect(Collectors.toList());
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            SlidingWindowSubmitter<String> submit =
-                    new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
+            SlidingWindowSubmitter<String> submit = new SlidingWindowSubmitter<>(workers, batch, tracker, null);
             TaskBatch<String> result = submitAllWithViews(
                     submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
 
@@ -230,7 +228,6 @@ class CallableReferenceReleaseTest {
             }
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
@@ -253,10 +250,8 @@ class CallableReferenceReleaseTest {
                 }))
                 .collect(Collectors.toList());
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            SlidingWindowSubmitter<String> submit =
-                    new SlidingWindowSubmitter<>(workers, batch, submitter, tracker, null);
+            SlidingWindowSubmitter<String> submit = new SlidingWindowSubmitter<>(workers, batch, tracker, null);
             TaskBatch<String> result = submitAllWithViews(
                     submit, fixtures.stream().map(f -> f.future).collect(Collectors.toList()));
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
@@ -280,7 +275,6 @@ class CallableReferenceReleaseTest {
         } finally {
             release.countDown();
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
