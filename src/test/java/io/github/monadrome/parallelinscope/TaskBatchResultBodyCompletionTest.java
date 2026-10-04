@@ -2,11 +2,17 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -20,11 +26,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Acceptance tests for {@link TaskBatchResult#awaitBodyCompletion(Duration)} and the
+ * Acceptance tests for {@link TaskBatch#awaitBodyCompletion(Duration)} and the
  * body-completion bookkeeping of the sliding-window paths: every prepared task must release its
  * slot exactly once, whether it ran, was cancelled, rejected, or abandoned.
  */
-class TaskBatchResultBodyCompletionTest {
+class TaskBatchBodyCompletionTest {
 
     private static BatchOptions options(String name) {
         return BatchOptions.timeout(name, Duration.ofSeconds(30));
@@ -178,8 +184,8 @@ class TaskBatchResultBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), queuing).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
                             options("queued").taskType(TaskType.IO_BOUND));
@@ -202,11 +208,77 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    /**
+     * {@code awaitBodyCompletion} returning {@code true} promises that {@code completionFuture()}
+     * already carries the final snapshots — the third wait inside it exists only for the window
+     * where every element future is settled but the observation listener has not published yet.
+     *
+     * <p>No test used to reach that window: every {@code false} assertion in this class is answered
+     * by the body-exit phase or the element-future phase, so deleting the observation wait entirely
+     * changed no result. This pins it by handing the batch an element whose observation settles on a
+     * future of its own, which is exactly the state the window describes.
+     */
+    @Test
+    void theWaitIsNotDoneUntilTheBatchObservationItselfHasPublished() throws Exception {
+        SettableFuture<String> element = SettableFuture.create();
+        SettableFuture<String> observationSignal = SettableFuture.create();
+        CancellationToken token = new CancellationToken();
+        TaskObservation<String> observation = TaskObservation.of(
+                () -> TaskCompletion.snapshot("element", "batch", 0, 0, 0, 0, TaskOutcome.SUCCESS, "done", null),
+                observationSignal);
+        TaskBatch<String> batch =
+                TaskBatch.of(Collections.singletonList(Task.of("element", token, element, observation)));
+
+        // The element itself is settled, so the body-exit and element-future phases both pass.
+        element.set("done");
+        assertThat(batch.results().get(0).isDone()).isTrue();
+
+        // Only the observation is outstanding, and that alone must keep the answer false.
+        assertThat(batch.awaitBodyCompletion(Duration.ofMillis(50))).isFalse();
+        assertThat(batch.completionFuture().isDone()).isFalse();
+
+        observationSignal.set("published");
+
+        assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        // The promise the true answer carries: the snapshots are readable now, not merely imminent.
+        assertThat(batch.completionFuture().isDone()).isTrue();
+        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
+                .extracting(TaskCompletion::taskName)
+                .containsExactly("element");
+    }
+
+    /**
+     * The tracker's own body-exit wait, in isolation: an outstanding body means {@code false}, and
+     * the public batch method's later phases must not be what produces that answer. Pinning it here
+     * keeps the tracker honest even when a caller's later phase would have masked it.
+     */
+    @Test
+    void theTrackerReportsAnOutstandingBodyAsFalseOnItsOwn() throws Exception {
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("outstanding").spec(), 1));
+        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        TaskBodyState body = tracker.register(unit);
+
+        // Zero budget takes the single-check path; a real budget takes the timed wait. Both have to
+        // answer false while the body slot is still held.
+        assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isFalse();
+        assertThat(tracker.awaitBodyCompletion(Duration.ofMillis(50))).isFalse();
+
+        // The real release path: a body claims eligibility, runs, then publishes its exit.
+        assertThat(body.claimRunning()).isTrue();
+        body.exited();
+
+        assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isTrue();
+    }
+
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
         // Kernel-level: pin the window between the phase claim and the user body with a blocking
         // phase observer, then cancel. The body is skipped and the outer finally releases the slot.
-        MultiTaskContext unit = MultiTaskContext.resolve(options("claimed").spec(), 1, null);
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("claimed").spec(), 1));
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         TaskBodyState bodyState = tracker.register(unit);
         TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), bodyState);
@@ -214,7 +286,7 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch releaseObserver = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         ExecutionPhaseHintFuture<Integer> future =
-                TaskSubmissions.prepare(context, executions::incrementAndGet, null, phase -> {
+                TaskSubmissions.prepare(context, executions::incrementAndGet, phase -> {
                     if (phase == ExecutionPhase.RUNNING) {
                         observerEntered.countDown();
                         try {
@@ -245,8 +317,8 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch entered = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> {
                                 executions.incrementAndGet();
@@ -276,8 +348,8 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch entered = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2, 3),
                             value -> {
                                 executions.incrementAndGet();
@@ -304,8 +376,8 @@ class TaskBatchResultBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2, 3),
                             value -> executions.incrementAndGet(),
                             options("rejected").taskType(TaskType.IO_BOUND));
@@ -325,8 +397,8 @@ class TaskBatchResultBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
                             options("mid-reject").parallelism(1).taskType(TaskType.IO_BOUND));
@@ -340,30 +412,27 @@ class TaskBatchResultBodyCompletionTest {
     }
 
     @Test
-    void callerThreadFallbackDoesNotLeakSlots() throws Exception {
-        RejectingExecutor rejecting = new RejectingExecutor();
+    void directExecutionDoesNotLeakSlots() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), rejecting).build();
+                ParRuntime.builder().register(ParId.of("worker"), direct).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            // Elements whose options request the caller-thread fallback run inline when rejected;
-            // the window-external one runs inline on the submitter thread. All slots must still be
-            // released exactly once. The wait uses a real budget because the submitter thread runs
+            // Every element runs inline: the initial-window one on the caller thread, the
+            // window-external one on the submitter thread. All slots must still be released
+            // exactly once. The wait uses a real budget because the submitter thread runs
             // concurrently.
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("inline")
-                                    .parallelism(1)
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .runOnCallerThread(true));
+                            options("inline").parallelism(1).taskType(TaskType.CPU_BOUND));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);
         } finally {
             global.close();
-            rejecting.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
@@ -372,14 +441,22 @@ class TaskBatchResultBodyCompletionTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        // Element 2 must throw only after element 1's body has run: the fail-fast cancellation
+        // it triggers cancels the sibling future, and an unordered throw wins that race on a
+        // slow runner, cancelling element 1 instead of observing its SUCCESS.
+        CountDownLatch firstBodyRan = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(1, 2),
                             value -> {
                                 if (value == 2) {
+                                    if (!Uninterruptibles.awaitUninterruptibly(firstBodyRan, 10, TimeUnit.SECONDS)) {
+                                        throw new IllegalStateException("element 1 never ran");
+                                    }
                                     throw new IllegalStateException("boom");
                                 }
+                                firstBodyRan.countDown();
                                 return value;
                             },
                             options("mixed"));
@@ -407,8 +484,8 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch closeReturned = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> {
                                 entered.countDown();
@@ -431,7 +508,7 @@ class TaskBatchResultBodyCompletionTest {
                 Thread.sleep(5);
             }
             assertThat(batch.results().get(0).isCancelled()).isTrue();
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
             assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
 
@@ -456,8 +533,8 @@ class TaskBatchResultBodyCompletionTest {
         try {
             // No closeGrace configured: the wait budget is the batch's remaining deadline at close
             // time, so a close after the deadline lapsed returns right after cancelling.
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> {
                                 entered.countDown();
@@ -494,8 +571,8 @@ class TaskBatchResultBodyCompletionTest {
         try {
             // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); close() must saturate the
             // grace and keep waiting for the body to exit instead of failing or skipping the wait.
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> {
                                 entered.countDown();
@@ -534,8 +611,8 @@ class TaskBatchResultBodyCompletionTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList(1),
                             value -> {
                                 entered.countDown();
@@ -566,16 +643,16 @@ class TaskBatchResultBodyCompletionTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        AtomicReference<TaskBatchResult<String>> batchRef = new AtomicReference<>();
+        AtomicReference<TaskBatch<String>> batchRef = new AtomicReference<>();
         CountDownLatch batchReady = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().close();
+                                    Objects.requireNonNull(batchRef.get()).close();
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -601,8 +678,8 @@ class TaskBatchResultBodyCompletionTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskBatchResult<Integer> batch =
-                    global.par(ParId.of("worker")).<Integer, Integer>map(null, value -> value, options("empty"));
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .<Integer, Integer>submitBatch(null, value -> value, options("empty"));
             assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isTrue();
         } finally {
             global.close();
@@ -615,16 +692,16 @@ class TaskBatchResultBodyCompletionTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        AtomicReference<TaskBatchResult<String>> batchRef = new AtomicReference<>();
+        AtomicReference<TaskBatch<String>> batchRef = new AtomicReference<>();
         CountDownLatch batchReady = new CountDownLatch(1);
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Collections.singletonList("x"),
                             value -> {
                                 try {
                                     batchReady.await(5, TimeUnit.SECONDS);
-                                    batchRef.get().awaitBodyCompletion(Duration.ofMillis(10));
+                                    Objects.requireNonNull(batchRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
                                 } catch (IllegalStateException guarded) {
                                     return "guarded";
                                 } catch (InterruptedException interrupted) {
@@ -645,14 +722,16 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void awaitValidatesArgumentsBeforeCheckingCompletion() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(Collections.singletonList(1), value -> value, options("validation"));
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(Collections.singletonList(1), value -> value, options("validation"));
 
             assertThatThrownBy(() -> batch.awaitBodyCompletion(null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> batch.awaitBodyCompletion(Duration.ofMillis(-1)))
@@ -672,8 +751,8 @@ class TaskBatchResultBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         int[] writes = new int[2];
         try {
-            TaskBatchResult<Integer> batch = global.par(ParId.of("worker"))
-                    .map(
+            TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                    .submitBatch(
                             Arrays.asList(0, 1),
                             index -> {
                                 writes[index] = index + 1;
@@ -683,6 +762,68 @@ class TaskBatchResultBodyCompletionTest {
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(writes).containsExactly(1, 2);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitBodyCompletionWaitsForFutureSettlementBeyondBodyExit() throws Exception {
+        // A body publishes its exit before its future settles; a batch whose element future is
+        // still pending after body exit must not report completion yet — the window where
+        // report() used to read RUNNING after a successful wait.
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(options("settlement-window").spec(), 1));
+        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        TaskBodyState slot = tracker.register(unit);
+        SettableFuture<Integer> settle = SettableFuture.create();
+        Task<Integer> element = Task.of("settlement-window", unit.cancellationToken(), settle);
+        TaskBatch<Integer> batch = TaskBatch.of(
+                tracker,
+                Futures.immediateVoidFuture(),
+                Collections.singletonList(element),
+                unit.cancellationToken(),
+                null);
+
+        slot.claimRunning();
+        slot.exited();
+
+        // The body has exited but the element future is still short of settlement: the
+        // conjunction must not report completion yet.
+        assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
+
+        settle.set(1);
+        assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+        assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
+        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
+                .allSatisfy(completion -> assertThat(completion.successful()).isTrue());
+    }
+
+    @Test
+    void reportIsTerminalAfterSuccessfulAwaitInFailFastBatches() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            // The issue #45 probe: a failing element makes fail-fast cancel its sibling; the
+            // failing element's own future settles a moment after its body exit is published.
+            for (int i = 0; i < 50; i++) {
+                TaskBatch<Integer> batch = global.par(ParId.of("worker"))
+                        .submitBatch(
+                                Arrays.asList(1, 2),
+                                value -> {
+                                    if (value == 1) {
+                                        throw new IllegalStateException("boom");
+                                    }
+                                    sleepInterruptibly(10_000);
+                                    return value;
+                                },
+                                options("fail-fast-report").parallelism(1).taskType(TaskType.IO_BOUND));
+                assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(5))).isTrue();
+                assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.RUNNING);
+                batch.close();
+            }
         } finally {
             global.close();
             executor.shutdownNow();

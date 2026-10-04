@@ -1,11 +1,11 @@
 name: Design proposal
-description: A new capability, or a change to existing behaviour or API
+description: A new capability, or a change to existing behavior or API
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Proposals are welcome, but this library optimises for a high power-to-weight ratio: the
+        Proposals are welcome, but this library optimizes for a high power-to-weight ratio: the
         design prefers parameterising an existing mechanism over adding a concept. A proposal is
         judged against `design/first-principles.md` (axioms: structured concurrency is the subject;
         users fail by forgetting; safety before expressiveness; stay close to JDK idioms), and
@@ -23,7 +23,7 @@ body:
       multiple: false
       options:
         - New capability or API
-        - Change to existing behaviour
+        - Change to existing behavior
         - Change to an existing signature or type
         - Other
     validations:

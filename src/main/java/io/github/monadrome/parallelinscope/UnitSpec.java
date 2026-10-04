@@ -1,7 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
-import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Kernel-facing execution intent of one multi-task unit, adapted from a public option type.
@@ -17,24 +17,21 @@ import java.util.Optional;
 final class UnitSpec {
     private final String name;
     private final int requestedParallelism;
-    private final Optional<Duration> timeout;
+    private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
 
     UnitSpec(
             String name,
             int requestedParallelism,
-            Optional<Duration> timeout,
+            @Nullable Duration timeout,
             TaskType taskType,
-            boolean rejectEnqueue,
-            boolean runOnCallerThread) {
+            boolean rejectEnqueue) {
         this.name = name;
         this.requestedParallelism = requestedParallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
     }
 
     /** The logical unit name: a batch name for batches, the key name for group members. */
@@ -42,13 +39,17 @@ final class UnitSpec {
         return name;
     }
 
-    /** Requested parallelism; non-positive means one worker per task. */
+    /**
+     * Requested parallelism; always positive. A batch defaults to {@link Integer#MAX_VALUE} — no
+     * cap beyond the task count once resolution applies — and a single task fixes it at 1.
+     */
     int requestedParallelism() {
         return requestedParallelism;
     }
 
-    /** The explicit timeout; empty means the enclosing scope's deadline is inherited. */
-    Optional<Duration> timeout() {
+    /** The explicit timeout; null means the enclosing scope's deadline is inherited. */
+    @Nullable
+    Duration timeout() {
         return timeout;
     }
 
@@ -58,9 +59,5 @@ final class UnitSpec {
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
-    }
-
-    boolean runOnCallerThread() {
-        return runOnCallerThread;
     }
 }

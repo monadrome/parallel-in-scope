@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -39,7 +42,7 @@ public class CancellationTokenTest {
     public void testManualCancel() {
         CancellationToken token = CancellationToken.create();
         token.cancel(false);
-        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(token.state().shouldInterruptCurrentThread()).isTrue();
     }
 
@@ -52,7 +55,7 @@ public class CancellationTokenTest {
         assertThat(child.state()).isEqualTo(CancellationToken.State.RUNNING);
 
         parent.cancel(false);
-        assertThat(parent.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(parent.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
     @Test
@@ -65,9 +68,9 @@ public class CancellationTokenTest {
                 .isTrue();
         assertThat(CancellationToken.State.TIMEOUT.shouldInterruptCurrentThread())
                 .isTrue();
-        assertThat(CancellationToken.State.CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.CANCELLED.shouldInterruptCurrentThread())
                 .isTrue();
-        assertThat(CancellationToken.State.PROPAGATED_CANCELED.shouldInterruptCurrentThread())
+        assertThat(CancellationToken.State.PROPAGATED_CANCELLED.shouldInterruptCurrentThread())
                 .isTrue();
     }
 
@@ -98,7 +101,7 @@ public class CancellationTokenTest {
         token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceller, TIMER);
 
         // The commit is synchronous: bind returns with the token already TIMEOUT and the pending
-        // work already canceled, so no submitted task can still enter user code in the window a
+        // work already cancelled, so no submitted task can still enter user code in the window a
         // zero-delay timer would leave open.
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertThat(pending).isCancelled();
@@ -147,7 +150,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void testBind_timeout_stateTransitionsToTimeoutCanceled() throws Exception {
+    public void testBind_timeout_stateTransitionsToTimeoutCancelled() throws Exception {
         CancellationToken token = withDeadlineAfter(100);
 
         SettableFuture<String> f1 = SettableFuture.create(); // never completed
@@ -160,7 +163,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void testBind_failFast_oneFailsOthersCanceled() throws Exception {
+    public void testBind_failFast_oneFailsOthersCancelled() throws Exception {
         CancellationToken token = CancellationToken.create();
 
         SettableFuture<String> f1 = SettableFuture.create();
@@ -208,7 +211,7 @@ public class CancellationTokenTest {
 
         token.cancel(true);
 
-        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(task).isCancelled();
         assertThat(submitCanceller).isCancelled();
     }
@@ -231,7 +234,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void testBind_parentCanceled_childPropagates() throws Exception {
+    public void testBind_parentCancelled_childPropagates() throws Exception {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
@@ -246,11 +249,11 @@ public class CancellationTokenTest {
 
         // Allow callback propagation
         Thread.sleep(50);
-        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
     }
 
     @Test
-    public void testBind_parentAlreadyCanceled_childImmediatelyCanceled() {
+    public void testBind_parentAlreadyCancelled_childImmediatelyCancelled() {
         CancellationToken parent = CancellationToken.create();
         parent.cancel(true);
         assertThat(parent.state().shouldInterruptCurrentThread()).isTrue();
@@ -260,7 +263,7 @@ public class CancellationTokenTest {
         SettableFuture<String> f1 = SettableFuture.create();
         child.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
-        // The future should be cancelled immediately because parent is already canceled
+        // The future should be cancelled immediately because parent is already cancelled
         assertThat(f1).isCancelled();
     }
 
@@ -279,14 +282,14 @@ public class CancellationTokenTest {
     @Test
     public void losingStateTransitionDoesNotNotifyListeners() {
         CancellationToken token = CancellationToken.create();
-        java.util.concurrent.atomic.AtomicInteger notifications = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicInteger notifications = new AtomicInteger();
         token.addStateListener(state -> notifications.incrementAndGet());
 
         token.cancel(true);
-        token.timeoutCancel(); // loses the CAS: already CANCELED
+        token.timeoutCancel(); // loses the CAS: already CANCELLED
         token.cancel(true); // loses again
 
-        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(notifications).hasValue(1);
     }
 
@@ -296,9 +299,8 @@ public class CancellationTokenTest {
         SettableFuture<String> task = SettableFuture.create();
         token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), TIMER);
 
-        java.util.concurrent.atomic.AtomicReference<CancellationToken.State> observed =
-                new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicBoolean taskStillPending = new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicReference<CancellationToken.State> observed = new AtomicReference<>();
+        AtomicBoolean taskStillPending = new AtomicBoolean();
         token.addStateListener(state -> {
             observed.set(state);
             taskStillPending.set(!task.isDone());
@@ -306,7 +308,7 @@ public class CancellationTokenTest {
 
         token.cancel(true);
 
-        assertThat(observed.get()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(observed.get()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(taskStillPending).isTrue();
         assertThat(task).isCancelled();
     }
@@ -321,8 +323,8 @@ public class CancellationTokenTest {
 
         grandparent.timeoutCancel();
 
-        assertThat(parent.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
-        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+        assertThat(parent.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(child.originState()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertThat(parent.originState()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertThat(grandparent.originState()).isEqualTo(CancellationToken.State.TIMEOUT);
@@ -335,7 +337,7 @@ public class CancellationTokenTest {
 
         parent.cancel(true);
 
-        assertThat(child.originState()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(child.originState()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
     @Test
@@ -346,7 +348,7 @@ public class CancellationTokenTest {
 
         child.cancel(true);
 
-        assertThat(grandchild.originState()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(grandchild.originState()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(origin.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(origin.originState()).isEqualTo(CancellationToken.State.RUNNING);
     }

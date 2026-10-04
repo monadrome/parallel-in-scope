@@ -6,9 +6,9 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>Test 1: 用 Guava FluentFuture.withTimeout 模拟 per-task timeout，展示后提交任务的不公平超时
  *
- * <p>Test 2: 用 Par.map() 的 lateBind 机制，展示整个批次共享一个超时截止时间
+ * <p>Test 2: 用 Par.map() 展示整个批次共享一个超时截止时间（每个元素在进入执行器前完成绑定）
  */
 class D2_LateBindRaceConditionTest {
 
@@ -123,10 +123,10 @@ class D2_LateBindRaceConditionTest {
     }
 
     /**
-     * Test 2 — 解决方案：Par.map() 的 lateBind 机制确保全批次统一超时
+     * Test 2 — 解决方案：Par.map() 的批次级 token 确保全批次统一超时
      *
-     * <p>Par.map() 先提交初始窗口并为剩余逻辑任务创建 Future 槽位，然后通过 CancellationToken.lateBind() 将这些 Future
-     * 和异步提交循环绑定到统一超时。
+     * <p>Par.map() 为所有逻辑任务预先创建 Future 视图，并在任何元素进入执行器之前把它们绑定到携带统一
+     * deadline 的批次 CancellationToken。
      *
      * <p>关键特性：
      *
@@ -138,7 +138,7 @@ class D2_LateBindRaceConditionTest {
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void solution_lateBindGivesUnifiedBatchTimeout() throws Exception {
+    void solution_unifiedBatchTimeout() throws Exception {
         // Total time for sliding window: (TASK_COUNT / PARALLELISM) * TASK_SLEEP_MS ≈ 4800ms
         // Use 8000ms to give comfortable margin
         long batchTimeoutMs = 8000;
@@ -153,16 +153,17 @@ class D2_LateBindRaceConditionTest {
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchOptions options = BatchOptions.timeout("late-bind-test", java.time.Duration.ofMillis(batchTimeoutMs))
+            BatchOptions options = BatchOptions.timeout(
+                            "unified-timeout-test", java.time.Duration.ofMillis(batchTimeoutMs))
                     .parallelism(PARALLELISM)
                     .taskType(TaskType.IO_BOUND);
 
             long startTime = System.currentTimeMillis();
 
             // Par.map() internally:
-            // 1. Submits the initial window and creates Future slots for remaining tasks
-            // 2. Calls CancellationToken.lateBind() on the complete logical batch
-            // 3. The aggregate timeout gives the batch one shared deadline
+            // 1. Creates the Future views for every element up front
+            // 2. Binds each view to the batch token before it enters the pool
+            // 3. The batch token's deadline gives the batch one shared timeout
             TaskBatchResult<String> result = par.map(
                     items,
                     taskId -> {
@@ -177,13 +178,23 @@ class D2_LateBindRaceConditionTest {
                     options);
 
             // Wait for all futures to complete
-            for (int i = 0; i < result.results().size(); i++) {
-                result.results().get(i).get(15, TimeUnit.SECONDS);
+            for (int i = 0;
+                    i
+                            < result.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .size();
+                    i++) {
+                result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(i)
+                        .get(15, TimeUnit.SECONDS);
             }
 
             long totalElapsed = System.currentTimeMillis() - startTime;
 
-            // With lateBind, the batch timeout of 8000ms applies to the entire batch.
+            // With the batch-level token, the timeout of 8000ms applies to the entire batch.
             // All 8 tasks with parallelism=2 and sleep=1200ms need ~4800ms total.
             // Since 4800ms < 8000ms, ALL tasks succeed — no task is unfairly starved.
             String report = result.reportString();

@@ -43,7 +43,7 @@ class CancellationTokenLateBindRaceTest {
     /**
      * When cancel() wins before lateBind(), {@code futureToken.setFuture(failFastFuture)} returns
      * false. Guava cancels the supplied {@code failFastFuture}, which propagates cancellation to
-     * the actual task futures. The token remains in CANCELED.
+     * the actual task futures. The token remains in CANCELLED.
      */
     @Test
     void cancelBeforeBind_stillCancelsTasks() {
@@ -57,7 +57,7 @@ class CancellationTokenLateBindRaceTest {
         token.bind(futures, Futures.immediateVoidFuture(), timer);
 
         assertThat(task).isCancelled();
-        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
     /**
@@ -101,7 +101,7 @@ class CancellationTokenLateBindRaceTest {
 
             CountDownLatch start = new CountDownLatch(1);
 
-            Thread canceler = new Thread(() -> {
+            Thread canceller = new Thread(() -> {
                 await(start);
                 token.cancel(true);
             });
@@ -110,10 +110,10 @@ class CancellationTokenLateBindRaceTest {
                 token.bind(futures, Futures.immediateVoidFuture(), timer);
             });
 
-            canceler.start();
+            canceller.start();
             binder.start();
             start.countDown();
-            canceler.join();
+            canceller.join();
             binder.join();
 
             if (!task.isCancelled()) {

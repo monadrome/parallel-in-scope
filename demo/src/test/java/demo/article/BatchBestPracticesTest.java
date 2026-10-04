@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -154,8 +154,18 @@ public class BatchBestPracticesTest {
 
         // 合并分片结果
         List<Long> queriedIds = new ArrayList<>();
-        for (int i = 0; i < result.results().size(); i++) {
-            queriedIds.addAll(result.results().get(i).get(30, TimeUnit.SECONDS));
+        for (int i = 0;
+                i
+                        < result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList())
+                                .size();
+                i++) {
+            queriedIds.addAll(result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())
+                    .get(i)
+                    .get(30, TimeUnit.SECONDS));
         }
 
         long elapsed = System.currentTimeMillis() - start;

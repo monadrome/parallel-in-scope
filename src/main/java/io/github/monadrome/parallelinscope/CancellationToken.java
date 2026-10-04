@@ -1,9 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.github.monadrome.parallelinscope.CancellationToken.State.CANCELED;
+import static io.github.monadrome.parallelinscope.CancellationToken.State.CANCELLED;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.FAIL_FAST;
-import static io.github.monadrome.parallelinscope.CancellationToken.State.PROPAGATED_CANCELED;
+import static io.github.monadrome.parallelinscope.CancellationToken.State.PROPAGATED_CANCELLED;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.RUNNING;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.SUCCESS;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.TIMEOUT;
@@ -23,15 +23,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Cooperative cancellation token carrying a deadline for parallel work.
  *
  * <p>A token may be linked to a parent so that cancellation propagates to child task groups, and a
  * child never outlives its parent: the effective deadline is the minimum of the requested deadline
- * and the parent's. After task submission, {@link #bind(List, ListenableFuture,
- * ScheduledExecutorService)} connects the token to the submitted futures and enforces that
+ * and the parent's. Before task submission, the internal bind operation connects the token to
+ * prepared futures and enforces that
  * deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -50,8 +50,8 @@ public final class CancellationToken {
      * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
      *
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
-     * canceled, timed out, or fail-fast-canceled (any parent state for which interruption is
-     * required), this token transitions to {@code PROPAGATED_CANCELED} and cancels its linked
+     * cancelled, timed out, or fail-fast-cancelled (any parent state for which interruption is
+     * required), this token transitions to {@code PROPAGATED_CANCELLED} and cancels its linked
      * future. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
@@ -75,7 +75,7 @@ public final class CancellationToken {
         if (parent != null) {
             parent.futureToken.addListener(
                     () -> {
-                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATED_CANCELED)) {
+                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATED_CANCELLED)) {
                             futureToken.cancel(true);
                         }
                     },
@@ -124,7 +124,7 @@ public final class CancellationToken {
      *
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
      * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
-     * when any future fails. Every canceling transition cancels the futures and the submission
+     * when any future fails. Every cancelling transition cancels the futures and the submission
      * canceller; cancelling an already-successful future is a no-op, so a late cancel never
      * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
      * synchronously and cancels the futures before this method returns, so no submitted task can
@@ -151,7 +151,7 @@ public final class CancellationToken {
             // The deadline already expired: behave as if the timeout callback had already run.
             // Scheduling a zero-delay timeout would leave the token RUNNING until the timer
             // thread gets to it, and submitted tasks could enter user code in that window. The
-            // futures are canceled even when the state was already committed (a pre-bind cancel):
+            // futures are cancelled even when the state was already committed (a pre-bind cancel):
             // that is exactly the cancellation the committed state implies.
             transitionTo(TIMEOUT);
             allFutures.cancel(true);
@@ -168,7 +168,7 @@ public final class CancellationToken {
         failFastFuture.addCallback(
                 new FutureCallback<Object>() {
                     @Override
-                    public void onSuccess(Object result) {
+                    public void onSuccess(@Nullable Object result) {
                         transitionTo(SUCCESS);
                     }
 
@@ -203,7 +203,7 @@ public final class CancellationToken {
      * @param useInterrupt whether to interrupt running threads
      */
     public void cancel(boolean useInterrupt) {
-        if (transitionTo(CANCELED)) {
+        if (transitionTo(CANCELLED)) {
             futureToken.cancel(useInterrupt);
         }
     }
@@ -243,25 +243,26 @@ public final class CancellationToken {
      * @return the current state
      */
     public State state() {
-        return state.get();
+        // state only ever transitions between non-null enum constants
+        return Objects.requireNonNull(state.get());
     }
 
     /**
      * Returns the terminal state that originated the cancellation, following propagation links.
      *
-     * <p>When this token was canceled by its parent, its own state is {@code PROPAGATED_CANCELED}
+     * <p>When this token was cancelled by its parent, its own state is {@code PROPAGATED_CANCELLED}
      * and carries no reason; this method walks the parent chain to the first token whose terminal
-     * state is not {@code PROPAGATED_CANCELED} and returns that originating state. A token that
+     * state is not {@code PROPAGATED_CANCELLED} and returns that originating state. A token that
      * reached its terminal state on its own (or is still running) simply reports {@link #state()}.
-     * The walk is safe at any moment: a token only transitions to {@code PROPAGATED_CANCELED}
-     * after its parent committed a terminal state, and terminal states never change afterwards.
+     * The walk is safe at any moment: a token only transitions to {@code PROPAGATED_CANCELLED}
+     * after its parent committed a terminal state, and terminal states never change afterward.
      *
      * @return the originating terminal state, or the current state when nothing propagated
      */
     public State originState() {
         CancellationToken token = this;
         State s = token.state();
-        while (s == PROPAGATED_CANCELED && token.parent != null) {
+        while (s == PROPAGATED_CANCELLED && token.parent != null) {
             token = token.parent;
             s = token.state();
         }
@@ -311,10 +312,10 @@ public final class CancellationToken {
         FAIL_FAST,
         /** The task timed out. */
         TIMEOUT,
-        /** The token was explicitly canceled. */
-        CANCELED,
-        /** The parent token was canceled. */
-        PROPAGATED_CANCELED;
+        /** The token was explicitly cancelled. */
+        CANCELLED,
+        /** The parent token was cancelled. */
+        PROPAGATED_CANCELLED;
 
         /** Returns whether this state requires interruption. */
         boolean shouldInterruptCurrentThread() {

@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -150,8 +150,18 @@ class F1_CpuTaskQueuingTest {
                     options);
 
             // 等待所有任务完成
-            for (int i = 0; i < result.results().size(); i++) {
-                result.results().get(i).get(30, TimeUnit.SECONDS);
+            for (int i = 0;
+                    i
+                            < result.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .size();
+                    i++) {
+                result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(i)
+                        .get(30, TimeUnit.SECONDS);
             }
 
             // 滑动窗口确保并发度受控

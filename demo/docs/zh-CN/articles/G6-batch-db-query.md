@@ -69,8 +69,8 @@ TaskBatchResult<List<User>> result = par.map( shards, shard -> {
 
 // 4. 收集所有分片的结果
 List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.results()) {
-    allUsers.addAll(future.get());
+for (List<User> users : result.valuesOrThrow()) {
+    allUsers.addAll(users);
 }
 
 System.out.println("查询完成: " + allUsers.size() + " 条");

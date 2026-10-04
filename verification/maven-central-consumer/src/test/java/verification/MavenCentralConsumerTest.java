@@ -1,13 +1,17 @@
 package verification;
 
+import com.google.common.reflect.TypeToken;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.GroupValues;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskFuture;
+import io.github.monadrome.parallelinscope.ImmediateResult;
+import io.github.monadrome.parallelinscope.TaskGroupResult;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
+import io.github.monadrome.parallelinscope.Tuple2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -44,11 +48,11 @@ class MavenCentralConsumerTest {
             Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
 
-            List<TaskFuture<Integer>> results = result.results();
+            List<ImmediateResult<Integer>> results = result.results();
             assertEquals(2, results.size());
-            assertEquals(2, results.get(0).get());
-            assertEquals(4, results.get(1).get());
-            assertEquals("consumer-smoke", results.get(0).taskName());
+            assertEquals(2, results.get(0).valueOrThrow());
+            assertEquals(4, results.get(1).valueOrThrow());
+            assertEquals("consumer-smoke", result.completions().get(0).taskName());
             assertEquals(TaskOutcome.SUCCESS, results.get(0).outcome());
 
             assertEquals("consumer-smoke", options.name());
@@ -57,6 +61,54 @@ class MavenCentralConsumerTest {
             assertEquals(TaskType.IO_BOUND, options.taskType());
             assertEquals(CONSUMER, par.id());
             assertEquals(runtime, par.runtime());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Exercises the deepest generic inference the public API asks of a consumer: a three-member
+     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose body
+     * destructures that nest inside a lambda, and typed lookups. This runs under a real JDK 8
+     * compiler in CI, which is where the nesting is most likely to break.
+     */
+    @Test
+    void publishedArtifactExposesTheOneShotGroupChain() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        TypeToken<List<String>> namesType = new TypeToken<List<String>>() {};
+        try {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<Tuple2<String, List<String>>, Integer>, String> group = runtime
+                    .group("consumer-group", Duration.ofSeconds(5))
+                    .par("user", par, String.class, () -> "alice")
+                    .par("names", par, namesType, () -> Arrays.asList("a", "b"))
+                    .par("count", par, Integer.class, () -> 2)
+                    .combine(
+                            "summary",
+                            par,
+                            String.class,
+                            values -> values.first().first() + ":"
+                                    + values.first().second().size() + ":"
+                                    + values.second())
+                    .runAll();
+
+                GroupValues<Tuple2<Tuple2<String, List<String>>, Integer>> values =
+                        group.valuesOrThrow();
+                Tuple2<Tuple2<String, List<String>>, Integer> typed = values.typedValues();
+                assertEquals("alice", typed.first().first());
+                assertEquals(Arrays.asList("a", "b"), typed.first().second());
+                assertEquals(Integer.valueOf(2), typed.second());
+
+                assertEquals(3, values.size());
+                assertEquals("alice", values.valueOf("user", TypeToken.of(String.class)));
+                assertEquals(Arrays.asList("a", "b"), values.valueAt(1, namesType));
+                assertEquals("alice", group.resultOf("user", TypeToken.of(String.class)).valueOrThrow());
+                assertEquals(
+                        "alice:2:2",
+                        group.terminalValueOrThrow());
+                assertEquals(TaskOutcome.SUCCESS, group.outcome());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -80,9 +132,9 @@ class MavenCentralConsumerTest {
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
             assertThrows(
-                    CancellationException.class, () -> result.results().get(0).get(5, TimeUnit.SECONDS));
+                    ExecutionException.class, () -> result.results().get(0).valueOrThrow());
             assertTrue(interrupted.await(5, TimeUnit.SECONDS), "timeout did not interrupt running tasks");
-            assertTrue(result.results().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(result.results().stream().allMatch(element -> element.outcome() != TaskOutcome.SUCCESS));
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -113,10 +165,10 @@ class MavenCentralConsumerTest {
                             .taskType(TaskType.IO_BOUND));
 
             assertThrows(
-                    ExecutionException.class, () -> result.results().get(0).get(5, TimeUnit.SECONDS));
+                    ExecutionException.class, () -> result.results().get(0).valueOrThrow());
             assertTrue(siblingsInterrupted.await(5, TimeUnit.SECONDS), "failure did not interrupt sibling tasks");
-            assertTrue(result.results().get(1).isCancelled());
-            assertTrue(result.results().get(2).isCancelled());
+            assertTrue(result.results().get(1).outcome() == TaskOutcome.FAIL_FAST);
+            assertTrue(result.results().get(2).outcome() == TaskOutcome.FAIL_FAST);
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -129,6 +181,7 @@ class MavenCentralConsumerTest {
         CountDownLatch innerStarted = new CountDownLatch(2);
         CountDownLatch innerInterrupted = new CountDownLatch(2);
         CountDownLatch releaseOuter = new CountDownLatch(1);
+        CountDownLatch innerReturned = new CountDownLatch(1);
         AtomicReference<TaskBatchResult<Integer>> innerResult = new AtomicReference<>();
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
@@ -143,6 +196,7 @@ class MavenCentralConsumerTest {
                                         .parallelism(2)
                                         .taskType(TaskType.IO_BOUND));
                         innerResult.set(nested);
+                        innerReturned.countDown();
                         // Stay in the body until the test releases it, swallowing the interrupt the
                         // deadline delivers: the outer element must end cancelled by the deadline,
                         // not by the body racing it with an exception of its own.
@@ -155,9 +209,10 @@ class MavenCentralConsumerTest {
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
             assertThrows(
-                    CancellationException.class, () -> outerResult.results().get(0).get(5, TimeUnit.SECONDS));
+                    ExecutionException.class, () -> outerResult.results().get(0).valueOrThrow());
             assertTrue(innerInterrupted.await(5, TimeUnit.SECONDS), "outer timeout did not interrupt nested tasks");
-            assertTrue(innerResult.get().results().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(innerReturned.await(5, TimeUnit.SECONDS), "nested call did not return");
+            assertTrue(innerResult.get().results().stream().allMatch(result -> result.outcome() != TaskOutcome.SUCCESS));
         } finally {
             releaseOuter.countDown();
             runtime.close();

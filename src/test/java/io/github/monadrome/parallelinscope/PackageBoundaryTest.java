@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,8 +25,7 @@ class PackageBoundaryTest {
     void mainSourcesUseOnlyTheRootAndIndependentQueuePackages() throws IOException {
         Set<String> packages = new TreeSet<>();
         for (Path source : mainSources()) {
-            Matcher declaration =
-                    PACKAGE.matcher(new String(Files.readAllBytes(source), java.nio.charset.StandardCharsets.UTF_8));
+            Matcher declaration = PACKAGE.matcher(new String(Files.readAllBytes(source), StandardCharsets.UTF_8));
             assertThat(declaration.find())
                     .as("package declaration in %s", source)
                     .isTrue();
@@ -41,7 +41,7 @@ class PackageBoundaryTest {
         try (Stream<Path> paths = Files.walk(queue)) {
             for (Path source :
                     paths.filter(path -> path.toString().endsWith(".java")).collect(Collectors.toList())) {
-                String content = new String(Files.readAllBytes(source), java.nio.charset.StandardCharsets.UTF_8);
+                String content = new String(Files.readAllBytes(source), StandardCharsets.UTF_8);
                 Matcher imports = PROJECT_IMPORT.matcher(content);
                 while (imports.find()) {
                     assertThat(imports.group(1))

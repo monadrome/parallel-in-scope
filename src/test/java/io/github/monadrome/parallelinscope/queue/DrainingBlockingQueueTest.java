@@ -13,8 +13,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
 import java.util.Spliterator;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +33,8 @@ class DrainingBlockingQueueTest {
         Thread.interrupted();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void shutdownPolicyFactoriesAndBuilderReturnConfiguredInstances() {
         DrainingBlockingQueue.ShutdownPolicy<String> empty = DrainingBlockingQueue.ShutdownPolicy.empty();
@@ -274,6 +280,9 @@ class DrainingBlockingQueueTest {
     }
 
     @Test
+    // Error Prone: the anonymous target deliberately overrides equals alone to probe lock-free
+    // equality evaluation; hashCode is never consulted by the queue path under test
+    @SuppressWarnings("EqualsHashCode")
     void removeDoesNotHoldTheLockWhileEvaluatingEquals() throws Exception {
         DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(5);
         Object first = new Object();
@@ -432,6 +441,8 @@ class DrainingBlockingQueueTest {
         assertNull(queue.poll());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void constructorValidationCoversCapacityAndPolicyBoundaries() {
         assertThrows(IllegalArgumentException.class, () -> new DrainingBlockingQueue<Integer>(0));
@@ -532,7 +543,7 @@ class DrainingBlockingQueueTest {
         assertEquals(1, queue.poll());
         producer.join(1000);
         assertFalse(producer.isAlive());
-        assertTrue(inserted.get());
+        assertTrue(Objects.requireNonNull(inserted.get()));
         assertEquals(2, queue.poll());
     }
 
@@ -825,6 +836,8 @@ class DrainingBlockingQueueTest {
         assertTrue(queue.drained());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void drainToRejectsInvalidTargetsAndZeroCounts() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>();
@@ -851,7 +864,7 @@ class DrainingBlockingQueueTest {
         assertEquals(1, queue.poll());
         producer.join(2000);
         assertFalse(producer.isAlive());
-        assertTrue(inserted.get());
+        assertTrue(Objects.requireNonNull(inserted.get()));
     }
 
     @Test
@@ -879,6 +892,67 @@ class DrainingBlockingQueueTest {
         queue.close();
         assertTrue(queue.awaitDrained(1, TimeUnit.NANOSECONDS));
         assertTrue(queue.awaitDrained(0, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void concurrentOffersAndPollsPreserveEveryAcceptedElement() throws Exception {
+        // Races the lock-free offer/poll pre-checks against each other: the queue oscillates
+        // between full and empty while the core invariant — every accepted element is delivered
+        // exactly once — must hold.
+        int producers = 4;
+        int perProducer = 250;
+        int total = producers * perProducer;
+        DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(64);
+        Set<Integer> received = ConcurrentHashMap.newKeySet();
+        CountDownLatch gate = new CountDownLatch(1);
+        List<Thread> threads = new ArrayList<>();
+        for (int p = 0; p < producers; p++) {
+            int base = p * perProducer;
+            Thread producer = new Thread(() -> {
+                await(gate);
+                for (int i = 0; i < perProducer; i++) {
+                    while (!queue.offer(base + i)) {
+                        Thread.yield();
+                    }
+                }
+            });
+            threads.add(producer);
+            producer.start();
+        }
+        for (int c = 0; c < 2; c++) {
+            Thread consumer = new Thread(() -> {
+                await(gate);
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                while (received.size() < total && System.nanoTime() < deadline) {
+                    Integer value = queue.poll();
+                    if (value == null) {
+                        Thread.yield();
+                    } else if (!received.add(value)) {
+                        throw new AssertionError("duplicate element delivered: " + value);
+                    }
+                }
+            });
+            threads.add(consumer);
+            consumer.start();
+        }
+        gate.countDown();
+        for (Thread thread : threads) {
+            thread.join(15_000);
+            assertFalse(thread.isAlive(), "thread did not finish: " + thread.getName());
+        }
+        assertEquals(total, received.size());
+        for (int value = 0; value < total; value++) {
+            assertTrue(received.contains(value), "lost element: " + value);
+        }
+        assertTrue(queue.isEmpty());
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException error) {
+            throw new AssertionError(error);
+        }
     }
 
     private static void waitUntilBlocked(Thread thread) throws InterruptedException {

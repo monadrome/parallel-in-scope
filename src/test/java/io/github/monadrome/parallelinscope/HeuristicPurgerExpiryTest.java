@@ -18,6 +18,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Tests lazy expiry of historical cancellation estimates. */
+// NullAway: fields are assigned inside each test method, not in a constructor or setup
+@SuppressWarnings("NullAway.Init")
 public class HeuristicPurgerExpiryTest {
 
     private ThreadPoolExecutor executor;
@@ -90,9 +92,12 @@ public class HeuristicPurgerExpiryTest {
                 .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
     }
 
-    /** A callback paused across disable and re-enable cannot contribute to the new generation. */
+    /**
+     * A callback that observes the disable after claiming its sequence settles its own estimate, so
+     * re-enabling purge never acts on a signal seen while it was off.
+     */
     @Test
-    public void disableGenerationSettlesPausedCallback() throws Exception {
+    public void aCallbackDisabledAfterClaimingItsSequenceSettlesItsOwnEstimate() throws Exception {
         ControlledClock clock = new ControlledClock(1, 1L, 1L);
         AtomicInteger purgeCount = new AtomicInteger();
         AtomicBoolean enabled = new AtomicBoolean(true);
@@ -102,15 +107,18 @@ public class HeuristicPurgerExpiryTest {
         Runnable observer = purger.cancellationObserverFor(executor);
         enqueue(8);
 
+        // The clock pauses this callback inside onTaskCancelled, after it claimed its sequence and
+        // before it re-reads the switch. Disabling here is the race the re-read exists to cover.
         Thread paused = new Thread(observer::run);
         paused.start();
         assertThat(clock.blocked.await(5, TimeUnit.SECONDS)).isTrue();
         enabled.set(false);
-        purger.clearPendingCancellations();
-        enabled.set(true);
         clock.release.countDown();
         paused.join(5_000L);
+        enabled.set(true);
 
+        // The paused callback settled its own estimate, so this one is the first live signal: one
+        // estimate against a capacity of ten is below the 0.20 ratio and must not purge.
         observer.run();
         await().during(100, TimeUnit.MILLISECONDS)
                 .atMost(1, TimeUnit.SECONDS)
@@ -135,7 +143,6 @@ public class HeuristicPurgerExpiryTest {
             cancelOne(observer);
             await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(purgeCount).hasValue(1));
-            purger.clearPendingCancellations();
             purger.close();
         } finally {
             logger.setLevel(previous);

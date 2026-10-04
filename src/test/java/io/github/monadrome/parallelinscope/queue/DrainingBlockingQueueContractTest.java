@@ -9,9 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * Contract-focused additions over {@link DrainingBlockingQueueTest}: constructor-with-elements,
  * snapshot queries ({@code toArray}/{@code toString}), spliterator traversal and splitting,
  * iterator removal rules, shutdown-policy mutation matrix, await-drained variants, capacity
- * signaling through blocking producers, and {@code drainTo} bounds.
+ * signalling through blocking producers, and {@code drainTo} bounds.
  */
 class DrainingBlockingQueueContractTest {
 
@@ -392,7 +394,7 @@ class DrainingBlockingQueueContractTest {
         return queue.awaitDrained(timeout, unit);
     }
 
-    // ==================== Capacity signaling across threads ====================
+    // ==================== Capacity signalling across threads ====================
 
     @Test
     void pollFreesCapacitySoBlockedTimedProducerEventuallySucceeds() throws Exception {
@@ -437,7 +439,7 @@ class DrainingBlockingQueueContractTest {
         Thread.sleep(50);
         assertTrue(queue.add(7));
         assertTrue(consumerDone.await(4, TimeUnit.SECONDS), "consumer was not released by add");
-        assertEquals(7, taken.get().intValue());
+        assertEquals(7, Objects.requireNonNull(taken.get()).intValue());
         consumer.join(TimeUnit.SECONDS.toMillis(2));
     }
 
@@ -500,7 +502,7 @@ class DrainingBlockingQueueContractTest {
 
         List<Integer> target = new ArrayList<>();
         assertEquals(1, queue.drainTo(target));
-        assertEquals(java.util.Collections.singletonList(11), target);
+        assertEquals(Collections.singletonList(11), target);
         assertTrue(queue.drained());
     }
 

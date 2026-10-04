@@ -89,7 +89,7 @@ public class CancellationPropagationCartesianTest {
             assertThat(childFuture).isCancelled();
             assertThat(child.state())
                     .as("parent cancellation should have one state regardless of bind timing")
-                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         } finally {
             timer.shutdownNow();
         }
@@ -141,6 +141,8 @@ public class CancellationPropagationCartesianTest {
         }
 
         /** Creates pending work or running work parked at a controlled gate. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static ChildFixture create(ChildWork work) {
             if (work == ChildWork.PENDING) {
                 return new ChildFixture(

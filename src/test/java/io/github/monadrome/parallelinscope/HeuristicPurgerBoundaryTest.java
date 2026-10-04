@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
  * reading exactly equal to the threshold counts as met, while either boundary below its threshold
  * suppresses maintenance.
  */
+// NullAway: fields are assigned inside each test method, not in a constructor or setup
+@SuppressWarnings("NullAway.Init")
 class HeuristicPurgerBoundaryTest {
 
     private ThreadPoolExecutor executor;

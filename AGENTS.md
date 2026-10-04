@@ -39,15 +39,38 @@ refactor proposals. Treat it as part of this library's public product — the `q
 their own contract (`design/draining-queue-contract.md`) and tests, and their defects are this
 repository's to fix.
 
+It is outside the core mechanism and outside default reading scope: skip it in repository-wide
+sweeps unless the task names queue behavior. Its tests still run in `mvn test`. Rules, including
+when the exclusion does not apply, are in
+`src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md`, which governs both queue
+directories.
+
 Two invariants to respect:
 
-- `CancellationToken.bind()` wires deadline, fail-fast, and parent
-  propagation only after all futures are submitted; the deadline itself lives
-  in the token (min of the requested deadline and the parent's).
-- `SlidingWindowSubmitter.submitAll()` returns the exact prepared
-  `ExecutionPhaseHintFuture` for tasks in the initial parallelism window;
-  tasks beyond the window are returned as `SettableFuture` placeholders
-  bridged via `setFuture()` when a slot frees.
+- Parent propagation is wired in the `CancellationToken` constructor;
+  `CancellationToken.bind()` wires the deadline timer and fail-fast. Every
+  entry point binds **before** submitting — `Par.submit`, `Par.map`, and
+  `TaskGroup.start` alike — because submission can run a body on the
+  submitting thread, and the deadline is that path's only source of liveness.
+  The deadline itself lives in the token (min of the requested deadline and
+  the parent's).
+- Every element's caller-visible `Task` view wraps its prepared
+  `ExecutionPhaseHintFuture` from creation on, whether or not the element has
+  reached a free parallelism slot. There are no placeholders and no later
+  bind step: `SlidingWindowSubmitter.viewsFor()` builds the views, the caller
+  binds them, and `submitAll()` only decides when each prepared future enters
+  the pool. Cancelling a view therefore reaches the thread running its body.
+
+Interruption rules (P1-P4): never swallow `InterruptedException`; rethrow it,
+restore the flag, or translate with the original cause and restore the flag.
+The thread owner chooses post-interruption policy, so blocking APIs propagate
+`InterruptedException`. Clear a flag only immediately before throwing that
+exception or when the method is the documented sole consumer of the signal;
+otherwise inspect with `isInterrupted()`. Read-only status methods must not
+change their result or throw merely because the calling thread is interrupted.
+Exception: synchronous `Par.map` / group `runAll` deliberately wait uninterruptibly
+and restore the flag, including their bounded cleanup waits. Caller interruption
+does not cancel these executions. `ParRuntime.awaitQuiescence` remains interruptible.
 
 ## Design Decisions
 
@@ -60,25 +83,40 @@ relevant contract through the document routes below.
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
+- Use American English in code and prose, except the doubled-`l` family:
+  `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
+  Respelled public members need changelog and migration-guide entries. Preserve
+  third-party names and original spellings in dated records (released changelogs,
+  `migration-v0.2` tables, accepted ADRs).
 - Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
   `Monitor.Guard.isSatisfied()`).
-- Every package has `package-info.java` with `@ParametersAreNonnullByDefault`;
-  annotate only exceptions with `@Nullable` — `javax.annotation.Nullable` for
-  public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for
-  internal code (both provided scope).
+- Every package has `package-info.java` with JSpecify `@NullMarked`;
+  annotate only exceptions with `org.jspecify.annotations.Nullable`
+  (TYPE_USE position, compile scope). NullAway enforces the annotations at
+  compile time via Error Prone; the build requires JDK 25 (LTS) while the
+  bytecode target stays at release 8.
 - Logging goes through JUL (`java.util.logging.Logger`).
-- The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
-  `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
-  stack-installed implementation details. The `Context` suffix marks a data carrier
-  (a view or resolved parameters); the `Member` handle marks an identity-typed
-  structural slot of a `TaskGroupDefinition`; the `Id` suffix marks an immutable
-  value object identifying a logical entry (`ParId`).
-- Pre-stable API: public APIs and SPI may change between `0.x` releases without
-  compatibility shims. During the `0.x` phase, a breaking change is acceptable
-  when it provides a meaningful improvement and has a sufficiently documented
-  rationale; do not preserve an awkward API solely for compatibility.
+- Runtime checks follow Guava's conditional-failure taxonomy: caller violations
+  use `Preconditions.checkArgument` for arguments, `checkState` for state, and
+  `checkNotNull` for nulls (prefer over `Objects.requireNonNull`); dependency and
+  internal invariants use `Verify.verify`/`verifyNotNull`; platform
+  impossibilities throw `AssertionError`.
+  Keep hand-built checks for ordered validation, causes, custom exceptions,
+  intended JDK exception types, or expensive message arguments. Migrate existing
+  checks only when touched.
+- Exception messages are lowercase sentence fragments without a trailing
+  period; they interpolate the offending value or id and name the actionable
+  alternative when one exists. A leading code identifier keeps its exact casing
+  (`"ParRuntime is closed"`). Message templates use
+  `%s` only (Guava `lenientFormat` supports nothing else).
+- Suffixes: `Scope` is a lifecycle scope (public scopes are closeable;
+  package-private scopes may be stack-installed); `Context` is a data carrier;
+  `Step` is a one-shot builder stage (`GroupStart` opens the chain); `Id` is an
+  immutable logical-entry identifier.
+- Public APIs and SPI may break between `0.x` releases without compatibility
+  shims for meaningful improvements with documented rationale.
 - For public API renames or signature changes, update the implementation,
   tests, user documentation, and migration notes as one change. Keep the
   rationale explicit so future maintainers can distinguish intentional API
@@ -86,6 +124,9 @@ relevant contract through the document routes below.
 
 ## Verification And Completion
 
+- Behavior-changing commits list the contract MUST/MUST NOT items they add or
+  change in the commit message or PR description, so no contract section is
+  silently left behind.
 - Add or update tests when changing cancellation, context propagation, executor
   binding, or queue behavior.
 - For code changes, use targeted tests while iterating, run `mvn spotless:apply`,
@@ -95,53 +136,64 @@ relevant contract through the document routes below.
 - For documentation-only changes, check the diff, referenced paths, and any
   commands against their source configuration; Java tests and formatting are
   unnecessary unless executable code or build behavior also changes.
-- Carry implementation through applicable verification and the Git workflow
-  below. Fix failures caused by the change and rerun affected checks without
-  pausing for review of the first implementation. Report unrelated failures or
-  blockers explicitly; do not claim completion while required checks are blocked.
+- Complete applicable verification and adversarial review before committing.
+  Fix failures caused by the change and rerun affected checks without pausing
+  for review of the first implementation. Report unrelated failures or blockers;
+  do not claim completion while required checks are blocked.
+- After verification, automatically commit and push the current branch,
+  including documentation maintenance. Exception: leave design proposals and
+  analysis documents uncommitted until the direction settles; commit settled
+  proposals with the implementing change.
+- Commit only this change's files; leave unrelated modifications and staged
+  changes uncommitted. Use Conventional Commits with a lowercase summary
+  (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`).
+
+## Adversarial Review
+
+Before committing public API, documented-contract, or concurrency-sensitive
+changes, run an independent review with its own budget:
+
+- Use a different model or harness (`cmux codexyolo` runs Codex in this repo).
+  The reviewer must not edit files. Name attack surfaces: interleavings,
+  contract versus implementation, test quality, Java 8, and generics.
+- Diff each contract MUST/MUST NOT named by the change against the
+  implementation line by line; catching drift is a pre-commit review duty,
+  not a periodic audit.
+- Later rounds target the previous round's fixes. First read settled findings
+  as the baseline, then look beyond them. Use a fresh seat when context is nearly
+  full or the reviewer starts agreeing with itself.
+- Reproduce every finding against the working tree; retain, downgrade, or reject
+  it explicitly. Record findings, dispositions (including rejections), and each
+  fix's actual effect in the change's `design/` document. Leave the review
+  workspace open as an audit trail.
+- Reverse-verify every regression test: temporarily revert only the fix, observe
+  the new test fail, then restore the fix.
+- Run `mvn -Ppitest`, scoped to the touched `targetClasses` and `targetTests`;
+  defaults cover the whole library. Classify every survivor before reporting:
+  equivalent mutants are not coverage gaps. PIT needs no permission and touches
+  only `target/`.
+
+Historical examples and results already live in
+`design/group-one-shot-api-refactor-codex.md` section 10; consult them when
+investigating review or test blind spots.
 
 ## Issue Tracking
 
-Feature-level work starts as an issue. The issue is where the direction is
-agreed and recorded; the pull request is where it is built, and it links back.
-
-- **Requires an issue first**: a new capability; a new public type, method, or
-  option; a change to existing behaviour or to a documented contract; a
-  signature change; anything that needs a `design/` proposal.
-- **Does not**: renames, wording and typo fixes, small bug fixes whose root
-  cause is obvious, test-only repairs, internal refactors that leave public
-  signatures and contracts untouched, dependency or version bumps, and routine
-  maintenance. Do not manufacture an issue for these.
-- File through `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for capabilities
-  and contract changes, `bug_report.yml` for defects, `documentation.yml` for
-  guides and javadoc. The forms ask for what makes a proposal reviewable — the
-  best code possible today, the same code with the change, and the failure mode
-  it removes.
-- Reference the issue from the PR body: `Closes #NN` when the PR completes it,
-  `Refs #NN` when it is one step of it. Keep the issue updated when the direction
-  changes; the thread is the record of what was decided and why.
-- Direction that needs more than a thread goes to `design/`: write the proposal
-  there, leave it in the working tree until the direction settles (see Git
-  Workflow), and name it in the issue, which carries the summary; the document is
-  committed with the change that implements it. The issue stays the tracker, the
-  document carries the reasoning.
-- Use the current release milestone for findings that must land before that line
-  is cut; leave everything else un-milestoned as backlog.
-
-## Git Workflow
-
-- After completing the applicable verification above, commit and push the
-  current branch automatically; no need to ask. This includes documentation
-  maintenance.
-- Exception: do not auto-commit design proposals or analysis documents. They
-  usually need several rounds of discussion, so leave them in the working tree
-  until the direction is settled; committing early both churns history and
-  reads as approval that has not been given.
-- Stage only the files belonging to the change; leave unrelated working-tree
-  modifications uncommitted. Follow the repository's conventional-commit style
-  (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`, lowercase summary).
-- Link the PR to the issue it implements (`Closes #NN` / `Refs #NN`) as
-  described under Issue Tracking.
+- Maintainer work needs no issue. Decisions live in the implementing PR and,
+  when extended reasoning is needed, a `design/` document.
+- Every public API or documented-contract proposal and PR must show the best
+  user code today, the same code after the change, and the failure mode removed.
+  Breaking changes must name the migration path; PRs missing this rationale
+  are not mergeable.
+- Open issues for public input, downstream discoverability, or deferred work.
+  Use `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for capabilities/contracts,
+  `bug_report.yml` for defects, `documentation.yml` for guides/Javadoc.
+- External contributors file an issue first except for the trivial changes
+  listed in `CONTRIBUTING.md`.
+- PRs implementing issues link them with `Closes #NN` / `Refs #NN`; otherwise
+  the PR description must be self-contained. Before opening or updating an
+  issue, read `CONTRIBUTING.md` section "Issue maintenance" for ownership,
+  direction updates, and milestone rules.
 
 ## Permissions
 
@@ -150,16 +202,11 @@ installed dependencies. Ask before:
 
 - Installing Maven dependencies or upgrading plugin versions.
 - Deleting files or directories.
-- Full release builds, PIT mutation tests, or `mvn deploy`.
+- Full release builds or `mvn deploy`.
+
+PIT authorization and scoping are defined under Adversarial Review.
 
 Never commit secrets, `.env` files, GPG keys, or repository credentials.
-
-## Subagent Usage
-
-When the coding agent is Kimi Code, implement code changes directly in the
-main agent; do not proactively delegate implementation to subagents. The only
-exceptions are read-only exploration/analysis subagents and cases where the
-user explicitly asks for subagent delegation.
 
 ## Document Routes
 
@@ -167,8 +214,11 @@ Load documents when their subject affects the task:
 
 - `design/AGENTS.md` - Entry point for execution-engine, cancellation,
   task-group, queue, or extension behavior changes. Load only contracts whose
-  summaries match the change. Current `design/` contracts take precedence over
-  historical ADRs.
+  summaries match the change. It indexes committed documents only; in-flight
+  proposals stay untracked by policy, so check `git status --short design/` too.
+  Current `design/` contracts take precedence over historical ADRs, except for
+  boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
+  boundary, and the `design/` document on it is an archive copy.
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
@@ -176,6 +226,12 @@ Load documents when their subject affects the task:
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
 - `adr/` - Historical decision rationale; existing records are immutable.
+- `BACKLOG.md` - Known defects and deferred work, each with an evidence grade.
+  It is pinned to the commit named at its top, so re-verify any line number it
+  cites before acting on an entry.
+- `mkdocs/mkdocs.yml` - Site navigation, i18n locales, and the redirect map for
+  previously published URLs. Update when adding, renaming, or moving a page
+  under `docs/`.
 - `.github/ISSUE_TEMPLATE/` - The forms a capability, defect, or documentation
   issue must use; the design proposal form mirrors the `design/first-principles.md`
   evaluation.

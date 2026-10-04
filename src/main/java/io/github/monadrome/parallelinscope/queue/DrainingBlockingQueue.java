@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope.queue;
 
 import com.google.common.util.concurrent.Monitor;
+import java.lang.reflect.Array;
 import java.util.AbstractQueue;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,11 +13,12 @@ import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A bounded FIFO blocking queue with a one-way draining close.
@@ -57,7 +59,7 @@ import javax.annotation.Nullable;
  * #awaitDrained()} waits only for terminal-state publication, not for previously admitted calls to
  * finish returning to their callers.
  *
- * <p>Implementation follows {@link java.util.concurrent.LinkedBlockingQueue}'s two-lock structure
+ * <p>Implementation follows {@link LinkedBlockingQueue}'s two-lock structure
  * with Guava {@link Monitor monitors}: a producer monitor guards enqueue and capacity, a consumer
  * monitor guards dequeue and emptiness, and an {@link AtomicInteger} count publishes size across
  * both monitors. Lifecycle state is volatile so that close and drained publication release waiters
@@ -250,8 +252,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Returns the terminal result for special-value consumers: poison when configured, else null. */
-    @Nullable
-    private E drainedSpecialValue() {
+    private @Nullable E drainedSpecialValue() {
         return policy.poison();
     }
 
@@ -448,11 +449,20 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     @Override
     public boolean offer(E element) {
         requireElement(element);
+        // Lock-free admission: a full or closed queue rejects without touching the producer
+        // monitor (LinkedBlockingQueue's offer does the same). The in-monitor recheck below
+        // stays mandatory because close or a racing producer can intervene before the lock.
+        if (!open() || count.get() == capacity) {
+            return false;
+        }
+        // Allocate outside the monitor so allocation and its GC pressure never extend the
+        // critical section; the node is simply garbage if the recheck rejects it.
+        Node<E> node = new Node<>(element);
         int oldCount = -1;
         putMonitor.enter();
         try {
             if (open() && count.get() < capacity) {
-                last = last.next = new Node<>(element);
+                last = last.next = node;
                 oldCount = count.getAndIncrement();
             }
         } finally {
@@ -538,8 +548,14 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * distinguish it from the terminal empty result.
      */
     @Override
-    @Nullable
-    public E poll() {
+    public @Nullable E poll() {
+        // Lock-free empty path: count read before the lifecycle read, so a queue observed
+        // non-empty is re-checked under the monitor while a queue observed empty and not yet
+        // drained legitimately answers null without entering it (LinkedBlockingQueue's poll
+        // fast path does the same for the open case).
+        if (count.get() == 0) {
+            return drained() ? drainedSpecialValue() : null;
+        }
         E item = null;
         int oldCount = -1;
         takeMonitor.enter();
@@ -601,8 +617,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * and throws {@link InterruptedException}.
      */
     @Override
-    @Nullable
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable E poll(long timeout, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(unit, "unit");
         E item;
         int oldCount = -1;
@@ -633,8 +648,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * never removes it or a real element.
      */
     @Override
-    @Nullable
-    public E peek() {
+    public @Nullable E peek() {
         takeMonitor.enter();
         try {
             // Read count before head.next: the count read is the happens-before edge to a
@@ -673,7 +687,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                 throw closedWrite("add");
             }
             if (count.get() == capacity) {
-                throw new IllegalStateException("Queue full");
+                throw new IllegalStateException("queue full");
             }
             last = last.next = new Node<>(element);
             oldCount = count.getAndIncrement();
@@ -735,7 +749,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             }
             Node<E> first = head.next;
             if (first != null) {
-                return first.item;
+                // a live head successor still holds its item while the take monitor is held
+                return Objects.requireNonNull(first.item);
             }
             if (drained()) {
                 return drainedRequiredValue("element");
@@ -770,7 +785,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                 throw closedWrite("addAll");
             }
             if (additions.size() > capacity - count.get()) {
-                throw new IllegalStateException("Queue full");
+                throw new IllegalStateException("queue full");
             }
             if (additions.isEmpty()) {
                 return false;
@@ -790,7 +805,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * Discards every element. While the queue is draining this is legal and moves it straight to
      * the {@link #drained() DRAINED} terminal state; once drained it follows the policy's
      * {@code mutations} strategy (no-op or {@link IllegalStateException}). In the open state it
-     * has normal {@link java.util.Collection#clear()} semantics and does not close production.
+     * has normal {@link Collection#clear()} semantics and does not close production.
      */
     @Override
     public void clear() {
@@ -844,8 +859,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * memory and lock hold time for a long unsuccessful search. The returned node may already be
      * unlinked by a concurrent consumer by the time it is used.
      */
-    @Nullable
-    private Node<E> findMatchingNode(Object target) {
+    private @Nullable Node<E> findMatchingNode(Object target) {
         Node<E> cursor = null;
         @SuppressWarnings("unchecked")
         Node<E>[] nodes = (Node<E>[]) new Node<?>[TRAVERSAL_BATCH_SIZE];
@@ -993,8 +1007,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Returns the node after {@code node}, following LBQ's self-link convention. */
-    @Nullable
-    private Node<E> successor(Node<E> node) {
+    private @Nullable Node<E> successor(Node<E> node) {
         Node<E> next = node.next;
         return next == node ? head.next : next;
     }
@@ -1006,7 +1019,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         if (ancestor.item == null) {
             ancestor = head;
         }
-        for (Node<E> candidate; (candidate = ancestor.next) != node; ancestor = candidate) {
+        for (Node<E> candidate; (candidate = ancestor.next) != node; ancestor = Objects.requireNonNull(candidate)) {
             // The node is known live and linked while both monitors are held.
         }
         return ancestor;
@@ -1097,14 +1110,14 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         Node<E> first = Objects.requireNonNull(oldHead.next, "queue is empty");
         oldHead.next = oldHead;
         head = first;
-        E item = first.item;
+        E item = Objects.requireNonNull(first.item, "queue is empty");
         first.item = null;
         return item;
     }
 
     /** Unlinks one known live node; caller must hold both monitors. Returns the removed item. */
     private E unlink(Node<E> trail, Node<E> node) {
-        E item = node.item;
+        E item = Objects.requireNonNull(node.item);
         node.item = null;
         trail.next = node.next;
         if (last == node) {
@@ -1169,8 +1182,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         Object[] snapshot = toArray();
         T[] result = destination.length >= snapshot.length
                 ? destination
-                : (T[]) java.lang.reflect.Array.newInstance(
-                        destination.getClass().getComponentType(), snapshot.length);
+                : (T[]) Array.newInstance(destination.getClass().getComponentType(), snapshot.length);
         for (int index = 0; index < snapshot.length; index++) {
             result[index] = (T) snapshot[index];
         }
@@ -1252,7 +1264,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Returns a weakly consistent, late-binding spliterator with the same characteristics as
-     * {@link java.util.concurrent.LinkedBlockingQueue}. Elements concurrently added or removed may
+     * {@link LinkedBlockingQueue}. Elements concurrently added or removed may
      * be observed or skipped, but are never duplicated, and poison is never exposed. Streams
      * obtained from this queue inherit those traversal semantics.
      */
@@ -1262,8 +1274,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     private final class QueueSpliterator implements Spliterator<E> {
-        @Nullable
-        private Node<E> current;
+        private @Nullable Node<E> current;
 
         private int batch;
         private boolean exhausted;
@@ -1275,7 +1286,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
 
         @Override
-        public Spliterator<E> trySplit() {
+        public @Nullable Spliterator<E> trySplit() {
             if (exhausted) {
                 return null;
             }
@@ -1352,7 +1363,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /**
      * Returns a weakly consistent FIFO iterator over the live node chain, shaped after {@link
-     * java.util.concurrent.LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
+     * LinkedBlockingQueue}'s iterator. Elements enqueued or dequeued after the
      * iterator is created may or may not be reflected. While the queue is draining the iterator
      * observes the remaining elements; once drained it observes none (the poison value is a
      * virtual signal, never an element). {@link Iterator#remove()} removes the last returned
@@ -1366,18 +1377,14 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
     /** Weakly consistent iterator over the live node chain; see {@link #iterator()}. */
     private final class Itr implements Iterator<E> {
-        @Nullable
-        private Node<E> next;
+        private @Nullable Node<E> next;
 
-        @Nullable
-        private E nextItem;
+        private @Nullable E nextItem;
 
-        @Nullable
-        private Node<E> lastReturned;
+        private @Nullable Node<E> lastReturned;
 
         /** Lazily maintained predecessor for expected constant-time consecutive removals. */
-        @Nullable
-        private Node<E> ancestor;
+        private @Nullable Node<E> ancestor;
 
         /** Captures the current first node while both storage monitors are occupied. */
         Itr() {
@@ -1403,7 +1410,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             if (node == null) {
                 throw new NoSuchElementException();
             }
-            E item = nextItem;
+            E item = Objects.requireNonNull(nextItem);
             lastReturned = node;
             fullyLock();
             try {
@@ -1526,8 +1533,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      */
     public static final class ShutdownPolicy<E> {
 
-        @Nullable
-        private final E poison;
+        private final @Nullable E poison;
 
         private final MutationsStrategy mutationsStrategy;
 
@@ -1555,7 +1561,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
         /**
          * Returns a policy with no poison that rejects ordinary mutations after {@code DRAINED}.
-         * Required-value consumers still throw {@link java.util.NoSuchElementException}, and
+         * Required-value consumers still throw {@link NoSuchElementException}, and
          * special-value consumers still return {@code null}.
          */
         public static <E> ShutdownPolicy<E> throwing() {
@@ -1581,8 +1587,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
          * {@link ShutdownPolicy#empty()}: no poison and {@link MutationsStrategy#NOOP}.
          */
         public static final class Builder<E> {
-            @Nullable
-            private E poison;
+            private @Nullable E poison;
 
             private MutationsStrategy mutationsStrategy = MutationsStrategy.NOOP;
 

@@ -1,9 +1,10 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable options of one {@link Par#map} batch: its name, its requested parallelism, and the
@@ -11,8 +12,8 @@ import javax.annotation.Nullable;
  *
  * <p>A batch is a fan-out over homogeneous input, so it owns exactly two concepts a single task
  * does not have: the batch identity shared by all elements and the concurrency limit of the sliding
- * window. Per-element execution policy is the rest of this type — timeout, task type, enqueue
- * rejection, and caller-thread fallback.
+ * window. Per-element execution policy is the rest of this type — timeout, task type, and enqueue
+ * rejection.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
@@ -24,7 +25,6 @@ public final class BatchOptions {
     private final @Nullable Duration timeout;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
-    private final boolean runOnCallerThread;
     private final @Nullable Duration closeGrace;
 
     private BatchOptions(
@@ -33,20 +33,18 @@ public final class BatchOptions {
             @Nullable Duration timeout,
             TaskType taskType,
             boolean rejectEnqueue,
-            boolean runOnCallerThread,
             @Nullable Duration closeGrace) {
-        this.name = requireName(name);
+        this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
-        this.runOnCallerThread = runOnCallerThread;
         this.closeGrace = closeGrace;
     }
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, -1, null, TaskType.CPU_BOUND, true, false, null);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null);
     }
 
     /**
@@ -56,12 +54,28 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static BatchOptions timeout(String name, Duration timeout) {
-        return new BatchOptions(name, -1, requirePositive(timeout), TaskType.CPU_BOUND, true, false, null);
+        return new BatchOptions(
+                name,
+                Integer.MAX_VALUE,
+                Validation.requirePositive(timeout, "timeout"),
+                TaskType.IO_BOUND,
+                false,
+                null);
     }
 
-    /** Returns a copy of these options with the given requested parallelism. */
+    /**
+     * Returns a copy of these options with the given requested parallelism.
+     *
+     * @throws IllegalArgumentException if {@code parallelism} is not positive
+     */
     public BatchOptions parallelism(int parallelism) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
+        return new BatchOptions(
+                name,
+                Validation.requirePositive(parallelism, "parallelism"),
+                timeout,
+                taskType,
+                rejectEnqueue,
+                closeGrace);
     }
 
     /** Returns a copy of these options with the given task type. */
@@ -70,9 +84,8 @@ public final class BatchOptions {
                 name,
                 parallelism,
                 timeout,
-                Objects.requireNonNull(taskType, "taskType cannot be null"),
+                checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
-                runOnCallerThread,
                 closeGrace);
     }
 
@@ -84,38 +97,29 @@ public final class BatchOptions {
      * flag is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
     }
 
     /**
-     * Returns a copy of these options with the given caller-thread fallback policy: whether an
-     * element runs on the submitting thread when its executor rejects it.
+     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle,
+     * waiting for direct task bodies and their final observations before returning.
      *
-     * <p>{@code true} borrows the submitting thread for the element body, which is back-pressure
-     * rather than queueing — but it also means user code runs on a thread the caller may not
-     * expect. {@code false} (the default) fails the element with a {@link SubmissionException}
-     * without entering user code. The policy is honoured by any executor and is independent of
-     * {@link #taskType()}: no task type implies a caller-thread fallback.
-     */
-    public BatchOptions runOnCallerThread(boolean runOnCallerThread) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, closeGrace);
-    }
-
-    /**
-     * Returns a copy of these options with the given close grace: the bounded wait {@link
-     * TaskBatchResult#close()} performs for task bodies to exit after requesting cancellation.
-     *
-     * <p>The grace is a cleanup budget that starts when {@code close()} is called, after the tasks
-     * have already been asked to stop. {@link Duration#ZERO} makes {@code close()} cancel-only.
-     * When never configured, {@code close()} derives its wait budget from the batch's remaining
-     * execution deadline at close time.
+     * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
+     * waiting. When unset, the budget is derived from the remaining execution deadline. A terminal
+     * cancellation result can coexist with a body still closing resources; inspect
+     * {@link TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
      */
     public BatchOptions closeGrace(Duration closeGrace) {
         return new BatchOptions(
-                name, parallelism, timeout, taskType, rejectEnqueue, runOnCallerThread, requireNonNegative(closeGrace));
+                name,
+                parallelism,
+                timeout,
+                taskType,
+                rejectEnqueue,
+                Validation.requireNonNegative(closeGrace, "closeGrace"));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -123,7 +127,11 @@ public final class BatchOptions {
         return name;
     }
 
-    /** Requested parallelism; non-positive means one worker per task. */
+    /**
+     * Requested parallelism; always positive. The default {@link Integer#MAX_VALUE} places no limit
+     * beyond the batch size — resolution caps it by the task count, so the whole batch is submitted
+     * at once. Set a lower value to bound the sliding window.
+     */
     public int parallelism() {
         return parallelism;
     }
@@ -141,14 +149,9 @@ public final class BatchOptions {
         return rejectEnqueue;
     }
 
-    /** Whether a rejected element runs on the submitting thread; false means it fails instead. */
-    public boolean runOnCallerThread() {
-        return runOnCallerThread;
-    }
-
     /**
-     * The explicit close grace used by {@link TaskBatchResult#close()}; empty means the wait budget
-     * is derived from the batch's remaining deadline at close time.
+     * The explicit post-convergence cleanup budget used by {@link Par#map}; empty means the budget
+     * is derived from the batch's remaining deadline.
      */
     public Optional<Duration> closeGrace() {
         return Optional.ofNullable(closeGrace);
@@ -156,29 +159,6 @@ public final class BatchOptions {
 
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
-        return new UnitSpec(
-                name, parallelism, Optional.ofNullable(timeout), taskType, rejectEnqueue, runOnCallerThread);
-    }
-
-    private static String requireName(String name) {
-        Objects.requireNonNull(name, "name cannot be null");
-        if (name.trim().isEmpty()) throw new IllegalArgumentException("name cannot be empty");
-        return name;
-    }
-
-    private static Duration requirePositive(Duration timeout) {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        if (timeout.isNegative() || timeout.isZero()) {
-            throw new IllegalArgumentException("timeout must be positive when configured");
-        }
-        return timeout;
-    }
-
-    private static Duration requireNonNegative(Duration closeGrace) {
-        Objects.requireNonNull(closeGrace, "closeGrace cannot be null");
-        if (closeGrace.isNegative()) {
-            throw new IllegalArgumentException("closeGrace must not be negative: " + closeGrace);
-        }
-        return closeGrace;
+        return new UnitSpec(name, parallelism, timeout, taskType, rejectEnqueue);
     }
 }

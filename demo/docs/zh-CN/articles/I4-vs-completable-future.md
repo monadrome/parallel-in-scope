@@ -60,7 +60,7 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 | 超时取消 | get 超时后任务继续跑 | 超时自动中断 + 协作式取消 |
 | Fail-fast | 无，等全部完成 | 首个失败即取消剩余任务 |
 | 上下文传播 | ThreadLocal 丢失 | TTL 自动传播（MDC、身份等） |
-| SPI 扩展 | 无 | TaskListener / DeadlockDetectionListener |
+| 任务观测 | 无 | completions 可用最终快照 / reportFuture 图检测报告 |
 | 依赖 | JDK 原生 | Guava + TTL（约 1.5MB） |
 
 ## 什么时候用哪个
@@ -87,7 +87,7 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 System.out.println(result.reportString());
 // 成功时: SUCCESS:100
-// 部分失败时: SUCCESS:95 MEMBER_CANCELED:3 USER_FAILURE:2
+// 部分失败时: SUCCESS:95 FAIL_FAST:3 USER_FAILURE:2
 // 超时时: 全部取消，线程资源立即释放
 ```
 

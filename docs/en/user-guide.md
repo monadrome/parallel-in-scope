@@ -4,9 +4,10 @@
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
-It also coordinates a fixed heterogeneous set of named operations through `TaskGroup`. A
-group is described as a reusable, structure-only `TaskGroupDefinition` and submitted at one
-explicit boundary with one-shot bindings; it is not a dynamically growing batch.
+It also coordinates a fixed heterogeneous set of named operations through one-shot groups. A group is
+declared and submitted as one one-shot fluent chain —
+`runtime.group(name, timeout).par(...).runAll()` — in which each member states its name, `Par`,
+declared type, and this run's body at once; it is not a dynamically growing batch.
 
 ## Build the execution topology
 
@@ -14,7 +15,6 @@ Create `ParRuntime` at the composition root. Register every logical entry with t
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .taskListener(metricsListener)
         .register(ParId.of("database"), databaseExecutor)
         .register(ParId.of("http"), httpExecutor)
         .defaultPar(ParId.of("http"))
@@ -30,9 +30,20 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. `ParRuntime` is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
+Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. Automatic purge is the one runtime-adjustable knob: `setPurgeEnabled(boolean)` and `adjustPurgeThresholds(double, double)` re-tune it after build. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor.
 
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: queue purge and blocking-risk detection are disabled for it.
+
+Registration reads a supplied executor's own structure and claims nothing it cannot read. Two facts come from that read: whether queue purge can observe the pool at all, which needs a `ThreadPoolExecutor` with a finite positive queue capacity, and whether a task body on it can be starved of a thread while blocking on a child task. Anything the library cannot see through — a pool you decorated before registering, a `ForkJoinPool`, a framework-managed executor — yields the conservative answer for both, and says so once at the composition root.
+
+So register the physical pool, not a decorator. `Executors.newFixedThreadPool(n)` and `Executors.newCachedThreadPool()` return the `ThreadPoolExecutor` itself, keeping queue purge and blocking-risk detection fully working; `Executors.newSingleThreadExecutor()` and Guava's `listeningDecorator(...)`, by contrast, return wrappers the library cannot see through. When you want a single-thread pool, construct the physical pool explicitly:
+
+```java
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+```
+
+Whether a pool's task-graph edges are marked deadlock-prone follows where a submission goes when every worker is busy. `ThreadPoolExecutor` offers to its queue before it grows past `corePoolSize`, so a buffering queue accepts the child, parks it behind the blocked worker, and the pool never gets to add a thread — whatever `maximumPoolSize` says, finite or not. A zero-capacity handoff queue is the opposite: it refuses the offer, which forces a new worker or an explicit rejection, so a cached pool is never marked deadlock-prone. Neither fact is ever inferred from a class name or a runtime statistic; register the physical pool you want observed.
 
 For a process-wide convenience entry point, install exactly one already-built topology during bootstrap:
 
@@ -43,282 +54,278 @@ Par defaultPar = ParRuntime.global().defaultPar();
 
 Prefer explicit injection in tests and libraries. `installGlobal` is one-time and intentionally rejects replacement.
 
-## Execute a batch
+## Execute a batch {#batch}
 
-`BatchOptions` is the immutable input of one batch call. Option types map one-to-one onto scopes: a batch declares `BatchOptions`, a group takes its timeout from the `defineGroup*` call and its cleanup budget from `TaskGroupDefinition.Builder.closeGrace`, and a single member or combine declares `TaskOptions`. The library resolves a scope's name, concurrency, and execution policy together with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
+`Par.map` runs a finite batch in parallel and waits before returning. There is no asynchronous
+submission exit and no result scope to close.
 
 ```java
-BatchOptions options = BatchOptions.timeout("fetch-account", Duration.ofSeconds(5))
-        .parallelism(16)
-        .taskType(TaskType.IO_BOUND)
-        .rejectEnqueue(false);
-
-TaskBatchResult<Account> result = httpPar.map(
-        accountIds,
-        client::fetchAccount,
-        options);
-
-List<TaskFuture<Account>> futures = result.results();
+TaskBatchResult<Account> batch = httpPar.map(
+        accountIds, this::fetchAccount,
+        BatchOptions.timeout("accounts", Duration.ofSeconds(3))
+                .parallelism(8)
+                .closeGrace(Duration.ofSeconds(1)));
+List<Account> accounts = batch.valuesOrThrow();
+ImmediateResult<Account> first = batch.results().get(0);
 ```
 
-`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point.
+Inputs are in input order; null or empty input produces an empty successful result. A List must not
+be structurally mutated during execution; other collections are snapshotted. Mapping uses JDK
+`Function`, so checked business exceptions must be handled inside the function. Single tasks
+requiring `Callable` use a single-member group.
 
-`runOnCallerThread` decides what happens when the bound executor rejects an element. It defaults to `false`: the element fails with `SUBMISSION_FAILURE` and user code never runs. Setting it to `true` borrows the submitting thread and runs the element body there — useful as back-pressure, but it means your code executes on a thread your caller may not expect. `rejectEnqueue` is a different decision: it controls whether an element is refused queueing when the bound executor's queue is a `SmartBlockingQueue`; with any other queue it is inert. `TaskType` does not affect either: it only selects whether `SmartBlockingQueue` refuses to enqueue an element, and `CPU_BOUND` — the default type — is refused there even when `rejectEnqueue` is false. No task type implies a caller-thread fallback.
+An explicit `.parallelism(n)` must be positive; the entry rejects zero or negative with
+`IllegalArgumentException`. The default, `Integer.MAX_VALUE`, sets no cap beyond the task count —
+resolution caps it at the batch size, so the whole batch is submitted at once. Set an explicit value
+matching downstream capacity to get a bounded sliding window.
 
-The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
+Timeout is explicit: choose `BatchOptions.timeout(name, positiveDuration)` or
+`inheritTimeout(name)`. Inheritance requires an enclosing library task; every deadline is capped by
+its parent's. The first failure cancels unfinished siblings, including elements outside the sliding
+window. `valuesOrThrow()` reads frozen data: the first recorded execution failure in input order
+throws `ExecutionException` before any cancellation is reported; pure cancellation throws
+`CancellationException`. Successful values may be null.
 
-A future being done means its value is settled; it does not prove the user function has finished unwinding. `result.awaitBodyCompletion(Duration)` waits until every element's task body has actually exited — or has been atomically determined to never start — and returns `false` when the budget elapses first. It never cancels anything by itself. A `true` result happens-before every task body's writes, so it is the condition to check before releasing resources those bodies used.
+`TaskType` and `rejectEnqueue` influence `SmartBlockingQueue` admission, not executor selection.
+A plain queue makes `rejectEnqueue` inert and emits a diagnostic. An executor handoff failure is
+recorded as `SUBMISSION_FAILURE` with a `SubmissionException` retaining the original cause,
+including an Error. Validation and closed-runtime admission errors still throw from the entry.
 
-`TaskBatchResult` is `AutoCloseable`: `result.close()` cancels every unfinished element through the batch token, then waits for task bodies to exit within the batch's close grace — a cleanup budget configured with `BatchOptions.closeGrace(Duration)`; when never configured, the wait budget is derived from the batch's remaining execution deadline at close time, so a close triggered by an expired deadline returns right after cancelling and an interrupt-ignoring body can hold `close()` at most until the deadline. `closeGrace(Duration.ZERO)` makes `close()` cancel-only. When the grace elapses with bodies still running, the outstanding task names are logged at WARN level rather than leaking silently. `close()` never shuts down executors; a normal return does not prove the bodies have exited — confirm with `awaitBodyCompletion(Duration)` first.
-
-## Execute a heterogeneous task group
-
-Use a task group when a request has a small fixed set of independent operations that may return
-different types or use different `Par` entries. A group moves through three phases:
-`ParRuntime.defineGroup*` creates a `TaskGroupDefinition.Builder` that records an immutable,
-reusable, structure-only `TaskGroupDefinition`; `ParRuntime.submitGroup(definition, binder)`
-collects this run's bodies through the one-shot `TaskGroup.Bindings` and admits the whole group
-at one boundary; the returned `TaskGroup` is the running, closeable scope. The definition never
-holds a `Callable`, combine body, listener, or request object, so it can be shared across threads
-and submitted repeatedly with different bindings; per-request captures live only in the one-shot
-`Bindings`/`TaskGroup` pair.
-
-The group timeout remains a forced explicit choice: `defineGroup(name, timeout)` sets an explicit
-positive budget, `defineGroupInheriting(name)` adopts the enclosing scoped task's deadline — there
-is no third state. A group built with `defineGroupInheriting` must be submitted from inside a
-scoped task, otherwise `submitGroup` fails at run preparation with `IllegalArgumentException` and
-no group or future is created. A member declares `TaskOptions` only when it must differ: omitting
-it is exactly `TaskOptions.inheritTimeout()`, so a member can never outlive the group deadline that
-way; an explicit member timeout is capped by the group deadline. `Builder.closeGrace(Duration)`
-configures the cleanup budget that `close()` waits within.
+`TaskType` defaults to `IO_BOUND` and `rejectEnqueue` to `false`. Install the queue on the physical
+pool and state the policy per batch:
 
 ```java
-TaskGroupDefinition.Builder builder =
-        global.defineGroup("account-page", Duration.ofSeconds(3));
+ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
+        4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
 
-TaskGroupDefinition.Member<User> user = builder.task("user", databasePar);
-TaskGroupDefinition.Member<List<Order>> orders = builder.task(
-        "orders", httpPar,
-        TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool)
+        .build();
 
-TaskGroupDefinition accountPage = builder.build();
+TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
+        records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5))
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true));
+```
 
-try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
-    bindings.task(user, () -> userRepository.load(request.userId()));
-    bindings.task(orders, () -> orderClient.load(request.userId()));
-})) {
-    User userValue = group.future(user).get();
-    List<Order> orderValues = group.future(orders).get();
-    TaskGroupResult result = group.completionFuture().get();
+A `CPU_BOUND` task makes `offer` return false on its own or together with `rejectEnqueue(true)`, so
+the pool grows a thread or runs its rejection handler instead of buffering CPU work behind IO;
+`rejectEnqueue(true)` is redundant with it and only states the intent. With any other queue,
+`TaskType` never changes what the library does and `rejectEnqueue` is inert.
+
+## Execute a heterogeneous task group {#task-group}
+
+Declare fixed named tasks with their Par, declared type, and body. `runAll()` consumes the chain,
+runs it once, and returns a typed terminal result. Declaration is single-threaded and performs no
+submission, deadline calculation, timer installation, or TTL capture; the timeout starts at execution.
+Saved stale stages, repeated execution, foreign Pars, duplicate names, and unresolved/primitive type
+tokens are rejected. Only the draft's creating thread may execute it.
+
+```java
+TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .closeGrace(Duration.ofSeconds(1))
+        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par("account", httpPar, Account.class, () -> loadAccount(userId))
+        .combine("profile", httpPar, Profile.class,
+                values -> buildProfile(values.first(), values.second()))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+Without a combine, `runAll().valuesOrThrow().typedValues()` gives the single member's value or a
+left-nested `Tuple2`. An empty group's values have size zero and typed value null.
+`groupInheriting(name)` uses the enclosing task's deadline at execution; outside a task it fails.
+Optional member/combine `TaskOptions` can shorten deadlines. A member timeout cancels its group.
+The terminal combine runs only after every member succeeds and has its own scoped execution and TTL
+snapshot. A ThreadPoolExecutor's rejection handler may not run the combine inline; a deliberate
+direct executor remains supported.
+
+```java
+TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
+        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .runAll();
+ImmediateResult<User> user = one.resultOf("user", TypeToken.of(User.class));
+User value = user.valueOrThrow();
+```
+
+`resultOf` and `resultAt` expose terminal member results by name/declaration position, with optional
+exact TypeToken checks. A query cannot widen a declared token, even for a null or failed value.
+`Class<T>` declarations are shorthand for non-generic types; use TypeToken for parameterized values
+and for custom TaskOptions. Runtime validation checks non-null values against the token's raw class.
+
+`terminalResult()` is null only when no combine was declared; a successful null combine has a
+present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` preserve group
+failure conventions: rethrow unchecked failures, wrap checked failures in CompletionException, and
+throw CancellationException for pure cancellation. A failed combine also fails aggregated member
+values; individual successful member results remain readable.
+
+### Three or more members
+
+Each `par` after the first widens the assembled type by one left-nested `Tuple2`, so inside a
+three-member combine `values` is `Tuple2<Tuple2<A, B>, C>`. Read it with `first()`/`second()` and
+build the flat object there, while the shape is still typed:
+
+```java
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par("account", httpPar, Account.class, () -> loadAccount(userId))
+        .par("order", httpPar, Order.class, () -> loadOrder(userId))
+        .combine("profile", httpPar, Profile.class, values -> new Profile(
+                values.first().first(),
+                values.first().second(),
+                values.second()))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+`GroupValues.valueOf(name)` reads the same slots by member name when positional access is not
+convenient. As members accumulate, have the combine emit the flattened object immediately rather
+than passing the nested `Tuple2` out: the nesting is a declaration artifact, and callers downstream
+should not have to rebuild the member order to read a value.
+
+<a id="read-task-attribution-from-a-future"></a>
+
+## Immediate results {#task-future-attribution}
+
+`ImmediateResult<T>` is a shallowly immutable value-or-throwable container, not a Future.
+`outcome()` never returns RUNNING; SUCCESS may hold null, and every non-success holds a throwable.
+`failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the original cause,
+including cancellation. Container reads never block or consume an interrupt.
+The `failed(outcome, failure)` factory preserves the supplied throwable for every permitted outcome;
+the outcome is metadata and does not convert the throwable's type.
+
+`asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
+returns false, and `isCancelled()` is false. Cancellation from `map` or `runAll` is a failed value
+whose get throws ExecutionException with a CancellationException cause. Both get overloads return
+immediately and preserve interruption; timed get validates its TimeUnit but cannot time out. The
+static Future signature still declares checked exceptions. Listeners use the consumer's executor
+and run outside the completed business scope and its resource ownership.
+
+## Interruption and cleanup
+
+Execution waiting in `map` and `runAll` deliberately ignores interruption, including during
+bounded cleanup, and restores the flag on exit. Interrupting the waiting caller does not cancel
+the execution. Deadline, fail-fast, ancestor token propagation, worker interruption, and
+`Checkpoints.checkpoint()` remain effective. `ParRuntime.awaitQuiescence` remains interruptible.
+
+A direct executor or CallerRunsPolicy may execute a body on the caller before waiting begins.
+Its existing borrowed-thread isolation restores the interrupt state present at body entry; it does
+not promise to preserve a new external interrupt received during inline body execution. Blocking
+or uncooperative user code/executor handoff can exceed the execution deadline in wall-clock time.
+
+After every result settles, cleanup waits within `closeGrace`, or the remaining execution deadline
+when unset. Zero grace does not wait. Interruption does not reset or skip that budget. Executors
+are never shut down by an execution. Java cannot force an arbitrary body or resource close to stop.
+
+`bodyCompletionConfirmed()` confirms only direct batch elements or group members plus combine:
+they exited, including finally, or were atomically prevented from ever starting. The check is a
+frozen fact at return, not a poll. `unfinishedBodies()` names/counts unconfirmed bodies and a
+warning is emitted. A terminal result is not proof that resources were released.
+
+Place task-local resources inside the body:
+
+```java
+TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
+        .closeGrace(Duration.ofSeconds(1))
+        .par("read", databasePar, String.class, () -> {
+            try (Reader reader = openReader()) {
+                return readAll(reader);
+            }
+        })
+        .runAll();
+```
+
+Shared resources must remain owned until every user exits. Nested results must separately confirm
+their own exit: an outer body can finish while a child with shorter timeout/zero grace keeps running.
+If confirmation is false, retain ownership for application-managed later cleanup; runtime shutdown
+followed by successful awaitQuiescence confirms all admitted bodies. Close failures retain Java's
+primary/suppressed exception rules. A failure lost because cancellation already settled the task is
+logged with task identity; it does not rewrite the frozen cancellation result. The library does not
+discover or close captured/returned objects, unmanaged threads, or external async operations.
+
+### Application shutdown
+
+Three separate owners stop at shutdown: the runtime stops accepting work and releases its own
+services, the runtime waits for admitted bodies, and the application closes the executors it
+registered. Order them that way:
+
+```java
+runtime.close();                                      // reject new work; release timer/submitter services
+try {
+    runtime.awaitQuiescence(Duration.ofSeconds(30));  // wait for every admitted body to exit
+} catch (InterruptedException interrupted) {
+    Thread.currentThread().interrupt();               // restore; shutdown still has to finish
+} finally {
+    httpExecutor.shutdownNow();                       // stop the application-owned pools
+    databaseExecutor.shutdown();                      // graceful variant for a quiet pool
 }
 ```
 
-`Builder.task(name, par)` records only the member's name, `Par`, and options — it creates no
-execution context, captures no TTL value, starts no timer, and submits nothing; the `Par` must
-belong to the same `ParRuntime` that created the builder. Each declaration returns a typed
-`Member<T>` handle created by the library and identified by object identity: it constrains both
-`Bindings.task(member, callable)` and `group.future(member)` to the same `T`, and a handle from
-another definition, or used with the wrong kind of binding, is rejected with
-`IllegalArgumentException`. The binder runs synchronously on the calling thread, exactly once,
-and the bindings freeze when it returns: every member must have exactly one body, a binder failure
-rejects the whole submission before admission, and using the `Bindings` afterwards — or from any
-other thread — throws `IllegalStateException`. The group deadline starts when the binder returns,
-so slow binding never consumes the execution budget.
+`close()` is idempotent and never shuts down a registered executor; it releases the framework's
+timer and submitter services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
+does the body-level wait, but only after `close()`: without it the call simply waits out its timeout,
+and it returns false on timeout. It is interruptible, so restore the flag and continue shutdown.
+Registered executors remain the application's to stop, after quiescence, with `shutdown()`,
+`shutdownNow()`, or the container's own lifecycle.
 
-Group completion always returns a `TaskGroupResult`; the group outcome (`result.outcome()`, a
-`TaskOutcome`) is result data rather than a failure of the completion future. Individual member
-futures retain normal Guava success, failure, and cancellation behavior. To observe completion
-without blocking, register on the completion future and choose the callback executor explicitly —
-`Futures.addCallback(group.completionFuture(), callback, executor)`; a callback added after
-completion still runs with the finished result, and under a direct executor it may run before
-`submitGroup` returns.
+Do not read `inFlight()` as a body count. It counts admissions setting up a batch plus undrained
+batches — future-level tracking, not bodies still inside user code. A task cancelled mid-run settles
+its future immediately while its body may still be unwinding, so `inFlight()` can reach zero while a
+body runs. `awaitQuiescence` is the one that waits for both the future drain and body exit.
 
-Group cancellation is fully structured, matching batch semantics: the first member failure, a
-direct cancellation of any member future or member token, the group deadline, or any single member
-deadline cancels every unfinished member. `group.cancel()` only issues the cancellation request.
-`close()` cancels unfinished members and then waits for their task bodies to exit within the
-group's close grace — a cleanup budget configured with
-`TaskGroupDefinition.Builder.closeGrace(Duration)`; when never configured, the wait budget is
-derived from the group's remaining execution deadline at close time, so a close triggered by an
-expired deadline returns right after cancelling and an interrupt-ignoring member can hold
-`close()` at most until the deadline. `closeGrace(Duration.ZERO)`
-makes `close()` cancel-only, equivalent to `cancel()`. When the grace elapses with bodies still
-running, the outstanding member names are logged at WARN level rather than leaking silently.
-`close()` never shuts down executors, and a task body that ignores interruption may
-still be running when it returns; call `group.awaitBodyCompletion(Duration)` with an independent
-budget to confirm body exit before releasing resources the bodies used. Calling either wait from
-inside a task body of the same group is rejected with `IllegalStateException`. Member outcomes are
-attributed from the cancellation tokens, so a cancelled
-member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
-cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
-member deadlines start at the submission boundary, and member deadlines are capped by the group
-deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
-ceiling; cancellation propagated from an ancestor keeps its originating reason
-(`CancellationToken.originState()`), so an ancestor deadline expiring still converges the group as
-`TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while
-membership itself does not add dependency edges between siblings. Execution order is fixed by the
-definition — plain members in declaration order, a terminal combine always last — independent of
-the order in which the binder registers bodies.
+## Final observations {#completion-snapshots}
 
-### Captured resources and task-body exit
+Batch `completions()` is an input-ordered list of available final TaskCompletion snapshots; a null
+entry means final publication was not confirmed. Group `members()` contains available snapshots
+keyed by member name, and `terminal()` is the available combine observation or null.
+All observations contain identity, submit/start/end times, duration, outcome, failure, and actual
+successful values. Never-started tasks have zero start/end times. Missing observations stay missing
+in the frozen result; no pending business future is returned. `report()`/`reportString()` and group
+`outcomeCounts()` still include every terminal task, regardless of missing observations.
 
-A lambda submitted to the group captures its environment, and neither `close()` nor a terminal
-future proves the body has exited: `close()` may return after the close grace elapses while an
-interrupt-ignoring body is still running, and the framework cannot discover, close, or force-kill
-captured objects. Treat the body exit — not the future and not the `close()` return — as the
-resource boundary:
-
-- before releasing request-scoped objects the bodies used (transactions, connections, buffers),
-  call `awaitBodyCompletion(Duration)` and check the result is `true`; a `false` means the bodies
-  may still be running and the resources must stay open;
-- the most robust pattern for short resources is to create them inside the callable and close them
-  with try-with-resources, so the resource lifetime sits entirely inside the body;
-- application-scoped services may be captured freely, because their owner outlives the group.
-
-### Terminal combine
-
-When the request ends by assembling the member values into one result, declare a single terminal
-combine with `Builder.combine(name, par)` and build the definition with the ordinary `build()` —
-instead of wiring `Futures` callbacks yourself. The combine is a real
-scoped task — prepared at submit like a member, but submitted to its own `Par` only after every
-member succeeds — so it inherits the group's structured cancellation, deadline, and observability:
-
-```java
-TaskGroupDefinition.Member<AccountPage> page =
-        builder.combine("assemble-page", global.par(ParId.of("cpu")));
-
-TaskGroupDefinition accountPage = builder.build();
-
-try (TaskGroup group = global.submitGroup(accountPage, bindings -> {
-    bindings.task(user, () -> userRepository.load(request.userId()));
-    bindings.task(orders, () -> orderClient.load(request.userId()));
-    bindings.combine(
-            page,
-            values -> new AccountPage(values.value(user), values.value(orders)));
-})) {
-    AccountPage assembled = group.future(page).get();
-}
-```
-
-The `CombineContext` view is non-blocking and exposes only successful member values through the
-`Member` handles — no futures, no name-keyed map. The combine body runs exactly
-once on a worker of the named `Par` (never on a member's completion thread; a rejected combine
-fails as `SUBMISSION_FAILURE`, because it has no caller thread to borrow — `runOnCallerThread` is
-inapplicable to it), and it must be a pure function of member
-values and configuration-time captures: it is scheduled the moment the last member succeeds, so
-state created by the submitting thread after `submitGroup` returns is not visible to it — read the
-member futures directly for that. A group accepts at most one combine; a second `combine()` call
-fails at definition configuration with `IllegalStateException`, and `group.future(combineMember)`
-resolves the typed terminal future with normal Guava semantics. If any member fails, the combine
-never runs and the terminal future is cancelled with the group's attributed outcome. The combine's
-snapshot appears as `TaskGroupResult.terminal()` (`members()` stays member-only), and when the
-combine itself fails or is rejected,
-`failedTaskName()` carries the combine's registered name. The group deadline spans the fan-out
-and the combine, so a combine whose members consumed most of the budget may time out before it
-starts — that is the intended end-to-end semantics.
-
-## Read task attribution from a future
-
-Every future the library delivers for a task execution is a `TaskFuture<T>`: a `ListenableFuture<T>`
-that also answers what the task is and how it ended. That covers a batch's elements, a group's
-members, its terminal combine, and the group completion future.
-
-| Method | Answer |
-|---|---|
-| `taskName()` | The batch name, the member or combine name, or the group name |
-| `outcome()` | `RUNNING` while pending, then one terminal `TaskOutcome` |
-| `deadlineNanos()` | The task's absolute deadline on the `System.nanoTime()` clock |
-| `remaining()` | The budget left before that deadline, never negative |
-| `failure()` | The cause behind `USER_FAILURE` / `SUBMISSION_FAILURE`, otherwise `null` |
-
-The view is purely additive. `TaskFuture` extends `ListenableFuture`, so `Futures.allAsList`,
-`addCallback`, and every other Guava combinator keep working on it unchanged, and code that never
-checks the interface behaves exactly as before. Check with `instanceof`; the implementation class is
-private and must never be named.
-
-```java
-Account account = future.get();
-if (future instanceof TaskFuture) {
-    TaskFuture<?> task = (TaskFuture<?>) future;
-    if (task.outcome() == TaskOutcome.TIMEOUT) {
-        log.warn("{} timed out with {} of its budget left", task.taskName(), task.remaining());
-    }
-}
-```
-
-`outcome()` is why the interface exists: it removes the "the future is cancelled, so guess why"
-step. A cancelled task is attributed from its cancellation token — `TIMEOUT` for a deadline,
-`FAIL_FAST` for the cascade after a sibling failed, `GROUP_CANCELED` for its group's or an enclosing
-scope's cancellation, and `MEMBER_CANCELED` when no framework path cancelled it (the caller
-cancelled that future directly). A failure that only reports observed cancellation — a
-`Checkpoints.checkpoint` interruption that won the race against the cascade — is attributed the same
-way instead of reading as a user failure. A failed task separates `SUBMISSION_FAILURE` (rejected, or
-failed before user code ran) from `USER_FAILURE`, and `failure()` hands back the cause without
-unwrapping an `ExecutionException`.
-
-Attribution is per future, read from that task's own token chain, so it is available while the
-enclosing group is still converging. The group's terminal classification — `TaskGroupResult.outcome()`
-and each member's `TaskCompletion` — is derived after convergence and remains the authority on
-group-level reasons: the snapshot keeps a member cancelled directly distinct from one cancelled as
-fallout, while a future can only report that its token chain ends in the group's cancellation.
-
-One handle stays a plain future on purpose: `TaskBatchResult.submitCanceller()` stops submission, it
-does not represent a task execution, so it is not a `TaskFuture`.
-
-Need fluent chaining? `FluentFuture.from(task)` gives the full `FluentFuture` API. The futures on
-such a chain are ordinary `FluentFuture`s: they are not executions the library ran, and no token
-owns them.
+`failure()` carries the detail, not the verdict. A successful task always reports null. Every other
+outcome carries a throwable: the body-thrown exception for `USER_FAILURE` — including an
+`InterruptedException` or `CancellationException` the body raised itself — and, for
+cancellation-attributed endings such as `TIMEOUT` and `FAIL_FAST`, normally a
+`LeanCancellationException` naming the outcome. Read `successful()` or `outcome()` to classify the
+task.
 
 ## Cancellation and nested batches
 
-Any task failure triggers fail-fast cancellation for its batch. A timeout, explicit `CancellationToken` cancellation, or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.
-
-```java
-httpPar.map(accountIds, id -> {
-    for (int page = 0; page < pageCount(id); page++) {
-        Checkpoints.checkpoint();
-        fetchPage(id, page);
-    }
-    return id;
-}, options);
-```
-
-Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
-
-```java
-databasePar.map(ids, id -> {
-    TaskBatchResult<Response> children = httpPar.map(
-            endpoints(id), client::call, httpOptions);
-    return collect(children);
-}, databaseOptions);
-```
-
-Use an [observation scope](#observe-nested-work) when the request needs graph diagnostics across multiple `Par` entries.
+Nested map/runAll calls automatically inherit cancellation and the minimum deadline through the
+execution context. TTL values are captured when preparing tasks and replayed/restored on workers.
+Ordinary ThreadLocal values do not propagate. Use checkpoints and finite IO timeouts in task bodies.
+No public running handle supports member cancellation or asynchronous submission; move concurrent
+business work into the same group. Application-owned asynchronous wrappers have their own lifetime
+and cancellation, which do not prove the inner synchronous call exited.
 
 ## Observe nested work
 
-Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
+Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, runs the potential-deadlock detection pass over the graph frozen at `close()` and publishes the result through `reportFuture()`. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
 
 ```java
+ParRuntime global = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // Calls made below this scope, including nested calls on other Pars in global,
     // are recorded in the same graph.
+    reportFuture = observation.reportFuture();
     service.handleRequest();
+}
+TaskGraphReport report = Futures.getDone(reportFuture);
+if (report.status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("Potential deadlock: {}", report);
 }
 ```
 
-Configure the policy while building the topology:
+The report future stays pending until the scope closes; every normally returning `close()` guarantees it is done, so it can be read synchronously with `Futures.getDone` or observed with `Futures.addCallback` — registering a callback after close never misses the result. `status()` distinguishes a disabled policy (`DISABLED`), a clean detection (`NO_ISSUE`), and a detected cycle or self-loop (`ISSUE`); a detection failure ends the future in failure instead of producing a report. The future is read-only: `cancel(...)` returns `false` and affects neither detection nor business tasks. An observation scope does not merge graphs from separate `ParRuntime` instances.
 
-```java
-ParRuntimeDeadlockPolicy deadlock = ParRuntimeDeadlockPolicy.builder()
-        .enabled(true)
-        .listener(event -> log.warn("Potential deadlock: {}", event))
-        .build();
-```
-
-An observation scope does not merge graphs from separate `ParRuntime` instances.
-
-Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the detection event published at `close()` reports its flags and rendered edges from one consistent snapshot of the request graph.
+Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
 
 ## Purge cancelled queue entries
 
@@ -353,6 +360,149 @@ Job job = queue.take(); // real element before drained; poison after drained
 ```
 
 Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md).
+
+## Integration recipes {#integration-recipes}
+
+### MDC (SLF4J)
+
+Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
+it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it neither
+crosses the pool boundary nor gets captured automatically. Hold the diagnostic fields in a TTL and
+bridge them into MDC inside the body:
+
+```java
+private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
+        new TransmittableThreadLocal<>();
+
+// Submitting thread: declare this call's diagnostic fields.
+DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
+try {
+    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+} finally {
+    DIAGNOSTIC.remove();
+}
+
+Account fetchAccount(String id) {
+    Map<String, String> fields = DIAGNOSTIC.get();
+    if (fields != null) fields.forEach(MDC::put);   // body entry: TTL -> MDC
+    try {
+        return load(id);
+    } finally {
+        MDC.clear();
+    }
+}
+```
+
+This covers library-managed work only. The library performs the TTL capture and restore around each
+task, so these bodies need no TTL agent; code on the same pool that submits directly, outside this
+library, still has to wrap TTL itself.
+
+### OpenTelemetry
+
+The same shape carries a span context: put the OTel `Context` in a TransmittableThreadLocal and make
+it current at body entry.
+
+```java
+private static final TransmittableThreadLocal<Context> REQUEST_CONTEXT =
+        new TransmittableThreadLocal<>();
+
+TaskBatchResult<String> batch = databasePar.map(ids, id -> {
+    Context parent = REQUEST_CONTEXT.get();
+    SpanBuilder builder = tracer.spanBuilder("load");
+    if (parent != null) {
+        builder.setParent(parent);
+    }
+    Span span = builder.startSpan();
+    try (Scope ignored = span.makeCurrent()) {
+        return load(id);
+    } finally {
+        span.end();               // end this body's span, restoring the previous current context
+    }
+});
+```
+
+The names follow the standard OTel API for illustration; no real dependency is implied. The rules
+are that the `Scope` from `makeCurrent()` closes inside the body and the span always ends. The
+library only moves the TTL value to the worker; it knows nothing about spans.
+
+### Client timeouts
+
+A deadline here is cooperative: it interrupts the worker but cannot abort a thread blocked in a
+socket read. Every HTTP or database call inside a body therefore needs its own connect/read timeout:
+
+```java
+String fetch(String url) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+    connection.setConnectTimeout(1_000);      // client-side connect budget
+    connection.setReadTimeout(2_000);         // client-side read budget
+    try (InputStream in = connection.getInputStream()) {
+        return new String(ByteStreams.toByteArray(in), StandardCharsets.UTF_8);
+    } finally {
+        connection.disconnect();
+    }
+}
+
+TaskBatchResult<String> bodies = httpPar.map(urls, this::fetch,
+        BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
+```
+
+The batch timeout bounds the whole batch; the client-side connect/read timeouts are the hard bound
+on one call.
+
+### Metrics callbacks
+
+Aggregate on the caller from the frozen snapshots: `completions()` for a batch (input-ordered, a
+null entry means publication was not confirmed) and `members()` for a group (keyed by member name).
+
+```java
+TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
+        BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
+for (TaskCompletion<Account> completion : batch.completions()) {
+    if (completion == null) continue;         // not confirmed published before return
+    metrics.record(
+            completion.taskName(),
+            completion.successful() ? "ok" : "failed",
+            completion.outcome(),
+            completion.waitTime(),
+            completion.executionTime());
+}
+```
+
+For a group, report each `(name, completion)` from `members()`; `terminal()` is the combine's
+snapshot. Timings and outcome come from one freeze, so they never change after the call returns.
+
+### Guava and CompletableFuture interop
+
+`ImmediateResult.asFuture()` is a read-only `ListenableFuture`: already done, `cancel(...)` always
+false, and a cancellation appears as a failure whose cause is a CancellationException. Compose it
+with `Futures.addCallback` / `Futures.transform`:
+
+```java
+ListenableFuture<Account> account = batch.results().get(0).asFuture();
+Futures.addCallback(account, new FutureCallback<Account>() {
+    @Override public void onSuccess(Account value) { cache.put(value); }
+    @Override public void onFailure(Throwable failure) { log.warn("load failed", failure); }
+}, executor);
+
+ListenableFuture<String> label = Futures.transform(account, Account::displayName, executor);
+```
+
+To expose a `CompletableFuture` at an application boundary, bridge with a listener:
+
+```java
+CompletableFuture<Account> future = new CompletableFuture<>();
+account.addListener(() -> {
+    try {
+        future.complete(Futures.getDone(account));
+    } catch (ExecutionException failure) {
+        future.completeExceptionally(failure.getCause());
+    }
+}, executor);
+```
+
+Because `map` and `runAll` are synchronous, interop happens on the result side: there is no
+submission-side future to compose, only the already-frozen `ImmediateResult`.
 
 ## Operational rules
 

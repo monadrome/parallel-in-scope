@@ -1,19 +1,21 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Sliding-window concurrency limiter for task execution.
@@ -22,22 +24,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <ol>
  *   <li>Submits an initial batch equal to {@code parallelism}
- *   <li>Uses a blocking queue populated by {@link ListenableCompletionService} to detect completion
- *       events
+ *   <li>Uses a blocking queue populated by completion listeners on the submitted futures to detect
+ *       completion events
  *   <li>Fills freed slots incrementally with remaining tasks
  * </ol>
+ *
+ * <p>Each submitted future is also the exact runnable handed to the worker pool, so cancelling it
+ * is directly visible to queue maintenance such as {@code ThreadPoolExecutor.purge()}.
  *
  * @param <V> the result type of tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class SlidingWindowSubmitter<V> {
 
-    private final ListenableCompletionService<V> cs;
+    private static final Logger LOGGER = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+
+    private final ListeningExecutorService pool;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
     private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
     private final BodyCompletionTracker bodyCompletion;
-    private final java.time.@Nullable Duration closeGrace;
+    private final @Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
@@ -48,35 +55,58 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
      * body-completion signal and close grace. The tracker must have registered one slot per
-     * prepared task before {@link #submitAll(List)} runs.
+     * prepared task before {@link #submitAll(List, List)} runs.
      */
     public SlidingWindowSubmitter(
             ListeningExecutorService pool,
             MultiTaskContext unit,
             ListeningExecutorService submitterPool,
             BodyCompletionTracker bodyCompletion,
-            java.time.@Nullable Duration closeGrace) {
+            @Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.closeGrace = closeGrace;
-        this.cs = new ListenableCompletionService<>(pool, blockingQueue);
+        this.pool = Objects.requireNonNull(pool, "pool cannot be null");
+    }
+
+    /**
+     * Builds the caller-visible view of every element, before anything is submitted.
+     *
+     * <p>Each view wraps the prepared future directly, so it is the element's final handle from
+     * creation on — no placeholder stands in for an element still waiting for a free slot, and no
+     * later bind step swaps a delegate. That is what lets the caller bind its {@link
+     * CancellationToken} before submission: the token holds the same objects the caller does, and
+     * cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the
+     * thread actually running the body — including a caller thread running it inline.
+     *
+     * @param tasks prepared task futures, in element order
+     * @return the element views, positionally aligned with {@code tasks}
+     */
+    ImmutableList<Task<V>> viewsFor(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+        ImmutableList.Builder<Task<V>> views = ImmutableList.builderWithExpectedSize(tasks.size());
+        for (ExecutionPhaseHintFuture<V> task : tasks) {
+            views.add(Task.of(unit.name(), unit.cancellationToken(), task));
+        }
+        return views.build();
     }
 
     /**
      * Submits all tasks and returns the batch result immediately.
      *
-     * <p>Each returned future is a {@link Task} view of the exact {@link ExecutionPhaseHintFuture}
-     * passed in — or of a placeholder standing in for one that has not reached a free slot yet: the
-     * caller prepares tasks via {@link TaskSubmissions}, and this executor only coordinates when
-     * each prepared future enters the worker pool.
+     * <p>Each returned future is the {@link Task} view of the exact {@link ExecutionPhaseHintFuture}
+     * passed in: the caller prepares tasks via {@link TaskSubmissions} and builds their views with
+     * {@link #viewsFor}, and this executor only coordinates when each prepared future enters the
+     * worker pool.
      *
      * @param tasks prepared task futures to execute
-     * @return TaskBatchResult containing individual task futures
+     * @param results the element views from {@link #viewsFor}, positionally aligned with {@code
+     *     tasks}; taken as a parameter so the caller can bind them before submission starts
+     * @return TaskBatch containing individual task futures
      */
-    public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+    public TaskBatch<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(
+            return TaskBatch.of(
                     bodyCompletion,
                     Futures.immediateVoidFuture(),
                     ImmutableList.of(),
@@ -84,53 +114,31 @@ final class SlidingWindowSubmitter<V> {
                     closeGrace);
         }
 
-        ImmutableList.Builder<Task<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
-
         int start = Math.min(tasks.size(), parallelism());
 
-        // Submit initial batch
         for (int i = 0; i < start; i++) {
             try {
-                resultBuilder.add(fallbackSubmit(tasks, i));
-            } catch (RuntimeException failure) {
-                // The rejection is the batch's shared verdict for every element; wrapping it keeps
-                // each element attributed as a submission failure rather than a user one.
-                Throwable rejected = new SubmissionException(failure);
-                resultBuilder.add(rejectedTask(rejected));
-                for (int pending = i + 1; pending < tasks.size(); pending++) {
-                    resultBuilder.add(rejectedTask(rejected));
-                }
-                // Prepared futures from the rejected element on never reach the executor and are
-                // never cancelled (the token binds the Task views, not these futures), so their
-                // body slots are released here as skipped.
-                for (int pending = i; pending < tasks.size(); pending++) {
-                    tasks.get(pending).skipBody();
-                }
-                return TaskBatchResult.of(
-                        bodyCompletion,
-                        Futures.immediateVoidFuture(),
-                        resultBuilder.build(),
-                        unit.cancellationToken(),
-                        closeGrace);
+                fallbackSubmit(tasks, i);
+            } catch (Throwable failure) {
+                // Catching Throwable, not only RuntimeException | Error: execute(Runnable) declares
+                // no checked exceptions, but a hostile executor can still throw one through
+                // generics erasure, and any handoff failure must terminate the batch the same way.
+                // A handoff failure — rejection or the executor throwing mid-handoff — is the
+                // batch's shared verdict for every element; wrapping it keeps each element
+                // attributed as a submission failure rather than a user one.
+                logHandoffError(failure, i, "the initial window");
+                failRemainingAsSubmissionFailures(tasks, i, failure);
+                return TaskBatch.of(
+                        bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            return TaskBatchResult.of(
-                    bodyCompletion,
-                    Futures.immediateVoidFuture(),
-                    resultBuilder.build(),
-                    unit.cancellationToken(),
-                    closeGrace);
+            return TaskBatch.of(
+                    bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
         }
 
-        // Async submit remaining tasks
-        List<Task<V>> others = IntStream.range(0, remaining)
-                .mapToObj(ignore -> Task.<V>placeholder(unit.name(), unit.cancellationToken()))
-                .collect(toImmutableList());
-
-        ImmutableList<Task<V>> results = resultBuilder.addAll(others).build();
         AtomicInteger nextIndex = new AtomicInteger(start);
         ListenableFuture<?> submittingFuture = submitterPool.submit(() -> submitRemaining(tasks, results, nextIndex));
         // A cancellation may win before the submitter thread starts. In that case the callable
@@ -148,23 +156,80 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
+        return TaskBatch.of(bodyCompletion, submittingFuture, results, unit.cancellationToken(), closeGrace);
     }
 
-    private Task<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
+    /**
+     * Fails every element from {@code fromIndex} on as a submission failure, in two passes.
+     *
+     * <p>A handoff failure is the batch's shared verdict: the element that hit it never reached the
+     * executor, and neither will any element after it. Every one of them must report {@code
+     * SUBMISSION_FAILURE} with the original throwable as cause, which is the contract in
+     * {@code design/archive/batch-submission-failure-semantics.md}.
+     *
+     * <p>Two passes, because the token is already bound by the time this runs. Settling any element
+     * exceptionally fires the token's fail-fast cascade synchronously, on this thread, and that
+     * cascade cancels every sibling still pending — which would overwrite their verdict with a
+     * cancellation and lose the reason the batch failed. No settle order avoids this: whichever
+     * element settles first triggers the cascade against the rest. So pass one claims each element
+     * and records its attribution without settling anything (invisible to the token, which watches
+     * the futures rather than the observations), and pass two settles them. An element cancelled by
+     * the cascade in between still reports its recorded submission failure.
+     *
+     * <p>The cascade does still cancel the elements before {@code fromIndex} — the ones already
+     * handed to the executor. That is the intended fail-fast behavior and unchanged from before.
+     */
+    private void failRemainingAsSubmissionFailures(
+            List<? extends ExecutionPhaseHintFuture<V>> tasks, int fromIndex, Throwable failure) {
+        int size = tasks.size();
+        boolean[] claimed = new boolean[size - fromIndex];
+        for (int pending = fromIndex; pending < size; pending++) {
+            claimed[pending - fromIndex] = tasks.get(pending).claimSubmissionFailure(failure);
+        }
+        for (int pending = fromIndex; pending < size; pending++) {
+            if (claimed[pending - fromIndex]) {
+                tasks.get(pending).settleSubmissionFailure();
+            }
+        }
+    }
+
+    private void fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            ListenableFuture<V> submitted = unit.runOnCallerThread() ? cs.submitOrRunInline(task) : cs.submit(task);
-            return Task.of(unit.name(), unit.cancellationToken(), submitted);
+            submit(task);
         } finally {
             SubmissionScope.restore(previous);
         }
     }
 
-    /** Wraps one element of a batch whose task will never reach the executor. */
-    private Task<V> rejectedTask(Throwable rejection) {
-        return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection));
+    /**
+     * Submits a prepared future to the worker pool and returns it. The listener is registered
+     * before the handoff, so a task rejected or cancelled before it runs still reaches the
+     * completion queue that drives the sliding window.
+     */
+    private ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> task) {
+        task.addListener(() -> blockingQueue.add(task), directExecutor());
+        pool.execute(task);
+        return task;
+    }
+
+    /**
+     * Reports an executor handoff {@code Error} once, at the catch site that records it. Rejections
+     * are ordinary control flow and stay quiet; an {@code Error} escaping {@code execute()} signals
+     * a broken executor or a failing VM and is always worth an operator's attention. The batch path
+     * never reaches {@code ExecutionPhaseHintFuture.submitPrepared}, so this is the only place the
+     * failure is logged — no site logs it twice.
+     */
+    private void logHandoffError(Throwable failure, int index, String phase) {
+        if (failure instanceof Error) {
+            LOGGER.log(
+                    Level.SEVERE,
+                    failure,
+                    () -> "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
+                            + " during " + phase
+                            + "; the affected elements are failed as submission failures");
+        }
     }
 
     private int parallelism() {
@@ -204,10 +269,16 @@ final class SlidingWindowSubmitter<V> {
                 return submitted;
             }
             try {
-                result.get(index).bind(fallbackSubmit(tasks, index));
-            } catch (RuntimeException e) {
-                abandonRemaining(tasks, result, index, e);
-                throw e;
+                // PROTOTYPE: no bind step — the view already wraps this prepared future.
+                fallbackSubmit(tasks, index);
+            } catch (Throwable failure) {
+                // Same Throwable audit as the initial window: a sneaky checked throwable must not
+                // escape this loop either. The submission future retains the failure for
+                // diagnostics; unchecked types keep their identity, a checked one is wrapped.
+                logHandoffError(failure, index, "the sliding-window refill");
+                abandonRemaining(tasks, result, index, failure);
+                Throwables.throwIfUnchecked(failure);
+                throw new RuntimeException(failure);
             }
             submitted++;
             index++;
@@ -219,26 +290,45 @@ final class SlidingWindowSubmitter<V> {
      * Completes every future that will never receive a submission so the batch always reaches a
      * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
      * submitter or rejected submission records its cause. Without this cleanup, {@link
-     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
+     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatch#report()}.
      *
      * <p>The prepared futures behind the abandoned placeholders are never submitted and never
      * cancelled, so their body slots are released here as skipped — exactly once, guarded by the
-     * same atomic state the cancel-before-run path uses.
+     * same atomic state the cancel-before-run path uses. The skip runs before the placeholder is
+     * settled so that a caller observing the abandonment (a thrown {@code valuesOrThrow}, a
+     * report) already finds the prepared body released and its slot published.
      *
      * @param tasks the prepared task futures, positionally aligned with {@code result}
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
-     *     when the batch is already being canceled
+     *     when the batch is already being cancelled
      */
     private static <V> void abandonRemaining(
             List<? extends ExecutionPhaseHintFuture<V>> tasks,
             List<Task<V>> result,
             int fromIndex,
             @Nullable Throwable reason) {
-        for (int i = fromIndex; i < result.size(); i++) {
-            result.get(i).abandon(reason);
-            tasks.get(i).skipBody();
+        // Settle the prepared future directly: its own phase CAS makes this idempotent and keeps
+        // the body unentered, and the view over it reports the outcome to the caller.
+        if (reason == null) {
+            for (int i = fromIndex; i < result.size(); i++) {
+                tasks.get(i).skipBody();
+                tasks.get(i).cancel(true);
+            }
+            return;
+        }
+        // A reason means a handoff failure in the refill loop, which carries the same shared-verdict
+        // semantics as the initial window, so it takes the same two-pass treatment.
+        int size = result.size();
+        boolean[] claimed = new boolean[size - fromIndex];
+        for (int i = fromIndex; i < size; i++) {
+            claimed[i - fromIndex] = tasks.get(i).claimSubmissionFailure(reason);
+        }
+        for (int i = fromIndex; i < size; i++) {
+            if (claimed[i - fromIndex]) {
+                tasks.get(i).settleSubmissionFailure();
+            }
         }
     }
 }

@@ -15,14 +15,15 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
  *
  * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
- * operation. A canceled token produces a {@link LeanCancellationException}, except that {@link
+ * operation. A cancelled token produces a {@link LeanCancellationException}, except that {@link
  * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
- * trace when requested. A token whose deadline has expired is treated as canceled even if the
+ * trace when requested. A token whose deadline has expired is treated as cancelled even if the
  * timer thread has not committed the timeout yet, so deadline enforcement never depends on
  * scheduling punctuality. {@link #checkpoint()} is the primary no-argument form for user code.
  *
@@ -43,18 +44,18 @@ public final class Checkpoints {
      * Checks the current scope's cancellation token unconditionally.
      *
      * <p>This is the primary cooperative-cancellation checkpoint for user code inside a scoped
-     * task: it throws whenever the enclosing scope has been canceled or its deadline has expired.
+     * task: it throws whenever the enclosing scope has been cancelled or its deadline has expired.
      * Outside any scoped task it is a no-op; use {@link #rawCheckpoint()} when the thread's
      * interrupt status should be honored without a scope.
      *
-     * @throws LeanCancellationException if the current scope is canceled
+     * @throws LeanCancellationException if the current scope is cancelled
      */
     public static void checkpoint() {
         checkCancellationToken(true);
     }
 
     /**
-     * Checks whether the named task has been canceled in the current scope.
+     * Checks whether the named task has been cancelled in the current scope.
      *
      * <p>The name must match the current scoped task exactly: a mismatch means the caller is not
      * running in the task it believes it is — a typo, a stale name after a rename, or a call one
@@ -66,8 +67,8 @@ public final class Checkpoints {
      * @param lean whether to omit the cancellation stack trace
      * @throws IllegalStateException if there is no current scoped task, or its name differs from
      *     {@code taskName}
-     * @throws LeanCancellationException if the matching task is canceled and {@code lean} is true
-     * @throws CancellationException if the matching task is canceled and {@code lean} is false
+     * @throws LeanCancellationException if the matching task is cancelled and {@code lean} is true
+     * @throws CancellationException if the matching task is cancelled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
         MultiTaskContext unit = currentContext();
@@ -86,12 +87,12 @@ public final class Checkpoints {
      * Checks the current cancellation token and the current thread's interrupt status. A token is not
      * required when this method is used as a raw interrupt checkpoint.
      *
-     * @throws LeanCancellationException if the current scope is canceled or the thread is interrupted
+     * @throws LeanCancellationException if the current scope is cancelled or the thread is interrupted
      */
     public static void rawCheckpoint() {
         checkCancellationToken(true);
         if (Thread.interrupted()) {
-            throw cancellation("Cancel during running by interruption");
+            throw cancellation("cancel during running by interruption");
         }
     }
 
@@ -128,7 +129,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwait(CountDownLatch latch, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwait(latch, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkAwait(latch, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -157,7 +158,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwait(Condition condition, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwait(condition, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkAwait(condition, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -199,7 +200,7 @@ public final class Checkpoints {
      */
     public static void checkJoin(Thread thread, Duration timeout) {
         checkCancellationToken(true);
-        checkJoin(thread, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        checkJoin(thread, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -247,7 +248,7 @@ public final class Checkpoints {
      */
     public static <V> V checkGet(Future<V> future, Duration timeout) throws ExecutionException, TimeoutException {
         checkCancellationToken(true);
-        return checkGet(future, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkGet(future, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -310,7 +311,7 @@ public final class Checkpoints {
      */
     public static void checkSleep(Duration duration) {
         checkCancellationToken(true);
-        checkSleep(saturatedNanos(duration), TimeUnit.NANOSECONDS);
+        checkSleep(Deadlines.saturatedNanos(duration), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -337,7 +338,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryAcquire(Semaphore semaphore, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryAcquire(semaphore, 1, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkTryAcquire(semaphore, 1, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -363,7 +364,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryAcquire(Semaphore semaphore, int permits, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryAcquire(semaphore, permits, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkTryAcquire(semaphore, permits, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -393,7 +394,7 @@ public final class Checkpoints {
      */
     public static boolean checkTryLock(Lock lock, Duration timeout) {
         checkCancellationToken(true);
-        return checkTryLock(lock, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkTryLock(lock, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -432,7 +433,7 @@ public final class Checkpoints {
      */
     public static boolean checkAwaitTermination(ExecutorService executor, Duration timeout) {
         checkCancellationToken(true);
-        return checkAwaitTermination(executor, saturatedNanos(timeout), TimeUnit.NANOSECONDS);
+        return checkAwaitTermination(executor, Deadlines.saturatedNanos(timeout), TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -459,7 +460,7 @@ public final class Checkpoints {
      * @param <X> the exception type that triggers cancellation
      * @param action the action to execute
      * @param declaredType the exception class that triggers cancellation
-     * @throws LeanCancellationException if the current scope is canceled before the action runs
+     * @throws LeanCancellationException if the current scope is cancelled before the action runs
      * @throws CancellationException if the action throws an instance of {@code declaredType}
      * @throws RuntimeException if the action throws a non-matching runtime exception
      * @throws Error if the action throws a non-matching error
@@ -487,7 +488,7 @@ public final class Checkpoints {
      * @param supplier the value supplier to execute
      * @param declaredType the exception class that triggers cancellation
      * @return the value produced by {@code supplier}
-     * @throws LeanCancellationException if the current scope is canceled before the supplier runs
+     * @throws LeanCancellationException if the current scope is cancelled before the supplier runs
      * @throws CancellationException if the supplier throws an instance of {@code declaredType}
      * @throws RuntimeException if the supplier throws a non-matching runtime exception
      * @throws Error if the supplier throws a non-matching error
@@ -512,7 +513,7 @@ public final class Checkpoints {
      *
      * @param ex the exception to check
      * @throws CancellationException if {@code ex} is a cancellation exception or the current scope
-     *     is canceled
+     *     is cancelled
      */
     public static void propagateCancellation(Throwable ex) {
         if (ex instanceof CancellationException) throw (CancellationException) ex;
@@ -527,8 +528,8 @@ public final class Checkpoints {
         }
         if (cancelToken.state().shouldInterruptCurrentThread()) {
             throw lean
-                    ? new LeanCancellationException("Cancel during running")
-                    : new CancellationException("Cancel during running");
+                    ? new LeanCancellationException("cancel during running")
+                    : new CancellationException("cancel during running");
         }
         // Wall-clock backstop: an expired deadline is cancellation even when the timer thread has
         // not committed TIMEOUT yet (GC pause, busy scheduler). Committing the timeout here keeps
@@ -536,8 +537,8 @@ public final class Checkpoints {
         if (cancelToken.deadlineNanos() <= System.nanoTime()) {
             cancelToken.timeoutCancel();
             throw lean
-                    ? new LeanCancellationException("Cancel during running: deadline expired")
-                    : new CancellationException("Cancel during running: deadline expired");
+                    ? new LeanCancellationException("cancel during running: deadline expired")
+                    : new CancellationException("cancel during running: deadline expired");
         }
     }
 
@@ -548,17 +549,9 @@ public final class Checkpoints {
         return cancellation;
     }
 
-    private static MultiTaskContext currentContext() {
+    private static @Nullable MultiTaskContext currentContext() {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         return currentTask == null ? null : currentTask.multiTaskContext();
-    }
-
-    private static long saturatedNanos(Duration timeout) {
-        try {
-            return timeout.toNanos();
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
     }
 
     private static LeanCancellationException cancellation(String message) {
@@ -579,6 +572,6 @@ public final class Checkpoints {
     /** Preserves unchecked failures while making an impossible checked failure explicit. */
     private static <T> T rethrowUnchecked(Throwable throwable) {
         Throwables.throwIfUnchecked(throwable);
-        throw new AssertionError("Runnable/Supplier threw a checked Throwable", throwable);
+        throw new AssertionError("runnable/supplier threw a checked throwable", throwable);
     }
 }

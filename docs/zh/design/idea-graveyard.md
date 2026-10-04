@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> 本文部分示例保留 v0.2 前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskGroupOptions`/`TaskOptions`，请以 [v0.2 迁移指南](../migration-v0.2.md) 为准。
+> 本文部分示例保留 0.2 之前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskOptions`，请以 [v0.3 迁移指南](../migration-v0.3.md) 为准。
 
 
 > 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
@@ -68,7 +68,7 @@ ListenableFuture<Report> report = Futures.transform(allPrices, this::buildReport
 
 ## 重试（Retry）
 
-**请求：** 内置重试机制，如 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**请求：** 内置重试机制（示意：`retry(3).backoff(100, MILLISECONDS)`）。
 
 **为什么不做：**
 
@@ -150,7 +150,7 @@ public class ParallelInScopeConfig {
 
 **为什么不做：**
 
-parallel-in-scope 只提供批次级超时（`ParOptions.timeout()`），不提供单任务超时。原因是两者在 fail-fast 语义下几乎等价，但实现复杂度差异巨大：
+parallel-in-scope 只提供批次级超时（`BatchOptions.timeout(name, Duration)`），不提供单任务超时。原因是两者在 fail-fast 语义下几乎等价，但实现复杂度差异巨大：
 
 - **批次超时：** 一个 `FluentFuture.withTimeout()` 搞定，语义清晰——"整批任务最多跑 N 秒"。
 - **单任务超时：** 每个任务需要独立的 `ScheduledFuture` 来触发取消。在一个 1000 元素的批次中，这意味着 1000 个定时器。而且在 fail-fast 模式下，第一个任务超时就会取消整批——效果和批次超时一样。
@@ -187,8 +187,8 @@ par.map("io-pool", urls, url -> {
 
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
-1. **总量必须提前已知。** `ParOptions.formalized()` 会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
-2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交任务，`SettableFuture` 按索引占位。流式输入无法提供这种随机访问模式。
+1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
+2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交 prepared tasks，全部执行 future 在提交前就已准备并绑定。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 
 **替代方案：** 先收集再提交。如果数据源是流式的，在入口处物化为列表：
@@ -210,7 +210,7 @@ parallel-in-scope 的 API 签名是 `map(List<T>, Function<T, R>)` ——输入�
 
 1. **类型安全。** Java 泛型不支持异构列表的类型安全返回。`invokeAll(Callable<A>, Callable<B>, Callable<C>)` 的返回类型只能是 `List<Future<?>>` 或者需要大量的重载（2 参数、3 参数、4 参数……直到 N 参数），Guava 和 CF 的做法也只能到此为止。
 2. **并发控制无意义。** 异构任务通常只有 2-5 个，不需要滑动窗口、并发限制这些 parallel-in-scope 的核心能力。`Futures.allAsList()` 或 `CompletableFuture.allOf()` 已经足够。
-3. **监控粒度不匹配。** parallel-in-scope 的 `TaskListener` 和 `BatchReport` 假设一个批次内所有任务是同名同类型的。异构任务意味着每个任务需要独立的名称、独立的 SPI 回调——这是完全不同的监控模型。
+3. **监控粒度不匹配。** parallel-in-scope 的观测快照和 `BatchReport` 假设一个批次内所有任务是同名同类型的。异构任务意味着每个任务需要独立的名称、独立的观测——这是完全不同的监控模型。
 
 **替代方案：** 用 Guava 原生 API 编排异构任务：
 
@@ -242,8 +242,43 @@ ListenableFuture<UserProfile> profile = Futures.whenAllSucceed(userF, orderF, in
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
+BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parallelism(concurrency);
 ```
+
+---
+
+## 内置受检异常映射接口（ThrowingFunction）
+
+**请求：** 让 `Par.map` 的元素函数可以直接声明受检异常。现状是它收标准 `java.util.function.Function`，其 `apply` 不能声明 `throws`，因此元素体里做 HTTP、JDBC、文件这类 IO 时必须自己 try/catch 包成非受检异常；而同一份工作写在 group 成员或 combine 上就不必，因为那些入口本来就收 `Callable` / `CombineBody`。
+
+**为什么不做：**
+
+1. **换不来任何结构化并发保证。** 执行内核本来就以 `Callable` 形态运行每个任务体（`map` 内部只是把 `Function` 包一层 `Callable`），取消、deadline 与失败归因在两种签名下完全相同。改签名只是把"包装"这个动作从调用方挪到签名里，库的能力一点没变。
+2. **公共表面积与迁移成本不成比例。** 新增一个公开函数式接口 `ThrowingFunction<T, R>`，同时替换 `Par.map` 的参数类型：对持有 `Function` 变量的调用点是源码级破坏，二进制同样不兼容，还要配一篇迁移文档。为省一次 try/catch 付这些代价，不划算。
+3. **"新增重载"这条折中路本来就堵死。** `map(Collection, Function, ...)` 与 `map(Collection, ThrowingFunction, ...)` 对无显式类型的 lambda 调用点会产生二义性，两个函数式接口无法共存于同名重载——所以只能在"改签名"和"不改"之间二选一。
+4. **包装策略属于调用方。** 是改抛非受检异常、还是返回领域结果类型，取决于应用的错误模型以及调用链上的重试/告警策略；库替你决定，等于把策略焊死在公开 API 上。标准 JDK `Function` 也更小、更熟悉，调用方不必再学一个词根相同的库内类型。
+
+**替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 group 成员（收 `Callable`，可直接声明 `throws`）；单任务用单成员组，把纯映射留给 `map`。
+
+**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。完整分析与被否决的逐项方案见 `design/archive/par-map-throwing-function-v0.3-proposal.md`（已标注否决）与 `design/archive/axiom-drift-decisions-2026-09-14.md` §6；除非用户明确重启该决策，后续不再重开。
+
+---
+
+## 提交期 caller-thread 回退选项（`runOnCallerThread`）
+
+**曾经存在：** `TaskOptions`/`BatchOptions` 上的提交期选项，在绑定的 executor 拒绝任务时把任务体借到提交线程上 inline 执行。0.3.0 发布前被**主动删除**，从未进入任何已发布版本。
+
+**为什么删除：**
+
+1. **安全优先于表达力。** 它让用户代码跑在调用方未必预期的线程上：提交线程可能是调用方的请求线程、库的 submitter 线程或任何拒绝处理器所在线程，每一处都需要单独的隔离论证才能不出 bug。
+2. **贴近 JDK 习语。** 拒绝时如何处置是 `RejectedExecutionHandler` 的职责，在注册 executor 时声明一次即可。再加一个逐次提交的选项表达同一个决策，是职责重复——两份声明还可能互相矛盾。
+
+**承认的能力缺口：**
+
+1. **覆盖面变窄。** 该选项对任意 `ExecutorService` 都生效；`CallerRunsPolicy` 只对 `ThreadPoolExecutor` 生效。使用其他池实现的用户失去这条回退，需要自己包一层"拒绝即 `run()`"的装饰器（写法见迁移指南）。
+2. **背压语义补不回来。** 库内建的回退会把提交线程占在提交机制内部，池饱和时后续元素的提交自然变慢；执行器侧的处理器能复现执行本身，复现不了批次提交内部的这种节流时序。
+
+**替代方案：** `MoreExecutors.newDirectExecutorService()`（每个任务都 inline，契约即如此）或 `ThreadPoolExecutor` + `CallerRunsPolicy`（饱和时 inline）。被借用线程的中断标志与 `SubmissionScope` 隔离由内核的 `run()` 承担，与走哪条路径无关。
 
 ---
 

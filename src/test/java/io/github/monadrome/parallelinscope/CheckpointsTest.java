@@ -59,18 +59,18 @@ class CheckpointsTest {
         MultiTaskContext context = context("task");
         runInTask(context, Checkpoints::checkpoint);
 
-        MultiTaskContext canceled = context("task");
-        assertThatThrownBy(() -> runInTask(canceled, () -> {
-                    canceled.cancellationToken().cancel(false);
+        MultiTaskContext cancelled = context("task");
+        assertThatThrownBy(() -> runInTask(cancelled, () -> {
+                    cancelled.cancellationToken().cancel(false);
                     Checkpoints.checkpoint();
                 }))
                 .isInstanceOf(LeanCancellationException.class);
     }
 
     @Test
-    void checkpointTreatsAnExpiredDeadlineAsCanceledWithoutWaitingForTheTimer() throws Exception {
-        MultiTaskContext expired = MultiTaskContext.resolve(
-                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1, null);
+    void checkpointTreatsAnExpiredDeadlineAsCancelledWithoutWaitingForTheTimer() throws Exception {
+        MultiTaskContext expired = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1));
         Thread.sleep(5L);
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThatThrownBy(() -> runInTask(expired, Checkpoints::checkpoint))
@@ -78,14 +78,13 @@ class CheckpointsTest {
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     private static Void runInTask(MultiTaskContext context, Runnable action) throws Exception {
-        return new ScopedCallable<Void>(
-                        new TaskExecutionContext(context, 0, System.nanoTime()),
-                        () -> {
-                            action.run();
-                            return null;
-                        },
-                        null)
+        return new ScopedCallable<Void>(new TaskExecutionContext(context, 0, System.nanoTime()), () -> {
+                    action.run();
+                    return null;
+                })
                 .call();
     }
 
@@ -166,7 +165,7 @@ class CheckpointsTest {
         Condition condition = lock.newCondition();
         lock.lock();
         try {
-            Thread signaler = new Thread(() -> {
+            Thread signaller = new Thread(() -> {
                 try {
                     Thread.sleep(50L);
                 } catch (InterruptedException ignored) {
@@ -179,9 +178,9 @@ class CheckpointsTest {
                     lock.unlock();
                 }
             });
-            signaler.start();
+            signaller.start();
             assertThat(Checkpoints.checkAwait(condition, astronomic)).isTrue();
-            signaler.join(2000L);
+            signaller.join(2000L);
         } finally {
             lock.unlock();
         }
@@ -394,7 +393,7 @@ class CheckpointsTest {
     }
 
     private static MultiTaskContext context(String taskName) {
-        return MultiTaskContext.resolve(
-                BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1, null);
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1));
     }
 }

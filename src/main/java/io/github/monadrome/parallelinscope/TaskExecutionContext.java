@@ -1,12 +1,12 @@
 package io.github.monadrome.parallelinscope;
 
 import java.util.Objects;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
 final class TaskExecutionContext {
 
-    private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
@@ -22,13 +22,13 @@ final class TaskExecutionContext {
 
     /**
      * Creates a context carrying the task-body slot registered with the submission's shared
-     * completion tracker; {@code null} for tasks outside any tracked submission (a single {@code
-     * Par.submit}).
+     * completion tracker; {@code null} only for a task prepared outside any tracked submission,
+     * which production entry points no longer do.
      */
     public TaskExecutionContext(
             MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
-        if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+        Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
         this.bodyState = bodyState;

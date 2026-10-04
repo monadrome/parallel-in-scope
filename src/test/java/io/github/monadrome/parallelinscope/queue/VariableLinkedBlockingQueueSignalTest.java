@@ -9,8 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,7 +22,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Signal-path additions over {@link VariableLinkedBlockingQueueTest}: blocked producers and
  * consumers must be released by the complementary operation (take/put/clear/setCapacity), and
- * array snapshots must follow {@link java.util.concurrent.LinkedBlockingQueue} semantics.
+ * array snapshots must follow {@link LinkedBlockingQueue} semantics.
  */
 class VariableLinkedBlockingQueueSignalTest {
 
@@ -41,7 +44,7 @@ class VariableLinkedBlockingQueueSignalTest {
         Thread.sleep(50);
         queue.put(31);
         assertTrue(finished.await(4, TimeUnit.SECONDS), "take was not released by put");
-        assertEquals(31, taken.get().intValue());
+        assertEquals(31, Objects.requireNonNull(taken.get()).intValue());
     }
 
     @Test
@@ -98,7 +101,7 @@ class VariableLinkedBlockingQueueSignalTest {
         assertTrue(stored.get());
         // Only inspect the queue once the producer has exited. Asserting emptiness directly after
         // clear() would race with the released producer re-enqueueing -- which is the very
-        // behaviour under test. After the join the state is stable, and the assertions below are
+        // behavior under test. After the join the state is stable, and the assertions below are
         // strictly stronger: clear() dropped the pre-existing element and the producer's value is
         // what remains.
         assertEquals(1, queue.size());
@@ -132,6 +135,8 @@ class VariableLinkedBlockingQueueSignalTest {
         assertEquals(2, queue.size());
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void capacityAndElementValidationStayGuarded() {
         assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<Object>(0));
@@ -185,7 +190,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     /** Tiny helper keeping iterator assertions off the main test body. */
     private static final class IteratorDrivenAssertions {
-        private static void assertExhausted(java.util.Iterator<?> iterator) {
+        private static void assertExhausted(Iterator<?> iterator) {
             assertFalse(iterator.hasNext());
         }
     }

@@ -46,13 +46,15 @@ List<Integer> numbers = Arrays.asList(1, 2, 3);
 TaskBatchResult<Integer> result = par.map(numbers, n -> n * n, options);
 
 // 4. 获取结果
-for (Future<Integer> future : result.results()) {
-    System.out.println(future.get()); // 1, 4, 9
+for (ImmediateResult<Integer> element : result.results()) {
+    System.out.println(element.valueOrThrow()); // 1, 4, 9
 }
 ```
 
-`par.map()` 会为列表中每个元素并行执行函数，返回 `TaskBatchResult`，其中包含与输入顺序一一对应的
-`TaskFuture` 列表（`TaskFuture` 是 `ListenableFuture` 的子类型，并可读取逐元素的 `outcome()`）。
+`par.map()` 内部并行执行，等待所有结果确定并尝试有界清理后返回 `TaskBatchResult`。
+`results()` 是与输入顺序一一对应的 `ImmediateResult` 列表，保存值或异常；
+`valueOrThrow()` 即时读取，失败时抛出以原异常为 cause 的 `ExecutionException`。
+调用线程中断不会取消批次，等待结束恢复中断标志。
 
 ## 3. 设置超时
 
@@ -94,7 +96,7 @@ TaskBatchResult<Integer> result = par.map(bigList, n -> n * 2, options);
 
 ## 5. 查看结果
 
-`TaskBatchResult` 提供两种结果查看方式：
+`TaskBatchResult` 提供三种结果查看方式：
 
 ```java
 TaskBatchResult<Integer> result = par.map(numbers, n -> n * n, options);
@@ -104,8 +106,8 @@ String report = result.reportString();
 // 输出示例："SUCCESS:3" 或 "SUCCESS:2,USER_FAILURE:1 | firstException=xxx"
 
 // 方式二：逐个获取结果值
-for (Future<Integer> future : result.results()) {
-    Integer value = future.get(); // 阻塞等待并获取返回值
+for (ImmediateResult<Integer> element : result.results()) {
+    Integer value = element.valueOrThrow(); // 即时读取已确定的值
     System.out.println(value);
 }
 
@@ -116,14 +118,17 @@ Throwable firstError = batchReport.firstException();          // null if all suc
 ```
 
 需要知道的一条契约：**批次默认快速失败**。任意元素失败会取消同批其余元素（包括尚未提交的元素），
-因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `TaskFuture.outcome()`，
-逐项的 “全部成功才返回” 可以用 `result.valuesOrThrow()`。批次用完记得 `close()`（`TaskBatchResult`
-实现了 `AutoCloseable`），`ParRuntime.close()` 则释放框架自建的 timer 与 submitter 服务。
+因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `ImmediateResult.outcome()`，
+逐项的 “全部成功才返回” 可以用 `result.valuesOrThrow()`。结果无需关闭。
+`bodyCompletionConfirmed()` 只确认本批直接任务体退出；清理预算耗尽时查看 `unfinishedBodies()`。
+嵌套调用的未退出任务需分别确认。任务内资源用 try-with-resources 关闭。
+应用关闭时调用 `ParRuntime.close()` / `awaitQuiescence(...)`，然后关闭自有线程池。
 
 ## 下一步
 
 - **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）区分 IO/CPU 任务，框架会自动选择最优调度策略
-- **TaskListener**：注册 SPI 监听器，获取每个任务的执行时间、排队时间等指标
+- **completions()**：消费可用终态快照；清理预算内尚未完成的项为 null（见 G1）
+- **asFuture()**：把 `ImmediateResult` 适配为已完成、不可取消的 `ListenableFuture`
 - **Checkpoints**：在长任务中插入无参的 `Checkpoints.checkpoint()`，实现细粒度的协作式取消
 - **嵌套并行**：`par.map()` 支持嵌套调用，`CancellationToken` 会自动从外层传播到内层
 
