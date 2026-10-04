@@ -251,13 +251,15 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         try {
             report = detect();
         } catch (RuntimeException detectionFailure) {
-            logger.log(
-                    Level.WARNING,
-                    "[[title=TaskGraph,function=finishObservation]]"
-                            + "Failed to run ParRuntime potential-deadlock detection",
-                    detectionFailure);
+            // Restore and publish before any diagnostic logging: a user-replaceable JUL handler
+            // must not be able to leave the scope closed with its report pending, or later
+            // closes would wait on a publication that no thread can make.
             restoreCurrentScope();
-            reportSink.setException(detectionFailure);
+            try {
+                reportSink.setException(detectionFailure);
+            } finally {
+                logDetectionFailureQuietly(detectionFailure);
+            }
             return;
         } catch (Throwable error) {
             // Best effort: publish the failure and restore the context before rethrowing.
@@ -295,6 +297,19 @@ public final class TaskGraphObservationScope implements AutoCloseable {
                 renderExecutorEdges(snapshot));
         logIssueQuietly(report);
         return report;
+    }
+
+    /** A logging failure must never skip or corrupt report publication. */
+    private static void logDetectionFailureQuietly(RuntimeException detectionFailure) {
+        try {
+            logger.log(
+                    Level.WARNING,
+                    "[[title=TaskGraph,function=finishObservation]]"
+                            + "Failed to run ParRuntime potential-deadlock detection",
+                    detectionFailure);
+        } catch (RuntimeException loggingFailure) {
+            // JUL handlers are user-replaceable; swallow their failures so the report still lands.
+        }
     }
 
     /** A logging failure must never skip or corrupt report publication. */
