@@ -84,6 +84,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     private volatile @Nullable Thread runner;
 
     /**
+     * AbstractFuture invokes interruptTask only for the single winning cancel(true). Publish before
+     * reading runner: a runner that clears itself must wait out any delivery that captured it before
+     * restoring the borrowed thread's flag and returning that thread to its owner.
+     */
+    private volatile boolean interruptDeliveryInProgress;
+
+    /**
      * Set by {@link #forbidInlineExecution()} before the future is submitted, and read in {@link
      * #run()} on the executing thread. Written once and never cleared, so the {@code execute()}
      * handoff already carries the edge to any worker; {@code volatile} anyway, because a field written
@@ -429,6 +436,11 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             // same atomic state, so the slot is released exactly once.
             releaseBody();
             runner = null;
+            // Either the canceller captured this runner and we await its delivery, or it starts
+            // later and reads null. Never return a thread while its old interrupt is still in flight.
+            while (interruptDeliveryInProgress) {
+                Thread.yield();
+            }
             // A cancel won mid-run if the runner saw it up front (skipped the call) or the
             // set()/setException() above lost the race (isCancelled() now true). Phase reads, CAS,
             // notification, and observer release are serialized with afterDone() under this monitor
@@ -467,12 +479,17 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
     }
 
-    /** Classifies successful cancellation using the same state raced by {@link #run()}. */
+    /** Delivers cancellation interruption while preventing runner reuse until delivery finishes. */
     @Override
     protected void interruptTask() {
-        Thread executing = runner;
-        if (executing != null) {
-            executing.interrupt();
+        interruptDeliveryInProgress = true;
+        try {
+            Thread executing = runner;
+            if (executing != null) {
+                executing.interrupt();
+            }
+        } finally {
+            interruptDeliveryInProgress = false;
         }
     }
 
