@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -27,8 +28,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SlidingWindowSubmitterTest {
 
@@ -489,6 +496,52 @@ class SlidingWindowSubmitterTest {
         }
     }
 
+    /**
+     * R6: the initial window's handoff-{@code Error} SEVERE diagnostic runs before the
+     * shared-verdict failure of the remaining elements, so a JUL handler that throws would
+     * otherwise escape {@code submitAll} with the logging failure and leave every element pending.
+     * The terminal publication must not depend on diagnostic success (extension contract L7). The
+     * clean handler is the control: identical result path, and the SEVERE diagnostic is still
+     * published with the original {@code Error} attached.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void initialWindowHandoffErrorSurvivesABrokenLogHandler(boolean brokenHandler) throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+        List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
+        Handler handler = boomOnHandoffError(brokenHandler, captured);
+        submitterLogger.addHandler(handler);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+
+            assertThat(batch.results()).hasSize(3);
+            for (int i = 0; i < 3; i++) {
+                int index = i;
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(SubmissionException.class)
+                        .hasRootCauseInstanceOf(AssertionError.class);
+            }
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(captured).anySatisfy(record -> {
+                assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
+                assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
+            });
+        } finally {
+            submitterLogger.removeHandler(handler);
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     /** Same contract past the initial window: the async submitter fails the remaining placeholders. */
     @Test
     void slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure() throws Exception {
@@ -545,6 +598,83 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
         } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
+    /**
+     * R6 one phase later: the refill loop's handoff-{@code Error} diagnostic runs before the
+     * abandoned placeholders are settled, on the async submitter thread. A JUL handler that throws
+     * must not strand those placeholders or replace the submission future's cause with the logging
+     * failure; the batch must converge exactly as with a clean handler, and the SEVERE diagnostic
+     * is still attempted with the original {@code Error} attached.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void slidingWindowHandoffErrorInTheRefillSurvivesABrokenLogHandler(boolean brokenHandler) throws Exception {
+        AtomicInteger submissions = new AtomicInteger();
+        ExecutorService firstThenError = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (submissions.getAndIncrement() == 0) command.run();
+                else throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenError);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+        List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
+        Handler handler = boomOnHandoffError(brokenHandler, captured);
+        submitterLogger.addHandler(handler);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+
+            assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+            assertThat(captured).anySatisfy(record -> {
+                assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
+                assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
+            });
+        } finally {
+            submitterLogger.removeHandler(handler);
             workers.shutdownNow();
             submitter.shutdownNow();
         }
@@ -875,6 +1005,31 @@ class SlidingWindowSubmitterTest {
         return Arrays.stream(tasks)
                 .map(task -> ExecutionPhaseHintFuture.create(task))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Models the R6 fault: capture every record, and when asked to break, throw from {@code
+     * publish} exactly on the SEVERE handoff-Error diagnostic. Other records pass through so
+     * unrelated logging cannot disturb the test.
+     */
+    private static Handler boomOnHandoffError(boolean broken, List<LogRecord> captured) {
+        return new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                captured.add(record);
+                if (broken
+                        && record.getMessage() != null
+                        && record.getMessage().contains("executor handoff threw an Error")) {
+                    throw new IllegalStateException("handler boom");
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
     }
 
     /** An executor service whose {@code execute()} delegates to the given handoff. */
