@@ -191,7 +191,9 @@ par.map(elements, item -> {
 }, options);
 ```
 
-group 成员与 terminal combine 同理：在 `par(...)` 的 `Callable` 内自行包装。
+group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal combine 则在
+`.combine(name, par, type, CombineBody)` 的 `CombineBody.apply(V)` 内自行包装。两者同样处于
+库的上下文层与生命周期层之内。
 
 ### 5.4 指标：优先用观测快照，不要包 body
 
@@ -227,7 +229,8 @@ global.group("retry", Duration.ofSeconds(5))
             }
         })
         .runAll()
-        .terminalValueOrThrow();
+        .valuesOrThrow()             // 未声明 combine：读单成员值，而非 terminalValueOrThrow()
+        .typedValues();
 ```
 
 ## 6. TTL 包装器检测（已落地 2026-09-25，见下方落地记录）
