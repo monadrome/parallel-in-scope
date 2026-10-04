@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.FutureCallback;
@@ -16,6 +17,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -152,6 +156,78 @@ class TaskGraphReportFutureTest {
                 .cause()
                 .isSameAs(error);
         assertThat(TaskGraphObservationScope.current()).isNull();
+    }
+
+    @Test
+    void detectionFailurePublishesEvenWhenTheDiagnosticHandlerThrows() {
+        ParRuntime global = runtimeWithDetection(true);
+        IllegalStateException failure = new IllegalStateException("snapshot boom");
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(global, new FailingGraphData(failure));
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        Handler throwing = throwingHandler();
+        boolean parentHandlers = observationLogger.getUseParentHandlers();
+        observationLogger.addHandler(throwing);
+        observationLogger.setUseParentHandlers(false);
+        try {
+            // The user-replaceable handler must not escape close() nor suppress the failed report.
+            assertThatCode(scope::close).doesNotThrowAnyException();
+
+            assertThat(scope.reportFuture().isDone()).isTrue();
+            assertThatThrownBy(() -> Futures.getDone(scope.reportFuture()))
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isSameAs(failure);
+            // The context was restored even though detection and diagnostic logging both failed.
+            assertThat(TaskGraphObservationScope.current()).isNull();
+        } finally {
+            observationLogger.removeHandler(throwing);
+            observationLogger.setUseParentHandlers(parentHandlers);
+        }
+    }
+
+    @Test
+    void repeatedAndConcurrentCloseAfterDetectionFailureDoNotHangWithABrokenHandler() throws Exception {
+        ParRuntime global = runtimeWithDetection(true);
+        IllegalStateException failure = new IllegalStateException("snapshot boom");
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(global, new FailingGraphData(failure));
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        Handler throwing = throwingHandler();
+        boolean parentHandlers = observationLogger.getUseParentHandlers();
+        observationLogger.addHandler(throwing);
+        observationLogger.setUseParentHandlers(false);
+        ExecutorService closers = Executors.newFixedThreadPool(4, runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            assertThatCode(scope::close).doesNotThrowAnyException();
+
+            // Every later close waits on the winner's publication; that wait must end because the
+            // failed report was published despite the broken diagnostic handler.
+            CountDownLatch start = new CountDownLatch(1);
+            Future<?>[] closes = new Future<?>[4];
+            for (int i = 0; i < closes.length; i++) {
+                closes[i] = closers.submit(() -> {
+                    start.await();
+                    scope.close();
+                    return null;
+                });
+            }
+            start.countDown();
+            for (Future<?> close : closes) {
+                close.get(10, TimeUnit.SECONDS);
+            }
+            assertThat(scope.reportFuture().isDone()).isTrue();
+            assertThatThrownBy(() -> Futures.getDone(scope.reportFuture()))
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isSameAs(failure);
+        } finally {
+            closers.shutdownNow();
+            observationLogger.removeHandler(throwing);
+            observationLogger.setUseParentHandlers(parentHandlers);
+        }
     }
 
     @Test
@@ -400,6 +476,22 @@ class TaskGraphReportFutureTest {
         } catch (ExecutionException unexpected) {
             throw new AssertionError("report future failed unexpectedly", unexpected);
         }
+    }
+
+    /** A JUL handler that throws on every record, standing in for a user-installed broken handler. */
+    private static Handler throwingHandler() {
+        return new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                throw new IllegalStateException("handler boom");
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
     }
 
     /** Graph data whose snapshot computation fails with the given throwable. */
