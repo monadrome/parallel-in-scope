@@ -99,4 +99,14 @@ class DeadlinesTest {
         // no-limit sentinel.
         assertThat(Deadlines.saturatedNanos(Duration.ofSeconds(-1))).isEqualTo(-1_000_000_000L);
     }
+
+    @Test
+    void saturatedNanosSaturatesNegativeOverflowToTheNegativeEnd() {
+        // Duration.ofSeconds(-10_000_000_000L) overflows toNanos() below Long.MIN_VALUE. It must
+        // saturate to the negative end, where every consumer reads "already elapsed", instead of
+        // the positive-end sentinel's ~292-year wait.
+        assertThat(Deadlines.saturatedNanos(Duration.ofSeconds(-10_000_000_000L)))
+                .isEqualTo(Long.MIN_VALUE);
+        assertThat(Deadlines.saturatedNanos(Duration.ofNanos(Long.MIN_VALUE))).isEqualTo(Long.MIN_VALUE);
+    }
 }

@@ -228,6 +228,139 @@ class CheckpointsTest {
     }
 
     @Test
+    void negativeOverflowDurationsReadAsAlreadyElapsedAcrossAllDurationAdapters() throws Exception {
+        // Duration.ofSeconds(-10_000_000_000L) overflows toNanos() in the negative direction:
+        // every Duration entry point must treat it like the negative timeout it is — a single
+        // non-blocking check with the JDK outcome for an elapsed budget — not a ~292-year wait.
+        // Each adapter runs on its own thread so a regression that parks on the saturated wait
+        // surfaces as a failure after a bounded watchdog wait instead of hanging the suite.
+        Duration elapsed = Duration.ofSeconds(-10_000_000_000L);
+
+        completesWithoutWaiting(() -> assertThat(Checkpoints.checkAwait(new CountDownLatch(1), elapsed))
+                .isFalse());
+
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        completesWithoutWaiting(() -> {
+            lock.lock();
+            try {
+                assertThat(Checkpoints.checkAwait(condition, elapsed)).isFalse();
+            } finally {
+                lock.unlock();
+            }
+        });
+
+        Thread finished = new Thread(() -> {});
+        finished.start();
+        completesWithoutWaiting(() -> Checkpoints.checkJoin(finished, elapsed));
+        finished.join(2000L);
+
+        CompletableFuture<String> neverCompleted = new CompletableFuture<>();
+        completesWithoutWaiting(() -> assertThatThrownBy(() -> Checkpoints.checkGet(neverCompleted, elapsed))
+                .isInstanceOf(TimeoutException.class));
+
+        completesWithoutWaiting(() -> assertThat(Checkpoints.checkTryAcquire(new Semaphore(0), elapsed))
+                .isFalse());
+        completesWithoutWaiting(() -> assertThat(Checkpoints.checkTryAcquire(new Semaphore(0), 2, elapsed))
+                .isFalse());
+
+        lock.lock();
+        try {
+            completesWithoutWaiting(
+                    () -> assertThat(Checkpoints.checkTryLock(lock, elapsed)).isFalse());
+        } finally {
+            lock.unlock();
+        }
+
+        // The JDK attempts a nonblocking acquisition before it honors a negative timeout, so an
+        // available resource still grants the try — the Duration overload must match the
+        // long+unit negative timeout exactly.
+        completesWithoutWaiting(() -> {
+            assertThat(Checkpoints.checkTryAcquire(new Semaphore(1), elapsed)).isTrue();
+            assertThat(Checkpoints.checkTryLock(new ReentrantLock(), elapsed)).isTrue();
+        });
+
+        ExecutorService running = Executors.newSingleThreadExecutor();
+        try {
+            completesWithoutWaiting(() -> assertThat(Checkpoints.checkAwaitTermination(running, elapsed))
+                    .isFalse());
+        } finally {
+            running.shutdownNow();
+        }
+
+        completesWithoutWaiting(() -> Checkpoints.checkSleep(elapsed));
+    }
+
+    @Test
+    void negativeDurationsWithinRangeKeepTheirJdkOutcomesAcrossAllDurationAdapters() throws Exception {
+        // A representable negative timeout never saturated; pin that the Duration overloads still
+        // match the long+unit overloads and the JDK outcomes.
+        Duration negative = Duration.ofMillis(-5);
+
+        assertThat(Checkpoints.checkAwait(new CountDownLatch(1), negative))
+                .isEqualTo(Checkpoints.checkAwait(new CountDownLatch(1), -5, TimeUnit.MILLISECONDS))
+                .isFalse();
+
+        ReentrantLock lock = new ReentrantLock();
+        Condition condition = lock.newCondition();
+        lock.lock();
+        try {
+            assertThat(Checkpoints.checkAwait(condition, negative)).isFalse();
+        } finally {
+            lock.unlock();
+        }
+
+        Thread finished = new Thread(() -> {});
+        finished.start();
+        Checkpoints.checkJoin(finished, negative);
+        finished.join(2000L);
+
+        CompletableFuture<String> neverCompleted = new CompletableFuture<>();
+        assertThatThrownBy(() -> Checkpoints.checkGet(neverCompleted, negative)).isInstanceOf(TimeoutException.class);
+
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(0), negative)).isFalse();
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(0), 2, negative)).isFalse();
+
+        CountDownLatch lockHeld = new CountDownLatch(1);
+        CountDownLatch releaseLock = new CountDownLatch(1);
+        Thread holder = new Thread(() -> {
+            lock.lock();
+            lockHeld.countDown();
+            try {
+                releaseLock.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                lock.unlock();
+            }
+        });
+        holder.start();
+        assertThat(lockHeld.await(1, TimeUnit.SECONDS)).isTrue();
+        try {
+            assertThat(Checkpoints.checkTryLock(lock, negative)).isFalse();
+        } finally {
+            releaseLock.countDown();
+            holder.join(2000L);
+        }
+
+        // Negative timeouts never suppressed the JDK's nonblocking acquisition attempt: an
+        // available resource still grants the try.
+        assertThat(Checkpoints.checkTryAcquire(new Semaphore(1), negative)).isTrue();
+        assertThat(Checkpoints.checkTryLock(new ReentrantLock(), negative)).isTrue();
+
+        ExecutorService running = Executors.newSingleThreadExecutor();
+        try {
+            assertThat(Checkpoints.checkAwaitTermination(running, negative)).isFalse();
+        } finally {
+            running.shutdownNow();
+        }
+
+        long start = System.nanoTime();
+        Checkpoints.checkSleep(negative);
+        assertThat(System.nanoTime() - start).isLessThan(TimeUnit.SECONDS.toNanos(5));
+    }
+
+    @Test
     void runnableSupplierAndPropagationTranslateDeclaredCancellationTriggers() {
         Checkpoints.checkRunnable(() -> {}, IllegalArgumentException.class);
         assertThat(Checkpoints.checkSupplier(() -> "result", IllegalArgumentException.class))
@@ -390,6 +523,27 @@ class CheckpointsTest {
         assertThatThrownBy(operation).isInstanceOf(LeanCancellationException.class);
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
         Thread.interrupted();
+    }
+
+    private static void completesWithoutWaiting(ThrowingCallable adapter) throws InterruptedException {
+        AtomicReference<Throwable> outcome = new AtomicReference<>();
+        Thread waiter = new Thread(() -> {
+            try {
+                adapter.call();
+            } catch (Throwable failure) {
+                outcome.set(failure);
+            }
+        });
+        waiter.start();
+        try {
+            await().atMost(2, TimeUnit.SECONDS).until(() -> !waiter.isAlive());
+        } finally {
+            // A regression parks the adapter on the saturated ~292-year wait; the interrupt is
+            // translated by the adapters, so the watchdog still leaves no live thread behind.
+            waiter.interrupt();
+            waiter.join(2000L);
+        }
+        assertThat(outcome.get()).isNull();
     }
 
     private static MultiTaskContext context(String taskName) {
