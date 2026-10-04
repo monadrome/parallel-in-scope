@@ -71,6 +71,44 @@ class TaskCompletionTest {
     }
 
     @Test
+    void neverStartedSnapshotOnNegativeClockReportsZeroDurationsAndNotEnqueued() {
+        TaskCompletion<String> completion = TaskCompletion.failed(
+                "task",
+                "unit-1",
+                0,
+                -10_000_000L,
+                0L,
+                0L,
+                TaskOutcome.SUBMISSION_FAILURE,
+                new IllegalStateException("not submitted"));
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.totalTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
+    void startedSnapshotOnNegativeClockComputesRealDurations() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -20_000_000L, -10_000_000L, -5_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.enqueued()).isTrue();
+    }
+
+    @Test
+    void shortWaitOnNegativeClockIsNotEnqueued() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -9_000_000L, -8_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(1_000_000L));
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
         TaskCompletion<Object> snapshot =
                 TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELLED, null, 100, 0, 0);
