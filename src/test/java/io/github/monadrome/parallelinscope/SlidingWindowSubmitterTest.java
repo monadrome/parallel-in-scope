@@ -480,14 +480,13 @@ class SlidingWindowSubmitterTest {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
             throw new AssertionError("handoff broken");
         }));
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
         List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
         Handler handler = boomOnHandoffError(brokenHandler, captured);
         submitterLogger.addHandler(handler);
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND));
 
             TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
 
@@ -508,7 +507,6 @@ class SlidingWindowSubmitterTest {
         } finally {
             submitterLogger.removeHandler(handler);
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
@@ -618,14 +616,13 @@ class SlidingWindowSubmitterTest {
             }
         };
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenError);
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
         List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
         Handler handler = boomOnHandoffError(brokenHandler, captured);
         submitterLogger.addHandler(handler);
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
             TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
@@ -644,7 +641,6 @@ class SlidingWindowSubmitterTest {
         } finally {
             submitterLogger.removeHandler(handler);
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
