@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
@@ -169,13 +171,25 @@ public final class ParRuntime implements AutoCloseable {
      * individual {@code Par} instances to their components rather than use {@link #global()} as a
      * service locator. Installation is symmetric with the instance lifecycle: {@link #close()} of
      * the installed instance uninstalls it, so a restarted container context may install again.
+     * Only a live instance can be installed: installing a closed instance fails with {@link
+     * IllegalStateException} without occupying the slot, and an install that races {@code close()}
+     * of the same instance undoes itself, so the slot never retains an instance that has shut down.
      *
-     * @throws IllegalStateException if another instance is currently installed
+     * @throws IllegalStateException if another instance is currently installed, or if the given
+     *     runtime is closed or closes while being installed
      */
     public static void installGlobal(ParRuntime runtime) {
         Objects.requireNonNull(runtime, "runtime cannot be null");
+        checkState(!runtime.closed.get(), "ParRuntime is closed");
         if (!INSTALLED.compareAndSet(null, runtime)) {
             throw new IllegalStateException("ParRuntime is already installed");
+        }
+        if (runtime.closed.get()) {
+            // close() won the race between the liveness check and the slot claim; its own
+            // compareAndSet only uninstalls from close()'s first-run branch, so undo the install
+            // here — the slot must not retain a shut-down instance.
+            INSTALLED.compareAndSet(runtime, null);
+            throw new IllegalStateException("ParRuntime is closed");
         }
     }
 

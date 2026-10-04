@@ -52,7 +52,7 @@ ParRuntime.installGlobal(global);
 Par defaultPar = ParRuntime.global().defaultPar();
 ```
 
-Prefer explicit injection in tests and libraries. `installGlobal` is one-time and intentionally rejects replacement.
+Prefer explicit injection in tests and libraries. `installGlobal` is one-time and intentionally rejects replacement. Closing the installed instance releases the slot so a restarted container context may install again; installing a closed instance fails with `IllegalStateException` and leaves the slot free.
 
 ## Execute a batch {#batch}
 
