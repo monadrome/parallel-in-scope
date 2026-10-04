@@ -92,18 +92,25 @@ TaskGroup、TaskFuture、TaskBatch、TaskGroupReport 均包私有。Par.submit/s
 取消、调度、观测屏障及既有并发测试。组结果持有纯数据的内部收敛报告，公开 member
 观测从完成的观测信号重建，保留真实成功值和最终时间。计数覆盖全部任务，即使最终观测缺失。
 
-ImmediateResult.succeeded 允许 null；failed 要求非 SUCCESS/RUNNING outcome 与非 null
-Throwable。valueOrThrow 的 Left 统一抛 ExecutionException，cause 为存储的原对象。
-执行失败优先级和 group 权威归因沿用内核；取消容器冻结稳定的有任务名/归因的异常，
-取消形状的任务异常保留 cause 链。成功 null 与失败由 outcome 区分。
+**非成功公开 ImmediateResult 一律携带非 null throwable；成功结果可为 null，且 null 值合法。**
+failed 要求非 SUCCESS/RUNNING outcome 与非 null Throwable；valueOrThrow 的 Left 统一抛
+ExecutionException，cause 为存储的原对象。成员结果经内核归一化：USER_FAILURE/SUBMISSION_FAILURE
+与已有 CancellationException 保留原对象，其余取消终态冻结为带任务名/归因的
+LeanCancellationException（原异常保留在 cause 链）。成功 null 与失败由 outcome 区分。
+
+**组级 valuesResult 的例外**：组已有成员或 terminal combine 记录失败时，容器优先携带该已记录
+失败（业务异常原样，不归一化），即使组 outcome 是取消形状（含 TIMEOUT）也如此——容器在
+finish() 直接按冻结 outcome 构造，不走成员结果的归一化路径。只有组无任何已记录失败时，容器
+才携带按 outcome 命名的 LeanCancellationException。因此 adapter 只承诺"存储的原对象作为
+ExecutionException.cause"，不承诺异常类型；取消形状不等于 CancellationException cause。
 
 Batch 聚合保留 ExecutionException 报执行失败、CancellationException 报纯取消；
 Group 聚合保留 unchecked 原样抛、checked 包装 CompletionException。结果函数不重跑 body。
 TypeToken、raw class 校验、左嵌套 Tuple2、nullable 值与空组均保持。
 
 asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isCancelled=false。
-库执行产生的取消属于 failed future，get/valueOrThrow 的 ExecutionException.cause 为取消异常。
-手动 failed(outcome, failure) 保留给定异常，outcome 标签不转换异常类型。
+库执行产生的取消是 failed future：无已记录失败时 cause 为归一化取消异常；组聚合已有记录失败时
+cause 为该存储失败（见上）。手动 failed(outcome, failure) 保留给定异常，outcome 标签不转换异常类型。
 两个 get 使用 Futures.getDone，立即读且保留中断标志；timed get 校验非 null TimeUnit，
 不做超时等待。listener 用消费者 executor，处于业务资源 scope 外。
 

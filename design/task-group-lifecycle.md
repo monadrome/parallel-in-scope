@@ -269,9 +269,10 @@ null --all success-----------> SUCCESS
    finally 完成后发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
    或 `SKIPPED` 各恰好释放一次名额；
 3. **观测快照发布**：成员 observation future 由 future 终态与任务体退出两个信号汇合后
-   以终态 `TaskCompletion` 快照完成；它不运行在任务体 finally 内，也不属于任务体退出范围，
-   但包私有 `awaitBodyCompletion(...) == true` 保证快照已经可得；公开侧由
-   `TaskGroupResult.bodyCompletionConfirmed()` 表达返回时点的同一事实。
+   以终态 `TaskCompletion` 快照完成；它不运行在任务体 finally 内，也不属于任务体退出范围。
+   包私有 `awaitBodyCompletion(...) == true` 额外等待观测发布屏障，保证快照已经可得；
+   公开侧 `TaskGroupResult.bodyCompletionConfirmed()` 只表达第 2 层（任务体退出），
+   最终观测仍按 `members()`/`terminal()` 的可得性给出、缺失项省略，两者不是同一事实。
 
 `close()`（包私有；`runAll()` 的同步清理由 `finish()` 复用同一预算规则）保证第一层，并在
 close grace（`GroupStart.closeGrace(Duration)`，未配置时派生自关闭时剩余的有效 deadline）内
