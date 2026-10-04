@@ -16,6 +16,7 @@ Run from the repository root.
 mvn test -Dtest='ClassName#methodName' # targeted test; replace class and method
 mvn test                              # all tests
 mvn spotless:apply                    # format Java sources
+mvn spotless:check                    # verify formatting without writing; CI runs this
 mvn clean verify                      # tests + package checks; not a release build
 ```
 
@@ -147,6 +148,22 @@ explicit human confirmation before implementing it.
   Fix failures caused by the change and rerun affected checks without pausing
   for review of the first implementation. Report unrelated failures or blockers;
   do not claim completion while required checks are blocked.
+- Report each check separately and honestly: behavior tests, external consumer,
+  independent review, and mutation coverage are distinct facts. Record a blocked
+  check as blocked with its reason. A PIT run that started but timed out, or
+  produced no `mutations.xml`, is not a pass; never describe a started or partial
+  check as passing. Run Maven build/test/PIT serially within one checkout;
+  independent verification checkouts may run in parallel.
+- Mockito's dynamic agent self-attach is blocked on the JDK 25 build, so Mockito
+  tests can fail with an attach error. Rerun with the installed jar passed
+  explicitly — this machine uses
+  `/Users/qinghualin/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar`:
+
+  ```bash
+  mvn -o test -DargLine=-javaagent:$HOME/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar
+  ```
+
+  The `$HOME` form resolves on other checkouts without hardcoding a user path.
 - After verification, automatically commit and push the current branch,
   including documentation maintenance. Exception: leave design proposals and
   analysis documents uncommitted until the direction settles; commit settled
@@ -175,10 +192,30 @@ changes, run an independent review with its own budget:
   workspace open as an audit trail.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
   the new test fail, then restore the fix.
-- Run `mvn -Ppitest`, scoped to the touched `targetClasses` and `targetTests`;
-  defaults cover the whole library. Classify every survivor before reporting:
-  equivalent mutants are not coverage gaps. PIT needs no permission and touches
-  only `target/`.
+- Run mutation coverage with an explicit goal: the `pitest` profile binds no
+  execution, so `mvn -Ppitest` alone fails with "No goals have been specified".
+  The offline-safe form, scoped to the touched class and its test, is:
+
+  ```bash
+  mvn -o -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage \
+    '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass' \
+    '-DtargetTests=io.github.monadrome.parallelinscope.TouchedTest'
+  ```
+
+  The defaults for `targetClasses`, `targetTests`, and `mutators` are project
+  properties (inline plugin config would shadow their user properties, making
+  the `-D` flags no-ops). The default `mutators` list omits `VOID_METHOD_CALLS`
+  to cut queue noise — but that also drops core interrupt / body-exited-skipped
+  / `tracker.release` call-removal mutations. Add this flag for a core-targeted
+  run (it replaces the default, so the nine mutators are repeated):
+
+  ```bash
+  # add to the command above for a core-targeted run:
+  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
+  ```
+
+  Classify every survivor before reporting: equivalent mutants are not coverage
+  gaps. PIT needs no permission and touches only `target/`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 10; consult them when
