@@ -369,18 +369,16 @@ public final class ParRuntime implements AutoCloseable {
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *
+     * <p>A non-positive timeout performs a single check without waiting: the call reports the
+     * topology's current state.
+     *
      * @param timeout the maximum time to wait
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
      * @throws InterruptedException if the calling thread is interrupted while waiting
      */
     public boolean awaitQuiescence(Duration timeout) throws InterruptedException {
         Objects.requireNonNull(timeout, "timeout cannot be null");
-        long remainingNanos;
-        try {
-            remainingNanos = timeout.toNanos();
-        } catch (ArithmeticException overflow) {
-            remainingNanos = Long.MAX_VALUE;
-        }
+        long remainingNanos = Deadlines.saturatedNanos(timeout);
         // Saturates to the sentinel when the requested wait is astronomical.
         long deadline = Deadlines.after(System.nanoTime(), remainingNanos);
         synchronized (quiescenceMonitor) {

@@ -18,20 +18,24 @@ final class Deadlines {
     private Deadlines() {}
 
     /**
-     * Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} when it does not fit.
+     * Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} on positive
+     * overflow and to {@link Long#MIN_VALUE} on negative overflow.
      *
-     * <p>{@link Duration#toNanos()} throws {@link ArithmeticException} past about 292 years, which
-     * every caller here would have to turn into the same sentinel anyway: a budget that large is
-     * indistinguishable from "no limit", and the sentinel already means that.
+     * <p>{@link Duration#toNanos()} throws {@link ArithmeticException} past about 292 years in
+     * either direction. Every caller treats a positive budget that large as "no limit", which the
+     * {@link Long#MAX_VALUE} sentinel already means. A negative budget means "already elapsed" to
+     * every caller: each blocking primitive reads a non-positive nanos timeout as elapsed, so the
+     * negative end saturation keeps that meaning instead of turning it into a ~292-year wait.
      *
      * @param duration the duration to convert
-     * @return the duration in nanoseconds, saturated to {@link Long#MAX_VALUE}
+     * @return the duration in nanoseconds, saturated to {@link Long#MIN_VALUE} or {@link
+     *     Long#MAX_VALUE} when it does not fit
      */
     static long saturatedNanos(Duration duration) {
         try {
             return duration.toNanos();
         } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
+            return duration.isNegative() ? Long.MIN_VALUE : Long.MAX_VALUE;
         }
     }
 
