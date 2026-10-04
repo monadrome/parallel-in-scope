@@ -106,7 +106,7 @@ public interface CombinedGroupStep<V, R> {
 
 @FunctionalInterface
 public interface CombineBody<V, R> {
-    R apply(@Nullable V values) throws Exception;
+    @Nullable R apply(@Nullable V values) throws Exception;
 }
 
 public final class GroupValues<V> {
