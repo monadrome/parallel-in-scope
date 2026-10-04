@@ -109,6 +109,37 @@ class TaskCompletionTest {
     }
 
     @Test
+    void startReadingAtZeroIsStartedAndComputesDurations() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, 0L, 5_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.enqueued()).isTrue();
+    }
+
+    @Test
+    void endReadingAtZeroWithNonZeroStartIsStartedAndClampsExecution() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -5_000_000L, 0L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+    }
+
+    @Test
+    void coincidingNonZeroStartAndEndReadingsAreStartedWithZeroExecution() {
+        TaskCompletion<String> completion = TaskCompletion.succeeded("task", "unit-1", 0, 0L, 100L, 100L, "value");
+
+        assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(100L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(100L));
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
         TaskCompletion<Object> snapshot =
                 TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELLED, null, 100, 0, 0);
