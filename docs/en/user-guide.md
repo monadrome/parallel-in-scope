@@ -30,7 +30,7 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and submitter services only, never a registered executor. Queue cleanup belongs to the executor owner.
+Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and timeout-action services only, never a registered executor. Queue cleanup belongs to the executor owner.
 
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: blocking-risk detection is disabled for it.
 
@@ -264,7 +264,7 @@ services, the runtime waits for admitted bodies, and the application closes the 
 registered. Order them that way:
 
 ```java
-runtime.close();                                      // reject new work; release timer/submitter services
+runtime.close();                                      // reject new work; release timer services
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // wait for every admitted body to exit
 } catch (InterruptedException interrupted) {
@@ -276,7 +276,7 @@ try {
 ```
 
 `close()` is idempotent and never shuts down a registered executor; it releases the framework's
-timer and submitter services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
+timer and timeout-action services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
 does the body-level wait, but only after `close()`: without it the call simply waits out its timeout,
 and it returns false on timeout. A non-positive timeout performs a single check without waiting and
 reports the current state. It is interruptible, so restore the flag and continue shutdown. The
