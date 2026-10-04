@@ -11,8 +11,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Successful observations contain the actual value, including null. Outcomes agree with the
  * enclosing execution's frozen results. A never-started task has zero start/end times and
- * durations. Missing observations are represented explicitly by the enclosing result, rather than
- * by records with provisional end times.
+ * durations; the zero sentinel is recognised before any subtraction, because ticker readings may
+ * legally be negative. Missing observations are represented explicitly by the enclosing result,
+ * rather than by records with provisional end times.
  */
 public final class TaskCompletion<T> {
 
@@ -241,24 +242,33 @@ public final class TaskCompletion<T> {
     /**
      * Checks whether the task was classified as queued.
      *
-     * @return {@code true} if the measured queue wait exceeded the threshold
+     * @return {@code true} if the task started and its measured queue wait exceeded the threshold;
+     *     a never-started task was never queued and reports {@code false}
      */
     public boolean enqueued() {
-        return startTimeNanos - submitTimeNanos > ENQUEUE_THRESHOLD_NANOS;
+        return !neverStarted() && startTimeNanos - submitTimeNanos > ENQUEUE_THRESHOLD_NANOS;
     }
 
     /** Returns the execution duration, or zero if the task never started. */
     public Duration executionTime() {
-        return Duration.ofNanos(Math.max(0L, endTimeNanos - startTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - startTimeNanos));
     }
 
     /** Returns the queue wait duration, or zero if the task never started. */
     public Duration waitTime() {
-        return Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
     }
 
     /** Returns the duration from submission to completion, or zero if the task never started. */
     public Duration totalTime() {
-        return Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
+    }
+
+    /**
+     * A never-started task records zero for both start and end. The zero sentinel — never the
+     * sign of the clock — decides started-ness, because ticker readings may legally be negative.
+     */
+    private boolean neverStarted() {
+        return startTimeNanos == 0L && endTimeNanos == 0L;
     }
 }
