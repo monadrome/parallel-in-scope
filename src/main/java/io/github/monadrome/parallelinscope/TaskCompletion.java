@@ -243,7 +243,8 @@ public final class TaskCompletion<T> {
      * Checks whether the task was classified as queued.
      *
      * @return {@code true} if the task started and its measured queue wait exceeded the threshold;
-     *     a never-started task was never queued and reports {@code false}
+     *     a task that never started — including one queued but never handed to a thread — reports
+     *     {@code false}, because no start reading exists to measure against the threshold
      */
     public boolean enqueued() {
         return !neverStarted() && startTimeNanos - submitTimeNanos > ENQUEUE_THRESHOLD_NANOS;
@@ -267,6 +268,11 @@ public final class TaskCompletion<T> {
     /**
      * A never-started task records zero for both start and end. The zero sentinel — never the
      * sign of the clock — decides started-ness, because ticker readings may legally be negative.
+     *
+     * <p>The sentinel is the pair {@code (0, 0)}, so a genuinely started task whose two readings
+     * both happened to be zero is reported as never started. That requires the monotonic clock to
+     * read exactly zero at both the start and end samples, which is unambiguous within a single
+     * tick; the factory convention is that {@code (0, 0)} means "never started".
      */
     private boolean neverStarted() {
         return startTimeNanos == 0L && endTimeNanos == 0L;
