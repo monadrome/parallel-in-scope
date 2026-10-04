@@ -185,6 +185,10 @@ map/runAll 的结果等待与有界清理不响应中断退出，结束恢复标
 deadline、fail-fast、祖先 token、worker 中断、Checkpoints 保持有效。
 ParRuntime.awaitQuiescence 仍传播 InterruptedException。
 
+取消中断投递与 runner 退出相互协调：取消中断尚在投递时，任务不会把线程交还 executor，
+因此复用同一线程的后继任务不会收到前一任务的迟到取消中断。仅确认 body 已结束，
+不表示线程交接已经完成。
+
 direct executor/CallerRuns 可能在进入等待前用调用线程执行 body；现有借用线程隔离恢复
 body 入口的中断状态，不保证保留 inline body 期间新收到的外部中断。阻塞或不合作的 body、
 executor handoff 可使墙钟耗时超过 deadline。
