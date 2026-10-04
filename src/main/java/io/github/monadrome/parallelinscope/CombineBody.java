@@ -6,10 +6,12 @@ import org.jspecify.annotations.Nullable;
  * Terminal combine body of one group run: the business computation the framework executes after
  * every plain member has succeeded.
  *
- * <p>The body receives the group's {@code V} — the same left-nested {@link Tuple2} shape exposed by
- * {@link GroupValues#typedValues()} — so its input is typed at compile time and it cannot reach a
- * member future, cancel, or orchestrate the underlying tasks. Individual components may be null,
- * because a member body returning null is a successful member.
+ * <p>The body receives the group's {@code V} — the same shape {@link GroupValues#typedValues()}
+ * exposes: the single member's value for a one-member group, left-nested {@link Tuple2} for larger
+ * groups — so its input is typed at compile time and it cannot reach a member future, cancel, or
+ * orchestrate the underlying tasks. A member body returning null is a successful member: for a
+ * one-member group that makes the whole input null, and for larger groups the {@code Tuple2} itself
+ * is never null while its individual components may be.
  *
  * <p>The body runs exactly once, inside the same scoped-task machinery as a member (execution
  * context, TTL replay, deadline, cooperative cancellation, observation snapshot). It runs on a
@@ -60,10 +62,12 @@ public interface CombineBody<V, R> {
     /**
      * Computes the terminal value from the successful member values.
      *
-     * @param values the group's member values in declaration order, possibly null components; null
-     *     only for a group with no plain members, a shape this API does not allow
+     * @param values the group's member values in declaration order: the single member's value for a
+     *     one-member group, so null when that member succeeded with null; a left-nested {@link
+     *     Tuple2} whose components may be null for larger groups
      * @return the assembled terminal result, possibly null
      * @throws Exception any business failure, recorded as {@link TaskOutcome#USER_FAILURE}
      */
+    @Nullable
     R apply(@Nullable V values) throws Exception;
 }

@@ -414,6 +414,32 @@ class TaskGroupCombineTest {
         }
     }
 
+    @Test
+    void singleMemberNullMakesTheWholeCombineInputNull() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            // A one-member group hands the combine that member's value itself, so a member that
+            // succeeded with null makes the whole input null rather than a one-element tuple.
+            AtomicReference<Object> seenInput = new AtomicReference<>();
+            TaskGroupResult<String, String> result = global.group("single", TIMEOUT)
+                    .par("only", global.par(ParId.of("worker")), String.class, () -> null)
+                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                        seenInput.set(values);
+                        return "ok";
+                    })
+                    .runAll();
+
+            assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 2);
+            assertThat(seenInput.get()).isNull();
+            assertThat(result.terminalValueOrThrow()).isEqualTo("ok");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
