@@ -77,7 +77,6 @@ class SynchronousExecutionTest {
     }
 
     @Test
-    @SuppressWarnings("NullAway") // Deliberately successful null combine; nullable reads are checked explicitly.
     void groupKeepsTypedShapeExactTokensAndNullableCombine() throws Exception {
         TypeToken<List<String>> strings = new TypeToken<List<String>>() {};
         CombineBody<Tuple2<Tuple2<List<String>, Integer>, Boolean>, @Nullable Void> nullableCombine = values -> null;

@@ -161,6 +161,10 @@ failure conventions: rethrow unchecked failures, wrap checked failures in Comple
 throw CancellationException for pure cancellation. A failed combine also fails aggregated member
 values; individual successful member results remain readable.
 
+Inside the combine body, a single member that succeeded with null delivers null `values`; with two
+or more members `values` is a `Tuple2` that is never null itself, though any component may be. A
+combine that returns null is a successful combine, so a body may be written as `values -> null`.
+
 ### Three or more members
 
 Each `par` after the first widens the assembled type by one left-nested `Tuple2`, so inside a
