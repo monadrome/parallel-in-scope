@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -72,6 +74,9 @@ class ParentChildResultRetentionTest {
             assertThat(prepared.await(5, TimeUnit.SECONDS))
                     .as("parent scope did not prepare its child calls")
                     .isTrue();
+            assertThat(references)
+                    .as("the retention check is vacuous unless every child payload was recorded")
+                    .hasSize(CHILDREN);
 
             awaitCollectable(references);
 
@@ -121,6 +126,7 @@ class ParentChildResultRetentionTest {
                                                     return value;
                                                 } catch (InterruptedException interrupted) {
                                                     childInterrupted.set(true);
+                                                    Thread.currentThread().interrupt();
                                                     return value;
                                                 }
                                             },
@@ -152,6 +158,53 @@ class ParentChildResultRetentionTest {
             parentPool.shutdownNow();
             childPool.shutdownNow();
         }
+    }
+
+    /**
+     * The sever itself is deterministic and must not wait for GC: once a child token commits any
+     * terminal state, its parent link no longer reaches the child.
+     */
+    @Test
+    void terminalChildSeversTheParentLinkDeterministically() throws Exception {
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+
+        child.cancel(true);
+
+        assertThat(linkedChild(child))
+                .as("a terminal child token must not keep its parent link reachable")
+                .isNull();
+    }
+
+    /**
+     * Construction window: a parent whose future is already terminal runs the listener inline
+     * during {@code addListener}. The holder must already be installed then, so the synchronous
+     * propagated cancellation severs it instead of leaking a link installed afterwards.
+     */
+    @Test
+    void childCreatedFromAlreadyCancelledParentSeversLinkDuringConstruction() throws Exception {
+        CancellationToken parent = CancellationToken.create();
+        parent.cancel(true);
+
+        CancellationToken child = new CancellationToken(parent);
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(linkedChild(child))
+                .as("the inline propagated cancellation must sever the link installed in the constructor")
+                .isNull();
+    }
+
+    /** Reads the child reference of a token's parent link, or {@code null} when severed/absent. */
+    private static @Nullable CancellationToken linkedChild(CancellationToken token) throws Exception {
+        Field linkField = CancellationToken.class.getDeclaredField("parentLink");
+        linkField.setAccessible(true);
+        Object link = linkField.get(token);
+        if (link == null) {
+            return null;
+        }
+        Field childField = link.getClass().getDeclaredField("child");
+        childField.setAccessible(true);
+        return (CancellationToken) childField.get(link);
     }
 
     private static byte[] childPage(Par child) {
