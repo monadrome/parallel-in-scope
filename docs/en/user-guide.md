@@ -202,8 +202,10 @@ The `failed(outcome, failure)` factory preserves the supplied throwable for ever
 the outcome is metadata and does not convert the throwable's type.
 
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
-returns false, and `isCancelled()` is false. Cancellation from `map` or `runAll` is a failed value
-whose get throws ExecutionException with a CancellationException cause. Both get overloads return
+returns false, and `isCancelled()` is false. A cancellation that recorded no member/combine
+failure is a failed value whose get throws ExecutionException with a cancellation-exception cause;
+a group that recorded a member or combine failure keeps that stored failure as the cause, even
+when its outcome is cancellation-shaped. Both get overloads return
 immediately and preserve interruption; timed get validates its TimeUnit but cannot time out. The
 static Future signature still declares checked exceptions. Listeners use the consumer's executor
 and run outside the completed business scope and its resource ownership.
@@ -478,7 +480,8 @@ snapshot. Timings and outcome come from one freeze, so they never change after t
 ### Guava and CompletableFuture interop
 
 `ImmediateResult.asFuture()` is a read-only `ListenableFuture`: already done, `cancel(...)` always
-false, and a cancellation appears as a failure whose cause is a CancellationException. Compose it
+false, and a cancellation with no recorded member/combine failure appears as a failure whose cause
+is a cancellation exception. Compose it
 with `Futures.addCallback` / `Futures.transform`:
 
 ```java

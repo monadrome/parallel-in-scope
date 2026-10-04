@@ -2,11 +2,13 @@
 
 ## Failure and user behavior
 
-Best user code before and after this fix is identical: submit tasks A and B to the same
-single-worker executor through `Par.submit`, with a deadline for A. A may finish its body
+This record reproduces the failure through the internal single-task submission path
+(`Par.submit`, package-private since the synchronous-exit redesign): tasks A and B go to the same
+single-worker executor, with a deadline for A. A may finish its body
 while the cancelling thread is paused before delivering A's interrupt. Previously the
 worker could start B before that delivery, and B could receive A's cancellation interrupt.
-The fix removes this failure without an API change or migration requirement.
+The fix removes this failure without an API change or migration requirement; public users reach
+the same executor-handoff shape through `Par.map` elements or group members.
 
 ## Protocol and proof
 
