@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,6 +31,130 @@ import org.junit.jupiter.api.Test;
  * handoff, and a cancel-before-run observer bound the way {@code ParRuntime}'s purge binding does.
  */
 public class ExecutionPhaseHintFutureTest {
+
+    @Test
+    public void cancellationDeliveryCannotReachTheNextTask() throws Exception {
+        CountDownLatch bodyEntered = new CountDownLatch(1);
+        CountDownLatch bodyRelease = new CountDownLatch(1);
+        CountDownLatch deliveryEntered = new CountDownLatch(1);
+        CountDownLatch deliveryRelease = new CountDownLatch(1);
+        CountDownLatch nextEntered = new CountDownLatch(1);
+        CountDownLatch nextRelease = new CountDownLatch(1);
+        AtomicBoolean nextInterrupted = new AtomicBoolean();
+        ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(
+                () -> {
+                    bodyEntered.countDown();
+                    bodyRelease.await();
+                    return null;
+                },
+                phase -> {});
+        Thread worker =
+                new Thread(() -> {
+                    future.run();
+                    // A pool clears the old task's flag before starting its next task.
+                    Thread.interrupted();
+                    nextEntered.countDown();
+                    try {
+                        nextRelease.await();
+                    } catch (InterruptedException e) {
+                        nextInterrupted.set(true);
+                        Thread.currentThread().interrupt();
+                    }
+                }) {
+                    @Override
+                    public void interrupt() {
+                        deliveryEntered.countDown();
+                        awaitUninterruptibly(deliveryRelease);
+                        super.interrupt();
+                    }
+                };
+        Thread canceller = new Thread(() -> future.cancel(true));
+        worker.setDaemon(true);
+        canceller.setDaemon(true);
+        try {
+            worker.start();
+            assertThat(bodyEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            canceller.start();
+            assertThat(deliveryEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            bodyRelease.countDown();
+            long cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!future.callableReleased() && System.nanoTime() < cleanupDeadline) {
+                Thread.yield();
+            }
+            assertThat(future.callableReleased()).as("A reached runner cleanup").isTrue();
+            assertThat(nextEntered.await(200, TimeUnit.MILLISECONDS))
+                    .as("worker must not start another task while delivery is pending")
+                    .isFalse();
+            deliveryRelease.countDown();
+            canceller.join(5000);
+            assertThat(canceller.isAlive()).isFalse();
+            assertThat(nextEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            bodyRelease.countDown();
+            deliveryRelease.countDown();
+            canceller.join(5000);
+            nextRelease.countDown();
+            worker.join(5000);
+        }
+        assertThat(worker.isAlive()).isFalse();
+        assertThat(nextInterrupted).isFalse();
+    }
+
+    @Test
+    public void failedInterruptDeliveryDoesNotStrandTheRunner() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(
+                () -> {
+                    entered.countDown();
+                    release.await();
+                    return null;
+                },
+                phase -> {});
+        Thread worker = new Thread(future) {
+            @Override
+            public void interrupt() {
+                throw new SecurityException("interrupt denied");
+            }
+        };
+        worker.setDaemon(true);
+        try {
+            worker.start();
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> future.cancel(true)).isInstanceOf(SecurityException.class);
+        } finally {
+            release.countDown();
+            worker.join(5000);
+        }
+        assertThat(worker.isAlive()).isFalse();
+    }
+
+    @Test
+    public void selfCancellationRestoresTheBorrowedThreadsEntryFlag() throws Exception {
+        AtomicReference<ExecutionPhaseHintFuture<Void>> holder = new AtomicReference<>();
+        AtomicBoolean cleanBodyEntry = new AtomicBoolean();
+        AtomicBoolean entryRestored = new AtomicBoolean();
+        ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(
+                () -> {
+                    cleanBodyEntry.set(!Thread.currentThread().isInterrupted());
+                    verifyNotNull(holder.get()).cancel(true);
+                    return null;
+                },
+                phase -> {});
+        holder.set(future);
+        Thread borrowed = new Thread(() -> {
+            Thread.currentThread().interrupt();
+            future.run();
+            entryRestored.set(Thread.currentThread().isInterrupted());
+        });
+        borrowed.setDaemon(true);
+        borrowed.start();
+        borrowed.join(5000);
+        assertThat(borrowed.isAlive()).isFalse();
+        assertThat(cleanBodyEntry).isTrue();
+        assertThat(entryRestored).isTrue();
+        assertThat(future.isCancelled()).isTrue();
+    }
 
     /**
      * Submits a prepared future exactly the way {@link SlidingWindowSubmitter} does: the
