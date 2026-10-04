@@ -66,8 +66,14 @@ jobs:
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
 
+      - name: Capture the built library version
+        run: echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+
       - name: Build demo on build JDK ${{ matrix.java-version }}
-        run: mvn -B -ntp -f demo/pom.xml package
+        run: >-
+          mvn -B -ntp -f demo/pom.xml
+          -Dparallel-in-scope.version="$LIBRARY_VERSION"
+          package
 
   java8-runtime:
     runs-on: ubuntu-latest

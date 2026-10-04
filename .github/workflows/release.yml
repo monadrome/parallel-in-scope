@@ -48,8 +48,9 @@ jobs:
 
       - name: Verify library and demo
         run: |
+          LIBRARY_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
           mvn -B -ntp clean install
-          mvn -B -ntp -f demo/pom.xml package
+          mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
 
       - name: Publish to Maven Central
         env:
