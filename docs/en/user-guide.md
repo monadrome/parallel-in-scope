@@ -276,8 +276,10 @@ try {
 `close()` is idempotent and never shuts down a registered executor; it releases the framework's
 timer and submitter services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
 does the body-level wait, but only after `close()`: without it the call simply waits out its timeout,
-and it returns false on timeout. A non-positive timeout performs a single check without waiting
-and reports the current state. It is interruptible, so restore the flag and continue shutdown.
+and it returns false on timeout. A non-positive timeout performs a single check without waiting and
+reports the current state. It is interruptible, so restore the flag and continue shutdown. The
+interruption check comes before the state answer, including on an already-quiescent runtime with a
+non-positive timeout: a caller that was interrupted observes `InterruptedException`, not `true`.
 Registered executors remain the application's to stop, after quiescence, with `shutdown()`,
 `shutdownNow()`, or the container's own lifecycle.
 
