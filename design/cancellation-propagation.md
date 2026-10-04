@@ -132,6 +132,27 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 3. **归因不靠猜**：`isCancelled()` 事后看不出谁取消的。token 状态机先 CAS 再执行取消动作，观察者读状态即可归因（`CancellationToken.transitionTo` 的 CAS-notify-cancel 顺序）。
 4. 链式简洁是有代价的：每层组合器对取消的处理不同，重写前先核对 §6 的表格。
 
+## 8. 父监听的终态切断（结果保留契约）
+
+父→子取消传播的实现形态：子 token 构造时在 `parent.futureToken` 上注册一个监听，该监听
+**不直接捕获子 token**，而是通过可切断的私有持有者 `ParentLink`（持有 parent 与可空的
+child）到达子 token。父 future 终态派发时，持有者非空才执行传播。
+
+- MUST：子 token 在 `transitionTo` 赢得任何终态转换（SUCCESS、TIMEOUT、FAIL_FAST、
+  CANCELLED、PROPAGATED_CANCELLED）时切断持有者（child 置空），使已完成的子 token
+  不再被仍运行的父 token 的 pending listener 列表强引用。
+- MUST NOT：父侧监听不得以 lambda 捕获或方法引用直接强引用子 token。否则仍运行的父
+  token 会通过自己未终态的 listener 列表保留每个已完成子的 token，进而保留子
+  `futureToken` 上的成功结果列表（历史成功子调用的结果保留随调用数增长，而非随活动子
+  范围数增长）。
+- MUST NOT：不得用 `WeakReference` 代替显式切断。传播必须对仍 RUNNING 的子保持有效，
+  即使用户代码已丢弃子句柄；弱引用会在这种时刻静默丢失传播。
+- 竞态：父终态派发与子终态切断可并发。切断只是 GC 卫生，不是同步协议：裁决点仍是子的
+  终态 CAS——子 RUNNING 时持有者非空、传播照旧；子已终态时传播本来就是 no-op（CAS 失败，
+  或对已终态 future 的 cancel 是 no-op）。切断不改变任何可观察行为。
+- bind-before-submit、first-wins 归因、deadline 最小值传播都不经过该持有者，不受切断
+  影响。
+
 ## 源码索引（guava-33.6.0-jre）
 
 | 结论 | 位置 |
