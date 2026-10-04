@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Duration;
@@ -68,7 +67,6 @@ public final class ParRuntime implements AutoCloseable {
     private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
-    private final ListeningExecutorService submitterPool;
 
     /**
      * Deadline scheduler handed to every {@link CancellationToken#bind}. Immutable and stateless
@@ -87,7 +85,6 @@ public final class ParRuntime implements AutoCloseable {
         timer.setRemoveOnCancelPolicy(true);
         this.timerService = timer;
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
-        this.submitterPool = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(factory));
         this.timeoutScheduler = new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
         this.defaultId = builder.defaultId;
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
@@ -238,10 +235,6 @@ public final class ParRuntime implements AutoCloseable {
     /** Package-private identity index; runtime binding is not a public application API. */
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
-    }
-
-    ListeningExecutorService submitterPool() {
-        return submitterPool;
     }
 
     /**
@@ -435,7 +428,6 @@ public final class ParRuntime implements AutoCloseable {
                 && servicesShutdown.compareAndSet(false, true)) {
             timerService.shutdown();
             timeoutActionPool.shutdown();
-            submitterPool.shutdown();
             synchronized (quiescenceMonitor) {
                 quiescenceMonitor.notifyAll();
             }
