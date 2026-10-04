@@ -23,7 +23,12 @@ export MAVEN_BASEDIR="$consumer_dir"
 # serves the artifact — and the cleanup below must never reach outside the artifact
 # directory; an empty per-run repository gives both guarantees by construction.
 tmp_repo="$(mktemp -d "${TMPDIR:-/tmp}/verify-maven-central.XXXXXX")"
+# Clean up on every exit path. The signal traps exit with the conventional 128+signal
+# code, which runs the EXIT trap; this makes cleanup and the exit code explicit rather
+# than relying on the shell running the EXIT trap by itself when it dies from a signal.
 trap 'rm -rf "$tmp_repo"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 artifact_dir="$tmp_repo/io/github/monadrome/parallel-in-scope/$version"
 
 # Remove the local copy so this check proves Maven Central can serve the artifact.
