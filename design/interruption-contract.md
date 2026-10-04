@@ -183,8 +183,14 @@ Guava getDone() on interrupted thread -> returned "guava-value"
 ### 5.2 库的阻塞方法
 
 必须声明 `throws InterruptedException`（P2）。校验顺序固定：参数校验 → 自等待检查 →
-中断检查 → 状态检查。现有实现遵守此序（`BodyCompletionTracker.java:150-162`），
+中断检查 → 状态检查。现有实现遵守此序（`BodyCompletionTracker.awaitBodyCompletion`），
 javadoc 需写明"抛出时标志已按 Java 约定清除"。
+
+中断检查先于状态检查，**包括状态已成立的快路径**：已 quiescent 的 runtime 上调
+`awaitQuiescence(Duration.ZERO)`，调用线程带标志时必须抛 `InterruptedException`，
+不得照抄 JDK `FutureTask.get()` 的"已完成就不查中断"捷径（第 3 节——那是状态检查
+方法的行为，本库只把它留给 P4 覆盖的只读方法，不放行阻塞方法）。阻塞方法把已中断的
+调用方转成布尔答案属于第 8 节用例 9 明令禁止的"转成布尔返回值"。
 
 现状符合此规范的公开方法：`awaitBodyCompletion`、`awaitQuiescence`、`awaitDrained`、
 `take`/`put`/`poll`/`offer`（queue 包）、`ListenableCompletionService.take`。
@@ -473,6 +479,7 @@ deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线�
 | 7 | `awaitBodyCompletion` 在已置标志的线程上调用 | 抛 `InterruptedException` 且标志已清 |
 | 8 | `Checkpoints.rawCheckpoint()` 在已置标志的线程上调用 | 抛 `LeanCancellationException` 且标志已清 |
 | 9 | 库的阻塞方法被中断 | 全部抛 `InterruptedException`，无一转成布尔返回值 |
+| 10 | 已 quiescent 的 runtime 上调 `awaitQuiescence(Duration.ZERO)`，调用线程已置标志 | 抛 `InterruptedException` 且标志已清，不得返回 `true` |
 
 用例 4 是 7.3 的回归锁；用例 5 必须同时存在，否则修复可能把两条路径改成了另一种不一致。
 
