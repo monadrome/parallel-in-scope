@@ -231,12 +231,17 @@ final class SlidingWindowSubmitter<V> {
      */
     private void logHandoffError(Throwable failure, int index, String phase) {
         if (failure instanceof Error) {
-            LOGGER.log(
-                    Level.SEVERE,
-                    failure,
-                    () -> "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
-                            + " during " + phase
-                            + "; the affected elements are failed as submission failures");
+            try {
+                LOGGER.log(
+                        Level.SEVERE,
+                        failure,
+                        () -> "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
+                                + " during " + phase
+                                + "; the affected elements are failed as submission failures");
+            } catch (Throwable ignored) {
+                // A user-installed log handler must not skip the shared-verdict failure of the
+                // remaining elements.
+            }
         }
     }
 
