@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 class ParRuntimeTest {
     @Test
@@ -373,6 +374,7 @@ class ParRuntimeTest {
     }
 
     @Test
+    @ResourceLock(ParRuntimeGlobalSlotTest.GLOBAL_SLOT_LOCK)
     void installsAndReturnsTheProcessGlobalOnlyOnce() {
         ParRuntime installed = ParRuntime.builder().build();
         try {
@@ -388,6 +390,7 @@ class ParRuntimeTest {
     }
 
     @Test
+    @ResourceLock(ParRuntimeGlobalSlotTest.GLOBAL_SLOT_LOCK)
     void closingTheInstalledInstanceReleasesTheGlobalSlot() {
         ParRuntime first = ParRuntime.builder().build();
         ParRuntime.installGlobal(first);
