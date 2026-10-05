@@ -39,6 +39,7 @@ import org.jspecify.annotations.Nullable;
  * deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class CancellationToken {
 

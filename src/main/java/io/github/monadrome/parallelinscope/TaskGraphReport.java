@@ -14,6 +14,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * instead of producing a report.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class TaskGraphReport {
 

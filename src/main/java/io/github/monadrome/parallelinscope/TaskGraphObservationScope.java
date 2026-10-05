@@ -41,6 +41,7 @@ import org.jspecify.annotations.Nullable;
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class TaskGraphObservationScope implements AutoCloseable {
 

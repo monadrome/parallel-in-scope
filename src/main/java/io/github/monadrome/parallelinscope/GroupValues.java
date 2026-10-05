@@ -33,6 +33,7 @@ import org.jspecify.annotations.Nullable;
  * that information is erased.
  *
  * @param <V> the group's assembled member-value type
+ * @since 0.3.0
  */
 public final class GroupValues<V> {
     private final ImmutableList<String> names;

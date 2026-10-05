@@ -28,6 +28,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <V> single member value or left-nested Tuple2 of member values
  * @param <R> terminal combine value, or Void when no combine was declared
+ * @since 0.3.0
  */
 public final class TaskGroupResult<V, R> {
     private final TaskGroupReport report;

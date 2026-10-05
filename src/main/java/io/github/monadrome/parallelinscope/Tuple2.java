@@ -18,6 +18,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the first component type
  * @param <B> the second component type
+ * @since 0.3.0
  */
 public final class Tuple2<A, B> {
     private final @Nullable A first;

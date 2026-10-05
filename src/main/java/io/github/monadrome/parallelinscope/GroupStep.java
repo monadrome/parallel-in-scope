@@ -20,6 +20,7 @@ import java.util.concurrent.Callable;
  * <p>The same one-shot, single-threaded, stage-checked contract as {@link GroupStart} applies.
  *
  * @param <V> the group's assembled member-value type so far
+ * @since 0.3.0
  */
 public interface GroupStep<V> {
 

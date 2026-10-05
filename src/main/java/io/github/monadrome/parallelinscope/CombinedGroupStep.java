@@ -13,6 +13,7 @@ package io.github.monadrome.parallelinscope;
  *
  * @param <V> the group's assembled member-value type, handed to the combine body
  * @param <R> the combine's declared result type
+ * @since 0.3.0
  */
 public interface CombinedGroupStep<V, R> {
 

@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <E> the type of elements held in this queue
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 
