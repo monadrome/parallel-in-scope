@@ -850,15 +850,15 @@ class SlidingWindowSubmitterTest {
 
     /**
      * The claim-before-completion-check ordering is what keeps the cancellation callback from
-     * abandoning an index the submission loop already accepted: once {@code take()} hands over a
-     * slot, {@code nextIndex} is bumped before any check, so the callback abandons only strictly
-     * later placeholders and the loop itself disposes of the claimed index. The vulnerable window
-     * is nanoseconds wide and cannot be gated deterministically, so this test hammers it: many
-     * rounds of submit + cancel at staggered moments, asserting the one observable corruption the
-     * race produced — a task body that ran while its placeholder was already abandoned (user code
-     * ran, the caller reads "never submitted"). On the fixed code the invariant holds by
-     * construction; if the claim ever moves back below the completion check, staggered rounds
-     * make the corruption possible again.
+     * abandoning an index the submission loop already accepted: {@code nextIndex} is claimed
+     * atomically before any post-claim check, so the callback abandons only strictly later
+     * placeholders and the claimer itself disposes of the claimed index. The vulnerable window is
+     * nanoseconds wide and cannot be gated deterministically, so this test hammers it: many rounds
+     * of submit + cancel at staggered moments, asserting the one observable corruption the race
+     * produced — a task body that ran while its placeholder was already abandoned (user code ran,
+     * the caller reads "never submitted"). On the fixed code the invariant holds by construction;
+     * if the claim ever moves back below the completion check, staggered rounds make the corruption
+     * possible again.
      */
     @Test
     void repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted() throws Exception {

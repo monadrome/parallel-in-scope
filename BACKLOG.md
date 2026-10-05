@@ -364,3 +364,21 @@ A-P1（`CancellationToken` 孤岛）仍开放。
    `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
 4. **开放问题**（走六问清单）：待决策两项——batch+combine（O-6）与 TimeSource（O-11）。
    （parallelism 强制化已随 O-2 定案：保持默认。）
+
+## 2026-10-04 审计修复跟进
+
+来源：当前核心审计 R1–R9 / S1–S5 的独立复核（K3 评审席，报告
+`results/review-k3-integration.md`，分支 `chore/audit-kimi-coordinator-20261004`）。
+
+- **P-P7 已修复**（`refactor: drive sliding-window refill from completion events`）：滑窗补窗改为完成
+  事件驱动认领，`ParRuntime.submitterPool` 删除；框架线程成本从 O(并发有限窗口批次) 降为 O(1)。
+  回归 `SlidingWindowResourceBoundTest`，反向验证基线 `346d389` 上 24 条 `submitRemaining` 等待线程、
+  修复后 0。契约 `design/sliding-window-refill.md`。
+- **新增（低）未守卫的 WARNING 日志站**（K3 F-K3-5，证据：`实测`+`复核`）：`Par.java:312`、
+  `ParRuntime.java:106/:144`、`BodyCompletionTracker.java:220` 的 WARNING 日志直接调用；用户替换的
+  JUL handler 抛出时可改变 build/prepare/close 的控制流。同文件的 `warnUnfinished` 已用 quiet-logging
+  守卫，风格应统一。代价低；修法：套用既有 quiet-logging 惯例并补回归。
+- 记录（非缺陷）：`TaskGraphObservationScope` 的 ISSUE 诊断仍在报告发布前调用，阻塞型 handler 可推迟
+  发布（R8 已记为 informational）；`ExecutionPhaseHintFuture.java:117` 的 SEVERE 文案未带"阶段"词，
+  L7 若按字面要求两站点都带阶段则部分满足。
+
