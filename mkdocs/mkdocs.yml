@@ -105,6 +105,9 @@ plugins:
   - search
   - redirects:
       redirect_maps:
+        # legacy zh-CN URLs from before the locale was renamed to zh; do not extend
+        # (the /zh-CN/visuals/*.html stubs under docs/zh-CN/ serve the same purpose
+        # for the two published visual pages and are copied by gh-pages.yml)
         zh-CN/README.md: https://monadrome.github.io/parallel-in-scope/zh/
         zh-CN/user-guide.md: https://monadrome.github.io/parallel-in-scope/zh/user-guide/
         zh-CN/reference/cooperative-cancellation.md: https://monadrome.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/

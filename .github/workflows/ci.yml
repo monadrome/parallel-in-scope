@@ -34,6 +34,9 @@ jobs:
       - name: Check local documentation links
         run: python3 scripts/check-local-links.py
 
+      - name: Check design route table
+        run: python3 scripts/check-design-routes.py
+
       - name: Build documentation strictly
         run: mkdocs build --strict --config-file mkdocs/mkdocs.yml
 
