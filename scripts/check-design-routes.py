@@ -3,8 +3,8 @@
 
 Two directions:
 - every relative Markdown link in design/AGENTS.md must resolve to an existing file;
-- every git-tracked top-level design/*.md (live documents; AGENTS.md itself and
-  archive/ are excluded) must appear as a link target in the route table.
+- every git-tracked top-level design/*.md (live documents; AGENTS.md itself is
+  excluded) must appear as a link target in the route table.
 
 Untracked files are in-flight proposals and exempt by policy.
 """
@@ -43,7 +43,7 @@ def tracked_live_documents() -> list[str]:
     documents = []
     for relative in result.stdout.splitlines():
         path = PurePosixPath(relative)
-        # git pathspec * also matches /, so filter archive/ and AGENTS.md here
+        # git pathspec * also matches /, so keep top-level documents and exclude AGENTS.md here
         if len(path.parts) == 2 and path.name != "AGENTS.md":
             documents.append(path.name)
     return sorted(documents)

@@ -260,7 +260,7 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 **替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 group 成员（收 `Callable`，可直接声明 `throws`）；单任务用单成员组，把纯映射留给 `map`。
 
-**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。完整分析与被否决的逐项方案见 `design/archive/par-map-throwing-function-v0.3-proposal.md`（已标注否决）与 `design/archive/axiom-drift-decisions-2026-09-14.md` §6；除非用户明确重启该决策，后续不再重开。
+**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。结论与完整否决理由见 `design/decision-log.md` 对应条目；逐项否决分析的全文可用 `git show db2ab2d:design/archive/par-map-throwing-function-v0.3-proposal.md` 取回；除非用户明确重启该决策，后续不再重开。
 
 ---
 

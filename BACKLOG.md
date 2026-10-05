@@ -333,8 +333,8 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不入库。** 4 个探针
    （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）曾随 `a3ac144` 短暂进入 `benchmarks/`，
-   按 `design/archive/caller-runs-support-after-inline-deletion.md` 的拍板（benchmark 暂缓、源文件
-   未收入库）移出工作树；复现性能数字时从 `a3ac144` 的历史取回
+   按 `design/decision-log.md` 所载 caller-runs 拍板（benchmark 暂缓、源文件
+   未收入库；拍板全文 `git show db2ab2d:design/archive/caller-runs-support-after-inline-deletion.md`）移出工作树；复现性能数字时从 `a3ac144` 的历史取回
    （`git show a3ac144:benchmarks/Bench.java` 等），`/tmp/pisbench/` 副本可弃。
 2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
