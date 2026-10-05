@@ -14,7 +14,8 @@
 
 **本表只收录已提交的活文档。** 未定稿的在途提案按上述政策留在工作树里，因此不在表内——
 接手一项正在进行的工作前，用 `git status --short design/` 看一遍未跟踪文件，它们通常比本表
-里的任何一篇都更贴近当前状态。
+里的任何一篇都更贴近当前状态。本表由 CI 中的 `scripts/check-design-routes.py` 双向校验：
+表内链接必须存在，已提交的顶层活文档必须入表（未跟踪的在途文档豁免）。
 
 对抗性评审的发现与处置记在所归属的提案文档末尾（如
 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) §10）。后续轮次先读
