@@ -231,6 +231,9 @@ public final class TaskGraphObservationScope implements AutoCloseable {
      * Closes the scope: the first caller freezes the graph snapshot, runs the detection pass, and
      * publishes the report; concurrent callers wait for that publication outside any graph lock and
      * restore their interrupt flag. Every call restores the calling thread's outer scope binding.
+     * The ISSUE diagnostic log line is emitted only after the report is published, so report
+     * callbacks and reentrant closes always observe a completed {@link #reportFuture()} even when
+     * they run before the log line appears.
      */
     @Override
     public void close() {
@@ -245,7 +248,12 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         }
     }
 
-    /** Computes the report from one snapshot, restores the outer scope, then publishes. */
+    /**
+     * Computes the report from one snapshot, restores the outer scope, publishes, then logs. The
+     * ISSUE diagnostic is emitted only after publication: a user-replaceable JUL handler may
+     * reenter {@link #close()}, and that reentrant call waits on the report — logging before
+     * publication would make the closing thread wait on itself forever.
+     */
     private void publishReport() {
         TaskGraphReport report;
         try {
@@ -272,10 +280,22 @@ public final class TaskGraphObservationScope implements AutoCloseable {
             throw error;
         }
         restoreCurrentScope();
-        reportSink.set(report);
+        try {
+            reportSink.set(report);
+        } finally {
+            // Guava commits the value before invoking listeners, so even an Error escaping from
+            // a direct listener leaves the report published; the diagnostic is still attempted.
+            if (report.anyIssue()) {
+                logIssueQuietly(report);
+            }
+        }
     }
 
-    /** Runs the ParRuntime deadlock policy over this scope's graph snapshot. */
+    /**
+     * Runs the ParRuntime deadlock policy over this scope's graph snapshot. A pure computation:
+     * it performs no logging and no other external calls, so publication ordering in {@link
+     * #publishReport()} cannot be subverted by reentrant diagnostics.
+     */
     private TaskGraphReport detect() {
         if (!owner.deadlockPolicy().enabled()) {
             return TaskGraphReport.disabled();
@@ -288,15 +308,13 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         if (!taskCycle && !selfLoop && !executorCycle && !executorSelfLoop) {
             return TaskGraphReport.detection(false, false, false, false, "", "");
         }
-        TaskGraphReport report = TaskGraphReport.detection(
+        return TaskGraphReport.detection(
                 taskCycle,
                 selfLoop,
                 executorCycle,
                 executorSelfLoop,
                 renderTaskEdges(snapshot),
                 renderExecutorEdges(snapshot));
-        logIssueQuietly(report);
-        return report;
     }
 
     /** A logging failure must never skip or corrupt report publication. */

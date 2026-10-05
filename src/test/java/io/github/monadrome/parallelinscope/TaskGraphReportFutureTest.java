@@ -16,6 +16,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -265,6 +267,86 @@ class TaskGraphReportFutureTest {
     }
 
     @Test
+    void reentrantDiagnosticHandlerSeesThePublishedIssueReportAndDoesNotSelfWait() throws Exception {
+        ParRuntime global = runtimeWithDetection(true);
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        AtomicReference<TaskGraphObservationScope> scopeRef = new AtomicReference<>();
+        AtomicReference<TaskGraphObservationScope> currentInHandler = new AtomicReference<>();
+        AtomicBoolean reportDoneInHandler = new AtomicBoolean();
+        AtomicReference<TaskGraphReport> reportInHandler = new AtomicReference<>();
+        AtomicReference<Throwable> handlerFailure = new AtomicReference<>();
+        Handler reentrant = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                TaskGraphObservationScope scope = scopeRef.get();
+                if (scope == null) {
+                    return;
+                }
+                try {
+                    // Restoration precedes diagnostics: the handler sees the outer scope.
+                    currentInHandler.set(TaskGraphObservationScope.current());
+                    // Publication precedes diagnostics: the handler already sees the report.
+                    reportDoneInHandler.set(scope.reportFuture().isDone());
+                    if (reportDoneInHandler.get()) {
+                        reportInHandler.set(doneReport(scope.reportFuture()));
+                    }
+                    // A reentrant close must return instead of waiting on its own publication.
+                    scope.close();
+                } catch (Throwable t) {
+                    handlerFailure.set(t);
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        boolean parentHandlers = observationLogger.getUseParentHandlers();
+        Level previousLevel = observationLogger.getLevel();
+        observationLogger.addHandler(reentrant);
+        observationLogger.setUseParentHandlers(false);
+        observationLogger.setLevel(Level.ALL);
+        ExecutorService closer = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            return thread;
+        });
+        try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
+            // Close on a daemon thread carrying the binding stack a TTL worker would have, so a
+            // regression of the self-wait fails this test on a bound instead of hanging the JVM.
+            Future<?> close = closer.submit(() -> {
+                TaskGraphObservationScope.restore(outer);
+                TaskGraphObservationScope inner = global.openTaskGraphObservation();
+                scopeRef.set(inner);
+                recordTaskCycle();
+                inner.close();
+                return null;
+            });
+            close.get(10, TimeUnit.SECONDS);
+
+            TaskGraphObservationScope inner = Objects.requireNonNull(scopeRef.get());
+            assertThat(handlerFailure.get()).isNull();
+            assertThat(currentInHandler.get()).isSameAs(outer);
+            assertThat(reportDoneInHandler.get()).isTrue();
+            assertThat(reportInHandler.get()).isNotNull();
+            assertThat(reportInHandler.get().status()).isEqualTo(TaskGraphReport.Status.ISSUE);
+
+            // Repeated close after the reentrant one returns the same published report.
+            inner.close();
+            assertThat(doneReport(inner.reportFuture())).isSameAs(reportInHandler.get());
+            // The test thread's own binding was never disturbed.
+            assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
+        } finally {
+            closer.shutdownNow();
+            observationLogger.removeHandler(reentrant);
+            observationLogger.setLevel(previousLevel);
+            observationLogger.setUseParentHandlers(parentHandlers);
+        }
+    }
+
+    @Test
     void repeatedClosePublishesOnceAndKeepsTheSameReport() throws Exception {
         ParRuntime global = runtimeWithDetection(true);
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
@@ -501,6 +583,96 @@ class TaskGraphReportFutureTest {
             pool.shutdownNow();
         }
         assertThat(scope.reportFuture().isDone()).isTrue();
+    }
+
+    @Test
+    void waitingCloseBlocksUntilPublicationAndSeesDoneReport() throws Exception {
+        ParRuntime global = runtimeWithDetection(true);
+        CountDownLatch snapshotEntered = new CountDownLatch(1);
+        CountDownLatch releaseSnapshot = new CountDownLatch(1);
+        TaskGraphObservationScope scope =
+                new TaskGraphObservationScope(global, new BlockingGraphData(snapshotEntered, releaseSnapshot));
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> winner = pool.submit(scope::close);
+            assertThat(snapshotEntered.await(10, TimeUnit.SECONDS)).isTrue();
+
+            CountDownLatch contenderStarted = new CountDownLatch(1);
+            AtomicBoolean reportDoneAtReturn = new AtomicBoolean();
+            Future<?> contender = pool.submit(() -> {
+                contenderStarted.countDown();
+                scope.close();
+                // A normally returning close() observes a done report.
+                reportDoneAtReturn.set(scope.reportFuture().isDone());
+                return null;
+            });
+            assertThat(contenderStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            // The loser waits on publication: it must not return while the winner is mid-detection.
+            assertThatThrownBy(() -> contender.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            releaseSnapshot.countDown();
+
+            winner.get(10, TimeUnit.SECONDS);
+            contender.get(10, TimeUnit.SECONDS);
+            assertThat(reportDoneAtReturn.get()).isTrue();
+        } finally {
+            releaseSnapshot.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void issueReportAndDiagnosticSurviveAnErrorThrowingDirectListener() {
+        ParRuntime global = runtimeWithDetection(true);
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        AtomicBoolean warningLogged = new AtomicBoolean();
+        Handler capturing = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                warningLogged.set(true);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        boolean parentHandlers = observationLogger.getUseParentHandlers();
+        Level previousLevel = observationLogger.getLevel();
+        observationLogger.addHandler(capturing);
+        observationLogger.setUseParentHandlers(false);
+        observationLogger.setLevel(Level.ALL);
+        try {
+            TaskGraphObservationScope scope = global.openTaskGraphObservation();
+            recordTaskCycle();
+            AssertionError listenerError = new AssertionError("listener boom");
+            Futures.addCallback(
+                    scope.reportFuture(),
+                    new FutureCallback<TaskGraphReport>() {
+                        @Override
+                        public void onSuccess(@Nullable TaskGraphReport report) {
+                            throw listenerError;
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t) {}
+                    },
+                    directExecutor());
+
+            // Guava commits the report before invoking listeners, so the listener Error escapes
+            // close() without leaving the report pending...
+            assertThatThrownBy(scope::close).isSameAs(listenerError);
+            assertThat(scope.reportFuture().isDone()).isTrue();
+            assertThat(doneReport(scope.reportFuture()).status()).isEqualTo(TaskGraphReport.Status.ISSUE);
+            // ...and the ISSUE diagnostic is still attempted from the publication finally.
+            assertThat(warningLogged.get()).isTrue();
+            assertThat(TaskGraphObservationScope.current()).isNull();
+        } finally {
+            observationLogger.removeHandler(capturing);
+            observationLogger.setLevel(previousLevel);
+            observationLogger.setUseParentHandlers(parentHandlers);
+        }
     }
 
     /** Reads a report known to be published; an unexpected detection failure fails the test. */

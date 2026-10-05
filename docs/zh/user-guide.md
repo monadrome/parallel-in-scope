@@ -293,7 +293,7 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 }
 ```
 
-报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
+报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。报告发布先于 ISSUE 诊断日志输出，因此报告回调——甚至重入 `close()` 的日志 handler——看到的始终是已终态的 future，无法阻塞发布。
 
 `TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
 

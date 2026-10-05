@@ -52,6 +52,7 @@ Adversarial Review。
 | [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、声明期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员直消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
 | [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
+| [observation-close-reentrancy.md](observation-close-reentrancy.md) | F1 修复记录：观测 close 的日志重入自等待——检测纯计算化、发布先于诊断的顺序契约、回归与对抗性评审记录 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 
 ## 取消与队列

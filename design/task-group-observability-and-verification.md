@@ -72,6 +72,18 @@ fake-group-batch -> A/B/C
   或 identity graph 缺少 endpoint identity）MUST 在该派生视图中跳过，MUST NOT 让无关查询失败；
   这些边仍保留在 task graph 中。
 
+发布与诊断的顺序：
+
+- `close()` 的检测 MUST 是纯计算：不调用 JUL 等外部诊断代码；
+- `close()` MUST 先恢复调用线程的外层 scope 绑定并完成报告发布，再发出 ISSUE 诊断日志；
+  发布之后的诊断 handler 重入 `close()` MUST 立即返回（看到已完成的 `reportFuture()`），
+  MUST NOT 让关闭线程等待自己的发布；诊断 handler 抛出的异常或 `Error` MUST NOT
+  影响已发布的报告。因此报告回调可能先于 WARNING 日志行执行——这是有意顺序。
+- 报告回调的 `Error` 可以逃逸 `close()`（Guava 在调用 listener 前已提交报告值），但
+  MUST NOT 使报告保持 pending；ISSUE 诊断日志在发布的 `finally` 中发出，listener 的
+  `Error` MUST NOT 跳过该诊断。阻塞的 direct listener 不在此保证范围内：它只能推迟
+  诊断与 winner 的返回，不能阻止报告到达终态。
+
 ## 13. 并发不变量
 
 实现和测试必须证明：
