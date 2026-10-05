@@ -1,8 +1,11 @@
-# 决策日志（归档提案的残值）
+# 决策日志（已决事项的残值层）
 
-`archive/` 存放已落地、已否决或已被取代的提案全文，只供考古。本表提取每篇的残值：
+已落地、已否决或已被取代的提案全文不入库——git 历史就是归档。本表提取每篇的残值：
 **结论、否决了什么及为什么、落地位置**。判断一篇文档是否该留在 `design/` 根目录的标准：
 它回答的问题，代码、测试和 git 历史是否回答不了——回答不了才留下。
+
+旧 `design/archive/` 已随两态生命周期改革删除；全文最后可见于 `db2ab2d`，取回方式：
+`git show db2ab2d:design/archive/<文件名>.md`。
 
 ## v0.3 重构簇
 
@@ -10,7 +13,7 @@
 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 与
 [synchronous-scope-exit.md](synchronous-scope-exit.md)）。
 
-| 提案（全文见 archive/） | 结论与残值 |
+| 提案 | 结论与残值 |
 |---|---|
 | group-api-redesign-v0.3-decision | 结构定义与执行绑定分离、`ParId`、`GlobalPar` 更名 `ParRuntime`。组 API 部分后被一次性链式草稿取代；拓扑与命名沿革仍有参考价值 |
 | task-type-semantics-v0.3-proposal | `TaskType` 是意图声明，`TaskType.MIXED` 拍板保留、**明确不重开**；executor 拒绝处置归 executor 所有，`runOnCallerThread` 选项在 0.3.0 发布前删除（`df89b43`） |
@@ -23,7 +26,7 @@
 
 ## SPI 删除与观测归宿
 
-| 提案（全文见 archive/） | 结论与残值 |
+| 提案 | 结论与残值 |
 |---|---|
 | task-listener-removal-proposal-codex | 删除 `TaskListener` SPI；观测归宿为 `completionFuture()` 终态快照（双信号屏障）。落地 `c3fdcfc`；迁移路径在全文内 |
 | task-listener-removal-proposal | 同一提案的未采纳变体，仅评审对照价值 |
@@ -32,7 +35,7 @@
 
 ## 其他已决
 
-| 提案（全文见 archive/） | 结论与残值 |
+| 提案 | 结论与残值 |
 |---|---|
 | executor-transparency | `starvationProne()` 按提交去向判定、注册期「看不透」告警；`BlockingRisk` 分类后因无读者被删（CHANGELOG 0.3.0） |
 | queue-artifact-boundary-decision | queue 与 core 同产物发布。**边界已由 adr/0006 永久关闭**，不要在评审、缺陷分诊或重构提案中重提 |
@@ -45,4 +48,4 @@
 | group-curried-api-proposal | 被一次性链式草稿（group-one-shot）取代 |
 | group-tuple-index-proposal | 同上；`GroupValues` 的双通道查询最终以别的形状落地 |
 | close-and-quiescence-proposal | 被 scope-close 与同步出口契约取代 |
-| simple-resizable-blocking-queue-conclusion | 三个变体（condition/monitor/future-coordinated）随 `94f1a50` 移出主线，未并入任何契约；结论与 V1/V3 未采纳替代全文见 [archive/](archive/simple-resizable-blocking-queue-conclusion.md)。实现仅存于本地分支 `experimental-blocking-queue`（`94f1a50` 声称的 `explore/resizable-blocking-queue` 不存在） |
+| simple-resizable-blocking-queue-conclusion | 三个变体（condition/monitor/future-coordinated）随 `94f1a50` 移出主线，未并入任何契约；结论与 V1/V3 未采纳替代全文用 `git show db2ab2d:design/archive/simple-resizable-blocking-queue-conclusion.md` 取回。实现仅存于本地分支 `experimental-blocking-queue`（`94f1a50` 声称的 `explore/resizable-blocking-queue` 不存在） |

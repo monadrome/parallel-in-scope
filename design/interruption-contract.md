@@ -437,7 +437,8 @@ report (cleaned)  : SUCCESS:3,SUBMISSION_FAILURE:9 | firstException=Task submiss
 
 这条 inline 路径上另有一个与中断无关的缺陷：**同步占用提交线程导致死锁，且 batch 的
 deadline 结构性地无法解救**（`bind()` 在 `submitAll` 之后才接线）。
-详见 [inline-fallback-path-analysis.md](archive/inline-fallback-path-analysis.md)，该文同时回答了
+详见 [decision-log.md](decision-log.md) 的 inline-fallback-path-analysis 条目（分析全文见
+git 历史 `db2ab2d`），该文同时回答了
 "任务在队列上而 caller 也执行时是否有幂等限制"——有，双层保护，不会重复执行。
 
 三个缺陷共享同一根因：一条同步路径借用了不属于它的线程，借用前后没有做隔离。前两个
