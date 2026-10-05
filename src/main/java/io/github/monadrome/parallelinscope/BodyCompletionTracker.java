@@ -299,7 +299,7 @@ final class BodyCompletionTracker {
         } catch (TimeoutException elapsed) {
             return false;
         } catch (ExecutionException | CancellationException impossible) {
-            // The signal is only ever set to null on completion; it cannot fail or be cancelled.
+            // The signal only ever completes normally; it cannot fail or be cancelled.
             throw new AssertionError("body-exit signal cannot fail", impossible);
         }
     }

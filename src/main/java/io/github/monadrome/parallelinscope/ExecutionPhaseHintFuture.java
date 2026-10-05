@@ -206,7 +206,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         runner = Thread.currentThread();
         boolean skipped = !claimBody();
-        // Cancellation or abandonment may have cleared the body after the phase claim.
+        // Defensive: no current path clears the body once the phase claim above has won.
         @Nullable Callable<V> body = callable;
         boolean cancelled = isCancelled();
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
