@@ -70,9 +70,10 @@ public final class TaskGraphObservationScope implements AutoCloseable {
     }
 
     /**
-     * Resolves the scope one new unit of {@code owner} joins: the structural parent's scope when the
-     * parent has one, otherwise the calling thread's scope — and in both cases only when that scope
-     * belongs to {@code owner}.
+     * Resolves the scope one new unit of {@code owner} joins: the calling thread's scope, or when
+     * there is none the structural parent's scope — in either case only when that scope belongs to
+     * {@code owner}. The thread's binding comes first because nested scopes stack on the thread: a
+     * scope a body opened around this submission wins over the one its parent joined.
      *
      * <p>This is the single implementation of that rule, shared by {@code Par.submit},
      * {@code Par.map}, and {@code TaskGroup.prepare}. Ownership is the whole point: a scope opened by

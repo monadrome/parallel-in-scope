@@ -190,10 +190,10 @@ final class BodyCompletionTracker {
     }
 
     /**
-     * Shared close sequence for {@code TaskGroup} and {@code TaskBatchResult}: reject self-awaits,
-     * run the scope's cancellation entry, then wait up to the close grace for task bodies to exit.
-     * A grace elapsed with bodies still running is reported with the outstanding task names —
-     * a leaked body is data, not silence.
+     * Shared close sequence for {@code TaskGroup} and {@code TaskBatch} (the {@code Par.map}
+     * convergence path): reject self-awaits, run the scope's cancellation entry, then wait up to
+     * the close grace for task bodies to exit. A grace elapsed with bodies still running is
+     * reported with the outstanding task names — a leaked body is data, not silence.
      *
      * @param cancel the scope's idempotent cancellation entry
      * @param graceNanos the close grace in nanoseconds; non-positive means cancel without waiting
@@ -226,9 +226,9 @@ final class BodyCompletionTracker {
     }
 
     /**
-     * Derives the close wait budget shared by {@code TaskGroup.close()} and {@code
-     * TaskBatchResult.close()}: the configured close grace when the scope declared one, otherwise
-     * what is left of its execution deadline.
+     * Derives the close wait budget shared by {@code TaskGroup.close()} and {@code TaskBatch}'s
+     * post-settle body-completion wait for {@code Par.map}: the configured close grace when the
+     * scope declared one, otherwise what is left of its execution deadline.
      *
      * @param configured the declared close grace, or null to derive from the deadline
      * @param deadlineNanos the scope's absolute deadline, or {@link Long#MAX_VALUE} for none
