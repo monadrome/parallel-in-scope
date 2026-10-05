@@ -221,7 +221,7 @@ changes, run an independent review with its own budget:
   gaps. PIT needs no permission and touches only `target/`.
 
 Historical examples and results already live in
-`design/group-one-shot-api-refactor-codex.md` section 10; consult them when
+`design/group-one-shot-api-refactor-codex.md` section 9; consult them when
 investigating review or test blind spots.
 
 ## Issue Tracking
