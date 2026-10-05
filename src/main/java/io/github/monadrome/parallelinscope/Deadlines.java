@@ -64,9 +64,9 @@ final class Deadlines {
 
     /**
      * Returns the deadline {@code durationNanos} after {@code nowNanos}, saturated to
-     * {@link Long#MAX_VALUE} when the sum overflows. The duration is expected to be non-negative,
-     * which is what every caller validates; a negative one is applied as-is so that an
-     * already-elapsed deadline stays in the past.
+     * {@link Long#MAX_VALUE} when the sum overflows. Positive durations saturate; a negative one is
+     * applied as-is so that an already-elapsed deadline stays in the past — {@code awaitQuiescence}
+     * passes the saturated negative sentinel here for an already-elapsed non-positive wait.
      *
      * @param nowNanos a {@link System#nanoTime()} reading
      * @param durationNanos the timeout to apply, normally non-negative

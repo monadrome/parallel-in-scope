@@ -120,7 +120,7 @@ class TaskCompletionTest {
     }
 
     @Test
-    void endReadingAtZeroWithNonZeroStartIsStartedAndClampsExecution() {
+    void endReadingAtZeroWithNonZeroStartIsStartedAndComputesExecution() {
         TaskCompletion<String> completion =
                 TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -5_000_000L, 0L, "value");
 
