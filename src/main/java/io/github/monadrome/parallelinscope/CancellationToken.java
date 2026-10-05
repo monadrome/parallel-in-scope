@@ -168,8 +168,9 @@ public final class CancellationToken {
         }
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
         if (deadlineNanos != Long.MAX_VALUE) {
-            // Saturate the subtraction: a positive result here is guaranteed by the expired-deadline
-            // branch above, which also owns the sentinel and the wrapped-negative case.
+            // Saturate the subtraction: the expired-deadline branch above guarantees a positive
+            // result, the enclosing if excludes the sentinel, and Deadlines.remaining normalizes
+            // the wrapped-negative case.
             failFastFuture = failFastFuture.withTimeout(
                     Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime())), timer);
         }

@@ -319,7 +319,7 @@ final class SlidingWindowSubmitter<V> {
             ExecutionPhaseHintFuture<V> task = tasks.get(index);
             if (index < start) {
                 try {
-                    // PROTOTYPE: no bind step — the view already wraps this prepared future.
+                    // No bind step — the view already wraps this prepared future.
                     fallbackSubmit(tasks, index, this::onComplete);
                 } catch (Throwable failure) {
                     // Catching Throwable, not only RuntimeException | Error: execute(Runnable)

@@ -269,9 +269,10 @@ public final class Par {
                 new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         // Bind before submitting, for the same reason Par.submit does: submission can run user code
-        // on this very thread. The batch's initial window hands off synchronously here, and on a
-        // rejection the element's body runs inline on this thread, so a body that waits for a later
-        // element of its own batch wedges the submitting thread itself. Arming the deadline first is
+        // on this very thread. The batch's initial window hands off synchronously here, and a direct
+        // executor or a CallerRunsPolicy rejection runs the element's body inline on this thread, so
+        // a body that waits for a later element of its own batch wedges the submitting thread itself. Arming the
+        // deadline first is
         // what makes that recoverable — the timer cancels the element, whose interrupt reaches this
         // thread — and it extends the deadline to cover the submission window rather than starting
         // only once every element is handed off.
