@@ -613,7 +613,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
-                                .executorIdentity(par.executorIdentity())
+                                .executorIdentity(par.executorRuntime().identity())
                                 .executorLabel(par.id().value()));
                 par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
@@ -623,9 +623,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 // The wrapper is what turns a body that violates its declared token into an ordinary
                 // member failure instead of a later ClassCastException at a caller's use site.
                 Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
-                MemberState state =
-                        new MemberState(slot.name, slot.type, taskContext, future, par.submissionExecutor());
+                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
+                MemberState state = new MemberState(
+                        slot.name,
+                        slot.type,
+                        taskContext,
+                        future,
+                        par.executorRuntime().submissionExecutor());
                 states.put(slot.name, state);
             }
             int index = 0;
@@ -663,7 +667,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
-                                .executorIdentity(par.executorIdentity())
+                                .executorIdentity(par.executorRuntime().identity())
                                 .executorLabel(par.id().value()));
                 par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
@@ -672,11 +676,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 String combineName = combineSlot.name;
                 TypeToken<?> combineType = combineSlot.type;
                 Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
+                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
-                terminal = new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor());
+                terminal = new MemberState(
+                        combineName,
+                        combineType,
+                        taskContext,
+                        future,
+                        par.executorRuntime().submissionExecutor());
                 if (observation != null) {
                     logForking(unit, par.executorRuntime().starvationProne());
                 }

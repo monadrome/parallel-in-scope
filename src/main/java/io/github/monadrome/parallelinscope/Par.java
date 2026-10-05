@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -78,20 +77,12 @@ public final class Par {
         return id;
     }
 
+    /**
+     * The executor this entry is bound to, as the kernel sees it: identity, submission executor,
+     * and queue facts. Callers read those through it; this class keeps no forwarders for them.
+     */
     ExecutorRuntime executorRuntime() {
         return executorRuntime;
-    }
-
-    ExecutionPhaseHintFuture<Object> prepareGroupTask(Callable<Object> callable, TaskExecutionContext taskContext) {
-        return TaskSubmissions.prepare(taskContext, callable);
-    }
-
-    ExecutorIdentity executorIdentity() {
-        return executorRuntime.identity();
-    }
-
-    Executor submissionExecutor() {
-        return executorRuntime.submissionExecutor();
     }
 
     /**
@@ -264,7 +255,7 @@ public final class Par {
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
                         .taskGraphObservationScope(observation)
-                        .executorIdentity(combinePar.executorIdentity())
+                        .executorIdentity(combinePar.executorRuntime().identity())
                         .executorLabel(combinePar.id().value()));
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
@@ -318,7 +309,10 @@ public final class Par {
                     @Override
                     public void onSuccess(@Nullable List<R> values) {
                         if (terminalSubmitted.compareAndSet(false, true) && !terminalFuture.isDone()) {
-                            TaskSubmissions.submitScoped(terminalFuture, terminalUnit, combinePar.submissionExecutor());
+                            TaskSubmissions.submitScoped(
+                                    terminalFuture,
+                                    terminalUnit,
+                                    combinePar.executorRuntime().submissionExecutor());
                         }
                     }
 
