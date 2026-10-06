@@ -308,6 +308,10 @@ final class TaskBatch<T> implements AutoCloseable {
     /**
      * Creates a result for a fully submitted batch.
      *
+     * <p>Freezing a batch ({@link #finish()}) reads every element's settle attribution, which only
+     * views built by {@link Task#attributedOnSettle} carry; a batch of other views can be read live
+     * and closed, but not frozen. The library's own use is the empty batch.
+     *
      * @param <T> the element result type
      * @param results the individual result futures
      * @return a new batch result
