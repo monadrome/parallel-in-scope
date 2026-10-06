@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Duration;
@@ -63,8 +64,22 @@ public final class ParRuntime implements AutoCloseable {
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
-    private final Object quiescenceMonitor = new Object();
+    private final Monitor quiescenceMonitor = new Monitor();
     private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
+
+    /**
+     * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter
+     * on this guard is re-evaluated whenever a thread occupies and releases the monitor, so each
+     * state change that can satisfy it is followed by an enter/leave pair rather than a hand-built
+     * wait/notify protocol.
+     */
+    private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
+        @Override
+        public boolean isSatisfied() {
+            return servicesShutdown.get() && liveBodySignals.isEmpty();
+        }
+    };
+
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
 
@@ -375,19 +390,25 @@ public final class ParRuntime implements AutoCloseable {
     public boolean awaitQuiescence(Duration timeout) throws InterruptedException {
         Objects.requireNonNull(timeout, "timeout cannot be null");
         long remainingNanos = Deadlines.saturatedNanos(timeout);
-        // Saturates to the sentinel when the requested wait is astronomical.
-        long deadline = Deadlines.after(System.nanoTime(), remainingNanos);
         if (Thread.interrupted()) {
             throw new InterruptedException();
         }
-        synchronized (quiescenceMonitor) {
-            while (!servicesShutdown.get() || !liveBodySignals.isEmpty()) {
-                if (remainingNanos <= 0) return false;
-                TimeUnit.NANOSECONDS.timedWait(quiescenceMonitor, remainingNanos);
-                remainingNanos = Deadlines.remaining(deadline, System.nanoTime());
+        if (remainingNanos <= 0) {
+            // An elapsed budget still gets one state check; enterWhen would skip it whenever the
+            // monitor is momentarily held by a signaller.
+            quiescenceMonitor.enter();
+            try {
+                return quiescent.isSatisfied();
+            } finally {
+                quiescenceMonitor.leave();
             }
-            return true;
         }
+        if (!quiescenceMonitor.enterWhen(quiescent, remainingNanos, TimeUnit.NANOSECONDS)) {
+            return false;
+        }
+        // enterWhen returns still holding the monitor; release it before reporting quiescence.
+        quiescenceMonitor.leave();
+        return true;
     }
 
     /**
@@ -429,9 +450,9 @@ public final class ParRuntime implements AutoCloseable {
                 && servicesShutdown.compareAndSet(false, true)) {
             timerService.shutdown();
             timeoutActionPool.shutdown();
-            synchronized (quiescenceMonitor) {
-                quiescenceMonitor.notifyAll();
-            }
+            // Monitor re-evaluates its guards when a thread leaves, waking awaitQuiescence.
+            quiescenceMonitor.enter();
+            quiescenceMonitor.leave();
         }
     }
 
@@ -474,9 +495,8 @@ public final class ParRuntime implements AutoCloseable {
         signal.addListener(
                 () -> {
                     liveBodySignals.remove(signal);
-                    synchronized (quiescenceMonitor) {
-                        quiescenceMonitor.notifyAll();
-                    }
+                    quiescenceMonitor.enter();
+                    quiescenceMonitor.leave();
                 },
                 MoreExecutors.directExecutor());
     }

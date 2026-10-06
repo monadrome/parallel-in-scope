@@ -608,6 +608,135 @@ class ParRuntimeTest {
     }
 
     @Test
+    void successfulAwaitQuiescenceReleasesTheMonitorForLaterCallers() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            global.close();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+
+            // A successful timed wait must not retain the quiescence monitor. The probe runs on
+            // another thread because a ReentrantLock is reentrant: this thread could re-enter its
+            // own leaked hold and hide it.
+            AtomicBoolean result = new AtomicBoolean();
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread caller = new Thread(() -> {
+                try {
+                    result.set(global.awaitQuiescence(Duration.ZERO));
+                } catch (Throwable t) {
+                    failure.set(t);
+                }
+            });
+            // Daemon: if a future regression reintroduces the leak, the probe stays blocked in
+            // enter() forever and must not pin the test JVM.
+            caller.setDaemon(true);
+            caller.start();
+            caller.join(2000L);
+            assertThat(caller.isAlive())
+                    .as("a later caller hung: the successful wait never released the monitor")
+                    .isFalse();
+            assertThat(failure.get()).isNull();
+            assertThat(result.get()).isTrue();
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitQuiescencePropagatesInterruptionWhileWaiting() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            AtomicBoolean flagCleared = new AtomicBoolean();
+            Thread waiter = new Thread(() -> {
+                try {
+                    global.awaitQuiescence(Duration.ofSeconds(30));
+                } catch (InterruptedException e) {
+                    failure.set(e);
+                    flagCleared.set(!Thread.currentThread().isInterrupted());
+                }
+            });
+            waiter.start();
+            // No "parked" signal exists on this path; the grace period makes it overwhelmingly
+            // likely the interrupt lands mid-wait rather than in the pre-check. Either way the
+            // contract is the same InterruptedException, asserted below.
+            Thread.sleep(200);
+            waiter.interrupt();
+            waiter.join(2000L);
+            assertThat(waiter.isAlive()).as("an interrupted wait did not exit").isFalse();
+            assertThat(failure.get()).isInstanceOf(InterruptedException.class);
+            assertThat(flagCleared.get()).isTrue();
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void awaitQuiescenceWakesPromptlyWhenTheLastTrackedBodyExits() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskFuture<String> task = global.par(ParId.of("io"))
+                    .submit(
+                            "parked",
+                            () -> {
+                                entered.countDown();
+                                boolean interrupted = false;
+                                while (true) {
+                                    try {
+                                        release.await();
+                                        break;
+                                    } catch (InterruptedException ignored) {
+                                        interrupted = true;
+                                    }
+                                }
+                                if (interrupted) Thread.currentThread().interrupt();
+                                return "done";
+                            },
+                            TaskOptions.timeout(Duration.ofSeconds(30)));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+
+            task.cancel(true);
+            global.close();
+
+            // Park the waiter while the body is still running: the body-exit listener's signal
+            // is then the only thing that can end the wait before the budget expires. No "parked"
+            // signal exists on this path; the grace period parks the waiter before the release.
+            AtomicBoolean result = new AtomicBoolean();
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread waiter = new Thread(() -> {
+                try {
+                    result.set(global.awaitQuiescence(Duration.ofSeconds(30)));
+                } catch (Throwable t) {
+                    failure.set(t);
+                }
+            });
+            waiter.setDaemon(true);
+            waiter.start();
+            Thread.sleep(200);
+            release.countDown();
+            waiter.join(5000L);
+            assertThat(waiter.isAlive())
+                    .as("body exit never woke the parked waiter")
+                    .isFalse();
+            assertThat(failure.get()).isNull();
+            assertThat(result.get()).isTrue();
+        } finally {
+            release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
