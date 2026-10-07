@@ -124,7 +124,7 @@ Tuple2，combine 类型为 R。原始类型、未解析 token、外国 Par、重
 runOnCallerThread 删除。handoff 失败记录 SUBMISSION_FAILURE 与原 cause；inline
 由应用拒绝处理器决定。TPE 的 combine 禁止拒绝处理器 inline，明确的 direct executor
 继续支持。TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；
-TaskOptions 默认拒绝入队在普通队列无效并告警。直接注册的 DiscardPolicy/
+请求的拒绝入队（rejectEnqueue 或 CPU_BOUND）在普通队列无效，每个 Par 告警一次。直接注册的 DiscardPolicy/
 DiscardOldestPolicy 在 build 时拒绝；opaque wrapper 接纳但死锁可见性降低。
 
 checkpoint guard 不再静默跳过取消/过期 body。runtime.close 拒绝新准入、排空已接纳工作、

@@ -141,7 +141,8 @@ The previous `runOnCallerThread` option is removed. Executor handoff failures be
 SUBMISSION_FAILURE with the original cause; a caller-runs rejection handler remains the application's
 choice. Terminal combines reject inline execution by a ThreadPoolExecutor rejection handler; deliberate
 direct executors remain supported. TaskType/rejectEnqueue alter SmartBlockingQueue admission rather
-than select pools; TaskOptions default enqueue refusal is inert on plain queues and emits a warning.
+than select pools; a requested enqueue refusal (`rejectEnqueue` or `CPU_BOUND`) is inert on plain queues
+and emits one warning per Par.
 Directly registered DiscardPolicy/DiscardOldestPolicy pools are rejected at build time; opaque wrappers
 remain accepted with diagnostics and reduced deadlock visibility.
 
