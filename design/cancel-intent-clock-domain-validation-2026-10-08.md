@@ -203,3 +203,32 @@ pit-token3/pit-token4 日志与 target/pit-reports-archive/CancellationToken-fin
 第四轮后 PIT（CancellationToken，同作用域）：44 变异体 43 杀死，NO_COVERAGE 仍仅
 `timeoutScheduler()` 访问器（等价分类不变）。日志 pit-token5.log，报告
 target/pit-reports-archive/CancellationToken-final2。
+
+## 第五轮评审（Codex CLI 终审，只读）
+
+输入输出：target/cmux-handoff/codex-round5-review.md。第三、四轮处置全部被确认；新增一条：
+
+- **终态跳过布防仍是 check-then-act（major，保留并修复）**。RUNNING 检查与 schedule 之间，
+  取消可落锤并随 runtime 关闭退役两个调度器，拒绝从组启动逃逸。评审用系统时钟缝确定复现
+  （嵌套 group 的更紧成员 bind 被暂停后，内层 runtime 关闭 + 外层 fail-fast + 外层 runtime
+  关闭，恢复时 TaskGroup 成员 bind 抛 RejectedExecutionException）。
+- 修复：scheduleDeadline 在两个调度器都拒绝时检查 token 终态——已终态则吸收拒绝返回 null
+  （终态已蕴含取消，timer 无事可做，取消经 futureToken/setFuture 桥完整到达）；仍 RUNNING
+  则照常抛出（deadline 无法执行时静默继续违背超时契约）。新增三个确定性区间测试：
+  `cancellationBetweenGuardAndArmingAbsorbsSchedulerRejection` 与
+  `retiredDomainSchedulerAndConcurrentCancelAbsorbRejectionOnFallback`（CancelThenReject
+  scheduler 在 schedule 内先取消再拒绝，确定性地站在检查与布防之间），以及钉死残留语义的
+  `runningTokenRejectedByEverySchedulerThrows`。反向验证：移除终态吸收后两个吸收测试转红，
+  抛出测试保持绿（round5-reverted.log）。
+- 第五轮后 PIT（CancellationToken，同作用域）：46 变异体 45 杀死，scheduleDeadline 新分支
+  全部杀死；NO_COVERAGE 仍仅 `timeoutScheduler()` 访问器（等价分类不变）。日志
+  pit-token6.log，报告 target/pit-reports-archive/CancellationToken-final3。
+
+## 第六轮评审（Codex CLI 确认轮，只读）
+
+输入输出：target/cmux-handoff/codex-round6-review.md。终态吸收与 null 句柄路径被判
+sound（取消先于拒绝后状态检查提交、setFuture 传播取消、已布防句柄仍被终态监听取消）。
+一条 P2 测试缺口（保留并修复）：`runningTokenRejectedByEverySchedulerThrows` 两个参数用同一
+调度器，「域调度器拒绝 → 独立 fallback 也拒绝 → 仍 RUNNING 必须抛出」的路径无覆盖。
+新增 `runningTokenRejectedByBothDistinctSchedulersThrows`（两个不同的退役调度器）钉死该
+分支。测试级增补，无实现改动，评审循环到此收敛。
