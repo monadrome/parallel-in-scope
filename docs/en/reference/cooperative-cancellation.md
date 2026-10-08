@@ -51,6 +51,8 @@ The three checkpoint forms differ in what they do **outside** any scoped task:
 | `Checkpoints.checkpoint(taskName, lean)` | Throws `IllegalStateException` | `lean=true`: `LeanCancellationException`; `lean=false`: `CancellationException` with a stack trace |
 | `Checkpoints.rawCheckpoint()` | Works — no scope required; also honors the thread's interrupt flag | Throws `LeanCancellationException` |
 
+`rawCheckpoint()` translates an observed interrupt but does not consume it: the interrupt flag stays set for the thread owner, matching the blocking adapters in the same class.
+
 Two utilities round out the API:
 
 | Method | Purpose |
