@@ -432,6 +432,23 @@ public final class ParRuntime implements AutoCloseable {
         return activeAdmissions.get() + activeBatches.get();
     }
 
+    /**
+     * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
+     * many admissions are setting up work, how many admitted runs still retain incomplete futures,
+     * and how many task-body exit signals are still outstanding.
+     *
+     * <p>The four readings are independent samples of concurrent counters: the snapshot is a
+     * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
+     * linearizable state — it must not drive control flow, and it never replaces the quiescence
+     * guarantee.
+     *
+     * @return a shallow immutable diagnostic snapshot
+     */
+    public ParRuntimeSnapshot snapshot() {
+        return new ParRuntimeSnapshot(
+                closed.get(), activeAdmissions.get(), activeBatches.get(), liveBodySignals.size());
+    }
+
     /** Runs one synchronous batch setup while this topology remains open. */
     <T> T whileOpen(Supplier<T> action) {
         Objects.requireNonNull(action, "action cannot be null");

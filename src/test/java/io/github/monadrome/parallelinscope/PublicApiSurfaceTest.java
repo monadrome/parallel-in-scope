@@ -29,6 +29,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".GroupValues",
             BASE_PACKAGE + ".ImmediateResult",
             BASE_PACKAGE + ".ParRuntime",
+            BASE_PACKAGE + ".ParRuntimeSnapshot",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy",
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
