@@ -17,18 +17,21 @@ public <T> void bind(
     // 事件来源必须按来源区分，不能按异常类型猜：业务体可以合法抛 TimeoutException。
     // allAsList 回调是唯一 FAIL_FAST 来源；显式调度的 timer 任务是唯一 TIMEOUT 来源。
     ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
-    if (deadlineNanos != Long.MAX_VALUE) {
-        ScheduledFuture<?> timeoutHandle = timer.schedule(() -> {
+    // 已终态 token 不再布防：没有任何转换能再获胜，deadline 已无意义；其取消经
+    // futureToken/setFuture 桥与 onFailure 回调完整到达。跳过也使终态 token 的 bind
+    // 不触碰所属 runtime 可能已关闭的调度器（组启动竞态）。
+    if (deadlineNanos != Long.MAX_VALUE && state() == RUNNING) {
+        ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
             transitionTo(TIMEOUT);
-            allFutures.cancel(true);
-        }, remaining, NANOSECONDS);
+            cancelBoundWork(allFutures); // uses the winning token's interrupt intent
+        }, remaining); // 域调度器退役时回退到调用方 scheduler；两者同一则抛出
         // token 以任何路径终态都会完成 futureToken，在那里取消已调度的任务，
         // 避免共享 timer 把一个已终态 token 保留到 deadline。
         futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
     }
     Futures.addCallback(businessOutcome, new FutureCallback<>() {
         onSuccess: transitionTo(SUCCESS);
-        onFailure: transitionTo(FAIL_FAST); allFutures.cancel(true);   // 取消无条件执行，见 §7.5
+        onFailure: transitionTo(FAIL_FAST); cancelBoundWork(allFutures);
     }, directExecutor());
     futureToken.setFuture(businessOutcome);
 }
@@ -129,34 +132,52 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 
 ## 5.1 中断意图沿 token 树传播
 
-`CancellationToken` 用 volatile 字段 `cancelInterrupt` 记录终态取消的中断意图（默认
-`true`）：只有显式 `cancel(false)` 记 `false`；TIMEOUT、FAIL_FAST 及升级路径始终保持
-`true`，因为它们的活性依赖中断。`ParentLink.parentFinished()` 读取父的意图、写入子、再
-以同一意图取消子的 `futureToken`——意图必须先于 `futureToken.cancel` 写入，子的终态完成
-是下一代 listener 的观察点。因此 `cancel(false)` 的不中断策略沿整棵树逐代保留；first-wins
-不变：已终态的子不受父取消影响。
+`CancellationToken` 用单个 `AtomicReference<Decision>` 原子发布终态：不可变的 `Decision`
+同时携带 state 与 interrupt 意图，`transitionTo` 的一次 CAS 同时提交两者，状态监听在
+CAS 成功之后才运行。只有显式 `cancel(false)` 记 `false`；TIMEOUT、FAIL_FAST 始终保持
+`true`，因为它们的活性依赖中断。这样就不存在「状态已提交、意图尚未写入」的观察窗——
+状态监听可以同步引发业务回调（例如让触发 future 失败），该回调的级联取消读到的一定是
+同一终态的意图，而不会因意图写入滞后把 `cancel(false)` 升级为中断。
+
+`ParentLink.parentFinished()` 读父 decision 的意图，并以同一意图原子提交子的
+`PROPAGATED_CANCELLED`——意图与状态一起 CAS，之后才取消子的 `futureToken`，子的终态
+完成是下一代 listener 的观察点。因此 `cancel(false)` 的不中断策略沿整棵树逐代保留；
+first-wins 不变：已终态的子不受父取消影响。
+
+级联取消统一走 `cancelBoundWork`：读当前 winning decision 的意图后取消 `allFutures`。
+first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之后运行）保留已提交
+的意图，不再升级为 `true`。
 
 ## 5.2 截止时钟域（内部时间缝）
 
 `CancellationToken` 持有一个 `Ticker` 作为其 deadline 的时钟域：
 
 - MUST：子 token 继承父 token 的时钟（构造器强制），一棵 token 树共享一个时钟域；只有根
-  token 接受显式时钟——公开构造恒为系统时钟，包内 3 参构造供测试注入手动时钟。
+  token 接受显式时钟——公开构造恒为系统时钟，包内构造供测试注入手动时钟。
 - MUST：deadline 的读取（`remaining()`、bind 的过期检查与调度延迟、`Checkpoints` 的到期
   backstop）一律读 token 自己的时钟，不与另一时钟域混读。
-- MUST：deadline 的调度经过 `ParRuntime.timeoutScheduler()` 这一个注入点；ParRuntime 的根
-  时钟与该调度器是同一个测试缝的两半（包内 Builder 钩子，不是公开 SPI），替换时必须成对，
-  否则「时钟前进」与「timer 触发」分属两个域，deadline 永不触发或立即触发。
-- 嵌套 ParRuntime：`MultiTaskContext.resolve` 在有取消父时继承父 token 的时钟，只有根提交
-  取本 runtime 的时钟；跨 runtime 嵌套不混域。
+- MUST：时钟与触发它的调度器成对沿 token 树传播。根 token 从 `ParRuntime` 的根时钟与
+  `timeoutScheduler()`（同一个测试缝的两半，包内 Builder 钩子，不是公开 SPI，替换时必须
+  成对）取得两者；子 token 与父 token 继承同一个调度器。bind 优先使用 token 树携带的域
+  调度器，形参 scheduler 只是无运行时缝的 token 的兜底——否则嵌套单元的 deadline 会带着
+  虚拟域的延迟值坐上子运行时的真实调度器，受控时间下永不触发。  例外配对：域调度器所属的祖先 runtime 可能已关闭（被取消的 body 仍在运行并向其他
+  runtime 嵌套提交），其调度器拒绝新任务；此时 bind 回退到调用方的存活 scheduler 来布防
+  deadline——祖先在真实时钟上退役时延迟值仍有效，手动时钟退役后本不会再前进，回退不会
+  更晚触发。
+- MUST：已终态 token 的 bind 不布防 timer。终态后没有任何转换能再获胜，deadline 已无意义；
+  取消经 futureToken/setFuture 桥与 onFailure 回调完整到达绑定工作。跳过布防同时保证终态
+  token 的 bind 不触碰可能已随所属 runtime 关闭的调度器（组启动可在准入后遭遇取消与关闭）。
+- MUST：由 deadline 推导的清理预算（closeGrace 缺省值）在 token 自己的时钟域内推导相对
+  预算，再把该预算当作真实有界等待花掉。不得把 token 的 deadline 与 `System.nanoTime()`
+  交叉相减：手动时钟域里那样读出 0，会把清理等待静默缩成单次检查。
+- 嵌套 ParRuntime：`MultiTaskContext.resolve` 在有取消父时继承父 token 的时钟与调度器，
+  只有根提交取本 runtime 的一对；跨 runtime 嵌套不混域。空嵌套 group 的 token 不挂父链
+  （避免父 listener 滞留），但其时钟与调度器仍取父域——该 token 从不 bind、也不调度
+  timer，取父域只是不让配对规则出现例外。
 - 有界清理等待与观测时间戳（submitTime/start/end、报告时间）MUST 保持真实时钟：它们是跨线程
   的真实时间观测，虚拟时钟只管辖 deadline 的判定与调度，不伪造等待的流逝。
 - 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
   交错测试（gate/latch）照旧，不被时间缝取代。
-- 已接受的边界（评审记录）：由 deadline 推导的清理预算（closeGrace 缺省值）在虚拟时钟域下会
-  读成 0——推导读真实时钟，deadline 在虚拟域；测试缝只用于验证 deadline 触发，不验证清理
-  时长。空嵌套 group 的 token 作为根 token 取得本 runtime 时钟而其 deadline 在父域计算，该
-  token 从不 bind、也不调度 timer，无可观察影响。
 
 ## 6. 速查表
 
@@ -175,9 +196,11 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 2. **统一取消句柄选还 pending 的组合 future（`successfulAsList`）**，不要选会提前终态的（`allAsList`）。
 3. **归因不靠猜**：`isCancelled()` 事后看不出谁取消的。token 状态机先 CAS 再执行取消动作，观察者读状态即可归因（`CancellationToken.transitionTo` 的 CAS-notify-cancel 顺序）。
 4. 链式简洁是有代价的：每层组合器对取消的处理不同，重写前先核对 §6 的表格。
-5. **onFailure 里的取消动作无条件执行**：转换输掉 first-wins（例如显式 cancel 已先提交
-   CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态 future 的 cancel
-   是 no-op，所以重复级联无害，跳过才会漏取消。
+5. **onFailure 里的取消动作无条件执行，但保留中断意图**：转换输掉 first-wins（例如显式
+   cancel 已先提交 CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态
+   future 的 cancel 是 no-op，所以重复级联无害，跳过才会漏取消。`cancelBoundWork` 传入
+   token 已记录的 intent：TIMEOUT/FAIL_FAST 使用 true，显式 `cancel(false)` 及其父级传播
+   使用 false。无条件表示“仍然级联”，不表示“总是 interrupt”。
 
 ## 8. 父监听的终态切断（结果保留契约）
 

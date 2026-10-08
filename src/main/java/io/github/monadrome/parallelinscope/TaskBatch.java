@@ -117,7 +117,7 @@ final class TaskBatch<T> implements AutoCloseable {
     TaskBatchResult<T> finish() {
         awaitElementsAndSubmission();
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone());
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token);
         awaitBarriers(budget, start);
         return freezeResults();
     }
@@ -136,7 +136,7 @@ final class TaskBatch<T> implements AutoCloseable {
             // The combine's outcome is attribution data, frozen below.
         }
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone());
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token);
         awaitBarriers(budget, start);
         BodyCompletionTracker.awaitSettledUninterruptibly(
                 terminal.observationView(), budget, start, "terminal observation signal");
@@ -343,15 +343,9 @@ final class TaskBatch<T> implements AutoCloseable {
                     }
                 },
                 bodyCompletion,
-                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanosOrNone()),
+                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token),
                 "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
                 LOGGER);
-    }
-
-    /** The batch's execution deadline, or the no-deadline sentinel when it carries no token. */
-    private long deadlineNanosOrNone() {
-        CancellationToken batchToken = token;
-        return batchToken == null ? Long.MAX_VALUE : batchToken.deadlineNanos();
     }
 
     /**
