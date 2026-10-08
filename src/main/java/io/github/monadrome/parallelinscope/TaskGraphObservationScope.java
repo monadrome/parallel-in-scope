@@ -273,10 +273,16 @@ public final class TaskGraphObservationScope implements AutoCloseable {
             throw error;
         }
         restoreCurrentScope();
+        // Publish before any diagnostic logging: a user-replaceable JUL handler may re-enter this
+        // scope's close(), and the re-entrant call waits on this exact publication — running the
+        // handler first would make the close wait for itself.
         reportSink.set(report);
+        if (report.anyIssue()) {
+            logIssueQuietly(report);
+        }
     }
 
-    /** Runs the ParRuntime deadlock policy over this scope's graph snapshot. */
+    /** Computes the report from one snapshot; logging stays with the caller, after publication. */
     private TaskGraphReport detect() {
         if (!owner.deadlockPolicy().enabled()) {
             return TaskGraphReport.disabled();
@@ -289,15 +295,13 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         if (!taskCycle && !selfLoop && !executorCycle && !executorSelfLoop) {
             return TaskGraphReport.detection(false, false, false, false, "", "");
         }
-        TaskGraphReport report = TaskGraphReport.detection(
+        return TaskGraphReport.detection(
                 taskCycle,
                 selfLoop,
                 executorCycle,
                 executorSelfLoop,
                 renderTaskEdges(snapshot),
                 renderExecutorEdges(snapshot));
-        logIssueQuietly(report);
-        return report;
     }
 
     /** A logging failure must never skip or corrupt report publication. */
