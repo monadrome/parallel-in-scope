@@ -37,7 +37,7 @@ final class TokenOutcomes {
      *     cancellation)
      * @return the attributed outcome; never {@link TaskOutcome#RUNNING}
      */
-    public static TaskOutcome forCancelled(CancellationToken token, TaskOutcome whenUncommitted) {
+    static TaskOutcome forCancelled(CancellationToken token, TaskOutcome whenUncommitted) {
         switch (token.state()) {
             case TIMEOUT:
                 return TaskOutcome.TIMEOUT;
@@ -63,7 +63,7 @@ final class TokenOutcomes {
      * race against the cascade {@code cancel(true)} on the task's future; the owning token, which
      * committed its state first, is then the correct attribution source.
      */
-    public static boolean causedByCancellation(@Nullable Throwable failure) {
+    static boolean causedByCancellation(@Nullable Throwable failure) {
         return failure instanceof CancellationException || failure instanceof InterruptedException;
     }
 }
