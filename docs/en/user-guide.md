@@ -114,6 +114,30 @@ the pool grows a thread or runs its rejection handler instead of buffering CPU w
 `rejectEnqueue(true)` is redundant with it and only states the intent. With any other queue,
 `TaskType` never changes what the library does and `rejectEnqueue` is inert.
 
+### Combine a batch into one result {#batch-combine}
+
+`Par.mapAndCombine` runs a finite batch and then, only when every element succeeded, one terminal
+combine over the element values — under the same deadline, cancellation lifecycle, and admission:
+
+```java
+BatchCombinedResult<Price, Report> run = ioPar.mapAndCombine(
+        ids, this::loadPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).parallelism(8),
+        cpuPar, this::buildReport);
+Report report = run.terminalValueOrThrow();
+TaskBatchResult<Price> elements = run.batchResult();
+```
+
+The combine is prepared with the batch (TTL capture and deadline binding happen on the calling
+thread) but submitted to its own Par exactly once, only after all elements succeed. When any element
+fails or the deadline expires first, the combine never runs and its `terminalResult()` records the
+batch's attribution (`FAIL_FAST` / `TIMEOUT`); a rejected combine handoff records
+`SUBMISSION_FAILURE`. The combine body takes the element values in input order as a
+`CombineBody<List<E>, C>` — so it may throw checked exceptions — and successful null elements appear
+as null entries. The input must be non-empty: a combine over zero elements has no fan-out to
+summarize, and the call rejects it like an empty group with a combine. Element results,
+`bodyCompletionConfirmed()`, and `unfinishedBodies()` cover the combine's body as well.
+
 ## Execute a heterogeneous task group {#task-group}
 
 Declare fixed named tasks with their Par, declared type, and body. `runAll()` consumes the chain,
