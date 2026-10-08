@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  * pool grew to its maximum, and every further task ran on whichever thread called {@code execute} —
  * a parallel library running its work serially on the caller. These tests pin the defaults by their
  * observable effect rather than their value, so a future change to either default that reintroduces
- * that behaviour fails here and not only in the options unit tests.
+ * that behavior fails here and not only in the options unit tests.
  */
 class DefaultEnqueuePolicyTest {
 
