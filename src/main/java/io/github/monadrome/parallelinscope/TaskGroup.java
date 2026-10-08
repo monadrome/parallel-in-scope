@@ -786,6 +786,23 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return assembled;
     }
 
+    /**
+     * Wires observation, the group bind, and the member-level deadline rule before any member runs.
+     *
+     * <p>Member level: each member and the combine register an escalation listener that turns its
+     * token's TIMEOUT into the group token's, so the group converges on TIMEOUT, not a failure. Only
+     * a member whose own deadline is strictly tighter than the group's is bound. A member that
+     * inherits the group deadline resolves to exactly the same deadline and skips the bind: downward
+     * propagation is wired by the {@link CancellationToken} constructor listener (group token to
+     * member token {@code PROPAGATED_CANCELLED}), and the group bind already covers member future
+     * cancellation, so a member bind would only arm a redundant timer for the same instant.
+     *
+     * <p>The escalation listener is registered even when the bind is skipped: a skipped member token
+     * can still reach TIMEOUT on its own when a checkpoint commits it after the deadline elapsed but
+     * before the group's timer callback ran. Without the escalation the group token would stay
+     * RUNNING while the member is already attributed TIMEOUT, and convergence would report that
+     * timeout as a direct member cancellation.
+     */
     void start(ParRuntime global) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();
@@ -803,26 +820,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
         // combine, and the group token cannot observe SUCCESS before the combine completes.
         groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
-        // Member level: bind only members whose own deadline is strictly tighter than the group's.
-        // A member timeout escalates to the group token while the group bind is still pending, so
-        // the group converges on TIMEOUT, not FAILED. A member that inherits the group deadline
-        // resolves to exactly the same deadlineNanos and skips this step: downward propagation is
-        // wired by the CancellationToken constructor listener (group token -> member token
-        // PROPAGATED_CANCELLED), and member future cancellation is covered by the group bind above,
-        // so a member bind would only arm a redundant timer for the same instant. Note that a
-        // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
-        // attribution reads the group token instead (see classifyCancelled). The combine follows
-        // the same rule: its own tighter deadline escalates to the group as TIMEOUT.
         for (MemberState member : membersAndTerminal) {
             CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
-            if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
-                continue;
-            }
             memberToken.addStateListener(state -> {
                 if (state == CancellationToken.State.TIMEOUT) {
                     groupToken.timeoutCancel();
                 }
             });
+            if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
+                continue;
+            }
             memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
         }
     }
@@ -951,7 +958,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * the worker thread was interrupted — can win the race against the cascade cancel on the
      * member future; it is attributed through the tokens like a cancellation instead of being
      * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
-     * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE} — except in
+     * the window {@link #deadlineDrivenCancellation} covers, where an elapsed deadline outranks the
+     * exception and the member reads {@link TaskOutcome#TIMEOUT}.
      */
     private TaskOutcome classifyFailure(MemberState member, @Nullable Throwable failure) {
         if (failure instanceof SubmissionException) {
@@ -966,18 +975,81 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * Classifies a cancelled member by reading token states only. The member token records its own
      * deadline; the group token is otherwise the single authority, because it commits its state
-     * before cancelling member futures. A group token still RUNNING means no framework path
-     * cancelled the member: the user cancelled it directly.
+     * before cancelling member futures. A group token still RUNNING normally means no framework
+     * path cancelled the member: the user cancelled it directly. The exception is the window {@link
+     * #deadlineDrivenCancellation} covers, where an elapsed deadline is attributed as a timeout even
+     * when the cancellation itself was a direct one.
      */
     private TaskOutcome classifyCancelled(MemberState member) {
         return classifyCancelled(member, TaskOutcome.MEMBER_CANCELLED);
     }
 
     private TaskOutcome classifyCancelled(MemberState member, TaskOutcome whenUncommitted) {
-        if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
+        if (deadlineDrivenCancellation(member)) {
             return TaskOutcome.TIMEOUT;
         }
         return TokenOutcomes.forCancelled(groupToken, whenUncommitted);
+    }
+
+    /**
+     * Reports whether the cancellation that reached this member was deadline-driven rather than the
+     * fail-fast or direct-cancel attribution {@link #classifyCancelled} names by default. The
+     * member token committing TIMEOUT is the direct proof; two committed group states prove it for
+     * a member that never committed one.
+     *
+     * <p>A group token still RUNNING with the member's deadline elapsed means the group bind's
+     * timeout cancelled the member futures after its timer fired but before the callback committing
+     * the token ran: the deadline backstop {@link Checkpoints} applies inside a running body
+     * applies here too, read on the member token's own clock like the checkpoint's.
+     *
+     * <p>A group token in {@code FAIL_FAST} with no recorded failure and a cancelled member future
+     * means that fail-fast carried no failure, so it can only have been triggered by a cancellation:
+     * a member or the terminal combine records {@code failedTaskName} before the group token can
+     * commit {@code FAIL_FAST}, and a direct member cancellation commits {@code CANCELLED} first.
+     * Requiring the cancelled future keeps a member that merely *failed* with a cancellation-shaped
+     * exception — a checkpoint or interrupt that won its race — on its own token attribution instead
+     * of naming it a timeout.
+     *
+     * <p>{@code failedTaskName} is set before the group token commits {@code FAIL_FAST} only because
+     * Guava runs a future's listeners in registration order: {@link #start} registers {@code
+     * memberCompleted} before the group bind builds the {@code allAsList} that observes the same
+     * future, so a failing member records its name first. {@code ExecutionList} documents no such
+     * guarantee, and 33.6.0, pinned in {@code pom.xml}, only reaches it by reversing its list at
+     * completion. On a Guava that dropped the reversal the token could commit {@code FAIL_FAST}
+     * first, leaving {@code failedTaskName} null and mislabelling a sibling TIMEOUT instead of
+     * {@code FAIL_FAST}.
+     *
+     * <p>The member's own deadline need not have elapsed in the {@code FAIL_FAST} case: the deadline
+     * that cut it can belong to a sibling or to the group it inherits, and the victim must still be
+     * attributed the timeout the group reports rather than a fail-fast that names a failure nobody
+     * recorded.
+     *
+     * <p>That requirement leaves one residual: a member whose future *failed*, rather than was
+     * cancelled, with a cancellation-shaped exception while the group token carries a failure-less
+     * {@code FAIL_FAST}, is still attributed that label. The state is possible, not synthetic: the
+     * group bind's aggregate future *fails* when the framework's own cascade cancel loses its race
+     * to a {@link CancellationException}/{@link InterruptedException} raised by a body — the
+     * interrupt-versus-cancel race {@link #classifyFailure} documents — and a member the backstop
+     * already read as TIMEOUT leaves {@code failedTaskName} null. It was not observed in the
+     * concurrent deadline runs these guards were verified against: the 48-thread mixed-deadline
+     * probe ran the scenario 96,000 times per invocation, several hundred thousand in total. The
+     * guards stop there rather than guess a timeout from a member that was never cancelled; the
+     * direction is safe, because the label is only ever readable under a failure-less fail-fast and
+     * so never masks a real failure.
+     */
+    private boolean deadlineDrivenCancellation(MemberState member) {
+        CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
+        if (memberToken.state() == CancellationToken.State.TIMEOUT) {
+            return true;
+        }
+        switch (groupToken.state()) {
+            case FAIL_FAST:
+                return member.future.isCancelled() && failedTaskName.get() == null;
+            case RUNNING:
+                return memberToken.deadlineExpired();
+            default:
+                return false;
+        }
     }
 
     /**
@@ -1059,22 +1131,39 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Derives the group outcome from the group token state. A recorded failure takes precedence:
-     * whenever a member or the terminal combine already failed, the group reports that failure's
-     * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
-     * outcome no longer depends on completion order. On fail-fast with no failed member the
-     * trigger was a direct member cancellation, so the group reports {@link
-     * TaskOutcome#MEMBER_CANCELLED}. A token still RUNNING or SUCCESS with no recorded failure
-     * means no framework cancellation path committed: the group succeeded only if every member
-     * did.
+     * Derives the group outcome from the group token state, which selects the branch first: {@code
+     * TIMEOUT}, {@code CANCELLED}, and {@code PROPAGATED_CANCELLED} are reported as themselves
+     * without consulting the members, because the token already carries the group's own terminal
+     * reason.
+     *
+     * <p>Inside the remaining branches — {@code FAIL_FAST}, {@code SUCCESS}, and {@code RUNNING} —
+     * a recorded failure takes precedence: whenever a member or the terminal combine already
+     * failed, the group reports that failure's own outcome regardless of whether the group token
+     * committed {@code FAIL_FAST} yet, so the outcome no longer depends on completion order. With
+     * no failure recorded, a member that already recorded {@link TaskOutcome#TIMEOUT} wins over the
+     * guess: a member's own committed attribution is evidence the group token's still-uncommitted
+     * state cannot supply. Failing both, a RUNNING or SUCCESS token reports {@link
+     * TaskOutcome#SUCCESS} only when every member succeeded, and everything else — a {@code
+     * FAIL_FAST} token, or a RUNNING/SUCCESS token with a member that did not succeed — reports
+     * {@link TaskOutcome#MEMBER_CANCELLED}, the attribution a direct member cancellation leaves.
+     *
+     * <p>The {@code MEMBER_CANCELLED} fallbacks are defensive, not production outcomes. A
+     * failure-less {@code FAIL_FAST} can only be the group bind's deadline-driven aggregate
+     * cancellation, and the member whose cancellation triggered it records {@code TIMEOUT} before
+     * the callback commits the token, so the timeout check answers first; a direct member
+     * cancellation commits {@code CANCELLED} from inside the cancelled member's own classification,
+     * before the barrier lets any thread converge, so that token reaches the default branch instead.
+     * They stay because the switch has to answer for every state the kernel can present.
      */
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
             case FAIL_FAST:
                 MemberState failFastFailure = failedTask();
-                return failFastFailure != null
-                        ? Objects.requireNonNull(failFastFailure.reason)
-                        : TaskOutcome.MEMBER_CANCELLED;
+                if (failFastFailure != null) {
+                    return Objects.requireNonNull(failFastFailure.reason);
+                }
+                TaskOutcome failFastTimeout = recordedTimeout();
+                return failFastTimeout != null ? failFastTimeout : TaskOutcome.MEMBER_CANCELLED;
             case SUCCESS:
             case RUNNING:
                 MemberState recordedFailure = failedTask();
@@ -1087,10 +1176,28 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 // allocates an iterator and a capturing lambda.
                 boolean allSuccess = memberSuccesses.get() == memberStates.size()
                         && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
-                return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELLED;
+                if (allSuccess) {
+                    return TaskOutcome.SUCCESS;
+                }
+                TaskOutcome memberTimeout = recordedTimeout();
+                return memberTimeout != null ? memberTimeout : TaskOutcome.MEMBER_CANCELLED;
             default:
                 return TokenOutcomes.forCancelled(groupToken, TaskOutcome.MEMBER_CANCELLED);
         }
+    }
+
+    /**
+     * Returns {@link TaskOutcome#TIMEOUT} when a member or the terminal combine has already
+     * recorded it, or {@code null} when none has. Every reason read here is published to the
+     * converging thread by the barrier increment in {@code memberCompleted}.
+     */
+    private @Nullable TaskOutcome recordedTimeout() {
+        for (MemberState member : membersAndTerminal) {
+            if (member.reason == TaskOutcome.TIMEOUT) {
+                return TaskOutcome.TIMEOUT;
+            }
+        }
+        return null;
     }
 
     /**

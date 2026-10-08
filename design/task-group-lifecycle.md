@@ -248,7 +248,9 @@ null --all success-----------> SUCCESS
 - 全部成员终态且存在直接取消成员时，若没有更早的组级失败/超时，Group 原因固定为 `GROUP_CANCELLED`；
 - 组在 group token 仍 `RUNNING` 时收敛（成员 observer 先于 group bind 回调触发）：已记录失败
   任务时优先沿用其 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关；无失败
-  记录且并非全部成功时，Group 原因固定为 `MEMBER_CANCELLED`；
+  记录但已有成员记 `TIMEOUT` 时跟随该 `TIMEOUT`（deadline 到期而 timer 回调尚未提交组 token，
+  见[取消与归因 §8.4](task-group-cancellation.md)）；两者都没有且并非全部成功时，Group 原因
+  固定为 `MEMBER_CANCELLED`；
 - `CLOSED` 只由计数屏障的胜出线程发布：`completedTasks` 递增到 `totalTasks` 的那次读-改-写；
 - 收敛由计数屏障决定：member 或 combine 终态时对 `completedTasks` 做一次原子递增，唯一观察到
   计数达到 `totalTasks` 的线程固定完成原因并发布 `CLOSED`；该读-改-写同时把每个任务的归类与

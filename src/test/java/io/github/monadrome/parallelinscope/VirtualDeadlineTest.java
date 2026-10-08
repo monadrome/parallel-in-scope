@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -346,6 +347,51 @@ class VirtualDeadlineTest {
             outer.close();
             innerPool.shutdownNow();
             outerPool.shutdownNow();
+        }
+    }
+
+    /**
+     * The group's deadline backstop for a cancelled member reads the member token's own clock: a
+     * member cancelled directly while its virtual deadline is still ahead is a member cancellation,
+     * not a timeout, however much real time has passed. The clock never advances, so the virtual
+     * deadline cannot have elapsed; a backstop comparing that deadline with {@code System.nanoTime()}
+     * reads it as long past (any machine uptime exceeds the one-second budget) and attributes the
+     * direct cancellation as {@code TIMEOUT}.
+     */
+    @Test
+    void directMemberCancellationBeforeTheVirtualDeadlineIsNotATimeout() throws Exception {
+        ManualClock clock = new ManualClock();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("worker"), executor)
+                .ticker(clock.ticker())
+                .timeoutScheduler(clock.scheduler())
+                .build();
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = runtime.groupDraft(
+                            "virtual-member-cancel", Duration.ofSeconds(1))
+                    .par("cancelled", runtime.par(ParId.of("worker")), Integer.class, () -> {
+                        release.await();
+                        return 1;
+                    })
+                    .par("sibling", runtime.par(ParId.of("worker")), Integer.class, () -> {
+                        release.await(10, TimeUnit.SECONDS);
+                        return 2;
+                    })
+                    .submitAll();
+            group.futureOf("cancelled", TypeToken.of(Integer.class)).cancel(true);
+
+            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        } finally {
+            release.countDown();
+            runtime.close();
+            executor.shutdownNow();
         }
     }
 

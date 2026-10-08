@@ -21,7 +21,7 @@
 | jspecify-null-safety-v0.3-proposal | 迁到 JSpecify + NullAway 编译期强制。现行约定以根 AGENTS.md 与 `docs/en/reference/nullability-annotations.md` 为准 |
 | batch-submission-failure-semantics | handoff 失败统一以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future；跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径 |
 | inline-fallback-path-analysis | inline 回退三缺陷（幂等、死锁、deadline 失效）的分析底稿；结论随 `adr/0007` 落地，现行中断规范见 [interruption-contract.md](interruption-contract.md) |
-| caller-runs-support-after-inline-deletion | 删除 `runOnCallerThread` 后由用户 `RejectedExecutionHandler` 承担 inline；combine inline guard 与借用线程隔离已实现。**benchmark 暂缓、探针不入库**的拍板出自本文（BACKLOG 待决策区引用） |
+| caller-runs-support-after-inline-deletion | 删除 `runOnCallerThread` 后由用户 `RejectedExecutionHandler` 承担 inline；combine inline guard 与借用线程隔离已实现。**benchmark 暂缓、探针不入库**的拍板出自本文（BACKLOG 待决策区引用）。否决：把 combine「无 inline」承诺降级为「取决于目标池拒绝策略」——`CallerRunsPolicy` 饱和时 combine 会静默跑在收敛回调线程上，承诺不能交给用户池配置；inline guard 不装到成员与 batch 元素——它们有合法的可借用调用方线程，隔离归 adr/0007。§12.5 的组/成员 deadline 归因竞态随 PR #56 重新落地，见 [task-group-cancellation.md](task-group-cancellation.md) §8.4.2 |
 | scope-close-and-termination-proposal | 「取消 + 有界等待」语义与 body-exit 状态机的底稿。三处沿革：Batch close 入口在实施中被反转、依赖的 `TaskListener` SPI 已删除、`GlobalPar` 已更名 |
 
 ## SPI 删除与观测归宿

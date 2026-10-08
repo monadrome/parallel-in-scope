@@ -9,20 +9,27 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
@@ -32,6 +39,7 @@ import java.util.logging.Logger;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -229,6 +237,81 @@ class TaskGroupTest {
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(Objects.requireNonNull(result.members().get("slow-boom")).outcome())
                     .isEqualTo(TaskOutcome.USER_FAILURE);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * A member body's own {@link TimeoutException} is a user failure, not the group's deadline: the
+     * group deadline is nowhere near expiry, so the exception cannot have come from any timer. The
+     * group must report USER_FAILURE and the unfinished sibling the fail-fast fallout, never
+     * TIMEOUT.
+     */
+    @Test
+    void memberTimeoutExceptionIsUserFailureWhileSiblingRuns() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch siblingRunning = new CountDownLatch(1);
+        try {
+            TaskGroupReport result = global.groupDraft("user-timeout", TIMEOUT)
+                    .par("failure", global.par(ParId.of("worker")), Integer.class, () -> {
+                        siblingRunning.await(2, TimeUnit.SECONDS);
+                        throw new TimeoutException("body timed out on its own");
+                    })
+                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                        siblingRunning.countDown();
+                        new CountDownLatch(1).await();
+                        return 2;
+                    })
+                    .submitAll()
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("failure");
+            assertThat(Objects.requireNonNull(result.members().get("failure")).outcome())
+                    .isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.FAIL_FAST);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * The same user {@link TimeoutException} completing after its sibling already succeeded must
+     * still read USER_FAILURE for the group: the outcome may not depend on which member finishes
+     * first, which is what made the deadline guard on the token necessary.
+     */
+    @Test
+    void memberTimeoutExceptionAfterSiblingSucceededIsStillUserFailure() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch siblingSettled = new CountDownLatch(1);
+        try {
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("late-user-timeout", TIMEOUT)
+                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> 2)
+                    .par("failure", global.par(ParId.of("worker")), Integer.class, () -> {
+                        siblingSettled.await(2, TimeUnit.SECONDS);
+                        throw new TimeoutException("body timed out on its own");
+                    })
+                    .submitAll();
+
+            group.futureOf("sibling", TypeToken.of(Integer.class)).get(2, TimeUnit.SECONDS);
+            siblingSettled.countDown();
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("failure");
+            assertThat(Objects.requireNonNull(result.members().get("failure")).outcome())
+                    .isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -512,6 +595,357 @@ class TaskGroupTest {
             global.close();
             executor.shutdownNow();
         }
+    }
+
+    /**
+     * Locks the outcome attribution of a group whose members inherit the group deadline: when the
+     * shared deadline expires, every member and the group must report {@link TaskOutcome#TIMEOUT},
+     * never a cancellation. Narrow interleavings make this a stress test rather than a single run.
+     * A member body's entry checkpoint can commit its own token's timeout before the group token
+     * observes the deadline, and the group bind can cancel the member futures after its timer fired
+     * but before the callback committing the group token ran. Both need the deadline to elapse
+     * while submission is still in flight, so the deadline is one millisecond and the workload runs
+     * concurrently. Two members also cover the escalation from member to group: a timeout a member
+     * commits on its own token must reach the group before a sibling's cancellation is attributed.
+     *
+     * <p>The second of those windows is locked only statistically: reverting its fix failed about
+     * three runs in 1600, so a quiet machine may complete a whole run without exercising it.
+     */
+    @Test
+    @Timeout(60)
+    void inheritedDeadlineTimeoutIsAttributedConsistently() throws Exception {
+        int threads = 8;
+        int perThread = 200;
+        ExecutorService workers = Executors.newFixedThreadPool(threads);
+        ExecutorService callers = Executors.newFixedThreadPool(threads);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), workers).build();
+        ConcurrentMap<String, AtomicInteger> combinations = new ConcurrentHashMap<>();
+        Queue<String> mismatches = new ConcurrentLinkedQueue<>();
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        @Nullable Level logLevel = silenceCancellationWarnings();
+        try {
+            for (int worker = 0; worker < threads; worker++) {
+                callers.execute(() -> {
+                    try {
+                        start.await();
+                        for (int iteration = 0; iteration < perThread; iteration++) {
+                            TaskGroupReport report = global.groupDraft("deadline", Duration.ofMillis(1))
+                                    .par("first", global.par(ParId.of("worker")), TypeToken.of(Integer.class), () -> {
+                                        Thread.sleep(200);
+                                        return 1;
+                                    })
+                                    .par("second", global.par(ParId.of("worker")), TypeToken.of(Integer.class), () -> {
+                                        Thread.sleep(200);
+                                        return 2;
+                                    })
+                                    .submitAll()
+                                    .completionFuture()
+                                    .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                            TaskOutcome first = Objects.requireNonNull(
+                                            report.members().get("first"))
+                                    .outcome();
+                            TaskOutcome second = Objects.requireNonNull(
+                                            report.members().get("second"))
+                                    .outcome();
+                            combinations
+                                    .computeIfAbsent(
+                                            report.outcome() + "/" + first + "/" + second, key -> new AtomicInteger())
+                                    .incrementAndGet();
+                            if (report.outcome() != TaskOutcome.TIMEOUT
+                                    || first != TaskOutcome.TIMEOUT
+                                    || second != TaskOutcome.TIMEOUT) {
+                                mismatches.add("group=" + report.outcome() + ", first=" + first + ", second=" + second);
+                            }
+                        }
+                    } catch (Exception failure) {
+                        mismatches.add("run failed: " + failure);
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            start.countDown();
+            assertThat(done.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS)).isTrue();
+        } finally {
+            restoreLogLevel(logLevel);
+            callers.shutdownNow();
+            workers.shutdownNow();
+            global.close();
+        }
+        int runs = combinations.values().stream().mapToInt(AtomicInteger::get).sum();
+        assertThat(mismatches)
+                .withFailMessage(
+                        "attribution mismatches over %d runs (combinations: %s): %s", runs, combinations, mismatches)
+                .isEmpty();
+        assertThat(runs).isEqualTo(threads * perThread);
+    }
+
+    /**
+     * Locks the attribution of a deadline victim whose own deadline never expires. The group's
+     * deadline is long and only the "tight" member binds a timer; "shared" inherits the group
+     * deadline, so it is cut by the group teardown when the tight member times out. Both must still
+     * report {@link TaskOutcome#TIMEOUT}: the group token can commit {@code FAIL_FAST} on the
+     * cancellation of the tight member's future before that member's token commits anything, and a
+     * fail-fast carrying no recorded failure is a cancellation-driven one, not a sibling failure.
+     * Attributing the shared member from it would name a fail-fast for a failure nobody recorded.
+     *
+     * <p>Like the inherited-deadline lock, this needs the deadline to elapse while the tight member
+     * is still binding, so it is statistical and a quiet machine may not exercise the window.
+     *
+     * <p>Only a group that reports TIMEOUT is checked, and it must attribute that timeout to both
+     * members. The group outcome is not asserted on its own: a member that genuinely failed takes
+     * the group to {@code USER_FAILURE}, which this test leaves to the failure-path tests.
+     *
+     * <p>The assertion is stronger than the kernel guarantees: a member that *failed* with a
+     * cancellation-shaped exception under a failure-less fail-fast can still read FAIL_FAST, the
+     * residual recorded on the kernel's deadline attribution. That direction is safe — the label
+     * only ever replaces a timeout, never a real failure — so the strict form is kept.
+     */
+    @Test
+    @Timeout(60)
+    void mixedDeadlineVictimsAreNotAttributedFailFast() throws Exception {
+        int threads = 8;
+        int perThread = 500;
+        ExecutorService workers = Executors.newFixedThreadPool(threads);
+        ExecutorService callers = Executors.newFixedThreadPool(threads);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), workers).build();
+        ConcurrentMap<String, AtomicInteger> combinations = new ConcurrentHashMap<>();
+        Queue<String> mismatches = new ConcurrentLinkedQueue<>();
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        @Nullable Level logLevel = silenceCancellationWarnings();
+        try {
+            for (int worker = 0; worker < threads; worker++) {
+                callers.execute(() -> {
+                    try {
+                        start.await();
+                        for (int iteration = 0; iteration < perThread; iteration++) {
+                            TaskGroupReport report = global.groupDraft("mixed-deadline", Duration.ofSeconds(30))
+                                    .par(
+                                            "tight",
+                                            global.par(ParId.of("worker")),
+                                            TaskOptions.timeout(Duration.ofMillis(1)),
+                                            TypeToken.of(Integer.class),
+                                            () -> {
+                                                Thread.sleep(200);
+                                                return 1;
+                                            })
+                                    .par("shared", global.par(ParId.of("worker")), TypeToken.of(Integer.class), () -> {
+                                        Thread.sleep(200);
+                                        return 2;
+                                    })
+                                    .submitAll()
+                                    .completionFuture()
+                                    .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                            TaskOutcome tight = Objects.requireNonNull(
+                                            report.members().get("tight"))
+                                    .outcome();
+                            TaskOutcome shared = Objects.requireNonNull(
+                                            report.members().get("shared"))
+                                    .outcome();
+                            combinations
+                                    .computeIfAbsent(
+                                            report.outcome() + "/" + tight + "/" + shared, key -> new AtomicInteger())
+                                    .incrementAndGet();
+                            if (report.outcome() == TaskOutcome.TIMEOUT
+                                    && (tight != TaskOutcome.TIMEOUT || shared != TaskOutcome.TIMEOUT)) {
+                                mismatches.add("group=TIMEOUT, tight=" + tight + ", shared=" + shared);
+                            }
+                        }
+                    } catch (Exception failure) {
+                        mismatches.add("run failed: " + failure);
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            start.countDown();
+            assertThat(done.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS)).isTrue();
+        } finally {
+            restoreLogLevel(logLevel);
+            callers.shutdownNow();
+            workers.shutdownNow();
+            global.close();
+        }
+        int runs = combinations.values().stream().mapToInt(AtomicInteger::get).sum();
+        assertThat(mismatches)
+                .withFailMessage(
+                        "attribution mismatches over %d runs (combinations: %s): %s", runs, combinations, mismatches)
+                .isEmpty();
+        assertThat(runs).isEqualTo(threads * perThread);
+    }
+
+    /**
+     * Locks the deadline attribution of a fail-fast that recorded no failure without waiting for the
+     * scheduling window that produces one naturally. A group token in that state can only have been
+     * cut by a cancellation, so a member whose future is cancelled under it is a timeout victim, not
+     * fail-fast fallout — reading the label would name a failure nobody recorded. The state is
+     * installed directly because the window that reaches it in production is a few microseconds wide
+     * (see {@link #mixedDeadlineVictimsAreNotAttributedFailFast}).
+     */
+    @Test
+    void failureLessFailFastDoesNotAttributeCancelledMemberAsFailFast() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch running = new CountDownLatch(2);
+        try {
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("failure-less-fail-fast", TIMEOUT)
+                    .par("victim", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 1;
+                    })
+                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 2;
+                    })
+                    .submitAll();
+            assertThat(running.await(2, TimeUnit.SECONDS)).isTrue();
+
+            java.lang.reflect.Field tokenField = TaskGroup.class.getDeclaredField("groupToken");
+            tokenField.setAccessible(true);
+            CancellationToken groupToken = Objects.requireNonNull((CancellationToken) tokenField.get(group));
+            groupToken.failFastCancel();
+            group.futureOf("victim", TypeToken.of(Integer.class)).cancel(true);
+            group.futureOf("sibling", TypeToken.of(Integer.class)).cancel(true);
+
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(result.failedTaskName()).isNull();
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("victim")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Locks the timeout escalation of a member that inherits the group deadline and so skips its own
+     * bind. Its token can still commit TIMEOUT by itself — the entry or a later checkpoint commits it
+     * once the inherited deadline has elapsed and the group's timer callback has not run — and that
+     * commit must reach the group token synchronously. The commit is made directly here, with the
+     * same call the checkpoint backstop makes, because the natural window is a race against the
+     * group's own timer. Attribution alone cannot lock this: without the escalation the group token
+     * later commits a failure-less FAIL_FAST that the kernel's deadline attribution still reads as a
+     * timeout, so only the group token's own state tells the two apart.
+     */
+    @Test
+    void inheritingMemberTimeoutEscalatesToTheGroupToken() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch running = new CountDownLatch(2);
+        try {
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("inherited-escalation", TIMEOUT)
+                    .par("timed-out", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 1;
+                    })
+                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 2;
+                    })
+                    .submitAll();
+            assertThat(running.await(2, TimeUnit.SECONDS)).isTrue();
+            CancellationToken groupToken = field(group, "groupToken", CancellationToken.class);
+            CancellationToken memberToken = field(group.futureOf("timed-out"), "token", CancellationToken.class);
+            assertThat(memberToken.deadlineNanos()).isEqualTo(groupToken.deadlineNanos());
+
+            memberToken.timeoutCancel();
+
+            assertThat(groupToken.state()).isEqualTo(CancellationToken.State.TIMEOUT);
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("timed-out")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Locks the deadline backstop for a member cancelled while its deadline has elapsed and the
+     * group token is still RUNNING — the state the group bind leaves when its timer fires before the
+     * bind has registered the callback that commits the token, so the timeout cancels the member
+     * futures first. The runtime's timer thread is held so the group token deterministically stays
+     * uncommitted past the deadline, and the member future is cancelled the way that timeout cancels
+     * it. The member must read TIMEOUT rather than a direct member cancellation, and the lone member
+     * converges the group while its token is still RUNNING, so the group must adopt that recorded
+     * TIMEOUT instead of guessing MEMBER_CANCELLED. A direct cancellation inside this window is
+     * attributed the same way; that delta is accepted on the kernel's deadline attribution.
+     */
+    @Test
+    void elapsedDeadlineCancellationBeforeTheGroupTokenCommitsIsATimeout() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch timerHeld = new CountDownLatch(1);
+        CountDownLatch releaseTimer = new CountDownLatch(1);
+        CountDownLatch running = new CountDownLatch(1);
+        try {
+            field(global, "timerService", ScheduledExecutorService.class).execute(() -> {
+                timerHeld.countDown();
+                Uninterruptibles.awaitUninterruptibly(releaseTimer);
+            });
+            assertThat(timerHeld.await(2, TimeUnit.SECONDS)).isTrue();
+            TaskGroup<Integer, Void> group = global.groupDraft("elapsed-before-commit", Duration.ofMillis(500))
+                    .par("only", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 1;
+                    })
+                    .submitAll();
+            assertThat(running.await(2, TimeUnit.SECONDS)).isTrue();
+            CancellationToken groupToken = field(group, "groupToken", CancellationToken.class);
+            Awaitility.await().atMost(Duration.ofSeconds(2)).until(groupToken::deadlineExpired);
+            assertThat(groupToken.state()).isEqualTo(CancellationToken.State.RUNNING);
+
+            group.futureOf("only").cancel(true);
+
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(Objects.requireNonNull(result.members().get("only")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            releaseTimer.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /** Reads a private kernel field the deterministic attribution locks need to drive directly. */
+    private static <T> T field(Object owner, String name, Class<T> type) throws ReflectiveOperationException {
+        java.lang.reflect.Field field = owner.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return type.cast(Objects.requireNonNull(field.get(owner)));
+    }
+
+    /**
+     * Drops the cancellation warnings the deadline stress tests generate thousands of, and returns
+     * the level to restore. Callers must restore it even when the test fails.
+     */
+    private static @Nullable Level silenceCancellationWarnings() {
+        Logger logger = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
+        Level previous = logger.getLevel();
+        logger.setLevel(Level.SEVERE);
+        return previous;
+    }
+
+    private static void restoreLogLevel(@Nullable Level previous) {
+        Logger.getLogger(ExecutionPhaseHintFuture.class.getName()).setLevel(previous);
     }
 
     @Test
