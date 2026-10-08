@@ -445,7 +445,10 @@ class CheckpointsTest {
     void blockingAdaptersTranslateInterruptionsAndRestoreTheFlag() throws Exception {
         Thread.currentThread().interrupt();
         assertThatThrownBy(Checkpoints::rawCheckpoint).isInstanceOf(LeanCancellationException.class);
-        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+        // rawCheckpoint translates the interrupt but is not the sole consumer of the signal: the
+        // flag stays set, exactly as after the blocking adapters.
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        Thread.interrupted();
         assertInterrupted(() -> Checkpoints.sleep(1));
         assertInterrupted(() -> Checkpoints.checkAwait(new CountDownLatch(1)));
         assertInterrupted(() -> Checkpoints.checkAwait(new CountDownLatch(1), 1, TimeUnit.SECONDS));
