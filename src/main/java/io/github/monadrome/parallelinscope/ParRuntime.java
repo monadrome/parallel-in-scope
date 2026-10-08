@@ -435,7 +435,8 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
-     * and how many task-body exit signals are still outstanding.
+     * and how many admitted runs still have an incomplete aggregate body-exit signal (one signal per
+     * run, covering every body of that run).
      *
      * <p>The four readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a

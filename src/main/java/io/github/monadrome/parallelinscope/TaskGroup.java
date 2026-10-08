@@ -230,7 +230,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             throw new AssertionError("group completion cannot fail", impossible);
         }
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanos);
+        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, groupToken);
         BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
         for (MemberState member : membersAndTerminal) {
             BodyCompletionTracker.awaitSettledUninterruptibly(
@@ -433,7 +433,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     }
                 },
                 bodyCompletion,
-                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, deadlineNanos),
+                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, groupToken),
                 "TaskGroup '" + groupName + "'",
                 LOGGER);
     }
@@ -577,10 +577,17 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // matters: the token of such a group is never bound, so a parent-linked one would hold a
         // listener node on the parent scope for the parent's entire lifetime.
         boolean empty = definition.members().isEmpty() && definition.combineSlot() == null;
+        // The token stays in `domain` even when the empty-group shortcut drops the parent link:
+        // groupDeadline was resolved on that clock, so reading it back on env's clock would mix
+        // domains. The scheduler follows the same domain — inert for an empty group, which never
+        // binds, but the token tree's pair rule admits no exception.
         CancellationToken groupToken = new CancellationToken(
                 structuralParent == null || empty ? null : structuralParent.cancellationToken(),
                 groupDeadline,
-                env.ticker());
+                domain,
+                structuralParent == null
+                        ? env.timeoutScheduler()
+                        : structuralParent.cancellationToken().timeoutScheduler());
         // Every member and the terminal combine registers its body-completion slot here, before
         // any submission, so the shared signal covers tasks that start late or never start.
         BodyCompletionTracker bodyCompletion =

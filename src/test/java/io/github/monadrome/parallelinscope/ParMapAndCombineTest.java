@@ -15,7 +15,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -174,6 +177,32 @@ class ParMapAndCombineTest {
     }
 
     @Test
+    void combineBusinessTimeoutExceptionIsUserFailureNotFrameworkTimeout() {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            TimeoutException combineFailure = new TimeoutException("business timeout");
+
+            BatchCombinedResult<Integer, Integer> result = runtime.par(ParId.of("worker"))
+                    .mapAndCombine(
+                            Arrays.asList(1, 2),
+                            value -> value,
+                            BatchOptions.timeout("batch", TIMEOUT),
+                            runtime.par(ParId.of("worker")),
+                            values -> {
+                                throw combineFailure;
+                            });
+
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.terminalResult().failure()).isSameAs(combineFailure);
+            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.TIMEOUT))
+                    .isNull();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void combineRejectionIsSubmissionFailureWithElementsPreserved() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(2);
         // A saturated zero-queue pool: the combine's handoff is rejected outright.
@@ -301,7 +330,7 @@ class ParMapAndCombineTest {
 
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
-    private static CombineBody<List<Integer>, Integer> nullBody() {
+    private static CombineBody<List<@Nullable Integer>, Integer> nullBody() {
         return null;
     }
 
@@ -496,7 +525,7 @@ class ParMapAndCombineTest {
         try {
             Par par = runtime.par(ParId.of("worker"));
             BatchOptions options = BatchOptions.timeout("batch", TIMEOUT);
-            CombineBody<List<Integer>, Integer> combine =
+            CombineBody<List<@Nullable Integer>, Integer> combine =
                     values -> Objects.requireNonNull(values).size();
 
             assertThatThrownBy(() -> par.<Integer, Integer, Integer>mapAndCombine(
@@ -517,6 +546,62 @@ class ParMapAndCombineTest {
             other.close();
             foreignExecutor.shutdownNow();
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void combineSubmittedAsDeadlineFiresNeverRunsItsBody() throws Exception {
+        // The tight terminal-submit race: the success gate has passed and the combine has been
+        // handed to its executor — but not yet dequeued — when the deadline fires. The cascade
+        // must cancel the queued combine before its body can be entered. The manual clock makes
+        // the interleaving exact: advance() runs the timer synchronously on this thread, so the
+        // cancellation has fully landed before the gate releases the task to its pool.
+        ManualClock clock = new ManualClock();
+        ExecutorService elementPool = Executors.newFixedThreadPool(2);
+        GatedExecutorService combineGate = new GatedExecutorService();
+        runtime = ParRuntime.builder()
+                .register(ParId.of("worker"), elementPool)
+                .register(ParId.of("combiner"), combineGate)
+                .ticker(clock.ticker())
+                .timeoutScheduler(clock.scheduler())
+                .build();
+        try {
+            AtomicInteger combineRuns = new AtomicInteger();
+            AtomicReference<BatchCombinedResult<Integer, Integer>> outcome = new AtomicReference<>();
+            Thread caller = new Thread(
+                    () -> outcome.set(runtime.par(ParId.of("worker"))
+                            .mapAndCombine(
+                                    Arrays.asList(1, 2),
+                                    value -> value,
+                                    BatchOptions.timeout("batch", Duration.ofMinutes(1)),
+                                    runtime.par(ParId.of("combiner")),
+                                    values -> {
+                                        combineRuns.incrementAndGet();
+                                        return 0;
+                                    })),
+                    "combine-race-caller");
+            caller.setDaemon(true);
+            caller.start();
+
+            assertThat(combineGate.accepted.await(10, TimeUnit.SECONDS))
+                    .as("the combine passed the success gate and reached its executor")
+                    .isTrue();
+            clock.advance(Duration.ofMinutes(1));
+            combineGate.release.countDown();
+
+            caller.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(caller.isAlive()).isFalse();
+            combineGate.awaitDrained();
+            BatchCombinedResult<Integer, Integer> result = Objects.requireNonNull(outcome.get());
+            assertThat(combineRuns)
+                    .as("a combine cancelled while queued must never enter its body")
+                    .hasValue(0);
+            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.SUCCESS))
+                    .isEqualTo(2);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            elementPool.shutdownNow();
+            combineGate.shutdownNow();
         }
     }
 
@@ -549,6 +634,60 @@ class ParMapAndCombineTest {
         } finally {
             io.shutdownNow();
             cpu.shutdownNow();
+        }
+    }
+
+    /**
+     * Holds the first submitted task until released, standing in for a combine that was handed to
+     * its executor but not yet dequeued when cancellation landed.
+     */
+    private static final class GatedExecutorService extends java.util.concurrent.AbstractExecutorService {
+        private final ExecutorService delegate = Executors.newSingleThreadExecutor();
+        private final CountDownLatch accepted = new CountDownLatch(1);
+        private final CountDownLatch release = new CountDownLatch(1);
+
+        @Override
+        public void execute(Runnable command) {
+            accepted.countDown();
+            try {
+                release.await();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new java.util.concurrent.RejectedExecutionException("interrupted while gated");
+            }
+            delegate.execute(command);
+        }
+
+        void awaitDrained() throws InterruptedException {
+            delegate.shutdown();
+            if (!delegate.awaitTermination(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("gated delegate did not drain");
+            }
+        }
+
+        @Override
+        public void shutdown() {
+            delegate.shutdown();
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return delegate.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return delegate.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return delegate.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return delegate.awaitTermination(timeout, unit);
         }
     }
 }

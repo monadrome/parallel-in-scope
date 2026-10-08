@@ -122,7 +122,9 @@ public final class Par {
      * @throws IllegalStateException if the owning ParRuntime has begun shutdown
      */
     public <T, R> TaskBatchResult<R> map(
-            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
+            @Nullable Collection<T> elements,
+            Function<? super T, ? extends @Nullable R> function,
+            BatchOptions options) {
         return this.<T, R>submitBatch(elements, function, options).finish();
     }
 
@@ -162,10 +164,10 @@ public final class Par {
      */
     public <T, R, C> BatchCombinedResult<R, C> mapAndCombine(
             @Nullable Collection<T> elements,
-            Function<? super T, ? extends R> function,
+            Function<? super T, ? extends @Nullable R> function,
             BatchOptions options,
             Par combinePar,
-            CombineBody<List<R>, C> combineBody) {
+            CombineBody<List<@Nullable R>, C> combineBody) {
         Objects.requireNonNull(options, "options cannot be null");
         Objects.requireNonNull(function, "function cannot be null");
         Objects.requireNonNull(combinePar, "combinePar cannot be null");
@@ -175,10 +177,10 @@ public final class Par {
 
     private <T, R, C> BatchCombinedResult<R, C> mapAndCombineWhileOpen(
             @Nullable Collection<T> elements,
-            Function<? super T, ? extends R> function,
+            Function<? super T, ? extends @Nullable R> function,
             BatchOptions options,
             Par combinePar,
-            CombineBody<List<R>, C> combineBody) {
+            CombineBody<List<@Nullable R>, C> combineBody) {
         if (combinePar.runtime() != runtime) {
             throw new IllegalArgumentException(
                     "combinePar '" + combinePar.id() + "' belongs to a different ParRuntime");
@@ -196,6 +198,7 @@ public final class Par {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), elements.size())
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
+                .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
@@ -225,7 +228,7 @@ public final class Par {
             @Nullable TaskGraphObservationScope observation,
             @Nullable Duration closeGrace,
             Par combinePar,
-            CombineBody<List<R>, C> combineBody) {
+            CombineBody<List<@Nullable R>, C> combineBody) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         if (observation != null) {
             TaskEdge edge = new TaskEdge(
@@ -344,8 +347,8 @@ public final class Par {
     }
 
     /** Reads every element's successful value in input order; the success gate settled them all. */
-    private static <R> List<R> settledValues(List<? extends ExecutionPhaseHintFuture<R>> tasks) {
-        List<R> values = new ArrayList<>(tasks.size());
+    private static <R> List<@Nullable R> settledValues(List<? extends ExecutionPhaseHintFuture<R>> tasks) {
+        List<@Nullable R> values = new ArrayList<>(tasks.size());
         for (int index = 0; index < tasks.size(); index++) {
             try {
                 values.add(Futures.getDone(tasks.get(index)));
@@ -359,7 +362,9 @@ public final class Par {
     }
 
     <T, R> TaskBatch<R> submitBatch(
-            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
+            @Nullable Collection<T> elements,
+            Function<? super T, ? extends @Nullable R> function,
+            BatchOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
         return runtime.whileOpen(() -> mapWhileOpen(elements, function, options));
     }
@@ -396,6 +401,7 @@ public final class Par {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
+                .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
@@ -434,7 +440,9 @@ public final class Par {
     }
 
     private <T, R> TaskBatch<R> mapWhileOpen(
-            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
+            @Nullable Collection<T> elements,
+            Function<? super T, ? extends @Nullable R> function,
+            BatchOptions options) {
         int taskCount = elements == null ? 0 : elements.size();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         if (!options.timeout().isPresent() && currentTask == null) {
@@ -451,6 +459,7 @@ public final class Par {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
+                .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));

@@ -230,21 +230,26 @@ final class BodyCompletionTracker {
      * post-settle body-completion wait for {@code Par.map}: the configured close grace when the
      * scope declared one, otherwise what is left of its execution deadline.
      *
+     * <p>The deadline lives in the token's clock domain, so the relative budget is derived from the
+     * token's own clock — never from {@link System#nanoTime()}, which a manual deadline clock must
+     * not be subtracted from. The derived budget is then spent as a real-time bounded wait: cleanup
+     * waits measure the actual passage of time, which no virtual clock may fabricate.
+     *
      * @param configured the declared close grace, or null to derive from the deadline
-     * @param deadlineNanos the scope's absolute deadline, or {@link Long#MAX_VALUE} for none
+     * @param token the scope's cancellation token, or null when the scope carries none
      * @return the budget in nanoseconds; {@code 0} means cancel without waiting, which is what a
      *     scope with no finite deadline and no configured grace gets — there is nothing to derive a
      *     budget from. A saturated {@link Long#MAX_VALUE} is not that case: it means the derived
      *     budget is astronomical.
      */
-    static long closeGraceBudgetNanos(@Nullable Duration configured, long deadlineNanos) {
+    static long closeGraceBudgetNanos(@Nullable Duration configured, @Nullable CancellationToken token) {
         if (configured != null) {
             return Deadlines.saturatedNanos(configured);
         }
-        if (deadlineNanos == Long.MAX_VALUE) {
+        if (token == null || token.deadlineNanos() == Long.MAX_VALUE) {
             return 0;
         }
-        return Deadlines.remaining(deadlineNanos, System.nanoTime());
+        return Deadlines.remaining(token.deadlineNanos(), token.ticker().read());
     }
 
     /**
