@@ -1,0 +1,23 @@
+BACKLOG.md
+  s_9161933ae936f4::t_716cdf5f414977 323-324,326-333,335-340,342-344
+  s_9161933ae936f4::t_06a5064c661754 378-383
+  s_9161933ae936f4::t_56ceea711cb97f 233-235,325,334,341
+AGENTS.md
+  s_9161933ae936f4::t_06a5064c661754 231-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8bd1aa45efb186a8e6eeb2155e0ebf159e9cc0f8",
+  "prompts": {},
+  "sessions": {
+    "s_9161933ae936f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0cd3120-c2c3-4e45-9604-d647008b8081",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
