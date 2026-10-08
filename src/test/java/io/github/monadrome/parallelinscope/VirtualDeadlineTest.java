@@ -42,6 +42,34 @@ class VirtualDeadlineTest {
     }
 
     @Test
+    void settledTokenReleasesItsScheduledDeadline() {
+        ManualClock clock = new ManualClock();
+        CancellationToken token = new CancellationToken(
+                null, clock.read() + TimeUnit.MINUTES.toNanos(10), clock.ticker());
+        SettableFuture<String> task = SettableFuture.create();
+
+        token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), clock.scheduler());
+        assertThat(clock.pendingHandles()).isEqualTo(1);
+
+        task.set("done");
+        // Settling by any path completes futureToken, whose listener cancels the scheduled task:
+        // the shared scheduler retains no deadline of an already-settled token.
+        assertThat(clock.pendingHandles()).isZero();
+    }
+
+    @Test
+    void deadlineEqualityOnTheTokenClockIsExpired() {
+        ManualClock clock = new ManualClock();
+        CancellationToken token = new CancellationToken(
+                null, clock.read() + TimeUnit.MILLISECONDS.toNanos(100), clock.ticker());
+        assertThat(token.deadlineExpired()).isFalse();
+
+        clock.advance(Duration.ofMillis(100));
+        // Reaching the deadline exactly is expiry: the checkpoint backstop reads this boundary.
+        assertThat(token.deadlineExpired()).isTrue();
+    }
+
+    @Test
     void runtimeDeadlineFiresOnTheInjectedClock() throws Exception {
         ManualClock clock = new ManualClock();
         ExecutorService executor = Executors.newSingleThreadExecutor();
