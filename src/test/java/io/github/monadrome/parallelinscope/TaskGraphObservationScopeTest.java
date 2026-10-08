@@ -101,6 +101,52 @@ class TaskGraphObservationScopeTest {
     }
 
     @Test
+    void innerScopeClosedOnAnotherThreadLeavesTheOuterScopeRecording() throws Exception {
+        // Closing a scope on a different thread than the one that opened it is supported: the
+        // closed scope stays installed on the opening thread, but recording must skip it and reach
+        // the open outer scope instead of dropping edges.
+        global = ParRuntime.builder()
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+                .build();
+        TaskGraphObservationScope outer = global.openTaskGraphObservation();
+        TaskGraphObservationScope inner = global.openTaskGraphObservation();
+
+        Thread closer = new Thread(inner::close, "inner-close");
+        closer.start();
+        closer.join(TimeUnit.SECONDS.toMillis(10));
+        assertThat(closer.isAlive()).isFalse();
+        assertThat(inner.closed()).isTrue();
+
+        TaskGraphObservationScope.logTaskPair(
+                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
+        TaskGraphObservationScope.logTaskPair(
+                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+
+        outer.close();
+        assertThat(Objects.requireNonNull(Futures.getDone(outer.reportFuture())).status())
+                .isEqualTo(TaskGraphReport.Status.ISSUE);
+    }
+
+    @Test
+    void crossThreadCloseHealsToTheOpenOuterScope() throws Exception {
+        global = ParRuntime.builder().build();
+        TaskGraphObservationScope outer = global.openTaskGraphObservation();
+        TaskGraphObservationScope inner = global.openTaskGraphObservation();
+
+        Thread closer = new Thread(inner::close, "inner-close");
+        closer.start();
+        closer.join(TimeUnit.SECONDS.toMillis(10));
+        assertThat(closer.isAlive()).isFalse();
+
+        // The opening thread still carries the closed inner binding; reading skips it and lands on
+        // the open outer scope.
+        assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
+
+        outer.close();
+        assertThat(TaskGraphObservationScope.current()).isNull();
+    }
+
+    @Test
     void reentrantLoggingHandlerCannotDeadlockClose() throws Exception {
         // A JUL handler is user-replaceable code: if it re-enters the same scope's close(), the
         // re-entrant call must observe an already-published report instead of waiting for the

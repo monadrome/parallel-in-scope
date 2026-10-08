@@ -74,6 +74,10 @@ fake-group-batch -> A/B/C
 - scope `close()` MUST 先恢复调用线程的外层 scope 并完成 `reportFuture()` 的发布，再运行任何
   可替换的 JUL 日志 handler：handler 是用户代码，可以重入同一个 scope 的 `close()`；重入调用
   等待的正是这次发布，先日志后发布会形成自等待死锁。
+- scope 生命周期不限于打开线程：close 可在任何线程执行。已关闭 scope 在读取时 MUST 被跳过，
+  观察到最近的仍开放外层 scope；之后的 close MUST 能穿过已关闭的残留绑定完成恢复。关闭调用
+  够不到的线程上的绑定在下一次读取时自愈，已关闭 scope MUST NOT 继续记录边，也不得把外层
+  开放 scope 屏蔽成「无 scope」。
 
 ## 13. 并发不变量
 
