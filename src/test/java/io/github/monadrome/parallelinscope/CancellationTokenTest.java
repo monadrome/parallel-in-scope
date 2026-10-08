@@ -60,8 +60,7 @@ public class CancellationTokenTest {
      * cancellation, modelling a timer task the scheduler thread already dispatched: recalling it
      * with {@code cancel(false)} is impossible, so the action still runs after losing the race.
      */
-    private static final class AlreadyDispatchedTimer extends AbstractExecutorService
-            implements ScheduledExecutorService {
+    private static class AlreadyDispatchedTimer extends AbstractExecutorService implements ScheduledExecutorService {
         private final AtomicReference<Runnable> dispatched = new AtomicReference<>();
 
         @Override
@@ -147,6 +146,25 @@ public class CancellationTokenTest {
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) {
             return true;
+        }
+    }
+
+    /**
+     * A scheduler that cancels the token and then rejects, standing in for a cancellation that
+     * lands between bind's liveness guard and the arming while a closing runtime retires the
+     * scheduler — the check-then-act interval of the deadline arming.
+     */
+    private static final class CancelThenRejectScheduler extends AlreadyDispatchedTimer {
+        private final CancellationToken token;
+
+        CancelThenRejectScheduler(CancellationToken token) {
+            this.token = token;
+        }
+
+        @Override
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            token.cancel(true);
+            throw new java.util.concurrent.RejectedExecutionException("retired");
         }
     }
 
@@ -672,6 +690,73 @@ public class CancellationTokenTest {
         token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), retired);
 
         assertThat(work).isCancelled();
+    }
+
+    @Test
+    public void cancellationBetweenGuardAndArmingAbsorbsSchedulerRejection() {
+        // The deterministic interval: the token is RUNNING at bind's liveness guard, then
+        // cancellation lands and the scheduler is retired before the deadline is armed. The
+        // terminal state already implies the cancellation of the bound work, so the rejection must
+        // be absorbed — not thrown out of an accepted startup.
+        ManualClock clock = new ManualClock();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker());
+        SettableFuture<String> work = SettableFuture.create();
+        SettableFuture<Void> submission = SettableFuture.create();
+
+        token.bind(ImmutableList.of(work), submission, new CancelThenRejectScheduler(token));
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(work).isCancelled();
+        assertThat(submission).isCancelled();
+    }
+
+    @Test
+    public void retiredDomainSchedulerAndConcurrentCancelAbsorbRejectionOnFallback() {
+        // Same interval with both schedulers involved: the inherited domain scheduler is already
+        // retired, and the caller's scheduler rejects after the concurrent cancellation lands.
+        ManualClock clock = new ManualClock();
+        ScheduledExecutorService retired = Executors.newSingleThreadScheduledExecutor();
+        retired.shutdown();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker(), retired);
+        SettableFuture<String> work = SettableFuture.create();
+
+        token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), new CancelThenRejectScheduler(token));
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(work).isCancelled();
+    }
+
+    @Test
+    public void runningTokenRejectedByEverySchedulerThrows() {
+        // A still-RUNNING token whose deadline cannot be armed must fail loudly: proceeding
+        // without deadline enforcement would silently break the timeout contract.
+        ScheduledExecutorService retired = Executors.newSingleThreadScheduledExecutor();
+        retired.shutdown();
+        CancellationToken token = new CancellationToken(null, System.nanoTime() + TimeUnit.MINUTES.toNanos(1));
+
+        assertThatThrownBy(() ->
+                        token.bind(ImmutableList.of(SettableFuture.create()), Futures.immediateVoidFuture(), retired))
+                .isInstanceOf(java.util.concurrent.RejectedExecutionException.class);
+    }
+
+    @Test
+    public void runningTokenRejectedByBothDistinctSchedulersThrows() {
+        // The domain scheduler and the caller's fallback are different retired schedulers: the
+        // fallback rejection must also reach the caller for a still-RUNNING token — absorbing is
+        // reserved for tokens the concurrent cancellation already terminated.
+        ManualClock clock = new ManualClock();
+        ScheduledExecutorService retiredDomain = Executors.newSingleThreadScheduledExecutor();
+        ScheduledExecutorService retiredFallback = Executors.newSingleThreadScheduledExecutor();
+        retiredDomain.shutdown();
+        retiredFallback.shutdown();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker(), retiredDomain);
+
+        assertThatThrownBy(() -> token.bind(
+                        ImmutableList.of(SettableFuture.create()), Futures.immediateVoidFuture(), retiredFallback))
+                .isInstanceOf(java.util.concurrent.RejectedExecutionException.class);
     }
 
     @Test
