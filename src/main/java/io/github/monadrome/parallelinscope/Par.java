@@ -3,8 +3,10 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -121,6 +124,232 @@ public final class Par {
     public <T, R> TaskBatchResult<R> map(
             @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
         return this.<T, R>submitBatch(elements, function, options).finish();
+    }
+
+    /**
+     * Executes a batch and then, only when every element succeeded, one terminal combine over the
+     * element values.
+     *
+     * <p>The combine is a real scoped task prepared and bound with the elements on the calling
+     * thread — TTL capture, deadline, and cancellation are shared with the batch — but it is
+     * submitted to {@code combinePar} exactly once, only after every element succeeded. When any
+     * element fails, is cancelled, or the deadline expires first, the combine never runs and its
+     * result is terminal: cancelled with the batch's attribution, or {@code SUBMISSION_FAILURE} when
+     * its own executor rejected it. The combine body receives the element values in input order;
+     * successful null elements appear as null entries. The batch token cannot report success before
+     * the combine settles, so one admission's budget covers fan-out and summary together.
+     *
+     * <p>Everything {@link #map} documents about synchronous waiting, interruption, close grace,
+     * and borrowed executors applies to this method as well; the combine is submitted from the
+     * converging thread, so a {@code combinePar} backed by a saturating {@code CallerRunsPolicy}
+     * pool never runs the body there — the same inline guard the group combine uses records {@code
+     * SUBMISSION_FAILURE} instead.
+     *
+     * @param elements input elements; must contain at least one element — a combine over an empty
+     *     batch has no fan-out to summarize, mirroring the group's rejection of an
+     *     empty-with-combine declaration
+     * @param function synchronous mapping function, as in {@link #map}
+     * @param options immutable per-batch request; it cannot select an executor
+     * @param combinePar the entry whose executor runs the terminal combine; must belong to the same
+     *     {@link ParRuntime}
+     * @param combineBody the terminal combine body; it may throw any checked exception, recorded as
+     *     {@code USER_FAILURE} with the original cause
+     * @return the frozen element results plus the terminal combine's result and observation
+     * @throws IllegalArgumentException if {@code elements} is null or empty, if the options declare
+     *     an inherited timeout and no scoped task encloses this call, or if {@code combinePar}
+     *     belongs to a different {@link ParRuntime}
+     * @throws IllegalStateException if the owning ParRuntime has begun shutdown
+     */
+    public <T, R, C> BatchCombinedResult<R, C> mapAndCombine(
+            @Nullable Collection<T> elements,
+            Function<? super T, ? extends R> function,
+            BatchOptions options,
+            Par combinePar,
+            CombineBody<List<R>, C> combineBody) {
+        Objects.requireNonNull(options, "options cannot be null");
+        Objects.requireNonNull(function, "function cannot be null");
+        Objects.requireNonNull(combinePar, "combinePar cannot be null");
+        Objects.requireNonNull(combineBody, "combineBody cannot be null");
+        return runtime.whileOpen(() -> mapAndCombineWhileOpen(elements, function, options, combinePar, combineBody));
+    }
+
+    private <T, R, C> BatchCombinedResult<R, C> mapAndCombineWhileOpen(
+            @Nullable Collection<T> elements,
+            Function<? super T, ? extends R> function,
+            BatchOptions options,
+            Par combinePar,
+            CombineBody<List<R>, C> combineBody) {
+        if (combinePar.runtime() != runtime) {
+            throw new IllegalArgumentException(
+                    "combinePar '" + combinePar.id() + "' belongs to a different ParRuntime");
+        }
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        if (!options.timeout().isPresent() && currentTask == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
+        }
+        if (elements == null || elements.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "mapAndCombine requires at least one element; use Par.map for an empty batch");
+        }
+        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
+        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), elements.size())
+                .structuralParent(parent)
+                .ticker(runtime.ticker())
+                .taskGraphObservationScope(observation)
+                .executorIdentity(executorRuntime.identity())
+                .executorLabel(id.value()));
+        warnIfRejectEnqueueInert(unit);
+        return executeCombined(
+                elements,
+                item -> () -> function.apply(item),
+                unit,
+                observation,
+                options.closeGrace().orElse(null),
+                combinePar,
+                combineBody);
+    }
+
+    /**
+     * The combined-batch pipeline: {@link #executeGlobal} plus one prepared terminal combine. The
+     * combine shares the batch token (bind covers it while still pending, so SUCCESS cannot commit
+     * early and the cascade always reaches it) and joins the same body tracker, but gets its own
+     * unit — child of the batch unit — so the graph records an honest batch-to-combine edge on the
+     * combine executor instead of a self-loop. Its token is never bound: deadline and cascade come
+     * from the batch token, exactly like a group member whose deadline equals the group's.
+     */
+    private <T, R, C> BatchCombinedResult<R, C> executeCombined(
+            Collection<T> elements,
+            Function<T, Callable<R>> callableMapper,
+            MultiTaskContext unit,
+            @Nullable TaskGraphObservationScope observation,
+            @Nullable Duration closeGrace,
+            Par combinePar,
+            CombineBody<List<R>, C> combineBody) {
+        List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
+        if (observation != null) {
+            TaskEdge edge = new TaskEdge(
+                    unit.effectiveParallelism(),
+                    unit.taskType(),
+                    unit.executorIdentity(),
+                    unit.structuralParent() == null
+                            ? null
+                            : unit.structuralParent().executorIdentity(),
+                    unit.executorLabel(),
+                    unit.structuralParent() == null
+                            ? "NA"
+                            : unit.structuralParent().executorLabel(),
+                    list.size(),
+                    unit.remaining(),
+                    executorRuntime.starvationProne());
+            logForking(observation, unit, edge);
+        }
+        // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
+        // and the frozen body-completion diagnostics report on the whole run.
+        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size() + 1);
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareUnderResolvedScope(
+                observation,
+                () -> IntStream.range(0, list.size())
+                        .mapToObj(index -> TaskSubmissions.prepare(
+                                new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                                callableMapper.apply(list.get(index))))
+                        .collect(toImmutableList()));
+        MultiTaskContext terminalUnit = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, unit.taskType(), false), 1)
+                        .structuralParent(unit)
+                        .cancellationParent(unit.cancellationToken())
+                        .deadlineCeilingNanos(unit.deadlineNanos())
+                        .taskGraphObservationScope(observation)
+                        .executorIdentity(combinePar.executorIdentity())
+                        .executorLabel(combinePar.id().value()));
+        TaskExecutionContext terminalContext =
+                new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
+        // The terminal body reads the settled element futures at run time; the success gate below
+        // guarantees they all completed successfully before the combine is ever submitted. TTL
+        // capture happens here, on the admission thread, inside prepare.
+        ExecutionPhaseHintFuture<C> terminalFuture = prepareUnderResolvedScope(
+                observation,
+                () -> TaskSubmissions.prepare(terminalContext, () -> combineBody.apply(settledValues(tasks))));
+        if (combinePar.executorRuntime().threadPoolBacked()) {
+            terminalFuture.forbidInlineExecution();
+        }
+        Task<C> terminalView = Task.of(unit.name(), unit.cancellationToken(), terminalFuture);
+        if (observation != null) {
+            TaskEdge edge = new TaskEdge(
+                    1,
+                    terminalUnit.taskType(),
+                    terminalUnit.executorIdentity(),
+                    unit.executorIdentity(),
+                    terminalUnit.executorLabel(),
+                    unit.executorLabel(),
+                    1,
+                    terminalUnit.remaining(),
+                    combinePar.executorRuntime().starvationProne());
+            observation.recordEdge(unit.unitId(), unit.name(), terminalUnit.unitId(), terminalUnit.name(), edge);
+        }
+        SlidingWindowSubmitter<R> submitter =
+                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
+        ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
+        SettableFuture<Object> submitCanceller = SettableFuture.create();
+        // Bind before submitting, with the still-pending terminal in the bound set: the token's
+        // SUCCESS then requires the combine too, and the fail-fast/deadline cascade cancels an
+        // unsubmitted combine before its body can ever be entered.
+        List<ListenableFuture<?>> bound = new ArrayList<>(views.size() + 1);
+        bound.addAll(views);
+        bound.add(terminalView);
+        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), bound, submitCanceller);
+        // Armed before submitAll: an inline executor can complete every element inside the initial
+        // window. Only an all-successful element aggregate triggers the combine; the callback's
+        // failure path leaves the combine to the cascade.
+        AtomicBoolean terminalSubmitted = new AtomicBoolean();
+        Futures.addCallback(
+                Futures.allAsList(views),
+                new FutureCallback<List<R>>() {
+                    @Override
+                    public void onSuccess(@Nullable List<R> values) {
+                        if (terminalSubmitted.compareAndSet(false, true) && !terminalFuture.isDone()) {
+                            TaskSubmissions.submitScoped(terminalFuture, terminalUnit, combinePar.submissionExecutor());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Throwable failure) {
+                        // Element failure or cancellation: the token's cascade cancels the pending
+                        // combine; there is nothing to submit.
+                    }
+                },
+                MoreExecutors.directExecutor());
+        runtime.retainUntilComplete(completion);
+        runtime.trackBodies(bodyCompletion);
+        TaskBatch<R> batch = submitter.submitAll(tasks, views);
+        submitCanceller.setFuture(batch.submitCanceller());
+        return batch.finishCombined(terminalView);
+    }
+
+    /**
+     * Binds element views and the differently-typed terminal view in one call. The bind's element
+     * type is an inference artifact — every entry is a {@code ListenableFuture<?>} — so the raw
+     * cast is confined here.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private ListenableFuture<?> bindAll(
+            CancellationToken token, List<? extends ListenableFuture<?>> futures, ListenableFuture<?> submitCanceller) {
+        return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
+    }
+
+    /** Reads every element's successful value in input order; the success gate settled them all. */
+    private static <R> List<R> settledValues(List<? extends ExecutionPhaseHintFuture<R>> tasks) {
+        List<R> values = new ArrayList<>(tasks.size());
+        for (int index = 0; index < tasks.size(); index++) {
+            try {
+                values.add(Futures.getDone(tasks.get(index)));
+            } catch (ExecutionException impossible) {
+                // The combine runs only after every element succeeded; anything else is a broken
+                // kernel invariant, not user input.
+                throw new IllegalStateException("element " + index + " has not completed successfully", impossible);
+            }
+        }
+        return values;
     }
 
     <T, R> TaskBatch<R> submitBatch(

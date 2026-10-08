@@ -139,6 +139,55 @@ class MavenCentralConsumerTest {
     }
 
     @Test
+    void mapAndCombineRunsTheTerminalUnderTheSharedBudget() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        try {
+            Par par = runtime.par(CONSUMER);
+            io.github.monadrome.parallelinscope.BatchCombinedResult<Integer, Integer> combined =
+                    par.mapAndCombine(
+                            Arrays.asList(1, 2, 3),
+                            value -> value * 2,
+                            BatchOptions.timeout("combine-smoke", Duration.ofSeconds(5)),
+                            par,
+                            values -> {
+                                int sum = 0;
+                                for (Integer value : values) {
+                                    sum += value;
+                                }
+                                return sum;
+                            });
+
+            assertEquals(Integer.valueOf(12), combined.terminalValueOrThrow());
+            assertEquals(TaskOutcome.SUCCESS, combined.terminalResult().outcome());
+            assertEquals(3, combined.batchResult().results().size());
+            assertTrue(combined.bodyCompletionConfirmed());
+
+            // A failed element leaves the terminal cancelled without running the combine.
+            BatchOptions failing = BatchOptions.timeout("combine-fail-fast", Duration.ofSeconds(5));
+            io.github.monadrome.parallelinscope.BatchCombinedResult<Integer, Integer> failed =
+                    par.mapAndCombine(
+                            Arrays.asList(1, 2, 3),
+                            value -> {
+                                if (value == 2) {
+                                    throw new IllegalArgumentException("expected");
+                                }
+                                return value;
+                            },
+                            failing,
+                            par,
+                            values -> {
+                                throw new AssertionError("the combine must not run after an element failure");
+                            });
+            assertEquals(TaskOutcome.FAIL_FAST, failed.terminalResult().outcome());
+            assertEquals(TaskOutcome.USER_FAILURE, failed.batchResult().results().get(1).outcome());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void timeoutCancelsRunningTasks() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch started = new CountDownLatch(2);
