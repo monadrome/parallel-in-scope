@@ -153,6 +153,10 @@ fallback 里的任何逻辑在这条路径上都是死代码。
   的真实时间观测，虚拟时钟只管辖 deadline 的判定与调度，不伪造等待的流逝。
 - 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
   交错测试（gate/latch）照旧，不被时间缝取代。
+- 已接受的边界（评审记录）：由 deadline 推导的清理预算（closeGrace 缺省值）在虚拟时钟域下会
+  读成 0——推导读真实时钟，deadline 在虚拟域；测试缝只用于验证 deadline 触发，不验证清理
+  时长。空嵌套 group 的 token 作为根 token 取得本 runtime 时钟而其 deadline 在父域计算，该
+  token 从不 bind、也不调度 timer，无可观察影响。
 
 ## 6. 速查表
 
