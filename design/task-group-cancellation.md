@@ -190,6 +190,12 @@ future 监听器——`start()` 先在成员 future 上注册 `memberCompleted`�
 反转链表恰好满足。假设失效时组 token 可能先提交 `FAIL_FAST`、`failedTaskName` 尚空，兄弟成员被
 误标 `TIMEOUT` 而非 `FAIL_FAST`；升级 Guava 时须复核。
 
+**升级级联在提交者线程上同步执行**：检查点 backstop 在成员自己的 worker 上提交继承 deadline 的
+`TIMEOUT` 时，升级 → 组 token `TIMEOUT` → 成员 future `cancel(true)` → `memberCompleted`（必要时
+`converge()`）全部在该检查点栈内运行，并中断这个线程自己。任务体因此带着中断标志展开（与任何运行中
+被取消的任务体相同，更紧 deadline 的成员早已如此），组可能在该成员发布任务体退出之前收敛；runner
+退出时清除标志，不泄漏给池的下一个任务（[runner-interrupt-delivery.md](runner-interrupt-delivery.md)）。
+
 **接受的残余**（方向安全：只在无失败记录时出现，永不掩盖真失败）：
 
 - backstop 窗口内（deadline 已过、无 token 提交），用户直消成员或用户代码自发抛取消异常也归

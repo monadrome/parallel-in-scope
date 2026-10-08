@@ -882,7 +882,9 @@ class TaskGroupTest {
      * bind has registered the callback that commits the token, so the timeout cancels the member
      * futures first. The runtime's timer thread is held so the group token deterministically stays
      * uncommitted past the deadline, and the member future is cancelled the way that timeout cancels
-     * it. The member must read TIMEOUT rather than a direct member cancellation, and the lone member
+     * it. The deadline only has to outlast the body's entry checkpoint — held, the timer cannot fire,
+     * so a longer deadline costs wall time, not determinism. The member must read TIMEOUT rather
+     * than a direct member cancellation, and the lone member
      * converges the group while its token is still RUNNING, so the group must adopt that recorded
      * TIMEOUT instead of guessing MEMBER_CANCELLED. A direct cancellation inside this window is
      * attributed the same way; that delta is accepted on the kernel's deadline attribution.
@@ -901,7 +903,7 @@ class TaskGroupTest {
                 Uninterruptibles.awaitUninterruptibly(releaseTimer);
             });
             assertThat(timerHeld.await(2, TimeUnit.SECONDS)).isTrue();
-            TaskGroup<Integer, Void> group = global.groupDraft("elapsed-before-commit", Duration.ofMillis(500))
+            TaskGroup<Integer, Void> group = global.groupDraft("elapsed-before-commit", Duration.ofSeconds(2))
                     .par("only", global.par(ParId.of("worker")), Integer.class, () -> {
                         running.countDown();
                         new CountDownLatch(1).await();
@@ -910,7 +912,7 @@ class TaskGroupTest {
                     .submitAll();
             assertThat(running.await(2, TimeUnit.SECONDS)).isTrue();
             CancellationToken groupToken = field(group, "groupToken", CancellationToken.class);
-            Awaitility.await().atMost(Duration.ofSeconds(2)).until(groupToken::deadlineExpired);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(groupToken::deadlineExpired);
             assertThat(groupToken.state()).isEqualTo(CancellationToken.State.RUNNING);
 
             group.futureOf("only").cancel(true);
@@ -921,6 +923,64 @@ class TaskGroupTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             releaseTimer.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * Locks the member token's own TIMEOUT as proof that outranks whatever the group token already
+     * committed. A member whose deadline expires — its own timer or a checkpoint backstop — after the
+     * group token committed FAIL_FAST but before the cascade reached that member commits TIMEOUT on
+     * its token; the escalation is then a no-op, and the member must still read TIMEOUT rather than
+     * the fail-fast the group token names. The group's state listener holds the committing thread
+     * inside that window, the way {@code SynchronousExecutionTest} models the preemption.
+     */
+    @Test
+    void memberCommittedTimeoutOutranksTheGroupTokensEarlierFailFast() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch running = new CountDownLatch(2);
+        CountDownLatch fail = new CountDownLatch(1);
+        CountDownLatch committed = new CountDownLatch(1);
+        CountDownLatch propagate = new CountDownLatch(1);
+        RuntimeException boom = new RuntimeException("boom");
+        try {
+            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("timeout-after-fail-fast", TIMEOUT)
+                    .par("failing", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        fail.await();
+                        throw boom;
+                    })
+                    .par("timed-out", global.par(ParId.of("worker")), Integer.class, () -> {
+                        running.countDown();
+                        new CountDownLatch(1).await();
+                        return 2;
+                    })
+                    .submitAll();
+            assertThat(running.await(2, TimeUnit.SECONDS)).isTrue();
+            CancellationToken groupToken = field(group, "groupToken", CancellationToken.class);
+            CancellationToken memberToken = field(group.futureOf("timed-out"), "token", CancellationToken.class);
+            groupToken.addStateListener(state -> {
+                committed.countDown();
+                Uninterruptibles.awaitUninterruptibly(propagate);
+            });
+
+            fail.countDown();
+            assertThat(committed.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(groupToken.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
+            memberToken.timeoutCancel();
+            propagate.countDown();
+
+            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(result.failedTaskName()).isEqualTo("failing");
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Objects.requireNonNull(result.members().get("timed-out")).outcome())
+                    .isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            fail.countDown();
+            propagate.countDown();
             global.close();
             executor.shutdownNow();
         }
