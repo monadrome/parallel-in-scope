@@ -43,38 +43,39 @@ final class TaskGroupReport {
         this.terminal = terminal;
     }
 
-    public String groupId() {
+    String groupId() {
         return groupId;
     }
 
-    public String groupName() {
+    String groupName() {
         return groupName;
     }
 
-    public long startTimeNanos() {
+    long startTimeNanos() {
         return startTimeNanos;
     }
 
-    public long endTimeNanos() {
+    long endTimeNanos() {
         return endTimeNanos;
     }
 
-    public long deadlineNanos() {
+    long deadlineNanos() {
         return deadlineNanos;
     }
 
     /** Returns the terminal outcome of the group as a whole. */
-    public TaskOutcome outcome() {
+    TaskOutcome outcome() {
         return outcome;
     }
 
     /** Returns the key name of the first failed member or terminal combine, or null if none failed. */
-    public @Nullable String failedTaskName() {
+    @Nullable
+    String failedTaskName() {
         return failedTaskName;
     }
 
     /** Returns each member's terminal snapshot, keyed by registered member name. */
-    public Map<String, TaskCompletion<?>> members() {
+    Map<String, TaskCompletion<?>> members() {
         return members;
     }
 
@@ -83,7 +84,8 @@ final class TaskGroupReport {
      * combine cancelled before running never marks a start or end time, following the member
      * snapshot convention.
      */
-    public @Nullable TaskCompletion<?> terminal() {
+    @Nullable
+    TaskCompletion<?> terminal() {
         return terminal;
     }
 
@@ -102,7 +104,7 @@ final class TaskGroupReport {
      * @throws RuntimeException the recorded failure, when a member or the combine failed
      * @throws Error the recorded failure, when a member or the combine threw an error
      */
-    public TaskGroupReport orThrow() {
+    TaskGroupReport orThrow() {
         if (outcome == TaskOutcome.SUCCESS) {
             return this;
         }
@@ -123,7 +125,7 @@ final class TaskGroupReport {
      *
      * @return the immutable outcome count map, empty for an empty group
      */
-    public Map<TaskOutcome, Integer> outcomeCounts() {
+    Map<TaskOutcome, Integer> outcomeCounts() {
         EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
         for (TaskCompletion<?> member : members.values()) {
             counts.merge(member.outcome(), 1, Integer::sum);
@@ -142,7 +144,7 @@ final class TaskGroupReport {
      *
      * @return formatted report string
      */
-    public String reportString() {
+    String reportString() {
         StringBuilder sb =
                 new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
         sb.append(" | outcome=").append(outcome);
