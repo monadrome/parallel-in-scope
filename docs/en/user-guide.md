@@ -314,6 +314,14 @@ batches — future-level tracking, not bodies still inside user code. A task can
 its future immediately while its body may still be unwinding, so `inFlight()` can reach zero while a
 body runs. `awaitQuiescence` is the one that waits for both the future drain and body exit.
 
+When `awaitQuiescence` returns false, `ParRuntime.snapshot()` explains why: it samples `closed`,
+active admissions, undrained batches, and unexited body signals into a small diagnostic record. The
+counters are read independently, so the snapshot is not linearizable — log it, don't branch on it.
+
+For a failed group, `TaskGroupResult.failedTaskResult()` returns the recorded failure's
+`ImmediateResult` directly — a member or the terminal combine — so callers no longer branch on
+whether `failedTaskName()` is in `results()`.
+
 ## Final observations {#completion-snapshots}
 
 Batch `completions()` is an input-ordered list of available final TaskCompletion snapshots; a null
