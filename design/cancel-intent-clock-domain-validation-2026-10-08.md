@@ -98,18 +98,43 @@ NullAway，其实现侧证据由本记录给出）。
   「当前全部合法行为下等价」。本轮先行的 3 个 SURVIVED（transitionTo 返回值 ×2、sever 移除）
   由新增的 `losingReentrantTransitionDoesNotEmitItsOwnCancellation`（反向验证：输家谎报
   获胜时转红，step6-reentrant-reverted.log）与纳入 ParentChildResultRetentionTest 杀死。
-- **BodyCompletionTracker**（测试：TaskBatchResultBodyCompletionTest,
-  TaskGroupBodyCompletionTest, VirtualDeadlineTest）：本变更触及的
-  `closeGraceBudgetNanos` 全部 5 个变异体被杀死（其中时钟域推导由新测试
-  cleanupBudgetDerivesFromTheTokenClock 杀死）。其余 14 SURVIVED + 11 NO_COVERAGE 集中在
-  本变更**未触及**的 await*/cancelAndAwaitBodyExit/isDone/warnUnfinished/empty：
-  预算边界（`<=0` vs `<0`，零预算两条路径结果相同——等价）、预算耗尽区分、日志-only 的
-  告警路径、空工厂、中断恢复路径——均为该作用域测试集之外的既有覆盖空洞，非本次引入；
-  如实记录为 gap（日志/时序类）或 equivalent（零预算边界），不夸大为本变更已覆盖。
-- **MultiTaskContext**（测试：VirtualDeadlineTest, MultiTaskContextTest）：29 个变异体，
-  26 杀死。3 个 SURVIVED 均在未触及的方法：resolve 的「无 deadline 可继承」前置条件子分支、
-  `rejectEnqueue()` 与 `unitId()` 访问器——分别由 BatchOptionsTest 与图测试覆盖，只是不在
-  本作用域测试集内。调度器接线的端到端行为由 nestedRuntimeInheritsClockAndScheduler 钉死。
+- **BodyCompletionTracker**：首轮作用域把测试类名写成了文件名
+  `TaskBatchResultBodyCompletionTest`——该文件里的类实际叫 `TaskBatchBodyCompletionTest`，
+  名字不存在被静默跳过，首轮 63 变异体只杀 38。更正测试集
+  （TaskBatchBodyCompletionTest, TaskGroupBodyCompletionTest,
+  BodyCompletionBarrierInterruptTest, VirtualDeadlineTest）后复跑
+  （target/pit-reports-archive/BodyCompletionTracker-r2）：63 变异体杀 47。本变更触及的
+  `closeGraceBudgetNanos` 全部 5 个变异体被杀死。剩余 16 个逐一分类（XML 行为
+  pit-time 行号，与当前文件一致）：
+
+  | XML 身份 | 状态 | 处置 |
+  |---|---|---|
+  | awaitBounded:186 ConditionalsBoundary | SURVIVED | 等价：零预算时 `<0` 落入 awaitNanos(0)，`get(0,NANOS)` 对已终态信号立即返回、对未终态信号立即 TimeoutException——与单次 isDone 检查同答 |
+  | awaitBounded:187 BooleanFalse | NO_COVERAGE | 当前调用图不可达：唯一调用点 cancelAndAwaitBodyExit 以 `graceNanos <= 0` 在前置守卫中排除，≤0 预算到不了 awaitBounded |
+  | awaitBounded:189 BooleanFalse | SURVIVED | 缺口（日志级，先于本变更）：宽限期内退出的 body 被谎报为超时；唯一可观察后果是 cancelAndAwaitBodyExit 多打一条 close-grace 警告，无测试断言警告缺失 |
+  | awaitBounded:187 BooleanTrue | NO_COVERAGE | 同 187 False：不可达路径 |
+  | awaitSettled:283 ConditionalsBoundary | SURVIVED | 等价：同 186 的零预算退化机制 |
+  | awaitSettledUninterruptibly:319 ConditionalsBoundary | SURVIVED | 等价：同上 |
+  | awaitSettledUninterruptibly:326 NegateConditionals | NO_COVERAGE | 缺陷专属路径：被观测信号（body-exit、observation）按设计不可能失败，否定把 cannotFail 的 AssertionError 变成静默接受；无缺陷则不可达 |
+  | awaitSettledUninterruptibly:316 BooleanFalse | SURVIVED | 返回值被全部调用点丢弃（TaskBatch:141,176,177；TaskGroup:234,236 均为语句位调用）——逐点枚举核实，属当前调用图下等价，不是「测试没跑到」 |
+  | awaitSettledUninterruptibly:324 BooleanFalse | SURVIVED | 同上（get 成功后的返回值） |
+  | awaitSettledUninterruptibly:329 BooleanFalse | NO_COVERAGE | 缺陷专属 catch 路径 + 返回值被丢弃 |
+  | awaitSettledUninterruptibly:320 BooleanTrue | SURVIVED | 返回值被丢弃（预算耗尽返回） |
+  | awaitSettledUninterruptibly:331 BooleanTrue | NO_COVERAGE | 缺陷专属 catch 路径 + 返回值被丢弃 |
+  | cancelAndAwaitBodyExit:206 ConditionalsBoundary | SURVIVED | 缺口（日志级，先于本变更）：零宽限时变异体会多做一次单次检查并可能打「bodies still running」警告；契约语义「零宽限=取消不等待」的等待行为不变（awaitBounded(0) 不 park），仅警告有无之差 |
+  | cancelAndAwaitBodyExit:216 VoidMethodCall | NO_COVERAGE | 缺口（中断契约，先于本变更）：grace 等待中抛出 InterruptedException 后的标志恢复被删会丢标志；无测试在 close 的宽限等待内中断关闭线程（BodyCompletionBarrierInterruptTest 覆盖的是可中断的 awaitBodyCompletion 路径） |
+  | isDone:112 BooleanFalse | SURVIVED | 结果等价（机制论证）：isDone 是快路径；强制 false 后 cancelAndAwaitBodyExit 落入 awaitBounded，对已完成的信号限时 get 立即返回同一答案，警告与等待行为均不变 |
+  | warnUnfinished:336 NegateConditionals | SURVIVED | 缺口（日志级，先于本变更）：空表误报/非空静默；warnUnfinished 只喂 JUL（调用点 TaskBatch:199、TaskGroup:265），无测试断言该警告 |
+
+- **MultiTaskContext**（VirtualDeadlineTest, MultiTaskContextTest）：29 变异体杀 26。3 个
+  SURVIVED 逐一处置（均为本变更未触及的方法，且均为作用域假象——经变异体验证或逐行
+  论证被作用域外测试覆盖）：
+
+  | XML 身份 | 处置 |
+  |---|---|
+  | rejectEnqueue:298 BooleanFalse | 作用域假象，已实证：施加该变异体后 DefaultEnqueuePolicyTest 转红（mutant-rejectEnqueue.log）——rejectEnqueue=true 经 SmartBlockingQueue.offer 的拒收被该测试端到端钉死 |
+  | resolve:178 NegateConditionals | 作用域假象，逐行论证：178 行是三个合取项（timeout==null && parent==null && ceiling==null）；BatchOptionsTest 以三者全 null 驱动「no enclosing deadline to inherit」拒绝，任一合取项被否定都会禁用该抛出而使测试转红 |
+  | unitId:243 EmptyObjectReturnVals("") | 作用域假象，已实证：施加该变异体后 TaskGraphObservationScopeTest/TaskGraphScopeOwnershipTest 转红（mutant-unitId.log）——unitId 是图边键（recordEdge/logTaskPair），常量化使全部 unit 塌缩为一个键 |
 
 ## 契约条目同步
 
