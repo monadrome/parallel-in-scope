@@ -234,7 +234,7 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 | 5 | 非 inline 路径 + 任务体恢复标志 | 提交线程标志始终为 false（对照锁：防止修复把两条路径改成另一种不一致） |
 | 6 | 任务体抛 `InterruptedException` | 归因为取消类而非 `USER_FAILURE` |
 | 7 | `awaitBodyCompletion` 在已置标志的线程上调用 | 抛 `InterruptedException` 且标志已清 |
-| 8 | `Checkpoints.rawCheckpoint()` 在已置标志的线程上调用 | 抛 `LeanCancellationException` 且标志已清 |
+| 8 | `Checkpoints.rawCheckpoint()` 在已置标志的线程上调用 | 抛 `LeanCancellationException` 且标志保持设置（非信号唯一消费者，与阻塞适配器一致） |
 | 9 | 库的阻塞方法被中断 | 全部抛 `InterruptedException`，无一转成布尔返回值 |
 | 10 | 已 quiescent 的 runtime 上调 `awaitQuiescence(Duration.ZERO)`，调用线程已置标志 | 抛 `InterruptedException` 且标志已清，不得返回 `true` |
 
