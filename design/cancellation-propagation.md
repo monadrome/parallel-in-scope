@@ -136,6 +136,24 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 是下一代 listener 的观察点。因此 `cancel(false)` 的不中断策略沿整棵树逐代保留；first-wins
 不变：已终态的子不受父取消影响。
 
+## 5.2 截止时钟域（内部时间缝）
+
+`CancellationToken` 持有一个 `Ticker` 作为其 deadline 的时钟域：
+
+- MUST：子 token 继承父 token 的时钟（构造器强制），一棵 token 树共享一个时钟域；只有根
+  token 接受显式时钟——公开构造恒为系统时钟，包内 3 参构造供测试注入手动时钟。
+- MUST：deadline 的读取（`remaining()`、bind 的过期检查与调度延迟、`Checkpoints` 的到期
+  backstop）一律读 token 自己的时钟，不与另一时钟域混读。
+- MUST：deadline 的调度经过 `ParRuntime.timeoutScheduler()` 这一个注入点；ParRuntime 的根
+  时钟与该调度器是同一个测试缝的两半（包内 Builder 钩子，不是公开 SPI），替换时必须成对，
+  否则「时钟前进」与「timer 触发」分属两个域，deadline 永不触发或立即触发。
+- 嵌套 ParRuntime：`MultiTaskContext.resolve` 在有取消父时继承父 token 的时钟，只有根提交
+  取本 runtime 的时钟；跨 runtime 嵌套不混域。
+- 有界清理等待与观测时间戳（submitTime/start/end、报告时间）MUST 保持真实时钟：它们是跨线程
+  的真实时间观测，虚拟时钟只管辖 deadline 的判定与调度，不伪造等待的流逝。
+- 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
+  交错测试（gate/latch）照旧，不被时间缝取代。
+
 ## 6. 速查表
 
 | API | input 被取消 | output 被取消 |
