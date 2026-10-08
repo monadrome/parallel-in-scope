@@ -1,0 +1,22 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_9161933ae936f4::t_595365b04a4f37 885-887,906,916
+  s_9161933ae936f4::t_2b3ed3079f56ba 933-990
+design/task-group-cancellation.md
+  s_9161933ae936f4::t_73fe8fa8028033 192-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c8c71958cd54893f4683fc0e678f43b5950848b1",
+  "prompts": {},
+  "sessions": {
+    "s_9161933ae936f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0cd3120-c2c3-4e45-9604-d647008b8081",
+        "model": "unknown"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
