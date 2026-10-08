@@ -72,8 +72,23 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 
 | 方法 | 用途 | 典型场景 |
 |---|---|---|
+| `Checkpoints.remaining()` | 读取当前作用域任务的剩余预算（`Optional<Duration>`）；作用域之外为空，deadline 已过时为零，无 deadline 时恰为 `Duration.ofNanos(Long.MAX_VALUE)` 哨兵。只读：不抛异常、不触发取消、不触碰中断标志 | 把真实预算传给下游客户端 |
 | `Checkpoints.sleep(millis)` | 取消感知的 sleep，将 `InterruptedException` 统一转换为 `LeanCancellationException` | 替代 `Thread.sleep()` |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
+
+`remaining()` 让任务体把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
+
+```java
+.par("user", ioPar, User.class, () -> {
+    Checkpoints.checkpoint();
+    Duration budget = Checkpoints.remaining().orElse(configuredClientTimeout);
+    // budget 为零说明 deadline 已耗尽：拒绝发起调用，不要把零 timeout 传给
+    // 以零表示无限等待的客户端
+    return fetchWithBudget(id, budget);
+})
+```
+
+正预算不证明 scope 未被取消（fail-fast 可能已提交），依赖前仍用 `checkpoint()` 把关。
 
 ## Checkpoint 插入策略
 

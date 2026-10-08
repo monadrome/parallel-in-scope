@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.base.Throwables;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -88,6 +89,31 @@ public final class Checkpoints {
                     + unit.name() + "'; use checkpoint() to check the current task unconditionally");
         }
         checkCancellationToken(lean);
+    }
+
+    /**
+     * Returns the remaining budget of the current scoped task.
+     *
+     * <p>Outside any scoped task the result is empty. Inside one it holds the current task token's
+     * resolved remaining deadline: always non-negative — an elapsed deadline reports {@link
+     * Duration#ZERO} — and exactly {@code Duration.ofNanos(Long.MAX_VALUE)} when the scope has no
+     * deadline, the same sentinel {@link CancellationToken#remaining()} documents. The value reads
+     * the running task's own token, so a nested task reports its own tighter budget, already capped
+     * by every ancestor.
+     *
+     * <p>This is a read-only query: it does not throw for a cancelled token, does not consume or
+     * alter the calling thread's interrupt status, and neither cancels nor mutates anything. A
+     * positive budget does not prove the scope is still uncancelled — fail-fast may already be
+     * committed — so guard work with {@link #checkpoint()} when cancellation must be observed. A
+     * zero or near-zero budget means the deadline is spent; passing it to a client that reads zero
+     * as "wait forever" would invert the budget, so refuse the call instead.
+     *
+     * @return the remaining budget of the current scoped task, or empty outside one
+     */
+    public static Optional<Duration> remaining() {
+        MultiTaskContext unit = currentContext();
+        CancellationToken token = unit == null ? null : unit.cancellationToken();
+        return token == null ? Optional.empty() : Optional.of(token.remaining());
     }
 
     /**

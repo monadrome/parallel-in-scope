@@ -49,6 +49,8 @@
 
 ### Features
 
+- Add `Checkpoints.remaining()`: a read-only query for the current scoped task's remaining deadline budget. It returns `Optional.empty()` outside any scoped task, the resolved non-negative budget inside one (reading the running task's own token, so nested tasks see their own tighter budget), and exactly `Duration.ofNanos(Long.MAX_VALUE)` for a scope with no deadline. It never throws for a cancelled token, never consumes the interrupt flag, and neither cancels nor mutates state.
+
 - Preserve internal execution-phase snapshots through nonblocking `ExecutionPhaseHintFuture.phase()`
   while removing general phase callbacks and their ordering monitors. Running cancellation remains
   queryable during delayed or throwing interrupt delivery; body-exit and runner safety remain intact.
