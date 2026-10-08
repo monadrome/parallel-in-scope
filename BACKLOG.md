@@ -230,6 +230,9 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 | ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
 | ~~O-12~~ | ~~`TaskGroup` 成了不可达的公开类型~~ **已不存在**：`TaskGroup` 现为包私有（`TaskGroup.java:59`），`TaskGroupReport` 无公开签名泄漏 | — | — | — |
+| O-13 | 纯超时批次的 `report().firstException()` 恒 null | API | 读码 | 低 |
+| O-14 | `FAIL_FAST` 不区分"在飞被取消"与"从未提交"，指南未说明 | 文档 | 读码 | 低 |
+| O-15 | 无跨版本 API 表面积 diff 治理 | 工程 | 读码 | 低-中 |
 
 ### O-1 ·（已被同步化重构取代）批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline
 
@@ -317,6 +320,28 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 公开可达签名中。本条记录时的前提（"public final class TaskGroup"）已不成立，无需修复；
 A-P1（`CancellationToken` 孤岛）仍开放。
 
+### O-13 · 纯超时批次的 `report().firstException()` 恒 null
+
+来源：`design/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 复核成立，2026-10-10 按 `dev/v0.3.0` @ `8d7ff69` 再核仍成立。
+`ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
+但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
+（`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:291` 把 null 钉为期望）。
+待拍板：这是设计如此（firstException 只指用户失败，超时归因读逐元素
+`ImmediateResult.failure()`），还是应为取消类结局提供聚合异常。
+
+### O-14 · `FAIL_FAST` 同时覆盖"在飞被取消"与"从未提交"的元素，指南未说明
+
+来源：同上 B4 的残余，2026-10-02 复核成立，2026-10-10 按 `8d7ff69` 读码再核仍成立（滑窗改为完成事件驱动后，被放弃元素仍以批次 token 归因）。窗口占位符概念已删除
+（`SlidingWindowSubmitter.java:69-71`），但被放弃的元素与在飞被取消者读到同一个
+`FAIL_FAST`，用户无法区分"跑了一半被打断"与"从未执行"。不加开关的决策维持
+（`docs/zh/design/idea-graveyard.md:14-20`）；低优先级，在指南补一句语义说明即可。
+
+### O-15 · 无跨版本 API 表面积 diff 治理
+
+来源：同上 C1，2026-10-02 复核成立，2026-10-10 按 `8d7ff69` 再核仍成立。`PublicApiSurfaceTest` 钉的是当前面，
+跨版本 diff（japicmp/revapi 或发布时 javap 计数）缺失；0.x 政策允许破坏性变更，
+更需要机械手段防止"无意"破坏。非发版阻塞。
+
 ---
 
 ## 已修复（无需再动）
@@ -350,6 +375,12 @@ A-P1（`CancellationToken` 孤岛）仍开放。
      采纳则内部重构（免 issue），否则关闭。
    - **`DrainingBlockingQueue` 拆分**：现 1621 行；「内部 VLQ 委托 + 状态机/队列语义拆两个可测
      单元」——采纳或关闭。
+5. **任务结果穷尽匹配**（工作区提案 `design/task-result-exhaustive-matching-proposal.md`，
+   未入库）：它声称的两处缺陷已按 dev 复核——`failure()` 中断敏感是真缺陷，已修复
+   （`bec55e9`）；快照二次分类在 dev 上无可观察缺陷，单趟分类随同一提交作为防御性重构落地。
+   提案真正独有的剩余价值是 typestate 匹配链与单任务公开获取入口。处置倾向：不新增与
+   `ImmediateResult` 平行的第二个快照类型，若做则把匹配链收敛到 `ImmediateResult` 词汇上；
+   拍板前须过 `design/first-principles.md` 六问。
 
 ## 建议的起步顺序
 

@@ -220,8 +220,11 @@ changes, run an independent review with its own budget:
   '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
   ```
 
-  Classify every survivor before reporting: equivalent mutants are not coverage
-  gaps. PIT needs no permission and touches only `target/`.
+  Keep the `test-compile` phase in the command: the PIT goal does not recompile,
+  so after reverting or restoring sources mid-investigation it would otherwise
+  mutate stale bytecode in `target/classes`. Classify every survivor before
+  reporting: equivalent mutants are not coverage gaps. PIT needs no permission
+  and touches only `target/`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 9; consult them when
