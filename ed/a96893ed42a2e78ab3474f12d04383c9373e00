@@ -1,0 +1,9 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  ai_agent 33,886-888,951,971-973,983
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "eda96893ed42a2e78ab3474f12d04383c9373e00",
+  "prompts": {}
+}
