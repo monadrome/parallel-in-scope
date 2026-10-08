@@ -85,7 +85,7 @@ class TaskGroupCombineInlineGuardTest {
                             // rejectEnqueue is requested so the queue refuses the combine and the
                             // handler decides its fate. Without it the default enqueues onto the
                             // 100-deep queue and the combine simply waits for a worker, which is the
-                            // correct behaviour but not the one under test here.
+                            // correct behavior but not the one under test here.
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
                             TypeToken.of(String.class),
                             values -> {

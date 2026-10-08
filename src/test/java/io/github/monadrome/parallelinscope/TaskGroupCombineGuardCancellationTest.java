@@ -40,7 +40,7 @@ class TaskGroupCombineGuardCancellationTest {
 
     /**
      * Every outcome that is a correct answer here. The assertions below also pin the one actually
-     * observed, so this set is the weaker claim that survives a timing shift rather than a licence for
+     * observed, so this set is the weaker claim that survives a timing shift rather than a license for
      * any of them: a run that started reporting a different member of the set would still be a change
      * worth seeing, and the exact assertion is what would show it.
      */

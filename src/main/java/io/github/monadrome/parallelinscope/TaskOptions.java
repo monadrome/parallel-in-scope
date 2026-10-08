@@ -57,7 +57,7 @@ public final class TaskOptions {
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
-     * <p>The policy is honoured only when the registered executor's queue is a {@link
+     * <p>The policy is honored only when the registered executor's queue is a {@link
      * SmartBlockingQueue}; with any other queue this flag is inert.
      */
     public TaskOptions rejectEnqueue(boolean rejectEnqueue) {
