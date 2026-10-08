@@ -35,8 +35,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Scoped task preparation via {@code TaskSubmissions}
  *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
  *   <li>Parent-child {@link CancellationToken} chaining
- *   <li>Late binding for timeout and fail-fast cancellation
- *   <li>Heuristic cleanup of cancelled queued tasks
+ *   <li>Timeout and fail-fast cancellation, bound before any element is submitted
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
