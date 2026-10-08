@@ -30,6 +30,7 @@ final class ExecutorIdentity {
         return supplied;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     @Override
     public boolean equals(Object other) {
         return other instanceof ExecutorIdentity && ((ExecutorIdentity) other).supplied == supplied;

@@ -192,6 +192,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     @Override
     public void run() {
         if (!phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.RUNNING)) {

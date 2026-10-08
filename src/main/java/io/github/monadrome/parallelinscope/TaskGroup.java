@@ -778,6 +778,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return assembled;
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     void start(ParRuntime global) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();

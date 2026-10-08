@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
  * silently ignored, its futures taking the state of the first binding — cancelled when cancellation
  * won that first bind, left untouched when the first binding succeeded.
  */
+@SuppressWarnings("FutureReturnValueIgnored")
 class CancellationTokenBindRaceTest {
 
     private ScheduledExecutorService timer;
