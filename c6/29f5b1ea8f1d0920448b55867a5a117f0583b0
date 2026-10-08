@@ -1,0 +1,47 @@
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_12a8a2e64c5bf1::t_5900fa0d4cc937 96
+  s_12a8a2e64c5bf1::t_a0054dc4dc8c10 56,60
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_12a8a2e64c5bf1::t_5c2bd5c7757e48 78
+  s_12a8a2e64c5bf1::t_cb975413d9e71d 107
+  s_12a8a2e64c5bf1::t_31f5d1007f9d00 87-88
+  s_12a8a2e64c5bf1::t_e3d12529d90a11 46,50,54,58,62
+  s_12a8a2e64c5bf1::t_5b30df14102855 128
+  s_12a8a2e64c5bf1::t_69c1a40010f7a4 72-73
+  s_12a8a2e64c5bf1::t_e4ef23262066ae 67
+  s_12a8a2e64c5bf1::t_c70b861d7f2a2d 147
+src/main/java/io/github/monadrome/parallelinscope/TaskExecutionContext.java
+  s_12a8a2e64c5bf1::t_7c114d2167366f 28
+  s_12a8a2e64c5bf1::t_71efba5ed65848 19
+  s_12a8a2e64c5bf1::t_ac8e5cca087ed3 56,60,64,68,72,77
+  s_12a8a2e64c5bf1::t_8a199366a6b96f 37
+  s_12a8a2e64c5bf1::t_81d13d4022a90c 42,46
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_12a8a2e64c5bf1::t_7bd3a22dabc98f 47
+  s_12a8a2e64c5bf1::t_11a4c3eacad76f 101
+  s_12a8a2e64c5bf1::t_1ebb71a595b345 56
+src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java
+  s_12a8a2e64c5bf1::t_d7f1f0c7b3da04 66
+  s_12a8a2e64c5bf1::t_f2dcfbc63c6c92 40
+src/main/java/io/github/monadrome/parallelinscope/SubmissionScope.java
+  s_12a8a2e64c5bf1::t_821557a6041847 17,22
+  s_12a8a2e64c5bf1::t_61801f7500bb58 29
+src/main/java/io/github/monadrome/parallelinscope/SubmissionException.java
+  s_12a8a2e64c5bf1::t_014edc3e64ddec 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c629f5b1ea8f1d0920448b55867a5a117f0583b0",
+  "prompts": {},
+  "sessions": {
+    "s_12a8a2e64c5bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c04c7c9e-a1b5-4ca0-8be2-137aace625cd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
