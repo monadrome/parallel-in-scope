@@ -260,11 +260,14 @@ public final class CancellationToken {
                 cancelBoundWork(allFutures);
             };
             long deadlineDelay = Deadlines.remaining(deadlineNanos, ticker.read());
+            @Nullable
             ScheduledFuture<?> timeoutHandle = scheduleDeadline(deadlineTimer, timer, timeoutAction, deadlineDelay);
-            // A token that settles by any path completes futureToken; cancelling the scheduled
-            // task there keeps the shared timer from retaining this token and its futures until
-            // the deadline.
-            futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+            if (timeoutHandle != null) {
+                // A token that settles by any path completes futureToken; cancelling the scheduled
+                // task there keeps the shared timer from retaining this token and its futures until
+                // the deadline.
+                futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+            }
         }
         Futures.addCallback(
                 businessOutcome,
@@ -294,21 +297,38 @@ public final class CancellationToken {
     /**
      * Schedules the deadline action on the domain scheduler, falling back to the caller's scheduler
      * when the domain scheduler rejects because its owning runtime was already closed (a cancelled
-     * ancestor body can still be running and nesting new work). When both are the same scheduler —
-     * the token tree carries no domain scheduler — the rejection propagates.
+     * ancestor body can still be running and nesting new work).
+     *
+     * <p>When both schedulers reject, the outcome depends on the token: a token that concurrently
+     * went terminal no longer needs the timer — the cancellation it implies reaches the bound
+     * futures through the futureToken/setFuture bridge, so the rejection is absorbed and no handle
+     * is returned. A still-RUNNING token rejected by both schedulers cannot have its deadline
+     * enforced, so the rejection propagates rather than silently dropping the deadline.
+     *
+     * @return the scheduled handle, or null when arming was skipped because the token is terminal
      */
-    private static ScheduledFuture<?> scheduleDeadline(
+    private @Nullable ScheduledFuture<?> scheduleDeadline(
             ScheduledExecutorService deadlineTimer,
             ScheduledExecutorService timer,
             Runnable timeoutAction,
             long deadlineDelay) {
         try {
             return deadlineTimer.schedule(timeoutAction, deadlineDelay, TimeUnit.NANOSECONDS);
-        } catch (RejectedExecutionException retired) {
-            if (deadlineTimer == timer) {
-                throw retired;
+        } catch (RejectedExecutionException domainRetired) {
+            if (deadlineTimer != timer) {
+                try {
+                    return timer.schedule(timeoutAction, deadlineDelay, TimeUnit.NANOSECONDS);
+                } catch (RejectedExecutionException bothRetired) {
+                    // Fall through to the terminal check below.
+                }
             }
-            return timer.schedule(timeoutAction, deadlineDelay, TimeUnit.NANOSECONDS);
+            if (state() != RUNNING) {
+                // Cancellation raced the arming and retired the schedulers (a closed runtime whose
+                // fail-fast cascade reached this token mid-bind): the terminal state already
+                // implies the cancellation, and a terminal token has no deadline left to enforce.
+                return null;
+            }
+            throw domainRetired;
         }
     }
 
