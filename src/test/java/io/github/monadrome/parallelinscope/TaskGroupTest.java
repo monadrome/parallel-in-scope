@@ -30,6 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
@@ -882,9 +883,9 @@ class TaskGroupTest {
      * bind has registered the callback that commits the token, so the timeout cancels the member
      * futures first. The runtime's timer thread is held so the group token deterministically stays
      * uncommitted past the deadline, and the member future is cancelled the way that timeout cancels
-     * it. The deadline only has to outlast the body's entry checkpoint — held, the timer cannot fire,
-     * so a longer deadline costs wall time, not determinism. The member must read TIMEOUT rather
-     * than a direct member cancellation, and the lone member
+     * it. The one scheduling assumption is that the worker enters the body before the deadline;
+     * with the timer held, the 2 s deadline only widens that margin, at the cost of wall time. The
+     * member must read TIMEOUT rather than a direct member cancellation, and the lone member
      * converges the group while its token is still RUNNING, so the group must adopt that recorded
      * TIMEOUT instead of guessing MEMBER_CANCELLED. A direct cancellation inside this window is
      * attributed the same way; that delta is accepted on the kernel's deadline attribution.
@@ -934,7 +935,9 @@ class TaskGroupTest {
      * group token committed FAIL_FAST but before the cascade reached that member commits TIMEOUT on
      * its token; the escalation is then a no-op, and the member must still read TIMEOUT rather than
      * the fail-fast the group token names. The group's state listener holds the committing thread
-     * inside that window, the way {@code SynchronousExecutionTest} models the preemption.
+     * inside that window, the way {@code SynchronousExecutionTest} models the preemption. The hold
+     * is bounded: had the commit ever run on the test thread, nothing else would release the latch,
+     * so the test asserts the listener was released instead of hanging on it.
      */
     @Test
     void memberCommittedTimeoutOutranksTheGroupTokensEarlierFailFast() throws Exception {
@@ -945,6 +948,7 @@ class TaskGroupTest {
         CountDownLatch fail = new CountDownLatch(1);
         CountDownLatch committed = new CountDownLatch(1);
         CountDownLatch propagate = new CountDownLatch(1);
+        AtomicBoolean heldUntilReleased = new AtomicBoolean();
         RuntimeException boom = new RuntimeException("boom");
         try {
             TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("timeout-after-fail-fast", TIMEOUT)
@@ -964,7 +968,7 @@ class TaskGroupTest {
             CancellationToken memberToken = field(group.futureOf("timed-out"), "token", CancellationToken.class);
             groupToken.addStateListener(state -> {
                 committed.countDown();
-                Uninterruptibles.awaitUninterruptibly(propagate);
+                heldUntilReleased.set(Uninterruptibles.awaitUninterruptibly(propagate, 5, TimeUnit.SECONDS));
             });
 
             fail.countDown();
@@ -974,6 +978,7 @@ class TaskGroupTest {
             propagate.countDown();
 
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(heldUntilReleased).isTrue();
             assertThat(result.failedTaskName()).isEqualTo("failing");
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("timed-out")).outcome())
