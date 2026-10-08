@@ -86,4 +86,46 @@ class ParRuntimeSnapshotTest {
             executor.shutdownNow();
         }
     }
+
+    @Test
+    void oneBatchWithManyOutstandingBodiesContributesOneBodySignal() throws Exception {
+        // The body-signal counter's unit is the admitted run: a batch whose bodies are all still
+        // running contributes exactly one signal, not one per body.
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            CountDownLatch started = new CountDownLatch(3);
+            CountDownLatch release = new CountDownLatch(1);
+            Thread caller = new Thread(
+                    () -> runtime.par(ParId.of("worker"))
+                            .map(
+                                    Arrays.asList(1, 2, 3),
+                                    value -> {
+                                        started.countDown();
+                                        try {
+                                            release.await(30, TimeUnit.SECONDS);
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                        return value;
+                                    },
+                                    BatchOptions.timeout("multi-body", Duration.ofSeconds(30))),
+                    "snapshot-multi-body-caller");
+            caller.setDaemon(true);
+            caller.start();
+            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+
+            await().untilAsserted(() -> {
+                ParRuntimeSnapshot snapshot = runtime.snapshot();
+                assertThat(snapshot.undrainedBatches()).isEqualTo(1);
+                assertThat(snapshot.unexitedBodySignals()).isEqualTo(1);
+            });
+
+            release.countDown();
+            caller.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(caller.isAlive()).isFalse();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 }

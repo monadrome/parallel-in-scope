@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.base.Ticker;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 
@@ -75,6 +76,7 @@ final class MultiTaskContext {
         private @Nullable Long deadlineCeilingNanos;
         private @Nullable Long resolutionTimeNanos;
         private @Nullable Ticker ticker;
+        private @Nullable ScheduledExecutorService timeoutScheduler;
         private @Nullable TaskGraphObservationScope taskGraphObservationScope;
         private @Nullable ExecutorIdentity executorIdentity;
         private @Nullable String executorLabel;
@@ -117,6 +119,16 @@ final class MultiTaskContext {
          */
         Resolution ticker(Ticker ticker) {
             this.ticker = ticker;
+            return this;
+        }
+
+        /**
+         * The deadline scheduler paired with the root clock domain — the same test seam's other
+         * half. Used only for a root unit; a child token inherits its parent's scheduler together
+         * with the clock.
+         */
+        Resolution timeoutScheduler(ScheduledExecutorService timeoutScheduler) {
+            this.timeoutScheduler = timeoutScheduler;
             return this;
         }
 
@@ -195,7 +207,7 @@ final class MultiTaskContext {
                 resolution.taskCount,
                 effective,
                 deadline,
-                new CancellationToken(cancellationParent, deadline, domain),
+                new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
                 observation,
                 resolution.executorIdentity,

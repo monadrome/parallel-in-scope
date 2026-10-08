@@ -188,6 +188,40 @@ class MavenCentralConsumerTest {
     }
 
     @Test
+    void mapAndCombineDeliversNullElementValuesAsNullableEntries() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        try {
+            Par par = runtime.par(CONSUMER);
+            // A successful null element value arrives as a null entry: the combine input is
+            // CombineBody<List<@Nullable E>, C>, so the body null-checks each entry.
+            io.github.monadrome.parallelinscope.BatchCombinedResult<String, Integer> combined =
+                    par.mapAndCombine(
+                            Arrays.asList("a", "b", "c"),
+                            value -> "b".equals(value) ? null : value,
+                            BatchOptions.timeout("combine-null-entries", Duration.ofSeconds(5)),
+                            par,
+                            values -> {
+                                int nonNull = 0;
+                                for (String value : values) {
+                                    if (value != null) {
+                                        nonNull++;
+                                    }
+                                }
+                                return nonNull;
+                            });
+
+            assertEquals(Integer.valueOf(2), combined.terminalValueOrThrow());
+            assertEquals(TaskOutcome.SUCCESS, combined.terminalResult().outcome());
+            assertEquals(3, combined.batchResult().results().size());
+            assertEquals(TaskOutcome.SUCCESS, combined.batchResult().results().get(1).outcome());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void timeoutCancelsRunningTasks() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch started = new CountDownLatch(2);

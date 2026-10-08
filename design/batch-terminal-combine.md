@@ -13,8 +13,9 @@
 - MUST：汇总恰好在全部元素成功后提交一次（一次性门闩 + future 终态检查 + phase claim 三层），
   只在那一刻提交到 combinePar；任一元素失败、取消或 deadline 先到时，汇总不运行且终态为
   取消（沿用批次归因），提交被拒为 SUBMISSION_FAILURE。
-- MUST：汇总体是 `CombineBody<List<E>, C>`，按输入顺序接收元素成功值；成功的 null 元素以
-  null 条目出现；checked 异常记 USER_FAILURE 并保留原 cause。
+- MUST：汇总体是 `CombineBody<List<@Nullable E>, C>`，按输入顺序接收元素成功值；成功的
+  null 元素以 null 条目出现，元素级可空必须写在签名上（JSpecify 感知的使用者据此做空值
+  检查）；checked 异常记 USER_FAILURE 并保留原 cause。
 - MUST：汇总有自己的 MultiTaskContext（批次 unit 的结构子节点、取消子 token）。TaskGraph 在
   task graph 中记录真实的 batch→combine 数据依赖边，但该边以 `executorDeadlockProne=false`
   记录、MUST NOT 进入 executor 投影：汇总是全部元素终态后才由收敛线程提交的，没有任何池

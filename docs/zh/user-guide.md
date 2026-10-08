@@ -116,8 +116,8 @@ TaskBatchResult<Price> elements = run.batchResult();
 汇总任务随批次一起准备（TTL 捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
 才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
 `terminalResult()` 记录批次的归因（`FAIL_FAST` / `TIMEOUT`）；汇总提交被拒则记
-`SUBMISSION_FAILURE`。汇总体以 `CombineBody<List<E>, C>` 接收按输入顺序排列的元素值——因此
-可以抛 checked 异常——成功但为 null 的元素以 null 条目出现。输入必须非空：零元素的汇总没有
+`SUBMISSION_FAILURE`。汇总体以 `CombineBody<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
+可以抛 checked 异常——成功但为 null 的元素以 null 条目出现，元素级可空直接写在签名上。输入必须非空：零元素的汇总没有
 fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`bodyCompletionConfirmed()` 与
 `unfinishedBodies()` 同样覆盖汇总任务体。
 

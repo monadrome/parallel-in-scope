@@ -68,6 +68,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [cancellation-propagation.md](cancellation-propagation.md) | Guava `ListenableFuture` 取消传播机制（transform/catching/addCallback/组合 future 的方向差异），`CancellationToken.bind` 依赖的语义与源码索引 |
+| [cancel-intent-clock-domain-validation-2026-10-08.md](cancel-intent-clock-domain-validation-2026-10-08.md) | 取消意图原子发布（Decision CAS）与时钟域配对继承的评审与验证记录：独立评审发现处置、反向验证结果、PIT 分类 |
 | [sliding-window-refill.md](sliding-window-refill.md) | 滑窗事件驱动补窗契约：调用方完成初始窗口、完成线程认领下一元素、窗口上界与取消/失败处置、框架线程 O(1) 资源上界 |
 | [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
 

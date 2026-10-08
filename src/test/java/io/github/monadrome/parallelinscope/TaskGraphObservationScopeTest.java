@@ -147,6 +147,21 @@ class TaskGraphObservationScopeTest {
     }
 
     @Test
+    void nonLifoCloseUnwindsClosedOuterBeforeClosingTheInner() {
+        global = ParRuntime.builder().build();
+        TaskGraphObservationScope outer = global.openTaskGraphObservation();
+        TaskGraphObservationScope inner = global.openTaskGraphObservation();
+
+        // Closing an outer scope while a newer inner scope is still installed must not clobber
+        // the inner binding. Closing that inner later then skips the closed outer remnant.
+        outer.close();
+        assertThat(TaskGraphObservationScope.current()).isSameAs(inner);
+
+        inner.close();
+        assertThat(TaskGraphObservationScope.current()).isNull();
+    }
+
+    @Test
     void reentrantLoggingHandlerCannotDeadlockClose() throws Exception {
         // A JUL handler is user-replaceable code: if it re-enters the same scope's close(), the
         // re-entrant call must observe an already-published report instead of waiting for the
