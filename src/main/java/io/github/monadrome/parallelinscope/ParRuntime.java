@@ -44,8 +44,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
  * policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
- * timer and submission services; registered executors are borrowed and are never
- * shut down by this object.
+ * deadline timer and the threads that run timeout actions; registered executors are borrowed and
+ * are never shut down by this object.
  *
  * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
