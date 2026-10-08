@@ -92,7 +92,7 @@ public final class BatchOptions {
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
-     * <p>The policy is honoured only when the registered executor's queue is a {@link
+     * <p>The policy is honored only when the registered executor's queue is a {@link
      * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
      * flag is inert.
      */

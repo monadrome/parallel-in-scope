@@ -314,7 +314,7 @@ public final class CancellationToken {
                 try {
                     LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
                 } catch (Throwable ignored) {
-                    // A broken log handler is not allowed to alter cancellation behaviour.
+                    // A broken log handler is not allowed to alter cancellation behavior.
                 }
             }
         }
