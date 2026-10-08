@@ -1,0 +1,35 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineInlineGuardTest.java
+  s_12a8a2e64c5bf1::t_926e5accd4b9ee 88
+src/main/java/io/github/monadrome/parallelinscope/TaskCompletion.java
+  s_12a8a2e64c5bf1::t_fb1bfe31b8b629 14
+src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_12a8a2e64c5bf1::t_8f06b0b9af4484 317
+src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java
+  s_12a8a2e64c5bf1::t_5a48ad603119f0 22
+src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java
+  s_12a8a2e64c5bf1::t_9553cbe539b2c8 25
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  s_12a8a2e64c5bf1::t_e7181b95eb95c2 95
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+  s_12a8a2e64c5bf1::t_1156859ce38579 43
+src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java
+  s_12a8a2e64c5bf1::t_6faa6977bc30f3 60
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+  s_12a8a2e64c5bf1::t_14f60dd9da2079 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5fa5f0d2dfe131f9253a87201339b27967d60a09",
+  "prompts": {},
+  "sessions": {
+    "s_12a8a2e64c5bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c04c7c9e-a1b5-4ca0-8be2-137aace625cd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
