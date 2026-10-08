@@ -7,6 +7,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -37,17 +38,30 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
+        CountDownLatch firstSettled = new CountDownLatch(1);
         try {
             TaskBatch<String> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList("first", "second", "third"),
                             item -> {
                                 if ("second".equals(item)) {
+                                    // The fail-fast cascade races the sibling's settle: a body that
+                                    // returned but has not settled yet can still be cancelled into
+                                    // FAIL_FAST. Failing only after first's future settled keeps the
+                                    // expected attribution deterministic. A settled future fires an
+                                    // immediately-registered listener inline, so this cannot wedge.
+                                    try {
+                                        firstSettled.await();
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                        throw new RuntimeException("interrupted while awaiting the sibling", e);
+                                    }
                                     throw boom;
                                 }
                                 return item;
                             },
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(2));
+            batch.results().get(0).addListener(firstSettled::countDown, MoreExecutors.directExecutor());
 
             List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
 
