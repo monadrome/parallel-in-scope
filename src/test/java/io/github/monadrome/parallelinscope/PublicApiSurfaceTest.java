@@ -18,6 +18,7 @@ class PublicApiSurfaceTest {
     private static final String BASE_PACKAGE = "io.github.monadrome.parallelinscope";
 
     private static final Set<String> EXPECTED_PUBLIC_TYPES = new TreeSet<>(Arrays.asList(
+            BASE_PACKAGE + ".BatchCombinedResult",
             BASE_PACKAGE + ".BatchOptions",
             BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",

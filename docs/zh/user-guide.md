@@ -99,6 +99,28 @@ CPU_BOUND 任务会让 offer 返回 false（单独如此，或与 rejectEnqueue(
 开新线程、要么走拒绝处理器，而不会把 CPU 任务排在 IO 任务后面；rejectEnqueue(true) 与它是冗余的，
 只用于表明意图。换成其他任何队列，TaskType 都不改变库的行为，rejectEnqueue 则是惰性的。
 
+### 批次终端汇总 {#batch-combine}
+
+`Par.mapAndCombine` 运行一个有限批次，并且仅当全部元素成功后才执行一次终端汇总——与批次共享
+同一 deadline、取消生命周期和准入：
+
+```java
+BatchCombinedResult<Price, Report> run = ioPar.mapAndCombine(
+        ids, this::loadPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).parallelism(8),
+        cpuPar, this::buildReport);
+Report report = run.terminalValueOrThrow();
+TaskBatchResult<Price> elements = run.batchResult();
+```
+
+汇总任务随批次一起准备（TTL 捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
+才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
+`terminalResult()` 记录批次的归因（`FAIL_FAST` / `TIMEOUT`）；汇总提交被拒则记
+`SUBMISSION_FAILURE`。汇总体以 `CombineBody<List<E>, C>` 接收按输入顺序排列的元素值——因此
+可以抛 checked 异常——成功但为 null 的元素以 null 条目出现。输入必须非空：零元素的汇总没有
+fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`bodyCompletionConfirmed()` 与
+`unfinishedBodies()` 同样覆盖汇总任务体。
+
 ## 执行异构任务组 {#task-group}
 
 声明每个成员的名称、Par、类型和 body。`runAll()` 消耗草稿、执行一次并返回有类型的终态

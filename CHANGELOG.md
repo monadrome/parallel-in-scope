@@ -49,6 +49,8 @@
 
 ### Features
 
+- Add `Par.mapAndCombine`: a finite batch with one prepared terminal combine — `CombineBody<List<E>, C>` over the element values — submitted to its own Par exactly once and only after every element succeeded. The combine is prepared and bound with the batch on the calling thread (shared deadline, TTL capture, cancellation lifecycle), so the batch token cannot report success before the combine settles; an element failure, cancellation, or deadline leaves the combine unrun and terminal with the batch's attribution, and a rejected combine handoff records `SUBMISSION_FAILURE`. The frozen `BatchCombinedResult<E, C>` carries the full element `TaskBatchResult`, the terminal `ImmediateResult` and observation, and body-completion diagnostics covering the combine. Empty input is rejected, mirroring the empty-group-with-combine rule. Resolves BACKLOG O-6.
+
 - Add `Checkpoints.remaining()`: a read-only query for the current scoped task's remaining deadline budget. It returns `Optional.empty()` outside any scoped task, the resolved non-negative budget inside one (reading the running task's own token, so nested tasks see their own tighter budget), and exactly `Duration.ofNanos(Long.MAX_VALUE)` for a scope with no deadline. It never throws for a cancelled token, never consumes the interrupt flag, and neither cancels nor mutates state.
 
 - Preserve internal execution-phase snapshots through nonblocking `ExecutionPhaseHintFuture.phase()`
