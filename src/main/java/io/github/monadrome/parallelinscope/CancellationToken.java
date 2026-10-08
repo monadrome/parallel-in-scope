@@ -49,12 +49,22 @@ public final class CancellationToken {
     private final @Nullable ParentLink parentLink;
 
     /**
+     * The interrupt intent of this token's terminal cancellation, propagated down the tree.
+     * Defaults to {@code true}: deadline expiry and fail-fast always interrupt, because their
+     * liveness depends on it. Only an explicit {@link #cancel(boolean) cancel(false)} records
+     * {@code false}; {@link ParentLink#parentFinished()} hands the intent to the child, so a
+     * non-interrupting cancellation stays non-interrupting across every generation.
+     */
+    private volatile boolean cancelInterrupt = true;
+
+    /**
      * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
      *
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
-     * cancelled, timed out, or fail-fast-cancelled (any parent state for which interruption is
-     * required), this token transitions to {@code PROPAGATED_CANCELLED} and cancels its linked
-     * future. No additional wiring in {@link #bind} or the caller is needed.
+     * cancelled, timed out, or fail-fast-cancelled, this token transitions to {@code
+     * PROPAGATED_CANCELLED} and cancels its linked future with the parent's interrupt intent — an
+     * explicit {@code cancel(false)} propagates without interrupting, while deadline and fail-fast
+     * transitions always interrupt. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
      */
@@ -231,10 +241,18 @@ public final class CancellationToken {
     /**
      * Cancels this token and its linked work.
      *
+     * <p>The interrupt policy is part of the cancellation and propagates down the token tree:
+     * {@code cancel(false)} on a token cancels its linked work and every descendant's linked work
+     * without interrupting running threads, while deadline expiry and fail-fast cancellation always
+     * interrupt.
+     *
      * @param useInterrupt whether to interrupt running threads
      */
     public void cancel(boolean useInterrupt) {
         if (transitionTo(CANCELLED)) {
+            // Record the intent before completing futureToken: that completion is what runs the
+            // children's ParentLink listeners, and they read this field to propagate the intent.
+            cancelInterrupt = useInterrupt;
             futureToken.cancel(useInterrupt);
         }
     }
@@ -364,10 +382,18 @@ public final class CancellationToken {
 
         void parentFinished() {
             CancellationToken linked = child;
-            if (linked != null
-                    && parent.state().shouldInterruptCurrentThread()
-                    && linked.transitionTo(PROPAGATED_CANCELLED)) {
-                linked.futureToken.cancel(true);
+            if (linked == null || !parent.state().shouldInterruptCurrentThread()) {
+                return;
+            }
+            // Carry the parent's interrupt intent through the link: an explicit cancel(false)
+            // keeps its no-interrupt policy for the whole subtree, while the framework's own
+            // transitions (TIMEOUT, FAIL_FAST) keep the default true.
+            boolean interrupt = parent.cancelInterrupt;
+            if (linked.transitionTo(PROPAGATED_CANCELLED)) {
+                // Written before the child's futureToken completes, which is the completion the
+                // next generation's listener observes before propagating the intent further.
+                linked.cancelInterrupt = interrupt;
+                linked.futureToken.cancel(interrupt);
             }
         }
 
