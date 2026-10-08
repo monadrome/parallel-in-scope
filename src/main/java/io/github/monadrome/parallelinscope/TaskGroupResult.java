@@ -12,6 +12,7 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -86,6 +87,29 @@ public final class TaskGroupResult<V, R> {
 
     public @Nullable String failedTaskName() {
         return report.failedTaskName();
+    }
+
+    /**
+     * The terminal result of the task recorded as failed, whether it is a plain member or the
+     * terminal combine — which {@link #results()} does not contain.
+     *
+     * <p>Empty when no task recorded a failure. This queries the recorded failed task; a group
+     * whose outcome is not {@code SUCCESS} for another reason (a deadline with no recorded failure,
+     * a direct member cancellation) has no failed task to return.
+     *
+     * @return the failed task's result, or empty when no task recorded a failure
+     */
+    public Optional<ImmediateResult<?>> failedTaskResult() {
+        String name = report.failedTaskName();
+        if (name == null) {
+            return Optional.empty();
+        }
+        ImmediateResult<?> member = results.get(name);
+        if (member != null) {
+            return Optional.of(member);
+        }
+        // A failed name absent from the member results is the terminal combine.
+        return Optional.of(Verify.verifyNotNull(terminalResult, "a recorded failed task is a member or the combine"));
     }
 
     /** Every member's terminal result, in declaration order. The combine is separate. */

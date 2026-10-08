@@ -275,6 +275,13 @@ future 级跟踪，不是仍在用户代码里的 body。运行中被取消的�
 仍在回卷，因此 `inFlight()` 可能已经归零而某个 body 仍在运行。真正同时等待 future 排空与 body
 退出的是 `awaitQuiescence`。
 
+当 `awaitQuiescence` 返回 false 时，`ParRuntime.snapshot()` 可以解释原因：把 `closed`、进行中
+准入数、未排空批次数和未退出 body 信号数采样成一份诊断记录。各计数独立读取，快照不可线性化
+——用于日志诊断，不要据此分支。
+
+组失败时，`TaskGroupResult.failedTaskResult()` 直接返回被记录失败任务的 `ImmediateResult`
+——成员或终端 combine 皆可——调用方不必再判断 `failedTaskName()` 是否在 `results()` 里。
+
 ## 完成观测 {#completion-snapshots}
 
 Batch.completions 是输入顺序的最终 TaskCompletion 列表；null 表示返回前未确认发布。
