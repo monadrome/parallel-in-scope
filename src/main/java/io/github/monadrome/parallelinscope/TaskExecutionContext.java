@@ -16,7 +16,7 @@ final class TaskExecutionContext {
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
 
-    public TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
+    TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
         this(multiTaskContext, taskIndex, submitTimeNanos, null);
     }
 
@@ -25,7 +25,7 @@ final class TaskExecutionContext {
      * completion tracker; {@code null} only for a task prepared outside any tracked submission,
      * which production entry points no longer do.
      */
-    public TaskExecutionContext(
+    TaskExecutionContext(
             MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
         Validation.requireNonNegative(taskIndex, "taskIndex");
@@ -34,16 +34,16 @@ final class TaskExecutionContext {
         this.bodyState = bodyState;
     }
 
-    public MultiTaskContext multiTaskContext() {
+    MultiTaskContext multiTaskContext() {
         return multiTaskContext;
     }
 
     /** Returns the stable index of this task's input element within its batch. */
-    public int taskIndex() {
+    int taskIndex() {
         return taskIndex;
     }
 
-    public long submitTimeNanos() {
+    long submitTimeNanos() {
         return submitTimeNanos;
     }
 
@@ -53,28 +53,28 @@ final class TaskExecutionContext {
         return bodyState;
     }
 
-    public long startTimeNanos() {
+    long startTimeNanos() {
         return startTimeNanos;
     }
 
-    public long endTimeNanos() {
+    long endTimeNanos() {
         return endTimeNanos;
     }
 
-    public long executionTimeNanos() {
+    long executionTimeNanos() {
         return endTimeNanos - startTimeNanos;
     }
 
-    public long waitTimeNanos() {
+    long waitTimeNanos() {
         return startTimeNanos - submitTimeNanos;
     }
 
-    public long totalTimeNanos() {
+    long totalTimeNanos() {
         return endTimeNanos - submitTimeNanos;
     }
 
     /** Returns the task currently executing on this thread, or null outside a scoped task. */
-    public static @Nullable TaskExecutionContext current() {
+    static @Nullable TaskExecutionContext current() {
         return CURRENT.get();
     }
 

@@ -44,7 +44,7 @@ final class SlidingWindowSubmitter<V> {
     private final @Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
-    public SlidingWindowSubmitter(ListeningExecutorService pool, MultiTaskContext unit) {
+    SlidingWindowSubmitter(ListeningExecutorService pool, MultiTaskContext unit) {
         this(pool, unit, BodyCompletionTracker.empty(), null);
     }
 
@@ -53,7 +53,7 @@ final class SlidingWindowSubmitter<V> {
      * body-completion signal and close grace. The tracker must have registered one slot per
      * prepared task before {@link #submitAll(List, List)} runs.
      */
-    public SlidingWindowSubmitter(
+    SlidingWindowSubmitter(
             ListeningExecutorService pool,
             MultiTaskContext unit,
             BodyCompletionTracker bodyCompletion,
@@ -98,7 +98,7 @@ final class SlidingWindowSubmitter<V> {
      *     tasks}; taken as a parameter so the caller can bind them before submission starts
      * @return TaskBatch containing individual task futures
      */
-    public TaskBatch<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
+    TaskBatch<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
         if (tasks.isEmpty()) {
             return TaskBatch.of(
                     bodyCompletion,
