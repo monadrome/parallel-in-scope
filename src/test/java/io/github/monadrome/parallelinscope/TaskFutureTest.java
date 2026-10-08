@@ -744,6 +744,21 @@ class TaskFutureTest {
         }
     }
 
+    @Test
+    void failureReadsTheBodyFailureEvenWhenTheCallingThreadIsInterrupted() {
+        RuntimeException boom = new RuntimeException("boom");
+        Task<String> failed = Task.of("orders", new CancellationToken(), Futures.immediateFailedFuture(boom));
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(failed.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(failed.failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     private static TaskOptions memberOptions() {
         return TaskOptions.timeout(SCOPE_TIMEOUT);
     }

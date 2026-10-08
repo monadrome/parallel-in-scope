@@ -6,8 +6,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.monadrome.parallelinscope.queue.*;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -44,38 +42,34 @@ public class FutureInspectorTest {
                 .hasMessageContaining("cancelled");
     }
 
+    /**
+     * Guava's {@code AbstractFuture.get()} checks the interrupt flag before it looks at the value, so
+     * a read that goes through {@code get()} reports {@link InterruptedException} for a future that
+     * has been done all along; this read must not, and must keep the flag.
+     */
     @Test
-    public void interruptedFutureInspectionRestoresInterruptStatus() {
-        Future<Object> interrupted = new Future<Object>() {
-            @Override
-            public boolean cancel(boolean mayInterruptIfRunning) {
-                return false;
-            }
+    public void exceptionNowReadsADoneFailedFutureWhileTheCallingThreadIsInterrupted() {
+        RuntimeException expected = new RuntimeException("fail");
+        ListenableFuture<String> future = Futures.immediateFailedFuture(expected);
 
-            @Override
-            public boolean isCancelled() {
-                return false;
-            }
-
-            @Override
-            public boolean isDone() {
-                return true;
-            }
-
-            @Override
-            public Object get() throws InterruptedException {
-                throw new InterruptedException("test");
-            }
-
-            @Override
-            public Object get(long timeout, TimeUnit unit) throws InterruptedException {
-                throw new InterruptedException("test");
-            }
-        };
+        Thread.currentThread().interrupt();
         try {
-            Thread.currentThread().interrupt();
-            assertThatThrownBy(() -> FutureInspector.exceptionNow(interrupted))
-                    .isInstanceOf(IllegalStateException.class);
+            assertThat(FutureInspector.exceptionNow(future)).isSameAs(expected);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    public void exceptionNowRejectsASuccessfulFutureWhileTheCallingThreadIsInterrupted() {
+        ListenableFuture<String> future = Futures.immediateFuture("ok");
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThatThrownBy(() -> FutureInspector.exceptionNow(future))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("result");
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
         } finally {
             Thread.interrupted();

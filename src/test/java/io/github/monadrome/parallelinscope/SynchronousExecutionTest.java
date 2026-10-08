@@ -358,6 +358,57 @@ class SynchronousExecutionTest {
         assertThat(preserved).isTrue();
     }
 
+    /**
+     * Freezing reads each element's failure on the calling thread. A read through {@code
+     * Future.get()} reports {@link InterruptedException} for a failed element whose future settled
+     * long before, so the read must ignore the caller's interrupt flag, and the call keeps the flag.
+     */
+    @Test
+    void aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted() throws Exception {
+        RuntimeException boom = new RuntimeException("boom");
+
+        Thread.currentThread().interrupt();
+        try {
+            TaskBatchResult<Integer> batch = par.map(
+                    Collections.singletonList(1),
+                    i -> {
+                        throw boom;
+                    },
+                    BatchOptions.timeout("interrupted-freeze", TIMEOUT));
+
+            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.USER_FAILURE, 1);
+            assertThat(batch.results().get(0).failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    /**
+     * The group counterpart of {@link #aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted}:
+     * {@code runAll()} freezes the failed member on the calling thread, so the same read must ignore
+     * the caller's interrupt flag.
+     */
+    @Test
+    void aFailedGroupFreezesItsMembersWhileTheCallingThreadIsInterrupted() {
+        RuntimeException boom = new RuntimeException("boom");
+
+        Thread.currentThread().interrupt();
+        try {
+            TaskGroupResult<Integer, Void> group = runtime.group("interrupted-freeze", TIMEOUT)
+                    .par("body", par, Integer.class, () -> {
+                        throw boom;
+                    })
+                    .runAll();
+
+            assertThat(group.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(group.resultOf("body").failure()).isSameAs(boom);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void cancelledBodiesGetCleanupGraceEvenWithInterruptedCaller(boolean group) throws Exception {

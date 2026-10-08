@@ -69,9 +69,7 @@ final class TaskBatch<T> implements AutoCloseable {
         SettableFuture<List<TaskCompletion<T>>> sink = SettableFuture.create();
         List<ListenableFuture<TaskCompletion<T>>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> element : results) {
-            // Every element handed to this constructor is the library's own Task view; the
-            // constructor is package-private, so no foreign TaskFuture can reach this cast.
-            observations.add(((Task<T>) element).observationView());
+            observations.add(viewOf(element).observationView());
         }
         Futures.addCallback(
                 Futures.allAsList(observations),
@@ -89,6 +87,16 @@ final class TaskBatch<T> implements AutoCloseable {
                 },
                 MoreExecutors.directExecutor());
         return TaskObservation.readOnly(sink);
+    }
+
+    /**
+     * The library's own view of a batch element. Every element handed to this constructor is the
+     * library's {@link Task}; the constructor is package-private, so no foreign {@link TaskFuture}
+     * can reach this cast.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> Task<T> viewOf(TaskFuture<T> element) {
+        return (Task<T>) element;
     }
 
     /**
@@ -183,7 +191,7 @@ final class TaskBatch<T> implements AutoCloseable {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
         List<@Nullable TaskCompletion<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
-            ImmediateResult<T> immediate = ImmediateResult.fromTask(result, result.outcome());
+            ImmediateResult<T> immediate = ImmediateResult.fromTask(viewOf(result), result.outcome());
             frozen.add(immediate);
             ListenableFuture<TaskCompletion<T>> observation = result.completionFuture();
             try {

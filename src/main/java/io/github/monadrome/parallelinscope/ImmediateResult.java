@@ -91,41 +91,69 @@ public final class ImmediateResult<T> {
         };
     }
 
-    /** Freezes a done task using the enclosing scope's authoritative attribution. */
-    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskOutcome outcome) {
+    /**
+     * Freezes a done task using the enclosing scope's authoritative attribution.
+     *
+     * <p>The outcome is the caller's, because a scope can attribute a finer cause than the task's
+     * own token chain reveals. The failure, however, comes from one classification of the task, so
+     * the two always belong to the same terminal state: reading {@code task.failure()} here would
+     * classify the token a second time, and a refinement in between could pair the caller's outcome
+     * with a failure that state never produced.
+     */
+    static <T> ImmediateResult<T> fromTask(Task<T> task, TaskOutcome outcome) {
         checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
-        Throwable recorded = task.failure();
-        if (recorded != null) {
-            return fromFailure(task, outcome, recorded);
+        Task.Terminal<T> terminal = task.terminal();
+        if (terminal.cancelled()) {
+            return failed(outcome, leanCancellation(task, outcome, cancellationCause(task)));
         }
-        try {
-            T value = Futures.getDone(task);
-            if (outcome == TaskOutcome.SUCCESS) {
-                return succeeded(value);
+        if (terminal.failure() != null) {
+            return fromFailure(task, outcome, terminal.failure());
+        }
+        if (terminal.outcome() == TaskOutcome.SUCCESS) {
+            if (outcome != TaskOutcome.SUCCESS) {
+                throw new AssertionError("successful task has non-success attribution: " + outcome);
             }
-        } catch (ExecutionException failure) {
-            Throwable cause = com.google.common.base.Verify.verifyNotNull(failure.getCause());
-            return fromFailure(task, outcome, cause);
-        } catch (CancellationException failure) {
-            // Guava creates this exception when reading a cancelled future. Freeze it once, with
-            // task identity and attribution, so subsequent reads share a useful stable cause.
-            LeanCancellationException cancellation =
-                    new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
-            cancellation.initCause(failure);
-            return failed(outcome, cancellation);
+            return succeeded(terminal.value());
         }
-        throw new AssertionError("successful task has non-success attribution: " + outcome);
+        throw new IllegalStateException("task '" + task.taskName() + "' has not completed");
     }
 
-    private static <T> ImmediateResult<T> fromFailure(TaskFuture<T> task, TaskOutcome outcome, Throwable cause) {
+    private static <T> ImmediateResult<T> fromFailure(Task<T> task, TaskOutcome outcome, Throwable cause) {
         if (outcome == TaskOutcome.USER_FAILURE
                 || outcome == TaskOutcome.SUBMISSION_FAILURE
                 || cause instanceof CancellationException) {
             return failed(outcome, cause);
         }
+        return failed(outcome, leanCancellation(task, outcome, cause));
+    }
+
+    /**
+     * Guava's cancellation exception for a settled cancelled task — the way a cancelled future
+     * reports why — kept as the cause of the frozen cancellation, so the snapshot carries what a
+     * direct read of the task would have. The classification already found the delegate cancelled,
+     * and a settled delegate cannot change state.
+     */
+    private static Throwable cancellationCause(Task<?> task) {
+        try {
+            Futures.getDone(task);
+            throw new AssertionError("a cancelled task cannot have a value");
+        } catch (CancellationException cancellation) {
+            return cancellation;
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("a cancelled task cannot fail", impossible);
+        }
+    }
+
+    /**
+     * Names a cancellation-attributed ending after the outcome the enclosing scope decided, keeping
+     * the observed cause behind it: a body that raised a cancellation signal of its own carries no
+     * attribution, and the contract promises a {@link LeanCancellationException} for endings such as
+     * {@link TaskOutcome#TIMEOUT} or {@link TaskOutcome#FAIL_FAST}.
+     */
+    private static LeanCancellationException leanCancellation(Task<?> task, TaskOutcome outcome, Throwable cause) {
         LeanCancellationException cancellation =
                 new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
         cancellation.initCause(cause);
-        return failed(outcome, cancellation);
+        return cancellation;
     }
 }
