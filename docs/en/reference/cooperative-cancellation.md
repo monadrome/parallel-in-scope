@@ -57,8 +57,25 @@ Two utilities round out the API:
 
 | Method | Purpose |
 |---|---|
+| `Checkpoints.remaining()` | Read the current scoped task's remaining budget (`Optional<Duration>`); empty outside a scoped task, `Duration.ZERO` once the deadline has elapsed, and exactly `Duration.ofNanos(Long.MAX_VALUE)` when the scope has no deadline. Read-only: it never throws, never cancels, and does not touch the interrupt flag. |
 | `Checkpoints.sleep(millis)` | Sleep while converting interruption into a cancellation exception |
 | `Checkpoints.propagateCancellation(ex)` | Re-throw cancellation exceptions from a catch block |
+
+`remaining()` lets a task body hand its real budget to a downstream call instead of a separately configured timeout:
+
+```java
+.par("user", ioPar, User.class, () -> {
+    Checkpoints.checkpoint();
+    Duration budget = Checkpoints.remaining().orElse(configuredClientTimeout);
+    if (budget.isZero() || budget.equals(Duration.ofNanos(Long.MAX_VALUE))) {
+        // zero means the deadline is spent — refuse the call rather than passing a
+        // zero timeout to a client that reads zero as "wait forever"
+    }
+    return fetchWithBudget(id, budget);
+})
+```
+
+A positive budget does not prove the scope is uncancelled (fail-fast may already be committed); keep a `checkpoint()` before relying on it.
 
 Add checkpoints at a reasonable granularity: every N iterations of a long loop, between expensive phases, or at the entry to a recursive walk. I/O calls and very short functions normally need no manual checkpoint.
 
