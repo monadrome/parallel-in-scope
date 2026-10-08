@@ -34,6 +34,22 @@ public class CancellationTokenTest {
         return new CancellationToken(null, System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis));
     }
 
+    /** Records the interrupt flag of the first cancellation request that reached it. */
+    private static final class InterruptRecordingFuture
+            extends com.google.common.util.concurrent.AbstractFuture<String> {
+        private final AtomicReference<Boolean> cancelInterrupt = new AtomicReference<>();
+
+        void complete(String value) {
+            set(value);
+        }
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            cancelInterrupt.compareAndSet(null, mayInterruptIfRunning);
+            return super.cancel(mayInterruptIfRunning);
+        }
+    }
+
     @Test
     public void testInitialState() {
         CancellationToken token = CancellationToken.create();
@@ -255,6 +271,85 @@ public class CancellationTokenTest {
         assertThat(task.isDone()).isTrue();
         assertThat(task.get()).isEqualTo("done");
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
+    }
+
+    @Test
+    public void parentCancelWithoutInterruptPropagatesWithoutInterrupt() {
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+        InterruptRecordingFuture childWork = new InterruptRecordingFuture();
+        child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
+
+        parent.cancel(false);
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(childWork.isCancelled()).isTrue();
+        assertThat(childWork.cancelInterrupt)
+                .as("cancel(false) keeps its no-interrupt policy across the parent link")
+                .hasValue(false);
+    }
+
+    @Test
+    public void parentCancelWithInterruptPropagatesWithInterrupt() {
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+        InterruptRecordingFuture childWork = new InterruptRecordingFuture();
+        child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
+
+        parent.cancel(true);
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(childWork.cancelInterrupt).hasValue(true);
+    }
+
+    @Test
+    public void nonInterruptingCancelPropagatesAcrossMultipleGenerations() {
+        CancellationToken root = CancellationToken.create();
+        CancellationToken child = new CancellationToken(root);
+        CancellationToken grandchild = new CancellationToken(child);
+        InterruptRecordingFuture grandchildWork = new InterruptRecordingFuture();
+        grandchild.bind(ImmutableList.of(grandchildWork), Futures.immediateVoidFuture(), TIMER);
+
+        root.cancel(false);
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(grandchild.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(grandchildWork.cancelInterrupt)
+                .as("the interrupt intent survives every intermediate generation")
+                .hasValue(false);
+    }
+
+    @Test
+    public void propagatedDeadlineAndFailFastStillInterrupt() {
+        // Only an explicit cancel(false) relaxes interruption; deadline expiry and fail-fast keep
+        // the interrupting cascade, because their liveness depends on it.
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+        InterruptRecordingFuture childWork = new InterruptRecordingFuture();
+        child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
+
+        parent.timeoutCancel();
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
+        assertThat(childWork.cancelInterrupt).hasValue(true);
+    }
+
+    @Test
+    public void childCancelledBeforeParentKeepsItsOwnOutcome() {
+        // First-wins: a child that already committed SUCCESS is severed from the parent link, and a
+        // later parent cancel(false) neither rewrites its state nor cancels its recorded work.
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+        InterruptRecordingFuture childWork = new InterruptRecordingFuture();
+        child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
+        childWork.complete("done");
+        await().until(() -> child.state() == CancellationToken.State.SUCCESS);
+
+        parent.cancel(false);
+
+        assertThat(child.state()).isEqualTo(CancellationToken.State.SUCCESS);
+        assertThat(childWork.isCancelled()).isFalse();
+        assertThat(childWork.cancelInterrupt).hasValue(null);
     }
 
     @Test
