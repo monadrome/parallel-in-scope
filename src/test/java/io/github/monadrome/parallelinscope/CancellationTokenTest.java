@@ -186,6 +186,26 @@ public class CancellationTokenTest {
     }
 
     @Test
+    public void businessTimeoutExceptionIsFailFastNotFrameworkTimeout() {
+        // A member body may legitimately throw java.util.concurrent.TimeoutException; the token
+        // must classify by event source, not by exception type: only the armed deadline produces
+        // TIMEOUT. Here the 60s deadline cannot have expired, so the failure is a business
+        // failure and the token must commit FAIL_FAST.
+        CancellationToken token = withDeadlineAfter(60_000);
+
+        SettableFuture<String> failing = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
+        token.bind(Arrays.asList(failing, sibling), Futures.immediateVoidFuture(), TIMER);
+
+        failing.setException(new java.util.concurrent.TimeoutException("business-level timeout"));
+
+        await().untilAsserted(() -> {
+            assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
+            assertThat(sibling).isCancelled();
+        });
+    }
+
+    @Test
     public void testBind_failFast_cancelsSiblingAndSubmitCanceller() {
         CancellationToken token = CancellationToken.create();
 

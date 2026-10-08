@@ -8,7 +8,6 @@ import static io.github.monadrome.parallelinscope.CancellationToken.State.RUNNIN
 import static io.github.monadrome.parallelinscope.CancellationToken.State.SUCCESS;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.TIMEOUT;
 
-import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -18,6 +17,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -166,15 +167,33 @@ public final class CancellationToken {
             futureToken.setException(new TimeoutException());
             return allFutures;
         }
-        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
+        // The business outcome and the framework deadline are distinct event sources and must not
+        // be conflated by exception type: a member body may legitimately throw TimeoutException,
+        // and classifying on instanceof would record that business failure as a framework TIMEOUT.
+        // The aggregate callback below is the only fail-fast source; the scheduled timer task is
+        // the only deadline source.
+        ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
         if (deadlineNanos != Long.MAX_VALUE) {
             // Saturate the subtraction: the expired-deadline branch above guarantees a positive
             // result, the enclosing if excludes the sentinel, and Deadlines.remaining normalizes
             // the wrapped-negative case.
-            failFastFuture = failFastFuture.withTimeout(
-                    Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime())), timer);
+            ScheduledFuture<?> timeoutHandle = timer.schedule(
+                    () -> {
+                        // The cancel is unconditional: a committed state implies the cancellation
+                        // even when this task loses the first-wins race, matching the
+                        // expired-deadline branch.
+                        transitionTo(TIMEOUT);
+                        allFutures.cancel(true);
+                    },
+                    Deadlines.remaining(deadlineNanos, System.nanoTime()),
+                    TimeUnit.NANOSECONDS);
+            // A token that settles by any path completes futureToken; cancelling the scheduled
+            // task there keeps the shared timer from retaining this token and its futures until
+            // the deadline.
+            futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
         }
-        failFastFuture.addCallback(
+        Futures.addCallback(
+                businessOutcome,
                 new FutureCallback<Object>() {
                     @Override
                     public void onSuccess(@Nullable Object result) {
@@ -185,13 +204,16 @@ public final class CancellationToken {
                     public void onFailure(Throwable failure) {
                         // Commit the state before cancelling: a listener can still fix a cause (a
                         // task group escalating a member timeout) before cascade cancellation makes
-                        // every path look like fail-fast.
-                        transitionTo(failure instanceof TimeoutException ? TIMEOUT : FAIL_FAST);
+                        // every path look like fail-fast. The cancel is unconditional: this
+                        // callback is the only path that reaches the submission canceller when the
+                        // transition itself lost the first-wins race (for example after an explicit
+                        // cancel committed CANCELLED first).
+                        transitionTo(FAIL_FAST);
                         allFutures.cancel(true);
                     }
                 },
                 directExecutor());
-        futureToken.setFuture(failFastFuture);
+        futureToken.setFuture(businessOutcome);
         return allFutures;
     }
 
