@@ -9,9 +9,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -309,8 +309,7 @@ class ParMapAndCombineTest {
     void callerRunsSaturationNeverRunsTheCombineOnTheConvergingThread() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(2);
         ThreadPoolExecutor callerRuns = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS,
-                new SynchronousQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
+                1, 1, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
         runtime = ParRuntime.builder()
                 .register(ParId.of("io"), io)
                 .register(ParId.of("cpu"), callerRuns)
@@ -403,10 +402,8 @@ class ParMapAndCombineTest {
     void combineEdgeIsRecordedInTheObservationGraph() throws Exception {
         // Bounded pools are starvation-prone, so the batch->combine edge survives the executor
         // projection's deadlock-relevance filter.
-        ExecutorService io = new ThreadPoolExecutor(
-                2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
-        ExecutorService cpu = new ThreadPoolExecutor(
-                1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
+        ExecutorService io = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
+        ExecutorService cpu = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
                 .register(ParId.of("io"), io)
                 .register(ParId.of("cpu"), cpu)
@@ -423,25 +420,58 @@ class ParMapAndCombineTest {
                                 BatchOptions.timeout("batch", TIMEOUT),
                                 runtime.par(ParId.of("cpu")),
                                 values -> Objects.requireNonNull(values).size());
-                // The graph records the honest batch-to-combine edge on the combine's executor.
+                // The graph records the honest batch-to-combine edge in the task graph (root ->
+                // batch -> combine), while the executor projection drops the deferred combine edge
+                // as not deadlock-relevant and keeps the batch's own fork edge.
                 TaskGraphData data = TaskGraphObservationScope.data();
                 assertThat(data).isNotNull();
-                assertThat(data.executorGraph().hasEdgeConnecting("io", "cpu")).isTrue();
-                // The batch's own fork edge (root -> batch unit on "io") and the identity
-                // projection both carry the run.
+                assertThat(data.graph().edges()).hasSize(2);
                 assertThat(data.executorGraph().hasEdgeConnecting("NA", "io")).isTrue();
-                assertThat(data.snapshot().executorIdentityGraph().edges()).isNotEmpty();
+                assertThat(data.executorGraph().hasEdgeConnecting("io", "cpu")).isFalse();
             } finally {
                 scope.close();
             }
             assertThat(result.terminalValueOrThrow()).isEqualTo(2);
             // A batch fanning out to a combine on another executor is ordinary forking, not a cycle.
-            TaskGraphReport report = Objects.requireNonNull(
-                    com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
+            TaskGraphReport report =
+                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
             assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
         } finally {
             io.shutdownNow();
             cpu.shutdownNow();
+        }
+    }
+
+    @Test
+    void combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
+        // Regression: the deferred combine never parks a worker waiting on its own pool, so a
+        // same-pool combine must not read as an executor self-loop (ISSUE) on close.
+        ExecutorService pool = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
+        runtime = ParRuntime.builder()
+                .register(ParId.of("worker"), pool)
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+                .build();
+        try {
+            TaskGraphObservationScope scope = runtime.openTaskGraphObservation();
+            BatchCombinedResult<Integer, Integer> result;
+            try {
+                result = runtime.par(ParId.of("worker"))
+                        .mapAndCombine(
+                                Arrays.asList(1, 2),
+                                value -> value,
+                                BatchOptions.timeout("batch", TIMEOUT),
+                                runtime.par(ParId.of("worker")),
+                                values -> Objects.requireNonNull(values).size());
+            } finally {
+                scope.close();
+            }
+            assertThat(result.terminalValueOrThrow()).isEqualTo(2);
+            TaskGraphReport report =
+                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
+            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+            assertThat(report.executorSelfLoop()).isFalse();
+        } finally {
+            pool.shutdownNow();
         }
     }
 

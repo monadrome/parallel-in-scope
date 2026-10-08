@@ -44,8 +44,8 @@ class VirtualDeadlineTest {
     @Test
     void settledTokenReleasesItsScheduledDeadline() {
         ManualClock clock = new ManualClock();
-        CancellationToken token = new CancellationToken(
-                null, clock.read() + TimeUnit.MINUTES.toNanos(10), clock.ticker());
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(10), clock.ticker());
         SettableFuture<String> task = SettableFuture.create();
 
         token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), clock.scheduler());
@@ -60,8 +60,8 @@ class VirtualDeadlineTest {
     @Test
     void deadlineEqualityOnTheTokenClockIsExpired() {
         ManualClock clock = new ManualClock();
-        CancellationToken token = new CancellationToken(
-                null, clock.read() + TimeUnit.MILLISECONDS.toNanos(100), clock.ticker());
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MILLISECONDS.toNanos(100), clock.ticker());
         assertThat(token.deadlineExpired()).isFalse();
 
         clock.advance(Duration.ofMillis(100));
