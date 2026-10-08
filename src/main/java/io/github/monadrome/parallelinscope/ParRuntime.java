@@ -328,11 +328,12 @@ public final class ParRuntime implements AutoCloseable {
      * Admits and starts one frozen group run. Called by {@link GroupDraft#submit()} after the
      * declaration is complete and its bodies have moved into {@code payloads}.
      *
-     * <p>The whole preparation is one admission against {@link #close()}: either the group is
-     * accepted completely or rejected completely, never partially. A group accepted before the
-     * topology closes converges fully; runtime failures (member failure, rejection, timeout,
-     * cancellation) are reported through the futures and {@link TaskGroupResult}, not by throwing
-     * from here.
+     * <p>The whole startup — preparation, binds, and submission — is one admission against {@link
+     * #close()}: either the group is accepted completely or rejected completely, never partially,
+     * and the runtime's services stay alive for every bind, so a close racing startup cannot retire
+     * the deadline scheduler between binds. A group accepted before the topology closes converges
+     * fully; runtime failures (member failure, rejection, timeout, cancellation) are reported
+     * through the futures and {@link TaskGroupResult}, not by throwing from here.
      *
      * <p>The admission boundary is the submission boundary: the submit start — structural parent,
      * deadline ceiling, TTL and observation snapshots — is resolved here, so a slow declaration
@@ -347,10 +348,16 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown
      */
     TaskGroup<?, ?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
-        TaskGroup<?, ?> group = whileOpen(() -> TaskGroup.prepare(this, definition, payloads));
-        group.start(this);
-        group.submitPrepared();
-        return group;
+        // The whole startup — preparation, binds, and submission — is one admission against
+        // close(): the runtime's services stay alive for every bind, so a close racing startup
+        // cannot retire the deadline scheduler between the group bind and a tighter member bind.
+        // Batches already hold their admission through submission; groups now match them.
+        return whileOpen(() -> {
+            TaskGroup<?, ?> group = TaskGroup.prepare(this, definition, payloads);
+            group.start(this);
+            group.submitPrepared();
+            return group;
+        });
     }
 
     /**

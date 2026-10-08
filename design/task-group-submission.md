@@ -31,7 +31,18 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 
 ### 7.2 submit 线性化与步骤
 
-`runAll()`（经包私有 `submitAll()`）必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。准备和注册阶段整体处于一次 `ParRuntime.whileOpen()` 中；实际 executor 调用仍须在内部锁和 ParRuntime admission 机制外进行：
+`runAll()`（经包私有 `submitAll()`）必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。整个启动——准备、全部 bind（组与更紧成员的
+deadline 布防）、以及向目标 executor 的实际提交——处于同一次 `ParRuntime.whileOpen()` 中：
+
+- 历史规则曾要求「实际 executor 调用在 admission 外进行」，以防止 executor 行为延长
+  admission。该规则被一个已复现的竞态否决（见
+  [cancel-intent-clock-domain-validation-2026-10-08.md](cancel-intent-clock-domain-validation-2026-10-08.md)
+  第七轮）：start 在 admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
+  runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
+  admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。
+- 代价与不变量：close() 从不等待 admission（只在 admission 与批次都排空后才关闭服务），
+  因此 CallerRunsPolicy 内联 body 在 admission 内运行不会引入死锁——awaitQuiescence 本来就
+  等待 body 退出；服务关闭只是与既有的排空等待对齐。
 
 本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：声明期没有任何运行状态或执行，提交时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
@@ -44,9 +55,9 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 4. 为每个声明创建 member Batch、TaskExecutionContext、成员 future 和执行权竞争对象；
 5. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
 6. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
-7. 退出所有 registry/admission 机制；
-8. 按声明顺序向各自目标 executor 提交同一个 prepared future；
-9. 提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发 fail-fast，剩余尚未调用
+7. 按声明顺序向各自目标 executor 提交同一个 prepared future（仍在同一次 admission 内）；
+8. 退出 registry/admission 机制；提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发
+   fail-fast，剩余尚未调用
    executor 的 prepared future 也必须被取消并达到终态。
 
 声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
@@ -58,9 +69,9 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 
 不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致清理/取消长时间无法取得锁。
 
-提交循环开始前必须保证完整 members registry 已发布，并且每个仍未因 fail-fast/timeout/cancel
-终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，执行期间
-部分甚至全部成员已经终态属于合法行为。
+提交循环开始前必须保证完整 members registry 已发布；提交循环按声明顺序对每个仍未因
+fail-fast/timeout/cancel 终结的成员尝试一次目标 executor 提交。由于 direct executor 可以
+inline 执行，执行期间部分甚至全部成员已经终态属于合法行为。
 
 成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
 
