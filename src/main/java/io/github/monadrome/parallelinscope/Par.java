@@ -160,6 +160,7 @@ public final class Par {
         TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
                 .structuralParent(parent)
+                .ticker(runtime.ticker())
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));
@@ -214,6 +215,7 @@ public final class Par {
         TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
                 .structuralParent(parent)
+                .ticker(runtime.ticker())
                 .taskGraphObservationScope(observation)
                 .executorIdentity(executorRuntime.identity())
                 .executorLabel(id.value()));

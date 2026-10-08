@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.alibaba.ttl.TtlUnwrap;
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
@@ -80,6 +81,15 @@ public final class ParRuntime implements AutoCloseable {
         }
     };
 
+    /**
+     * The root clock domain for tokens this runtime creates without a cancellation parent.
+     * Package-private and defaulted to the system clock; tests inject a manual clock together with
+     * a manual {@link #timeoutScheduler} so deadline detection becomes deterministic. A unit with
+     * a cancellation parent inherits that parent's clock instead, so nested runtimes share the
+     * ancestor's domain (see {@link MultiTaskContext}).
+     */
+    private final Ticker ticker;
+
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
 
@@ -92,6 +102,7 @@ public final class ParRuntime implements AutoCloseable {
 
     private ParRuntime(Builder builder) {
         this.deadlockPolicy = builder.deadlockPolicy;
+        this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -100,7 +111,9 @@ public final class ParRuntime implements AutoCloseable {
         timer.setRemoveOnCancelPolicy(true);
         this.timerService = timer;
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
-        this.timeoutScheduler = new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
+        this.timeoutScheduler = builder.timeoutScheduler != null
+                ? builder.timeoutScheduler
+                : new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
         this.defaultId = builder.defaultId;
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
@@ -506,6 +519,11 @@ public final class ParRuntime implements AutoCloseable {
         return timeoutScheduler;
     }
 
+    /** The root clock domain for tokens this runtime creates; see the field documentation. */
+    Ticker ticker() {
+        return ticker;
+    }
+
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
             implements ScheduledExecutorService {
         private final ScheduledExecutorService scheduler;
@@ -574,6 +592,8 @@ public final class ParRuntime implements AutoCloseable {
         private ParRuntimeDeadlockPolicy deadlockPolicy =
                 ParRuntimeDeadlockPolicy.builder().build();
         private @Nullable ParId defaultId;
+        private @Nullable Ticker ticker;
+        private @Nullable ScheduledExecutorService timeoutScheduler;
 
         public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
             this.deadlockPolicy = Objects.requireNonNull(policy);
@@ -599,6 +619,18 @@ public final class ParRuntime implements AutoCloseable {
             Objects.requireNonNull(id, "id cannot be null");
             if (defaultId != null) throw new IllegalStateException("default Par already configured");
             defaultId = id;
+            return this;
+        }
+
+        /** Test seam: the root clock domain. Package-private; not a supported public SPI. */
+        Builder ticker(Ticker ticker) {
+            this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
+            return this;
+        }
+
+        /** Test seam: the deadline scheduler. Package-private; not a supported public SPI. */
+        Builder timeoutScheduler(ScheduledExecutorService scheduler) {
+            this.timeoutScheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
             return this;
         }
 

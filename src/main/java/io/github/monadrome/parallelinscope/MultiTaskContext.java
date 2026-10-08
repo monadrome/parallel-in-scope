@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Ticker;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
@@ -73,6 +74,7 @@ final class MultiTaskContext {
         private @Nullable CancellationToken cancellationParent;
         private @Nullable Long deadlineCeilingNanos;
         private @Nullable Long resolutionTimeNanos;
+        private @Nullable Ticker ticker;
         private @Nullable TaskGraphObservationScope taskGraphObservationScope;
         private @Nullable ExecutorIdentity executorIdentity;
         private @Nullable String executorLabel;
@@ -103,9 +105,18 @@ final class MultiTaskContext {
             return this;
         }
 
-        /** The resolution clock reading; defaults to {@link System#nanoTime()} at resolve time. */
+        /** The resolution clock reading; defaults to the domain clock's reading at resolve time. */
         Resolution resolutionTimeNanos(long nowNanos) {
             this.resolutionTimeNanos = nowNanos;
+            return this;
+        }
+
+        /**
+         * The root clock domain: used only when the unit has no cancellation parent, because a
+         * child token always inherits its parent's clock. Defaults to the system clock.
+         */
+        Resolution ticker(Ticker ticker) {
+            this.ticker = ticker;
             return this;
         }
 
@@ -161,8 +172,13 @@ final class MultiTaskContext {
         long deadlineCeiling = resolution.deadlineCeilingNanos != null
                 ? resolution.deadlineCeilingNanos
                 : parent == null ? Long.MAX_VALUE : parent.deadlineNanos;
-        long resolutionTime =
-                resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : System.nanoTime();
+        // The deadline domain follows the cancellation parent's clock; only a root unit takes the
+        // resolution's own clock (the owning ParRuntime's). This keeps a nested runtime's units on
+        // the ancestor's clock instead of mixing domains inside one token tree.
+        Ticker domain = cancellationParent != null
+                ? cancellationParent.ticker()
+                : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
+        long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
         // No parent fallback: the caller has already applied the ownership rule via
         // TaskGraphObservationScope.resolveFor, and a null answer from it means "this unit joins no
         // scope". Falling back to the parent's scope here would hand back the very scope that rule
@@ -179,7 +195,7 @@ final class MultiTaskContext {
                 resolution.taskCount,
                 effective,
                 deadline,
-                new CancellationToken(cancellationParent, deadline),
+                new CancellationToken(cancellationParent, deadline, domain),
                 parent,
                 observation,
                 resolution.executorIdentity,
@@ -227,9 +243,9 @@ final class MultiTaskContext {
         return deadlineNanos;
     }
 
-    /** Returns a non-negative remaining timeout derived from the monotonic clock. */
+    /** Returns a non-negative remaining timeout derived from the token's monotonic clock. */
     Duration remaining() {
-        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
+        return cancellationToken.remaining();
     }
 
     CancellationToken cancellationToken() {

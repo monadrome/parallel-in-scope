@@ -8,6 +8,7 @@ import static io.github.monadrome.parallelinscope.CancellationToken.State.RUNNIN
 import static io.github.monadrome.parallelinscope.CancellationToken.State.SUCCESS;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.TIMEOUT;
 
+import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -49,6 +50,15 @@ public final class CancellationToken {
     private final @Nullable ParentLink parentLink;
 
     /**
+     * The monotonic clock of this token's deadline domain. A child always inherits its parent's
+     * clock, so one token tree shares one clock domain; only a root token takes an explicit clock,
+     * and public construction always lands on the system clock. Internal tests substitute a manual
+     * clock for a root token to make deadline detection deterministic; deadlineNanos is always read
+     * against this clock, never mixed with another domain.
+     */
+    private final Ticker ticker;
+
+    /**
      * The interrupt intent of this token's terminal cancellation, propagated down the tree.
      * Defaults to {@code true}: deadline expiry and fail-fast always interrupt, because their
      * liveness depends on it. Only an explicit {@link #cancel(boolean) cancel(false)} records
@@ -82,7 +92,16 @@ public final class CancellationToken {
      * @param deadlineNanos the requested deadline in {@link System#nanoTime()} units
      */
     public CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
+        this(parent, deadlineNanos, Ticker.systemTicker());
+    }
+
+    /**
+     * Package-private root-clock seam: the given clock applies only when {@code parent} is null; a
+     * child token always inherits its parent's clock, keeping one clock domain per token tree.
+     */
+    CancellationToken(@Nullable CancellationToken parent, long deadlineNanos, Ticker ticker) {
         this.parent = parent;
+        this.ticker = parent == null ? Objects.requireNonNull(ticker, "ticker cannot be null") : parent.ticker;
         this.deadlineNanos = parent == null ? deadlineNanos : Math.min(deadlineNanos, parent.deadlineNanos());
         if (parent != null) {
             // The listener reaches this token through a severable holder: once this token commits a
@@ -135,7 +154,17 @@ public final class CancellationToken {
      * @return the remaining duration, saturated at zero and at the no-deadline sentinel
      */
     public Duration remaining() {
-        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, System.nanoTime()));
+        return Duration.ofNanos(Deadlines.remaining(deadlineNanos, ticker.read()));
+    }
+
+    /** The monotonic clock of this token's deadline domain; inherited by every child token. */
+    Ticker ticker() {
+        return ticker;
+    }
+
+    /** Whether this token's deadline has elapsed on its own clock; an unbounded token never expires. */
+    boolean deadlineExpired() {
+        return deadlineNanos <= ticker.read();
     }
 
     /**
@@ -166,7 +195,7 @@ public final class CancellationToken {
         // futures and the submission canceller: it stays pending until every input is done, so
         // cancelling it still propagates after one task already failed or was cancelled.
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
-        if (Deadlines.remaining(deadlineNanos, System.nanoTime()) == 0L) {
+        if (Deadlines.remaining(deadlineNanos, ticker.read()) == 0L) {
             // The deadline already expired: behave as if the timeout callback had already run.
             // Scheduling a zero-delay timeout would leave the token RUNNING until the timer
             // thread gets to it, and submitted tasks could enter user code in that window. The
@@ -195,7 +224,7 @@ public final class CancellationToken {
                         transitionTo(TIMEOUT);
                         allFutures.cancel(true);
                     },
-                    Deadlines.remaining(deadlineNanos, System.nanoTime()),
+                    Deadlines.remaining(deadlineNanos, ticker.read()),
                     TimeUnit.NANOSECONDS);
             // A token that settles by any path completes futureToken; cancelling the scheduled
             // task there keeps the shared timer from retaining this token and its futures until

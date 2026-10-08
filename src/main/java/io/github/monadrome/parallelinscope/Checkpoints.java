@@ -570,10 +570,11 @@ public final class Checkpoints {
                     ? new LeanCancellationException("cancel during running")
                     : new CancellationException("cancel during running");
         }
-        // Wall-clock backstop: an expired deadline is cancellation even when the timer thread has
+        // Clock backstop: an expired deadline is cancellation even when the timer thread has
         // not committed TIMEOUT yet (GC pause, busy scheduler). Committing the timeout here keeps
-        // attribution on TIMEOUT instead of letting the race read as a user failure.
-        if (cancelToken.deadlineNanos() <= System.nanoTime()) {
+        // attribution on TIMEOUT instead of letting the race read as a user failure. The read is
+        // on the token's own clock, the same domain its deadline was resolved in.
+        if (cancelToken.deadlineExpired()) {
             cancelToken.timeoutCancel();
             throw lean
                     ? new LeanCancellationException("cancel during running: deadline expired")

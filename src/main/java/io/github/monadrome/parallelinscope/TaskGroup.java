@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
@@ -560,15 +561,26 @@ final class TaskGroup<V, R> implements AutoCloseable {
             throw new IllegalArgumentException(
                     "no enclosing deadline to inherit; call group(String, Duration) with an explicit timeout");
         }
+        // Deadlines resolve on the token tree's clock domain: a nested group inherits its parent's
+        // clock, a root group takes the runtime's. `start` stays on the system clock — it feeds
+        // submit times and the report, which are cross-thread real-time observations.
+        Ticker domain = structuralParent == null
+                ? env.ticker()
+                : structuralParent.cancellationToken().ticker();
+        long deadlineNow = domain.read();
         long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
-                groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
+                groupTimeout,
+                structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(),
+                deadlineNow);
         // A group with nothing to run completes immediately with SUCCESS and never executes or
         // cancels a member, so it does not need a parent cancellation link. Skipping the link
         // matters: the token of such a group is never bound, so a parent-linked one would hold a
         // listener node on the parent scope for the parent's entire lifetime.
         boolean empty = definition.members().isEmpty() && definition.combineSlot() == null;
         CancellationToken groupToken = new CancellationToken(
-                structuralParent == null || empty ? null : structuralParent.cancellationToken(), groupDeadline);
+                structuralParent == null || empty ? null : structuralParent.cancellationToken(),
+                groupDeadline,
+                env.ticker());
         // Every member and the terminal combine registers its body-completion slot here, before
         // any submission, so the shared signal covers tasks that start late or never start.
         BodyCompletionTracker bodyCompletion =
@@ -592,7 +604,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .structuralParent(structuralParent)
                                 .cancellationParent(groupToken)
                                 .deadlineCeilingNanos(groupDeadline)
-                                .resolutionTimeNanos(start)
+                                .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
                                 .executorIdentity(par.executorIdentity())
                                 .executorLabel(par.id().value()));
@@ -642,7 +654,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .structuralParent(structuralParent)
                                 .cancellationParent(groupToken)
                                 .deadlineCeilingNanos(groupDeadline)
-                                .resolutionTimeNanos(start)
+                                .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
                                 .executorIdentity(par.executorIdentity())
                                 .executorLabel(par.id().value()));
