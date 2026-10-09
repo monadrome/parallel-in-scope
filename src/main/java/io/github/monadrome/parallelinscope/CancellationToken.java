@@ -238,9 +238,6 @@ public final class CancellationToken {
             futureToken.setException(new TimeoutException());
             return allFutures;
         }
-        // The business outcome and the framework deadline are distinct event sources and must not
-        // be conflated by exception type: a member body may legitimately throw TimeoutException,
-        // and classifying on instanceof would record that business failure as a framework TIMEOUT.
         // The aggregate callback below is the only fail-fast source; the scheduled timer task is
         // the only deadline source.
         ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
@@ -319,7 +316,6 @@ public final class CancellationToken {
                 try {
                     return timer.schedule(timeoutAction, deadlineDelay, TimeUnit.NANOSECONDS);
                 } catch (RejectedExecutionException bothRetired) {
-                    // Fall through to the terminal check below.
                 }
             }
             if (state() != RUNNING) {

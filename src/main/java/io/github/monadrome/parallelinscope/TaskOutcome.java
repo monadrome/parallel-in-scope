@@ -12,6 +12,11 @@ package io.github.monadrome.parallelinscope;
  * from task and scope cancellation attribution: that is what separates
  * {@link #SUBMISSION_FAILURE} from {@link #USER_FAILURE} and names a cancellation's cause.
  *
+ * <p>{@link #TIMEOUT} means the execution deadline cancelled the task; it is not inferred from a
+ * {@link java.util.concurrent.TimeoutException} thrown by a body, which is an ordinary {@link
+ * #USER_FAILURE}. The exception is a body that throws after the deadline already cancelled its
+ * future: that cancellation has committed the outcome, and the late failure is only logged.
+ *
  * <p>This enum is also the terminal vocabulary of a whole task group: {@link
  * TaskGroupResult#outcome()} reports one of {@link #SUCCESS}, {@link #USER_FAILURE}, {@link
  * #SUBMISSION_FAILURE}, {@link #TIMEOUT}, {@link #MEMBER_CANCELLED}, or {@link #GROUP_CANCELLED} —
