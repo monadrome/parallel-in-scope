@@ -107,7 +107,7 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cancellingSubmitterAbandonsRemainingPlaceholders() throws Exception {
+    void cancellingSubmitterAbandonsRemainingElements() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
@@ -128,7 +128,7 @@ class SlidingWindowSubmitterTest {
                 try {
                     result.get(2, TimeUnit.SECONDS);
                 } catch (ExecutionException | CancellationException ignored) {
-                    // Abandoned placeholders may fail or cancel, but must not remain pending.
+                    // Abandoned elements may fail or cancel, but must not remain pending.
                 }
                 assertThat(result.isDone()).isTrue();
             }
@@ -154,7 +154,7 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void cancelledPlaceholderStopsSlidingWindowAndCancelsLaterPlaceholders() throws Exception {
+    void cancelledElementStopsSlidingWindowAndCancelsLaterElements() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
@@ -510,9 +510,9 @@ class SlidingWindowSubmitterTest {
         }
     }
 
-    /** Same contract past the initial window: the async submitter fails the remaining placeholders. */
+    /** Same contract past the initial window: the refill fails the remaining elements. */
     @Test
-    void slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure() throws Exception {
+    void slidingWindowHandoffErrorFailsTheElementAsSubmissionFailure() throws Exception {
         AtomicInteger submissions = new AtomicInteger();
         ExecutorService firstThenError = new AbstractExecutorService() {
             private volatile boolean shutdown;
@@ -571,8 +571,8 @@ class SlidingWindowSubmitterTest {
 
     /**
      * R6 one phase later: the refill loop's handoff-{@code Error} diagnostic runs before the
-     * abandoned placeholders are settled, on the async submitter thread. A JUL handler that throws
-     * must not strand those placeholders or replace the submission future's cause with the logging
+     * abandoned elements are settled, on the completing thread. A JUL handler that throws
+     * must not strand those elements or replace the submission future's cause with the logging
      * failure; the batch must converge exactly as with a clean handler, and the SEVERE diagnostic
      * is still attempted with the original {@code Error} attached.
      */
@@ -756,11 +756,11 @@ class SlidingWindowSubmitterTest {
 
     /**
      * The handoff window: the worker executor blocks inside the second {@code execute} until the
-     * cancellation lands, so the submitter loop (running the task and binding the placeholder)
-     * races the cancellation callback (abandoning placeholders). The claimed element must stay
-     * consistent: once handed to the executor it can only be cancelled through its own future, so
-     * its callable runs and the caller sees the real result — never SUBMISSION_FAILURE for a task
-     * that ran. Only genuinely unsubmitted placeholders are abandoned.
+     * cancellation lands, so the submitter loop (running the claimed task and handing it off)
+     * races the cancellation callback (abandoning the elements still unsubmitted). The claimed
+     * element must stay consistent: once handed to the executor it can only be cancelled through
+     * its own future, so its callable runs and the caller sees the real result — never
+     * SUBMISSION_FAILURE for a task that ran. Only genuinely unsubmitted elements are abandoned.
      */
     @Test
     void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
@@ -852,10 +852,10 @@ class SlidingWindowSubmitterTest {
      * The claim-before-completion-check ordering is what keeps the cancellation callback from
      * abandoning an index the submission loop already accepted: {@code nextIndex} is claimed
      * atomically before any post-claim check, so the callback abandons only strictly later
-     * placeholders and the claimer itself disposes of the claimed index. The vulnerable window is
+     * elements and the claimer itself disposes of the claimed index. The vulnerable window is
      * nanoseconds wide and cannot be gated deterministically, so this test hammers it: many rounds
      * of submit + cancel at staggered moments, asserting the one observable corruption the race
-     * produced — a task body that ran while its placeholder was already abandoned (user code ran,
+     * produced — a task body that ran while its element was already abandoned (user code ran,
      * the caller reads "never submitted"). On the fixed code the invariant holds by construction;
      * if the claim ever moves back below the completion check, staggered rounds make the corruption
      * possible again.
@@ -881,9 +881,9 @@ class SlidingWindowSubmitterTest {
                                     return 2;
                                 }));
 
-                // Stagger the cancellation across the phases of the submission loop: before the
-                // submitter thread parks in take(), while it is parked, right around the moment
-                // take() hands over the freed slot, and after the handoff completed.
+                // Stagger the cancellation across the phases of a claim-and-handoff: before a
+                // completion claims the next index, while a claim is in flight, right around the
+                // moment it hands the freed slot off, and after the handoff completed.
                 switch (round % 5) {
                     case 1:
                         Thread.sleep(1L);
@@ -907,8 +907,7 @@ class SlidingWindowSubmitterTest {
                                 && batch.results().get(1).isDone());
 
                 // The invariant: a body that entered user code is reported as a real success,
-                // never as an abandoned placeholder; an abandoned placeholder never entered user
-                // code.
+                // never as an abandoned element; an abandoned element never entered user code.
                 assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
                         .as("round %s element 0", round)
                         .isEqualTo(ran0.get() == 1);
