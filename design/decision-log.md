@@ -38,6 +38,7 @@
 | 提案 | 结论与残值 |
 |---|---|
 | executor-transparency | `starvationProne()` 按提交去向判定、注册期「看不透」告警；`BlockingRisk` 分类后因无读者被删（CHANGELOG 0.3.0） |
+| inline-comment-audit-2026-10-09 | **行内注释门禁方向已否决**：不设「行内注释连续块超过 N 行即失败」的架构约束检查，不引入注释归属规则条目（C1–C4），也不做「指针必须可寻址 + 引用可解析」的门禁。否决理由：（1）**行长门禁可零成本绕过**——长文中间加一个空行即成两个合规块、原文逐行不变；改写成成员 javadoc 或挪进 `package-info` 更完全逃出 `//` 扫描，故「防止复发」不成立；（2）**规则条目不可机械校验**——「语句级还是设计级」「是否复述相邻代码」「指针目标是否真的讨论该主题」都没有判决程序，而唯一可校验的行长上限又与门禁阈值自相矛盾（5 行的块通过 6 行门禁却违反 4 行上限）；（3）**迁移方案与自身分类冲突**——多数长文属必须留在语句上的竞态/顺序理由（domain scheduler、member bind、收敛屏障、values 发布恢复），压成一行指针即删知识；（4）**收益未获证明**——行数仅降约 12%，两起已复现缺陷（一次重整行造成的断行残骸、一次指向类 javadoc 的失效指针）均为文本层，无运行时缺陷归因于它们。**采纳的边界**：只做具体修复——`Par` 的 bind-before-submit 长文压成 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 指针并保留 ADR 未覆盖的 submission canceller 桥接理由、两处失效指针改指可解析目标、删无可承载的纯复述、把调用者可见的 `TimeoutException` 归因契约上移到 `TaskOutcome` javadoc；测试树只清理已废除机制（placeholder / lateBind / 驻留 submitter 线程模型）的词汇与命名。**不要在评审、缺陷分诊或重构提案中重提注释门禁或注释行长检查。** |
 | queue-artifact-boundary-decision | queue 与 core 同产物发布。**边界已由 adr/0006 永久关闭**，不要在评审、缺陷分诊或重构提案中重提 |
 | axiom-drift-decisions-2026-09-14 | axiom-drift 报告五条决策汇总，全部拍板或关闭；各条去向见上面对应行 |
 
