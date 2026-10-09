@@ -456,7 +456,7 @@ TaskBatchResult<String> batch = databasePar.map(ids, id -> {
     } finally {
         span.end();               // end this body's span, restoring the previous current context
     }
-});
+}, BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
 The names follow the standard OTel API for illustration; no real dependency is implied. The rules
