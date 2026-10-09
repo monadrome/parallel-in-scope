@@ -172,7 +172,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
         while (thread.getState() != Thread.State.WAITING
                 && thread.getState() != Thread.State.TIMED_WAITING
                 && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(thread.getState()).isIn(Thread.State.WAITING, Thread.State.TIMED_WAITING);
     }
