@@ -52,12 +52,21 @@ jobs:
           mvn -B -ntp clean install
           mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
 
+      # `maven.repository.credentialScope=id` restores credential matching by server id. The
+      # runner image's Maven scopes credentials by repository origin, and the `central` server
+      # that `setup-java` writes into settings.xml is associated with the super-POM's
+      # `https://repo.maven.apache.org`, so the Central snapshot endpoint is refused the
+      # credentials and answers 401 -- this command failed that way in `snapshot.yml` on
+      # 2026-10-09 after the image's Maven was updated. Maven names this switch in its warning.
       - name: Publish to Maven Central
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -B -ntp -Prelease -DskipTests deploy
+        run: >-
+          mvn -B -ntp -Prelease -DskipTests
+          -Dmaven.repository.credentialScope=id
+          deploy
 
       - name: Create GitHub release
         if: ${{ !contains(github.ref_name, '-SNAPSHOT') }}
