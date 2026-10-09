@@ -407,7 +407,7 @@ TaskBatchResult<String> batch = databasePar.map(ids, id -> {
     } finally {
         span.end();               // 结束本 body 的 span，并恢复此前的当前上下文
     }
-});
+}, BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
 这里用标准 OTel API 命名示意，不引入真实依赖。要点是 `makeCurrent()` 返回的 `Scope` 必须在
