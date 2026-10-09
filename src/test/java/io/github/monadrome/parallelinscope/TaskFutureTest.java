@@ -29,8 +29,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Contract tests for the {@link TaskFuture} view the library delivers: delivery completeness,
- * outcome attribution, race stability, placeholder bridging, delegation transparency, and deadline
- * reporting.
+ * outcome attribution, race stability, pre-submission identity, delegation transparency, and
+ * deadline reporting.
  */
 class TaskFutureTest {
 
@@ -51,7 +51,7 @@ class TaskFutureTest {
                             item -> hold(block, item),
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(1));
 
-            // Element 0 occupies the only slot; elements 1 and 2 are still window placeholders, yet
+            // Element 0 occupies the only slot; elements 1 and 2 are still waiting for one, yet
             // already answer with their task identity.
             assertThat(batch.results()).allMatch(future -> future instanceof TaskFuture);
             TaskFuture<String> pending = batch.results().get(2);

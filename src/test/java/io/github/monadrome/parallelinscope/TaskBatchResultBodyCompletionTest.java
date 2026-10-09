@@ -316,7 +316,7 @@ class TaskBatchBodyCompletionTest {
     }
 
     @Test
-    void placeholderCancellationReleasesTheWindowExternalSlotExactlyOnce() throws Exception {
+    void windowExternalElementCancellationReleasesTheSlotExactlyOnce() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -332,11 +332,11 @@ class TaskBatchBodyCompletionTest {
                                 sleepInterruptibly(10_000);
                                 return value;
                             },
-                            options("placeholder-cancel").parallelism(1).taskType(TaskType.IO_BOUND));
+                            options("window-external-cancel").parallelism(1).taskType(TaskType.IO_BOUND));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // Cancelling the placeholder of the window-external element cascades fail-fast: the
-            // running first body exits via interruption, the second body never starts.
+            // Cancelling the window-external element's own view cascades fail-fast: the running
+            // first body exits via interruption, the second body never starts.
             batch.results().get(1).cancel(true);
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(1);
@@ -424,10 +424,9 @@ class TaskBatchBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), direct).build();
         AtomicInteger executions = new AtomicInteger();
         try {
-            // Every element runs inline: the initial-window one on the caller thread, the
-            // window-external one on the submitter thread. All slots must still be released
-            // exactly once. The wait uses a real budget because the submitter thread runs
-            // concurrently.
+            // Every element runs inline on the caller thread: the initial window hands off
+            // synchronously, and each element's completion drives the next handoff from inside
+            // that completing call. All slots must still be released exactly once.
             TaskBatch<Integer> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList(1, 2),

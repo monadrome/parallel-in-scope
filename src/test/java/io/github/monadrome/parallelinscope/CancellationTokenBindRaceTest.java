@@ -18,15 +18,15 @@ import org.junit.jupiter.api.Test;
  * Tests that verify the actual interaction between {@link CancellationToken#cancel(boolean)} and
  * {@link CancellationToken#bind}.
  *
- * <p>The original analysis claimed that calling {@code cancel()} before {@code lateBind()} causes
+ * <p>The original analysis claimed that calling {@code cancel()} before {@code bind()} causes
  * {@code IllegalStateException} because {@code SettableFuture.setFuture} would throw on an already
  * cancelled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
  * {@code false} and <em>cancels the supplied future</em>, so cancellation still propagates to the
- * submitted tasks. The real latent issue is that {@code lateBind} is not idempotent: a second call
- * is silently ignored and immediately cancels its own futures, while the token state stays tied to
- * the first binding.
+ * submitted tasks. The real latent issue is that {@code bind} is not idempotent: a second call is
+ * silently ignored, its futures taking the state of the first binding — cancelled when cancellation
+ * won that first bind, left untouched when the first binding succeeded.
  */
-class CancellationTokenLateBindRaceTest {
+class CancellationTokenBindRaceTest {
 
     private ScheduledExecutorService timer;
 
@@ -41,7 +41,7 @@ class CancellationTokenLateBindRaceTest {
     }
 
     /**
-     * When cancel() wins before lateBind(), {@code futureToken.setFuture(failFastFuture)} returns
+     * When cancel() wins before bind(), {@code futureToken.setFuture(failFastFuture)} returns
      * false. Guava cancels the supplied {@code failFastFuture}, which propagates cancellation to
      * the actual task futures. The token remains in CANCELLED.
      */
@@ -61,7 +61,7 @@ class CancellationTokenLateBindRaceTest {
     }
 
     /**
-     * A second lateBind is silently ignored: {@code futureToken} is already done (success), so
+     * A second bind is silently ignored: {@code futureToken} is already done (success), so
      * {@code setFuture} returns false and leaves the second futures untouched. The token state stays
      * tied to the first binding.
      */
@@ -86,7 +86,7 @@ class CancellationTokenLateBindRaceTest {
     }
 
     /**
-     * In a race, either cancel wins (and cancels failFastFuture) or lateBind wins (and futureToken
+     * In a race, either cancel wins (and cancels failFastFuture) or bind wins (and futureToken
      * cancels failFastFuture later). In both cases the submitted task should end up cancelled.
      */
     @Test
@@ -124,7 +124,7 @@ class CancellationTokenLateBindRaceTest {
         // In all observed outcomes the task is cancelled; if it were not, that would be a bug.
         assertThat(notCancelled)
                 .withFailMessage(
-                        "Expected all tasks to be cancelled in cancel/lateBind race, but %s out of %s were not",
+                        "Expected all tasks to be cancelled in cancel/bind race, but %s out of %s were not",
                         notCancelled, attempts)
                 .isZero();
     }
