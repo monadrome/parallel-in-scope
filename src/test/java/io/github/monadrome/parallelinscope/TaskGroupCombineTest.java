@@ -100,7 +100,8 @@ class TaskGroupCombineTest {
             assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(Objects.requireNonNull(result.terminal()).startTimeNanos())
                     .isZero();
-            // The skipped combine released its body holder with the terminal future (decision §9).
+            // The skipped combine released its body holder with the terminal future
+            // (task-group-terminal-combine.md §3, completion-count invariant).
             assertThat(group.callableReleased("assemble")).isTrue();
         } finally {
             global.close();
