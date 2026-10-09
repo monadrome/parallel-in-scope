@@ -931,8 +931,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
         } finally {
             // The barrier increment MUST stay last: everything ordered before it -- this member's
             // classification, the cascade above, and fail-fast -- is then visible to the converging
-            // thread. Moving it back to the top (as the locked version had terminalCount++) lets one
-            // thread converge while another is still mid-cascade.
+            // thread. Incrementing earlier lets one thread converge while another is still
+            // mid-cascade.
             //
             // It MUST also run when a step above throws. The steps above reach out of this object
             // (the combine's executor, member token listeners, and through them a nested group's

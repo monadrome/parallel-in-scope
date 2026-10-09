@@ -206,7 +206,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         runner = Thread.currentThread();
         boolean skipped = !claimBody();
-        // Defensive: no current path clears the body once the phase claim above has won.
         @Nullable Callable<V> body = callable;
         boolean cancelled = isCancelled();
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
@@ -239,7 +238,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 Thread.yield();
             }
             // Restore only after delivery completes. External interrupts during inline execution
-            // are also discarded; see the user guide's rejection-policy discussion.
+            // are also discarded; see design/interruption-contract.md.
             try {
                 SubmissionScope.restore(borrowedScope);
                 if (interruptedOnEntry) {
