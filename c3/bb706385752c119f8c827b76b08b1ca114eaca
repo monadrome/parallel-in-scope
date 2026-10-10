@@ -1,0 +1,28 @@
+CHANGELOG.md
+  s_d078162dfc9b87::t_2f814378e157d1 109
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_d078162dfc9b87::t_d2e89938ddb91b 1000-1006
+design/task-group-cancellation.md
+  s_d078162dfc9b87::t_14ec75ab9e30aa 178-180
+  s_d078162dfc9b87::t_58ae62452d5543 226-229
+  s_d078162dfc9b87::t_cd206386cf1409 103-108
+  s_d078162dfc9b87::t_ef22e3957c3f10 203-204
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_d078162dfc9b87::t_51298af0f2df37 882-890
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c3bb706385752c119f8c827b76b08b1ca114eaca",
+  "prompts": {},
+  "sessions": {
+    "s_d078162dfc9b87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b01dd65-ea38-4b68-9dc0-d4f35402b044",
+        "model": "unknown"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
