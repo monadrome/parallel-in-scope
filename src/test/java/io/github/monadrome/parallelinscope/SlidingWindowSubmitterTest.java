@@ -4,25 +4,52 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SlidingWindowSubmitterTest {
+
+    /**
+     * Submits through the production two-step shape: the caller builds the element views first, so
+     * it can bind them before submission starts, then hands both lists to the submitter. These
+     * tests exercise the submitter directly and have nothing to bind, so they pair the two calls
+     * here.
+     */
+    private static <V> TaskBatch<V> submitAllWithViews(
+            SlidingWindowSubmitter<V> submitter, List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+        return submitter.submitAll(tasks, submitter.viewsFor(tasks));
+    }
+
     @Test
     void installsSubmissionScopeForInitialAndSlidingWindowSubmissions() throws Exception {
         ConcurrentLinkedQueue<MultiTaskContext> submittedBatches = new ConcurrentLinkedQueue<>();
@@ -35,12 +62,11 @@ class SlidingWindowSubmitterTest {
                     }
                 };
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(worker);
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             MultiTaskContext batch = context(2, 1, TaskType.IO_BOUND);
-            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, batch, submitter);
+            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, batch);
 
-            assertThat(executor.submitAll(futures(() -> 1, () -> 2)).results())
+            assertThat(submitAllWithViews(executor, futures(() -> 1, () -> 2)).results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2);
             await().atMost(1, TimeUnit.SECONDS)
@@ -49,105 +75,100 @@ class SlidingWindowSubmitterTest {
             assertThat(SubmissionScope.current()).isNull();
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
     void emptyBatchCompletesWithoutSubmitting() {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(0, 1, TaskType.IO_BOUND), submitter);
-            assertThat(executor.submitAll(java.util.Collections.emptyList()).results())
+                    new SlidingWindowSubmitter<>(workers, context(0, 1, TaskType.IO_BOUND));
+            assertThat(submitAllWithViews(executor, Collections.emptyList()).results())
                     .isEmpty();
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
     void submitsEveryTaskWhenWindowIsLarge() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3));
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(3, 3, TaskType.IO_BOUND), submitter);
-            assertThat(executor.submitAll(futures(() -> 1, () -> 2, () -> 3)).results())
+                    new SlidingWindowSubmitter<>(workers, context(3, 3, TaskType.IO_BOUND));
+            assertThat(submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3))
+                            .results())
                     .extracting(f -> f.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2, 3);
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
-    void cancellingSubmitterAbandonsRemainingPlaceholders() throws Exception {
+    void cancellingSubmitterAbandonsRemainingElements() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(
-                    () -> {
-                        release.await(2, TimeUnit.SECONDS);
-                        return 1;
-                    },
-                    () -> 2,
-                    () -> 3));
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(
+                    executor,
+                    futures(
+                            () -> {
+                                release.await(2, TimeUnit.SECONDS);
+                                return 1;
+                            },
+                            () -> 2,
+                            () -> 3));
             assertThat(batch.submitCanceller().cancel(true)).isTrue();
             release.countDown();
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
+            for (ListenableFuture<Integer> result : batch.results()) {
                 try {
                     result.get(2, TimeUnit.SECONDS);
-                } catch (java.util.concurrent.ExecutionException | java.util.concurrent.CancellationException ignored) {
-                    // Abandoned placeholders may fail or cancel, but must not remain pending.
+                } catch (ExecutionException | CancellationException ignored) {
+                    // Abandoned elements may fail or cancel, but must not remain pending.
                 }
                 assertThat(result.isDone()).isTrue();
             }
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
     void ioBatchReportsEveryInitialSubmissionRejection() {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
+                    new SlidingWindowSubmitter<>(rejected, context(3, 2, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
             assertThat(batch.results()).hasSize(3);
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
-                assertThatThrownBy(result::get).isInstanceOf(java.util.concurrent.ExecutionException.class);
+            for (ListenableFuture<Integer> result : batch.results()) {
+                assertThatThrownBy(result::get).isInstanceOf(ExecutionException.class);
             }
         } finally {
-            submitter.shutdownNow();
         }
     }
 
     @Test
-    void cancelledPlaceholderStopsSlidingWindowAndCancelsLaterPlaceholders() throws Exception {
+    void cancelledElementStopsSlidingWindowAndCancelsLaterElements() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(
-                    () -> {
-                        release.await(2, TimeUnit.SECONDS);
-                        return 1;
-                    },
-                    () -> 2,
-                    () -> 3));
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(
+                    executor,
+                    futures(
+                            () -> {
+                                release.await(2, TimeUnit.SECONDS);
+                                return 1;
+                            },
+                            () -> 2,
+                            () -> 3));
             assertThat(batch.results().get(1).cancel(true)).isTrue();
             release.countDown();
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
@@ -155,25 +176,25 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.results().get(2).isCancelled()).isTrue();
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
     void honorsBatchParallelism() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3));
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             MultiTaskContext context = context(3, 1, TaskType.IO_BOUND);
             AtomicInteger active = new AtomicInteger();
             AtomicInteger maximum = new AtomicInteger();
             CountDownLatch release = new CountDownLatch(1);
-            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, context, submitter);
+            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, context);
 
-            assertThat(executor.submitAll(futures(
-                                    () -> runTracked(active, maximum, release, 1),
-                                    () -> runTracked(active, maximum, release, 2),
-                                    () -> runTracked(active, maximum, release, 3)))
+            assertThat(submitAllWithViews(
+                                    executor,
+                                    futures(
+                                            () -> runTracked(active, maximum, release, 1),
+                                            () -> runTracked(active, maximum, release, 2),
+                                            () -> runTracked(active, maximum, release, 3)))
                             .results())
                     .hasSize(3);
             assertThat(awaitMaximum(maximum, 1)).isTrue();
@@ -181,97 +202,91 @@ class SlidingWindowSubmitterTest {
             release.countDown();
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     @Test
-    void batchElementFallsBackToDirectExecutionWhenOptionsRequestIt() throws Exception {
-        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        rejected.shutdownNow();
+    void batchElementRunsOnTheSubmittingThreadWhenTheExecutorIsDirect() throws Exception {
+        ListeningExecutorService direct = MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND, true), submitter);
-            assertThat(executor.submitAll(futures(() -> 7)).results().get(0).get())
+                    new SlidingWindowSubmitter<>(direct, context(1, 1, TaskType.CPU_BOUND));
+            assertThat(submitAllWithViews(executor, futures(() -> 7))
+                            .results()
+                            .get(0)
+                            .get())
                     .isEqualTo(7);
         } finally {
-            submitter.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     @Test
-    void callerThreadFallbackPublishesCompletionForSlidingWindow() throws Exception {
-        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        rejected.shutdownNow();
+    void directExecutionPublishesCompletionForSlidingWindow() throws Exception {
+        ListeningExecutorService direct = MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
+                    new SlidingWindowSubmitter<>(direct, context(2, 1, TaskType.CPU_BOUND));
 
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2);
             assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
-            submitter.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     @Test
-    void failedCallerThreadFallbackStillAdvancesSlidingWindow() throws Exception {
-        ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        rejected.shutdownNow();
+    void failedDirectExecutionStillAdvancesSlidingWindow() throws Exception {
+        ListeningExecutorService direct = MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND, true), submitter);
+                    new SlidingWindowSubmitter<>(direct, context(2, 1, TaskType.CPU_BOUND));
 
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(
-                    () -> {
-                        throw new IllegalStateException("expected failure");
-                    },
-                    () -> 2));
+            TaskBatch<Integer> batch = submitAllWithViews(
+                    executor,
+                    futures(
+                            () -> {
+                                throw new IllegalStateException("expected failure");
+                            },
+                            () -> 2));
 
             assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(IllegalStateException.class);
             assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
-            submitter.shutdownNow();
+            direct.shutdownNow();
         }
     }
 
     /**
-     * The default for every task type: a rejected element fails and its body never runs. Before the
-     * caller-thread fallback became an explicit option, {@code CPU_BOUND} was the default type and
-     * silently ran rejected elements on the submitting thread.
+     * The default for every task type: a rejected element fails and its body never runs.
      */
     @Test
     void rejectedCpuElementFailsWithoutRunningItsBodyByDefault() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
-        java.util.concurrent.atomic.AtomicBoolean bodyRan = new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicBoolean bodyRan = new AtomicBoolean();
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND));
 
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> {
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> {
                 bodyRan.set(true);
                 return 7;
             }));
 
             assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(bodyRan).isFalse();
         } finally {
-            submitter.shutdownNow();
         }
     }
 
@@ -287,9 +302,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -314,42 +329,89 @@ class SlidingWindowSubmitterTest {
             }
         };
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenReject);
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(RejectedExecutionException.class);
             assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(RejectedExecutionException.class);
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     /**
-     * The handoff window: the worker executor blocks inside the second {@code execute} until the
-     * cancellation lands, so the submitter loop (running the task and binding the placeholder)
-     * races the cancellation callback (abandoning placeholders). The claimed element must stay
-     * consistent: once handed to the executor it can only be canceled through its own future, so
-     * its callable runs and the caller sees the real result — never SUBMISSION_FAILURE for a task
-     * that ran. Only genuinely unsubmitted placeholders are abandoned.
+     * A task already terminal when the initial window reaches it — cancelled by the deadline
+     * cascade before submission, so its body runs zero times — must not be handed to the worker
+     * pool at all: the handoff is pure waste. Its completion listener still publishes, so the
+     * window accounting is unchanged.
      */
     @Test
-    void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
-        CountDownLatch secondExecuteEntered = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        AtomicInteger executions = new AtomicInteger();
-        AtomicInteger ranValues = new AtomicInteger();
-        ExecutorService blocking = new AbstractExecutorService() {
+    void preCancelledInitialWindowTasksAreNotHandedToThePool() {
+        AtomicInteger handoffs = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            handoffs.incrementAndGet();
+            command.run();
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 3, TaskType.IO_BOUND));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
+            tasks.forEach(task -> task.cancel(true));
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThat(handoffs).hasValue(0);
+            assertThat(batch.results()).allMatch(ListenableFuture::isCancelled);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * Skipping a terminal element's handoff must not starve its live window siblings: the
+     * cancelled element still publishes its completion, and the live element runs normally.
+     */
+    @Test
+    void preCancelledWindowElementDoesNotDisturbLiveSiblings() throws Exception {
+        AtomicInteger handoffs = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            handoffs.incrementAndGet();
+            command.run();
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2);
+            tasks.get(0).cancel(true);
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThat(batch.results().get(0).isCancelled()).isTrue();
+            assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(handoffs).hasValue(1);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * L7 alignment: a handoff that throws an {@code Error} — a broken executor, or one failing
+     * while enqueuing — must fail the batch like a rejection. Catching only {@code RuntimeException}
+     * let the error escape {@code submitAll}, orphaning the in-flight window and leaving every
+     * not-yet-submitted element pending forever.
+     */
+    @Test
+    void initialWindowHandoffErrorFailsEveryElementAsSubmissionFailure() {
+        ExecutorService brokenAtHandoff = new AbstractExecutorService() {
             private volatile boolean shutdown;
 
             @Override
@@ -358,9 +420,9 @@ class SlidingWindowSubmitterTest {
             }
 
             @Override
-            public java.util.List<Runnable> shutdownNow() {
+            public List<Runnable> shutdownNow() {
                 shutdown = true;
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
 
             @Override
@@ -375,38 +437,401 @@ class SlidingWindowSubmitterTest {
 
             @Override
             public boolean awaitTermination(long timeout, TimeUnit unit) {
-                return true;
+                return shutdown;
             }
 
             @Override
             public void execute(Runnable command) {
-                if (executions.incrementAndGet() >= 2) {
-                    secondExecuteEntered.countDown();
-                    try {
-                        release.await(2, TimeUnit.SECONDS);
-                    } catch (InterruptedException interrupted) {
-                        // cancel(true) interrupts the submitter thread; run the handoff anyway
-                        Thread.currentThread().interrupt();
+                throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(brokenAtHandoff);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND));
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+
+            assertThat(batch.results()).hasSize(3);
+            for (int i = 0; i < 3; i++) {
+                int index = i;
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(SubmissionException.class)
+                        .hasRootCauseInstanceOf(AssertionError.class);
+            }
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * R6: the initial window's handoff-{@code Error} SEVERE diagnostic runs before the
+     * shared-verdict failure of the remaining elements, so a JUL handler that throws would
+     * otherwise escape {@code submitAll} with the logging failure and leave every element pending.
+     * The terminal publication must not depend on diagnostic success (extension contract L7). The
+     * clean handler is the control: identical result path, and the SEVERE diagnostic is still
+     * published with the original {@code Error} attached.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void initialWindowHandoffErrorSurvivesABrokenLogHandler(boolean brokenHandler) throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+        List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
+        Handler handler = boomOnHandoffError(brokenHandler, captured);
+        submitterLogger.addHandler(handler);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND));
+
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+
+            assertThat(batch.results()).hasSize(3);
+            for (int i = 0; i < 3; i++) {
+                int index = i;
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(SubmissionException.class)
+                        .hasRootCauseInstanceOf(AssertionError.class);
+            }
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(captured).anySatisfy(record -> {
+                assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
+                assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
+            });
+        } finally {
+            submitterLogger.removeHandler(handler);
+            workers.shutdownNow();
+        }
+    }
+
+    /** Same contract past the initial window: the refill fails the remaining elements. */
+    @Test
+    void slidingWindowHandoffErrorFailsTheElementAsSubmissionFailure() throws Exception {
+        AtomicInteger submissions = new AtomicInteger();
+        ExecutorService firstThenError = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (submissions.getAndIncrement() == 0) command.run();
+                else throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenError);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+
+            assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * R6 one phase later: the refill loop's handoff-{@code Error} diagnostic runs before the
+     * abandoned elements are settled, on the completing thread. A JUL handler that throws
+     * must not strand those elements or replace the submission future's cause with the logging
+     * failure; the batch must converge exactly as with a clean handler, and the SEVERE diagnostic
+     * is still attempted with the original {@code Error} attached.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void slidingWindowHandoffErrorInTheRefillSurvivesABrokenLogHandler(boolean brokenHandler) throws Exception {
+        AtomicInteger submissions = new AtomicInteger();
+        ExecutorService firstThenError = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (submissions.getAndIncrement() == 0) command.run();
+                else throw new AssertionError("handoff broken");
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenError);
+        Logger submitterLogger = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+        List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
+        Handler handler = boomOnHandoffError(brokenHandler, captured);
+        submitterLogger.addHandler(handler);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+
+            assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+            assertThat(captured).anySatisfy(record -> {
+                assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
+                assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
+            });
+        } finally {
+            submitterLogger.removeHandler(handler);
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * The whole-batch escalation path observes an initial-window handoff {@code Error} like any
+     * element failure: {@code valuesOrThrow()} propagates it as an {@code ExecutionException}, and
+     * {@code report()} keeps the {@code SubmissionException} with the original {@code Error} as
+     * its cause.
+     */
+    @Test
+    void valuesOrThrowAndReportEscalateAnInitialWindowHandoffError() {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2, () -> 3));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            TaskBatch.BatchReport report = batch.report();
+            assertThat(report.stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+            assertThat(report.firstException())
+                    .isInstanceOf(SubmissionException.class)
+                    .hasCauseInstanceOf(AssertionError.class);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * The same escalation path observes a sliding-window handoff {@code Error} with no shape
+     * difference, and the batch stays closeable afterward: body-completion tracking settles and
+     * the abandoned prepared future releases its user callable.
+     */
+    @Test
+    void valuesOrThrowEscalatesASlidingWindowHandoffError() throws Exception {
+        AtomicInteger submissions = new AtomicInteger();
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            if (submissions.getAndIncrement() == 0) command.run();
+            else throw new AssertionError("handoff broken");
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(AssertionError.class);
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
+            batch.close();
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * An initial-window handoff {@code Error} abandons every prepared body: the batch stays
+     * closeable, {@code awaitBodyCompletion} settles, and no prepared future retains its user
+     * callable.
+     */
+    @Test
+    void initialWindowHandoffErrorReleasesPreparedBodiesAndSettlesTheBatch() throws Exception {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            throw new AssertionError("handoff broken");
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 2, TaskType.IO_BOUND));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+
+            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
+            batch.close();
+            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * L7's "any failure" is literal: {@code execute(Runnable)} declares no checked exceptions, but
+     * an executor can still throw one through generics erasure. The batch catch sites cover {@code
+     * Throwable}, so even that terminates the batch as a submission failure instead of escaping
+     * {@code submitAll}.
+     */
+    @Test
+    void sneakyCheckedHandoffFailureFailsEveryElementAsSubmissionFailure() {
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
+            sneakyThrow(new IOException("sneaky handoff"));
+        }));
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> 1, () -> 2));
+
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(IOException.class);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    /**
+     * The handoff window: the worker executor blocks inside the second {@code execute} until the
+     * cancellation lands, so the submitter loop (running the claimed task and handing it off)
+     * races the cancellation callback (abandoning the elements still unsubmitted). The claimed
+     * element must stay consistent: once handed to the executor it can only be cancelled through
+     * its own future, so its callable runs and the caller sees the real result — never
+     * SUBMISSION_FAILURE for a task that ran. Only genuinely unsubmitted elements are abandoned.
+     */
+    @Test
+    void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
+        CountDownLatch secondExecuteEntered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger executions = new AtomicInteger();
+        AtomicInteger ranValues = new AtomicInteger();
+        ExecutorService backing = Executors.newSingleThreadExecutor();
+        ExecutorService blocking = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+                backing.shutdown();
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return backing.shutdownNow();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+                return backing.awaitTermination(timeout, unit);
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                // The body runs on the pool's own thread; the second handoff parks that worker
+                // thread inside execute, leaving the calling thread free to cancel mid-handoff.
+                backing.execute(() -> {
+                    if (executions.incrementAndGet() >= 2) {
+                        secondExecuteEntered.countDown();
+                        try {
+                            release.await(2, TimeUnit.SECONDS);
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
                     }
-                }
-                command.run();
+                    command.run();
+                });
             }
         };
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(blocking);
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             SlidingWindowSubmitter<Integer> executor =
-                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            TaskBatchResult<Integer> batch = executor.submitAll(futures(
-                    () -> 1,
-                    () -> {
-                        ranValues.addAndGet(2);
-                        return 2;
-                    },
-                    () -> {
-                        ranValues.addAndGet(3);
-                        return 3;
-                    }));
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND));
+            TaskBatch<Integer> batch = submitAllWithViews(
+                    executor,
+                    futures(
+                            () -> 1,
+                            () -> {
+                                ranValues.addAndGet(2);
+                                return 2;
+                            },
+                            () -> {
+                                ranValues.addAndGet(3);
+                                return 3;
+                            }));
 
             assertThat(secondExecuteEntered.await(5, TimeUnit.SECONDS)).isTrue();
             batch.submitCanceller().cancel(true);
@@ -420,45 +845,45 @@ class SlidingWindowSubmitterTest {
             assertThat(ranValues.get()).isEqualTo(2);
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
         }
     }
 
     /**
      * The claim-before-completion-check ordering is what keeps the cancellation callback from
-     * abandoning an index the submission loop already accepted: once {@code take()} hands over a
-     * slot, {@code nextIndex} is bumped before any check, so the callback abandons only strictly
-     * later placeholders and the loop itself disposes of the claimed index. The vulnerable window
-     * is nanoseconds wide and cannot be gated deterministically, so this test hammers it: many
-     * rounds of submit + cancel at staggered moments, asserting the one observable corruption the
-     * race produced — a task body that ran while its placeholder was already abandoned (user code
-     * ran, the caller reads "never submitted"). On the fixed code the invariant holds by
-     * construction; if the claim ever moves back below the completion check, staggered rounds
-     * make the corruption possible again.
+     * abandoning an index the submission loop already accepted: {@code nextIndex} is claimed
+     * atomically before any post-claim check, so the callback abandons only strictly later
+     * elements and the claimer itself disposes of the claimed index. The vulnerable window is
+     * nanoseconds wide and cannot be gated deterministically, so this test hammers it: many rounds
+     * of submit + cancel at staggered moments, asserting the one observable corruption the race
+     * produced — a task body that ran while its element was already abandoned (user code ran,
+     * the caller reads "never submitted"). On the fixed code the invariant holds by construction;
+     * if the claim ever moves back below the completion check, staggered rounds make the corruption
+     * possible again.
      */
     @Test
     void repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             for (int round = 0; round < 100; round++) {
                 AtomicInteger ran0 = new AtomicInteger();
                 AtomicInteger ran1 = new AtomicInteger();
                 SlidingWindowSubmitter<Integer> executor =
-                        new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-                TaskBatchResult<Integer> batch = executor.submitAll(futures(
-                        () -> {
-                            ran0.incrementAndGet();
-                            return 1;
-                        },
-                        () -> {
-                            ran1.incrementAndGet();
-                            return 2;
-                        }));
+                        new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND));
+                TaskBatch<Integer> batch = submitAllWithViews(
+                        executor,
+                        futures(
+                                () -> {
+                                    ran0.incrementAndGet();
+                                    return 1;
+                                },
+                                () -> {
+                                    ran1.incrementAndGet();
+                                    return 2;
+                                }));
 
-                // Stagger the cancellation across the phases of the submission loop: before the
-                // submitter thread parks in take(), while it is parked, right around the moment
-                // take() hands over the freed slot, and after the handoff completed.
+                // Stagger the cancellation across the phases of a claim-and-handoff: before a
+                // completion claims the next index, while a claim is in flight, right around the
+                // moment it hands the freed slot off, and after the handoff completed.
                 switch (round % 5) {
                     case 1:
                         Thread.sleep(1L);
@@ -482,8 +907,7 @@ class SlidingWindowSubmitterTest {
                                 && batch.results().get(1).isDone());
 
                 // The invariant: a body that entered user code is reported as a real success,
-                // never as an abandoned placeholder; an abandoned placeholder never entered user
-                // code.
+                // never as an abandoned element; an abandoned element never entered user code.
                 assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
                         .as("round %s element 0", round)
                         .isEqualTo(ran0.get() == 1);
@@ -493,34 +917,126 @@ class SlidingWindowSubmitterTest {
             }
         } finally {
             workers.shutdownNow();
-            submitter.shutdownNow();
+        }
+    }
+
+    @Test
+    void cancelledQueuedTaskIsTheSameObjectThePoolPurgeRemoves() throws Exception {
+        // Regression for the old completion-service wrapper: cancelling the future returned to the
+        // caller must be visible on the exact runnable held by the worker pool's queue, so
+        // ThreadPoolExecutor.purge can release it.
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(pool);
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 2, TaskType.IO_BOUND));
+            List<ExecutionPhaseHintFuture<Integer>> tasks = futures(
+                    () -> {
+                        workerStarted.countDown();
+                        releaseWorker.await();
+                        return 1;
+                    },
+                    () -> 2);
+            TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
+            assertThat(batch.results()).hasSize(2);
+            assertThat(workerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(pool.getQueue()).containsExactly((Runnable) tasks.get(1));
+            assertThat(tasks.get(1).cancel(false)).isTrue();
+
+            pool.purge();
+            assertThat(pool.getQueue()).isEmpty();
+        } finally {
+            releaseWorker.countDown();
+            workers.shutdownNow();
         }
     }
 
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)
-                .map(task -> ExecutionPhaseHintFuture.create(task, phase -> {}))
-                .collect(java.util.stream.Collectors.toList());
-    }
-
-    private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {
-        return context(tasks, parallelism, type, false);
+                .map(task -> ExecutionPhaseHintFuture.create(task))
+                .collect(Collectors.toList());
     }
 
     /**
-     * Builds a unit for the given type and caller-thread fallback. The fallback is explicit: no
-     * task type implies it, so a rejection test must ask for inline execution itself.
+     * Models the R6 fault: capture every record, and when asked to break, throw from {@code
+     * publish} exactly on the SEVERE handoff-Error diagnostic. Other records pass through so
+     * unrelated logging cannot disturb the test.
      */
-    private static MultiTaskContext context(int tasks, int parallelism, TaskType type, boolean runOnCallerThread) {
-        return MultiTaskContext.resolve(
+    private static Handler boomOnHandoffError(boolean broken, List<LogRecord> captured) {
+        return new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                captured.add(record);
+                if (broken
+                        && record.getMessage() != null
+                        && record.getMessage().contains("executor handoff threw an Error")) {
+                    throw new IllegalStateException("handler boom");
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+    }
+
+    /** An executor service whose {@code execute()} delegates to the given handoff. */
+    private static ExecutorService handoffExecutor(Consumer<Runnable> handoff) {
+        return new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                handoff.accept(command);
+            }
+        };
+    }
+
+    /** Throws a checked throwable past {@code execute()}'s unchecked signature, the way a hostile executor can. */
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrow(Throwable failure) throws T {
+        throw (T) failure;
+    }
+
+    private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {
+        return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("batch", Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(type)
-                        .runOnCallerThread(runOnCallerThread)
                         .spec(),
-                tasks,
-                null);
+                tasks));
     }
 
     private static int runTracked(AtomicInteger active, AtomicInteger maximum, CountDownLatch release, int value)

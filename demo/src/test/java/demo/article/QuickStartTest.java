@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
@@ -54,17 +54,37 @@ class QuickStartTest {
         TaskBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
-        assertThat(result1.results()).hasSize(3);
-        assertThat(result1.results().get(0).get()).isEqualTo(1);
-        assertThat(result1.results().get(1).get()).isEqualTo(4);
-        assertThat(result1.results().get(2).get()).isEqualTo(9);
+        assertThat(result1.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .hasSize(3);
+        assertThat(result1.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(0)
+                        .get())
+                .isEqualTo(1);
+        assertThat(result1.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(1)
+                        .get())
+                .isEqualTo(4);
+        assertThat(result1.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(2)
+                        .get())
+                .isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
         BatchOptions timeoutOpts = BatchOptions.timeout("square", java.time.Duration.ofMillis(500));
         TaskBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
 
         // 验证：超时设置下仍然能正常完成
-        for (Future<Integer> future : result2.results()) {
+        for (Future<Integer> future : result2.results().stream()
+                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                .collect(java.util.stream.Collectors.toList())) {
             Integer value = future.get(5, TimeUnit.SECONDS);
             assertThat(value).isPositive();
         }
@@ -76,9 +96,17 @@ class QuickStartTest {
         TaskBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 
         // 验证：并发限制下所有结果正确
-        assertThat(result3.results()).hasSize(8);
+        assertThat(result3.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .hasSize(8);
         for (int i = 0; i < bigList.size(); i++) {
-            assertThat(result3.results().get(i).get()).isEqualTo(bigList.get(i) * 2);
+            assertThat(result3.results().stream()
+                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                            .collect(java.util.stream.Collectors.toList())
+                            .get(i)
+                            .get())
+                    .isEqualTo(bigList.get(i) * 2);
         }
 
         // ---- 步骤 5：查看结果 ----

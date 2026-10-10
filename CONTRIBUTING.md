@@ -8,13 +8,16 @@ repeats.
 
 ## Before you write code: file an issue first
 
-Most changes start with an issue — not as ceremony, but because the issue is
-where the direction is agreed before anyone invests in a pull request.
+For external contributors, most changes start with an issue — not as ceremony,
+but because the issue is where the direction is agreed before anyone invests in
+a pull request. (Maintainer-driven work may skip this step; see
+[AGENTS.md — Issue Tracking](AGENTS.md#issue-tracking). Contributions arriving
+as pull requests still follow the rules below.)
 
 **An issue is required first for:**
 
 - a new capability; a new public type, method, or option
-- a change to existing behaviour or to a documented contract
+- a change to existing behavior or to a documented contract
 - a signature change; anything that needs a `design/` proposal
 
 **No issue needed for:**
@@ -25,10 +28,8 @@ where the direction is agreed before anyone invests in a pull request.
 - internal refactors that leave public signatures and contracts untouched
 - dependency or version bumps, and routine maintenance
 
-This is a summary; the authoritative list is
-[AGENTS.md — Issue Tracking](AGENTS.md#issue-tracking). When in doubt, file the
-issue — even for a change you think is small, letting others know what you are
-doing helps.
+When in doubt, file the issue — even for a change you think is small, letting
+others know what you are doing helps.
 
 Don't surprise the maintainers with a large pull request for something that
 required an issue: open the issue, agree on the direction there, then code. If
@@ -42,7 +43,7 @@ The issue forms live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/):
 | Form | Use it for |
 |---|---|
 | **Bug report** | Something behaves differently from what the documentation promises |
-| **Design proposal** | A new capability, or a change to existing behaviour or API |
+| **Design proposal** | A new capability, or a change to existing behavior or API |
 | **Documentation issue** | A page, javadoc, or example that is wrong, missing, or misleading |
 
 Blank issues are also enabled for anything that does not fit a form. The
@@ -53,10 +54,39 @@ proposal is judged against. Ideas already weighed and declined are recorded in
 the [idea graveyard](docs/zh/design/idea-graveyard.md)
 ([en](docs/en/design/idea-graveyard.md)); check there before proposing.
 
+### Issue maintenance
+
+Issues are an opt-in public surface for maintainer-driven work; whoever opens
+one maintains it. The authoritative decision record is the implementing pull
+request and any accompanying `design/` document.
+
+- Keep an issue updated when the direction changes, and link the implementing
+  PR with `Closes #NN` or `Refs #NN`.
+- Use the current release milestone for findings that must land before that
+  release; leave other backlog items un-milestoned.
+
+### Labels and the optional agent runner
+
+Maintainers may run an automated triage and agent pass over open issues
+([design/issue-automation.md](design/issue-automation.md)). You do not need to
+manage its labels; they are listed here so they are not a surprise:
+
+| Label | Meaning |
+|---|---|
+| `priority/p0`, `priority/p1`, `priority/p2` | How soon it should land on the dev line |
+| `needs-decision` | Waits for a maintainer decision; the runner leaves it alone |
+| `agent/eligible` | Triage judged it fit for unattended agent work |
+| `agent/ready` | A maintainer authorized the runner to work on it |
+| `agent/working`, `agent/review`, `agent/blocked` | An agent run claimed it, waits for a maintainer merge, or stopped |
+
+The runner acts only on text written by maintainers. An issue from outside the
+maintainer team is triaged for a maintainer, never handed to an agent as is.
+
 ## Set up and verify locally
 
 The library targets Java 8 (`src/main/java` must stay on Java 8 APIs); tests
-compile at release 11, so build with JDK 11 or newer and Maven.
+compile at release 11. Build with JDK 25 and Maven — Error Prone/NullAway run
+at compile time, and the enforcer rejects older build JDKs.
 
 ```bash
 mvn test                               # all tests
@@ -71,11 +101,13 @@ do not need Java tests — see
 ## Commits and pull requests
 
 - Work on a branch; do not push to `main` directly. Open a pull request
-  against `main`.
+  against the current development line (`dev/vX.Y.Z`, the newest such
+  branch); maintainers decide when a development line merges into `main` for a
+  release.
 - Commit messages follow Conventional Commits with a lowercase summary, e.g.
   `feat: add batch deadline option`, `fix: drain queue before close`,
   `docs: clarify cancellation contract` (see
-  [AGENTS.md — Git Workflow](AGENTS.md#git-workflow)).
+  [AGENTS.md — Verification And Completion](AGENTS.md#verification-and-completion)).
 - Link the pull request to its issue: `Closes #NN` when the PR completes the
   issue, `Refs #NN` when it is one step of it. Changes that don't require an
   issue (list above) may omit the link.
@@ -88,18 +120,37 @@ do not need Java tests — see
 
 The library is in `0.x`: breaking changes are acceptable when they carry a
 documented rationale. If your change renames or alters a public API or a
-documented contract, update [docs/en/migration-v0.3.md](docs/en/migration-v0.3.md)
-and [docs/zh/migration-v0.3.md](docs/zh/migration-v0.3.md) in the same pull
-request, and state the rationale in the PR description.
+documented contract, update both migration guides of the current release line
+in the same pull request: `docs/en/migration-v<major>.<minor>.md` and
+`docs/zh/migration-v<major>.<minor>.md`, where `<major>.<minor>` comes from the
+`pom.xml` version (on `0.3.0-SNAPSHOT`,
+[docs/en/migration-v0.3.md](docs/en/migration-v0.3.md) and
+[docs/zh/migration-v0.3.md](docs/zh/migration-v0.3.md)). State the rationale
+in the PR description.
+
+CI enforces the signature half of this rule. On every pull request the `build`
+job compiles the merge base and runs `scripts/check-api-surface.py`, which
+compares the public and protected members of public types, nested types and the
+`queue` package included, between the merge base and the head. A removed member
+or a changed signature fails the job unless the pull request changes both
+guides; additions never fail. The job summary lists every addition, removal,
+and changed signature. Behavior and contract changes leave no trace in the
+signatures, so they still need migration notes without a reminder from CI.
+`PublicApiSurfaceTest` still pins the set of public types at test time; the CI
+check covers their members.
 
 ## Design proposals
 
-Larger direction discussions happen in a design proposal issue (form above).
-Proposals that need extended reasoning get a document under `design/`, named in
-the issue; the document is committed together with the change that implements
-it. Before changing execution-engine, cancellation, task-group, or queue
-behaviour, read [design/AGENTS.md](design/AGENTS.md) — it routes you to the
-current design contracts, which are the authority for how the library behaves.
+Direction discussions happen either in a design proposal issue (form above) or
+directly in a document under `design/` that ships with the implementing pull
+request — the maintainer chooses the venue; the document carries the reasoning
+either way. Whether in an issue or a PR, a proposal that touches public API or
+a documented contract must state specifically: the best code a user can write
+today, the same code with the change applied, and the failure mode the change
+removes; breaking changes additionally name the migration path. Before changing
+execution-engine, cancellation, task-group, or queue behavior, read
+[design/AGENTS.md](design/AGENTS.md) — it routes you to the current design
+contracts, which are the authority for how the library behaves.
 
 ## License
 

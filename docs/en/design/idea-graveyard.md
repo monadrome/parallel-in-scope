@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> Historical examples in this note may use the pre-v0.2 API. Current application wiring uses `ParRuntime.builder()` and the per-scope option types (`BatchOptions`/`TaskGroupOptions`/`TaskOptions`); see the [migration guide](../migration-v0.2.md).
+> Historical examples in this note may use pre-0.2 API. Current application wiring uses `ParRuntime.builder()` and the per-scope option types (`BatchOptions`/`TaskOptions`); see the [v0.3 migration guide](../migration-v0.3.md).
 
 This page records features we seriously considered but ultimately decided not to implement, together with the reasons for rejecting them.
 
@@ -43,6 +43,14 @@ An `invokeAll`-style API for unrelated callable types cannot provide a useful ty
 ## Adaptive concurrency
 
 Automatically changing parallelism makes latency and resource behavior difficult to predict. The caller should own the concurrency limit and adjust it using application metrics and an explicit policy.
+
+## A library-defined throwing mapper
+
+`Par.map` takes the standard `java.util.function.Function`, whose `apply` cannot declare checked exceptions, so a task body that does IO must wrap what it throws. A library-defined `ThrowingFunction` — or a `map` overload taking one — was considered and rejected. The kernel already runs every task body as a `Callable` and attributes cancellation, deadlines, and `USER_FAILURE` identically under either signature, so the change buys no structured-concurrency guarantee; it only widens the public surface with a second functional interface and costs a breaking, binary-incompatible signature change plus a migration for `Function`-typed call sites. Wrapping stays caller policy: catch and rethrow unchecked, return an explicit domain result, or move that work to a group member, which takes a `Callable`; a single-member group covers unary work. The direction is closed by explicit user decision, not deferred; the conclusion and full rejection reasons are recorded in `design/decision-log.md`, and the point-by-point analysis is recoverable with `git show db2ab2d:design/archive/par-map-throwing-function-v0.3-proposal.md`.
+
+## A per-submission caller-thread fallback (`runOnCallerThread`)
+
+`TaskOptions`/`BatchOptions` briefly carried an option that ran a task body on the submitting thread when the bound executor rejected it. It was removed before 0.3.0 shipped and never appeared in a released version. It put user code on threads the caller did not expect — every borrowed-thread path needed its own isolation argument — and it duplicated a decision the JDK already assigns to the executor's `RejectedExecutionHandler`, declared once at registration. Two capabilities went with it: the option worked with any `ExecutorService` while `CallerRunsPolicy` exists only on `ThreadPoolExecutor` (other pools need a decorate-and-`run()` wrapper, shown in the migration guide); and the library-internal fallback throttled batch submission by occupying the submitting thread, a timing no executor-side handler reproduces. The supported paths are `MoreExecutors.newDirectExecutorService()` and `CallerRunsPolicy`; the kernel's `run()` isolates the borrowed thread's interrupt flag and submission scope regardless of which one is used.
 
 ## What will not be added
 

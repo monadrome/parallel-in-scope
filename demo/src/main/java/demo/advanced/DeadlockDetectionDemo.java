@@ -1,11 +1,15 @@
 package demo.advanced;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.ParId;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
+import io.github.monadrome.parallelinscope.ParRuntimeDeadlockPolicy;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskGraphObservationScope;
+import io.github.monadrome.parallelinscope.TaskGraphReport;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +20,9 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * 死锁检测示例：演示线程池嵌套调用导致的死锁
+ *
+ * <p>示例在请求级图观测作用域中运行：作用域关闭时对记录的依赖图运行一次潜在死锁检测，
+ * 并通过 {@code reportFuture()} 发布 {@code TaskGraphReport}（状态、环标志与边文本）。
  *
  * <p>场景：同一个固定大小线程池（4 线程）被嵌套调用占用，导致循环等待：
  *
@@ -46,10 +53,14 @@ public class DeadlockDetectionDemo {
         ParRuntime global = ParRuntime.builder()
                 .register(ParId.of("shared-pool"), pool)
                 .defaultPar(ParId.of("shared-pool"))
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         Par par = global.par(ParId.of("shared-pool"));
 
-        try {
+        // 请求级图观测作用域：关闭时对记录的依赖图运行一次检测，经 reportFuture() 发布报告
+        ListenableFuture<TaskGraphReport> reportFuture;
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            reportFuture = observation.reportFuture();
             System.out.println("线程池大小: 4（固定）");
             System.out.println("task-A 并行度=4，占满全部线程");
             System.out.println("每个 task-A 子任务内部调用 task-B，需要同一个池分配线程");
@@ -74,7 +85,10 @@ public class DeadlockDetectionDemo {
 
             // 等待完成 — 由于死锁，会超时
             try {
-                Futures.allAsList(result.results()).get(6, TimeUnit.SECONDS);
+                Futures.allAsList(result.results().stream()
+                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                .collect(java.util.stream.Collectors.toList()))
+                        .get(6, TimeUnit.SECONDS);
                 System.out.println("[main] 所有任务完成（意外！）");
             } catch (TimeoutException e) {
                 long elapsed = System.currentTimeMillis() - start;
@@ -96,6 +110,17 @@ public class DeadlockDetectionDemo {
         } finally {
             global.close();
             pool.shutdownNow();
+        }
+
+        // close() 返回时报告必然已发布：直接读取检测结果
+        try {
+            TaskGraphReport report = Futures.getDone(reportFuture);
+            System.out.println("\n[检测报告] status=" + report.status());
+            if (report.anyIssue()) {
+                System.out.println("[检测报告] " + report);
+            }
+        } catch (java.util.concurrent.ExecutionException detectionFailure) {
+            System.out.println("\n[检测报告] 检测异常: " + detectionFailure.getCause());
         }
     }
 
@@ -120,7 +145,10 @@ public class DeadlockDetectionDemo {
                 optionsB);
 
         try {
-            Futures.allAsList(resultB.results()).get(5, TimeUnit.SECONDS);
+            Futures.allAsList(resultB.results().stream()
+                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                            .collect(java.util.stream.Collectors.toList()))
+                    .get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             System.out.println(
                     "  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());

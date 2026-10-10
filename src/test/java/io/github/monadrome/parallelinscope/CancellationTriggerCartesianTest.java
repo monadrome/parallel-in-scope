@@ -64,7 +64,7 @@ public class CancellationTriggerCartesianTest {
             }
 
             CancellationToken.State expected =
-                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELED;
+                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELLED;
             awaitState(token, expected);
             awaitCancelled(fixture.future);
             awaitCancelled(submitter);
@@ -97,7 +97,7 @@ public class CancellationTriggerCartesianTest {
             token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             token.cancel(false);
 
-            awaitState(token, CancellationToken.State.CANCELED);
+            awaitState(token, CancellationToken.State.CANCELLED);
             awaitCancelled(fixture.future);
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")
@@ -173,6 +173,8 @@ public class CancellationTriggerCartesianTest {
         }
 
         /** Creates pending or entered work with deterministic entry and release controls. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static WorkFixture create(Workload workload) {
             if (workload == Workload.PENDING) {
                 return new WorkFixture(

@@ -2,26 +2,18 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable record of one completed task — a {@code Par.map} batch element or a task-group
- * member.
+ * Immutable final observation of a task whose result is terminal and body has exited or can never
+ * start. Synchronous batches expose available observations through TaskBatchResult.completions;
+ * groups expose them through TaskGroupResult.members and terminal.
  *
- * <p>The same record serves two delivery points: a {@code TaskListener} receives it at task
- * completion (carrying the task result), and a {@link TaskGroupResult} embeds one per member — plus
- * one for the optional terminal combine — as its terminal snapshot. Two fields are
- * delivery-specific: {@link #result()} is only non-null on
- * listener delivery of a successful task (a group member's result stays in its future), and
- * {@link #taskIndex()} is always zero for group members.
- *
- * <p>Listener events attribute the outcome observed at completion time — {@link
- * TaskOutcome#SUCCESS}, {@link TaskOutcome#USER_FAILURE}, or a cancellation state read from the
- * task token. A group snapshot may carry richer post-hoc attribution (for example {@link
- * TaskOutcome#FAIL_FAST}) derived after the group converges.
- *
- * <p>A member cancelled before running never marks a start or end time; its {@code
- * startTimeNanos} and {@code endTimeNanos} stay zero and the derived durations report zero.
+ * <p>Successful observations contain the actual value, including null. Outcomes agree with the
+ * enclosing execution's frozen results. A never-started task has zero start/end times and
+ * durations; the zero sentinel is recognized before any subtraction, because ticker readings may
+ * legally be negative. Missing observations are represented explicitly by the enclosing result,
+ * rather than by records with provisional end times.
  */
 public final class TaskCompletion<T> {
 
@@ -50,7 +42,7 @@ public final class TaskCompletion<T> {
             @Nullable Throwable failure) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.unitId = Objects.requireNonNull(unitId, "unitId cannot be null");
-        if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+        Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
         this.startTimeNanos = startTimeNanos;
@@ -123,8 +115,68 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the logical task name: the unit name on listener delivery, the registered member
-     * name in a group snapshot.
+     * Creates the internal final observation snapshot: the full per-task record with its
+     * real identity, timings, outcome, and — on success — result.
+     */
+    static <T> TaskCompletion<T> snapshot(
+            String taskName,
+            String unitId,
+            int taskIndex,
+            long submitTimeNanos,
+            long startTimeNanos,
+            long endTimeNanos,
+            TaskOutcome outcome,
+            @Nullable T result,
+            @Nullable Throwable failure) {
+        return new TaskCompletion<>(
+                taskName, unitId, taskIndex, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, result, failure);
+    }
+
+    /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
+    static <T> TaskCompletion<T> withResult(TaskCompletion<?> timing, ImmediateResult<T> result) {
+        @Nullable T value = null;
+        if (result.outcome() == TaskOutcome.SUCCESS) {
+            try {
+                value = result.valueOrThrow();
+            } catch (java.util.concurrent.ExecutionException impossible) {
+                throw new AssertionError("successful result cannot fail", impossible);
+            }
+        }
+        return snapshot(
+                timing.taskName(),
+                timing.unitId(),
+                timing.taskIndex(),
+                timing.submitTimeNanos(),
+                timing.startTimeNanos(),
+                timing.endTimeNanos(),
+                result.outcome(),
+                value,
+                result.failure());
+    }
+
+    /**
+     * Creates the single group-level summary carried by the observation of {@link
+     * TaskGroup#completionFuture()}: the group name and id stand in for the task identity, the
+     * index is zero, submit/start/end are the group-level times, and the result is the {@link
+     * TaskGroupReport} itself. The summary describes no additional task body, so it is not counted
+     * among the members or in the TaskGraph.
+     */
+    static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
+        return new TaskCompletion<>(
+                result.groupName(),
+                result.groupId(),
+                0,
+                result.startTimeNanos(),
+                result.startTimeNanos(),
+                result.endTimeNanos(),
+                result.outcome(),
+                result,
+                result.recordedFailure());
+    }
+
+    /**
+     * Returns the logical task name: the unit name on a unary or batch snapshot, the registered
+     * member name in a group snapshot.
      */
     public String taskName() {
         return taskName;
@@ -166,14 +218,23 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the task result on listener delivery of a successful task; null for a failed task, a
-     * successful null result, or any group snapshot.
+     * Returns the successful task's value, including null; null also represents a failed task.
      */
     public @Nullable T result() {
         return result;
     }
 
-    /** Returns the task failure, or null on success. */
+    /**
+     * Returns the throwable recorded for this task, or null on success.
+     *
+     * <p>Every non-success outcome carries a throwable: the body-thrown exception for {@link
+     * TaskOutcome#USER_FAILURE} — including an {@link InterruptedException} or {@link
+     * java.util.concurrent.CancellationException} the body raised itself — and, for
+     * cancellation-attributed endings such as {@link TaskOutcome#TIMEOUT} or {@link
+     * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome.
+     * Read {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
+     * detail.
+     */
     public @Nullable Throwable failure() {
         return failure;
     }
@@ -181,24 +242,39 @@ public final class TaskCompletion<T> {
     /**
      * Checks whether the task was classified as queued.
      *
-     * @return {@code true} if the measured queue wait exceeded the threshold
+     * @return {@code true} if the task started and its measured queue wait exceeded the threshold;
+     *     a task that never started — including one queued but never handed to a thread — reports
+     *     {@code false}, because no start reading exists to measure against the threshold
      */
     public boolean enqueued() {
-        return startTimeNanos - submitTimeNanos > ENQUEUE_THRESHOLD_NANOS;
+        return !neverStarted() && startTimeNanos - submitTimeNanos > ENQUEUE_THRESHOLD_NANOS;
     }
 
     /** Returns the execution duration, or zero if the task never started. */
     public Duration executionTime() {
-        return Duration.ofNanos(Math.max(0L, endTimeNanos - startTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - startTimeNanos));
     }
 
     /** Returns the queue wait duration, or zero if the task never started. */
     public Duration waitTime() {
-        return Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
     }
 
     /** Returns the duration from submission to completion, or zero if the task never started. */
     public Duration totalTime() {
-        return Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
+    }
+
+    /**
+     * A never-started task records zero for both start and end. The zero sentinel — never the
+     * sign of the clock — decides started-ness, because ticker readings may legally be negative.
+     *
+     * <p>The sentinel is the pair {@code (0, 0)}, so a genuinely started task whose two readings
+     * both happened to be zero is reported as never started. That requires the monotonic clock to
+     * read exactly zero at both the start and end samples, which is unambiguous within a single
+     * tick; the factory convention is that {@code (0, 0)} means "never started".
+     */
+    private boolean neverStarted() {
+        return startTimeNanos == 0L && endTimeNanos == 0L;
     }
 }

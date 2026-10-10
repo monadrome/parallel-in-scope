@@ -52,8 +52,18 @@
         <mockito.version>5.23.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <jsr305.version>3.0.2</jsr305.version>
-        <checker-qual.version>3.55.1</checker-qual.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <errorprone.version>2.50.0</errorprone.version>
+        <nullaway.version>0.14.2</nullaway.version>
+
+        <!-- PIT run defaults live here, not as inline plugin <configuration>. An
+             explicit configuration value shadows the parameter's user property, so
+             inline values would make `-DtargetClasses` / `-DtargetTests` /
+             `-Dmutators` no-ops; as project properties they are the descriptor
+             defaults and stay overridable. -->
+        <targetClasses>io.github.monadrome.parallelinscope.*</targetClasses>
+        <targetTests>io.github.monadrome.parallelinscope.*</targetTests>
+        <mutators>CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS</mutators>
     </properties>
 
     <dependencies>
@@ -71,18 +81,13 @@
             <version>${ttl.version}</version>
         </dependency>
 
-        <!-- Nullability annotations (compile-only, transitively provided by Guava) -->
+        <!-- Nullability annotations: JSpecify (compile scope per JSpecify guidance —
+             annotations appear in public API signatures and downstream NullAway/Kotlin/
+             IntelliJ must read them; also transitively provided by Guava) -->
         <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-            <version>${jsr305.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.checkerframework</groupId>
-            <artifactId>checker-qual</artifactId>
-            <version>${checker-qual.version}</version>
-            <scope>provided</scope>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>${jspecify.version}</version>
         </dependency>
 
         <!-- Test: JUnit 5 -->
@@ -127,7 +132,50 @@
                 <configuration>
                     <release>${java.release}</release>
                     <testRelease>${maven.compiler.testRelease}</testRelease>
+                    <!-- Error Prone + NullAway: null errors fail the build at compile time.
+                         OnlyNullMarked restricts checking to @NullMarked packages.
+                         javac internal packages are opened via .mvn/jvm.config. -->
+                    <compilerArgs>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${errorprone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>enforce-jdk-25-plus</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- Error Prone/NullAway run on the build JDK; the bytecode
+                                     target stays at release 8. -->
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>Error Prone/NullAway requires building on JDK 25 (LTS); the artifact still targets Java 8 bytecode via release=${java.release}.</message>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -220,12 +268,9 @@
                         <configuration>
                             <!-- No testPlugin parameter: it was removed from pitest-maven and the
                                  junit5 plugin is auto-detected from the plugin dependency above. -->
-                            <targetClasses>
-                                <param>io.github.monadrome.parallelinscope.*</param>
-                            </targetClasses>
-                            <targetTests>
-                                <param>io.github.monadrome.parallelinscope.*</param>
-                            </targetTests>
+                            <!-- targetClasses / targetTests / mutators come from the
+                                 same-named project properties so their user properties can
+                                 override them; see <properties>. -->
                             <!-- Demonstration programs are executable examples, not library
                                  contract code; keep them out of the mutation score denominator. -->
                             <excludedClasses>
@@ -236,22 +281,13 @@
                                 <param>XML</param>
                             </outputFormats>
                             <threads>8</threads>
-                            <!-- VoidMethodCallMutator mostly produces equivalent mutants on
-                                 concurrent queue code (Monitor.enter/leave/signal removals that
-                                 do not alter observable single-threaded behavior). The mutators
-                                 list below replaces PIT's default set, omitting VOID_METHOD_CALLS
-                                 to focus the score on behavior-detectable mutations. -->
-                            <mutators>
-                                <param>CONDITIONALS_BOUNDARY</param>
-                                <param>NEGATE_CONDITIONALS</param>
-                                <param>INCREMENTS</param>
-                                <param>INVERT_NEGS</param>
-                                <param>NULL_RETURNS</param>
-                                <param>FALSE_RETURNS</param>
-                                <param>TRUE_RETURNS</param>
-                                <param>PRIMITIVE_RETURNS</param>
-                                <param>EMPTY_RETURNS</param>
-                            </mutators>
+                            <!-- The default mutator set is the `mutators` project property.
+                                 It replaces PIT's default set, omitting VOID_METHOD_CALLS
+                                 (VoidMethodCallMutator mostly produces equivalent mutants on
+                                 concurrent queue code: Monitor.enter/leave/signal removals that
+                                 do not alter observable single-threaded behavior). A core-targeted
+                                 run restores it with an explicit -Dmutators override; see
+                                 AGENTS.md "Adversarial Review". -->
                             <!-- Shutdown-contract mutants can release several independent waiters;
                                  keep the per-mutation timeout above their combined bounded waits. -->
                             <timeoutConstant>60000</timeoutConstant>

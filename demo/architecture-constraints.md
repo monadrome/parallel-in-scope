@@ -93,13 +93,13 @@ mvn test
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │          根包：公共 API + callbacks             │   │
-│  │  ParRuntime, Par, BatchOptions, TaskGroup,        │   │
-│  │  TaskBatchResult, CancellationToken, listeners...   │   │
+│  │  ParRuntime, Par, BatchOptions, GroupStart...        │   │
+│  │  TaskBatchResult, TaskGroupResult, ImmediateResult   │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │       根包：package-private 执行内核          │   │
-│  │  context, graph, submission, purge, phase state     │   │
+│  │  context, graph, submission, phase state            │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │

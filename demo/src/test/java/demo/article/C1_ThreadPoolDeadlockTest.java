@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -102,10 +102,20 @@ class C1_ThreadPoolDeadlockTest {
 
                         // 收集内层结果
                         StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < innerResult.results().size(); i++) {
+                        for (int i = 0;
+                                i
+                                        < innerResult.results().stream()
+                                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                                .collect(java.util.stream.Collectors.toList())
+                                                .size();
+                                i++) {
                             if (i > 0) sb.append(",");
                             try {
-                                sb.append(innerResult.results().get(i).get(5, TimeUnit.SECONDS));
+                                sb.append(innerResult.results().stream()
+                                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                        .collect(java.util.stream.Collectors.toList())
+                                        .get(i)
+                                        .get(5, TimeUnit.SECONDS));
                             } catch (Exception e) {
                                 sb.append("error");
                             }
@@ -116,8 +126,18 @@ class C1_ThreadPoolDeadlockTest {
 
             // 验证所有外层任务正常完成，无死锁
             assertThatCode(() -> {
-                        for (int i = 0; i < result.results().size(); i++) {
-                            String value = result.results().get(i).get(10, TimeUnit.SECONDS);
+                        for (int i = 0;
+                                i
+                                        < result.results().stream()
+                                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                                .collect(java.util.stream.Collectors.toList())
+                                                .size();
+                                i++) {
+                            String value = result.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .get(i)
+                                    .get(10, TimeUnit.SECONDS);
                             assertThat(value).startsWith("outer-");
                         }
                     })

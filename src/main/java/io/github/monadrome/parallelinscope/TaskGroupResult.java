@@ -1,167 +1,285 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.Joiner;
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
-import javax.annotation.Nullable;
+import java.util.concurrent.ExecutionException;
+import org.jspecify.annotations.Nullable;
 
-/** Immutable terminal snapshot for a parallel task group. */
-public final class TaskGroupResult {
-    private final String groupId;
-    private final String groupName;
-    private final long startTimeNanos;
-    private final long endTimeNanos;
-    private final long deadlineNanos;
-    private final TaskOutcome outcome;
-    private final @Nullable String failedTaskName;
+/**
+ * Frozen outcome, typed results, and available final observations of a synchronous group.
+ *
+ * <p>Accessors never wait. A terminal result can coexist with a body still unwinding after
+ * cancellation; bodyCompletionConfirmed checks direct members and the combine, not nested children.
+ * Nested calls must separately confirm exit before releasing resources their bodies share. Missing final
+ * observations are omitted, never filled with provisional end times.
+ *
+ * @param <V> single member value or left-nested Tuple2 of member values
+ * @param <R> terminal combine value, or Void when no combine was declared
+ */
+public final class TaskGroupResult<V, R> {
+    private final TaskGroupReport report;
+    private final ImmutableList<String> names;
+    private final ImmutableList<TypeToken<?>> types;
+    private final Map<String, ImmediateResult<?>> results;
     private final Map<String, TaskCompletion<?>> members;
+    private final ImmediateResult<GroupValues<V>> values;
+    private final @Nullable ImmediateResult<R> terminalResult;
     private final @Nullable TaskCompletion<?> terminal;
+    private final Map<String, Integer> unfinishedBodies;
 
     TaskGroupResult(
-            String groupId,
-            String groupName,
-            long startTimeNanos,
-            long endTimeNanos,
-            long deadlineNanos,
-            TaskOutcome outcome,
-            @Nullable String failedTaskName,
+            TaskGroupReport report,
+            ImmutableList<String> names,
+            ImmutableList<TypeToken<?>> types,
+            Map<String, ImmediateResult<?>> results,
             Map<String, TaskCompletion<?>> members,
-            @Nullable TaskCompletion<?> terminal) {
-        this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
-        this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
-        this.startTimeNanos = startTimeNanos;
-        this.endTimeNanos = endTimeNanos;
-        this.deadlineNanos = deadlineNanos;
-        this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
-        this.failedTaskName = failedTaskName;
+            ImmediateResult<GroupValues<V>> values,
+            @Nullable ImmediateResult<R> terminalResult,
+            @Nullable TaskCompletion<?> terminal,
+            Map<String, Integer> unfinishedBodies) {
+        this.report = report;
+        this.names = names;
+        this.types = types;
+        this.results = ImmutableMap.copyOf(results);
         this.members = ImmutableMap.copyOf(members);
+        this.values = values;
+        this.terminalResult = terminalResult;
         this.terminal = terminal;
+        this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
     }
 
     public String groupId() {
-        return groupId;
+        return report.groupId();
     }
 
     public String groupName() {
-        return groupName;
+        return report.groupName();
     }
 
     public long startTimeNanos() {
-        return startTimeNanos;
+        return report.startTimeNanos();
     }
-
+    /** Result-convergence time, independent of task-body exit. */
     public long endTimeNanos() {
-        return endTimeNanos;
+        return report.endTimeNanos();
     }
 
     public long deadlineNanos() {
-        return deadlineNanos;
+        return report.deadlineNanos();
     }
 
-    /** Returns the terminal outcome of the group as a whole. */
     public TaskOutcome outcome() {
-        return outcome;
+        return report.outcome();
     }
 
-    /** Returns the key name of the first failed member or terminal combine, or null if none failed. */
     public @Nullable String failedTaskName() {
-        return failedTaskName;
+        return report.failedTaskName();
     }
 
-    /** Returns each member's terminal snapshot, keyed by registered member name. */
+    /**
+     * The terminal result of the task recorded as failed, whether it is a plain member or the
+     * terminal combine — which {@link #results()} does not contain.
+     *
+     * <p>Empty when no task recorded a failure. This queries the recorded failed task; a group
+     * whose outcome is not {@code SUCCESS} for another reason (a deadline with no recorded failure,
+     * a direct member cancellation) has no failed task to return.
+     *
+     * @return the failed task's result, or empty when no task recorded a failure
+     */
+    public Optional<ImmediateResult<?>> failedTaskResult() {
+        String name = report.failedTaskName();
+        if (name == null) {
+            return Optional.empty();
+        }
+        ImmediateResult<?> member = results.get(name);
+        if (member != null) {
+            return Optional.of(member);
+        }
+        // A failed name absent from the member results is the terminal combine.
+        return Optional.of(Verify.verifyNotNull(terminalResult, "a recorded failed task is a member or the combine"));
+    }
+
+    /** Every member's terminal result, in declaration order. The combine is separate. */
+    public Map<String, ImmediateResult<?>> results() {
+        return results;
+    }
+
+    /** Available final member observations; an absent entry was not confirmed before return. */
     public Map<String, TaskCompletion<?>> members() {
         return members;
     }
 
-    /**
-     * Returns the terminal combine's snapshot, or null when the group declares no combine. A
-     * combine cancelled before running never marks a start or end time, following the member
-     * snapshot convention.
-     */
+    /** Final combine observation, or null if absent or not published before return. */
     public @Nullable TaskCompletion<?> terminal() {
         return terminal;
     }
 
-    /** Returns the number of members admitted into this group. */
-    public int memberCount() {
-        return members.size();
+    public boolean bodyCompletionConfirmed() {
+        return unfinishedBodies.isEmpty();
+    }
+
+    public Map<String, Integer> unfinishedBodies() {
+        return unfinishedBodies;
+    }
+
+    /** All member values on group success; failure includes failure of the declared combine. */
+    public ImmediateResult<GroupValues<V>> valuesResult() {
+        return values;
+    }
+
+    /** Null means no combine was declared. A successful null value has a present result container. */
+    public @Nullable ImmediateResult<R> terminalResult() {
+        return terminalResult;
+    }
+
+    public ImmediateResult<?> resultAt(int index) {
+        checkIndex(index);
+        return Verify.verifyNotNull(results.get(names.get(index)));
+    }
+
+    public ImmediateResult<?> resultOf(String name) {
+        return resultAt(locate(name));
+    }
+
+    public <T> ImmediateResult<T> resultAt(int index, TypeToken<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        checkIndex(index);
+        checkArgument(
+                types.get(index).equals(expectedType),
+                "member at index %s was declared as %s but queried as %s",
+                index,
+                types.get(index),
+                expectedType);
+        return cast(resultAt(index));
     }
 
     /**
-     * Returns this result when the group succeeded; otherwise throws so a caller cannot forget the
-     * failure. The outcome stays available as data through {@link #outcome()}; this is the loud
-     * terminal accessor for call sites that have no use for a failed group's snapshot.
+     * The result container at a declaration position, checked against the class declared for that
+     * slot.
      *
-     * <p>A recorded member or combine failure rethrows as-is when unchecked (checked failures are
-     * wrapped in {@link CompletionException}); a cancellation-shaped outcome with no recorded
-     * failure surfaces as {@link CancellationException} naming the outcome and the triggering task.
+     * <p>Shorthand for {@link #resultAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic member
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
      *
-     * @return this result, when the group succeeded
-     * @throws CancellationException if the group was cancelled, timed out, or lost a member to
-     *     cancellation
-     * @throws RuntimeException the recorded failure, when a member or the combine failed
-     * @throws Error the recorded failure, when a member or the combine threw an error
+     * @throws NullPointerException if {@code expectedType} is null
+     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
+     *     count
+     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
      */
-    public TaskGroupResult orThrow() {
-        if (outcome == TaskOutcome.SUCCESS) {
+    public <T> ImmediateResult<T> resultAt(int index, Class<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        return resultAt(index, TypeToken.of(expectedType));
+    }
+
+    public <T> ImmediateResult<T> resultOf(String name, TypeToken<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        return resultAt(locate(name), expectedType);
+    }
+
+    /**
+     * The named member's result container, checked against the class declared for that slot.
+     *
+     * <p>Shorthand for {@link #resultOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
+     * identical validation, including the exact-match requirement. Use it for non-generic member
+     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
+     *
+     * @throws NullPointerException if {@code name} or {@code expectedType} is null
+     * @throws IllegalArgumentException if no member was declared with that name, or {@code
+     *     expectedType} is not exactly the declared type
+     */
+    public <T> ImmediateResult<T> resultOf(String name, Class<T> expectedType) {
+        checkNotNull(expectedType, "expectedType cannot be null");
+        return resultOf(name, TypeToken.of(expectedType));
+    }
+
+    /** Reads successful group values; rethrows unchecked failures and wraps checked failures. */
+    public GroupValues<V> valuesOrThrow() {
+        orThrow();
+        try {
+            return Verify.verifyNotNull(values.valueOrThrow());
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("successful group values cannot fail", impossible);
+        }
+    }
+
+    /** Reads the successful combine value, including null; requires a declared combine. */
+    public @Nullable R terminalValueOrThrow() {
+        ImmediateResult<R> result = terminalResult;
+        checkState(result != null, "group '%s' declares no combine; use valuesOrThrow()", groupName());
+        orThrow();
+        try {
+            return Verify.verifyNotNull(result).valueOrThrow();
+        } catch (ExecutionException impossible) {
+            throw new AssertionError("successful terminal result cannot fail", impossible);
+        }
+    }
+
+    /** Preserves the group's existing unchecked failure and pure-cancellation conventions. */
+    public TaskGroupResult<V, R> orThrow() {
+        if (outcome() == TaskOutcome.SUCCESS) {
             return this;
         }
-        TaskCompletion<?> failed = failedTaskSnapshot();
-        Throwable failure = failed == null ? null : failed.failure();
+        Throwable failure = report.recordedFailure();
         if (failure instanceof RuntimeException) throw (RuntimeException) failure;
         if (failure instanceof Error) throw (Error) failure;
         if (failure != null) {
-            throw new CompletionException("Task group '" + groupName + "' failed in '" + failedTaskName + "'", failure);
+            throw new CompletionException(
+                    "task group '" + groupName() + "' failed in '" + failedTaskName() + "'", failure);
         }
-        throw new CancellationException("Task group '" + groupName + "' ended with " + outcome
-                + (failedTaskName == null ? "" : " (triggered by '" + failedTaskName + "')"));
+        Throwable cancellation = values.failure();
+        if (cancellation instanceof CancellationException) throw (CancellationException) cancellation;
+        throw new CancellationException("task group '" + groupName() + "' ended with " + outcome());
     }
 
-    /**
-     * Counts member outcomes — including the terminal combine when declared — symmetric with
-     * {@link TaskBatchResult.BatchReport#stateCounts()}.
-     *
-     * @return the immutable outcome count map, empty for an empty group
-     */
+    /** Counts every member and declared combine, including tasks without final observations. */
     public Map<TaskOutcome, Integer> outcomeCounts() {
         EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
-        for (TaskCompletion<?> member : members.values()) {
-            counts.merge(member.outcome(), 1, Integer::sum);
+        for (ImmediateResult<?> result : results.values()) {
+            counts.merge(result.outcome(), 1, Integer::sum);
         }
-        if (terminal != null) {
-            counts.merge(terminal.outcome(), 1, Integer::sum);
+        if (terminalResult != null) {
+            counts.merge(terminalResult.outcome(), 1, Integer::sum);
         }
         return Maps.immutableEnumMap(counts);
     }
 
-    /**
-     * Returns a human-readable one-line summary, symmetric with {@link
-     * TaskBatchResult#reportString()}.
-     *
-     * <p>Format: {@code STATE1:count,STATE2:count | outcome=OUTCOME, failedTask=name}
-     *
-     * @return formatted report string
-     */
     public String reportString() {
-        StringBuilder sb =
+        StringBuilder text =
                 new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
-        sb.append(" | outcome=").append(outcome);
-        if (failedTaskName != null) {
-            sb.append(", failedTask=").append(failedTaskName);
-        }
-        return sb.toString();
+        text.append(" | outcome=").append(outcome());
+        if (failedTaskName() != null) text.append(", failedTask=").append(failedTaskName());
+        return text.toString();
     }
 
-    private @Nullable TaskCompletion<?> failedTaskSnapshot() {
-        if (failedTaskName == null) {
-            return null;
+    private int locate(String name) {
+        checkNotNull(name, "name cannot be null");
+        int index = names.indexOf(name);
+        checkArgument(index >= 0, "no member named '%s'", name);
+        return index;
+    }
+
+    private void checkIndex(int index) {
+        if (index < 0 || index >= names.size()) {
+            throw new IndexOutOfBoundsException(
+                    "index " + index + " is out of bounds for a group with " + names.size() + " members");
         }
-        TaskCompletion<?> failed = members.get(failedTaskName);
-        return failed != null ? failed : terminal;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> ImmediateResult<T> cast(ImmediateResult<?> result) {
+        return (ImmediateResult<T>) result;
     }
 }

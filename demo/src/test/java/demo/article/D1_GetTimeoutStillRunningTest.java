@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -136,7 +136,9 @@ public class D1_GetTimeoutStillRunningTest {
         assertThat(task2Completed.get()).isFalse();
 
         // 验证：所有 Future 都已取消
-        for (Future<Integer> future : result.results()) {
+        for (Future<Integer> future : result.results().stream()
+                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                .collect(java.util.stream.Collectors.toList())) {
             assertThat(future.isCancelled() || future.isDone()).isTrue();
         }
     }

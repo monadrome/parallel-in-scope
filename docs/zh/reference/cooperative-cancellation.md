@@ -19,18 +19,14 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 | I/O 阻塞期间 | `futureToken.cancel(true)` 发送 `Thread.interrupt()`，阻塞操作抛出 `InterruptedException` | 无需任何操作 |
 | 滑动窗口提交循环 | `SlidingWindowSubmitter` 在每次提交前检查取消状态，发现取消后停止提交剩余任务 | 无需任何操作 |
 
-## 滑动窗口占位 Future 的终态
+## 滑动窗口准备与终态
 
-滑动窗口会先为尚未提交的任务创建 placeholder，保证结果列表保持输入顺序。停止 admission
-后，框架不会让这些 placeholder 永久保持 `LIVE`：
+每个元素在提交前就有完整的内部执行 future。取消和 deadline 绑定完成后才开始提交，
+滑动窗口只决定 prepared task 何时进入线程池；没有 placeholder 或后续 delegate 绑定。
+因此取消既能中断正在运行的任务，也能阻止尚未提交的任务开始。
 
-- 直接取消 placeholder，或首个已提交任务取消：剩余 placeholder 进入 `CANCELLED`；
-- 取消 `TaskBatchResult.submitCanceller()`：submitter 收到 interrupt，剩余 placeholder
-  以 `InterruptedException` 失败；
-- 后续提交被执行器拒绝：剩余 placeholder 以拒绝异常失败。
-
-因此 `Futures.allAsList(result.results())` 最终一定会完成。`submitCanceller()` 表示
-“停止后续提交”，不保证已提交任务立即停止；任务本身仍遵循协作式取消规则。
+`Par.map` 等待所有结果确定并尝试有界清理，返回冻结的 `ImmediateResult` 数据。
+`unfinishedBodies()` 报告尚未确认退出的直接任务体；取消终态不代表任务体已经停止。
 
 这意味着：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
@@ -62,15 +58,37 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 - **首选无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
 - **带名字的 `checkpoint(taskName, lean)` 仍会校验当前任务名**：名字不匹配（笔误、重构后的旧名字、调用位置在任务外）会抛 `IllegalStateException`，而不是静默跳过安全检查。`lean` 为 `false` 时抛出带完整堆栈的标准 `CancellationException`，适合调试定位取消发生位置。
 
-### Checkpoints API 一览
+三种 checkpoint 在**任务作用域之外**的行为不同：
+
+| Checkpoint | 在作用域之外 | 取消时 |
+|---|---|---|
+| `Checkpoints.checkpoint()` | 静默 no-op | 抛 `LeanCancellationException` |
+| `Checkpoints.checkpoint(taskName, lean)` | 抛 `IllegalStateException` | `lean=true` 抛 `LeanCancellationException`；`lean=false` 抛带堆栈的 `CancellationException` |
+| `Checkpoints.rawCheckpoint()` | 可用——不需要作用域，同时响应线程中断标志 | 抛 `LeanCancellationException` |
+
+`rawCheckpoint()` 响应中断但不消费它：抛出后中断标志保持设置，由线程所有者决定后续策略，与本类的阻塞适配器一致。
+
+另有两个配套工具：
 
 | 方法 | 用途 | 典型场景 |
 |---|---|---|
-| `Checkpoints.checkpoint()` | 无条件检查当前 scope 的 `CancellationToken`，已取消或 deadline 已过则抛异常 | CPU 密集型循环中的周期性检查（首选） |
-| `Checkpoints.checkpoint(taskName, lean)` | 同上，但要求任务名匹配，不匹配抛 `IllegalStateException` | 需要带堆栈的 `CancellationException`（`lean=false`）做诊断时 |
+| `Checkpoints.remaining()` | 读取当前作用域任务的剩余预算（`Optional<Duration>`）；作用域之外为空，deadline 已过时为零，无 deadline 时恰为 `Duration.ofNanos(Long.MAX_VALUE)` 哨兵。只读：不抛异常、不触发取消、不触碰中断标志 | 把真实预算传给下游客户端 |
 | `Checkpoints.sleep(millis)` | 取消感知的 sleep，将 `InterruptedException` 统一转换为 `LeanCancellationException` | 替代 `Thread.sleep()` |
-| `Checkpoints.rawCheckpoint()` | 仅检查线程 interrupt 标志 | 不在 `Par` scope 内但仍需响应中断的场景 |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
+
+`remaining()` 让任务体把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
+
+```java
+.par("user", ioPar, User.class, () -> {
+    Checkpoints.checkpoint();
+    Duration budget = Checkpoints.remaining().orElse(configuredClientTimeout);
+    // budget 为零说明 deadline 已耗尽：拒绝发起调用，不要把零 timeout 传给
+    // 以零表示无限等待的客户端
+    return fetchWithBudget(id, budget);
+})
+```
+
+正预算不证明 scope 未被取消（fail-fast 可能已提交），依赖前仍用 `checkpoint()` 把关。
 
 ## Checkpoint 插入策略
 
@@ -130,7 +148,7 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；如果不是则什么都不做，让后续的异常处理逻辑继续执行。
+`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；否则照常返回，让后续的异常处理逻辑继续执行——**除非当前作用域已被取消**，此时它会抛出 `LeanCancellationException` 而不是返回。
 
 ## 用 `Checkpoints.sleep()` 替代 `Thread.sleep()`
 
@@ -146,7 +164,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 
 `Checkpoints.sleep()` 将 `InterruptedException` 统一转换为 `LeanCancellationException`，使得中断驱动的取消和协作式取消在异常类型上保持一致，同时避免为正常取消采集无用堆栈。
 
-## 取消的四种触发源
+## 取消的触发源
 
 了解取消可能从何而来，有助于理解为什么需要 checkpoint：
 
@@ -154,10 +172,13 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 |---|---|---|
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
 | 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
-| 手动取消 | `CANCELED` | 代码调用了 `CancellationToken.cancel()` |
-| 父作用域取消 | `PROPAGATED_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
+| 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
-所有触发源最终都通过同一个公开的 `CancellationToken.state()` 状态检查体现——其返回的 `State` 词表为 `RUNNING`/`SUCCESS`/`FAIL_FAST`/`TIMEOUT`/`CANCELED`/`PROPAGATED_CANCELED`——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
+所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
+任务体也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
+见[即时结果](../user-guide.md#task-future-attribution)。
+中断等待 `map` / `runAll` 的调用线程不会取消执行；等待结束恢复中断标志。
+结果不暴露执行所属的 token 或运行中的 future，`asFuture().cancel(...)` 始终返回 false。
 
 ## 嵌套作用域的取消传播
 
@@ -172,16 +193,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 
 当 B 失败时：
 1. 外层 token 转为 `FAIL_FAST`。
-2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELED`。
+2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELLED`。
 3. A 和 C 的内层任务在下一次 checkpoint 或 I/O 阻塞时响应取消。
 
 你不需要手动编排这个传播——前提是内层任务中有足够的 checkpoint。
-
-## 核心要点总结
-
-1. **协作式取消依赖你的配合**——框架发出信号，但 CPU 密集型任务需要你手动添加 `Checkpoints.checkpoint()` 才能响应。
-2. **优先用无参 `checkpoint()`**——带名字的 `checkpoint("x", lean)` 会在名字不匹配时抛 `IllegalStateException`，不会静默跳过。
-3. **在合理的粒度插入 checkpoint**——长循环每 N 次迭代一次，多阶段计算在阶段之间，递归在入口处。
-4. **不要在 catch 中吞掉取消异常**——使用 `Checkpoints.propagateCancellation(e)` 确保取消异常能透传。
-5. **用 `Checkpoints.sleep()` 替代 `Thread.sleep()`**——统一取消异常类型。
-6. **I/O 任务无需额外操作**——interrupt 机制已经覆盖。

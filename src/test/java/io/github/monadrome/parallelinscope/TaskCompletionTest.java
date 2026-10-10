@@ -71,15 +71,84 @@ class TaskCompletionTest {
     }
 
     @Test
+    void neverStartedSnapshotOnNegativeClockReportsZeroDurationsAndNotEnqueued() {
+        TaskCompletion<String> completion = TaskCompletion.failed(
+                "task",
+                "unit-1",
+                0,
+                -10_000_000L,
+                0L,
+                0L,
+                TaskOutcome.SUBMISSION_FAILURE,
+                new IllegalStateException("not submitted"));
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.totalTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
+    void startedSnapshotOnNegativeClockComputesRealDurations() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -20_000_000L, -10_000_000L, -5_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.enqueued()).isTrue();
+    }
+
+    @Test
+    void shortWaitOnNegativeClockIsNotEnqueued() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -9_000_000L, -8_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(1_000_000L));
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
+    void startReadingAtZeroIsStartedAndComputesDurations() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, 0L, 5_000_000L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.enqueued()).isTrue();
+    }
+
+    @Test
+    void endReadingAtZeroWithNonZeroStartIsStartedAndComputesExecution() {
+        TaskCompletion<String> completion =
+                TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -5_000_000L, 0L, "value");
+
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+    }
+
+    @Test
+    void coincidingNonZeroStartAndEndReadingsAreStartedWithZeroExecution() {
+        TaskCompletion<String> completion = TaskCompletion.succeeded("task", "unit-1", 0, 0L, 100L, 100L, "value");
+
+        assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(100L));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(100L));
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
         TaskCompletion<Object> snapshot =
-                TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELED, null, 100, 0, 0);
+                TaskCompletion.memberSnapshot("member", "unit-1", TaskOutcome.MEMBER_CANCELLED, null, 100, 0, 0);
 
         assertThat(snapshot.taskName()).isEqualTo("member");
         assertThat(snapshot.unitId()).isEqualTo("unit-1");
         assertThat(snapshot.taskIndex()).isZero();
         assertThat(snapshot.result()).isNull();
-        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
         assertThat(snapshot.waitTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.executionTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.totalTime()).isEqualTo(Duration.ZERO);

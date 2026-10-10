@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Value object representing metadata associated with a task dependency edge in the {@link
@@ -15,13 +16,13 @@ final class TaskEdge {
 
     private final int parallelism;
     private final TaskType taskType;
-    private final String executorName;
-    private final String sourceExecutorName;
+    private final @Nullable String executorName;
+    private final @Nullable String sourceExecutorName;
     private final int taskCount;
     private final Duration timeout;
     private final boolean executorDeadlockProne;
-    private final ExecutorIdentity executorIdentity;
-    private final ExecutorIdentity sourceExecutorIdentity;
+    private final @Nullable ExecutorIdentity executorIdentity;
+    private final @Nullable ExecutorIdentity sourceExecutorIdentity;
 
     /**
      * Creates task dependency metadata.
@@ -33,11 +34,11 @@ final class TaskEdge {
      * @param taskCount the number of child tasks
      * @param timeout the child remaining timeout at submission
      */
-    public TaskEdge(
+    TaskEdge(
             int parallelism,
             TaskType taskType,
-            String executorName,
-            String sourceExecutorName,
+            @Nullable String executorName,
+            @Nullable String sourceExecutorName,
             int taskCount,
             Duration timeout) {
         this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeout, true);
@@ -54,11 +55,11 @@ final class TaskEdge {
      * @param timeout the child remaining timeout at submission
      * @param executorDeadlockProne whether the child executor can conservatively deadlock
      */
-    public TaskEdge(
+    TaskEdge(
             int parallelism,
             TaskType taskType,
-            String executorName,
-            String sourceExecutorName,
+            @Nullable String executorName,
+            @Nullable String sourceExecutorName,
             int taskCount,
             Duration timeout,
             boolean executorDeadlockProne) {
@@ -74,13 +75,13 @@ final class TaskEdge {
     }
 
     /** Creates metadata using supplied-executor identity for resource graph analysis. */
-    public TaskEdge(
+    TaskEdge(
             int parallelism,
             TaskType taskType,
-            ExecutorIdentity executorIdentity,
-            ExecutorIdentity sourceExecutorIdentity,
-            String executorName,
-            String sourceExecutorName,
+            @Nullable ExecutorIdentity executorIdentity,
+            @Nullable ExecutorIdentity sourceExecutorIdentity,
+            @Nullable String executorName,
+            @Nullable String sourceExecutorName,
             int taskCount,
             Duration timeout,
             boolean executorDeadlockProne) {
@@ -100,7 +101,7 @@ final class TaskEdge {
      *
      * @return the parallelism
      */
-    public int parallelism() {
+    int parallelism() {
         return parallelism;
     }
 
@@ -109,25 +110,27 @@ final class TaskEdge {
      *
      * @return the task type
      */
-    public TaskType taskType() {
+    TaskType taskType() {
         return taskType;
     }
 
     /**
-     * Returns the child executor name.
+     * Returns the child executor name, or null when resolved without one.
      *
      * @return the executor name
      */
-    public String executorName() {
+    @Nullable
+    String executorName() {
         return executorName;
     }
 
     /**
-     * Returns the parent executor name.
+     * Returns the parent executor name, or null when resolved without one.
      *
      * @return the source executor name
      */
-    public String sourceExecutorName() {
+    @Nullable
+    String sourceExecutorName() {
         return sourceExecutorName;
     }
 
@@ -136,7 +139,7 @@ final class TaskEdge {
      *
      * @return the task count
      */
-    public int taskCount() {
+    int taskCount() {
         return taskCount;
     }
 
@@ -145,7 +148,7 @@ final class TaskEdge {
      *
      * @return the remaining timeout captured at submission
      */
-    public Duration timeout() {
+    Duration timeout() {
         return timeout;
     }
 
@@ -154,17 +157,19 @@ final class TaskEdge {
      *
      * @return {@code true} when nested blocking work can conservatively deadlock
      */
-    public boolean executorDeadlockProne() {
+    boolean executorDeadlockProne() {
         return executorDeadlockProne;
     }
 
     /** Returns the child supplied-executor identity, or null for legacy edges. */
-    public ExecutorIdentity executorIdentity() {
+    @Nullable
+    ExecutorIdentity executorIdentity() {
         return executorIdentity;
     }
 
     /** Returns the parent supplied-executor identity, or null for legacy edges. */
-    public ExecutorIdentity sourceExecutorIdentity() {
+    @Nullable
+    ExecutorIdentity sourceExecutorIdentity() {
         return sourceExecutorIdentity;
     }
 

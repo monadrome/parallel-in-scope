@@ -2,9 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -98,12 +99,9 @@ class E1_QueueFloodingTest {
             AtomicInteger concurrency = new AtomicInteger(0);
             AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-            // Gate blocks all tasks so we can observe peak concurrency
-            CountDownLatch gate = new CountDownLatch(1);
-
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofMillis(30000))
+            BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofSeconds(5))
                     .parallelism(parallelism)
                     .taskType(TaskType.IO_BOUND);
 
@@ -113,9 +111,7 @@ class E1_QueueFloodingTest {
                         int cur = concurrency.incrementAndGet();
                         maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
                         try {
-                            gate.await(30, TimeUnit.SECONDS);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
+                            Checkpoints.sleep(10);
                         } finally {
                             concurrency.decrementAndGet();
                         }
@@ -123,22 +119,14 @@ class E1_QueueFloodingTest {
                     },
                     options);
 
-            // Wait for initial batch to start running
-            Thread.sleep(500);
-
-            // Max concurrency should be bounded by parallelism (+ 1 scheduling overlap)
+            // The synchronous result returns only after every body has updated the measurements.
+            assertThat(result.valuesOrThrow()).hasSize(TASK_COUNT);
             assertThat(maxConcurrency.get())
                     .as("Max concurrency should be bounded by parallelism=%d", parallelism)
+                    .isPositive()
                     .isLessThanOrEqualTo(parallelism + 1);
-
-            // Release all tasks
-            gate.countDown();
-
-            // Wait for all futures to complete
-            for (com.google.common.util.concurrent.ListenableFuture<Void> f : result.results()) {
-                f.get(10, TimeUnit.SECONDS);
-            }
         } finally {
+            config.close();
             pool.shutdownNow();
         }
     }

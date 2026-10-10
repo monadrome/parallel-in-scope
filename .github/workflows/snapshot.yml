@@ -1,0 +1,159 @@
+name: Snapshot
+
+# Publish a fresh `0.3.0-SNAPSHOT` to the Central snapshot repository when the development
+# line has moved on. The README recommends the snapshot coordinates to first-time callers, so
+# a published snapshot that lags the tree makes the quick start fail to compile for anyone who
+# follows it; this workflow keeps the lag to about a day instead of leaving it until someone
+# remembers to push a tag.
+#
+# Triggered by a push rather than by a schedule, because GitHub registers a workflow only from
+# the repository's default branch: a `schedule` trigger in a file that exists only on
+# `dev/v0.3.0` never fires, and `workflow_dispatch` is not offered for it either. A `push`
+# trigger carries no such restriction -- the workflow file travels with the branch that was
+# pushed. `release.yml` does live on the default branch, so pushing the `v0.3.0-SNAPSHOT` tag
+# remains the way to publish by hand before the next push.
+#
+# A real daily schedule (one that also fires on days without a push) would need this file on
+# the default branch; making `dev/v0.3.0` the default branch is the alternative.
+on:
+  push:
+    branches: [dev/v0.3.0]
+  # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
+  # publishes once. Kept because it is the only way to publish on a day the branch does not
+  # move without pushing the `v0.3.0-SNAPSHOT` tag by hand.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize publishes. `cancel-in-progress` stays false so that a push arriving mid-deploy
+# cannot kill a publish that has already started.
+concurrency:
+  group: snapshot-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # The release path's build JDK, for the same reason: the enforcer requires JDK 25 and
+      # the artifact still targets Java 8 bytecode.
+      - name: Set up build JDK
+        uses: actions/setup-java@v5
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      # Skip unless the branch has moved past what Central serves. Central's own
+      # `<lastUpdated>` is the record of the last publish -- the `v0.3.0-SNAPSHOT` tag is no
+      # longer maintained as a marker of the published revision.
+      #
+      # Both stamps are UTC `yyyyMMddHHmmss`, so they compare as plain integers: no date
+      # arithmetic, and no dependency on a GNU-specific `date -d`. Requiring the branch tip's
+      # UTC *date* to be strictly later than the last publish's UTC date is the rate limit --
+      # once a publish has happened, no further push can publish again until the next UTC day.
+      #
+      # The comparison reads the branch tip's committer date, which rebase, amend, and
+      # squash-pick all move forward, so a rewritten branch is republished rather than
+      # skipped. The known miss is a branch whose tip carries a deliberately older committer
+      # date; pushing the `v0.3.0-SNAPSHOT` tag publishes past it.
+      - name: Decide whether Central already has this tree
+        id: gate
+        run: |
+          set -euo pipefail
+
+          version="$(mvn -B -ntp -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          group_id="$(mvn -B -ntp -q -DforceStdout help:evaluate -Dexpression=project.groupId)"
+          artifact_id="$(mvn -B -ntp -q -DforceStdout help:evaluate -Dexpression=project.artifactId)"
+
+          case "$version" in
+            *-SNAPSHOT) ;;
+            *)
+              echo "publish=no" >> "$GITHUB_OUTPUT"
+              echo "::notice::$version is not a snapshot version, so there is no snapshot line to publish."
+              exit 0
+              ;;
+          esac
+
+          group_path="$(printf '%s' "$group_id" | tr '.' '/')"
+          metadata_url="https://central.sonatype.com/repository/maven-snapshots/${group_path}/${artifact_id}/${version}/maven-metadata.xml"
+          echo "Reading $metadata_url"
+
+          last_updated=""
+          if metadata="$(curl -fsS --max-time 30 "$metadata_url")"; then
+            last_updated="$(printf '%s' "$metadata" | grep -o '<lastUpdated>[0-9]\{14\}' | grep -o '[0-9]\{14\}' | head -1 || true)"
+          fi
+
+          if [ -z "$last_updated" ]; then
+            echo "publish=yes" >> "$GITHUB_OUTPUT"
+            echo "::notice::Central serves no $version yet; publishing."
+            exit 0
+          fi
+
+          head_stamp="$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S)"
+          head_day="${head_stamp:0:8}"
+          published_day="${last_updated:0:8}"
+
+          echo "Branch tip committed: $head_stamp (UTC)"
+          echo "Central last updated: $last_updated (UTC)"
+
+          if [ "$head_day" -gt "$published_day" ]; then
+            echo "publish=yes" >> "$GITHUB_OUTPUT"
+            echo "::notice::The branch has moved past the published snapshot; publishing."
+          else
+            echo "publish=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nothing to publish: the published snapshot is not older than the branch tip in UTC days."
+          fi
+
+      # A snapshot is still a public artifact, and the development branch has no continuous
+      # test run of its own (`ci.yml` runs on `main` and on pull requests), so verify before
+      # deploying rather than after.
+      - name: Verify the library and the demo
+        if: steps.gate.outputs.publish == 'yes'
+        run: |
+          LIBRARY_VERSION="$(mvn -B -ntp help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          mvn -B -ntp clean install
+          mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
+
+      # `maven.repository.credentialScope=id` restores credential matching by server id. The
+      # runner image's Maven scopes credentials by repository origin, and the `central` server
+      # that `setup-java` writes into settings.xml is associated with the super-POM's
+      # `https://repo.maven.apache.org` -- so the Central *snapshot* endpoint,
+      # `https://central.sonatype.com/repository/maven-snapshots/`, is refused the credentials
+      # and answers 401. Without this flag the deploy fails before uploading anything. Maven
+      # names this switch in the warning it prints. `release.yml` runs the same command and
+      # needs the same treatment once this reaches the default branch.
+      - name: Publish the snapshot to Maven Central
+        if: steps.gate.outputs.publish == 'yes'
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: >-
+          mvn -B -ntp -Prelease -DskipTests
+          -Dmaven.repository.credentialScope=id
+          deploy
+
+      - name: Summarize
+        if: always()
+        env:
+          PUBLISHED: ${{ steps.gate.outputs.publish }}
+        run: |
+          case "$PUBLISHED" in
+            yes) echo "Published a snapshot from $(git rev-parse --short HEAD)." >> "$GITHUB_STEP_SUMMARY" ;;
+            no) echo "No snapshot published: Central already serves this branch." >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "No snapshot published: the gate did not reach a decision; check the log above." >> "$GITHUB_STEP_SUMMARY" ;;
+          esac

@@ -3,8 +3,8 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import com.google.common.util.concurrent.MoreExecutors;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -39,14 +39,11 @@ public class ExecutionPhaseCartesianTest {
             throws Exception {
         AtomicReference<Runnable> submitted = new AtomicReference<>();
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
-        List<ExecutionPhase> phases = new CopyOnWriteArrayList<>();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch exited = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
-        ListenableCompletionService<Integer> service =
-                new ListenableCompletionService<>(submitted::set, completions, phases::add);
-        ListenableFuture<Integer> future = service.submit(() -> {
+        ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(() -> {
             entered.countDown();
             try {
                 awaitRelease(release, interrupted);
@@ -55,12 +52,14 @@ public class ExecutionPhaseCartesianTest {
                 exited.countDown();
             }
         });
+        future.addListener(() -> completions.add(future), MoreExecutors.directExecutor());
+        submitted.set(future);
 
         Thread runner = null;
         try {
             if (timing == Timing.BEFORE_RUN) {
                 assertThat(future.cancel(mayInterrupt)).isTrue();
-                submitted.get().run();
+                Objects.requireNonNull(submitted.get()).run();
             } else if (timing == Timing.RUNNING) {
                 runner = new Thread(submitted.get(), "phase-cartesian-runner");
                 runner.start();
@@ -68,12 +67,12 @@ public class ExecutionPhaseCartesianTest {
                 assertThat(future.cancel(mayInterrupt)).isTrue();
             } else {
                 release.countDown();
-                submitted.get().run();
+                Objects.requireNonNull(submitted.get()).run();
                 assertThat(future.cancel(mayInterrupt)).isFalse();
             }
 
             assertThat(completions.poll(5, TimeUnit.SECONDS)).isSameAs(future);
-            assertLifecycle(timing, mayInterrupt, future, phases, entered, interrupted);
+            assertLifecycle(timing, mayInterrupt, future, entered, interrupted);
         } finally {
             release.countDown();
             if (runner != null) {
@@ -84,9 +83,7 @@ public class ExecutionPhaseCartesianTest {
 
         if (timing == Timing.RUNNING) {
             assertThat(exited.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(phases)
-                    .containsExactly(
-                            ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING, ExecutionPhase.TERMINAL);
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
         }
     }
 
@@ -106,8 +103,7 @@ public class ExecutionPhaseCartesianTest {
     private static void assertLifecycle(
             Timing timing,
             boolean mayInterrupt,
-            ListenableFuture<Integer> future,
-            List<ExecutionPhase> phases,
+            ExecutionPhaseHintFuture<Integer> future,
             CountDownLatch entered,
             AtomicBoolean interrupted)
             throws Exception {
@@ -115,7 +111,7 @@ public class ExecutionPhaseCartesianTest {
             assertThat(future.isCancelled()).isTrue();
             assertThat(entered.getCount()).isOne();
             assertThat(interrupted).isFalse();
-            assertThat(phases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
         } else if (timing == Timing.RUNNING) {
             assertThat(future.isCancelled()).isTrue();
             if (mayInterrupt) {
@@ -123,11 +119,11 @@ public class ExecutionPhaseCartesianTest {
             } else {
                 assertThat(interrupted).isFalse();
             }
-            assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
         } else {
             assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo(7);
             assertThat(interrupted).isFalse();
-            assertThat(phases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
         }
     }
 
