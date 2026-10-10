@@ -171,9 +171,10 @@ explicit human confirmation before implementing it.
 
   The `$HOME` form resolves on other checkouts without hardcoding a user path.
 - After verification, automatically commit and push the current branch,
-  including documentation maintenance. Exception: leave design proposals and
-  analysis documents uncommitted until the direction settles; commit settled
-  proposals with the implementing change.
+  including documentation maintenance and in-flight proposals. Proposals are
+  tracked under `design/proposal/`; their lifecycle is defined in
+  `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: harvest
+  their conclusions before deleting them, and do not commit the drafts.
 - Unattended issue-runner sessions (`scripts/issue-agent.py`) override the push
   rule above: the agent commits locally only, and the runner pushes an
   `auto/issue-*` branch, opens a pull request into the current `dev/vX.Y.Z`
@@ -276,9 +277,10 @@ Load documents when their subject affects the task:
   labels, gates, and what may merge unattended. Read before changing
   `scripts/issue_agent/`, the agent labels, or issue-triggered workflows.
 - `design/AGENTS.md` - Entry point for execution-engine, cancellation,
-  task-group, queue, or extension behavior changes. Load only contracts whose
-  summaries match the change. It indexes committed documents only; in-flight
-  proposals stay untracked by policy, so check `git status --short design/` too.
+  task-group, queue, extension behavior, or proposal maintenance changes. Load
+  only documents whose summaries match the change. It routes live contracts and
+  tracked in-flight proposals separately; proposals do not constrain current
+  implementation. Check `git status --short design/` for temporary analysis too.
   Current `design/` contracts take precedence over historical ADRs, except for
   boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
   boundary (its retired `design/` companion is recoverable from git history via
