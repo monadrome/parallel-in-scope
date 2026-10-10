@@ -100,11 +100,12 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 （`TaskGroup.deadlineDrivenCancellation`），三条证据任一成立即记 `TIMEOUT`：
 
 - 成员 token 已提交 `TIMEOUT`（成员自身 deadline，或检查点 backstop 提交的继承 deadline）；
-- group token 仍 `RUNNING` 而成员 deadline 已过：group bind 的 timer 已触发并取消了成员 future，
-  提交 group token 的回调却还没跑（1 ms 级 deadline 下 bind 自身就可能耗过 deadline，timer 先于
-  `addCallback` 完成）。这是检查点 deadline backstop 在归因侧的同一条规则，同样读成员 token
-  自己的时钟（`CancellationToken.deadlineExpired()`，见
-  [cancellation-propagation.md](cancellation-propagation.md) §5.2）；
+- group token 仍 `RUNNING` 而成员 deadline 已过：检查点 deadline backstop 在归因侧的同一条规则，
+  同样读成员 token 自己的时钟（`CancellationToken.deadlineExpired()`，见
+  [cancellation-propagation.md](cancellation-propagation.md) §5.2）。框架自己在这个窗口里不会取消
+  成员 future——token 的每条取消路径都先提交状态、再取消绑定的工作——窗口只在 timer 线程迟到时
+  存在；其间从 token 协议之外取消的成员（经其视图直消）记 `TIMEOUT`：deadline 已经决定了这个
+  scope，与 timer 线程何时被调度无关；
 - group token 为 `FAIL_FAST`、`failedTaskName` 为空、且成员 future **被取消**：无失败记录的
   fail-fast 只能由取消触发（失败成员总在组 token 提交 `FAIL_FAST` 之前记下 `failedTaskName`，
   成员直消总先提交 `CANCELLED`），所以它是 deadline 级联，受害者的 deadline 可以属于兄弟或它
@@ -174,8 +175,9 @@ bind 的 token 确定为 `PROPAGATED_CANCELLED`（只有传播能移动它）。
 `TaskBatchResult.outcomeOf` 都执行这一改道。
 
 **bind 对 `TimeoutException` 的归因**：按事件来源而非异常类型
-（[cancellation-propagation.md](cancellation-propagation.md) §1 第 3 条）：token 自己的 timer 任务是
-`TIMEOUT` 的唯一来源，`allAsList` 回调是 `FAIL_FAST` 的唯一来源。任务体自己抛的
+（[cancellation-propagation.md](cancellation-propagation.md) §1 第 3 条）：bind 内部，token 自己的
+timer 任务是 `TIMEOUT` 的唯一来源，`allAsList` 回调是 `FAIL_FAST` 的唯一来源；bind 之外，检查点
+deadline backstop 与成员到组的超时升级也提交 `TIMEOUT`，同样只凭 deadline，不凭异常类型。任务体自己抛的
 `java.util.concurrent.TimeoutException`（`future.get(timeout)`、库的 `Checkpoints.checkGet`，或
 batch 元素经 sneaky throw 带出的受检异常）因此 MUST 提交 `FAIL_FAST`，失败者记
 `USER_FAILURE`，兄弟记 `FAIL_FAST`。
@@ -198,8 +200,8 @@ future 监听器——`start()` 先在成员 future 上注册 `memberCompleted`�
 
 **接受的残余**（方向安全：只在无失败记录时出现，永不掩盖真失败）：
 
-- backstop 窗口内（deadline 已过、无 token 提交），用户直消成员或用户代码自发抛取消异常也归
-  `TIMEOUT`。deadline 确已过去，与检查点 backstop 同一判断；窗口外的直消不受影响。
+- backstop 窗口内（deadline 已过、无 token 提交），任务体自发抛出的取消异常也归 `TIMEOUT`
+  （窗口外它是 `USER_FAILURE`）。deadline 确已过去，与检查点 backstop 同一判断。
 - 无失败 `FAIL_FAST` 下，future **以取消形异常失败**（而非被取消）的受害者仍读 `FAIL_FAST`。
   该状态可达而非合成：框架级联 `cancel(true)` 输给任务体抛出的 `CancellationException`/
   `InterruptedException` 时，组 bind 的聚合 future 以失败而非取消结束，而被 backstop 判为
@@ -221,6 +223,10 @@ future 监听器——`start()` 先在成员 future 上注册 `memberCompleted`�
 - RUNNING backstop 用 `System.nanoTime()` 比较成员 deadline（PR 原写法）：注入时钟下虚拟
   deadline 与真实时钟不可比，未过期的虚拟 deadline 会被读成已过，直消成员被误判 `TIMEOUT`。
   改读 `CancellationToken.deadlineExpired()`，与检查点 backstop 同源。
+- 删去 RUNNING 证据：PR 当初要堵的"group bind 的 timer 先于提交回调取消成员"交错，在 dev 的
+  timer 任务先提交 `TIMEOUT` 再取消（`24ef0b0`/`02f103b`）之后已不存在；但 timer 线程迟到时窗口
+  仍在，删去后同一个已过期 deadline 下的直消读 `MEMBER_CANCELLED`、组读 `GROUP_CANCELLED`，归因
+  随 timer 线程的调度延迟而变，与检查点 backstop"deadline 已过即超时"的规则相反。
 
 **验证教训**：三处归因修复互相兜底。只撤"升级监听器不随 bind 跳过"，`recordedTimeout()` 与无失败
 `FAIL_FAST` 判据仍把组与成员的归因救回，按结果断言的用例与压测全绿；只撤 RUNNING backstop，1 ms

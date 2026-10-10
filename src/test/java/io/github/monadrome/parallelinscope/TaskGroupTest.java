@@ -879,16 +879,15 @@ class TaskGroupTest {
 
     /**
      * Locks the deadline backstop for a member cancelled while its deadline has elapsed and the
-     * group token is still RUNNING — the state the group bind leaves when its timer fires before the
-     * bind has registered the callback that commits the token, so the timeout cancels the member
-     * futures first. The runtime's timer thread is held so the group token deterministically stays
-     * uncommitted past the deadline, and the member future is cancelled the way that timeout cancels
-     * it. The one scheduling assumption is that the worker enters the body before the deadline;
-     * with the timer held, the 2 s deadline only widens that margin, at the cost of wall time. The
-     * member must read TIMEOUT rather than a direct member cancellation, and the lone member
-     * converges the group while its token is still RUNNING, so the group must adopt that recorded
-     * TIMEOUT instead of guessing MEMBER_CANCELLED. A direct cancellation inside this window is
-     * attributed the same way; that delta is accepted on the kernel's deadline attribution.
+     * group token is still RUNNING. That window exists only while the timer thread is late, and the
+     * framework never cancels a member future inside it, so the cancellation comes from outside the
+     * token protocol. The runtime's timer thread is held so the group token deterministically stays
+     * uncommitted past the deadline, and the member future is then cancelled directly. The one
+     * scheduling assumption is that the worker enters the body before the deadline; with the timer
+     * held, the 2 s deadline only widens that margin, at the cost of wall time. The member must read
+     * TIMEOUT rather than a direct member cancellation, and the lone member converges the group
+     * while its token is still RUNNING, so the group must adopt that recorded TIMEOUT instead of
+     * guessing MEMBER_CANCELLED.
      */
     @Test
     void elapsedDeadlineCancellationBeforeTheGroupTokenCommitsIsATimeout() throws Exception {

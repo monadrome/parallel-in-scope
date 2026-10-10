@@ -997,10 +997,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * member token committing TIMEOUT is the direct proof; two committed group states prove it for
      * a member that never committed one.
      *
-     * <p>A group token still RUNNING with the member's deadline elapsed means the group bind's
-     * timeout cancelled the member futures after its timer fired but before the callback committing
-     * the token ran: the deadline backstop {@link Checkpoints} applies inside a running body
-     * applies here too, read on the member token's own clock like the checkpoint's.
+     * <p>A group token still RUNNING with the member's deadline elapsed is the attribution-side
+     * counterpart of the deadline backstop {@link Checkpoints} applies inside a running body, read on
+     * the member token's own clock like the checkpoint's. The framework never cancels a member
+     * future in that window: every token path commits its state before it cancels bound work. The
+     * window exists only while the timer thread is late, and a member cancelled from outside the
+     * token protocol inside it (directly through its view) is a timeout, because the deadline
+     * already decided the scope however the timer thread was scheduled.
      *
      * <p>A group token in {@code FAIL_FAST} with no recorded failure and a cancelled member future
      * means that fail-fast carried no failure, so it can only have been triggered by a cancellation:
