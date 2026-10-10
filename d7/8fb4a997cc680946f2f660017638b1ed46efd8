@@ -1,0 +1,45 @@
+design/decision-log.md
+  s_d078162dfc9b87::t_9d8ab199f68ad5 24
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_d078162dfc9b87::t_9d8ab199f68ad5 12,19,22-24,30,32,42,246-320,600-879,881-912,914-948
+  s_d078162dfc9b87::t_8db5fdddc1da2e 880
+  s_d078162dfc9b87::t_a506b6527d2058 913
+src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
+  s_d078162dfc9b87::t_9d8ab199f68ad5 18,80-120
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_d078162dfc9b87::t_455c862d31ea5e 1044
+  s_d078162dfc9b87::t_9d8ab199f68ad5 809,812-819,827-829,958-960,975-978,985,991-998,1002-1043,1045-1049,1129-1151,1157-1161,1174-1178,1184-1195
+  s_d078162dfc9b87::t_01b8ae7780937a 999
+  s_d078162dfc9b87::t_4f701a1e330c9f 1000-1001
+CHANGELOG.md
+  s_d078162dfc9b87::t_6f2d962de2513c 109
+  s_d078162dfc9b87::t_17d210142fce32 108
+src/test/java/io/github/monadrome/parallelinscope/VirtualDeadlineTest.java
+  s_d078162dfc9b87::t_c0462986aee79f 354-397
+  s_d078162dfc9b87::t_088241daf04413 7
+design/task-group-cancellation.md
+  s_d078162dfc9b87::t_0709523f01a811 95
+  s_d078162dfc9b87::t_6eed367dfd24e4 105-107
+  s_d078162dfc9b87::t_4aecb32c90f3f6 176-181
+  s_d078162dfc9b87::t_ffe3904f736f1b 222-224
+  s_d078162dfc9b87::t_9d8ab199f68ad5 25,87-94,96-104,108-114,117-131,158-160,172-173,182-211,218-221
+  s_d078162dfc9b87::t_c12264b6c4e21c 212-217
+design/task-group-lifecycle.md
+  s_d078162dfc9b87::t_9d8ab199f68ad5 251-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d78fb4a997cc680946f2f660017638b1ed46efd8",
+  "prompts": {},
+  "sessions": {
+    "s_d078162dfc9b87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b01dd65-ea38-4b68-9dc0-d4f35402b044",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
