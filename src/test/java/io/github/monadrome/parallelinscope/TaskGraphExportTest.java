@@ -123,6 +123,11 @@ class TaskGraphExportTest {
         }
     }
 
+    /**
+     * Two executors registered under the same name are distinct identities: detection reads the
+     * identity graph and reports no cycle, while the label-keyed export graph does collapse both
+     * pools into one {@code "pool"} node with a self-loop.
+     */
     @Test
     void sameNameExecutorsWithDistinctIdentitiesDoNotReportCycle() throws Exception {
         ExecutorService first = Executors.newSingleThreadExecutor();
@@ -143,8 +148,6 @@ class TaskGraphExportTest {
             assertThat(data.executorCycle()).isFalse();
             assertThat(data.executorSelfLoop()).isFalse();
 
-            // The legacy name graph DOES collapse both pools into one "pool" node with a self-loop;
-            // the identity graph is what keeps detection accurate.
             assertThat(data.executorGraph().nodes()).containsExactly("pool");
             assertThat(data.executorGraph().edges()).hasSize(1);
             ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = identityGraphOf(data);
@@ -303,8 +306,6 @@ class TaskGraphExportTest {
         }
     }
 
-    // ==================== JSON export ====================
-
     private static void exportScenario(String scenario, TaskGraphData data) throws IOException {
         TaskGraphData.Snapshot snapshot = data.snapshot();
         StringBuilder json = new StringBuilder();
@@ -459,8 +460,6 @@ class TaskGraphExportTest {
         }
         return out.append('"').toString();
     }
-
-    // ==================== helpers ====================
 
     private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);

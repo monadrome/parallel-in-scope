@@ -195,8 +195,6 @@ public class TaskBatchResultTest {
                 .hasRootCauseMessage("recorded submission failure");
     }
 
-    // ==================== token-based cancellation attribution ====================
-
     private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();
 
     @Test
