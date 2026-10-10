@@ -1,0 +1,32 @@
+docs/en/user-guide.md
+  s_d078162dfc9b87::t_802d5738359422 372
+docs/zh/user-guide.md
+  s_d078162dfc9b87::t_802d5738359422 325
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportFutureTest.java
+  s_d078162dfc9b87::t_802d5738359422 19-20,269-348,588-675
+design/task-group-observability-and-verification.md
+  s_d078162dfc9b87::t_8c8f57ec1b51a9 85
+  s_d078162dfc9b87::t_0a5b505d1a51d1 86-88
+  s_d078162dfc9b87::t_802d5738359422 82-84,89-93
+design/AGENTS.md
+  s_d078162dfc9b87::t_802d5738359422 63
+design/observation-close-reentrancy.md
+  s_d078162dfc9b87::t_802d5738359422 1-6,22-158
+  s_d078162dfc9b87::t_0689ee224dcbdf 7-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "4440e249bf9b591d9121f7c135153f4eebdcc504",
+  "prompts": {},
+  "sessions": {
+    "s_d078162dfc9b87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b01dd65-ea38-4b68-9dc0-d4f35402b044",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}
