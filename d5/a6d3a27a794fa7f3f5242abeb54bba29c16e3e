@@ -1,0 +1,21 @@
+scripts/issue_agent/gates.py
+  s_b3bf3c210b9841::t_65204e69815dec 83-84,86
+.github/workflows/ci.yml
+  s_b3bf3c210b9841::t_a6eba0fbea2601 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d5a6d3a27a794fa7f3f5242abeb54bba29c16e3e",
+  "prompts": {},
+  "sessions": {
+    "s_b3bf3c210b9841": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc125bf2-f195-402b-bfba-47bcf22a9c47",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
