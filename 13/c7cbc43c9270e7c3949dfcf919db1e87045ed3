@@ -1,7 +1,26 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_9161933ae936f4::t_e48dc4c9d3f256 12,30
+  s_9161933ae936f4::t_6b6b37ad302b2f 19,22-24,32,247-321,601-831
+  ai_agent 33,886-888,949,969-971,981
+  s_9161933ae936f4::t_0dc5f07ccec115 43
+  s_9161933ae936f4::t_e0576a25494e89 832-837,840-880,882-885,889-906,908-915,917-931
+  s_9161933ae936f4::t_5f3acc3fb174a2 838-839
+  s_9161933ae936f4::t_595365b04a4f37 907
+  s_9161933ae936f4::t_2b3ed3079f56ba 932-948,950-968,972-980,982-993
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.4.43-trip",
   "base_commit_sha": "13c7cbc43c9270e7c3949dfcf919db1e87045ed3",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_9161933ae936f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0cd3120-c2c3-4e45-9604-d647008b8081",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
 }
