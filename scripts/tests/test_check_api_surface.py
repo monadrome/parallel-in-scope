@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[2]
+SCRIPTS = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "api_surface"
 
 
