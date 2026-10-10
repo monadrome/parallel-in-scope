@@ -65,6 +65,23 @@ request and any accompanying `design/` document.
 - Use the current release milestone for findings that must land before that
   release; leave other backlog items un-milestoned.
 
+### Labels and the optional agent runner
+
+Maintainers may run an automated triage and agent pass over open issues
+([design/issue-automation.md](design/issue-automation.md)). You do not need to
+manage its labels; they are listed here so they are not a surprise:
+
+| Label | Meaning |
+|---|---|
+| `priority/p0`, `priority/p1`, `priority/p2` | How soon it should land on the dev line |
+| `needs-decision` | Waits for a maintainer decision; the runner leaves it alone |
+| `agent/eligible` | Triage judged it fit for unattended agent work |
+| `agent/ready` | A maintainer authorized the runner to work on it |
+| `agent/working`, `agent/review`, `agent/blocked` | An agent run claimed it, waits for a maintainer merge, or stopped |
+
+The runner acts only on text written by maintainers. An issue from outside the
+maintainer team is triaged for a maintainer, never handed to an agent as is.
+
 ## Set up and verify locally
 
 The library targets Java 8 (`src/main/java` must stay on Java 8 APIs); tests
@@ -84,7 +101,9 @@ do not need Java tests — see
 ## Commits and pull requests
 
 - Work on a branch; do not push to `main` directly. Open a pull request
-  against `main`.
+  against the current development line (`dev/vX.Y.Z`, the newest such
+  branch); maintainers decide when a development line merges into `main` for a
+  release.
 - Commit messages follow Conventional Commits with a lowercase summary, e.g.
   `feat: add batch deadline option`, `fix: drain queue before close`,
   `docs: clarify cancellation contract` (see
