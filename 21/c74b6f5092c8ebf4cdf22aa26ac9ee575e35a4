@@ -1,0 +1,41 @@
+design/task-group-cancellation.md
+  s_d078162dfc9b87::t_9d8ab199f68ad5 25,87-94,96-102,109-115,118-132,159-161,173-174,184-194,201-202,205-219,230-233,200
+  s_d078162dfc9b87::t_0709523f01a811 95
+  s_d078162dfc9b87::t_4aecb32c90f3f6 177,181-183
+  s_d078162dfc9b87::t_c12264b6c4e21c 220-225
+  s_d078162dfc9b87::t_ffe3904f736f1b 234-236
+  s_d078162dfc9b87::t_3d0ef1e710c8ed 195-199
+  s_d078162dfc9b87::t_cd206386cf1409 103-108
+  s_d078162dfc9b87::t_14ec75ab9e30aa 178-180
+  s_d078162dfc9b87::t_ef22e3957c3f10 203-204
+  s_d078162dfc9b87::t_58ae62452d5543 226-229
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_d078162dfc9b87::t_9d8ab199f68ad5 12,19,22-24,30,32,42,246-320,600-697,702-879,881,891-904,907-913,916-925,993-1007
+  s_d078162dfc9b87::t_d502d3e16a0238 698-701
+  s_d078162dfc9b87::t_8db5fdddc1da2e 880
+  s_d078162dfc9b87::t_3f72d6bc587ef1 937-939
+  s_d078162dfc9b87::t_51298af0f2df37 882-890
+CHANGELOG.md
+  s_d078162dfc9b87::t_2f814378e157d1 109
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_d078162dfc9b87::t_016856838fc80d 789-791,793-805
+  s_d078162dfc9b87::t_930e08815b0c7d 792
+  s_d078162dfc9b87::t_0836fe18a1e06e 1007-1023
+  s_d078162dfc9b87::t_d2e89938ddb91b 1000-1006
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "21c74b6f5092c8ebf4cdf22aa26ac9ee575e35a4",
+  "prompts": {},
+  "sessions": {
+    "s_d078162dfc9b87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b01dd65-ea38-4b68-9dc0-d4f35402b044",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
