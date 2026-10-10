@@ -92,17 +92,30 @@ public final class ImmediateResult<T> {
     }
 
     /**
+     * Freezes a done task under its own attribution: the outcome and the value, failure, or
+     * cancellation all come from one classification of the task, so they always belong to the same
+     * terminal state even when the token commits between two reads.
+     */
+    static <T> ImmediateResult<T> fromTask(Task<T> task) {
+        Task.Terminal<T> terminal = task.terminal();
+        return fromTerminal(task, terminal, terminal.outcome());
+    }
+
+    /**
      * Freezes a done task using the enclosing scope's authoritative attribution.
      *
      * <p>The outcome is the caller's, because a scope can attribute a finer cause than the task's
-     * own token chain reveals. The failure, however, comes from one classification of the task, so
-     * the two always belong to the same terminal state: reading {@code task.failure()} here would
-     * classify the token a second time, and a refinement in between could pair the caller's outcome
-     * with a failure that state never produced.
+     * own token chain reveals. The value, failure, or cancellation comes from one classification of
+     * the task: reading {@code task.failure()} here would classify the token a second time, and a
+     * refinement in between could pair the caller's outcome with a failure that state never
+     * produced.
      */
     static <T> ImmediateResult<T> fromTask(Task<T> task, TaskOutcome outcome) {
+        return fromTerminal(task, task.terminal(), outcome);
+    }
+
+    private static <T> ImmediateResult<T> fromTerminal(Task<T> task, Task.Terminal<T> terminal, TaskOutcome outcome) {
         checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
-        Task.Terminal<T> terminal = task.terminal();
         if (terminal.cancelled()) {
             return failed(outcome, leanCancellation(task, outcome, cancellationCause(task)));
         }

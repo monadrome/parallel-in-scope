@@ -150,7 +150,7 @@ final class TaskBatch<T> implements AutoCloseable {
         BodyCompletionTracker.awaitSettledUninterruptibly(
                 terminal.observationView(), budget, start, "terminal observation signal");
         TaskBatchResult<T> frozen = freezeResults();
-        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, terminal.outcome());
+        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal);
         TaskCompletion<C> terminalObservation = null;
         ListenableFuture<TaskCompletion<C>> observation = terminal.observationView();
         if (observation.isDone()) {
@@ -191,7 +191,7 @@ final class TaskBatch<T> implements AutoCloseable {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
         List<@Nullable TaskCompletion<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
-            ImmediateResult<T> immediate = ImmediateResult.fromTask(viewOf(result), result.outcome());
+            ImmediateResult<T> immediate = ImmediateResult.fromTask(viewOf(result));
             frozen.add(immediate);
             ListenableFuture<TaskCompletion<T>> observation = result.completionFuture();
             try {

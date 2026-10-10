@@ -7,6 +7,7 @@ import com.google.common.base.Verify;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -158,5 +159,44 @@ class ImmediateResultTest {
                         .hasCauseReference(frozenFailure);
             }
         }
+    }
+
+    /**
+     * A batch freezes each element under the element's own attribution. The outcome and the payload
+     * come from one classification, so a cancellation names the outcome the snapshot reports, a
+     * failure keeps its cause, a success keeps its value, and a task still running is rejected.
+     */
+    @Test
+    void ownAttributionFreezesOutcomeAndPayloadFromOneClassification() throws Exception {
+        CancellationToken timedOut = new CancellationToken();
+        timedOut.timeoutCancel();
+        ImmediateResult<Integer> cancelled =
+                ImmediateResult.fromTask(Task.of("cancelled", timedOut, Futures.<Integer>immediateCancelledFuture()));
+        assertThat(cancelled.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(Verify.verifyNotNull(cancelled.failure()))
+                .isInstanceOf(LeanCancellationException.class)
+                .hasMessage("task 'cancelled' ended with " + TaskOutcome.TIMEOUT);
+
+        ImmediateResult<Integer> uncommitted = ImmediateResult.fromTask(
+                Task.of("uncommitted", new CancellationToken(), Futures.<Integer>immediateCancelledFuture()));
+        assertThat(uncommitted.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+        assertThat(Verify.verifyNotNull(uncommitted.failure()))
+                .hasMessage("task 'uncommitted' ended with " + TaskOutcome.MEMBER_CANCELLED);
+
+        RuntimeException boom = new RuntimeException("boom");
+        ImmediateResult<Integer> failed = ImmediateResult.fromTask(
+                Task.of("failed", new CancellationToken(), Futures.<Integer>immediateFailedFuture(boom)));
+        assertThat(failed.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(failed.failure()).isSameAs(boom);
+
+        ImmediateResult<Integer> succeeded =
+                ImmediateResult.fromTask(Task.of("succeeded", new CancellationToken(), Futures.immediateFuture(7)));
+        assertThat(succeeded.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(succeeded.valueOrThrow()).isEqualTo(7);
+
+        Task<Integer> running = Task.of("running", new CancellationToken(), SettableFuture.<Integer>create());
+        assertThatThrownBy(() -> ImmediateResult.fromTask(running))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("task 'running' is still running");
     }
 }
