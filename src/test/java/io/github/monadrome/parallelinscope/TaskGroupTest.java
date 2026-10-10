@@ -602,15 +602,16 @@ class TaskGroupTest {
      * Locks the outcome attribution of a group whose members inherit the group deadline: when the
      * shared deadline expires, every member and the group must report {@link TaskOutcome#TIMEOUT},
      * never a cancellation. Narrow interleavings make this a stress test rather than a single run.
-     * A member body's entry checkpoint can commit its own token's timeout before the group token
-     * observes the deadline, and the group bind can cancel the member futures after its timer fired
-     * but before the callback committing the group token ran. Both need the deadline to elapse
-     * while submission is still in flight, so the deadline is one millisecond and the workload runs
+     * A member body's entry checkpoint can commit its own token's timeout while the group token is
+     * still RUNNING, before the group's timer task has run; that needs the deadline to elapse while
+     * submission is still in flight, so the deadline is one millisecond and the workload runs
      * concurrently. Two members also cover the escalation from member to group: a timeout a member
      * commits on its own token must reach the group before a sibling's cancellation is attributed.
      *
-     * <p>The second of those windows is locked only statistically: reverting its fix failed about
-     * three runs in 1600, so a quiet machine may complete a whole run without exercising it.
+     * <p>This is broad scenario coverage, not the lock of any one sub-fix: without the attribution
+     * fix it mismatches in hundreds of its 1600 runs, but reverting a single sub-fix leaves it green,
+     * because the other sub-fixes recover the attribution. Each sub-fix has a deterministic lock that
+     * drives the kernel state directly.
      */
     @Test
     @Timeout(60)

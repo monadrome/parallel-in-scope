@@ -176,8 +176,9 @@ bind 的 token 确定为 `PROPAGATED_CANCELLED`（只有传播能移动它）。
 
 **bind 对 `TimeoutException` 的归因**：按事件来源而非异常类型
 （[cancellation-propagation.md](cancellation-propagation.md) §1 第 3 条）：bind 内部，token 自己的
-timer 任务是 `TIMEOUT` 的唯一来源，`allAsList` 回调是 `FAIL_FAST` 的唯一来源；bind 之外，检查点
-deadline backstop 与成员到组的超时升级也提交 `TIMEOUT`，同样只凭 deadline，不凭异常类型。任务体自己抛的
+deadline（已过期分支或 timer 任务）是 `TIMEOUT` 的唯一来源，`allAsList` 回调是 `FAIL_FAST` 的唯一
+来源；bind 之外，检查点 deadline backstop 与成员到组的超时升级也提交 `TIMEOUT`，同样只凭
+deadline，不凭异常类型。任务体自己抛的
 `java.util.concurrent.TimeoutException`（`future.get(timeout)`、库的 `Checkpoints.checkGet`，或
 batch 元素经 sneaky throw 带出的受检异常）因此 MUST 提交 `FAIL_FAST`，失败者记
 `USER_FAILURE`，兄弟记 `FAIL_FAST`。

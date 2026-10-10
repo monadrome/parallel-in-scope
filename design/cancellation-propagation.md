@@ -15,7 +15,7 @@ public <T> void bind(
             Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
     // 事件来源必须按来源区分，不能按异常类型猜：业务体可以合法抛 TimeoutException。
-    // allAsList 回调是唯一 FAIL_FAST 来源；显式调度的 timer 任务是唯一 TIMEOUT 来源。
+    // allAsList 回调是唯一 FAIL_FAST 来源；token 自己的 deadline（已过期分支或 timer 任务）是唯一 TIMEOUT 来源。
     ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
     // 已终态 token 不再布防：没有任何转换能再获胜，deadline 已无意义；其取消经
     // futureToken/setFuture 桥与 onFailure 回调完整到达。跳过也使终态 token 的 bind
@@ -49,7 +49,9 @@ public <T> void bind(
    两个方向都会触发（§2.3）。
 2. **统一取消句柄必须是还 pending 的组合 future（`successfulAsList`）**：`allAsList`
    在第一个失败/取消时就终态，对已完成 future 调 `cancel` 是 no-op，级联不到 inputs（§3）。
-3. **TIMEOUT 的唯一来源是 timer 任务**：历史上用 `withTimeout` 包 `allAsList`，再按
+3. **bind 内 TIMEOUT 的唯一来源是 token 自己的 deadline**：已过期的 deadline 在 bind 时同步提交，
+   否则由 timer 任务提交（上面的骨架省略了已过期分支）；bind 之外，检查点 deadline backstop 与成员
+   到组的超时升级也提交 TIMEOUT，同样只凭 deadline。历史上用 `withTimeout` 包 `allAsList`，再按
    `instanceof TimeoutException` 归因；业务 `TimeoutException` 会被误记为框架 TIMEOUT。
    `withTimeout` 仍在 `Task.withTimeout` 派生视图使用，不再承担 token 归因。
 
