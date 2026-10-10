@@ -174,6 +174,11 @@ explicit human confirmation before implementing it.
   including documentation maintenance. Exception: leave design proposals and
   analysis documents uncommitted until the direction settles; commit settled
   proposals with the implementing change.
+- Unattended issue-runner sessions (`scripts/issue-agent.py`) override the push
+  rule above: the agent commits locally only, and the runner pushes an
+  `auto/issue-*` branch, opens a pull request into the current `dev/vX.Y.Z`
+  line, and merges it only after its own gates. Agent pull requests never
+  target `main`; see `design/issue-automation.md`.
 - Commit only this change's files; leave unrelated modifications and staged
   changes uncommitted. Use Conventional Commits with a lowercase summary
   (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`).
@@ -244,6 +249,11 @@ investigating review or test blind spots.
   the PR description must be self-contained. Before opening or updating an
   issue, read `CONTRIBUTING.md` section "Issue maintenance" for ownership,
   direction updates, and milestone rules.
+- Issues may opt into the agent runner. Triage suggests `priority/*`, a type,
+  and `agent/eligible` or `needs-decision`; a maintainer's `agent/ready`
+  authorizes a run and `needs-decision` vetoes one. The runner is optional:
+  nothing in the normal flow depends on it. Its trust boundary, labels, and
+  gates are in `design/issue-automation.md`.
 
 ## Permissions
 
@@ -262,6 +272,9 @@ Never commit secrets, `.env` files, GPG keys, or repository credentials.
 
 Load documents when their subject affects the task:
 
+- `design/issue-automation.md` - The optional issue runner: trust boundary,
+  labels, gates, and what may merge unattended. Read before changing
+  `scripts/issue_agent/`, the agent labels, or issue-triggered workflows.
 - `design/AGENTS.md` - Entry point for execution-engine, cancellation,
   task-group, queue, or extension behavior changes. Load only contracts whose
   summaries match the change. It indexes committed documents only; in-flight
