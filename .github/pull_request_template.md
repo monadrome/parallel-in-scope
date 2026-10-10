@@ -38,8 +38,16 @@ changes don't need Java tests — delete the rows that don't apply and say so. -
 
 <!--
 The 0.x line accepts breaking changes with a documented rationale. If this PR
-renames or alters a public API or a documented contract, update
-docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md in the same PR.
+renames or alters a public API or a documented contract, update both migration
+guides of the release line in the same PR: docs/en/migration-v<major>.<minor>.md
+and docs/zh/migration-v<major>.<minor>.md, with <major>.<minor> from the pom.xml
+version (docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md on 0.3.0-SNAPSHOT).
+
+CI checks the signatures: the build job's "Check public API changes against the
+merge base" step fails when a public or protected member of a public type is
+removed or its signature changes and this PR does not change both guides.
+Additions pass and are listed in the job summary. Behavior and contract changes
+are invisible to that check and still need the notes.
 -->
 
 - [ ] No breaking changes
