@@ -72,3 +72,28 @@
 | main-comment-javadoc-audit-2026-10-09 | 时钟域重复、机器检查复述、remaining 文案、公开查询 Javadoc 与日志重复文字的具体待修项进入 [P0012](proposal/P0012-comment-and-javadoc-maintenance.md)；密度与零调用不是删除并发知识或公开能力的证据 |
 | test-comment-audit-2026-10-09 | 具体指针/编号、横幅/旁白、等待 helper、重复文字与 placeholder 断言进入 P0012；`7bf46f6` 的局部术语修复不代表整份清单完成。历史口吻的回归理由和窄抑制用途保留，不按注释密度重构测试 |
 | proposal-mechanism-2026-10-12 | 机制蒸馏进 [proposal-lifecycle.md](proposal-lifecycle.md)；B 只查回指与残留共存，不证明蒸馏质量。取消“否决稿不入库”的矛盾教义，明确部分落地拆分与历史回指合法悬空；不新增蒸馏脚本 |
+
+## 最近会话的收割
+
+2026-10-01 至 2026-10-12 的项目会话与保留分析输入按当前 `fb6af08` 对读。
+会话里的“已验证”仅属于当时的对象/版本；双模型同意也不是批准实施或当前行为证明。
+下表只留持久结论及落点，原始会话不入库。新增提案的采纳与否仍由后续设计/实施决定。
+
+| 来源与主题 | 当前处置与判断 |
+|---|---|
+| Claude `a32c8992`、Kimi `f8fdc80d`/`1e75d300`：OTel 支持 | 未实施的 SDK/agent 实证、父级/生命周期与指标边界进 [P0013](proposal/P0013-opentelemetry-verification.md)。手工 Context 示例已校正为完整回放，Scope.close 与 Span.end 分工明确；这不等于真实 SDK/agent 检查已通过。撤回“agent 普遍可用”“传播必产生重复 span”“OTel 必然违反 TTL I3”的强推论；queue ADR 不关闭 OTel 可选模块问题 |
+| Codex/Kimi 核心重落分支：失败读取与中断 | `bec55e9` 未成为当前 dev 的祖先；公开 Java 8 probe 仍复现 map/runAll 的失败冻结 ISE，进 [P0014](proposal/P0014-interrupted-result-freezing.md)。公开 failedTaskResult 本身已经是纯数据查询，不重复报错；单次分类 carrier 是 [P0006](proposal/P0006-execution-protocol-consolidation.md) 的独立候选，不能覆盖当前落定 pin |
+| PR #56 重落分支：继承 deadline 归因 | `04b46a9` 等尚未合入；当前受控包内输入仍给出组 MEMBER_CANCELLED、成员 TIMEOUT，进 [P0015](proposal/P0015-deadline-attribution-consistency.md)。不把包内输入当真实 timer 压测；RUNNING 时钟后备是新归因选择，不冒充已证明必须修的缺陷，不恢复旧异常类型猜测 |
+| PR #56 / `c4ddfc7`：穷尽匹配及 B 系列余项 | 原未跟踪穷尽匹配稿全文未找到；历史提交与 PR 正文可恢复的 typestate/单任务结果目标进 [P0019](proposal/P0019-result-exhaustive-matching.md)，不补造签名、不恢复 async 入口。O-13 的纯超时 firstException 为 null 与 O-14 的 FAIL_FAST 执行历史歧义进 P0011，保留当前语义并说明消费方式；O-15 的 API diff 已实现 |
+| Kimi/Codex close 评审：报告与 ISSUE 诊断 | 基础重入死锁已由 `0867df5` 修复；`7fa341d` 的剩余 listener Error 诊断保全未合入，当前公开 Java 8 probe 得到已发布 ISSUE 但无诊断，进 [P0016](proposal/P0016-report-publication-diagnostics.md)。不重报永久 pending，防御性多 Error 组合另按证据等级验收 |
+| Claude `67244035`、Codex `01a120ae`：OSS 审计与互盲比较 | 选型、首用、贡献职责与公开入口进 [P0017](proposal/P0017-oss-adoption-path.md)；构件身份/消费者/发布追溯进 [P0018](proposal/P0018-artifact-verification.md)；CHANGELOG/BACKLOG/文档语义仍归 P0011。陈旧本地 main、同名本地 install、旧 jar/404/CI/PR 数量不作为当前事实；“低采用量”不证明无用户或库质量差 |
+| OSS 审计后续选择：snapshot 与 API diff | dev push/manual + UTC 日限流已在现行 snapshot workflow；API diff、JDK 25、dev 贡献基线、英文 demo 的中文说明也已实现。移除“新建这些机制”的旧建议；日期门禁不是同源码构件身份验证，实际部署/下载校验仍归 P0018 |
+| OSS 弱候选：benchmark、组合关闭、治理平台 | benchmark 仍按既有暂缓及真实下游门槛评估，不凭“做营销很便宜”解除。closeAndAwait 只减少现有两步拼接，尚未证明解决有界排空/共享资源的失败模式，本轮不提出新 API；优先用现有入口讲清职责。javadoc 警告先实测分类；Automatic-Module-Name、重建复现和升级追溯按 P0018 评估；不默认建设社区或合规平台 |
+| 历史 Javadoc 审计的零文档结论 | `34a0027` 已在 P0012 入库之前补 TaskGroupResult 访问器文档；清掉迁移误带的过时待办，不能假称这项实现源自 P0012。ParRuntime/Builder 等实际余项仍留 [P0012](proposal/P0012-comment-and-javadoc-maintenance.md) |
+| 四代源码/契约审计、HKJ 异步比较、通知/purge 简化 | 已落地的 runner 交接、事件补窗、终态跳过、Monitor 排空、时钟域、预算查询、批次汇总、快照与失败 helper 不重新立项。剩余请求取消、共享预算、子树确认、内部协议/分配/诊断与具名输入分别由 P0001/P0004–P0010 承接。HKJ 的 Future settled 与 body-exit 对比是边界佐证，不恢复 CF/async/重试管道 |
+| 文档 SSOT/归档与技能会话 | 实现共演与文档漂移分开；不以修改次数否决活契约，既有生命周期与 P0011 处理残余扇出。全局 readable-docs/write-for-human/cmux-handoff 等工具设计、TypeScript 讲解、其他项目调研、smoke/pull/清屏是输入或独立工具工作，不成为本库提案；不执行历史会话里的分支/工作树删除指令 |
+
+独立只读复查保留并修复两项收割遗漏：穷尽匹配方向缺少落点，O-13/O-14 的具体问题被
+宽泛的 BACKLOG 维护项遮住。对照历史来源与当前结果实现后，分别承接到 P0019 和 P0011，
+复查未再发现问题。OTel/OSS 与当前缺陷证据的独立复查未提出可复现的新发现；这些结果
+只验证本轮收割与文档判断，不表示新增提案已获批准或 SDK/agent 兼容性已经实测。

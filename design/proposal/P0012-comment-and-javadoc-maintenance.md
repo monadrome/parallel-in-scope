@@ -18,8 +18,10 @@ inline-comment-audit 的采纳边界仍由 [decision-log](../decision-log.md) �
 
 1. Checkpoints.remaining 的“so refuse the call instead”说明应用责任，而非纯查询会拒绝 IO；
    Checkpoints.propagateCancellation 说明它不负责普通 InterruptedException 的 flag 恢复。
-2. TaskGroupResult 的公开查询与 ParRuntime/Builder、策略/options/报告/scope 访问器补调用者
+2. ParRuntime/Builder、策略/options/报告/scope 的未说明访问器补调用者
    需要的范围、异常条件与 null 区别，不复制私有实现签名或 JDK 可自查的说明。
+   Javadoc 构建若有真实警告，先分类并修复，再评估 failOnWarnings；不把配置为 false 本身
+   当缺陷，也不据此重开已否决的行内注释门禁。
 3. 核对时钟域家族文字在 cancellation-propagation 的实际承载：bind 域 scheduler、空 group、
    scheduleDeadline 退役回退、终态不布防、Checkpoints backstop。保留归因与零延迟 RUNNING
    窗口的独有理由，已被别处完整承载的部分才可压缩。

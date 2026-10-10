@@ -180,10 +180,10 @@ par.map(elements, item -> {
 ### 5.3 追踪
 
 ```java
-Context captured = Context.current();   // OpenTelemetry，提交线程上捕获（R1）
+Context captured = Context.current();
 par.map(elements, item -> {
     Span span = tracer.spanBuilder("batch-element").setParent(captured).startSpan();
-    try (Scope ignored = span.makeCurrent()) {
+    try (Scope ignored = captured.with(span).makeCurrent()) {
         return work(item);
     } finally {
         span.end();
@@ -194,6 +194,14 @@ par.map(elements, item -> {
 group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal combine 则在
 `.combine(name, par, type, CombineBody)` 的 `CombineBody.apply(V)` 内自行包装。两者同样处于
 库的上下文层与生命周期层之内。
+
+捕获完整 Context 不等于只设置 span 的父级：body 的 `makeCurrent` 同时回放 baggage 与
+自定义 key，Scope 在原线程关闭以恢复原值，Span.end 只结束拥有的 span。嵌套操作在它
+自己的调用入口捕获当前值；不能固定复用请求根快照扁平化父级。未进入 body 的任务不建
+该 body 的 span，取消或同步返回也不是未退出 body 的 span 结束信号。
+Agent 的 executor advice、手工 Context.taskWrapping 与 TTL 是不同机制；I3 只约束库的
+TTL 捕获集合，不自动覆盖所有外部存储。真实 SDK/agent 接入验证仍见
+[OTel 提案](proposal/P0013-opentelemetry-verification.md)，不据示例宣称普遍 agent 兼容。
 
 ### 5.4 指标：优先用观测快照，不要包 body
 
@@ -207,10 +215,13 @@ for (TaskCompletion<T> event : batch.completions()) {
     if (event == null) {                 // 最终发布未确认；缺失项省略
         continue;
     }
-    metrics.timer("par.task", "par", event.unitId(), "outcome", event.outcome().name())
+    metrics.timer("par.task", "par", par.id().value(), "outcome", event.outcome().name())
            .record(event.executionTime());
 }
 ```
+
+指标默认使用注册入口等有限维度；unitId、requestId、taskIndex 等逐运行值留在追踪或诊断，
+不要默认做 metric label。Duration 转成具体后端单位时显式转换；缺失观测不补造成功数据。
 
 需要跨线程组合时才对 `ImmediateResult.asFuture()` 自行注册 callback；同步出口本身不提供运行中回调。
 
@@ -356,5 +367,5 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 - [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)：否决记录
 - [task-group-submission.md](task-group-submission.md) §7.3、§9：单任务提交内核的复用边界
 - [task-group-lifecycle.md](task-group-lifecycle.md) §4.8：TTL 边界
-- `internal/TaskSubmissions`、`internal/ScopedCallable`、`internal/ExecutionPhaseHintFuture`、`scope/ExecutorRuntime`、`scope/ExecutorIdentity`
+- 根包私有实现：`TaskSubmissions`、`ScopedCallable`、`ExecutionPhaseHintFuture`、`ExecutorRuntime`、`ExecutorIdentity`
 - TTL 2.14.5：`TtlCallable`（`get` 的 idempotent 语义、`releaseTtlValueReferenceAfterCall`）、`TtlExecutors`（agent 短路）、`TtlUnwrap`

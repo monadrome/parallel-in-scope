@@ -142,10 +142,11 @@ check covers their members.
 ## Design proposals
 
 Direction discussions happen either in a design proposal issue (form above) or
-directly in a document under `design/` that ships with the implementing pull
-request — the maintainer chooses the venue; the document carries the reasoning
-either way. Whether in an issue or a PR, a proposal that touches public API or
-a documented contract must state specifically: the best code a user can write
+in a tracked proposal under `design/proposal/` — the maintainer chooses the
+venue. Drafts enter the repository and the proposal route table immediately;
+the [proposal lifecycle](design/proposal-lifecycle.md) defines distillation and
+removal when the implementation lands. Whether in an issue or a PR, a proposal
+that touches public API or a documented contract must state specifically: the best code a user can write
 today, the same code with the change applied, and the failure mode the change
 removes; breaking changes additionally name the migration path. Before changing
 execution-engine, cancellation, task-group, or queue behavior, read

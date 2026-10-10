@@ -54,6 +54,12 @@ TTL 和其他 keys 同样恢复原值；修文档不改变库签名，无库 API
 - task-group-api-and-options 中 failure 只属于业务/提交失败的过强表述、lifecycle 中把直接
   body 确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
   与 group 的 unchecked 包装用具体消费代码解释，不为统一表面添加 throwing callback 家族。
+- PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 report().firstException()
+  只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时可为 null，不代表所有任务成功；取消细节
+  从逐元素 ImmediateResult 读取。FAIL_FAST 可同时覆盖已运行后取消与未提交的元素，单靠
+  outcome 不能推断执行历史，应结合可用最终观测。维持现有归因，不为区分这两者增加开关。
+  若要让 firstException 聚合取消，须独立评估 valuesOrThrow 的失败优先级与迁移，不能借
+  文档修订改变契约；历史 O-15 的跨版本 API diff 已实现，不再立项。
 - first-principles 的“关闭必然无线程泄漏”“用户不管理 executor 生命周期”应明确有界
   清理与借用所有权；bodyCompletionConfirmed false 不能被解释为资源已可安全释放。
 - 0002 的 Everything else stands、0003 的自动 purge、0005 的 GlobalPar 历史形状与现行规则
@@ -84,3 +90,14 @@ reviewer 只读，Maven 在单 checkout 串行。外部 consumer 与 NullAway �
 `TaskBatchBodyCompletionTest`，两份 2026-10-06 核心审计均指出其文件名与类名不一致，
 按文件名给 `-Dtest` 可能找不到目标。后续统一命名并验证定向选择，不能用 full suite
 成功掩盖此差异；本次不改 Java 文件。
+
+## 其他会话的分工
+
+2026-10-09 的 OSS 互盲审计中，公开入口/原生 JDK 选型/贡献职责由
+[P0017](P0017-oss-adoption-path.md) 承接，构件身份与发布消费由
+[P0018](P0018-artifact-verification.md) 承接；本提案保留文档内部语义、历史记录与索引维护。
+OTel 的完整 Context 示例已按当前包装机制校正，剩余真实 SDK/agent 验证与接入边界归
+[P0013](P0013-opentelemetry-verification.md)。不重新复制各自清单，不把已有 API diff、dev
+贡献基线、自动 snapshot 或已补 TaskGroupResult Javadoc 列为待新建内容。
+结果匹配链与单任务获取的历史剩余方向由 [P0019](P0019-result-exhaustive-matching.md)
+承接，不并入文档修复，也不把修复 failure 中断敏感当作新增 API 的理由。
