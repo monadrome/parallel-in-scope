@@ -1,10 +1,12 @@
-src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
-  s_d078162dfc9b87::t_3f72d6bc587ef1 938-940
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportFutureTest.java
+  s_d078162dfc9b87::t_b66541acdb343e 589-592
+  s_d078162dfc9b87::t_c458aec28f7a0d 269-276
+  s_d078162dfc9b87::t_345689cf39a03c 627-631
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.4.43-trip",
-  "base_commit_sha": "fcc24e28fe4495ab78845c86c1fc072dddb6e382",
+  "base_commit_sha": "5ddd753fb70f3ec912e0380e1c78dfaa477d7d1c",
   "prompts": {},
   "sessions": {
     "s_d078162dfc9b87": {
