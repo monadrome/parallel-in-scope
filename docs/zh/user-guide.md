@@ -75,7 +75,7 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 以 ExecutionException 报告；纯取消抛 CancellationException。成功值允许 null。
 
 TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；普通队列上
-rejectEnqueue 无效并有诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
+rejectEnqueue 与 CPU_BOUND 都无效，每个 `Par` 输出一次诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
 SubmissionException 保留原 cause，包括 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
 TaskType 默认 IO_BOUND，rejectEnqueue 默认 false。把 SmartBlockingQueue 装到物理池上，并按批次声明策略：
@@ -154,7 +154,7 @@ User value = user.valueOrThrow();
 ```
 
 `resultOf/resultAt` 按名称/声明位置查询成员终态，TypeToken 必须精确匹配，不能拓宽；
-null 或失败值也不跳过校验。普通类型可用 Class，参数化类型及自定义 TaskOptions 用
+null 或失败值也不跳过校验。普通类型可用 Class（带不带自定义 TaskOptions 均可），参数化类型用
 TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深度校验。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
@@ -302,6 +302,34 @@ CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常�
 成员直消或异步提交；需同时执行的业务放入同一组。应用自行包装的异步执行有自己的生命周期，
 取消外层 future 不能证明内部同步调用已经退出。
 
+### 在 body 内读取嵌套结果 {#nested-reads}
+
+嵌套的 `map` 或 `runAll` 返回时已经结束：结果是冻结数据，读取从不阻塞，不需要
+`asFuture().get()`。唯一的摩擦是批次 body 是 JDK `Function`，抛不出 `valuesOrThrow()` 的受检
+`ExecutionException`。把执行失败包装成非受检异常，`CancellationException` 原样放行：
+
+```java
+TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
+    List<Order> orders;
+    try {
+        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+                .valuesOrThrow();
+    } catch (ExecutionException failed) {
+        throw new OrderLookupException(customer.id(), failed.getCause());
+    }
+    return Report.of(customer, orders);
+}, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
+```
+
+放行取消异常是归因正确的前提。外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），
+无论 body 之后抛什么，元素都按那次取消归因。外层已提交取消、而元素自己的 body 先结束时，取消
+异常经外层归因（`TIMEOUT`、`FAIL_FAST`），包装成业务异常则读作 `USER_FAILURE`。内层批次自己
+走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带该异常。
+
+想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
+`failure()` 携带它的异常。body 内的 `runAll` 完全不需要包装：`TaskGroupResult.valuesOrThrow()`
+本来就以非受检形式重抛，而组成员 body 是 `Callable`，可以抛受检异常。
+
 ## 观测嵌套工作 {#nested-observation}
 
 任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）对 `close()` 冻结的图运行一次潜在死锁检测，把结果发布到 `reportFuture()`。检测到循环只表示结构风险，不证明线程当前已经死锁。
@@ -327,6 +355,8 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 任务图记录本运行时每次准入创建的单元（批次、组成员、汇总）以及「谁等待谁」：`map`、`mapAndCombine`、`runAll` 的调用方等待它准入的每一个单元，汇总只消费它的输入。检测把等待关系投影到执行器上：一个 body 阻塞等待排在饥饿型池里的工作，就是两个池之间的一条边；这类边形成环（包括池等待自己）时报告 `ISSUE`，由 `executorCycle()` / `executorSelfLoop()` 标出。渲染出的 `executorEdges()` 与 `taskEdges()` 只列环上的等待关系及其背后的单元。
 
 `TaskGraphObservationScope.hasExecutorCycle()` 等查询覆盖调用前已记录的全部准入；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
+
+executor 环与自环只按注册的 executor 对象本身检测，从不按 `ParId` 名称：两个 `ParId` 指向同一个池即为同一节点，单凭名称永远构不成环。顶层调用没有父 executor，不产生 executor 边；只有任务体内的嵌套调用才会产生。
 
 ## 清理已取消的排队任务
 

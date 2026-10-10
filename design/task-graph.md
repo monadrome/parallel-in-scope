@@ -157,3 +157,37 @@ TaskGraphObservationScope  生命周期：TTL 绑定、所有权解析、record(
 - `TaskGraphSnapshotConsistencyTest`：快照复用与写后刷新、close 用最新单一快照、并发写入可见、片段原子性。
 - `TaskGraphObservationScopeTest`、`TaskGraphReportFutureTest`、`TaskGraphScopeOwnershipTest`：P11–P12 与 scope
   生命周期，含「写入方通过 closed 检查后被挂起、另一线程 close」的确定性交错（报告冻结、迟到片段整体落入记录器）。
+
+## 8. 分支整合约束
+
+独立节点图与 [批次落定归因](batch-settle-attribution.md) 组合时，两者分别承载观测与结果事实，
+MUST NOT 因保留其中一条路径而撤销另一条路径：汇总 MUST 从 caller 获得 FORK、从输入获得 JOIN，
+终端视图 MUST 在 bind 前注册落定归因。图记录仍一次原子并入，MUST NOT 恢复 TaskEdge、root
+哨兵、标签检测回退或已废除的任务级查询。
+
+直接准备复用 `TaskSubmissions`，组与批次的 TTL 安装/恢复和 bind-before-submit 顺序保持不变。
+CPU_BOUND 的无效入队拒绝诊断包括批次终端，按终端自身绑定的 executor 判定；
+其告警与图节点执行器事实 MUST 来源于同一绑定。
+
+交叉回归通过公开嵌套入口检查：元素成功、终端自抛 CE 保留 USER_FAILURE 和原 cause，
+外层明确消费该结果后仍可成功，三个单元记录两个 FORK 与一个 JOIN。分别撤掉终端归因和
+JOIN 均被该测试检出，避免各自独立测试通过却漏掉整合处的错误。
+
+独立只读复审对照两边提交与本契约的结果：未发现合并正确性问题；落定归因、观测失败
+隔离、Class/options 重载和终端告警的回归约束均保留。对旧表示的测试只转换节点与边的
+表达，不将身份检测、顶层无前驱或监听器顺序的断言删除。外部消费端另外用真实 Java 8
+编译及运行包含 `(TaskOptions, Class)` 成员和汇总的泛型链，区分于库内 Java 11 测试。
+
+变异验证补强了三类工作流：非 List 输入的顺序与快照、分别使用普通队列和 SmartBlockingQueue
+的批次/终端告警、跨 runtime 准备后提交线程的原 scope 恢复。反向修改分别导致类型转换失败、
+告警缺失和原 scope 丢失；这些是测试缺口的修补，不是新的执行机制。
+
+定向 PIT 的目标是 `Par` 的整合路径，包含 `VOID_METHOD_CALLS`；存活项逐个处置如下。
+它们是所选测试范围的覆盖缺口，MUST NOT 因入口包私有而标作等价变异，也不表示已复现
+实现缺陷。包内单任务入口的剩余专项测试不扩入本次图与批次整合。
+
+| 位置与变异 | 分类与实际影响 |
+|---|---|
+| `submitWhileOpen` 删除 `warnIfEnqueueRefusalInert` | SURVIVED；所选测试未检查包内单任务的 CPU_BOUND/拒绝入队告警，删除会漏诊断；公开批次、组及汇总告警另有覆盖 |
+| `submitWhileOpen` 删除 `retainUntilComplete` | SURVIVED；body 跟踪仍能让现有排空测试等待，测试未区分该单任务 future 的准入后保留与计数；删除会改变其 future 跟踪及服务寿命约束 |
+| `submitWhileOpen` 继承 timeout 时检查当前 task 的条件取反 | NO_COVERAGE；所选测试未进入该参数拒绝分支，不能宣称校验变异被检出 |

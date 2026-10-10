@@ -9,6 +9,8 @@
  * documentation defines the method-level blocking, exception, traversal, and concurrency contracts.
  * {@link io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue} provides a
  * dynamically adjustable capacity without depending on the parallel execution kernel.
+ *
+ * @since 0.3.0
  */
 @NullMarked
 package io.github.monadrome.parallelinscope.queue;

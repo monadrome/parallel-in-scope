@@ -127,7 +127,7 @@ cancellation are diagnosed without overwriting the settled result.
 
 A group draft belongs to one runtime, is single-use and usable only from its creating thread. Each
 par call binds name, executor, type, and this run's Callable. Class overloads serve plain reference
-types; parameterized types and custom options use TypeToken. The same shorthand exists on the read
+types, with or without custom options; parameterized types use TypeToken. The same shorthand exists on the read
 side: `GroupValues.valueOf(name, Class)`/`valueAt(index, Class)` and
 `TaskGroupResult.resultOf(name, Class)`/`resultAt(index, Class)` delegate to
 their TypeToken forms, so validation is identical. (A literal-null call such as
@@ -142,7 +142,8 @@ The previous `runOnCallerThread` option is removed. Executor handoff failures be
 SUBMISSION_FAILURE with the original cause; a caller-runs rejection handler remains the application's
 choice. Terminal combines reject inline execution by a ThreadPoolExecutor rejection handler; deliberate
 direct executors remain supported. TaskType/rejectEnqueue alter SmartBlockingQueue admission rather
-than select pools; TaskOptions default enqueue refusal is inert on plain queues and emits a warning.
+than select pools; a requested enqueue refusal (`rejectEnqueue` or `CPU_BOUND`) is inert on plain queues
+and emits one warning per Par.
 Directly registered DiscardPolicy/DiscardOldestPolicy pools are rejected at build time; opaque wrappers
 remain accepted with diagnostics and reduced deadlock visibility.
 
@@ -150,6 +151,13 @@ Checkpoint guards fail rather than silently skip expired/cancelled work. ParRunt
 admissions and drains accepted work without owning registered executors; awaitQuiescence includes body
 exit. Graph report futures remain read-only diagnostics published at observation scope close; they are
 not business execution handles. The public queue artifact boundary is unchanged.
+
+Frozen batch results attribute each element as of the moment it settled, like group members. An element
+whose body raised its own `CancellationException` or `InterruptedException` reads `USER_FAILURE` with
+that throwable, and an element its executor cancels directly reads `MEMBER_CANCELLED`, while the
+siblings its cancellation takes down read `FAIL_FAST`. This replaces the 0.2 guide's statement that the
+element whose direct cancellation triggered the cascade also reads `FAIL_FAST`; per-element initiator
+attribution no longer requires a task group.
 
 ## Executor Queue Cleanup
 

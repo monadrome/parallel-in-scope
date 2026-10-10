@@ -27,7 +27,7 @@ class ExecutorRuntimeTest {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
             assertThat(runtime.starvationProne()).isTrue();
-            assertThat(runtime.rejectEnqueueEffective()).isFalse();
+            assertThat(runtime.enqueueRefusalEffective()).isFalse();
         } finally {
             pool.shutdownNow();
         }
@@ -65,7 +65,7 @@ class ExecutorRuntimeTest {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
             assertThat(runtime.starvationProne()).isTrue();
-            assertThat(runtime.rejectEnqueueEffective()).isTrue();
+            assertThat(runtime.enqueueRefusalEffective()).isTrue();
         } finally {
             pool.shutdownNow();
         }
@@ -111,10 +111,10 @@ class ExecutorRuntimeTest {
             ExecutorRuntime decoratedRuntime = new ExecutorRuntime(decorated);
 
             assertThat(singleRuntime.starvationProne()).isFalse();
-            assertThat(singleRuntime.rejectEnqueueEffective()).isFalse();
+            assertThat(singleRuntime.enqueueRefusalEffective()).isFalse();
             // A user-supplied decorator hides the physical pool, so the queue is unreadable too.
             assertThat(decoratedRuntime.starvationProne()).isFalse();
-            assertThat(decoratedRuntime.rejectEnqueueEffective()).isFalse();
+            assertThat(decoratedRuntime.enqueueRefusalEffective()).isFalse();
         } finally {
             single.shutdownNow();
             decorated.shutdownNow();
@@ -138,7 +138,7 @@ class ExecutorRuntimeTest {
             assertThat(runtime.suppliedExecutor()).isSameAs(wrapped);
             assertThat(runtime.introspectableExecutor()).isSameAs(physical);
             assertThat(runtime.starvationProne()).isTrue();
-            assertThat(runtime.rejectEnqueueEffective()).isTrue();
+            assertThat(runtime.enqueueRefusalEffective()).isTrue();
             assertThat(runtime.identity()).isNotEqualTo(new ExecutorRuntime(physical).identity());
         } finally {
             physical.shutdownNow();

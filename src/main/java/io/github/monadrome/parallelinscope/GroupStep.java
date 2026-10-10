@@ -20,6 +20,7 @@ import java.util.concurrent.Callable;
  * <p>The same one-shot, single-threaded, stage-checked contract as {@link GroupStart} applies.
  *
  * @param <V> the group's assembled member-value type so far
+ * @since 0.3.0
  */
 public interface GroupStep<V> {
 
@@ -55,8 +56,6 @@ public interface GroupStep<V> {
      * Declares another plain member with explicit options rather than {@link
      * TaskOptions#inheritTimeout()}.
      *
-     * <p>This form takes a {@link TypeToken} only; see {@link GroupStart} for the rationale.
-     *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
      *     foreign, or the token is primitive or unresolved
@@ -64,6 +63,21 @@ public interface GroupStep<V> {
      */
     <T> GroupStep<Tuple2<V, T>> par(
             String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body);
+
+    /**
+     * Declares another plain member with explicit options, using a plain class instead of a {@link
+     * TypeToken}.
+     *
+     * <p>Shorthand for {@link #par(String, Par, TaskOptions, TypeToken, Callable)} with {@code
+     * TypeToken.of(type)}.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
+     *     foreign, or the type is primitive or {@code void}
+     * @throws IllegalStateException if this stage is stale
+     */
+    <T> GroupStep<Tuple2<V, T>> par(
+            String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body);
 
     /**
      * Declares the terminal combine, which moves the chain to its final stage.
@@ -107,8 +121,6 @@ public interface GroupStep<V> {
      * Declares the terminal combine with explicit options rather than {@link
      * TaskOptions#inheritTimeout()}.
      *
-     * <p>This form takes a {@link TypeToken} only; see {@link GroupStart} for the rationale.
-     *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
      *     foreign, or the token is primitive or unresolved
@@ -116,6 +128,21 @@ public interface GroupStep<V> {
      */
     <R> CombinedGroupStep<V, R> combine(
             String name, Par par, TaskOptions options, TypeToken<R> type, CombineBody<? super V, ? extends R> body);
+
+    /**
+     * Declares the terminal combine with explicit options, using a plain class instead of a {@link
+     * TypeToken}.
+     *
+     * <p>Shorthand for {@link #combine(String, Par, TaskOptions, TypeToken, CombineBody)} with
+     * {@code TypeToken.of(type)}.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
+     *     foreign, or the type is primitive or {@code void}
+     * @throws IllegalStateException if this stage is stale
+     */
+    <R> CombinedGroupStep<V, R> combine(
+            String name, Par par, TaskOptions options, Class<R> type, CombineBody<? super V, ? extends R> body);
 
     /**
      * Executes the declared group and returns frozen results after all task results settle and a

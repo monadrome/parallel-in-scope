@@ -52,6 +52,8 @@ import org.jspecify.annotations.Nullable;
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
  * processing while the framework-owned services drain; {@code close()} itself does not wait for
  * those batches to finish.
+ *
+ * @since 0.3.0
  */
 public final class ParRuntime implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.alibaba.ttl.TransmittableThreadLocal;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -236,6 +237,31 @@ class ParMapAndCombineTest {
             release.countDown();
             io.shutdownNow();
             saturated.shutdownNow();
+        }
+    }
+
+    @Test
+    void aNonListCollectionKeepsItsIterationOrderThroughMappingAndCombine() throws Exception {
+        ExecutorService executor = com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService();
+        runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            Par par = runtime.par(ParId.of("worker"));
+            LinkedHashSet<Integer> input = new LinkedHashSet<>(Arrays.asList(3, 1, 2));
+            BatchOptions options = BatchOptions.timeout("ordered", TIMEOUT);
+
+            assertThat(par.map(input, value -> value * 10, options).valuesOrThrow())
+                    .containsExactly(30, 10, 20);
+            BatchCombinedResult<Integer, String> result = par.mapAndCombine(
+                    input,
+                    value -> value * 10,
+                    options,
+                    par,
+                    values -> Objects.requireNonNull(values).toString());
+
+            assertThat(result.batchResult().valuesOrThrow()).containsExactly(30, 10, 20);
+            assertThat(result.terminalValueOrThrow()).isEqualTo("[30, 10, 20]");
+        } finally {
+            executor.shutdownNow();
         }
     }
 

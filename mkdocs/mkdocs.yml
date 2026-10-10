@@ -12,7 +12,7 @@ copyright: © parallel-in-scope — Apache License 2.0
 nav:
   - Documentation: index.md
   - Full user guide: user-guide.md
-  - Interactive demo: https://monadrome.github.io/parallel-in-scope/interactive-demo.html
+  - Interactive demo (Chinese UI): https://monadrome.github.io/parallel-in-scope/interactive-demo.html
   - Migration:
       - From 0.2.x to 0.3: migration-v0.3.md
       - From 0.1.x to 0.2: migration-v0.2.md

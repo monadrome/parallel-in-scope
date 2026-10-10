@@ -31,6 +31,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <E> the type of elements held in this queue
  * @author Doug Lea
+ * @since 0.3.0
  */
 public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
 

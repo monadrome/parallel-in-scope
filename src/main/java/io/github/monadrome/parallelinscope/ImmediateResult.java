@@ -17,6 +17,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Success may contain null. Every other outcome contains a throwable; reading it throws an
  * ExecutionException with that same throwable as its cause, including cancellation. This shallowly
  * immutable container never waits, checks interruption, or changes the execution that produced it.
+ *
+ * @since 0.3.0
  */
 public final class ImmediateResult<T> {
     private final TaskOutcome outcome;
@@ -89,6 +91,19 @@ public final class ImmediateResult<T> {
                 return get();
             }
         };
+    }
+
+    /**
+     * Returns a diagnostic string naming the outcome and either the value or the failure, for
+     * example {@code ImmediateResult[outcome=USER_FAILURE, failure=java.lang.IllegalStateException:
+     * boom]}. The format is for logs and debuggers, not for parsing. Identity stays reference
+     * identity: results with equal contents are distinct objects.
+     */
+    @Override
+    public String toString() {
+        return failure == null
+                ? "ImmediateResult[outcome=" + outcome + ", value=" + value + ']'
+                : "ImmediateResult[outcome=" + outcome + ", failure=" + failure + ']';
     }
 
     /** Freezes a done task using the enclosing scope's authoritative attribution. */
