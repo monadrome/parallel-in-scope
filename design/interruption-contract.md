@@ -170,6 +170,11 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 2. 不因中断标志改变返回值。
 3. 返回时标志与进入时一致。
 
+已完成失败的 cause 读取与同步出口的结果冻结同样适用：MUST 使用不会消费中断的高层读取，
+MUST 返回原业务 cause 与既有落定归因并保留 caller flag，包括零 cleanup budget。
+不清标志来迁就 getter，不增加另一套分类 carrier，也不覆盖批次的落定 pin。
+历史来源：`proposal:P0014`。
+
 ### 5.4 executor 边界（最容易漏的一层）
 
 **任务体退出时可能留下脏标志，谁负责清？** 答案是 executor，而不是 `FutureTask`——

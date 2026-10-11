@@ -244,7 +244,7 @@ TaskBatchResult&lt;Account&gt; batch =
       <span class="sc-num">02</span>
       <div>
         <h2>Fail-fast 取消级联</h2>
-        <p>任一元素失败，整批立即进入 fail-fast：运行中的兄弟任务收到中断（FAIL_FAST），从未进入窗口的按 GROUP_CANCELLED 丢弃。每次取消都携带归因，不再是一声不吭的 cancel(true)。</p>
+        <p>任一元素失败，失败元素记录 USER_FAILURE，未完成的兄弟任务按 FAIL_FAST 取消，包括尚未进入窗口的元素。已运行的任务收到中断请求；归因本身不说明任务是否执行过。</p>
       </div>
     </div>
     <div class="sc-body">
@@ -264,12 +264,12 @@ TaskBatchResult&lt;Account&gt; batch =
           <span>⚠</span>
           <span><b>fail-fast 已触发：</b>T3 失败 → 运行中的 T4 / T5 / T6 按
             <span class="attr FAIL_FAST">FAIL_FAST</span> 中断，排队中的 T7 / T8 按
-            <span class="attr GROUP_CANCELLED">GROUP_CANCELLED</span> 丢弃；归因随 LeanCancellationException 一路带回调用方。</span>
+            <span class="attr FAIL_FAST">FAIL_FAST</span> 跳过；任务结果冻结后返回调用方。</span>
         </div>
         <div class="legend">
           <span class="li"><span class="attr TIMEOUT">TIMEOUT</span>自身或父级截止到期</span>
           <span class="li"><span class="attr FAIL_FAST">FAIL_FAST</span>兄弟任务失败牵连</span>
-          <span class="li"><span class="attr GROUP_CANCELLED">GROUP_CANCELLED</span>批次取消时仍在排队</span>
+          <span class="li"><span class="attr FAIL_FAST">FAIL_FAST</span>级联取消，包括待提交元素</span>
           <span class="li"><span class="attr MEMBER_CANCELLED">MEMBER_CANCELLED</span>成员被单独取消</span>
         </div>
         <div class="stat" id="s2stat">待运行 · T3 将在 2s 时失败</div>
@@ -277,12 +277,12 @@ TaskBatchResult&lt;Account&gt; batch =
       <div class="code">
         <div class="code-head"><i></i><i></i><i></i><span>FailFast.java</span></div>
         <pre><code class="java">BatchOptions options = BatchOptions
-        .timeout("fetch-orders", Duration.ofSeconds(2))
+        .timeout("fetch-orders", Duration.ofSeconds(5))
         .parallelism(4);
 
 // 任一元素失败 → 整批 fail-fast：
 // 运行中的兄弟任务按 FAIL_FAST 中断，
-// 排队中的按 GROUP_CANCELLED 丢弃
+// 待提交的兄弟同样按 FAIL_FAST 取消
 TaskBatchResult&lt;Order&gt; batch =
         httpPar.map(userIds, client::fetchOrders, options);</code></pre>
       </div>
@@ -513,7 +513,7 @@ function s2Fail(){
   c.className='task failed';c.querySelector('.tstate').textContent='失败 · RuntimeException';
   document.getElementById('s2bubble').classList.add('show');
   [3,4,5].forEach(i=>s2Cancel(i,'FAIL_FAST'));
-  [6,7].forEach(i=>s2Cancel(i,'GROUP_CANCELLED'));
+  [6,7].forEach(i=>s2Cancel(i,'FAIL_FAST'));
   document.getElementById('s2banner').classList.remove('hidden');
   s2Stat('fail-fast 完成 · 1 失败 / 2 成功 / 5 取消');
 }

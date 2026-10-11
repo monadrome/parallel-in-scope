@@ -24,8 +24,6 @@ API diff 和当前外部消费者存在，不能再作为待新建机制。
   使用发布后隔离解析证明 Central 服务的是本次构件。
 - `scripts/verify-maven-central.sh` 已用空临时仓库排除本地副本，但消费者源码跟随当前
   0.3 API。传旧稳定坐标只选择一个测试方法仍会编译整类，不能据此验证旧版本。
-- 快照 summary 以 gate 的 `publish=yes` 宣称 Published；后续 deploy 失败时也可能进入
-  always-summary。需把“决定发布”和“实际发布成功”分别记录。
 - POM 的 SCM tag 与构件源码标识、归档时间和 Java 9+ automatic module 名需按真实下游
   需求评估；不把静态配置不足说成已经证明不安全或不可复现。
 
@@ -54,8 +52,8 @@ HTTP artifact 与源码 revision；不让同名 install 隐藏公开 API 不匹�
    有独立结果。Central 延迟/网络阻塞按阻塞报告，不把启动验证当通过，也不借此触发发布。
 3. stable/next 消费源码与对应坐标分别可编译；公开示例与 consumer 共源的收益先做窄样例
    验证，避免新增一份全库 API 文档缓存。支持策略与用户入口归 [P0017](P0017-oss-adoption-path.md)。
-4. 发布摘要应显示 deploy/下载核验的实际状态、版本、源码 revision；错误与跳过不显示为
-   Published。日期门禁不是“已经服务同一源码树”的证明。
+4. 发布后下载核验应记录实际状态、版本、源码 revision；成功 deploy 的摘要不等于已下载
+   同一源码构件的证据。日期门禁不是“已经服务同一源码树”的证明。
 5. 对来源及供应链，优先固定 Actions revision、真实 SCM tag/源码 commit/hash 和明确升级
    策略；复现构建需实际做两次洁净重建比较。Automatic-Module-Name 是独立的兼容性选择，
    先有 JPMS 下游用例再决定名字。SBOM/attestation 按实际需求，不默认加整套平台。
@@ -70,3 +68,6 @@ HTTP artifact 与源码 revision；不让同名 install 隐藏公开 API 不匹�
 在 dev 线上有未发布改动时自动发快照。已执行的发布改动以 `5935059`、`7fa42f5`、
 `8b5fc71`、`8d7ff69` 及当前 workflow 为准；保留未落实的构件身份/验证建议，不回滚已选
 trigger/日限流策略。本提案不修改 workflow、pom、公开坐标或外部应用。
+
+本提案承接 P0018 未实施的构件身份与消费验证方向。误报 Published 的摘要缺陷已由
+[修复记录](../confirmed-proposal-defects.md) 承接，保持现行 trigger 与日限流策略。

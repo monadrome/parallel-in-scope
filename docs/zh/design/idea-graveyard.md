@@ -144,25 +144,20 @@ public class ParallelInScopeConfig {
 
 ---
 
-## Per-Task Timeout（单任务超时）
+## 批次元素的独立 deadline
 
-**请求：** 除了批次级超时，还能为单个任务设置独立的超时时间。
+**请求：** 为 Par.map 中每个元素分别设置 timeout。
 
 **为什么不做：**
 
-parallel-in-scope 只提供批次级超时（`BatchOptions.timeout(name, Duration)`），不提供单任务超时。原因是两者在 fail-fast 语义下几乎等价，但实现复杂度差异巨大：
-
-- **批次超时：** 一个 `FluentFuture.withTimeout()` 搞定，语义清晰——"整批任务最多跑 N 秒"。
-- **单任务超时：** 每个任务需要独立的 `ScheduledFuture` 来触发取消。在一个 1000 元素的批次中，这意味着 1000 个定时器。而且在 fail-fast 模式下，第一个任务超时就会取消整批——效果和批次超时一样。
-
-唯一的区别出现在"不同任务需要不同超时值"的场景，但这暗示这些任务不是同构的——它们不应该在同一个 `map` 里。
-
-**替代方案：** 在任务内部自行控制超时：
+Par.map 的同构元素共享批 deadline，不为每个元素新增 timer。组成员与 combine 已支持
+TaskOptions.timeout(Duration)，有效 deadline 被组预算封顶；紧成员预算到期使整组 TIMEOUT。
+需要独立预算时使用类型化组，阻塞操作仍配置客户端 timeout。
 
 ```java
-par.map("io-pool", urls, url -> {
+httpPar.map(urls, url -> {
     return httpClient.fetch(url, /* requestTimeout = */ Duration.ofSeconds(2));
-}, options);
+}, BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
 ```
 
 ---
@@ -202,26 +197,19 @@ par.map("io-pool", items, this::process, options);
 
 ## 异构任务组合（invokeAll for Different Callables）
 
-**请求：** 支持同时提交不同类型的任务，如 `Par.invokeAll(fetchUser, fetchOrder, fetchInventory)`，每个返回不同类型。
+**请求：** 用无类型 invokeAll 重载族协调不同返回类型，或支持任意依赖图。
 
 **为什么不做：**
 
-parallel-in-scope 的 API 签名是 `map(List<T>, Function<T, R>)` ——输入同构，输出同构。这不是偶然的：
-
-1. **类型安全。** Java 泛型不支持异构列表的类型安全返回。`invokeAll(Callable<A>, Callable<B>, Callable<C>)` 的返回类型只能是 `List<Future<?>>` 或者需要大量的重载（2 参数、3 参数、4 参数……直到 N 参数），Guava 和 CF 的做法也只能到此为止。
-2. **并发控制无意义。** 异构任务通常只有 2-5 个，不需要滑动窗口、并发限制这些 parallel-in-scope 的核心能力。`Futures.allAsList()` 或 `CompletableFuture.allOf()` 已经足够。
-3. **监控粒度不匹配。** parallel-in-scope 的观测快照和 `BatchReport` 假设一个批次内所有任务是同名同类型的。异构任务意味着每个任务需要独立的名称、独立的观测——这是完全不同的监控模型。
-
-**替代方案：** 用 Guava 原生 API 编排异构任务：
+TaskGroup 已按名称、声明类型和左嵌套 Tuple2 支持独立异构 Callable；各成员有自己的最终观测。
+被拒绝的是无类型 invokeAll 重载族与任意依赖图，不是异构组本身。独立任务使用现有组，
+全成功后的单一末端汇合使用可选 combine：
 
 ```java
-ListenableFuture<User> userF = executor.submit(() -> fetchUser(id));
-ListenableFuture<Order> orderF = executor.submit(() -> fetchOrder(id));
-ListenableFuture<Inventory> invF = executor.submit(() -> fetchInventory(id));
-
-ListenableFuture<UserProfile> profile = Futures.whenAllSucceed(userF, orderF, invF)
-    .call(() -> buildProfile(Futures.getDone(userF), Futures.getDone(orderF), Futures.getDone(invF)),
-          executor);
+TaskGroupResult<Tuple2<User, Order>, Void> result = runtime.group("load", Duration.ofSeconds(3))
+        .par("user", ioPar, User.class, () -> fetchUser(id))
+        .par("order", ioPar, Order.class, () -> fetchOrder(id))
+        .runAll();
 ```
 
 ---

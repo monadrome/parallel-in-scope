@@ -84,14 +84,18 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 
 1. 先给每个成员的 future 挂完成 observer，保证后续 bind 触发的取消都被计数；
 2. 对 group token 做一次 `bind`（组 deadline + 统一 fail-fast + 全成功检测）；
-3. 按条件做成员 bind：**仅当 `memberToken.deadlineNanos() < groupToken.deadlineNanos()`**（即成员
-   拥有比组更紧的自己 deadline）时，才对该成员 token `bind` 自己的 future，并注册状态监听器
-   （`TIMEOUT` 时调用 `groupToken.timeoutCancel()`，监听器在 CAS 提交之后、取消动作
-   之前同步触发）。继承组 deadline 的成员解析出与组完全相同的 deadlineNanos，跳过成员 bind：
+3. 所有成员与 terminal token MUST 先注册 TIMEOUT 上升监听器，再按 deadline 判断是否省略 bind。
+   监听器在成员 CAS 提交之后、取消动作之前同步调用 `groupToken.timeoutCancel()`。
+   **仅当 `memberToken.deadlineNanos() < groupToken.deadlineNanos()`**（即成员拥有比组更紧的
+   自己 deadline）时，才对该成员 token `bind` 自己的 future。继承组 deadline 的成员跳过 bind：
    向下传播已由 token 构造期的 parent 监听挂接（group → member `PROPAGATED_CANCELLED`），
    成员 future 的取消由上面的 group bind 覆盖，成员 bind 只会为同一时刻多 arm 一个冗余
-   timer。未 bind 的成员 token 永停 `RUNNING`（不会到 `SUCCESS`）——这是有意的隐式约束，
-   归因改读 group token（见下）。
+   timer。跳过 bind 的成员仍可由 checkpoint backstop 提交 TIMEOUT；省略重复 timer MUST NOT
+   同时省略这个真实事件的上升。该 token 不通过 bind 观察 SUCCESS，其他取消仍按父传播归因。
+
+这个修复保留 token 自己的时钟域、真实胜出来源和 first-wins。未提交取消而只有预算经过的
+取消形状仍沿用现有分类；不凭时钟或业务 TimeoutException 猜测来源。历史来源：`proposal:P0015`；
+该独立政策方向保留在 [P0020](proposal/P0020-deadline-attribution-policy.md)。
 
 成员取消原因不由发起取消处手写，而是收敛后读 token state：成员 token `TIMEOUT`
 即 `TIMEOUT`；否则 group token 是唯一权威（它在取消成员 futures 之前先提交自己的状态）：
@@ -110,8 +114,8 @@ outcome（失败归因不随完成顺序漂移），否则全部成员成功记 
 
 嵌套提交的终态不唯一但归因确定：成员 callable 内部的嵌套 batch 继承组 deadline 后自身也会被
 bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIMEOUT`（自己的 timer 先
-触发）而非必然 `PROPAGATED_CANCELLED`；两种终态经 `originState()` 都归因 TIMEOUT。只有未
-bind 的 token 确定为 `PROPAGATED_CANCELLED`（只有传播能移动它）。嵌套 batch 自己的超时对外
+触发）而非必然 `PROPAGATED_CANCELLED`；两种终态经 `originState()` 都归因 TIMEOUT。未 bind 的
+成员也可由 checkpoint 提交 TIMEOUT，不能假定它只会进入 PROPAGATED_CANCELLED。嵌套 batch 自己的超时对外
 层只表现为成员失败——谁拥有触发的 deadline，谁报 TIMEOUT。
 
 ### 8.4.1 token → outcome 归因映射（单一实现）
@@ -137,9 +141,8 @@ bind 的 token 确定为 `PROPAGATED_CANCELLED`（只有传播能移动它）。
   共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务 outcome）与
   `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 
-批次报告（`TaskBatchResult.report()`）携带批次 token 时同样按此表修正 future 层的粗分类
-（future 层对一切取消只报 `MEMBER_CANCELLED`）。批次共享单一 token、无逐元素完成时归因，
-因此直接取消并触发级联的元素也记 `FAIL_FAST`；需要区分发起者的场景用 TaskGroup。
+批次冻结的逐元素归因由 [落定归因契约](batch-settle-attribution.md) 持有；报告只统计冻结数据，
+不在读取时重新读取 token。共享 token 不妨碍逐元素落定分类。
 
 **取消信号型失败的改道**：成员/元素的 future 可能不是被 cancel 而是以异常完成——协作检查点
 （`Checkpoints`）在 token 已取消后抛 `CancellationException`，或工作线程被中断后用户代码抛出
@@ -148,7 +151,7 @@ bind 的 token 确定为 `PROPAGATED_CANCELLED`（只有传播能移动它）。
 `CancellationException`/`InterruptedException`（`TokenOutcomes.causedByCancellation`），就改道
 共享映射按 token 归因（`whenUncommitted` 兜底为 `USER_FAILURE`，因此 token 未提交任何取消时，
 用户代码自发抛出的取消异常仍是 `USER_FAILURE`）。`TaskGroup.memberCompleted` 与
-`TaskBatchResult.outcomeOf` 都执行这一改道。
+批次落定分类都执行这一改道。
 
 ### 8.5 close 与任务体退出
 

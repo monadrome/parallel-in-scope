@@ -38,10 +38,12 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 直接推论：
 
-- combine 的用户 body 只在 join 后、在目标 executor 线程上**执行**；准备阶段创建的是执行管道，不触碰用户 body。它不得在声明期、提交准备阶段或 member 完成回调中运行；
+- combine 的用户 body 只在 join 后、经目标 executor **执行**；准备阶段不触碰用户 body。
+  线程池的拒绝 inline 与显式 direct executor 的例外见下方线程角色说明；
 - TTL 快照时点与 member 一致（提交准备阶段），不捕获 join 回调线程的上下文；
 - combine 在提交时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"提交后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
-- combine 不得在任何借用线程上执行：join 时的提交线程是收敛回调线程，不存在可借用的调用方线程，inline 的语义基础不成立。被目标 executor 拒绝一律记 `SUBMISSION_FAILURE`；用户池的拒绝处理器若在 `execute()` 内部同步跑掉 body（`CallerRunsPolicy`），不会抛 `RejectedExecutionException`，这条缺口由 `forbidInlineExecution()` 在执行期按线程身份拦下（§9 验收项 1）；
+- combine 在线程池拒绝处理器借用提交线程时不得进入 body，记 `SUBMISSION_FAILURE`。
+  显式 direct executor 按注册者选择的契约允许 inline；不按策略名称拒绝正常未饱和的池；
 - combine 的结构 parent 与 member 相同（提交现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
 完成计数不变式为 `totalTasks == memberCount + (combine ? 1 : 0)`（收敛屏障的目标计数）：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending future。
@@ -126,7 +128,8 @@ timer，规则不变。
 
 ### 执行线程与线程角色
 
-用户 lambda 唯一合法的执行位置是 `combine(...)` 指定 `Par` 的 worker 线程。其余候选均被拒绝：
+用户 lambda 经 `combine(...)` 指定的 Par 提交。线程池目标只允许 worker；注册者显式选择
+direct executor 时允许其 inline 契约。线程池路径的其余候选被拒绝：
 
 - **最后完成 member 的线程（回调内联）**：哪个 member 最后完成是竞态结果，combine 的执行位置随之不确定，重计算可能随机占用 IO 池 worker；收敛回调运行在框架的 future 完成机制中，契约本就禁止在此处执行用户代码。这与 Guava `directExecutor()` 的著名风险（重入、死锁、在 IO 线程跑重活）同源；
 - **调用线程**：join 由成员完成驱动，combine 的调度点收敛在成员完成回调中，调用线程不是可安排的执行位置（direct executor 下 join 甚至可能在提交循环内联触发，早于调用线程进入等待）；让调用线程跑 combine 还会绕过目标 `Par` 的队列与隔离，把业务计算耦合到提交现场；
@@ -222,10 +225,9 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
    **为什么按执行期线程身份判定，而不是在提交期按拒绝策略拒绝：** `CallerRunsPolicy` 只在池真正饱和时
    inline，池从不饱和的用户其 combine 从未违反过任何保证。按策略株连会把这批合规用户直接改成必然失败，
    那是误伤而非"安全优先"（对比 `ParRuntime` 拒绝 Discard 系：Discard 的危害是无条件的，注册即必然丢任务）。
-   判定条件是"body 在 `execute()` 尚未返回时就到达执行线程"，而不是"执行线程等于提交线程"——后者在共享池上
-   会误判：收敛回调跑在 worker N 上提交 combine，combine 正常入队，worker N 跑完自己的 member 回到池中，
-   再从队列里取出 combine 执行，这完全合法，而两次都是 worker N。入队的任务只可能在 `execute()` 返回之后
-   才开始，这就是区分二者的依据。
+   判定同时要求执行线程就是正在 execute 的提交线程。其他 worker 可以在 execute 返回前开始
+   正常入队的任务，不属于 inline；提交者 worker 也可在 execute 返回并清除提交线程标记后，
+   正常从队列取出 combine 执行。守卫区分的是当前提交栈上的执行，而非线程曾经承担的角色。
 
    **为什么只对 `ThreadPoolExecutor` 启用：** TPE 要么派发给 worker 要么抛异常，唯一能走到调用方栈上的路径
    就是它的拒绝处理器，所以"body 跑在提交线程上"与"拒绝处理器跑了它"是同一件事。而 `directExecutor()`

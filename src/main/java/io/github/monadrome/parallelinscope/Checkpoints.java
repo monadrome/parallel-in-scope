@@ -107,7 +107,7 @@ public final class Checkpoints {
      * positive budget does not prove the scope is still uncancelled — fail-fast may already be
      * committed — so guard work with {@link #checkpoint()} when cancellation must be observed. A
      * zero or near-zero budget means the deadline is spent; passing it to a client that reads zero
-     * as "wait forever" would invert the budget, so refuse the call instead.
+     * as "wait forever" would invert the budget, so the application should refuse that call instead.
      *
      * @return the remaining budget of the current scoped task, or empty outside one
      */
@@ -555,6 +555,9 @@ public final class Checkpoints {
     /**
      * Propagates cancellation exceptions produced by this package. A cancellation exception supplied
      * as {@code ex} takes precedence over the current token's state.
+     *
+     * <p>This method does not restore interruption for an ordinary InterruptedException. Its
+     * catcher must rethrow it or restore the flag and retain the original cause when translating it.
      *
      * @param ex the exception to check
      * @throws CancellationException if {@code ex} is a cancellation exception or the current scope

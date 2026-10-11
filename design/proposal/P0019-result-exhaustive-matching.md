@@ -17,8 +17,8 @@
 单任务公开快照获取入口，并要求收敛到 ImmediateResult 词汇。原稿未找到，不能声称恢复了
 完整接口或已经批准的设计；以下保留目标与重验条件，不补造历史签名。
 
-原稿关联的 failure 中断敏感问题在当前 dev 仍需按
-[P0014](P0014-interrupted-result-freezing.md) 窄修；公开 ImmediateResult.failure 已是
+原稿关联的 failure 中断敏感问题已按
+[中断契约](../interruption-contract.md) 窄修；公开 ImmediateResult.failure 已是
 纯数据查询。单次内部分类归 [P0006](P0006-execution-protocol-consolidation.md)，不能把
 这些修复的必要性当作新增匹配 API 的证据，也不能覆盖现行落定 pin。
 

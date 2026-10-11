@@ -6,8 +6,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.monadrome.parallelinscope.queue.*;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -45,37 +43,13 @@ public class FutureInspectorTest {
     }
 
     @Test
-    public void interruptedFutureInspectionRestoresInterruptStatus() {
-        Future<Object> interrupted = new Future<Object>() {
-            @Override
-            public boolean cancel(boolean mayInterruptIfRunning) {
-                return false;
-            }
-
-            @Override
-            public boolean isCancelled() {
-                return false;
-            }
-
-            @Override
-            public boolean isDone() {
-                return true;
-            }
-
-            @Override
-            public Object get() throws InterruptedException {
-                throw new InterruptedException("test");
-            }
-
-            @Override
-            public Object get(long timeout, TimeUnit unit) throws InterruptedException {
-                throw new InterruptedException("test");
-            }
-        };
+    public void interruptedFutureInspectionReturnsTheOriginalFailure() {
+        IllegalArgumentException failure = new IllegalArgumentException("business failure");
+        SettableFuture<Object> future = SettableFuture.create();
+        future.setException(failure);
         try {
             Thread.currentThread().interrupt();
-            assertThatThrownBy(() -> FutureInspector.exceptionNow(interrupted))
-                    .isInstanceOf(IllegalStateException.class);
+            assertThat(FutureInspector.exceptionNow(future)).isSameAs(failure);
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
         } finally {
             Thread.interrupted();

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -15,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -23,6 +25,8 @@ import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Contract tests for {@link TaskGraphObservationScope#reportFuture()}: the disabled / no-issue /
@@ -146,6 +150,126 @@ class TaskGraphReportFutureTest {
                 .cause()
                 .isSameAs(error);
         assertThat(TaskGraphObservationScope.current()).isNull();
+    }
+
+    @Test
+    void listenerErrorDoesNotSkipIssueDiagnosticAfterPublication() throws Exception {
+        TaskGraphObservationScope scope = runtimeWithDetection(true).openTaskGraphObservation();
+        recordExecutorCycle(scope);
+        AssertionError error = new AssertionError("listener error");
+        scope.reportFuture()
+                .addListener(
+                        () -> {
+                            throw error;
+                        },
+                        directExecutor());
+        AtomicInteger diagnostics = new AtomicInteger();
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getMessage().contains("function=deadlockDetection")) {
+                    assertThat(scope.reportFuture().isDone()).isTrue();
+                    scope.close();
+                    diagnostics.incrementAndGet();
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        Level previousLevel = observationLogger.getLevel();
+        observationLogger.setLevel(Level.ALL);
+        observationLogger.addHandler(handler);
+        try {
+            assertThatThrownBy(scope::close).isSameAs(error);
+            assertThat(doneReport(scope.reportFuture()).status()).isEqualTo(TaskGraphReport.Status.ISSUE);
+            assertThat(diagnostics).hasValue(1);
+            assertThat(TaskGraphObservationScope.current()).isNull();
+            scope.close();
+            assertThat(diagnostics).hasValue(1);
+        } finally {
+            observationLogger.removeHandler(handler);
+            observationLogger.setLevel(previousLevel);
+        }
+    }
+
+    @Test
+    void detectionErrorRemainsPrimaryWhenPublicationListenerAlsoThrowsError() {
+        ParRuntime global = runtimeWithDetection(true);
+        AssertionError detection = new AssertionError("detection error");
+        AssertionError publication = new AssertionError("publication error");
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(global, new FailingGraphData(detection));
+        scope.reportFuture()
+                .addListener(
+                        () -> {
+                            throw publication;
+                        },
+                        directExecutor());
+        assertThatThrownBy(scope::close).isSameAs(detection);
+        assertThat(detection.getSuppressed()).containsExactly(publication);
+        assertThatThrownBy(() -> Futures.getDone(scope.reportFuture()))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseReference(detection);
+        assertThat(TaskGraphObservationScope.current()).isNull();
+        scope.close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"issue", "failure", "error"})
+    void publicationRestoresTheActualBindingAndDetectionFailureIsLogged(String result) throws Exception {
+        ParRuntime global = runtimeWithDetection(true);
+        TaskGraphObservationScope outer = global.openTaskGraphObservation();
+        Throwable detection = result.equals("error")
+                ? new AssertionError("detection error")
+                : new IllegalStateException("detection failure");
+        TaskGraphObservationScope scope = new TaskGraphObservationScope(
+                global, result.equals("issue") ? new TaskGraphData() : new FailingGraphData(detection));
+        if (result.equals("issue")) {
+            recordExecutorCycle(scope);
+        }
+        java.lang.reflect.Field currentField = TaskGraphObservationScope.class.getDeclaredField("CURRENT");
+        currentField.setAccessible(true);
+        TransmittableThreadLocal<?> binding =
+                (TransmittableThreadLocal<?>) Objects.requireNonNull(currentField.get(null));
+        AtomicReference<Object> observedBinding = new AtomicReference<>();
+        scope.reportFuture().addListener(() -> observedBinding.set(binding.get()), directExecutor());
+        AtomicInteger detectionDiagnostics = new AtomicInteger();
+        Logger observationLogger = Logger.getLogger(TaskGraphObservationScope.class.getName());
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getThrown() == detection) {
+                    assertThat(scope.reportFuture().isDone()).isTrue();
+                    detectionDiagnostics.incrementAndGet();
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        Level previousLevel = observationLogger.getLevel();
+        observationLogger.setLevel(Level.ALL);
+        observationLogger.addHandler(handler);
+        try {
+            if (result.equals("error")) {
+                assertThatThrownBy(scope::close).isSameAs(detection);
+            } else {
+                scope.close();
+            }
+            assertThat(observedBinding.get()).isSameAs(outer);
+            assertThat(detectionDiagnostics).hasValue(result.equals("failure") ? 1 : 0);
+        } finally {
+            observationLogger.removeHandler(handler);
+            observationLogger.setLevel(previousLevel);
+            outer.close();
+        }
     }
 
     @Test

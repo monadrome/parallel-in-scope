@@ -121,6 +121,17 @@ TaskGraphObservationScope  生命周期：TTL 绑定、所有权解析、record(
 
 记录器的同步机制沿用既有形状：一把私有锁同时守护累积构建器与缓存快照；`record` 合并片段并作废缓存，快照
 在下一次查询时一次性构建（任务图与投影来自同一次读取）；锁内只有本库的纯计算，不调用用户代码。
+
+### 5.1 报告发布与诊断
+
+scope MUST 恢复绑定并发布报告之后，才调用可重入的用户日志 handler。ISSUE 诊断尝试 MUST
+放在发布的 finally 中，MUST NOT 因直接 listener 的 Error 逃出而被跳过；已发布结果 MUST 保持。
+listener Error 仍按既有政策传播，日志 handler 的失败隔离不变。listener 不返回时，库不承诺
+强制完成诊断。
+
+检测 Error 的最佳努力发布若再次抛出错误，MUST 保留检测 Error 为主异常与 report cause，
+不同的发布错误成为 suppressed；相同异常对象不做自抑制。不新增日志线程池或 owner 状态机。
+历史来源：`proposal:P0016`。
 ## 6. 被排除的替代方案
 
 - **任务级环/自环检测**（旧 `taskCycle`/`selfLoop`/`hasTaskCycle()`/`hasSelfLoop()`）：节点按单元实例标识、

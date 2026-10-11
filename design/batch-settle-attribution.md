@@ -72,14 +72,10 @@
 同样在 `setException` 之后运行）。触发级联的那个元素恒为 `USER_FAILURE`：它的钉子先于它自己的
 bind 监听器执行，而这种形状下 `FAIL_FAST` 只能由 bind 的聚合回调提交。
 
-**与待合入修复树的交互**：`fix/land-pr56-k3-onto-dev` 给组成员加了 deadline 后备
-（`TaskGroup.deadlineDrivenCancellation`）：组 token 仍为 `RUNNING`、成员 deadline 已在自己的
-时钟上过去时，取消形状的结局读作 `TIMEOUT`。批次的钉子按本文读 `outcome()`，没有这条后备：
-body 在 deadline 已过、定时器尚未提交时自抛 CE，批次元素读 `USER_FAILURE`。今天的 dev 上组同样
-读 `USER_FAILURE`，两路一致；修复树合入后组读 `TIMEOUT`、批次仍读 `USER_FAILURE`（探针：定时器
-永不触发的调度器 + 手动推进的 ticker，dev 上 batch/group = `USER_FAILURE`/`USER_FAILURE`，
-修复树上 `FAIL_FAST`/`TIMEOUT`，两者合并后 `USER_FAILURE`/`TIMEOUT`）。若合入修复树，批次钉子应
-采用同一后备，使两路再次一致；这属于修复树的 deadline 归因规则，不在本文范围内。
+**未提交取消的政策边界**：body 在 deadline 已过、timer 尚未提交时自抛 CE/IE，batch 与 group
+仍保留 USER_FAILURE。真实 checkpoint backstop 提交 TIMEOUT 是已取消路径，其组级上升由
+[组取消契约](task-group-cancellation.md) 约束。仅凭时钟经过增加 RUNNING 后备是
+[P0020](proposal/P0020-deadline-attribution-policy.md) 的未决政策，不在本契约中默默引入。
 
 ## 5. 已排除的替代方案
 

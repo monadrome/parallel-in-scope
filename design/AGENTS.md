@@ -92,6 +92,7 @@
 | [interruption-contract.md](interruption-contract.md) | 中断处理跨层规范：中断标志与 `InterruptedException` 四原则、分角色规范（任务体/库的阻塞方法/状态检查/executor 边界）；P1–P4 摘要已进根 AGENTS.md |
 | [runner-interrupt-delivery.md](runner-interrupt-delivery.md) | runner 退出与取消中断投递握手、volatile 顺序证明、回归验证与独立评审记录 |
 | [execution-future-simplification.md](execution-future-simplification.md) | execution phase 非阻塞查询契约、取消与终态竞态、自动 purge 移至实验分支的取舍与迁移、验证及评审记录 |
+| [confirmed-proposal-defects.md](confirmed-proposal-defects.md) | 提案缺陷的当前复现、逐项保留/暂缓/驳回处置、窄修复与独立验证记录；文档配方和发布摘要的落地约束 |
 
 ### 仓库流程
 
@@ -123,13 +124,11 @@
 | [proposal/P0007-result-read-allocation.md](proposal/P0007-result-read-allocation.md) | 冻结结果值读取减少重复统计与分配，先测量再选缓存或索引 |
 | [proposal/P0008-runtime-drain-diagnostics.md](proposal/P0008-runtime-drain-diagnostics.md) | 有界、按需的未退出运行身份诊断，不钉住业务结果 |
 | [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 较大异构组按名称读取终端输入，明确运行期校验的代价 |
-| [proposal/P0010-executor-boundary-diagnostics.md](proposal/P0010-executor-boundary-diagnostics.md) | shutdown CallerRuns、wrapper 身份与全量准备/timeout action 资源边界的诊断及测量 |
-| [proposal/P0011-documentation-maintenance.md](proposal/P0011-documentation-maintenance.md) | 收割文档审计的未决示例、契约、历史记录、BACKLOG 与工作流维护项 |
-| [proposal/P0012-comment-and-javadoc-maintenance.md](proposal/P0012-comment-and-javadoc-maintenance.md) | 具体 javadoc 错误、失效指针与重复文字的后续修复，不引入注释门禁 |
 | [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
-| [proposal/P0014-interrupted-result-freezing.md](proposal/P0014-interrupted-result-freezing.md) | 已中断 caller 的失败结果冻结仍抛 ISE 的窄修复；保留原 cause、flag 与当前落定归因 |
-| [proposal/P0015-deadline-attribution-consistency.md](proposal/P0015-deadline-attribution-consistency.md) | 继承 deadline 成员 TIMEOUT 的组级上升与收敛，区分真实遗漏和待选择的 RUNNING 时钟后备规则 |
-| [proposal/P0016-report-publication-diagnostics.md](proposal/P0016-report-publication-diagnostics.md) | 直接 report listener Error 跳过 ISSUE 诊断的修复，保留发布、重入顺序与检测根因 |
 | [proposal/P0017-oss-adoption-path.md](proposal/P0017-oss-adoption-path.md) | stable/next 首用、原生 JDK 选型、人类贡献职责与公开入口维护；历史网络结论重新核验 |
-| [proposal/P0018-artifact-verification.md](proposal/P0018-artifact-verification.md) | 构建/CI/公开下载构件身份、真实 Java 8 消费、发布实际结果与源码追溯；复用已有发布和 consumer |
 | [proposal/P0019-result-exhaustive-matching.md](proposal/P0019-result-exhaustive-matching.md) | ImmediateResult 穷尽匹配的 typestate 候选与同步单任务获取需求复核；不恢复公开运行句柄 |
+| [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | P0015 剩余的 RUNNING-clock 后备政策选择；不覆盖真实事件、first-wins 与当前落定归因 |
+| [proposal/P0021-executor-boundary-diagnostics.md](proposal/P0021-executor-boundary-diagnostics.md) | P0010 剩余的 shutdown CallerRuns、wrapper 身份与准备/timeout action 资源测量 |
+| [proposal/P0022-documentation-maintenance.md](proposal/P0022-documentation-maintenance.md) | P0011 剩余的历史/契约、站点示例、BACKLOG、ADR 与索引维护；具体配方已修 |
+| [proposal/P0023-artifact-verification.md](proposal/P0023-artifact-verification.md) | P0018 剩余的构件身份、Java 8 消费与下载源码追溯；发布摘要已按实际 deploy 结果修复 |
+| [proposal/P0024-comment-and-javadoc-maintenance.md](proposal/P0024-comment-and-javadoc-maintenance.md) | P0012 剩余的访问器 Javadoc、重复注释与测试断言维护；责任说明及失效指针已修 |

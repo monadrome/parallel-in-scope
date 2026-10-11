@@ -24,9 +24,12 @@ Priority scheduling can starve work and conflicts with the predictable sliding-w
 
 The core library is framework-neutral and targets Java 8. A starter would add Spring Boot 2.x/3.x compatibility and auto-configuration maintenance for a small amount of wiring. Explicit `ParRuntime.builder()` setup keeps the dependency boundary clear.
 
-## Per-task timeout
+## Independent deadlines for batch elements
 
-The current timeout is a batch-level contract. Per-task deadlines would make result states and cancellation races substantially harder to explain. If individual deadlines are required, enforce them in the task function or an application-level client.
+`Par.map` shares one batch deadline; it has no separate timeout per element. Group members and
+combines already accept `TaskOptions.timeout(Duration)`, capped by the group's effective deadline.
+A tighter member deadline cancels the group as TIMEOUT. Use a typed group for independently budgeted
+work and client timeouts for individual blocking operations; do not add per-element timers to map.
 
 ## `CompletableFuture` as the public result type
 
@@ -38,7 +41,10 @@ The API deliberately models a finite batch. Streaming, backpressure, and reactiv
 
 ## Heterogeneous task composition
 
-An `invokeAll`-style API for unrelated callable types cannot provide a useful type-safe aggregate result without a large overload matrix. Use typed batches and compose their results explicitly.
+Typed TaskGroup already coordinates heterogeneous Callables using names, declared types, and a
+left-nested Tuple2 result: `runtime.group(...).par(...).par(...).runAll()`. What remains rejected is
+an untyped `invokeAll` overload family or a general dependency graph. Use the existing group for
+independent typed tasks and its optional terminal combine for a single all-successful join.
 
 ## Adaptive concurrency
 

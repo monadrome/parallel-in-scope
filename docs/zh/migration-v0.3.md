@@ -81,6 +81,12 @@ IllegalArgumentException，不再静默当作"每任务一 worker"。
 
 ## 等待与资源所有权
 
+早期 0.3 快照可能在已中断调用方冻结失败任务时抛无关 ISE；相同调用现在返回原业务失败并保留
+标志。成员或 combine 的 checkpoint 提交继承 deadline 后，任务与组都报告 TIMEOUT，
+不再出现任务 TIMEOUT、组 MEMBER_CANCELLED；按 outcome 分支的监控须相应更新。
+Par.map 现在立即拒绝 null mapper，包括空/null 输入；传入真实 mapper。签名不变，
+不因没有取消事件时仅时间经过就推断 TIMEOUT。
+
 map/runAll 不声明 InterruptedException；等待结果和有界清理均不因中断退出，结束恢复
 标志。调用线程中断不取消执行；deadline、fail-fast、祖先 token、worker 中断、
 checkpoint 保持有效。ParRuntime.awaitQuiescence 仍可中断。direct/CallerRuns 的

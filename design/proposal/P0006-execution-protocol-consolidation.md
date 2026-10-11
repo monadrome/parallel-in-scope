@@ -45,6 +45,6 @@ MUST 保留收敛时刻与 body 退出时刻的区别；先迁移内部 live 消
 不能将删除动态查询当成已经解决重复快照，也不能提前合并生命周期。
 
 旧重落分支 `bec55e9`/`e11cf28` 的单次 terminal 分类也是候选，不是已经证实必须引入的
-carrier。已完成 future 的中断独立读取先按 [P0014](P0014-interrupted-result-freezing.md) 做
-窄修复；若进一步统一冻结，MUST 保留当前 `attributedOnSettle` 的落定 outcome，不能覆盖
+carrier。已完成 future 的中断独立读取已按 [中断契约](../interruption-contract.md) 修复；
+若进一步统一冻结，MUST 保留当前 `attributedOnSettle` 的落定 outcome，不能覆盖
 成 token 的冻结时读值。运行时快照、Scope 自愈与时间注入已实现，不再作为本提案新增能力。

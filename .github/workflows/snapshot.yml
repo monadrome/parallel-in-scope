@@ -137,6 +137,7 @@ jobs:
       # names this switch in the warning it prints. `release.yml` runs the same command and
       # needs the same treatment once this reaches the default branch.
       - name: Publish the snapshot to Maven Central
+        id: deploy
         if: steps.gate.outputs.publish == 'yes'
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
@@ -150,10 +151,12 @@ jobs:
       - name: Summarize
         if: always()
         env:
-          PUBLISHED: ${{ steps.gate.outputs.publish }}
+          PUBLISH_DECISION: ${{ steps.gate.outputs.publish }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
         run: |
-          case "$PUBLISHED" in
-            yes) echo "Published a snapshot from $(git rev-parse --short HEAD)." >> "$GITHUB_STEP_SUMMARY" ;;
-            no) echo "No snapshot published: Central already serves this branch." >> "$GITHUB_STEP_SUMMARY" ;;
+          case "$PUBLISH_DECISION:$DEPLOY_OUTCOME" in
+            yes:success) echo "Published a snapshot from $(git rev-parse --short HEAD)." >> "$GITHUB_STEP_SUMMARY" ;;
+            yes:*) echo "No successful snapshot deployment: deploy outcome was ${DEPLOY_OUTCOME:-unavailable}; check the log above." >> "$GITHUB_STEP_SUMMARY" ;;
+            no:*) echo "No snapshot published: the gate skipped publication." >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo "No snapshot published: the gate did not reach a decision; check the log above." >> "$GITHUB_STEP_SUMMARY" ;;
           esac

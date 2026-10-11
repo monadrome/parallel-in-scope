@@ -85,6 +85,15 @@
 
 ### Fixes
 
+- Preserve the original task failure while freezing batch/group results on an interrupted caller,
+  including terminal combines and zero cleanup grace, without consuming the interrupt flag.
+- Propagate checkpoint-driven member and combine TIMEOUT to the group even when the inherited
+  deadline skips a redundant member timer; keep first-wins and business failure attribution.
+- Attempt ISSUE diagnostics after report publication even when a direct listener throws Error,
+  and retain detection Error as primary when publication also throws.
+- Reject a null `Par.map` function before admission for nonempty, empty, and null inputs.
+- Correct bilingual context/cancellation/client recipes, align the body-completion test class with
+  its filename, and report snapshot publication from the actual deploy outcome.
 - Freeze each batch element's outcome as of the moment it settled. A `Par.map` or `mapAndCombine` element (or combine) whose body raised its own `CancellationException` or `InterruptedException` commits the batch token's `FAIL_FAST`, and the freeze read the token afterwards, so the element that caused the cascade was reattributed to it: a single such element read `USER_FAILURE` or `FAIL_FAST` at random and `valuesOrThrow()` switched between `ExecutionException` and `CancellationException`; when every element threw, all of them read `FAIL_FAST` deterministically. Each element now pins its attribution in a listener registered before the token is bound — the moment a group member is classified — so it freezes as `USER_FAILURE` carrying the body's own throwable, as `TaskCompletion.failure()` and the user guide promise. One more frozen outcome follows from the same rule: an element its executor cancels directly (a registered executor is handed the element's own future, so a `shutdownNow()` caller cancelling the returned tasks does this) now freezes as `MEMBER_CANCELLED`, like a directly cancelled group member, instead of the `FAIL_FAST` its own cancellation committed; the siblings it takes down still read `FAIL_FAST`. See `design/batch-settle-attribution.md`.
 - Correct the build-time warning for a registered executor the library cannot see through. It told every caller to "register the physical `ThreadPoolExecutor`", which is wrong advice for an executor that starts a fresh thread per task, such as `Executors.newVirtualThreadPerTaskExecutor()` — that is not a decorator, and Java 21 callers following the advice have no physical pool to register. The warning now scopes the fix to a wrapper around a physical pool and states that a per-task-thread executor cannot be starved by a child queued on the same pool, so blocking-risk detection does not apply to it.
 
