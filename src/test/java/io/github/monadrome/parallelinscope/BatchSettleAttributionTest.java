@@ -340,7 +340,8 @@ class BatchSettleAttributionTest {
                     .extracting(LogRecord::getMessage)
                     .containsExactly(
                             "an observation listener failed", "a task observation snapshot could not be built");
-            assertThat(logged).allMatch(record -> record.getLevel() == Level.SEVERE);
+            assertThat(logged)
+                    .allSatisfy(record -> assertThat(record.getLevel()).isEqualTo(Level.SEVERE));
         } finally {
             observationLogger.removeHandler(capture);
         }

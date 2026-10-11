@@ -191,6 +191,8 @@ public final class Checkpoints {
 
     /**
      * Waits up to the given duration for the condition to be signaled.
+     * This is a one-shot signal adapter; it does not evaluate a predicate. Callers waiting for a
+     * state must recheck that state in a loop while holding the associated lock.
      *
      * @param condition the condition to await
      * @param timeout the maximum time to wait
@@ -203,12 +205,15 @@ public final class Checkpoints {
 
     /**
      * Waits up to the given timeout for the condition to be signaled.
+     * This is a one-shot signal adapter; it does not evaluate a predicate. Callers waiting for a
+     * state must recheck that state in a loop while holding the associated lock.
      *
      * @param condition the condition to await
      * @param timeout the maximum time to wait
      * @param unit the unit of {@code timeout}
      * @return {@code false} if the wait elapsed before being signaled; otherwise {@code true}
      */
+    @SuppressWarnings("WaitNotInLoop")
     public static boolean checkAwait(Condition condition, long timeout, TimeUnit unit) {
         checkCancellationToken(true);
         try {
@@ -515,7 +520,7 @@ public final class Checkpoints {
             action.run();
         } catch (Throwable t) {
             throwIfCancellationTrigger(t, declaredType, "checked action");
-            rethrowUnchecked(t);
+            throw rethrowUnchecked(t);
         }
     }
 
@@ -543,7 +548,7 @@ public final class Checkpoints {
             return supplier.get();
         } catch (Throwable t) {
             throwIfCancellationTrigger(t, declaredType, "checked supplier");
-            return Checkpoints.rethrowUnchecked(t);
+            throw rethrowUnchecked(t);
         }
     }
 
@@ -611,8 +616,8 @@ public final class Checkpoints {
     }
 
     /** Preserves unchecked failures while making an impossible checked failure explicit. */
-    private static <T> T rethrowUnchecked(Throwable throwable) {
+    private static AssertionError rethrowUnchecked(Throwable throwable) {
         Throwables.throwIfUnchecked(throwable);
-        throw new AssertionError("runnable/supplier threw a checked throwable", throwable);
+        return new AssertionError("runnable/supplier threw a checked throwable", throwable);
     }
 }

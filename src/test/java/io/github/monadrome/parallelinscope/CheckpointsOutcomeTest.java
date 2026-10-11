@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,14 +35,14 @@ class CheckpointsOutcomeTest {
     @Test
     void tryAcquireDurationOverloadReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(0);
-        holdNothingButAssertBusy(semaphore);
+        holdNothingButAssertBusy();
         long start = System.nanoTime();
         assertThat(Checkpoints.checkTryAcquire(semaphore, Duration.ofMillis(30)))
                 .isFalse();
         assertThat(System.nanoTime() - start).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(5));
     }
 
-    private static void holdNothingButAssertBusy(Semaphore semaphore) {
+    private static void holdNothingButAssertBusy() {
         // A zero-permit semaphore is already exhausted; nothing further to arrange.
     }
 
@@ -98,7 +99,7 @@ class CheckpointsOutcomeTest {
     void awaitTerminationReportsFalseForRunningExecutorViaEveryOverload() throws Exception {
         ExecutorService busy = Executors.newSingleThreadExecutor();
         try {
-            busy.submit(() -> {
+            Future<?> busyTask = busy.submit(() -> {
                 Thread.sleep(300);
                 return null;
             });
@@ -110,6 +111,8 @@ class CheckpointsOutcomeTest {
             busy.shutdown();
             assertThat(Checkpoints.checkAwaitTermination(busy, Duration.ofSeconds(2)))
                     .isTrue();
+            assertThat(busyTask).isDone();
+            busyTask.get();
         } finally {
             busy.shutdownNow();
         }

@@ -309,7 +309,7 @@ class DrainingBlockingQueueTest {
     @Test
     // Error Prone: the anonymous target deliberately overrides equals alone to probe lock-free
     // equality evaluation; hashCode is never consulted by the queue path under test
-    @SuppressWarnings("EqualsHashCode")
+    @SuppressWarnings({"EqualsHashCode", "ReferenceEquality"})
     void removeDoesNotHoldTheLockWhileEvaluatingEquals() throws Exception {
         DrainingBlockingQueue<Object> queue = new DrainingBlockingQueue<>(5);
         Object first = new Object();

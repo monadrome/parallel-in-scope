@@ -123,7 +123,9 @@ class ParRuntimeGlobalSlotTest {
             AtomicReference<@Nullable ParRuntime> slot = (AtomicReference<@Nullable ParRuntime>) field.get(null);
             return slot;
         } catch (ReflectiveOperationException e) {
-            throw new AssertionError(e);
+            LinkageError linkageError = new LinkageError("ParRuntime global slot is not linkable");
+            linkageError.initCause(e);
+            throw linkageError;
         }
     }
 

@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
@@ -31,6 +32,13 @@ import org.junit.jupiter.api.Test;
  */
 class VirtualDeadlineTest {
 
+    private static void assertAggregateDone(ListenableFuture<?> aggregate) {
+        await().until(aggregate::isDone);
+        if (!aggregate.isCancelled()) {
+            Futures.getUnchecked(aggregate);
+        }
+    }
+
     @Test
     void tokenDeadlineFiresOnTheManualClock() {
         ManualClock clock = new ManualClock();
@@ -38,7 +46,8 @@ class VirtualDeadlineTest {
                 new CancellationToken(null, clock.read() + TimeUnit.MILLISECONDS.toNanos(100), clock.ticker());
         SettableFuture<String> pending = SettableFuture.create();
 
-        token.bind(ImmutableList.of(pending), Futures.immediateVoidFuture(), clock.scheduler());
+        ListenableFuture<?> aggregate =
+                token.bind(ImmutableList.of(pending), Futures.immediateVoidFuture(), clock.scheduler());
         assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
 
         clock.advance(Duration.ofMillis(99));
@@ -48,6 +57,7 @@ class VirtualDeadlineTest {
         clock.advance(Duration.ofMillis(1));
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertThat(pending).isCancelled();
+        assertAggregateDone(aggregate);
     }
 
     @Test
@@ -57,13 +67,15 @@ class VirtualDeadlineTest {
                 new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(10), clock.ticker());
         SettableFuture<String> task = SettableFuture.create();
 
-        token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), clock.scheduler());
+        ListenableFuture<?> aggregate =
+                token.bind(ImmutableList.of(task), Futures.immediateVoidFuture(), clock.scheduler());
         assertThat(clock.pendingHandles()).isEqualTo(1);
 
         task.set("done");
         // Settling by any path completes futureToken, whose listener cancels the scheduled task:
         // the shared scheduler retains no deadline of an already-settled token.
         assertThat(clock.pendingHandles()).isZero();
+        assertAggregateDone(aggregate);
     }
 
     @Test

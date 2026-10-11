@@ -406,7 +406,7 @@ class TaskGroupBodyCompletionTest {
 
             release.countDown();
             waiting.join(2000);
-            assertThat(saturated.get()).isEqualTo(Boolean.TRUE);
+            assertThat(saturated.get()).isTrue();
             assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
         } finally {
             release.countDown();

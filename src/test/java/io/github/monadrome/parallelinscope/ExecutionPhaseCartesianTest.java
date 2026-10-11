@@ -4,12 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,7 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 /** Exercises the full lifecycle-timing by interrupt-policy Cartesian surface. */
 public class ExecutionPhaseCartesianTest {
 
-    private enum Timing {
+    enum Timing {
         BEFORE_RUN,
         RUNNING,
         TERMINAL
@@ -37,7 +35,6 @@ public class ExecutionPhaseCartesianTest {
     @MethodSource("lifecycleCases")
     public void cancellationLifecycleMatchesTimingAndInterruptPolicy(Timing timing, boolean mayInterrupt)
             throws Exception {
-        AtomicReference<Runnable> submitted = new AtomicReference<>();
         LinkedBlockingQueue<ListenableFuture<Integer>> completions = new LinkedBlockingQueue<>();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -53,21 +50,21 @@ public class ExecutionPhaseCartesianTest {
             }
         });
         future.addListener(() -> completions.add(future), MoreExecutors.directExecutor());
-        submitted.set(future);
+        Runnable submitted = future;
 
         Thread runner = null;
         try {
             if (timing == Timing.BEFORE_RUN) {
                 assertThat(future.cancel(mayInterrupt)).isTrue();
-                Objects.requireNonNull(submitted.get()).run();
+                submitted.run();
             } else if (timing == Timing.RUNNING) {
-                runner = new Thread(submitted.get(), "phase-cartesian-runner");
+                runner = new Thread(submitted, "phase-cartesian-runner");
                 runner.start();
                 assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
                 assertThat(future.cancel(mayInterrupt)).isTrue();
             } else {
                 release.countDown();
-                Objects.requireNonNull(submitted.get()).run();
+                submitted.run();
                 assertThat(future.cancel(mayInterrupt)).isFalse();
             }
 

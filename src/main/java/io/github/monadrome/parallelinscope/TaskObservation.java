@@ -163,6 +163,7 @@ final class TaskObservation<T> {
     }
 
     /** Reports a snapshot that could not be built; like {@link #logQuietly}, it cannot throw. */
+    @SuppressWarnings("EmptyCatch")
     private static void logSnapshotFailureQuietly(Throwable snapshotFailure) {
         try {
             LOGGER.log(Level.SEVERE, "a task observation snapshot could not be built", snapshotFailure);

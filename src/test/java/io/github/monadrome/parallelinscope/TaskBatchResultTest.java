@@ -80,7 +80,7 @@ public class TaskBatchResultTest {
         TaskBatch<String> batch = TaskBatch.of(Arrays.asList(
                 task(token, Futures.immediateFuture("ok")), task(token, Futures.immediateCancelledFuture())));
 
-        assertThat(batch.results()).allMatch(future -> future instanceof TaskFuture);
+        assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
     }
 
     @Test
@@ -217,7 +217,8 @@ public class TaskBatchResultTest {
         CancellationToken token = new CancellationToken();
         Task<String> failed = task(token, Futures.immediateFailedFuture(new RuntimeException("boom")));
         Task<String> sibling = task(token, Futures.<String>immediateCancelledFuture());
-        token.bind(Arrays.asList(failed, sibling), Futures.immediateVoidFuture(), TIMER);
+        ListenableFuture<?> aggregate =
+                token.bind(Arrays.asList(failed, sibling), Futures.immediateVoidFuture(), TIMER);
 
         TaskBatch<String> batch = TaskBatch.of(Arrays.asList(failed, sibling));
 
@@ -227,6 +228,10 @@ public class TaskBatchResultTest {
                 .containsEntry(TaskOutcome.FAIL_FAST, 1)
                 .hasSize(2);
         assertThat(batch.report().firstException()).hasMessage("boom");
+        assertThat(aggregate).isDone();
+        if (!aggregate.isCancelled()) {
+            Futures.getUnchecked(aggregate);
+        }
     }
 
     @Test

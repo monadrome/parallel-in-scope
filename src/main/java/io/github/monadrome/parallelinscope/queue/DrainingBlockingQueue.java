@@ -1077,6 +1077,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * the target. See {@link #drainTo(Collection)} for the lifecycle and ownership behavior.
      */
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public int drainTo(Collection<? super E> target, int maxElements) {
         Objects.requireNonNull(target, "target");
         if (target == this) {
@@ -1198,6 +1199,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * after the queue monitors have been released and therefore cannot delay queue operations.
      */
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public String toString() {
         Object[] snapshot = toArray();
         if (snapshot.length == 0) {
@@ -1291,7 +1293,8 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
             if (exhausted) {
                 return null;
             }
-            int splitSize = batch = Math.min(batch + 1, MAX_SPLITERATOR_BATCH);
+            int splitSize = Math.min(batch + 1, MAX_SPLITERATOR_BATCH);
+            batch = splitSize;
             Object[] elements = new Object[splitSize];
             int amount = 0;
             fullyLock();

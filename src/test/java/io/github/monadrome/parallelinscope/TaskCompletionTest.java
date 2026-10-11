@@ -93,9 +93,9 @@ class TaskCompletionTest {
         TaskCompletion<String> completion =
                 TaskCompletion.succeeded("task", "unit-1", 0, -20_000_000L, -10_000_000L, -5_000_000L, "value");
 
-        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
-        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
-        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(10));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofMillis(5));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofMillis(15));
         assertThat(completion.enqueued()).isTrue();
     }
 
@@ -104,7 +104,7 @@ class TaskCompletionTest {
         TaskCompletion<String> completion =
                 TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -9_000_000L, -8_000_000L, "value");
 
-        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(1_000_000L));
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(1));
         assertThat(completion.enqueued()).isFalse();
     }
 
@@ -113,9 +113,9 @@ class TaskCompletionTest {
         TaskCompletion<String> completion =
                 TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, 0L, 5_000_000L, "value");
 
-        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(10_000_000L));
-        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
-        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(15_000_000L));
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(10));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofMillis(5));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofMillis(15));
         assertThat(completion.enqueued()).isTrue();
     }
 
@@ -124,9 +124,9 @@ class TaskCompletionTest {
         TaskCompletion<String> completion =
                 TaskCompletion.succeeded("task", "unit-1", 0, -10_000_000L, -5_000_000L, 0L, "value");
 
-        assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(5_000_000L));
-        assertThat(completion.executionTime()).isEqualTo(Duration.ofNanos(5_000_000L));
-        assertThat(completion.totalTime()).isEqualTo(Duration.ofNanos(10_000_000L));
+        assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(5));
+        assertThat(completion.executionTime()).isEqualTo(Duration.ofMillis(5));
+        assertThat(completion.totalTime()).isEqualTo(Duration.ofMillis(10));
     }
 
     @Test

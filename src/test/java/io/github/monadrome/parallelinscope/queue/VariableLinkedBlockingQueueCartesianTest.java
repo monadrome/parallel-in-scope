@@ -17,18 +17,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 /** Exercises producer/consumer waiters by counterpart, interrupt, and timeout release modes. */
 public class VariableLinkedBlockingQueueCartesianTest {
 
-    private enum Waiter {
+    enum Waiter {
         PRODUCER,
         CONSUMER
     }
 
-    private enum Release {
+    enum Release {
         COUNTERPART,
         INTERRUPT,
         TIMEOUT
     }
 
-    private enum ProducerRelease {
+    enum ProducerRelease {
         TAKE,
         REMOVE,
         CLEAR,
@@ -136,7 +136,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
                     result.set(queue.offer(1, 100, TimeUnit.MILLISECONDS));
                 } else {
                     queue.put(1);
-                    result.set(Boolean.TRUE);
+                    result.set(true);
                 }
             } else if (release == Release.TIMEOUT) {
                 result.set(queue.poll(100, TimeUnit.MILLISECONDS));
@@ -189,11 +189,19 @@ public class VariableLinkedBlockingQueueCartesianTest {
             assertThat(queue.size()).isEqualTo(waiter == Waiter.PRODUCER ? 1 : 0);
         } else if (release == Release.TIMEOUT) {
             assertThat(interrupted).isFalse();
-            assertThat(result.get()).isEqualTo(waiter == Waiter.PRODUCER ? Boolean.FALSE : null);
+            if (waiter == Waiter.PRODUCER) {
+                assertThat((Boolean) result.get()).isFalse();
+            } else {
+                assertThat(result.get()).isNull();
+            }
             assertThat(queue.size()).isEqualTo(waiter == Waiter.PRODUCER ? 1 : 0);
         } else {
             assertThat(interrupted).isFalse();
-            assertThat(result.get()).isEqualTo(waiter == Waiter.PRODUCER ? Boolean.TRUE : 1);
+            if (waiter == Waiter.PRODUCER) {
+                assertThat((Boolean) result.get()).isTrue();
+            } else {
+                assertThat(result.get()).isEqualTo(1);
+            }
             assertThat(queue.size()).isEqualTo(waiter == Waiter.PRODUCER ? 1 : 0);
         }
     }
