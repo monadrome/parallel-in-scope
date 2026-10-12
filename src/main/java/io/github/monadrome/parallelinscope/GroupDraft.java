@@ -210,6 +210,7 @@ final class GroupDraft {
         return false;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     void checkThread() {
         checkState(
                 Thread.currentThread() == ownerThread, "a group draft may only be used on the thread that created it");

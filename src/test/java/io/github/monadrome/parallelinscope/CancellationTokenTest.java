@@ -256,11 +256,12 @@ public class CancellationTokenTest {
         CancellationToken token = new CancellationToken(null, Long.MAX_VALUE);
 
         SettableFuture<String> pending = SettableFuture.create();
-        token.bind(ImmutableList.of(pending), Futures.immediateVoidFuture(), TIMER);
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(pending), Futures.immediateVoidFuture(), TIMER);
 
         Thread.sleep(100);
         assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(pending.isDone()).isFalse();
+        assertThat(aggregate.isDone()).isFalse();
 
         pending.set("done");
         await().untilAsserted(() -> assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS));
