@@ -75,7 +75,7 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 以 ExecutionException 报告；纯取消抛 CancellationException。成功值允许 null。
 
 TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；普通队列上
-rejectEnqueue 无效并有诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
+rejectEnqueue 与 CPU_BOUND 都无效，每个 `Par` 输出一次诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
 SubmissionException 保留原 cause，包括 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
 TaskType 默认 IO_BOUND，rejectEnqueue 默认 false。把 SmartBlockingQueue 装到物理池上，并按批次声明策略：
