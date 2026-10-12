@@ -29,6 +29,8 @@ import java.util.concurrent.Callable;
  *
  * <p>Implementations are created only by the library; the interface is public so the chain type can
  * be named, not so it can be implemented elsewhere.
+ *
+ * @since 0.3.0
  */
 public interface GroupStart {
 

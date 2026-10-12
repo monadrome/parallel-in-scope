@@ -17,6 +17,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Success may contain null. Every other outcome contains a throwable; reading it throws an
  * ExecutionException with that same throwable as its cause, including cancellation. This shallowly
  * immutable container never waits, checks interruption, or changes the execution that produced it.
+ *
+ * @since 0.3.0
  */
 public final class ImmediateResult<T> {
     private final TaskOutcome outcome;
