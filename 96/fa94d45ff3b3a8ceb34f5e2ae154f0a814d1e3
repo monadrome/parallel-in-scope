@@ -1,0 +1,22 @@
+src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueTest.java
+  s_90b56b9ac5aff5::t_ea8808bac068c5 104-114,116,122-123,128-129
+src/main/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueue.java
+  s_90b56b9ac5aff5::t_8786a4d9931d7b 1005-1015
+  s_90b56b9ac5aff5::t_0a13fe3e96ff9d 845,854,865-867,869-870
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "96fa94d45ff3b3a8ceb34f5e2ae154f0a814d1e3",
+  "prompts": {},
+  "sessions": {
+    "s_90b56b9ac5aff5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c26dafa7-327b-42e2-8dc9-7887401b7fcd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
