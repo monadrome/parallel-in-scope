@@ -131,18 +131,14 @@ final class TaskBatch<T> implements AutoCloseable {
      */
     <C> BatchCombinedResult<T, C> finishCombined(Task<C> terminal) {
         awaitElementsAndSubmission();
-        try {
-            Uninterruptibles.getUninterruptibly(terminal);
-        } catch (ExecutionException | CancellationException settled) {
-            // The combine's outcome is attribution data, frozen below.
-        }
+        awaitAttribution(terminal);
         long start = System.nanoTime();
         long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token);
         awaitBarriers(budget, start);
         BodyCompletionTracker.awaitSettledUninterruptibly(
                 terminal.observationView(), budget, start, "terminal observation signal");
         TaskBatchResult<T> frozen = freezeResults();
-        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, terminal.outcome());
+        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, attributionAtSettle(terminal));
         TaskCompletion<C> terminalObservation = null;
         ListenableFuture<TaskCompletion<C>> observation = terminal.observationView();
         if (observation.isDone()) {
@@ -156,14 +152,10 @@ final class TaskBatch<T> implements AutoCloseable {
         return BatchCombinedResult.of(frozen, terminalResult, terminalObservation);
     }
 
-    /** Waits out every element future and the submission loop, uninterruptibly. */
+    /** Waits out every element's settle attribution and the submission loop, uninterruptibly. */
     private void awaitElementsAndSubmission() {
         for (TaskFuture<T> result : results) {
-            try {
-                Uninterruptibles.getUninterruptibly(result);
-            } catch (ExecutionException | CancellationException settled) {
-                // Outcome data is frozen below, after every task has settled.
-            }
+            awaitAttribution(result);
         }
         try {
             Uninterruptibles.getUninterruptibly(submitCanceller);
@@ -178,12 +170,49 @@ final class TaskBatch<T> implements AutoCloseable {
         BodyCompletionTracker.awaitSettledUninterruptibly(completionView, budget, start, "batch observation signal");
     }
 
+    /**
+     * Waits, uninterruptibly, until a batch task has settled and its settle attribution is pinned.
+     * The pin listener runs on the settling thread right after the delegate completes, so this wait
+     * ends with the settle itself and takes no cleanup budget. A failed pin is a broken kernel
+     * invariant, reported when the freeze reads it.
+     */
+    private static void awaitAttribution(TaskFuture<?> task) {
+        try {
+            Uninterruptibles.getUninterruptibly(settledAttributionOf(task));
+        } catch (ExecutionException reportedWhenFrozen) {
+        }
+    }
+
+    /**
+     * The outcome a batch freezes for a settled task: the attribution pinned when it settled, so a
+     * fail-fast cascade committed by the task's own failure cannot reattribute it.
+     */
+    private static TaskOutcome attributionAtSettle(TaskFuture<?> task) {
+        try {
+            return Verify.verifyNotNull(Futures.getDone(settledAttributionOf(task)));
+        } catch (ExecutionException classificationFailure) {
+            throw new AssertionError("settled task attribution cannot fail", classificationFailure.getCause());
+        }
+    }
+
+    /**
+     * The settle attribution of a batch task. Every task this class freezes is a view built by
+     * {@link Task#attributedOnSettle}: the constructor and both factories are package-private, and
+     * the batch submission paths are their only producers.
+     */
+    private static ListenableFuture<TaskOutcome> settledAttributionOf(TaskFuture<?> task) {
+        return Verify.verifyNotNull(
+                ((Task<?>) task).settledAttribution(),
+                "batch task '%s' carries no settle attribution",
+                task.taskName());
+    }
+
     /** Freezes per-element results and observations; every future is terminal by here. */
     private TaskBatchResult<T> freezeResults() {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
         List<@Nullable TaskCompletion<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
-            ImmediateResult<T> immediate = ImmediateResult.fromTask(result, result.outcome());
+            ImmediateResult<T> immediate = ImmediateResult.fromTask(result, attributionAtSettle(result));
             frozen.add(immediate);
             ListenableFuture<TaskCompletion<T>> observation = result.completionFuture();
             try {
