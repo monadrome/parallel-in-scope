@@ -5,13 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,8 +69,6 @@ class TaskGraphScopeOwnershipTest {
     void aForeignRuntimeBatchRecordsNoEdgeInTheOpenScope() throws Exception {
         twoTopologies(false);
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
-
             TaskBatch<Integer> batch = foreign.par(ParId.of("foreign"))
                     .submitBatch(
                             Arrays.asList(1, 2),
@@ -78,7 +76,7 @@ class TaskGraphScopeOwnershipTest {
                             BatchOptions.timeout("foreign-batch", Duration.ofSeconds(5)));
 
             assertThat(batch.valuesOrThrow()).containsExactly(2, 3);
-            assertThat(data.graph().edges())
+            assertThat(scope.graph().asValueGraph().nodes())
                     .as("a batch admitted by another ParRuntime must not reach this scope's graph")
                     .isEmpty();
         }
@@ -88,13 +86,11 @@ class TaskGraphScopeOwnershipTest {
     void aForeignRuntimeTaskRecordsNoEdgeInTheOpenScope() throws Exception {
         twoTopologies(false);
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
-
             TaskFuture<Integer> task = foreign.par(ParId.of("foreign"))
                     .submit("foreign-task", () -> 7, TaskOptions.timeout(Duration.ofSeconds(5)));
 
             assertThat(task.get(5, TimeUnit.SECONDS)).isEqualTo(7);
-            assertThat(data.graph().edges())
+            assertThat(scope.graph().asValueGraph().nodes())
                     .as("a task admitted by another ParRuntime must not reach this scope's graph")
                     .isEmpty();
         }
@@ -141,7 +137,6 @@ class TaskGraphScopeOwnershipTest {
         foreign =
                 ParRuntime.builder().register(ParId.of("foreign"), foreignPool).build();
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             Par ownerPar = owner.par(ParId.of("owner"));
             Par foreignPar = foreign.par(ParId.of("foreign"));
 
@@ -165,51 +160,60 @@ class TaskGraphScopeOwnershipTest {
                     TaskOptions.timeout(Duration.ofSeconds(5)));
             assertThat(outer.get(10, TimeUnit.SECONDS)).isEqualTo(2);
 
-            // Only the owner's own top-level task is recorded. The innermost batch is left out rather
-            // than attached to a parent this graph does not contain: an edge needs both endpoints, and
-            // inventing one would fabricate a structural relationship that does not exist.
-            assertThat(data.graph().edges()).hasSize(1);
-            assertThat(data.snapshot().nodeLabels()).doesNotContainValue("foreign-middle");
-            assertThat(data.snapshot().nodeLabels()).doesNotContainValue("owner-inner");
-            assertThat(data.snapshot().executorIdentityGraph().edges()).isEmpty();
+            assertThat(scope.graph().asValueGraph().nodes())
+                    .as("only the owner's own top-level task is recorded; the innermost batch is not"
+                            + " attached to a parent this graph does not contain")
+                    .extracting(TaskNode::name)
+                    .containsExactly("owner-outer");
+            assertThat(scope.graph().asValueGraph().edges()).isEmpty();
+            assertThat(ExecutorGraph.projectedFrom(scope.graph()).asValueGraph().edges())
+                    .isEmpty();
         }
     }
 
+    /**
+     * A body that opens its own scope means that scope for the work it submits next; resolving
+     * through the structural parent instead would record the batch into the enclosing scope and leave
+     * this one reporting nothing. The body's own unit is the same node in both graphs: the outer
+     * scope's admission target and the inner scope's fork source.
+     */
     @Test
     void aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork() throws Exception {
         ownerPool = Executors.newFixedThreadPool(4);
         owner = ParRuntime.builder().register(ParId.of("owner"), ownerPool).build();
         Par ownerPar = owner.par(ParId.of("owner"));
 
+        AtomicReference<TaskGraph> innerGraph = new AtomicReference<>();
         try (TaskGraphObservationScope outer = owner.openTaskGraphObservation()) {
-            TaskGraphData outerData = Objects.requireNonNull(TaskGraphObservationScope.data());
-
             TaskFuture<Integer> task = ownerPar.submit(
                     "outer-task",
                     () -> {
-                        // A body that opens its own scope means that scope for the work it submits
-                        // next. Resolving through the structural parent instead would record the
-                        // batch into the enclosing scope and leave this one reporting nothing.
                         try (TaskGraphObservationScope inner = owner.openTaskGraphObservation()) {
-                            TaskGraphData innerData = Objects.requireNonNull(TaskGraphObservationScope.data());
                             ownerPar.submitBatch(
                                             Arrays.asList(1, 2),
                                             value -> value + 1,
                                             BatchOptions.timeout("inner-batch", Duration.ofSeconds(5)))
                                     .valuesOrThrow();
-                            assertThat(innerData.graph().edges())
-                                    .as("the batch belongs to the scope its caller opened")
-                                    .hasSize(1);
-                            assertThat(innerData.snapshot().nodeLabels()).containsValue("inner-batch");
+                            innerGraph.set(inner.graph());
                             return 1;
                         }
                     },
                     TaskOptions.timeout(Duration.ofSeconds(5)));
 
             assertThat(task.get(10, TimeUnit.SECONDS)).isEqualTo(1);
-            // The outer scope keeps only its own edge: the task it submitted, not that task's batch.
-            assertThat(outerData.snapshot().nodeLabels()).doesNotContainValue("inner-batch");
-            assertThat(outerData.graph().edges()).hasSize(1);
+            TaskGraph outerGraph = outer.graph();
+            TaskGraph inner = Objects.requireNonNull(innerGraph.get());
+            TaskNode outerTask = TaskGraphFixtures.named(outerGraph, "outer-task");
+            TaskNode innerBatch = TaskGraphFixtures.named(inner, "inner-batch");
+            assertThat(outerGraph.asValueGraph().nodes())
+                    .as("the outer scope keeps its own admission, not that task's batch")
+                    .containsExactly(outerTask);
+            assertThat(inner.asValueGraph().edgeValue(outerTask, innerBatch))
+                    .as("the batch belongs to the scope its caller opened")
+                    .contains(TaskGraph.Dependency.FORK);
+            assertThat(TaskGraphFixtures.named(inner, "outer-task"))
+                    .as("one node instance sits in both scopes' graphs")
+                    .isSameAs(outerTask);
         }
     }
 
@@ -217,7 +221,6 @@ class TaskGraphScopeOwnershipTest {
     void theOwnRuntimeStillRecordsItsBatchAndTaskEdges() throws Exception {
         twoTopologies(false);
         try (TaskGraphObservationScope scope = owner.openTaskGraphObservation()) {
-            TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             Par ownerPar = owner.par(ParId.of("owner"));
 
             ownerPar.submitBatch(
@@ -228,11 +231,10 @@ class TaskGraphScopeOwnershipTest {
             ownerPar.submit("owner-task", () -> 1, TaskOptions.timeout(Duration.ofSeconds(5)))
                     .get(5, TimeUnit.SECONDS);
 
-            // Control: the ownership test must not have turned recording off for the owner itself.
-            List<?> edges = Arrays.asList(data.graph().edges().toArray());
-            assertThat(edges)
+            assertThat(scope.graph().asValueGraph().nodes())
                     .as("the owning runtime's own work is still recorded")
-                    .hasSize(2);
+                    .extracting(TaskNode::name)
+                    .containsExactly("owner-batch", "owner-task");
         }
     }
 }
