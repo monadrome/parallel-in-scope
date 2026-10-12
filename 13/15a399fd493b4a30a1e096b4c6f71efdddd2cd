@@ -1,0 +1,33 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskNode.java
+  s_fa23da4837a994::t_57a3260aaecbc3 1-132
+src/test/java/io/github/monadrome/parallelinscope/ExecutorGraphTest.java
+  s_fa23da4837a994::t_9833908d72e95f 1-118,120-122,125-204
+  s_fa23da4837a994::t_ba4b1cae9c64f2 119,123-124
+src/main/java/io/github/monadrome/parallelinscope/ExecutorGraph.java
+  s_fa23da4837a994::t_6f1a68c9432e96 10,15,21
+  s_fa23da4837a994::t_93179d998894e4 1-9,11-14,16-20,22-151
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphTest.java
+  s_fa23da4837a994::t_a3ff2cdc553047 1-170
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphFixtures.java
+  s_fa23da4837a994::t_1b8268949638df 1-92
+src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java
+  s_fa23da4837a994::t_4ce00d34da7c18 1-56
+src/main/java/io/github/monadrome/parallelinscope/TaskGraph.java
+  s_fa23da4837a994::t_3507b5bd8c1e29 1-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1315a399fd493b4a30a1e096b4c6f71efdddd2cd",
+  "prompts": {},
+  "sessions": {
+    "s_fa23da4837a994": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2108738a-67a1-481a-a47c-236ff4e9d79b",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
