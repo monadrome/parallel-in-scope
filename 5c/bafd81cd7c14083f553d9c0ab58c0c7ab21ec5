@@ -1,0 +1,23 @@
+src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_90b56b9ac5aff5::t_21815c1a34900d 220,222-224
+  s_90b56b9ac5aff5::t_c9cca78b8a2e8b 256-290
+  s_90b56b9ac5aff5::t_fb3a99c0c9f588 400,402,404-411,413-443
+src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java
+  s_90b56b9ac5aff5::t_b22b60ebbd1b87 132-141,144-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5cbafd81cd7c14083f553d9c0ab58c0c7ab21ec5",
+  "prompts": {},
+  "sessions": {
+    "s_90b56b9ac5aff5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c26dafa7-327b-42e2-8dc9-7887401b7fcd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
