@@ -1,0 +1,44 @@
+CHANGELOG.md
+  s_90b56b9ac5aff5::t_a5b0f615b10ab4 85
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_90b56b9ac5aff5::t_2bca9a08ad9ce3 279
+design/batch-settle-attribution.md
+  s_90b56b9ac5aff5::t_d541f8fa9b3845 47-49
+  s_90b56b9ac5aff5::t_2109d5b71134a4 82-85
+  s_90b56b9ac5aff5::t_d2290fbe1bcd28 1-46,50-81
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_90b56b9ac5aff5::t_ff2dbe5fb09142 77-80,87
+src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_90b56b9ac5aff5::t_e1fe86e6e0a4a2 69,78-117
+  s_90b56b9ac5aff5::t_4ea1e95bbc761b 233-240
+  s_90b56b9ac5aff5::t_b9952e31d55dc6 251
+  s_90b56b9ac5aff5::t_2935bb2e2afc84 8-9
+  s_90b56b9ac5aff5::t_5db729ddf897c3 39,42-46,51
+src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_90b56b9ac5aff5::t_c41f243e2fe5fc 209-244
+  s_90b56b9ac5aff5::t_78f249a6437b59 146-161,163-168
+  s_90b56b9ac5aff5::t_1926d09c51a03c 1-145,169-208,245-249,253-256,258-265,269-271,273-306
+src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_90b56b9ac5aff5::t_1a8a8c93182a1d 173,178,180,183-187,189-191,193-198,202,208-209,215
+  s_90b56b9ac5aff5::t_e548361a4033aa 141
+  s_90b56b9ac5aff5::t_9432881d11cd15 174-177,181-182,188,192,199-201,203-207
+  s_90b56b9ac5aff5::t_a7202f67872dc3 155
+design/AGENTS.md
+  s_90b56b9ac5aff5::t_5bc102d8e11e95 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "e1640fb472a1d77f87aad3f969a13d2f8ae76725",
+  "prompts": {},
+  "sessions": {
+    "s_90b56b9ac5aff5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c26dafa7-327b-42e2-8dc9-7887401b7fcd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
