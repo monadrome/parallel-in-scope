@@ -284,7 +284,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 | 编号 | 契约 |
 |---|---|
-| L1 | **唯一构造点**：全库只有 `TaskSubmissions.wrapScoped` 调用 `TtlCallable.get`；batch 元素（`Par.executeGlobal` → `TaskSubmissions.prepare`）、group 成员与 combine（`TaskGroup` → `Par.prepareGroupTask` → `TaskSubmissions.prepare`）共用此点 |
+| L1 | **唯一构造点**：全库只有 `TaskSubmissions.wrapScoped` 调用 `TtlCallable.get`；`Par` 的 batch 元素与终端、`TaskGroup` 的成员与终端均直接调用 `TaskSubmissions.prepare`，共用此点 |
 | L2 | **顺序与封装**：`Context( ScopedCallable( user ) )`，用户代码由构造固定在最内层；公开 API 只收 `Callable`/`Function`，不收"已准备对象"，已准备对象的类型与构造入口 package-private（防绕过，P7） |
 | L3 | **单次包装**：每个任务恰好经过库的上下文层与生命周期层各一次 |
 | L4 | **不可配置**：不提供关闭或替换上下文包装的配置项 |

@@ -29,6 +29,8 @@ import java.util.concurrent.Callable;
  *
  * <p>Implementations are created only by the library; the interface is public so the chain type can
  * be named, not so it can be implemented elsewhere.
+ *
+ * @since 0.3.0
  */
 public interface GroupStart {
 
@@ -87,16 +89,26 @@ public interface GroupStart {
      * Declares the first plain member with explicit options rather than {@link
      * TaskOptions#inheritTimeout()}.
      *
-     * <p>This form takes a {@link TypeToken} only. Pairing a plain class with custom options is
-     * written as {@code TypeToken.of(Foo.class)}, which keeps the overload count of every stage
-     * bounded.
-     *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
      *     foreign, or the token is primitive or unresolved
      * @throws IllegalStateException if this stage is stale
      */
     <T> GroupStep<T> par(String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body);
+
+    /**
+     * Declares the first plain member with explicit options, using a plain class instead of a
+     * {@link TypeToken}.
+     *
+     * <p>Shorthand for {@link #par(String, Par, TaskOptions, TypeToken, Callable)} with {@code
+     * TypeToken.of(type)}: identical validation, identical runtime type check, no second code path.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
+     *     foreign, or the type is primitive or {@code void}
+     * @throws IllegalStateException if this stage is stale
+     */
+    <T> GroupStep<T> par(String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body);
 
     /**
      * Executes an empty group: no members, no combine, immediately successful.

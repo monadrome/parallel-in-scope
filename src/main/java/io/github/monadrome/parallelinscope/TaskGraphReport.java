@@ -20,6 +20,7 @@ import java.util.List;
  * failure ends that future in failure instead of producing a report.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class TaskGraphReport {
 
