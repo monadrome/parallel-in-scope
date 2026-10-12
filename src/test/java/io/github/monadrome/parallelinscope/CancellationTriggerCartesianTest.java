@@ -113,7 +113,7 @@ public class CancellationTriggerCartesianTest {
             throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (token.state() != expected && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(token.state()).isEqualTo(expected);
     }
@@ -122,7 +122,7 @@ public class CancellationTriggerCartesianTest {
     private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!future.isCancelled() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(future).isCancelled();
     }
@@ -131,7 +131,7 @@ public class CancellationTriggerCartesianTest {
     private static void awaitTrue(AtomicBoolean value) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!value.get() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(value).isTrue();
     }
@@ -216,7 +216,12 @@ public class CancellationTriggerCartesianTest {
                 entered.countDown();
                 if (workload == Workload.RUNNING_CPU_COOPERATIVE) {
                     while (release.getCount() > 0 && !Thread.currentThread().isInterrupted()) {
-                        Thread.yield();
+                        try {
+                            Thread.sleep(1L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
                     }
                     if (Thread.currentThread().isInterrupted()) {
                         interrupted.set(true);

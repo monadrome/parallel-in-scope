@@ -912,7 +912,12 @@ class DrainingBlockingQueueTest {
                 await(gate);
                 for (int i = 0; i < perProducer; i++) {
                     while (!queue.offer(base + i)) {
-                        Thread.yield();
+                        try {
+                            Thread.sleep(1L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
                     }
                 }
             });
@@ -926,7 +931,12 @@ class DrainingBlockingQueueTest {
                 while (received.size() < total && System.nanoTime() < deadline) {
                     Integer value = queue.poll();
                     if (value == null) {
-                        Thread.yield();
+                        try {
+                            Thread.sleep(1L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
                     } else if (!received.add(value)) {
                         throw new AssertionError("duplicate element delivered: " + value);
                     }

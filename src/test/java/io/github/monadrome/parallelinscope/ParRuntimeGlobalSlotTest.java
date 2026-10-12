@@ -77,7 +77,11 @@ class ParRuntimeGlobalSlotTest {
                 await(start);
                 // Bias the installer to run just behind close(): on the unfixed implementation
                 // this interleaving strands a closed instance in the slot.
-                Thread.yield();
+                try {
+                    Thread.sleep(1L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 try {
                     ParRuntime.installGlobal(a);
                 } catch (Throwable t) {

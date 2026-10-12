@@ -898,7 +898,7 @@ class SlidingWindowSubmitterTest {
                         Thread.sleep(10L);
                         break;
                     default:
-                        Thread.yield();
+                        Thread.sleep(1L);
                 }
                 batch.submitCanceller().cancel(true);
 

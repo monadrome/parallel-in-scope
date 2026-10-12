@@ -76,7 +76,7 @@ public class ExecutionPhaseHintFutureTest {
             bodyRelease.countDown();
             long cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
             while (!future.callableReleased() && System.nanoTime() < cleanupDeadline) {
-                Thread.yield();
+                Thread.sleep(1L);
             }
             assertThat(future.callableReleased()).as("A reached runner cleanup").isTrue();
             assertThat(nextEntered.await(200, TimeUnit.MILLISECONDS))
