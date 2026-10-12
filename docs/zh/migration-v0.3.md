@@ -113,7 +113,7 @@ Java 无法强制任意 body/close 停止，库不发现捕获/返回对象、�
 | JSR-305/Checker 注解 | JSpecify @NullMarked / 显式 @Nullable |
 
 草稿归属于一个 runtime，仅创建线程可用且只执行一次。成员声明绑定本次 Callable 与类型；
-Class 用于普通引用类型，泛型与自定义 options 用 TypeToken。读取侧同样提供 Class 简写：
+Class 用于普通引用类型（带不带自定义 options 均可），泛型用 TypeToken。读取侧同样提供 Class 简写：
 GroupValues.valueOf(name, Class)/valueAt(index, Class) 与
 TaskGroupResult.resultOf(name, Class)/resultAt(index, Class) 委托给对应
 TypeToken 形式，校验完全一致。（两类重载并存后，`valueOf(name, null)` 这类 null 字面量
@@ -125,12 +125,17 @@ Tuple2，combine 类型为 R。原始类型、未解析 token、外国 Par、重
 runOnCallerThread 删除。handoff 失败记录 SUBMISSION_FAILURE 与原 cause；inline
 由应用拒绝处理器决定。TPE 的 combine 禁止拒绝处理器 inline，明确的 direct executor
 继续支持。TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；
-TaskOptions 默认拒绝入队在普通队列无效并告警。直接注册的 DiscardPolicy/
+请求的拒绝入队（rejectEnqueue 或 CPU_BOUND）在普通队列无效，每个 Par 告警一次。直接注册的 DiscardPolicy/
 DiscardOldestPolicy 在 build 时拒绝；opaque wrapper 接纳但死锁可见性降低。
 
 checkpoint guard 不再静默跳过取消/过期 body。runtime.close 拒绝新准入、排空已接纳工作、
 不关闭注册 executor；awaitQuiescence 含 body 退出。图报告 future 是关闭观测 scope 后的
 只读诊断，不是业务运行句柄。queue 产物边界保持不变。
+
+冻结的批次结果按元素落定那一刻归因，与组成员一致：body 自己抛出 `CancellationException` 或
+`InterruptedException` 的元素记 `USER_FAILURE` 并携带该异常；被其 executor 直接取消的元素记
+`MEMBER_CANCELLED`，被它级联取消的兄弟记 `FAIL_FAST`。这取代 0.2 迁移指南中「直接取消并触发级联
+的那个元素同样记 `FAIL_FAST`」的说法；逐元素区分发起者不再需要任务组。
 
 ## 执行器队列清理
 

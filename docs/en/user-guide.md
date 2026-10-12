@@ -87,7 +87,7 @@ throws `ExecutionException` before any cancellation is reported; pure cancellati
 `CancellationException`. Successful values may be null.
 
 `TaskType` and `rejectEnqueue` influence `SmartBlockingQueue` admission, not executor selection.
-A plain queue makes `rejectEnqueue` inert and emits a diagnostic. An executor handoff failure is
+A plain queue makes `rejectEnqueue` and `CPU_BOUND` inert and emits one diagnostic per `Par`. An executor handoff failure is
 recorded as `SUBMISSION_FAILURE` with a `SubmissionException` retaining the original cause,
 including an Error. Validation and closed-runtime admission errors still throw from the entry.
 
@@ -176,8 +176,9 @@ User value = user.valueOrThrow();
 
 `resultOf` and `resultAt` expose terminal member results by name/declaration position, with optional
 exact TypeToken checks. A query cannot widen a declared token, even for a null or failed value.
-`Class<T>` declarations are shorthand for non-generic types; use TypeToken for parameterized values
-and for custom TaskOptions. Runtime validation checks non-null values against the token's raw class.
+`Class<T>` declarations are shorthand for non-generic types, with or without custom TaskOptions; use
+TypeToken for parameterized values. Runtime validation checks non-null values against the token's raw
+class.
 
 `terminalResult()` is null only when no combine was declared; a successful null combine has a
 present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` preserve group
@@ -348,6 +349,39 @@ No public running handle supports member cancellation or asynchronous submission
 business work into the same group. Application-owned asynchronous wrappers have their own lifetime
 and cancellation, which do not prove the inner synchronous call exited.
 
+### Read nested results inside a body {#nested-reads}
+
+A nested `map` or `runAll` has already finished when it returns: its results are frozen data, so
+reading them never blocks and needs no `asFuture().get()`. The only friction is that a batch body is
+a JDK `Function`, which cannot throw the checked `ExecutionException` of `valuesOrThrow()`. Wrap the
+execution failure in an unchecked exception and let a `CancellationException` through unchanged:
+
+```java
+TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
+    List<Order> orders;
+    try {
+        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+                .valuesOrThrow();
+    } catch (ExecutionException failed) {
+        throw new OrderLookupException(customer.id(), failed.getCause());
+    }
+    return Report.of(customer, orders);
+}, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
+```
+
+Letting the cancellation through is what keeps attribution right. When the outer scope cancels the
+element first — its deadline, fail-fast, or an ancestor — the element ends with that attribution
+whatever the body throws afterwards. When the outer scope has committed its cancellation but the
+element's own body ends first, a cancellation exception is attributed through the outer scope
+(`TIMEOUT`, `FAIL_FAST`), while a business exception wrapping it would read `USER_FAILURE`. A
+cancellation the inner batch reached on its own, with the outer scope still running, ends the outer
+element as `USER_FAILURE` carrying that exception.
+
+To keep partial results instead of failing the element, read `results()` element by element:
+`outcome()` classifies each one and `failure()` carries its throwable. A `runAll` inside a body needs
+no wrapping at all: `TaskGroupResult.valuesOrThrow()` already rethrows unchecked, and a group member
+body is a `Callable`, which can throw checked exceptions.
+
 ## Observe nested work
 
 Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, runs the potential-deadlock detection pass over the graph frozen at `close()` and publishes the result through `reportFuture()`. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
@@ -374,6 +408,8 @@ The report future stays pending until the scope closes; every normally returning
 The graph records every unit an admission of this runtime creates — a batch, a group member, a combine — and who waits for whom: the caller of `map`, `mapAndCombine`, or `runAll` waits for every unit it admits, while a combine only consumes its inputs. Detection projects the waits onto executors: a body blocked on work queued to a starvation-prone pool is an edge between the two pools, and a cycle of such edges — a pool waiting on itself included — is reported as `ISSUE` with `executorCycle()` / `executorSelfLoop()`. The rendered `executorEdges()` and `taskEdges()` list only the waits on that cycle and the units behind them.
 
 Queries such as `TaskGraphObservationScope.hasExecutorCycle()` cover every admission recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
+
+Executor cycles and self-loops are detected on the registered executor objects themselves, never on `ParId` names: two `ParId`s naming one pool are the same node, and a name alone never makes a cycle. A top-level call has no parent executor, so it adds no executor edge; only work nested inside a task body can.
 
 ## Purge cancelled queue entries
 

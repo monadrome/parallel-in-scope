@@ -76,6 +76,7 @@ class TaskGraphScopeOwnershipTest {
                             BatchOptions.timeout("foreign-batch", Duration.ofSeconds(5)));
 
             assertThat(batch.valuesOrThrow()).containsExactly(2, 3);
+            assertThat(TaskGraphObservationScope.current()).isSameAs(scope);
             assertThat(scope.graph().asValueGraph().nodes())
                     .as("a batch admitted by another ParRuntime must not reach this scope's graph")
                     .isEmpty();
@@ -90,6 +91,7 @@ class TaskGraphScopeOwnershipTest {
                     .submit("foreign-task", () -> 7, TaskOptions.timeout(Duration.ofSeconds(5)));
 
             assertThat(task.get(5, TimeUnit.SECONDS)).isEqualTo(7);
+            assertThat(TaskGraphObservationScope.current()).isSameAs(scope);
             assertThat(scope.graph().asValueGraph().nodes())
                     .as("a task admitted by another ParRuntime must not reach this scope's graph")
                     .isEmpty();

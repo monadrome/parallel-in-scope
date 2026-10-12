@@ -18,6 +18,8 @@ import org.jspecify.annotations.Nullable;
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
  * wither returns a new instance.
+ *
+ * @since 0.3.0
  */
 public final class BatchOptions {
     private final String name;

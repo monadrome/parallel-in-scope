@@ -616,7 +616,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
                                 .executor(par.executorRuntime(), par.id()));
-                par.warnIfRejectEnqueueInert(unit);
+                par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 // The payload moves into the prepared future here; the RunBindings slot is cleared
@@ -624,9 +624,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 // The wrapper is what turns a body that violates its declared token into an ordinary
                 // member failure instead of a later ClassCastException at a caller's use site.
                 Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
-                MemberState state =
-                        new MemberState(slot.name, slot.type, taskContext, future, par.submissionExecutor());
+                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
+                MemberState state = new MemberState(
+                        slot.name,
+                        slot.type,
+                        taskContext,
+                        future,
+                        par.executorRuntime().submissionExecutor());
                 states.put(slot.name, state);
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
@@ -656,18 +660,23 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
                                 .executor(par.executorRuntime(), par.id()));
-                par.warnIfRejectEnqueueInert(unit);
+                par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());
                 String combineName = combineSlot.name;
                 TypeToken<?> combineType = combineSlot.type;
                 Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
-                ExecutionPhaseHintFuture<Object> future = par.prepareGroupTask(body, taskContext);
+                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
-                terminal = new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor());
+                terminal = new MemberState(
+                        combineName,
+                        combineType,
+                        taskContext,
+                        future,
+                        par.executorRuntime().submissionExecutor());
             }
             if (observation != null) {
                 observation.record(

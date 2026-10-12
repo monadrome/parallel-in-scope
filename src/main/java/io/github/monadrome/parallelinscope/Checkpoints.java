@@ -43,6 +43,7 @@ import org.jspecify.annotations.Nullable;
  * as its cause.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class Checkpoints {
 

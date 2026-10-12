@@ -20,6 +20,8 @@ package io.github.monadrome.parallelinscope;
  * registered. {@code of("htpp")} is a valid value that fails at {@link ParRuntime.Builder#build()}
  * or {@link ParRuntime#par(ParId)}. It must never participate in deadlock decisions, which
  * are keyed on {@link ExecutorIdentity}.
+ *
+ * @since 0.3.0
  */
 public final class ParId {
     private final String value;

@@ -11,6 +11,7 @@ import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
 import io.github.monadrome.parallelinscope.TaskOutcome;
+import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
 import io.github.monadrome.parallelinscope.Tuple2;
 import org.junit.jupiter.api.Test;
@@ -110,6 +111,29 @@ class MavenCentralConsumerTest {
                         "alice:2:2",
                         group.terminalValueOrThrow());
                 assertEquals(TaskOutcome.SUCCESS, group.outcome());
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void classAndOptionsOverloadsInferTheNestedGroupOnJava8() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
+        try {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<String, Integer>, String> result = runtime
+                    .group("class-options", Duration.ofSeconds(5))
+                    .par("user", par, TaskOptions.timeout(Duration.ofSeconds(2)), String.class, () -> "alice")
+                    .par("count", par, TaskOptions.inheritTimeout(), Integer.class, () -> 2)
+                    .combine("summary", par, TaskOptions.inheritTimeout(), String.class,
+                            values -> values.first() + ":" + values.second())
+                    .runAll();
+
+            assertEquals(Tuple2.of("alice", 2), result.valuesOrThrow().typedValues());
+            assertEquals("alice:2", result.terminalValueOrThrow());
+            assertEquals(TaskOutcome.SUCCESS, result.outcome());
         } finally {
             runtime.close();
             executor.shutdownNow();
