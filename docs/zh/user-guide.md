@@ -36,7 +36,7 @@ ExecutorService reportPool = new ThreadPoolExecutor(
         1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 ```
 
-任务图边是否标记为死锁易感，取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不会被标记。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
+一个池是否饥饿易感（阻塞等待排进它的工作是否计入潜在死锁），取决于"每个 worker 都忙时，新提交的去向"。`ThreadPoolExecutor` 在超过 `corePoolSize` 之前先把任务交给队列：有缓冲能力的队列会收下子任务，把它排在已阻塞的 worker 后面，池子根本没机会开新线程——`maximumPoolSize` 是否有界都不影响这一点。零容量交接队列正好相反：它拒绝这次入队，于是池子要么开新线程、要么显式拒绝，因此 cached pool 永远不是饥饿易感的。这两项事实都不依据类名或运行时统计推断——想被观测，就注册物理池本身。
 
 需要进程级便捷入口时，在启动阶段安装一个已构建的拓扑即可：
 
@@ -324,7 +324,9 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
 
-`TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
+任务图记录本运行时每次准入创建的单元（批次、组成员、汇总）以及「谁等待谁」：`map`、`mapAndCombine`、`runAll` 的调用方等待它准入的每一个单元，汇总只消费它的输入。检测把等待关系投影到执行器上：一个 body 阻塞等待排在饥饿型池里的工作，就是两个池之间的一条边；这类边形成环（包括池等待自己）时报告 `ISSUE`，由 `executorCycle()` / `executorSelfLoop()` 标出。渲染出的 `executorEdges()` 与 `taskEdges()` 只列环上的等待关系及其背后的单元。
+
+`TaskGraphObservationScope.hasExecutorCycle()` 等查询覆盖调用前已记录的全部准入；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
 
 ## 清理已取消的排队任务
 

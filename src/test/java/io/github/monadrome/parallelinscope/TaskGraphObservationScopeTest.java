@@ -37,7 +37,7 @@ class TaskGraphObservationScopeTest {
             assertThat(context.owner()).isSameAs(global);
             assertThat(context.closed()).isFalse();
             assertThat(TaskGraphObservationScope.current()).isSameAs(context);
-            assertThat(TaskGraphObservationScope.data()).isNotNull();
+            assertThat(context.graph()).isEqualTo(TaskGraph.empty());
         } finally {
             context.close();
         }
@@ -55,16 +55,16 @@ class TaskGraphObservationScopeTest {
                 .register(ParId.of("io"), Executors.newSingleThreadExecutor())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
-            TaskGraphData outerData = TaskGraphObservationScope.data();
-            assertThat(outerData).isNotNull();
+            TaskNode outerUnit = TaskGraphFixtures.node("outer");
+            outer.record(TaskGraph.builder().admit(null, outerUnit).build());
 
             TaskGraphObservationScope inner = global.openTaskGraphObservation();
             assertThat(TaskGraphObservationScope.current()).isSameAs(inner);
-            assertThat(TaskGraphObservationScope.data()).isNotSameAs(outerData);
+            assertThat(inner.graph().asValueGraph().nodes()).isEmpty();
             inner.close();
 
             assertThat(TaskGraphObservationScope.current()).isSameAs(outer);
-            assertThat(TaskGraphObservationScope.data()).isSameAs(outerData);
+            assertThat(outer.graph().asValueGraph().nodes()).containsExactly(outerUnit);
         }
         assertThat(TaskGraphObservationScope.current()).isNull();
     }
@@ -74,20 +74,13 @@ class TaskGraphObservationScopeTest {
         global = ParRuntime.builder().build();
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            TaskGraphData expectedData;
             try (TaskGraphObservationScope context = global.openTaskGraphObservation()) {
-                expectedData = TaskGraphObservationScope.data();
                 AtomicReference<TaskGraphObservationScope> seen = new AtomicReference<>();
-                AtomicReference<TaskGraphData> dataSeen = new AtomicReference<>();
 
-                executor.submit(TtlRunnable.get(() -> {
-                            seen.set(TaskGraphObservationScope.current());
-                            dataSeen.set(TaskGraphObservationScope.data());
-                        }))
+                executor.submit(TtlRunnable.get(() -> seen.set(TaskGraphObservationScope.current())))
                         .get(2, TimeUnit.SECONDS);
 
                 assertThat(seen.get()).isSameAs(context);
-                assertThat(dataSeen.get()).isSameAs(expectedData);
             }
 
             // TTL restores the worker's previous value after the task: no scope leaks.
@@ -100,11 +93,13 @@ class TaskGraphObservationScopeTest {
         }
     }
 
+    /**
+     * Closing a scope on a different thread than the one that opened it is supported: the closed
+     * scope stays installed on the opening thread, but resolution must skip it and reach the open
+     * outer scope, and the closed scope itself records nothing.
+     */
     @Test
     void innerScopeClosedOnAnotherThreadLeavesTheOuterScopeRecording() throws Exception {
-        // Closing a scope on a different thread than the one that opened it is supported: the
-        // closed scope stays installed on the opening thread, but recording must skip it and reach
-        // the open outer scope instead of dropping edges.
         global = ParRuntime.builder()
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
@@ -117,10 +112,22 @@ class TaskGraphObservationScopeTest {
         assertThat(closer.isAlive()).isFalse();
         assertThat(inner.closed()).isTrue();
 
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        TaskGraphFixtures.Pool first = TaskGraphFixtures.pronePool("pool-a");
+        TaskGraphFixtures.Pool second = TaskGraphFixtures.pronePool("pool-b");
+        TaskGraphObservationScope resolved = TaskGraphObservationScope.resolveFor(null, global);
+        assertThat(resolved).isSameAs(outer);
+        Objects.requireNonNull(resolved)
+                .record(TaskGraph.builder()
+                        .admit(first.node("a"), second.node("b"))
+                        .build());
+        TaskGraphObservationScope resolvedAgain = TaskGraphObservationScope.resolveFor(null, global);
+        assertThat(resolvedAgain).as("the first read repaired the binding").isSameAs(outer);
+        Objects.requireNonNull(resolvedAgain)
+                .record(TaskGraph.builder()
+                        .admit(second.node("b"), first.node("c"))
+                        .build());
+        inner.record(TaskGraphFixtures.twoPoolCycle());
+        assertThat(inner.graph().asValueGraph().nodes()).isEmpty();
 
         outer.close();
         assertThat(Objects.requireNonNull(Futures.getDone(outer.reportFuture())).status())
@@ -170,10 +177,7 @@ class TaskGraphObservationScopeTest {
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        scope.record(TaskGraphFixtures.twoPoolCycle());
 
         AtomicReference<Throwable> reentrantFailure = new AtomicReference<>();
         java.util.logging.Logger scopeLogger =
@@ -222,10 +226,7 @@ class TaskGraphObservationScopeTest {
                 .build();
 
         TaskGraphObservationScope context = global.openTaskGraphObservation();
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        context.record(TaskGraphFixtures.twoPoolCycle());
 
         context.close();
         assertThat(context.reportFuture().isDone()).isTrue();
@@ -242,8 +243,13 @@ class TaskGraphObservationScopeTest {
         assertThatThrownBy(() -> new TaskGraphObservationScope(null)).isInstanceOf(NullPointerException.class);
     }
 
+    /**
+     * A top-level group with two members and a combine records its members and combine as nodes and
+     * each member's join into the combine, and nothing else: membership is no edge and no caller
+     * forks a top-level group, so the graph stays clean.
+     */
     @Test
-    void aMultiMemberGroupInsideAScopeRecordsEveryForkAndLeavesTheGraphClean() throws Exception {
+    void aMultiMemberGroupInsideAScopeRecordsItsJoinsAndLeavesTheGraphClean() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         global = ParRuntime.builder()
                 .register(ParId.of("worker"), executor)
@@ -253,9 +259,6 @@ class TaskGraphObservationScopeTest {
 
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
         try {
-            // Two members plus a terminal combine. The group's forking instrumentation walks its
-            // members by declaration position, so a single-member group never reaches the second
-            // iteration and never records the combine's own fork edge.
             try (TaskGroup<Tuple2<Integer, Integer>, Integer> group = global.groupDraft("page", Duration.ofSeconds(30))
                     .par("left", par, Integer.class, () -> 1)
                     .par("right", par, Integer.class, () -> 2)
@@ -270,11 +273,18 @@ class TaskGraphObservationScopeTest {
                         .isEqualTo(Tuple2.of(1, 2));
             }
             assertThat(scope.closed()).isFalse();
+            TaskGraph graph = scope.graph();
+            TaskNode left = TaskGraphFixtures.named(graph, "left");
+            TaskNode right = TaskGraphFixtures.named(graph, "right");
+            TaskNode join = TaskGraphFixtures.named(graph, "join");
+            assertThat(graph.asValueGraph().nodes()).containsExactly(left, right, join);
+            assertThat(graph.asValueGraph().edgeValue(left, join)).contains(TaskGraph.Dependency.JOIN);
+            assertThat(graph.asValueGraph().edgeValue(right, join)).contains(TaskGraph.Dependency.JOIN);
+            assertThat(graph.asValueGraph().edges()).hasSize(2);
         } finally {
             scope.close();
         }
 
-        // Running a group inside the scope is recorded as ordinary forking, not as a cycle.
         TaskGraphReport report = Objects.requireNonNull(Futures.getDone(scope.reportFuture()));
         assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
     }

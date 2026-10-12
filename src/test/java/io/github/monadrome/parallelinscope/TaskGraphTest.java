@@ -153,6 +153,26 @@ class TaskGraphTest {
     }
 
     @Test
+    void aGraphRendersItsNodesAndEdgeValues() {
+        TaskGraph graph = TaskGraph.builder().fork(node("a"), node("b")).build();
+
+        assertThat(graph.toString())
+                .isEqualTo(graph.asValueGraph().toString())
+                .contains("task-a[a]", "task-b[b]", "FORK");
+    }
+
+    @Test
+    void putAllKeepsAnExistingForkWhenTheMergedFragmentOnlyJoins() {
+        TaskNode a = node("a");
+        TaskNode b = node("b");
+        TaskGraph fragment = TaskGraph.builder().join(a, b).build();
+
+        TaskGraph merged = TaskGraph.builder().fork(a, b).putAll(fragment).build();
+
+        assertThat(merged.asValueGraph().edgeValue(a, b)).contains(Dependency.FORK);
+    }
+
+    @Test
     void putAllMergesInOrderUnderTheSameDominanceRule() {
         TaskNode a = node("a");
         TaskNode b = node("b");

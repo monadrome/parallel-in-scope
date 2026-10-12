@@ -1,7 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
@@ -30,6 +32,29 @@ final class TaskGraphFixtures {
         return new Pool(new ExecutorIdentity(new IdleExecutor(label)), label, false);
     }
 
+    /**
+     * Two starvation-prone pools waiting on each other: {@code a} on {@code pool-a} forks {@code b} on
+     * {@code pool-b}, which forks {@code c} back on {@code pool-a}. Its report renders {@code pool-a ->
+     * pool-b}, {@code pool-b -> pool-a}, and {@code task-a[a] -> task-b[b]}.
+     */
+    static TaskGraph twoPoolCycle() {
+        Pool first = pronePool("pool-a");
+        Pool second = pronePool("pool-b");
+        return TaskGraph.builder()
+                .admit(first.node("a"), second.node("b"))
+                .admit(second.node("b"), first.node("c"))
+                .build();
+    }
+
+    /** The one node called {@code name} in {@code graph}. */
+    static TaskNode named(TaskGraph graph, String name) {
+        List<TaskNode> matches = graph.asValueGraph().nodes().stream()
+                .filter(node -> node.name().equals(name))
+                .collect(ImmutableList.toImmutableList());
+        checkState(matches.size() == 1, "expected one node named '%s' but found %s", name, matches);
+        return matches.get(0);
+    }
+
     /** One executor resource as nodes record it: identity, display label, and starvation fact. */
     static final class Pool {
         final ExecutorIdentity identity;
@@ -47,9 +72,15 @@ final class TaskGraphFixtures {
             return new Pool(identity, checkNotNull(otherLabel), starvationProne);
         }
 
-        /** A node for unit {@code id} running on this pool. */
+        /** A node for unit {@code id} running on this pool, resolved with no budget left. */
         TaskNode node(String id) {
             return new TaskNode(id, "task-" + id, identity, label, starvationProne, TaskType.CPU_BOUND, 1, 1, 0L);
+        }
+
+        /** A node for unit {@code id} running on this pool, resolved with no deadline at all. */
+        TaskNode unboundedNode(String id) {
+            return new TaskNode(
+                    id, "task-" + id, identity, label, starvationProne, TaskType.CPU_BOUND, 1, 1, Long.MAX_VALUE);
         }
     }
 
@@ -63,7 +94,7 @@ final class TaskGraphFixtures {
 
         @Override
         public void execute(Runnable command) {
-            throw new UnsupportedOperationException(name);
+            throw new UnsupportedOperationException("pool '" + name + "' is a graph fixture and never runs tasks");
         }
 
         @Override

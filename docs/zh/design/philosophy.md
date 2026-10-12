@@ -281,27 +281,22 @@ par.map("shared-pool", orders, order -> {
 
 这不是传统的锁死锁，线程 dump 里看不到 `BLOCKED` 状态。这是**线程池的死锁**——线程在 `Future.get()` 上等待，而不是在 `synchronized` 上等待。
 
-parallel-in-scope 的解决方案是 **请求级 DAG 图**（DAG = Directed Acyclic Graph，有向无环图，这里用它记录任务之间的依赖关系）。每次 `Par.map()` 调用时，`logTaskPair()` 记录一条从父任务到子任务的边，边的元数据包含并行度、任务类型、执行器名称、任务数量、超时时间：
+parallel-in-scope 的解决方案是 **请求级任务依赖图**。设计借鉴 Guava `common.graph`：节点是任务单元（一次 `Par.map()` 批次、一个组成员、一个汇总），只描述自己——名称、所在执行器、并行度、任务数；「谁等待谁」只由图的边表达。每次准入把它新建的单元与关系作为一个片段写入图：调用方同步等待它准入的单元（`FORK`），汇总消费成员或批次的结果（`JOIN`）：
 
 ```java
 // 请求入口
 try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
-    // 例如上面的嵌套调用会记录两条边：
-    //   "processOrder" → "fetchItem"  (executor: shared-pool → shared-pool)
+    // 例如上面的嵌套调用：外层批次的 body FORK 内层批次，两者都在 shared-pool 上
 } // 请求结束时 close() 自动检测
 ```
 
-请求结束时执行两层检测：
+每个单元在每次调用时都是新节点，所以任务图本身按构造无环——"同名任务重入"不会在任务层成环。真正的风险在执行器层：请求结束时，把每条 `FORK` 投影成「等待方的池 → 被等待方的池」，只保留被等待方可能饿死的边，再在这张执行器 waits-for 图上找环。上面的例子投影成 `shared-pool → shared-pool` 自环，立即检出；`JOIN` 没有线程在等，不参与投影。
 
-1. **任务级** — 在任务名的图上检测环路（`Graphs.hasCycle()`）和自环。上面的例子中，"processOrder → fetchItem → processOrder" 形成环路，立即检出。
-2. **执行器级** — 将任务图提升为执行器图，只关注"可能死锁"的执行器。
+一个池是否可能饿死，只看「每个 worker 都忙时新提交的去向」：
 
-`canDeadlock()` 方法智能判断执行器是否可能死锁：
-
-- 使用 `SynchronousQueue` 的执行器（如 `CachedThreadPool`）→ 不会死锁，因为 `SynchronousQueue` 不缓冲任务，提交即执行
-- `maximumPoolSize` 为 `Integer.MAX_VALUE` 的执行器 → 不会死锁，因为线程数可以无限增长
-- 其他情况（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能死锁**
+- 零容量交接队列（如 `CachedThreadPool` 的 `SynchronousQueue`）→ 不会，入队被拒，池子只能开新线程或显式拒绝
+- 有缓冲能力的队列（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能**，子任务排在已阻塞的 worker 后面，`maximumPoolSize` 再大也没机会开新线程
 
 检测结果随请求作用域发布：关闭 `TaskGraphObservationScope` 时对冻结的图运行一次检测，报告经 `reportFuture()` 以 `TaskGraphReport` 交付：
 

@@ -410,8 +410,8 @@ try (TaskGraphObservationScope graphs =
         return database.map(user.orderIds(), db::fetchOrder, options);
     }, options);
 
-    if (TaskGraphObservationScope.hasTaskCycle()) {
-        LOGGER.warning("检测到任务环 —— 潜在死锁风险信号");
+    if (TaskGraphObservationScope.hasExecutorCycle()) {
+        LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");
     }
 }</code></pre>
       </div>
@@ -632,7 +632,7 @@ function s4Play(){
     [1450,()=>{s4Show('n-d1');s4Show('n-d2');s4Log('[graph] + db · fetchOrders / fetchCoupons  (Par database)')}],
     [1750,()=>{s4Show('e-h1-d1');s4Show('e-h1-d2');s4Log('[graph] edge  http → database  ×2  (嵌套批次产生的等待边)')}],
     [2050,()=>{s4Show('n-d3');s4Show('e-h2-d3');s4Log('[graph] edge  http → db · fetchAds')}],
-    [2500,()=>{s4Log('hasTaskCycle() = false · 图结构健康 ✓','ok');s4Stat('任务图构建完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
+    [2500,()=>{s4Log('hasExecutorCycle() = false · 图结构健康 ✓','ok');s4Stat('任务图构建完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
   ];
   seq.forEach(([t,f])=>s4.timers.push(setTimeout(f,t)));
 }
@@ -647,8 +647,8 @@ function s4Cycle(){
     document.getElementById('e-h1-d2').classList.add('cyc');
   });
   s4Log('[graph] edge  db · fetchCoupons → http · fetchUser  ⚠ 反向依赖','warn');
-  s4Log('hasTaskCycle() = true','warn');
-  s4Log('环: http·fetchUser → db·fetchCoupons → http·fetchUser','warn');
+  s4Log('hasExecutorCycle() = true','warn');
+  s4Log('执行器等待环: http → database → http','warn');
   document.getElementById('s4banner').classList.remove('hidden');
   s4Stat('检测到环 · 潜在死锁风险信号');
 }

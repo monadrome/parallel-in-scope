@@ -427,10 +427,13 @@ class ParMapAndCombineTest {
         }
     }
 
+    /**
+     * A top-level combined batch records the batch and the combine as nodes joined by the data
+     * dependency between them. There is no caller, so nothing forks either unit, and a join never
+     * reaches the executor projection: the starvation-prone pools stay out of it.
+     */
     @Test
     void combineEdgeIsRecordedInTheObservationGraph() throws Exception {
-        // Bounded pools are starvation-prone, so the batch->combine edge survives the executor
-        // projection's deadlock-relevance filter.
         ExecutorService io = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         ExecutorService cpu = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
@@ -449,14 +452,19 @@ class ParMapAndCombineTest {
                                 BatchOptions.timeout("batch", TIMEOUT),
                                 runtime.par(ParId.of("cpu")),
                                 values -> Objects.requireNonNull(values).size());
-                // The graph records the honest batch-to-combine edge in the task graph (root ->
-                // batch -> combine), while the executor projection drops the deferred combine edge
-                // as not deadlock-relevant and keeps the batch's own fork edge.
-                TaskGraphData data = TaskGraphObservationScope.data();
-                assertThat(data).isNotNull();
-                assertThat(data.graph().edges()).hasSize(2);
-                assertThat(data.executorGraph().hasEdgeConnecting("NA", "io")).isTrue();
-                assertThat(data.executorGraph().hasEdgeConnecting("io", "cpu")).isFalse();
+                com.google.common.graph.ValueGraph<TaskNode, TaskGraph.Dependency> graph =
+                        scope.graph().asValueGraph();
+                assertThat(graph.nodes()).hasSize(2);
+                assertThat(graph.edges()).hasSize(1);
+                TaskNode batch = graph.nodes().iterator().next();
+                TaskNode combine = graph.successors(batch).iterator().next();
+                assertThat(batch.executorLabel()).isEqualTo("io");
+                assertThat(combine.executorLabel()).isEqualTo("cpu");
+                assertThat(graph.edgeValue(batch, combine)).contains(TaskGraph.Dependency.JOIN);
+                assertThat(ExecutorGraph.projectedFrom(scope.graph())
+                                .asValueGraph()
+                                .edges())
+                        .isEmpty();
             } finally {
                 scope.close();
             }

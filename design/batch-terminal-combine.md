@@ -16,12 +16,13 @@
 - MUST：汇总体是 `CombineBody<List<@Nullable E>, C>`，按输入顺序接收元素成功值；成功的
   null 元素以 null 条目出现，元素级可空必须写在签名上（JSpecify 感知的使用者据此做空值
   检查）；checked 异常记 USER_FAILURE 并保留原 cause。
-- MUST：汇总有自己的 MultiTaskContext（批次 unit 的结构子节点、取消子 token）。TaskGraph 在
-  task graph 中记录真实的 batch→combine 数据依赖边，但该边以 `executorDeadlockProne=false`
-  记录、MUST NOT 进入 executor 投影：汇总是全部元素终态后才由收敛线程提交的，没有任何池
-  线程阻塞等待它；同池汇总若参与投影会被误报为 executor 自环 ISSUE（与组 combine 的 join
-  不参与环检测同理）。MUST NOT 伪造 group 成员关系或任意 DAG。汇总子 token 不做独立
-  bind——deadline 与级联由批次 token 承担，与 deadline 相等的组成员跳过 bind 的规则同源。
+- MUST：汇总有自己的 MultiTaskContext（批次 unit 的结构子节点、取消子 token）。任务图按「谁等待谁」
+  写一个准入片段（[task-graph.md](task-graph.md) §4）：caller `FORK` 批次、caller `FORK` 汇总、批次
+  `JOIN` 汇总。`JOIN` MUST NOT 进入 executor 投影：汇总是全部元素终态后才由收敛线程提交的，没有
+  元素线程阻塞等待它，同池汇总若参与投影会被误报为 executor 自环 ISSUE。caller 的 `FORK` MUST
+  参与投影：调用方同步等待汇总，汇总回到调用方自己的饥饿型池就是真实的 executor 自环。MUST NOT
+  伪造 group 成员关系或任意 DAG。汇总子 token 不做独立 bind——deadline 与级联由批次 token 承担，
+  与 deadline 相等的组成员跳过 bind 的规则同源。
 - MUST：滑窗上界、closeGrace 有界清理与 body-exit 追踪覆盖元素与汇总（tracker 槽位 N+1）；
   冻结结果同时保留元素 `TaskBatchResult`、汇总 `ImmediateResult`、汇总终态观测与未完成 body
   诊断。
