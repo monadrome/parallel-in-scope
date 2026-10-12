@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -71,11 +72,11 @@ class TaskGraphExportTest {
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
         ParRuntime global = ParRuntime.builder().build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", namedEdge("pool-a", "pool-b"));
+            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", namedEdge("pool-b", "pool-a"));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", namedEdge("pool-a", "pool-a"));
             // Parallel edge: same endpoint pair as the first entry, kept as a second TaskEdge.
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", namedEdge("pool-a", "pool-b"));
 
             TaskGraphData data = Objects.requireNonNull(TaskGraphObservationScope.data());
             assertThat(data.taskCycle()).isTrue();
@@ -462,6 +463,11 @@ class TaskGraphExportTest {
 
     // ==================== helpers ====================
 
+    /** Deadlock-prone edge between named pools, keyed by identity and labelled by name. */
+    private static TaskEdge namedEdge(String source, String target) {
+        return identityEdge(pool(source), pool(target), target, source);
+    }
+
     private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
         return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);
     }
@@ -473,5 +479,12 @@ class TaskGraphExportTest {
 
     private static ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraphOf(TaskGraphData data) {
         return data.snapshot().executorIdentityGraph();
+    }
+
+    private static final Map<String, ExecutorIdentity> POOLS = new ConcurrentHashMap<>();
+
+    /** One executor identity per pool name, so equal names in one test denote the same pool. */
+    private static ExecutorIdentity pool(String name) {
+        return POOLS.computeIfAbsent(name, ignored -> new ExecutorIdentity(MoreExecutors.newDirectExecutorService()));
     }
 }

@@ -25,27 +25,9 @@ final class TaskEdge {
     private final @Nullable ExecutorIdentity sourceExecutorIdentity;
 
     /**
-     * Creates task dependency metadata.
-     *
-     * @param parallelism the configured parallelism
-     * @param taskType the workload classification
-     * @param executorName the child executor name
-     * @param sourceExecutorName the parent executor name
-     * @param taskCount the number of child tasks
-     * @param timeout the child remaining timeout at submission
-     */
-    TaskEdge(
-            int parallelism,
-            TaskType taskType,
-            @Nullable String executorName,
-            @Nullable String sourceExecutorName,
-            int taskCount,
-            Duration timeout) {
-        this(parallelism, taskType, executorName, sourceExecutorName, taskCount, timeout, true);
-    }
-
-    /**
-     * Creates task dependency metadata with a submission-time executor capability snapshot.
+     * Creates label-only task dependency metadata with a submission-time executor capability
+     * snapshot. Such an edge carries no executor identities, so it renders in the label-keyed
+     * executor graph but never takes part in executor-cycle detection.
      *
      * @param parallelism the configured parallelism
      * @param taskType the workload classification

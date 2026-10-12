@@ -373,6 +373,8 @@ The report future stays pending until the scope closes; every normally returning
 
 Queries such as `TaskGraphObservationScope.hasTaskCycle()` cover every edge recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
 
+Executor cycles and self-loops are detected on the registered executor objects themselves, never on `ParId` names: two `ParId`s naming one pool are the same node, and a name alone never makes a cycle. A top-level call has no parent executor, so it adds no executor edge; only work nested inside a task body can.
+
 ## Purge cancelled queue entries
 
 The library does not automatically purge registered executors. A cancelled task can remain in the physical queue until a worker dequeues it or the executor owner removes it. On a bounded queue, cancelled entries can retain capacity and cause later submissions to be rejected. Cancellation before execution still releases the task's Callable captures and body slot.
