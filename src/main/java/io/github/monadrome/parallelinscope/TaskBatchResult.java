@@ -22,6 +22,8 @@ import org.jspecify.annotations.Nullable;
  * Nested calls must separately confirm their own body exit; confirmation is not transitive.
  * Task-local resources belong in the body's try-with-resources. This snapshot never discovers or
  * closes user objects.
+ *
+ * @since 0.3.0
  */
 public final class TaskBatchResult<T> {
     private final List<ImmediateResult<T>> results;
