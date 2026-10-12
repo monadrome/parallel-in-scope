@@ -91,6 +91,19 @@ public final class ImmediateResult<T> {
         };
     }
 
+    /**
+     * Returns a diagnostic string naming the outcome and either the value or the failure, for
+     * example {@code ImmediateResult[outcome=USER_FAILURE, failure=java.lang.IllegalStateException:
+     * boom]}. The format is for logs and debuggers, not for parsing. Identity stays reference
+     * identity: results with equal contents are distinct objects.
+     */
+    @Override
+    public String toString() {
+        return failure == null
+                ? "ImmediateResult[outcome=" + outcome + ", value=" + value + ']'
+                : "ImmediateResult[outcome=" + outcome + ", failure=" + failure + ']';
+    }
+
     /** Freezes a done task using the enclosing scope's authoritative attribution. */
     static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskOutcome outcome) {
         checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
