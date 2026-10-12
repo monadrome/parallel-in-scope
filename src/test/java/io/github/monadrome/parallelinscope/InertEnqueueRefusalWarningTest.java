@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -105,6 +106,27 @@ class InertEnqueueRefusalWarningTest {
 
         assertThat(records).hasSize(1);
         assertThat(records.get(0).getMessage()).startsWith("Par 'plain' requested rejectEnqueue, but its executor");
+    }
+
+    /**
+     * The combine of {@code mapAndCombine} inherits the batch's task type and runs on the combine
+     * Par's executor, so a {@code CPU_BOUND} batch on a SmartBlockingQueue pool combined onto a plain
+     * pool carries a {@code CPU_BOUND} task into a queue that cannot refuse it: the warning is the
+     * combine Par's.
+     */
+    @Test
+    void aCpuBoundCombineOnAPlainQueueIsReportedForTheCombinePar() {
+        runtime.par(ParId.of("smart"))
+                .mapAndCombine(
+                        Arrays.asList(1, 2),
+                        x -> x,
+                        BatchOptions.timeout("cpu-combine", TIMEOUT).taskType(TaskType.CPU_BOUND),
+                        runtime.par(ParId.of("plain")),
+                        values -> 0);
+
+        assertThat(records).hasSize(1);
+        assertThat(records.get(0).getMessage())
+                .startsWith("Par 'plain' requested TaskType.CPU_BOUND, but its executor");
     }
 
     @Test

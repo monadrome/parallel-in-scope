@@ -257,6 +257,7 @@ public final class Par {
                         .taskGraphObservationScope(observation)
                         .executorIdentity(combinePar.executorRuntime().identity())
                         .executorLabel(combinePar.id().value()));
+        combinePar.warnIfEnqueueRefusalInert(terminalUnit);
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
         // The terminal body reads the settled element futures at run time; the success gate below
