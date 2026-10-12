@@ -150,6 +150,13 @@ admissions and drains accepted work without owning registered executors; awaitQu
 exit. Graph report futures remain read-only diagnostics published at observation scope close; they are
 not business execution handles. The public queue artifact boundary is unchanged.
 
+Frozen batch results attribute each element as of the moment it settled, like group members. An element
+whose body raised its own `CancellationException` or `InterruptedException` reads `USER_FAILURE` with
+that throwable, and an element its executor cancels directly reads `MEMBER_CANCELLED`, while the
+siblings its cancellation takes down read `FAIL_FAST`. This replaces the 0.2 guide's statement that the
+element whose direct cancellation triggered the cascade also reads `FAIL_FAST`; per-element initiator
+attribution no longer requires a task group.
+
 ## Executor Queue Cleanup
 
 Automatic purge and `ParRuntimePurgePolicy` are removed. Remove `Builder.purgePolicy(...)`,
