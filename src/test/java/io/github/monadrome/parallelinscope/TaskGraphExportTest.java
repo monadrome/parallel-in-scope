@@ -275,9 +275,9 @@ class TaskGraphExportTest {
         for (EndpointPair<TaskNode> edge : graph.edges()) {
             json.append(separator)
                     .append("{\"source\": ")
-                    .append(quote(edge.source().id()))
+                    .append(quote(String.valueOf(edge.source().id())))
                     .append(", \"target\": ")
-                    .append(quote(edge.target().id()))
+                    .append(quote(String.valueOf(edge.target().id())))
                     .append(", \"kind\": ")
                     .append(quote(String.valueOf(graph.edgeValueOrDefault(edge.source(), edge.target(), null))))
                     .append('}');
@@ -290,7 +290,7 @@ class TaskGraphExportTest {
 
     private static String nodeJson(TaskNode node) {
         ExecutorIdentity executor = node.executor();
-        return "{\"id\": " + quote(node.id())
+        return "{\"id\": " + quote(String.valueOf(node.id()))
                 + ", \"name\": " + quote(node.name())
                 + ", \"executor\": " + quote(executor == null ? null : executor.toString())
                 + ", \"executorLabel\": " + quote(node.executorLabel())

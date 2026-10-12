@@ -123,7 +123,7 @@ class TaskGraphRootEdgeTest {
     }
 
     private static TaskNode labelOnlyNode(String id, String label) {
-        return new TaskNode(id, "task-" + id, null, label, true, TaskType.CPU_BOUND, 1, 1, 0L);
+        return new TaskNode(TaskId.unit(id), "task-" + id, null, label, true, TaskType.CPU_BOUND, 1, 1, 0L);
     }
 
     private static ExecutorService boundedPool() {

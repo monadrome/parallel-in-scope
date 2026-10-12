@@ -64,10 +64,11 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * The identity of this group run, unique within the process: two runs of the same declaration,
-     * or two groups with the same name, never share one. It is the {@code unitId} the members'
-     * {@link TaskCompletion} snapshots point back to.
+     * or two groups with the same name, never share one. It is the {@code groupId} of the group's
+     * own completion summary, and it is never equal to any member's {@code unitId}: a group run is
+     * not a task unit and the two identity spaces do not convert.
      */
-    public String groupId() {
+    public TaskId<TaskGroupRun> groupId() {
         return report.groupId();
     }
 

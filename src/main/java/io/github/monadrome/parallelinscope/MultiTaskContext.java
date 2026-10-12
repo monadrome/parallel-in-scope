@@ -192,7 +192,7 @@ final class MultiTaskContext {
         ExecutorRuntime executor = resolution.executor;
         ParId executorId = resolution.executorId;
         TaskNode node = new TaskNode(
-                "unit-" + UNIT_SEQUENCE.incrementAndGet(),
+                TaskId.unit(String.valueOf(UNIT_SEQUENCE.incrementAndGet())),
                 spec.name(),
                 executor == null ? null : executor.identity(),
                 executorId == null ? null : executorId.value(),
@@ -234,7 +234,7 @@ final class MultiTaskContext {
     }
 
     /** Stable identity for this one unit instance; never use name as graph identity. */
-    String unitId() {
+    TaskId<TaskUnit> unitId() {
         return node.id();
     }
 

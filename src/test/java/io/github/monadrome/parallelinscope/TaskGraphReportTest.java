@@ -54,9 +54,10 @@ class TaskGraphReportTest {
         assertThat(report.anyIssue()).isTrue();
         assertThat(report.executorCycle()).isTrue();
         assertThat(report.executorSelfLoop()).isTrue();
-        assertThat(report.executorEdges()).isEqualTo("shared -> shared [<task-outer[outer] -> task-inner[inner]>]");
+        assertThat(report.executorEdges())
+                .isEqualTo("shared -> shared [<task-outer[unit-outer] -> task-inner[unit-inner]>]");
         assertThat(report.taskEdges())
-                .isEqualTo("task-outer[outer] -> task-inner[inner] "
+                .isEqualTo("task-outer[unit-outer] -> task-inner[unit-inner] "
                         + "{p=1, type=CPU_BOUND, src=shared, exec=shared, count=1, budget=PT0S}");
     }
 
@@ -68,7 +69,7 @@ class TaskGraphReportTest {
         assertThat(report.executorCycle()).isTrue();
         assertThat(report.executorSelfLoop()).isFalse();
         assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
-        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-c[c]");
+        assertThat(report.taskEdges()).contains("task-a[unit-a] -> task-b[unit-b]", "task-b[unit-b] -> task-c[unit-c]");
     }
 
     @Test
@@ -88,9 +89,9 @@ class TaskGraphReportTest {
                 .doesNotContain("entry")
                 .doesNotContain("leaf");
         assertThat(report.taskEdges())
-                .startsWith("task-b[b] -> task-c[c]")
-                .doesNotContain("task-a[a]")
-                .doesNotContain("task-d[d]");
+                .startsWith("task-b[unit-b] -> task-c[unit-c]")
+                .doesNotContain("task-a[unit-a]")
+                .doesNotContain("task-d[unit-d]");
     }
 
     @Test

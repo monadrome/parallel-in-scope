@@ -173,7 +173,7 @@ class ExecutorGraphTest {
         assertThat(executors.evidence(EndpointPair.ordered(source.identity, target.identity)))
                 .containsExactlyElementsOf(taskOrder)
                 .extracting(edge -> edge.target().id())
-                .containsExactly("x", "z", "y");
+                .containsExactly(TaskId.unit("x"), TaskId.unit("z"), TaskId.unit("y"));
     }
 
     @Test

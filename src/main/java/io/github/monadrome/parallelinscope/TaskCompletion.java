@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Verify;
 import java.time.Duration;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +24,8 @@ public final class TaskCompletion<T> {
     private static final long ENQUEUE_THRESHOLD_NANOS = 3_000_000L;
 
     private final String taskName;
-    private final String unitId;
+    private final @Nullable TaskId<TaskUnit> unitId;
+    private final @Nullable TaskId<TaskGroupRun> groupId;
     private final int taskIndex;
     private final long submitTimeNanos;
     private final long startTimeNanos;
@@ -34,7 +36,8 @@ public final class TaskCompletion<T> {
 
     private TaskCompletion(
             String taskName,
-            String unitId,
+            @Nullable TaskId<TaskUnit> unitId,
+            @Nullable TaskId<TaskGroupRun> groupId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -43,7 +46,9 @@ public final class TaskCompletion<T> {
             @Nullable T result,
             @Nullable Throwable failure) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
-        this.unitId = Objects.requireNonNull(unitId, "unitId cannot be null");
+        Verify.verify(unitId == null || groupId == null, "a record names at most one identity space");
+        this.unitId = unitId;
+        this.groupId = groupId;
         Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
@@ -57,7 +62,7 @@ public final class TaskCompletion<T> {
     /** Creates the record for a successful task, including a possibly-null result. */
     public static <T> TaskCompletion<T> succeeded(
             String taskName,
-            String unitId,
+            TaskId<TaskUnit> unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -66,6 +71,7 @@ public final class TaskCompletion<T> {
         return new TaskCompletion<>(
                 taskName,
                 unitId,
+                null,
                 taskIndex,
                 submitTimeNanos,
                 startTimeNanos,
@@ -78,7 +84,7 @@ public final class TaskCompletion<T> {
     /** Creates the record for a failed task; the outcome must be a non-success terminal state. */
     public static <T> TaskCompletion<T> failed(
             String taskName,
-            String unitId,
+            TaskId<TaskUnit> unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -91,6 +97,7 @@ public final class TaskCompletion<T> {
         return new TaskCompletion<>(
                 taskName,
                 unitId,
+                null,
                 taskIndex,
                 submitTimeNanos,
                 startTimeNanos,
@@ -106,23 +113,24 @@ public final class TaskCompletion<T> {
      */
     static TaskCompletion<Object> memberSnapshot(
             String memberName,
-            String unitId,
+            TaskId<TaskUnit> unitId,
             TaskOutcome outcome,
             @Nullable Throwable failure,
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos) {
         return new TaskCompletion<>(
-                memberName, unitId, 0, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, null, failure);
+                memberName, unitId, null, 0, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, null, failure);
     }
 
     /**
      * Creates the internal final observation snapshot: the full per-task record with its
-     * real identity, timings, outcome, and — on success — result.
+     * real identity, timings, outcome, and — on success — result. The unit id is null when no unit
+     * backs the task, as for a derived fluent view.
      */
     static <T> TaskCompletion<T> snapshot(
             String taskName,
-            String unitId,
+            @Nullable TaskId<TaskUnit> unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -131,7 +139,16 @@ public final class TaskCompletion<T> {
             @Nullable T result,
             @Nullable Throwable failure) {
         return new TaskCompletion<>(
-                taskName, unitId, taskIndex, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, result, failure);
+                taskName,
+                unitId,
+                null,
+                taskIndex,
+                submitTimeNanos,
+                startTimeNanos,
+                endTimeNanos,
+                outcome,
+                result,
+                failure);
     }
 
     /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
@@ -144,9 +161,10 @@ public final class TaskCompletion<T> {
                 throw new AssertionError("successful result cannot fail", impossible);
             }
         }
-        return snapshot(
+        return new TaskCompletion<>(
                 timing.taskName(),
                 timing.unitId(),
+                timing.groupId(),
                 timing.taskIndex(),
                 timing.submitTimeNanos(),
                 timing.startTimeNanos(),
@@ -158,14 +176,16 @@ public final class TaskCompletion<T> {
 
     /**
      * Creates the single group-level summary carried by the observation of {@link
-     * TaskGroup#completionFuture()}: the group name and id stand in for the task identity, the
-     * index is zero, submit/start/end are the group-level times, and the result is the {@link
-     * TaskGroupReport} itself. The summary describes no additional task body, so it is not counted
-     * among the members or in the TaskGraph.
+     * TaskGroup#completionFuture()}: the group name stands in for the task name, the group's own
+     * identity fills {@link #groupId()} while {@link #unitId()} stays null — a group run is not a
+     * task unit — the index is zero, submit/start/end are the group-level times, and the result is
+     * the {@link TaskGroupReport} itself. The summary describes no additional task body, so it is
+     * not counted among the members or in the TaskGraph.
      */
     static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
         return new TaskCompletion<>(
                 result.groupName(),
+                null,
                 result.groupId(),
                 0,
                 result.startTimeNanos(),
@@ -184,9 +204,29 @@ public final class TaskCompletion<T> {
         return taskName;
     }
 
-    /** Returns the stable identity of the multi-task unit invocation that owned this task. */
-    public String unitId() {
+    /**
+     * Returns the stable identity of the task unit that owned this task, or null when no unit backs
+     * the record.
+     *
+     * <p>A task that a unit admitted — a single task, a batch element, a group member, or a
+     * combine — always carries one, and every element of one batch or group shares it. It is null
+     * on the two records no unit produces: a group run's own summary, which carries {@link
+     * #groupId()} instead, and a derived fluent view, whose task name is a name and not an
+     * identity.
+     */
+    public @Nullable TaskId<TaskUnit> unitId() {
         return unitId;
+    }
+
+    /**
+     * Returns the identity of the task-group run this record summarizes, or null on every record
+     * that is not a group's own summary — see {@link TaskGroup#completionFuture()}.
+     *
+     * <p>A group run is not a task unit: it has no body of its own and no {@link TaskNode}, so its
+     * identity is never returned by {@link #unitId()}.
+     */
+    public @Nullable TaskId<TaskGroupRun> groupId() {
+        return groupId;
     }
 
     /** Returns the stable index of this task's input element within its unit; zero for group members. */

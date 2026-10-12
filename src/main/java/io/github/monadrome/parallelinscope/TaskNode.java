@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class TaskNode {
 
-    private final String id;
+    private final TaskId<TaskUnit> id;
     private final String name;
     private final @Nullable ExecutorIdentity executor;
     private final @Nullable String executorLabel;
@@ -47,7 +47,7 @@ final class TaskNode {
      * @param budgetNanos the deadline budget left at resolution, {@link Long#MAX_VALUE} for none
      */
     TaskNode(
-            String id,
+            TaskId<TaskUnit> id,
             String name,
             @Nullable ExecutorIdentity executor,
             @Nullable String executorLabel,
@@ -68,7 +68,7 @@ final class TaskNode {
     }
 
     /** The unit id: stable for this one unit instance and the node's whole identity. */
-    String id() {
+    TaskId<TaskUnit> id() {
         return id;
     }
 
