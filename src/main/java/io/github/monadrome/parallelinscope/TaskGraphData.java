@@ -74,7 +74,7 @@ class TaskGraphData {
 
     /**
      * Returns the executor graph built from deadlock-risk snapshots on task edges, keyed by display
-     * label for export and detection-event rendering.
+     * label for export and detection-event rendering. Detection never reads it.
      *
      * @return executor dependency graph
      */
@@ -83,7 +83,7 @@ class TaskGraphData {
     }
 
     /**
-     * Returns whether the executor graph recorded so far contains a cycle.
+     * Returns whether the executor-identity graph recorded so far contains a cycle.
      *
      * @return {@code true} when an executor cycle exists
      */
@@ -92,7 +92,7 @@ class TaskGraphData {
     }
 
     /**
-     * Returns whether the executor graph recorded so far contains a self-loop.
+     * Returns whether the executor-identity graph recorded so far contains a self-loop.
      *
      * @return {@code true} when an executor self-loop exists
      */
@@ -167,12 +167,8 @@ class TaskGraphData {
             this.nodeLabels = nodeLabels;
             this.taskCycle = Graphs.hasCycle(taskGraph.asGraph());
             this.taskSelfLoop = hasSelfLoop(taskGraph);
-            this.executorCycle = executorIdentityGraph.nodes().isEmpty()
-                    ? Graphs.hasCycle(executorGraph.asGraph())
-                    : Graphs.hasCycle(executorIdentityGraph.asGraph());
-            this.executorSelfLoop = executorIdentityGraph.nodes().isEmpty()
-                    ? hasSelfLoop(executorGraph)
-                    : hasSelfLoop(executorIdentityGraph);
+            this.executorCycle = Graphs.hasCycle(executorIdentityGraph.asGraph());
+            this.executorSelfLoop = hasSelfLoop(executorIdentityGraph);
         }
 
         /** Derives a snapshot from a copy of the given edges and labels. */
@@ -249,12 +245,14 @@ class TaskGraphData {
         /**
          * Projects the recorded edges onto executor nodes under one keying.
          *
-         * <p>The two keyings answer the same question about different node identities. The identity
-         * graph is the one detection uses, because reference identity is what makes two references
-         * the same pool; the label graph is the fallback for edges recorded without identities, and
-         * what {@code TaskGraphObservationScope} renders. Both drop the same two classes of edge: one
-         * whose child executor cannot deadlock on nested work, and one missing either endpoint key,
-         * which cannot be placed under that keying at all.
+         * <p>The two keyings answer the same question about different node identities. Detection
+         * reads only the identity graph, because reference identity is what makes two references
+         * the same pool: a {@code ParId} label is a lookup key, so two pools may share one and a
+         * label graph can invent a self-loop that no pool has. The label graph is what {@code
+         * TaskGraphObservationScope} renders. Both drop the same two classes of edge: one whose
+         * child executor cannot deadlock on nested work, and one missing either endpoint key, which
+         * cannot be placed under that keying at all. A top-level unit's edge has no parent executor
+         * under either keying, so it never enters an executor projection.
          *
          * @param edges the recorded edges, in the iteration order the caller wants preserved within
          *     each node pair

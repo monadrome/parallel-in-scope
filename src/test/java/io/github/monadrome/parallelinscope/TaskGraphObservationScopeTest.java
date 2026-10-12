@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TtlRunnable;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -18,6 +19,9 @@ import org.junit.jupiter.api.Test;
 // JUnit-style: 'global' is assigned inside each test method, not in a constructor or @BeforeEach.
 @SuppressWarnings("NullAway.Init")
 class TaskGraphObservationScopeTest {
+
+    private static final ExecutorIdentity E1 = new ExecutorIdentity(MoreExecutors.newDirectExecutorService());
+    private static final ExecutorIdentity E2 = new ExecutorIdentity(MoreExecutors.newDirectExecutorService());
 
     private ParRuntime global;
 
@@ -117,10 +121,8 @@ class TaskGraphObservationScopeTest {
         assertThat(closer.isAlive()).isFalse();
         assertThat(inner.closed()).isTrue();
 
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", executorEdge(E2, "e2", E1, "e1"));
+        TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", executorEdge(E1, "e1", E2, "e2"));
 
         outer.close();
         assertThat(Objects.requireNonNull(Futures.getDone(outer.reportFuture())).status())
@@ -170,10 +172,8 @@ class TaskGraphObservationScopeTest {
                 .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", executorEdge(E2, "e2", E1, "e1"));
+        TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", executorEdge(E1, "e1", E2, "e2"));
 
         AtomicReference<Throwable> reentrantFailure = new AtomicReference<>();
         java.util.logging.Logger scopeLogger =
@@ -222,10 +222,8 @@ class TaskGraphObservationScopeTest {
                 .build();
 
         TaskGraphObservationScope context = global.openTaskGraphObservation();
-        TaskGraphObservationScope.logTaskPair(
-                "a", "a", "b", "b", new TaskEdge(1, TaskType.IO_BOUND, "e1", "e2", 1, Duration.ofMillis(10)));
-        TaskGraphObservationScope.logTaskPair(
-                "b", "b", "a", "a", new TaskEdge(1, TaskType.IO_BOUND, "e2", "e1", 1, Duration.ofMillis(10)));
+        TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", executorEdge(E2, "e2", E1, "e1"));
+        TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", executorEdge(E1, "e1", E2, "e2"));
 
         context.close();
         assertThat(context.reportFuture().isDone()).isTrue();
@@ -277,5 +275,12 @@ class TaskGraphObservationScopeTest {
         // Running a group inside the scope is recorded as ordinary forking, not as a cycle.
         TaskGraphReport report = Objects.requireNonNull(Futures.getDone(scope.reportFuture()));
         assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+    }
+
+    /** A deadlock-prone edge between two executor identities, labelled for rendering. */
+    private static TaskEdge executorEdge(
+            ExecutorIdentity source, String sourceLabel, ExecutorIdentity target, String targetLabel) {
+        return new TaskEdge(
+                1, TaskType.IO_BOUND, target, source, targetLabel, sourceLabel, 1, Duration.ofMillis(10), true);
     }
 }

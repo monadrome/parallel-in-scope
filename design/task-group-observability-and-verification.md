@@ -71,6 +71,10 @@ fake-group-batch -> A/B/C
 - 快照是 eager 构建的：无法渲染的边（`executorDeadlockProne` 但没有两个端点的 executor 名，
   或 identity graph 缺少 endpoint identity）MUST 在该派生视图中跳过，MUST NOT 让无关查询失败；
   这些边仍保留在 task graph 中。
+- executor 环与自环 MUST 只在 identity graph 上判定；按 `ParId` 标签键控的 executor 图只用于
+  渲染，MUST NOT 参与判定（标签是查找键，两个池可以同名，同一个池也可以有两个名字）。顶层单元的
+  fork 边没有父 executor，记录时父 executor 的身份与标签都 MUST 为空，因而 MUST NOT 进入任何
+  executor 投影；MUST NOT 用占位标签（如曾经的 `"NA"`）代替缺失的父 executor。
 - scope `close()` MUST 先恢复调用线程的外层 scope 并完成 `reportFuture()` 的发布，再运行任何
   可替换的 JUL 日志 handler：handler 是用户代码，可以重入同一个 scope 的 `close()`；重入调用
   等待的正是这次发布，先日志后发布会形成自等待死锁。
