@@ -20,6 +20,7 @@ package io.github.monadrome.parallelinscope;
  * {@link #CPU_BOUND} explicitly is how a caller asks for that refusal.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public enum TaskType {
     /** Network, RPC, database operations. Enqueued unless {@code rejectEnqueue} is true. */

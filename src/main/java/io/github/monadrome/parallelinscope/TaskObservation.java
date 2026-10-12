@@ -129,9 +129,44 @@ final class TaskObservation<T> {
         return view;
     }
 
+    /**
+     * Counts one barrier signal and publishes on the last. Both signals arrive as listeners on the
+     * settling thread, and the settle signal runs ahead of every framework listener on the same
+     * future — a batch element's settle-attribution pin, the token's fail-fast bind. Building the
+     * snapshot can only fail on a broken kernel invariant or an exhausted stack, but Guava's fan-out
+     * stops at the first {@code Error} a listener throws, so a failure escaping here would leave the
+     * listeners behind it unrun: the pin pending and the freeze waiting on it forever. The snapshot
+     * is therefore built inside the guard, and a failure ends this observation exceptionally — a
+     * loud defect for the reader — instead of escaping into the fan-out.
+     */
     private void signal() {
         if (pendingSignals.decrementAndGet() == 0) {
-            publish(settledSnapshot.get());
+            TaskCompletion<T> snapshot;
+            try {
+                snapshot = settledSnapshot.get();
+            } catch (Throwable snapshotFailure) {
+                failPublication(snapshotFailure);
+                return;
+            }
+            publish(snapshot);
+        }
+    }
+
+    /** Ends the observation with a snapshot failure, guarded like {@link #publish}. */
+    private void failPublication(Throwable snapshotFailure) {
+        try {
+            sink.setException(snapshotFailure);
+        } catch (Throwable listenerFailure) {
+            logQuietly(listenerFailure);
+        }
+        logSnapshotFailureQuietly(snapshotFailure);
+    }
+
+    /** Reports a snapshot that could not be built; like {@link #logQuietly}, it cannot throw. */
+    private static void logSnapshotFailureQuietly(Throwable snapshotFailure) {
+        try {
+            LOGGER.log(Level.SEVERE, "a task observation snapshot could not be built", snapshotFailure);
+        } catch (Throwable ignored) {
         }
     }
 

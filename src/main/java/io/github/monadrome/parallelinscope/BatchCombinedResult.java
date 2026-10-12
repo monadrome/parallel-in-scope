@@ -23,6 +23,7 @@ import org.jspecify.annotations.Nullable;
  * @param <E> the element result type
  * @param <C> the terminal combine result type
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class BatchCombinedResult<E, C> {
 

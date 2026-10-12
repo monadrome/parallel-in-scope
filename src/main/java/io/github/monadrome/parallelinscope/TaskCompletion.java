@@ -14,6 +14,8 @@ import org.jspecify.annotations.Nullable;
  * durations; the zero sentinel is recognized before any subtraction, because ticker readings may
  * legally be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
+ *
+ * @since 0.3.0
  */
 public final class TaskCompletion<T> {
 

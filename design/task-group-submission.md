@@ -155,9 +155,9 @@ io.github.monadrome.parallelinscope/
 [decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
 增补裁定 §19.6、§19.10，全文见 git 历史 `db2ab2d`）。
 
-`ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 提供包可见的单任务准备入口
-`prepareGroupTask(...)`，完成 owner、policy、runtime identity 和 executor 的解析后
-调用同包内核。`TaskGroup` 可调用该入口；公共 API 不暴露 runtime。
+`ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 与 `TaskGroup` 在完成
+owner、policy、runtime identity 和 executor 的解析后直接调用同包内核；任务准备与
+真实提交目标由同一绑定解析，MUST NOT 为组路径保留第二套准备或包装机制。
 
 共享内核至少分离以下阶段：
 

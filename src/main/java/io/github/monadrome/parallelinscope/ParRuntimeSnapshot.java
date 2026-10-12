@@ -9,6 +9,7 @@ package io.github.monadrome.parallelinscope;
  * operator, and must not drive control flow or substitute for the quiescence wait itself.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
+ * @since 0.3.0
  */
 public final class ParRuntimeSnapshot {
 

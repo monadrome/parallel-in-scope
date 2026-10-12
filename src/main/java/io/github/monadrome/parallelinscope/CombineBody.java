@@ -55,6 +55,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <V> the group's assembled member-value type
  * @param <R> the assembled result type
+ * @since 0.3.0
  */
 @FunctionalInterface
 public interface CombineBody<V, R> {

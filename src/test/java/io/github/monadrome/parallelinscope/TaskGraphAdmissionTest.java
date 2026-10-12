@@ -12,11 +12,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -261,6 +263,48 @@ class TaskGraphAdmissionTest {
         TaskGraph fragment = data.fragments.get(0);
         assertThat(fragment.asValueGraph().nodes()).hasSize(3);
         assertThat(fragment.asValueGraph().edges()).hasSize(2);
+    }
+
+    @Test
+    void aNestedCombinePinsOwnCancellationWhileRecordingTheWholeAdmission() throws Exception {
+        CancellationException own = new CancellationException("the combine's own");
+        AtomicReference<BatchCombinedResult<Integer, Integer>> captured = new AtomicReference<>();
+        TaskGraph graph;
+        try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
+            assertThat(runtime.group("outer", Duration.ofSeconds(10))
+                            .par("body", caller, String.class, () -> {
+                                captured.set(batch.mapAndCombine(
+                                        Arrays.asList(1, 2),
+                                        value -> value,
+                                        BatchOptions.inheritTimeout("fan-out").closeGrace(Duration.ZERO),
+                                        batch,
+                                        values -> {
+                                            throw own;
+                                        }));
+                                return "captured";
+                            })
+                            .runAll()
+                            .valuesOrThrow()
+                            .typedValues())
+                    .isEqualTo("captured");
+            graph = scope.graph();
+        }
+
+        BatchCombinedResult<Integer, Integer> result = Objects.requireNonNull(captured.get());
+        assertThat(result.batchResult().results())
+                .extracting(ImmediateResult::outcome)
+                .containsExactly(TaskOutcome.SUCCESS, TaskOutcome.SUCCESS);
+        assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.terminalResult().failure()).isSameAs(own);
+        ValueGraph<TaskNode, Dependency> view = graph.asValueGraph();
+        TaskNode body = named(graph, "body");
+        List<TaskNode> awaited = new ArrayList<>(view.successors(body));
+        assertThat(view.nodes()).hasSize(3);
+        assertThat(awaited).hasSize(2);
+        assertThat(view.edges()).hasSize(3);
+        assertThat(view.edgeValue(body, awaited.get(0))).contains(Dependency.FORK);
+        assertThat(view.edgeValue(body, awaited.get(1))).contains(Dependency.FORK);
+        assertThat(view.edgeValue(awaited.get(0), awaited.get(1))).contains(Dependency.JOIN);
     }
 
     /** Records every fragment it receives, so a test can count admissions. */
