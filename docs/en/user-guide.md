@@ -349,6 +349,39 @@ No public running handle supports member cancellation or asynchronous submission
 business work into the same group. Application-owned asynchronous wrappers have their own lifetime
 and cancellation, which do not prove the inner synchronous call exited.
 
+### Read nested results inside a body {#nested-reads}
+
+A nested `map` or `runAll` has already finished when it returns: its results are frozen data, so
+reading them never blocks and needs no `asFuture().get()`. The only friction is that a batch body is
+a JDK `Function`, which cannot throw the checked `ExecutionException` of `valuesOrThrow()`. Wrap the
+execution failure in an unchecked exception and let a `CancellationException` through unchanged:
+
+```java
+TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
+    List<Order> orders;
+    try {
+        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+                .valuesOrThrow();
+    } catch (ExecutionException failed) {
+        throw new OrderLookupException(customer.id(), failed.getCause());
+    }
+    return Report.of(customer, orders);
+}, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
+```
+
+Letting the cancellation through is what keeps attribution right. When the outer scope cancels the
+element first — its deadline, fail-fast, or an ancestor — the element ends with that attribution
+whatever the body throws afterwards. When the outer scope has committed its cancellation but the
+element's own body ends first, a cancellation exception is attributed through the outer scope
+(`TIMEOUT`, `FAIL_FAST`), while a business exception wrapping it would read `USER_FAILURE`. A
+cancellation the inner batch reached on its own, with the outer scope still running, ends the outer
+element as `USER_FAILURE` carrying that exception.
+
+To keep partial results instead of failing the element, read `results()` element by element:
+`outcome()` classifies each one and `failure()` carries its throwable. A `runAll` inside a body needs
+no wrapping at all: `TaskGroupResult.valuesOrThrow()` already rethrows unchecked, and a group member
+body is a `Callable`, which can throw checked exceptions.
+
 ## Observe nested work
 
 Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, runs the potential-deadlock detection pass over the graph frozen at `close()` and publishes the result through `reportFuture()`. A cycle is a structural risk signal, not proof that threads are currently deadlocked.

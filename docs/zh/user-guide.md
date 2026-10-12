@@ -302,6 +302,34 @@ CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常�
 成员直消或异步提交；需同时执行的业务放入同一组。应用自行包装的异步执行有自己的生命周期，
 取消外层 future 不能证明内部同步调用已经退出。
 
+### 在 body 内读取嵌套结果 {#nested-reads}
+
+嵌套的 `map` 或 `runAll` 返回时已经结束：结果是冻结数据，读取从不阻塞，不需要
+`asFuture().get()`。唯一的摩擦是批次 body 是 JDK `Function`，抛不出 `valuesOrThrow()` 的受检
+`ExecutionException`。把执行失败包装成非受检异常，`CancellationException` 原样放行：
+
+```java
+TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
+    List<Order> orders;
+    try {
+        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+                .valuesOrThrow();
+    } catch (ExecutionException failed) {
+        throw new OrderLookupException(customer.id(), failed.getCause());
+    }
+    return Report.of(customer, orders);
+}, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
+```
+
+放行取消异常是归因正确的前提。外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），
+无论 body 之后抛什么，元素都按那次取消归因。外层已提交取消、而元素自己的 body 先结束时，取消
+异常经外层归因（`TIMEOUT`、`FAIL_FAST`），包装成业务异常则读作 `USER_FAILURE`。内层批次自己
+走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带该异常。
+
+想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
+`failure()` 携带它的异常。body 内的 `runAll` 完全不需要包装：`TaskGroupResult.valuesOrThrow()`
+本来就以非受检形式重抛，而组成员 body 是 `Callable`，可以抛受检异常。
+
 ## 观测嵌套工作 {#nested-observation}
 
 任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）对 `close()` 冻结的图运行一次潜在死锁检测，把结果发布到 `reportFuture()`。检测到循环只表示结构风险，不证明线程当前已经死锁。
