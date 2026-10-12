@@ -246,7 +246,7 @@ class ParentChildResultRetentionTest {
     private static void awaitReported(AtomicReference<String> report) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (report.get() == null && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(report.get()).isNotNull();
     }
@@ -255,7 +255,7 @@ class ParentChildResultRetentionTest {
     private static void awaitTrue(AtomicBoolean value) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!value.get() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(value).isTrue();
     }

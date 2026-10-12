@@ -8,7 +8,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -236,7 +238,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             runner = null;
             // Withdraw runner, then finish pending delivery before the thread can be reused.
             while (interruptDeliveryInProgress) {
-                Thread.yield();
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
             }
             // Restore only after delivery completes. External interrupts during inline execution
             // are also discarded; see design/interruption-contract.md.

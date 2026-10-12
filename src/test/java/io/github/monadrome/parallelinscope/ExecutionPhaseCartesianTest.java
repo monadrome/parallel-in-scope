@@ -131,7 +131,7 @@ public class ExecutionPhaseCartesianTest {
     private static void awaitBoolean(AtomicBoolean value) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!value.get() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(value).isTrue();
     }
