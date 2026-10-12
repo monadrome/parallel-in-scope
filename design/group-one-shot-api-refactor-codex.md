@@ -17,7 +17,7 @@
 
 整组值的聚合容器（`valuesResult()`，`ImmediateResult<GroupValues<V>>`）随冻结结果一同发布：整组成功时为成功值；已记录失败时携带该失败（combine 失败同样使聚合失败）；纯取消/超时/成员直消时为取消形失败（Left 的异常形状见同步出口契约 §3）。冻结结果在 `runAll()` 返回前已确定，不存在 pending 态。
 
-裸类重载在本文定稿：`par`/`combine` 各有一个接收 `Class<T>` 的形式，且**只提供省略 `TaskOptions` 的形态**（§3）。`TypeToken.of(Foo.class)` 这种纯仪式在常见情形下消失；需要同时自定义选项的调用方仍写完整 `TypeToken`，避免 `Class`+`TaskOptions` 组合把每个 step 的重载数翻倍。
+裸类重载在本文定稿：`par`/`combine` 的每种 `TypeToken<T>` 形式（省略或携带 `TaskOptions`）都有对应的 `Class<T>` 形式（§3）。`TypeToken.of(Foo.class)` 这种纯仪式在声明侧消失，带选项的声明也不例外。
 
 临时对象的分配成本不是采用该方案的理由。理由是目标用法只运行一次：旧 definition 的不变性和并发复用保证对这类调用没有收益，却要求用户分别维护结构、句柄和本次绑定。新的草稿仍必须一次冻结。
 
@@ -76,6 +76,9 @@ public interface GroupStart {
     <T> GroupStep<T> par(
             String name, Par par, TaskOptions options,
             TypeToken<T> type, Callable<? extends T> body);
+    <T> GroupStep<T> par(
+            String name, Par par, TaskOptions options,
+            Class<T> type, Callable<? extends T> body);
     TaskGroupResult<Void, Void> runAll(); // empty group
 }
 
@@ -87,6 +90,9 @@ public interface GroupStep<V> {
     <T> GroupStep<Tuple2<V, T>> par(
             String name, Par par, TaskOptions options,
             TypeToken<T> type, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> par(
+            String name, Par par, TaskOptions options,
+            Class<T> type, Callable<? extends T> body);
     <R> CombinedGroupStep<V, R> combine(
             String name, Par par, TypeToken<R> type,
             CombineBody<? super V, ? extends R> body);
@@ -96,6 +102,10 @@ public interface GroupStep<V> {
     <R> CombinedGroupStep<V, R> combine(
             String name, Par par, TaskOptions options,
             TypeToken<R> type,
+            CombineBody<? super V, ? extends R> body);
+    <R> CombinedGroupStep<V, R> combine(
+            String name, Par par, TaskOptions options,
+            Class<R> type,
             CombineBody<? super V, ? extends R> body);
     TaskGroupResult<V, Void> runAll();
 }
@@ -130,7 +140,9 @@ public final class Tuple2<A, B> {
 
 `GroupStart`、`GroupStep<V>` 和 `CombinedGroupStep<V,R>` 是公开的 step builder **接口**，不是 scope；实现类保持包私有。运行对象 `TaskGroup<V,R>` 同样包私有，公开侧只见 `runAll()` 返回的冻结 `TaskGroupResult<V,R>`（访问器面以同步出口契约 §3 为准）。`TypeToken<T>` 与对应 `Callable<? extends T>` 在同一个调用中绑定，首个 `par` 把 `V` 设为 `T1`；后续依次扩为 `Tuple2<T1,T2>`、`Tuple2<Tuple2<T1,T2>,T3>`。单成员成功值允许 null，因此 `typedValues()` 返回 `@Nullable V`；`Tuple2` 两端也允许 null。`terminalResult()` 为 null 表示**未声明** combine——它由结果自己表达，而不是由 `R` 是否等于 `Void` 推断，因此一个返回 `Void` 的 combine 与一个无 combine 的组能被区分。`GroupValues` 始终只包含普通成员，terminal 不占它的名称或位置。
 
-**裸类重载的取舍**：`Class<T>` 形式只覆盖省略 `TaskOptions` 的常见情形，内部等价于 `TypeToken.of(type)`，因此运行期类型检查、token 精确匹配、错误时机与 `TypeToken` 形式完全一致，没有第二条代码路径。要同时自定义选项的调用方写 `TypeToken.of(Foo.class)`（或匿名子类）即可。代价是每个 step 多一个重载；收益是示例里的 `User.class` 取代了 `TypeToken.of(User.class)`。副作用：第三参数写成**裸 `null` 字面量**在重载下不再可编译（原本是运行期 NPE）；传入持有 null 的 `TypeToken`/`Class` 变量仍在声明时抛 `NullPointerException`。
+**裸类重载的取舍**：每个 `Class<T>` 形式都等价于对应的 `TypeToken.of(type)` 形式，因此运行期类型检查、token 精确匹配、错误时机完全一致，没有第二条代码路径；参数化类型仍须写 `TypeToken`，因为 `Class` 承载不了类型参数。代价是每个 `par`/`combine` 方法族多两个重载；收益是声明侧不再出现 `TypeToken.of(User.class)`。副作用：类型参数写成**裸 `null` 字面量**在重载下不再可编译（原本是运行期 NPE）；传入持有 null 的 `TypeToken`/`Class` 变量仍在声明时抛 `NullPointerException`。
+
+最初只给省略 `TaskOptions` 的形态提供 `Class` 重载，理由是控制每个 step 的重载数；带选项的 `Class` 形式随后补齐（0.3.0 开发线），推翻理由：查询侧（`GroupValues.valueOf/valueAt`、`TaskGroupResult.resultOf/resultAt`）已为每个 `TypeToken` 形式补了 `Class` 重载，声明侧唯独缺带选项的一种，调用方一旦带上选项就被迫写回 `TypeToken.of(...)`，与两侧都采用的方向相反；重载只多出每个方法族一个，且全部委托同一条 `TypeToken` 路径，不增加语义面。
 
 | 暴露接口 | 本阶段可调用 | 下一阶段 |
 |---|---|---|
@@ -196,7 +208,7 @@ Left 的异常形状、`valuesOrThrow()` 的升级规则与取消归因见同步
 
 失去与代价：不能预建一份 immutable definition 并并发重复运行；每次请求重新声明、校验和分配草稿。每个 `par`/`combine` 都须显式提供类型（`Class<T>` 或 `TypeToken<T>`）；参数化类型要用匿名子类或常量声明，增加调用样板与存储/比较开销。嵌套 `Tuple2` 的类型签名和 `first()/second()` 随成员数增长会难读，`TaskGroupResult<V,R>`/combine 泛型也较复杂；Java 8 没有 `var`，接收结果的声明必须写全嵌套元组类型。无 token 的 `valueOf`/`valueAt` 仍需业务强转，数字位置对重排敏感；有 token 的重载也只在运行时发现名称与声明类型不符。结果视图与 `TaskGroupResult` 的快照并存，终态读取有两个入口（值 vs 归因快照），文档与测试需各自覆盖。未提交草稿可能保留 closure，用户返回的可变对象不会被结果视图冻结。空组 combine 被移除。当前没有性能证据证明重复声明的开销可忽略；这是以不需要多次运行同一结构为前提的产品取舍。
 
-否决**无 token** 的 `<T> T valueOf(String)`、`<T> T valueAt(int)`：`T` 可被调用方随意选，属于伪类型安全。引入 `TypeToken<T>` 后可提供经声明 token 精确匹配的类型化动态查询，但它仍不是编译期键，也不能普遍验证被擦除的泛型容器内容。不定义 `Tuple3...TupleN` 或按元数生成 `GroupRunN`；也不以 `ImmutableMap<String,Object>` 返回完整结果，因为 null 成员值是合法成功结果。不为 `Class<T>` 重载再补一套带 `TaskOptions` 的形式（§3）。
+否决**无 token** 的 `<T> T valueOf(String)`、`<T> T valueAt(int)`：`T` 可被调用方随意选，属于伪类型安全。引入 `TypeToken<T>` 后可提供经声明 token 精确匹配的类型化动态查询，但它仍不是编译期键，也不能普遍验证被擦除的泛型容器内容。不定义 `Tuple3...TupleN` 或按元数生成 `GroupRunN`；也不以 `ImmutableMap<String,Object>` 返回完整结果，因为 null 成员值是合法成功结果。带 `TaskOptions` 的 `Class<T>` 形式已补齐，最初的否决及推翻理由见 §3。
 
 这是对未发布 API 的重塑，不是已发布契约的破坏性变更（见文首基线说明）。迁移时把 `defineGroup*` + `Builder.task` + `build` + `submitGroup` 合并为每次运行的一条 `group*().par(name, par, type, body).runAll()` 链；删除 `Member<T>` 保存点，为每个成员声明类型（裸类用 `Foo.class`，参数化类型用 `TypeToken` 匿名子类）。类型化整体值改读 `valuesOrThrow()` 的 `typedValues()`；动态查找优先用带 token 的 `valueOf`/`valueAt`，或结果容器 `resultOf`/`resultAt`；旧 `Bindings.combine` 改为链尾带类型 token 的 `combine`，terminal 用 `terminalValueOrThrow()`。反复使用同一拓扑的调用方也须逐次建链。不提供兼容 shim。
 

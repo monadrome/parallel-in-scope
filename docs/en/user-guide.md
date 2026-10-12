@@ -176,8 +176,9 @@ User value = user.valueOrThrow();
 
 `resultOf` and `resultAt` expose terminal member results by name/declaration position, with optional
 exact TypeToken checks. A query cannot widen a declared token, even for a null or failed value.
-`Class<T>` declarations are shorthand for non-generic types; use TypeToken for parameterized values
-and for custom TaskOptions. Runtime validation checks non-null values against the token's raw class.
+`Class<T>` declarations are shorthand for non-generic types, with or without custom TaskOptions; use
+TypeToken for parameterized values. Runtime validation checks non-null values against the token's raw
+class.
 
 `terminalResult()` is null only when no combine was declared; a successful null combine has a
 present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` preserve group
