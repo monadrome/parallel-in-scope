@@ -66,6 +66,8 @@ import org.jspecify.annotations.Nullable;
  * on either side through the monitors' rolling guard re-evaluation. Operations that need both
  * monitors always acquire producer then consumer. User code—element equality, collection
  * callbacks, predicates, and {@code toString()}—runs after queue monitors have been released.
+ *
+ * @since 0.3.0
  */
 public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, AutoCloseable {
 

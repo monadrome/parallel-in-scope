@@ -8,6 +8,8 @@ package io.github.monadrome.parallelinscope;
  * TaskGraphObservationScope#reportFuture()} as a {@link TaskGraphReport}. Disabling detection
  * neither stops graph recording nor the scope's static queries — it only skips the close-time
  * detection and edge rendering.
+ *
+ * @since 0.3.0
  */
 public final class ParRuntimeDeadlockPolicy {
     private final boolean enabled;
