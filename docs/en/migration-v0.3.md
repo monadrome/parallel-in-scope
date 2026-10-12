@@ -121,6 +121,7 @@ cancellation are diagnosed without overwriting the settled result.
 | TaskListener and runtime listener registration | frozen TaskCompletion observations on returned results |
 | TaskGroupListener | ordinary processing of the returned TaskGroupResult |
 | DeadlockDetectionListener | TaskGraphObservationScope.reportFuture with TaskGraphReport |
+| TaskGraphObservationScope.hasTaskCycle() / hasSelfLoop() | hasExecutorCycle() / hasExecutorSelfLoop(); task nodes are unit instances and the task graph is acyclic by construction, so the task-level queries were always false; re-entry risk is reported as an executor self-loop |
 | public Task / implementation packages and bridges | public terminal API; package-private execution kernel in the root package |
 | JSR-305/Checker null annotations | JSpecify @NullMarked with explicit @Nullable exceptions |
 

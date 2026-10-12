@@ -550,6 +550,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * combine's body is wrapped to receive the assembled member values. On any preparation failure
      * every prepared future is cancelled — releasing the bodies the kernel took — and the exception
      * propagates so the caller can discard the untaken payloads; no user code runs on this path.
+     *
+     * <p>When the group joined an observation scope, the scope receives the group's whole admission
+     * fragment ({@link #admissionFragment}) only after every task prepared, so a failed preparation
+     * records nothing.
      */
     static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
@@ -602,10 +606,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
             } else {
                 TaskGraphObservationScope.restore(null);
             }
-            List<Par> memberPars = new ArrayList<>();
             for (TaskGroupDefinition.Slot slot : definition.members()) {
                 Par par = slot.par;
-                memberPars.add(par);
                 MultiTaskContext unit =
                         MultiTaskContext.resolve(MultiTaskContext.resolution(slot.options.spec(slot.name), 1)
                                 .structuralParent(structuralParent)
@@ -613,8 +615,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
-                                .executorIdentity(par.executorIdentity())
-                                .executorLabel(par.id().value()));
+                                .executor(par.executorRuntime(), par.id()));
                 par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
@@ -627,15 +628,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 MemberState state =
                         new MemberState(slot.name, slot.type, taskContext, future, par.submissionExecutor());
                 states.put(slot.name, state);
-            }
-            int index = 0;
-            for (MemberState state : states.values()) {
-                if (observation != null) {
-                    logForking(
-                            state.context.multiTaskContext(),
-                            memberPars.get(index).executorRuntime().starvationProne());
-                }
-                index++;
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
             if (combineSlot != null) {
@@ -663,8 +655,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
                                 .taskGraphObservationScope(observation)
-                                .executorIdentity(par.executorIdentity())
-                                .executorLabel(par.id().value()));
+                                .executor(par.executorRuntime(), par.id()));
                 par.warnIfRejectEnqueueInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
@@ -677,9 +668,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     future.forbidInlineExecution();
                 }
                 terminal = new MemberState(combineName, combineType, taskContext, future, par.submissionExecutor());
-                if (observation != null) {
-                    logForking(unit, par.executorRuntime().starvationProne());
-                }
+            }
+            if (observation != null) {
+                observation.record(
+                        admissionFragment(structuralParent == null ? null : structuralParent.node(), states, terminal));
             }
         } catch (Throwable failure) {
             for (MemberState state : states.values()) {
@@ -1154,22 +1146,26 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 member.context.endTimeNanos());
     }
 
-    private static void logForking(MultiTaskContext context, boolean starvationProne) {
-        MultiTaskContext parent = context.structuralParent();
-        if (parent == null) {
-            return;
+    /**
+     * The whole group's admission as one graph fragment: the caller forks every member and the
+     * terminal combine, because {@code runAll()} waits for all of them; every member joins the
+     * combine, whose body reads their values. Members get no edges among themselves — membership is
+     * not a dependency — and a top-level group, with no caller, still contributes its nodes and joins.
+     * Recording the fragment whole keeps a concurrent snapshot from seeing half a group.
+     */
+    private static TaskGraph admissionFragment(
+            @Nullable TaskNode caller, Map<String, MemberState> members, @Nullable MemberState terminal) {
+        TaskGraph.Builder fragment = TaskGraph.builder();
+        for (MemberState member : members.values()) {
+            fragment.admit(caller, member.node());
         }
-        TaskEdge edge = new TaskEdge(
-                1,
-                context.taskType(),
-                context.executorIdentity(),
-                parent.executorIdentity(),
-                context.executorLabel(),
-                parent.executorLabel(),
-                1,
-                context.remaining(),
-                starvationProne);
-        TaskGraphObservationScope.logTaskPair(parent.unitId(), parent.name(), context.unitId(), context.name(), edge);
+        if (terminal != null) {
+            fragment.admit(caller, terminal.node());
+            for (MemberState member : members.values()) {
+                fragment.join(member.node(), terminal.node());
+            }
+        }
+        return fragment.build();
     }
 
     /** Internal per-run state of one frozen member or of the terminal combine. */
@@ -1210,6 +1206,11 @@ final class TaskGroup<V, R> implements AutoCloseable {
         /** Submits once with the member's batch scope installed. */
         private void submit() {
             TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor);
+        }
+
+        /** This member's unit as a task-graph node. */
+        private TaskNode node() {
+            return context.multiTaskContext().node();
         }
     }
 

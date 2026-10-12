@@ -85,10 +85,6 @@ public final class Par {
         return TaskSubmissions.prepare(taskContext, callable);
     }
 
-    ExecutorIdentity executorIdentity() {
-        return executorRuntime.identity();
-    }
-
     Executor submissionExecutor() {
         return executorRuntime.submissionExecutor();
     }
@@ -200,8 +196,7 @@ public final class Par {
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
-                .executorIdentity(executorRuntime.identity())
-                .executorLabel(id.value()));
+                .executor(executorRuntime, id));
         warnIfRejectEnqueueInert(unit);
         return executeCombined(
                 elements,
@@ -217,9 +212,15 @@ public final class Par {
      * The combined-batch pipeline: {@link #executeGlobal} plus one prepared terminal combine. The
      * combine shares the batch token (bind covers it while still pending, so SUCCESS cannot commit
      * early and the cascade always reaches it) and joins the same body tracker, but gets its own
-     * unit — child of the batch unit — so the graph records an honest batch-to-combine edge on the
-     * combine executor instead of a self-loop. Its token is never bound: deadline and cascade come
-     * from the batch token, exactly like a group member whose deadline equals the group's.
+     * unit — the batch unit's structural child, for cancellation and deadline. Its token is never
+     * bound: deadline and cascade come from the batch token, exactly like a group member whose
+     * deadline equals the group's.
+     *
+     * <p>The graph fragment is written from who waits for whom, not from that structural pointer:
+     * the caller blocks until both the batch and the combine finish, so it forks both, and the batch
+     * only feeds the combine, so it joins it. A join never reaches the executor projection, so a
+     * combine on the batch's own pool is no self-loop, while a combine on the caller's own
+     * starvation-prone pool is the self-loop it really is.
      */
     private <T, R, C> BatchCombinedResult<R, C> executeCombined(
             Collection<T> elements,
@@ -230,23 +231,6 @@ public final class Par {
             Par combinePar,
             CombineBody<List<@Nullable R>, C> combineBody) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
-        if (observation != null) {
-            TaskEdge edge = new TaskEdge(
-                    unit.effectiveParallelism(),
-                    unit.taskType(),
-                    unit.executorIdentity(),
-                    unit.structuralParent() == null
-                            ? null
-                            : unit.structuralParent().executorIdentity(),
-                    unit.executorLabel(),
-                    unit.structuralParent() == null
-                            ? "NA"
-                            : unit.structuralParent().executorLabel(),
-                    list.size(),
-                    unit.remaining(),
-                    executorRuntime.starvationProne());
-            logForking(observation, unit, edge);
-        }
         // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
         // and the frozen body-completion diagnostics report on the whole run.
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size() + 1);
@@ -263,8 +247,15 @@ public final class Par {
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
                         .taskGraphObservationScope(observation)
-                        .executorIdentity(combinePar.executorIdentity())
-                        .executorLabel(combinePar.id().value()));
+                        .executor(combinePar.executorRuntime(), combinePar.id()));
+        if (observation != null) {
+            TaskNode caller = unit.structuralParentNode();
+            observation.record(TaskGraph.builder()
+                    .admit(caller, unit.node())
+                    .admit(caller, terminalUnit.node())
+                    .join(unit.node(), terminalUnit.node())
+                    .build());
+        }
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
         // The terminal body reads the settled element futures at run time; the success gate below
@@ -277,25 +268,6 @@ public final class Par {
             terminalFuture.forbidInlineExecution();
         }
         Task<C> terminalView = Task.of(unit.name(), unit.cancellationToken(), terminalFuture);
-        if (observation != null) {
-            // The batch->combine edge is a data dependency, recorded honestly in the task graph,
-            // but it is not deadlock-relevant: the combine is submitted by the converging thread
-            // only after every element settled, so no pool worker ever blocks waiting on it.
-            // executorDeadlockProne=false keeps it out of the executor projection — otherwise a
-            // combine on the batch's own pool would read as an executor self-loop, a false ISSUE.
-            // This mirrors the group combine, whose join is telemetry, not a cycle participant.
-            TaskEdge edge = new TaskEdge(
-                    1,
-                    terminalUnit.taskType(),
-                    terminalUnit.executorIdentity(),
-                    unit.executorIdentity(),
-                    terminalUnit.executorLabel(),
-                    unit.executorLabel(),
-                    1,
-                    terminalUnit.remaining(),
-                    false);
-            observation.recordEdge(unit.unitId(), unit.name(), terminalUnit.unitId(), terminalUnit.name(), edge);
-        }
         SlidingWindowSubmitter<R> submitter =
                 new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
@@ -403,23 +375,10 @@ public final class Par {
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
-                .executorIdentity(executorRuntime.identity())
-                .executorLabel(id.value()));
+                .executor(executorRuntime, id));
         warnIfRejectEnqueueInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
-        if (observation != null) {
-            TaskEdge edge = new TaskEdge(
-                    1,
-                    unit.taskType(),
-                    unit.executorIdentity(),
-                    parent == null ? null : parent.executorIdentity(),
-                    unit.executorLabel(),
-                    parent == null ? "NA" : parent.executorLabel(),
-                    1,
-                    unit.remaining(),
-                    executorRuntime.starvationProne());
-            logForking(observation, unit, edge);
-        }
+        recordAdmission(observation, unit);
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, System.nanoTime(), bodyCompletion.register(unit));
         // TaskSubmissions.prepare captures this thread's TTL bindings for replay on the worker, and
@@ -461,8 +420,7 @@ public final class Par {
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .taskGraphObservationScope(observation)
-                .executorIdentity(executorRuntime.identity())
-                .executorLabel(id.value()));
+                .executor(executorRuntime, id));
         warnIfRejectEnqueueInert(unit);
         return executeGlobal(
                 elements,
@@ -479,27 +437,7 @@ public final class Par {
             @Nullable TaskGraphObservationScope observation,
             @Nullable Duration closeGrace) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
-        // Graph bookkeeping only pays off when a request-level observation scope is recording;
-        // skip the edge allocation and remaining() read on the common unobserved path. The test is
-        // the scope this unit resolved to, not whatever scope the calling thread carries: a thread
-        // inside another ParRuntime's scope must not record this batch's edge there.
-        if (observation != null) {
-            TaskEdge edge = new TaskEdge(
-                    unit.effectiveParallelism(),
-                    unit.taskType(),
-                    unit.executorIdentity(),
-                    unit.structuralParent() == null
-                            ? null
-                            : unit.structuralParent().executorIdentity(),
-                    unit.executorLabel(),
-                    unit.structuralParent() == null
-                            ? "NA"
-                            : unit.structuralParent().executorLabel(),
-                    list.size(),
-                    unit.remaining(),
-                    executorRuntime.starvationProne());
-            logForking(observation, unit, edge);
-        }
+        recordAdmission(observation, unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
         // Same reason as Par.submit: the elements' TTL capture must reflect the scope this batch
         // joined, not whatever this thread happens to be carrying.
@@ -576,18 +514,18 @@ public final class Par {
     }
 
     /**
-     * Records one parent-to-child unit edge into the scope this unit resolved to. Unit IDs, rather
-     * than reusable task names, preserve graph correctness when the same named operation is invoked
-     * concurrently.
+     * Records one admission's fragment — the caller forks the new unit — into the scope this unit
+     * resolved to, never into whatever scope the calling thread carries: a thread inside another
+     * ParRuntime's scope must not record this unit there. Nothing is built when the unit joined no
+     * scope, which is the common unobserved path.
      */
-    private static void logForking(TaskGraphObservationScope observation, MultiTaskContext context, TaskEdge edge) {
-        MultiTaskContext parent = context.structuralParent();
-        observation.recordEdge(
-                parent == null ? null : parent.unitId(),
-                parent == null ? null : parent.name(),
-                context.unitId(),
-                context.name(),
-                edge);
+    private static void recordAdmission(@Nullable TaskGraphObservationScope observation, MultiTaskContext unit) {
+        if (observation == null) {
+            return;
+        }
+        observation.record(TaskGraph.builder()
+                .admit(unit.structuralParentNode(), unit.node())
+                .build());
     }
 
     private static <T> TaskBatch<T> emptyBatchResult() {

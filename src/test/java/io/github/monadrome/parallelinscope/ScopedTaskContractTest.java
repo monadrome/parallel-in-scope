@@ -266,11 +266,8 @@ class ScopedTaskContractTest {
                         .get(2, TimeUnit.SECONDS);
 
                 assertThat(value).isEqualTo("inner-value");
-                // root->outer plus outer->inner; a missing member/batch edge shows up here.
-                assertThat(Objects.requireNonNull(TaskGraphObservationScope.data())
-                                .graph()
-                                .edges())
-                        .hasSize(2);
+                assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
+                assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
             }
         } finally {
             global.close();

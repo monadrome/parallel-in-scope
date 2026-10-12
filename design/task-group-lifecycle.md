@@ -206,7 +206,7 @@ member token parent        = group token
 member deadline            = min(requested member deadline, group deadline)
 ```
 
-Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每个 member 与 `outerBatch` 之间可以记录真实的 outer-to-member 依赖边；members 之间不得产生边。若 Group 在请求线程创建，则没有这些边。
+Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。`outerBatch` 与每个 member、combine 之间记录真实的 `FORK` 边，每个 member 与 combine 之间记录 `JOIN` 边；members 之间不得产生边。若 Group 在请求线程创建，则没有 `FORK` 边。图模型见 [task-graph.md](task-graph.md)。
 
 外层 token 的取消通过 token 构造期挂接的 parent 监听传播为 group token 的
 `PROPAGATED_CANCELLED`，不靠轮询。收敛归因读取 `originState()`（沿 parent 链找首个非传播

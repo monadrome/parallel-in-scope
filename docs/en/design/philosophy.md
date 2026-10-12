@@ -30,9 +30,10 @@ Submitting every item at once can flood a queue and make nested calls deadlock. 
 the current task's cancellation and nesting ownership. A separate internal submission scope exists
 only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
 before a task starts. Neither context is relayed through arbitrary user executor submissions.
-`TaskGraphObservationScope` records task and executor relationships in a request-scoped graph so
-the library can detect cycles that a thread dump would otherwise reveal only after production
-impact. This is executor deadlock detection, not a replacement for lock analysis.
+`TaskGraphObservationScope` records which task units wait for which in a request-scoped graph and
+projects those waits onto executors, so the library can detect pool wait cycles that a thread dump
+would otherwise reveal only after production impact. This is executor deadlock detection, not a
+replacement for lock analysis.
 
 ## Deliberate boundaries
 
