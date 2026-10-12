@@ -1,0 +1,32 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphRootEdgeTest.java
+  s_90b56b9ac5aff5::t_bd0b9988e67b82 103-123
+  s_90b56b9ac5aff5::t_ac5217dea6d55d 1-102,124-127
+design/task-group-observability-and-verification.md
+  s_90b56b9ac5aff5::t_d01d1c03af7519 74-77
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  s_90b56b9ac5aff5::t_ae06a186a007c9 77,86,95
+  s_90b56b9ac5aff5::t_f72f3acda59659 170-171
+  s_90b56b9ac5aff5::t_50596c4ffbb2bd 248-255
+docs/zh/user-guide.md
+  s_90b56b9ac5aff5::t_0481fe01d4155d 329
+docs/en/user-guide.md
+  s_90b56b9ac5aff5::t_ba4b6825a7d851 376
+CHANGELOG.md
+  s_90b56b9ac5aff5::t_e08ff63bae62e8 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "4fc8800fcf33bd8aa3767c1385bc356d54c9b284",
+  "prompts": {},
+  "sessions": {
+    "s_90b56b9ac5aff5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c26dafa7-327b-42e2-8dc9-7887401b7fcd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
