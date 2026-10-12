@@ -131,6 +131,11 @@ checkpoint guard 不再静默跳过取消/过期 body。runtime.close 拒绝新�
 不关闭注册 executor；awaitQuiescence 含 body 退出。图报告 future 是关闭观测 scope 后的
 只读诊断，不是业务运行句柄。queue 产物边界保持不变。
 
+冻结的批次结果按元素落定那一刻归因，与组成员一致：body 自己抛出 `CancellationException` 或
+`InterruptedException` 的元素记 `USER_FAILURE` 并携带该异常；被其 executor 直接取消的元素记
+`MEMBER_CANCELLED`，被它级联取消的兄弟记 `FAIL_FAST`。这取代 0.2 迁移指南中「直接取消并触发级联
+的那个元素同样记 `FAIL_FAST`」的说法；逐元素区分发起者不再需要任务组。
+
 ## 执行器队列清理
 
 自动 purge 与 `ParRuntimePurgePolicy` 已移除。删除 `Builder.purgePolicy(...)`、
