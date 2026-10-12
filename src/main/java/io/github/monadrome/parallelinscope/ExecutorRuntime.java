@@ -91,11 +91,12 @@ final class ExecutorRuntime {
     }
 
     /**
-     * Whether {@code rejectEnqueue} can actually take effect for this executor, which requires the
-     * introspectable executor to be a {@link ThreadPoolExecutor} whose work queue is a {@link
-     * SmartBlockingQueue} — the only implementation that reads the flag.
+     * Whether an enqueue refusal — {@code rejectEnqueue} or {@link TaskType#CPU_BOUND} — can
+     * actually take effect for this executor, which requires the introspectable executor to be a
+     * {@link ThreadPoolExecutor} whose work queue is a {@link SmartBlockingQueue}, the only
+     * implementation that reads either.
      */
-    boolean rejectEnqueueEffective() {
+    boolean enqueueRefusalEffective() {
         return introspectableExecutor instanceof ThreadPoolExecutor
                 && ((ThreadPoolExecutor) introspectableExecutor).getQueue() instanceof SmartBlockingQueue;
     }
