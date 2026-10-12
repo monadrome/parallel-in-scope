@@ -87,7 +87,7 @@ throws `ExecutionException` before any cancellation is reported; pure cancellati
 `CancellationException`. Successful values may be null.
 
 `TaskType` and `rejectEnqueue` influence `SmartBlockingQueue` admission, not executor selection.
-A plain queue makes `rejectEnqueue` inert and emits a diagnostic. An executor handoff failure is
+A plain queue makes `rejectEnqueue` and `CPU_BOUND` inert and emits one diagnostic per `Par`. An executor handoff failure is
 recorded as `SUBMISSION_FAILURE` with a `SubmissionException` retaining the original cause,
 including an Error. Validation and closed-runtime admission errors still throw from the entry.
 

@@ -615,7 +615,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .taskGraphObservationScope(observation)
                                 .executorIdentity(par.executorIdentity())
                                 .executorLabel(par.id().value()));
-                par.warnIfRejectEnqueueInert(unit);
+                par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 // The payload moves into the prepared future here; the RunBindings slot is cleared
@@ -665,7 +665,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .taskGraphObservationScope(observation)
                                 .executorIdentity(par.executorIdentity())
                                 .executorLabel(par.id().value()));
-                par.warnIfRejectEnqueueInert(unit);
+                par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());
