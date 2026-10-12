@@ -5,6 +5,8 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -34,13 +36,19 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     private final String taskName;
     private final CancellationToken token;
     private final TaskObservation<T> observation;
+    private final @Nullable SettableFuture<TaskOutcome> settledAttribution;
 
     private Task(
-            String taskName, CancellationToken token, ListenableFuture<T> delegate, TaskObservation<T> observation) {
+            String taskName,
+            CancellationToken token,
+            ListenableFuture<T> delegate,
+            TaskObservation<T> observation,
+            @Nullable SettableFuture<TaskOutcome> settledAttribution) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.token = Objects.requireNonNull(token, "token cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.observation = Objects.requireNonNull(observation, "observation cannot be null");
+        this.settledAttribution = settledAttribution;
     }
 
     /**
@@ -58,7 +66,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * @return the task view over {@code delegate}
      */
     static <T> Task<T> of(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
-        return new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate));
+        return new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), null);
     }
 
     /**
@@ -67,7 +75,46 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      */
     static <T> Task<T> of(
             String taskName, CancellationToken token, ListenableFuture<T> delegate, TaskObservation<T> observation) {
-        return new Task<>(taskName, token, delegate, observation);
+        return new Task<>(taskName, token, delegate, observation, null);
+    }
+
+    /**
+     * Wraps a batch element or a batch's terminal combine, and pins its attribution at the moment
+     * its delegate settles: {@link #settledAttribution()} completes with the {@link #outcome()} read
+     * by a listener registered here, on whichever thread settles the delegate.
+     *
+     * <p>A batch shares one token across its elements, and an element's own failure commits that
+     * token's {@code FAIL_FAST} through the bind's aggregate listener on the same delegate. Reading
+     * the token later — when the batch freezes — would let that commit reattribute the element that
+     * caused it: a body that raised its own {@link java.util.concurrent.CancellationException} or
+     * {@link InterruptedException} reads {@link TaskOutcome#USER_FAILURE} while the token is still
+     * running and {@link TaskOutcome#FAIL_FAST} once its own failure committed the cascade. The pin
+     * fixes the read to completion time, the moment a group member is classified in
+     * {@code TaskGroup.memberCompleted}.
+     *
+     * <p>Callers MUST create this view before binding the token: the pin is then registered on the
+     * delegate ahead of the bind's listeners, and Guava's {@code AbstractFuture} runs a settled
+     * future's listeners in registration order, so the pin reads the token before this element's
+     * own failure can commit it. The view is still the element's only caller-visible handle from
+     * creation on; the pin only adds read-only information.
+     *
+     * <p>Classification of a settled delegate reads only immutable future state and the token's
+     * atomic state, so it does not throw; should it ever fail, the pin carries that failure instead
+     * of staying pending, and the freeze surfaces it as a broken invariant rather than hanging.
+     */
+    static <T> Task<T> attributedOnSettle(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
+        SettableFuture<TaskOutcome> attribution = SettableFuture.create();
+        Task<T> view = new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), attribution);
+        delegate.addListener(
+                () -> {
+                    try {
+                        attribution.set(view.outcome());
+                    } catch (Throwable classificationFailure) {
+                        attribution.setException(classificationFailure);
+                    }
+                },
+                MoreExecutors.directExecutor());
+        return view;
     }
 
     /**
@@ -183,6 +230,15 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     /**
+     * The outcome pinned when the delegate settled, for views built by {@link #attributedOnSettle};
+     * null for every other view, which attributes from the token at read time.
+     */
+    @Nullable
+    ListenableFuture<TaskOutcome> settledAttribution() {
+        return settledAttribution;
+    }
+
+    /**
      * Returns a fluent view of the delegate; {@code from} returns an already-fluent future
      * untouched, so this adds nothing to delegates that are fluent already.
      */
@@ -192,7 +248,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /** Wraps a future derived from this task, which keeps this task's name and token. */
     private <R> Task<R> derived(ListenableFuture<R> derived) {
-        return new Task<>(taskName, token, derived, TaskObservation.unattributed(taskName, token, derived));
+        return new Task<>(taskName, token, derived, TaskObservation.unattributed(taskName, token, derived), null);
     }
 
     /**
