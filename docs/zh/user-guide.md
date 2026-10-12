@@ -154,7 +154,7 @@ User value = user.valueOrThrow();
 ```
 
 `resultOf/resultAt` 按名称/声明位置查询成员终态，TypeToken 必须精确匹配，不能拓宽；
-null 或失败值也不跳过校验。普通类型可用 Class，参数化类型及自定义 TaskOptions 用
+null 或失败值也不跳过校验。普通类型可用 Class（带不带自定义 TaskOptions 均可），参数化类型用
 TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深度校验。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
