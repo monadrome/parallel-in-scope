@@ -240,7 +240,7 @@ public final class Par {
                             : unit.structuralParent().executorIdentity(),
                     unit.executorLabel(),
                     unit.structuralParent() == null
-                            ? "NA"
+                            ? null
                             : unit.structuralParent().executorLabel(),
                     list.size(),
                     unit.remaining(),
@@ -414,7 +414,7 @@ public final class Par {
                     unit.executorIdentity(),
                     parent == null ? null : parent.executorIdentity(),
                     unit.executorLabel(),
-                    parent == null ? "NA" : parent.executorLabel(),
+                    parent == null ? null : parent.executorLabel(),
                     1,
                     unit.remaining(),
                     executorRuntime.starvationProne());
@@ -493,7 +493,7 @@ public final class Par {
                             : unit.structuralParent().executorIdentity(),
                     unit.executorLabel(),
                     unit.structuralParent() == null
-                            ? "NA"
+                            ? null
                             : unit.structuralParent().executorLabel(),
                     list.size(),
                     unit.remaining(),

@@ -326,6 +326,8 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 `TaskGraphObservationScope.hasTaskCycle()` 等查询覆盖调用前已记录的全部边；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
 
+executor 环与自环只按注册的 executor 对象本身检测，从不按 `ParId` 名称：两个 `ParId` 指向同一个池即为同一节点，单凭名称永远构不成环。顶层调用没有父 executor，不产生 executor 边；只有任务体内的嵌套调用才会产生。
+
 ## 清理已取消的排队任务
 
 库不再自动 purge 注册的执行器。取消项可能留在物理队列里，直到 worker 取出或执行器所有者主动移除。有界队列里的取消项仍占用容量，可能使后续提交被拒绝。执行前取消仍会释放任务的 Callable 捕获和 body slot。
