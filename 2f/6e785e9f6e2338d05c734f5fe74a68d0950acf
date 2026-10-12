@@ -1,0 +1,171 @@
+src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java
+  s_fa23da4837a994::t_acd6e224a07139 269-270
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphReport.java
+  s_fa23da4837a994::t_28b64eb4bf15cb 14-15
+  s_fa23da4837a994::t_2e8e5dd9c4b616 102
+  s_fa23da4837a994::t_10676a388c5477 5-8,13,16-20,30,32,43,53,56-66,68-72,75-81,84-101,106,108,110-111,115,117,124,126,133,138,142-143,152-153,164-165
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphAdmissionTest.java
+  s_fa23da4837a994::t_7d450f6f1061d7 30-31
+  s_fa23da4837a994::t_81ea679d6106e2 1-14,16-29,32-66,68-173,179-180,183-256,258-278
+  s_fa23da4837a994::t_a7f03f56c60670 67
+  s_fa23da4837a994::t_a83482054e0c24 174-178
+  s_fa23da4837a994::t_69cb8c8efa6d35 15
+  s_fa23da4837a994::t_ed239f0112fb69 181-182
+  s_fa23da4837a994::t_d7b4a04ba3346a 257
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphSnapshotConsistencyTest.java
+  s_fa23da4837a994::t_fee0511e6def37 3-4,9,19-21,31-33,35-36,38,40-44,49-50,52-56,58-61,63-65,67,73-74,80-81,85-86,95,100,102-109,113-114,122-124,126-127,131-134,145-148,150-151
+docs/en/user-guide.md
+  s_fa23da4837a994::t_6e748081462ce0 374-376
+  s_fa23da4837a994::t_ba1fe16127a508 46
+docs/en/migration-v0.3.md
+  s_fa23da4837a994::t_62975653ea13aa 124
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_fa23da4837a994::t_64b5ab072aca0e 233,238,242,246-261
+  s_fa23da4837a994::t_e720306ac365cb 134-141
+  s_fa23da4837a994::t_125b4b5c413a4f 293
+  s_fa23da4837a994::t_360883a03a4bf5 70-71
+  s_fa23da4837a994::t_a97d78130efde5 3-4,21-24,30,38,44
+  s_fa23da4837a994::t_3c56150809b9f9 192-195,197-200,202-205
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportFutureTest.java
+  s_fa23da4837a994::t_00ace55a3926c7 272
+  s_fa23da4837a994::t_1d96ec426c531c 536-590
+  s_fa23da4837a994::t_3e390107c7faf8 408
+  s_fa23da4837a994::t_ce8d88e528f000 97,103-106
+  s_fa23da4837a994::t_cbe4a92a6871ba 54-56,59-62,67-68
+  s_fa23da4837a994::t_5756134de8e855 193
+  s_fa23da4837a994::t_6368354211077a 260
+  s_fa23da4837a994::t_078f292885d567 296-300,304-305,310-313
+  s_fa23da4837a994::t_a6f0660612f8d7 452
+  s_fa23da4837a994::t_53071d6bd00763 83-85
+docs/zh/design/philosophy.md
+  s_fa23da4837a994::t_ec7915b1f5c8ca 284,290,294,296,298-299
+docs/en/design/philosophy.md
+  s_fa23da4837a994::t_d8a1d3e51d17b8 33-36
+src/main/java/io/github/monadrome/parallelinscope/TaskGraph.java
+  s_fa23da4837a994::t_259c22b1b0dfe4 25-30
+src/main/java/io/github/monadrome/parallelinscope/ExecutorGraph.java
+  s_fa23da4837a994::t_de96ea62c7e117 29-32
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphPolarityTest.java
+  s_fa23da4837a994::t_919f970446c039 3-4,10,13-15,20-22,32,34-39,45,52-62,64-71,81-83,93-98,100-101,103,107-112,114,116-122,124-125
+design/task-group-observability-and-verification.md
+  s_fa23da4837a994::t_2443f51f65a6bd 39-41,61-63,65,69-73
+  s_fa23da4837a994::t_4120e7567c714f 160-162
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fa23da4837a994::t_a5dd4a5605715c 553-556
+  s_fa23da4837a994::t_7c587050a5f8d9 1149-1160,1162-1168
+  s_fa23da4837a994::t_20d0d8f844637c 618
+  s_fa23da4837a994::t_345ff81332edd5 658
+  s_fa23da4837a994::t_81d16a09813b6c 671-674
+  s_fa23da4837a994::t_3fb7f6e1a83198 1210-1214
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_fa23da4837a994::t_82f648c02c1b69 222-223
+  s_fa23da4837a994::t_3ffc960b25a6e3 440
+  s_fa23da4837a994::t_776aecd7d6d096 378,381
+  s_fa23da4837a994::t_f20d33cce54738 517-520,522-528
+  s_fa23da4837a994::t_f17037e83b2fdf 215-221
+  s_fa23da4837a994::t_11f6f6382892ca 423
+  s_fa23da4837a994::t_d314b1c40981bc 250-258
+  s_fa23da4837a994::t_5fd659c21c59f4 199
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphObservationScope.java
+  s_fa23da4837a994::t_cd1a8ab06c470d 34-37,40-41
+  s_fa23da4837a994::t_2049cf6e6db064 141,143-145,147,151,154-156,160-161,166-167,171-172,177-178
+  s_fa23da4837a994::t_1f96f17b5f5788 266
+src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java
+  s_fa23da4837a994::t_00a24ad9e273e5 35,39-52
+src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java
+  s_fa23da4837a994::t_a33277c1271613 163-164
+  s_fa23da4837a994::t_714092b3d61524 32-34,37-39,45-49,52-73
+  s_fa23da4837a994::t_722f885d9e7048 50-51
+design/batch-terminal-combine.md
+  s_fa23da4837a994::t_a6e2e7dfefd18f 19-25
+design/task-graph.md
+  s_fa23da4837a994::t_e61d49a861a46d 89-123
+  s_fa23da4837a994::t_6fb6406247e2c4 159
+  s_fa23da4837a994::t_30b157dad0a90b 1-39
+  s_fa23da4837a994::t_12efbdeef7c5cc 45-47
+  s_fa23da4837a994::t_8d492b4ef4423c 144-145
+  s_fa23da4837a994::t_1931309d6cba3f 124-143,146-158
+design/AGENTS.md
+  s_fa23da4837a994::t_d32f12245fdf2d 66-71
+  s_fa23da4837a994::t_060a3cf8eb12e0 62
+src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java
+  s_fa23da4837a994::t_acd8d5fc36c96b 230,249-250
+  s_fa23da4837a994::t_709fdd6739a688 267-268,273
+  s_fa23da4837a994::t_a0d65a2f383fbe 288-290
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphFixtures.java
+  s_fa23da4837a994::t_de6c1a0f41cbc6 4,6
+  s_fa23da4837a994::t_dbba7ca5e91b3f 35-57
+  s_fa23da4837a994::t_2a182d9cd30fe2 75,79-83
+  s_fa23da4837a994::t_bcf72b45b5b8b2 97
+docs/en/interactive-demo.html
+  s_fa23da4837a994::t_77279d5030294f 413-414
+  s_fa23da4837a994::t_1742730cb2e031 650-651
+  s_fa23da4837a994::t_34d39f15821b2b 635
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphBatchIdentityTest.java
+  s_fa23da4837a994::t_5266ed70e3a790 3-4,10,14,17,20-22,26-40,43,48,50,61-62,64,66,68,71-72,85,93
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphTest.java
+  s_fa23da4837a994::t_9a286d84c3e41f 156-164
+  s_fa23da4837a994::t_6578b44fe723ab 165-174
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphObservationScopeTest.java
+  s_fa23da4837a994::t_ce23c48e8109fa 58-59,63,67
+  s_fa23da4837a994::t_76cfd6b08d95e1 115-116,119-128
+  s_fa23da4837a994::t_dafb179254d677 229
+  s_fa23da4837a994::t_73cc6524041f28 180
+  s_fa23da4837a994::t_cace6d7173a3ff 40
+  s_fa23da4837a994::t_81cd72003583ce 246-250,252
+  s_fa23da4837a994::t_f0a87eb5e5d65f 80
+  s_fa23da4837a994::t_8ac9b17c3a4ceb 96-100,117-118,129-130
+  s_fa23da4837a994::t_3401ebd3ebeda9 276-283
+CHANGELOG.md
+  s_fa23da4837a994::t_99c318dc203f25 23
+  s_fa23da4837a994::t_89659141b4aaba 97-98
+  s_fa23da4837a994::t_8ae80cdc72d41c 66
+  s_fa23da4837a994::t_24da7eed21a065 49
+BACKLOG.md
+  s_fa23da4837a994::t_51d1206f7ca78c 168-169
+docs/zh/user-guide.md
+  s_fa23da4837a994::t_a6d1b33d26ca81 327-329
+  s_fa23da4837a994::t_ce97bd4b3fb9a1 39
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  s_fa23da4837a994::t_15e8aa33cec3cc 3-4,8,10-15,17-18,25,31-37,41-42,47,53,55-56,58-60,63-64,67-68
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphExportTest.java
+  s_fa23da4837a994::t_d91fd94b0eab4e 210,212-215
+  s_fa23da4837a994::t_28a17bfd34c09f 3-6,9,15,34-35,48-57,59-66,70-79,83-96,110,113,116-122,138-140,151,154-157,167-169,185-190,196-209,211,216-241,243-244,247-255,257-258,264-265,267-270,274-284,291-306,308-316,320-334
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportTest.java
+  s_fa23da4837a994::t_1c94a2d82fbaa8 97-103
+  s_fa23da4837a994::t_0c62b29934d854 3-4,7,10,13-23,36-41,44-46,50-52,55-60,64-71,75-93,108-113,118,120-123
+design/task-group-lifecycle.md
+  s_fa23da4837a994::t_14a1b8d32cf901 209
+docs/zh/migration-v0.3.md
+  s_fa23da4837a994::t_199aee85cd494b 111
+src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java
+  s_fa23da4837a994::t_7a9b22016dfa23 430-434,455-467
+design/task-group-terminal-combine.md
+  s_fa23da4837a994::t_ce6b623f7a2072 241
+  s_fa23da4837a994::t_28c85f7a45ecdd 186
+  s_fa23da4837a994::t_444d32f46c5a89 207
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphScopeOwnershipTest.java
+  s_fa23da4837a994::t_d613536714e0b5 163,166-170
+  s_fa23da4837a994::t_7f046741f7e4ce 164-165
+  s_fa23da4837a994::t_100b927f5a3d5c 234,236-237
+  s_fa23da4837a994::t_ddd6dae24c5627 186,197,204-216
+  s_fa23da4837a994::t_434e39d9bb96c5 79
+  s_fa23da4837a994::t_e0c8d313a5ac3b 14
+  s_fa23da4837a994::t_df5bc62e090683 93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2f6e785e9f6e2338d05c734f5fe74a68d0950acf",
+  "prompts": {},
+  "sessions": {
+    "s_fa23da4837a994": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2108738a-67a1-481a-a47c-236ff4e9d79b",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
