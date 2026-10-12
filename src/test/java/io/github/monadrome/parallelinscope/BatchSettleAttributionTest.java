@@ -12,14 +12,23 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * A batch element whose body raises its own {@link CancellationException} or {@link
@@ -34,6 +43,7 @@ import org.junit.jupiter.api.Test;
  * wake before the cascade commits.
  */
 @SuppressWarnings("NullAway.Init")
+@Timeout(value = 60, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class BatchSettleAttributionTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
@@ -207,10 +217,11 @@ class BatchSettleAttributionTest {
     }
 
     /**
-     * Only kernel code holds a live element view, so this shape is not reachable through the public
-     * API: an element cancelled directly while the token still runs freezes as {@link
+     * An element cancelled directly while the token still runs freezes as {@link
      * TaskOutcome#MEMBER_CANCELLED}, like a directly cancelled group member, while the live read
-     * already sees the {@code FAIL_FAST} its own cancellation committed.
+     * already sees the {@code FAIL_FAST} its own cancellation committed. The kernel view is the
+     * handle here; {@link #anElementItsExecutorCancelsFreezesAsMemberCancelled} reaches the same
+     * shape through a registered executor.
      */
     @Test
     void aDirectlyCancelledElementFreezesAsMemberCancelledWhileItsSiblingReadsFailFast() throws Exception {
@@ -240,6 +251,99 @@ class BatchSettleAttributionTest {
                 .extracting(ImmediateResult::outcome)
                 .containsExactly(TaskOutcome.MEMBER_CANCELLED, TaskOutcome.FAIL_FAST);
         assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+    }
+
+    /**
+     * The Runnable a registered executor receives is the element's own future, so a user executor
+     * can cancel it — a {@code shutdownNow()} caller cancelling the returned tasks is the common
+     * case. The element it cancelled freezes as {@link TaskOutcome#MEMBER_CANCELLED}; the sibling
+     * its cancellation took down reads {@code FAIL_FAST}. The freeze-time read gave both {@code
+     * FAIL_FAST}.
+     */
+    @Test
+    void anElementItsExecutorCancelsFreezesAsMemberCancelled() {
+        pool = Executors.newFixedThreadPool(2);
+        ExecutorService cancelsFirstTask = new CancelsFirstTask(pool);
+        runtime = ParRuntime.builder()
+                .register(ParId.of("cancelling"), cancelsFirstTask)
+                .build();
+        CountDownLatch never = new CountDownLatch(1);
+
+        TaskBatchResult<String> result = runtime.par(ParId.of("cancelling"))
+                .map(
+                        Arrays.asList("cancelled", "sibling"),
+                        item -> {
+                            try {
+                                never.await();
+                            } catch (InterruptedException observed) {
+                                Thread.currentThread().interrupt();
+                                throw new IllegalStateException(observed);
+                            }
+                            return item;
+                        },
+                        BatchOptions.timeout("executor-cancel", TIMEOUT).parallelism(2));
+
+        assertThat(result.results())
+                .extracting(ImmediateResult::outcome)
+                .containsExactly(TaskOutcome.MEMBER_CANCELLED, TaskOutcome.FAIL_FAST);
+    }
+
+    /**
+     * Building an observation snapshot can only fail on a broken kernel invariant or an exhausted
+     * stack, but it runs inside the settling future's listener fan-out, which Guava stops at the
+     * first escaping {@code Error}. The observation must end exceptionally instead, so every
+     * listener registered after it — a batch element's settle-attribution pin among them — still
+     * runs and the freeze cannot wait on it forever.
+     */
+    @Test
+    void aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners() {
+        List<LogRecord> logged = new CopyOnWriteArrayList<>();
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                logged.add(record);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        Logger observationLogger = Logger.getLogger(TaskObservation.class.getName());
+        observationLogger.addHandler(capture);
+        try {
+            SettableFuture<String> settle = SettableFuture.create();
+            TaskObservation<String> observation = TaskObservation.of(
+                    () -> {
+                        throw new StackOverflowError("snapshot");
+                    },
+                    settle);
+            observation
+                    .view()
+                    .addListener(
+                            () -> {
+                                throw new AssertionError("observation listener");
+                            },
+                            MoreExecutors.directExecutor());
+            AtomicBoolean laterListenerRan = new AtomicBoolean();
+            settle.addListener(() -> laterListenerRan.set(true), MoreExecutors.directExecutor());
+
+            settle.set("value");
+
+            assertThat(laterListenerRan).isTrue();
+            assertThat(observation.view().isDone()).isTrue();
+            assertThatThrownBy(() -> Futures.getDone(observation.view()))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(StackOverflowError.class);
+            assertThat(logged)
+                    .extracting(LogRecord::getMessage)
+                    .containsExactly(
+                            "an observation listener failed", "a task observation snapshot could not be built");
+            assertThat(logged).allMatch(record -> record.getLevel() == Level.SEVERE);
+        } finally {
+            observationLogger.removeHandler(capture);
+        }
     }
 
     @Test
@@ -291,6 +395,50 @@ class BatchSettleAttributionTest {
         pool = Executors.newFixedThreadPool(threads);
         runtime = ParRuntime.builder().register(ParId.of("pool"), pool).build();
         return runtime.par(ParId.of("pool"));
+    }
+
+    /** An executor that cancels the first task it is handed and forwards every other one. */
+    private static final class CancelsFirstTask extends AbstractExecutorService {
+        private final ExecutorService delegate;
+        private final AtomicBoolean first = new AtomicBoolean(true);
+
+        CancelsFirstTask(ExecutorService delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void execute(Runnable task) {
+            if (first.compareAndSet(true, false)) {
+                ((Future<?>) task).cancel(true);
+                return;
+            }
+            delegate.execute(task);
+        }
+
+        @Override
+        public void shutdown() {
+            delegate.shutdown();
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return delegate.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return delegate.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return delegate.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return delegate.awaitTermination(timeout, unit);
+        }
     }
 
     /** Converts any throwable into an unchecked throw site for lambda bodies. */
