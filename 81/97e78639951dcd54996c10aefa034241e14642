@@ -1,0 +1,22 @@
+docs/zh/user-guide.md
+  s_90b56b9ac5aff5::t_4db03c96c4aeb5 305-332
+docs/en/user-guide.md
+  s_90b56b9ac5aff5::t_d7a6c3b9f71e8c 372-378
+  s_90b56b9ac5aff5::t_9904e5e13d5eb0 352-371,379-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8197e78639951dcd54996c10aefa034241e14642",
+  "prompts": {},
+  "sessions": {
+    "s_90b56b9ac5aff5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c26dafa7-327b-42e2-8dc9-7887401b7fcd",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
