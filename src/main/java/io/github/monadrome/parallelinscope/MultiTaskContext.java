@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Ticker;
 import java.time.Duration;
 import java.util.Objects;
@@ -16,47 +18,34 @@ import org.jspecify.annotations.Nullable;
  * parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when there
  * is none). The cancellation token is always a new child token, so cancellation propagates downward
  * without making child failure cancel its parent.
+ *
+ * <p>The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live in
+ * the {@link TaskNode} created once here; this context adds the execution state around it. The node
+ * never points back, so the task graph holds nodes without keeping tokens or parent chains alive.
  */
 final class MultiTaskContext {
     /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
     private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
 
-    private final String unitId;
-    private final String name;
-    private final int taskCount;
-    private final int effectiveParallelism;
+    private final TaskNode node;
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
     private final @Nullable MultiTaskContext structuralParent;
     private final @Nullable TaskGraphObservationScope taskGraphObservationScope;
-    private final @Nullable ExecutorIdentity executorIdentity;
-    private final @Nullable String executorLabel;
-    private final TaskType taskType;
     private final boolean rejectEnqueue;
 
     private MultiTaskContext(
-            String name,
-            int taskCount,
-            int effectiveParallelism,
+            TaskNode node,
             long deadlineNanos,
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
             @Nullable TaskGraphObservationScope taskGraphObservationScope,
-            @Nullable ExecutorIdentity executorIdentity,
-            @Nullable String executorLabel,
-            TaskType taskType,
             boolean rejectEnqueue) {
-        this.unitId = "unit-" + UNIT_SEQUENCE.incrementAndGet();
-        this.name = name;
-        this.taskCount = taskCount;
-        this.effectiveParallelism = effectiveParallelism;
+        this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
         this.taskGraphObservationScope = taskGraphObservationScope;
-        this.executorIdentity = executorIdentity;
-        this.executorLabel = executorLabel;
-        this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
     }
 
@@ -78,8 +67,8 @@ final class MultiTaskContext {
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
         private @Nullable TaskGraphObservationScope taskGraphObservationScope;
-        private @Nullable ExecutorIdentity executorIdentity;
-        private @Nullable String executorLabel;
+        private @Nullable ExecutorRuntime executor;
+        private @Nullable ParId executorId;
 
         private Resolution(UnitSpec spec, int taskCount) {
             this.spec = Objects.requireNonNull(spec, "spec cannot be null");
@@ -142,16 +131,14 @@ final class MultiTaskContext {
             return this;
         }
 
-        /** Records the concrete {@code Par}'s supplied executor identity — diagnostic and graph
-         * state, not a submission target. */
-        Resolution executorIdentity(@Nullable ExecutorIdentity identity) {
-            this.executorIdentity = identity;
-            return this;
-        }
-
-        /** Diagnostic label of the owning executor. */
-        Resolution executorLabel(@Nullable String label) {
-            this.executorLabel = label;
+        /**
+         * The executor the unit runs on and the id it is registered under: the unit's node takes the
+         * executor's identity, the id as display label, and whether a body blocked on the unit can
+         * starve it. Diagnostic and graph state only, never a submission target.
+         */
+        Resolution executor(ExecutorRuntime runtime, ParId id) {
+            this.executor = checkNotNull(runtime, "runtime cannot be null");
+            this.executorId = checkNotNull(id, "id cannot be null");
             return this;
         }
     }
@@ -202,17 +189,24 @@ final class MultiTaskContext {
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
-        return new MultiTaskContext(
+        ExecutorRuntime executor = resolution.executor;
+        ParId executorId = resolution.executorId;
+        TaskNode node = new TaskNode(
+                "unit-" + UNIT_SEQUENCE.incrementAndGet(),
                 spec.name(),
-                resolution.taskCount,
+                executor == null ? null : executor.identity(),
+                executorId == null ? null : executorId.value(),
+                executor != null && executor.starvationProne(),
+                spec.taskType(),
                 effective,
+                resolution.taskCount,
+                Deadlines.remaining(deadline, resolutionTime));
+        return new MultiTaskContext(
+                node,
                 deadline,
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
                 observation,
-                resolution.executorIdentity,
-                resolution.executorLabel,
-                spec.taskType(),
                 spec.rejectEnqueue());
     }
 
@@ -236,20 +230,35 @@ final class MultiTaskContext {
 
     /** The logical unit name: batches use the options name; group members and combines use the key name. */
     String name() {
-        return name;
+        return node.name();
     }
 
     /** Stable identity for this one unit instance; never use name as graph identity. */
     String unitId() {
-        return unitId;
+        return node.id();
     }
 
     int taskCount() {
-        return taskCount;
+        return node.taskCount();
     }
 
     int effectiveParallelism() {
-        return effectiveParallelism;
+        return node.parallelism();
+    }
+
+    /** This unit as a task-graph node: created once at resolution, shared by every graph it joins. */
+    TaskNode node() {
+        return node;
+    }
+
+    /**
+     * The structural parent's node, or null at the top level. Graph edges are written by the
+     * admission, not derived from this pointer; most admissions use it as their caller.
+     */
+    @Nullable
+    TaskNode structuralParentNode() {
+        MultiTaskContext parent = structuralParent;
+        return parent == null ? null : parent.node;
     }
 
     long deadlineNanos() {
@@ -280,19 +289,8 @@ final class MultiTaskContext {
         return taskGraphObservationScope;
     }
 
-    @Nullable
-    ExecutorIdentity executorIdentity() {
-        return executorIdentity;
-    }
-
-    /** Diagnostic label of the owning executor, or null when resolved without one. */
-    @Nullable
-    String executorLabel() {
-        return executorLabel;
-    }
-
     TaskType taskType() {
-        return taskType;
+        return node.taskType();
     }
 
     boolean rejectEnqueue() {

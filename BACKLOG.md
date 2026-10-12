@@ -165,6 +165,8 @@ Guava 的 SEVERE 日志里。
 - **API 自己承认 false 不够用**：同一结果的正式载体 `TaskGraphReport.Status` 是三态
   `DISABLED/NO_ISSUE/ISSUE`。
 - **修复**：改为实例方法 `scope.hasTaskCycle()`（用户本就持有该实例），或返回 `TaskGraphReport.Status`。
+- **状态（任务图重构后）**：任务级 `hasTaskCycle()`/`hasSelfLoop()` 已删除（生产中恒为 false，见
+  `design/task-graph.md` §6）；剩下的 `hasExecutorCycle()`/`hasExecutorSelfLoop()` 仍有本条问题。
 
 ### A-P3 · 两个访问器让用户静默出错 ——`failure()` 半项已修复
 

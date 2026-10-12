@@ -183,7 +183,7 @@ member B ──┼──> combine
 member C ──┘
 ```
 
-- v1 采用 **telemetry-only**：members→combine 的 join 关系只写入 Group telemetry，不写 TaskGraph 边，不参与 deadlock 环检测；MUST NOT 伪造单父边或虚构 group batch 节点。图模型的 multi-parent 扩展是独立工作，不阻塞 combine 交付，完成后再把真实边写入图。
+- members→combine 是真实的多父依赖，MUST 作为每个成员 `JOIN` combine 的边写入任务图（与成员、caller 的 `FORK` 同属一个准入片段，见 [task-graph.md](task-graph.md) §4）；`JOIN` 不进入执行器投影，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，它的 `FORK` 才参与投影。MUST NOT 伪造单父边或虚构 group batch 节点。
 
 ## 10. 与 idea-graveyard 的关系
 
@@ -204,8 +204,7 @@ member C ──┘
 3. **失败面扩大。** 组装成为可失败、拒绝、取消、超时的任务，结果、指标、测试和文档都要扩展。
 4. **额外一次调度。** 显式 executor 避免污染最后完成 member 的线程（禁用 inline fallback 后这一点是保证而非选择），但对纯字段拼装带来排队和上下文切换开销。
 5. **端到端预算更紧。** member 用掉大部分 deadline 后，combine 可能尚未开始即超时；这是正确的端到端语义，但需清晰告知用户。
-6. **图表达滞后。** v1 的 join 关系只在 telemetry 中可见，图诊断暂时看不到这条真实依赖。
-7. **会引出 DAG 需求。** 用户可能接着要求部分依赖或多个阶段。必须坚守一个全量、末端 combine 的限制。
+6. **会引出 DAG 需求。** 用户可能接着要求部分依赖或多个阶段。必须坚守一个全量、末端 combine 的限制。
 
 ## 13. 采用门槛与验收
 
@@ -239,5 +238,5 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
 8. `totalTasks` 目标含 terminal future；内部 completion 等 terminal future 终态后才完成，组结果在 combine 终态后才返回；
-9. TaskGraph 不写 membership 边、不伪造 join 边；join 关系出现在 Group telemetry；
+9. TaskGraph 不写 membership 边；每个成员 `JOIN` combine 的真实边与 caller 的 `FORK` 作为一个片段写入；
 10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。

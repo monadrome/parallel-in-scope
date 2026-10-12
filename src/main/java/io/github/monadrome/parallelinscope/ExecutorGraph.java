@@ -26,10 +26,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Every {@link TaskGraph.Dependency#FORK} edge {@code u → v} whose units both run on a known
  * executor, and whose awaited unit {@code v} runs on a starvation-prone one, becomes the edge
- * {@code executor(u) → executor(v)}: a thread of {@code u}'s pool is blocked, and {@code v} can be
- * queued behind exactly such a blocked worker. A {@link TaskGraph.Dependency#JOIN} edge never
- * projects, because nothing blocks on it. A cycle — a self-loop included — is the structural shape
- * of a pool starving itself.
+ * {@code executor(u) → executor(v)}: a thread of {@code u}'s pool is blocked, and {@code v} can sit in
+ * its pool's queue behind workers that are themselves blocked. A {@link TaskGraph.Dependency#JOIN}
+ * edge never projects, because nothing blocks on it. A cycle — a self-loop included — is the
+ * structural shape of pools starving each other, or one pool starving itself.
  *
  * <p>Executor nodes are keyed by {@link ExecutorIdentity}, so one pool registered under two ids stays
  * one node and two pools sharing a label stay two; labels are for display only. Each executor edge
