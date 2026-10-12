@@ -70,6 +70,8 @@ import org.jspecify.annotations.Nullable;
 public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, AutoCloseable {
 
     private static final int TRAVERSAL_BATCH_SIZE = 64;
+    private static final Node<?>[] EMPTY_NODE_BATCH = new Node<?>[0];
+    private static final Object[] EMPTY_ITEM_BATCH = new Object[0];
     private static final int MAX_SPLITERATOR_BATCH = 1 << 25;
 
     private enum Lifecycle {
@@ -840,12 +842,17 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * monitors so user code never runs in a critical section (contract §12.6). Bounds temporary
      * memory and lock hold time for a long unsuccessful search. The returned node may already be
      * unlinked by a concurrent consumer by the time it is used.
+     *
+     * <p>The snapshot buffers are sized on the first pass, under the monitors, from the live count
+     * and never above 64: an empty queue allocates nothing and a short one only what it needs. A
+     * later pass runs only when more than 64 nodes were live, so it reuses full-size buffers. The
+     * mutation policy is checked before the count, so an empty drained queue keeps its {@code
+     * mutations} behavior.
      */
     private @Nullable Node<E> findMatchingNode(Object target) {
         Node<E> cursor = null;
-        @SuppressWarnings("unchecked")
-        Node<E>[] nodes = (Node<E>[]) new Node<?>[TRAVERSAL_BATCH_SIZE];
-        Object[] items = new Object[TRAVERSAL_BATCH_SIZE];
+        Node<E>[] nodes = emptyNodeBatch();
+        Object[] items = EMPTY_ITEM_BATCH;
         int length;
         do {
             fullyLock();
@@ -855,6 +862,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
                     return null;
                 }
                 if (cursor == null) {
+                    int live = count.get();
+                    if (live == 0) {
+                        return null;
+                    }
+                    nodes = nodeBatch(Math.min(TRAVERSAL_BATCH_SIZE, live));
+                    items = new Object[nodes.length];
                     cursor = head.next;
                 }
                 for (length = 0; cursor != null && length < nodes.length; cursor = successor(cursor)) {
@@ -986,6 +999,18 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         for (int index = 0; index < length; index++) {
             values[index] = null;
         }
+    }
+
+    /** A zero-length snapshot buffer; a search replaces it on its first pass over live nodes. */
+    @SuppressWarnings("unchecked")
+    private static <E> Node<E>[] emptyNodeBatch() {
+        return (Node<E>[]) EMPTY_NODE_BATCH;
+    }
+
+    /** A snapshot buffer for {@code size} nodes. */
+    @SuppressWarnings("unchecked")
+    private static <E> Node<E>[] nodeBatch(int size) {
+        return (Node<E>[]) new Node<?>[size];
     }
 
     /** Returns the node after {@code node}, following LBQ's self-link convention. */
