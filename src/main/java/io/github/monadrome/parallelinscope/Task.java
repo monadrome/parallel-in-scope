@@ -227,13 +227,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      */
     @Override
     public String toString() {
-        return new StringBuilder("Task[name=")
-                .append(taskName)
-                .append(", state=")
-                .append(outcome())
-                .append(", remaining=")
-                .append(deadlineNanos() == Long.MAX_VALUE ? "unbounded" : remaining())
-                .append(']')
-                .toString();
+        return "Task[name=" + taskName + ", state=" + outcome() + ", remaining="
+                + (deadlineNanos() == Long.MAX_VALUE ? "unbounded" : remaining()) + "]";
     }
 }

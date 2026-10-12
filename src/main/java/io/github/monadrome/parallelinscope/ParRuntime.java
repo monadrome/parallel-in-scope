@@ -520,6 +520,7 @@ public final class ParRuntime implements AutoCloseable {
      * and admissions drain, no new signal can appear, so {@link #awaitQuiescence} observing an
      * empty set is stable.
      */
+    @SuppressWarnings("CollectionUndefinedEquality")
     void trackBodies(BodyCompletionTracker tracker) {
         ListenableFuture<@Nullable Void> signal = tracker.bodyExit();
         if (signal.isDone()) return;

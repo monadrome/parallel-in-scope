@@ -304,6 +304,7 @@ public final class CancellationToken {
      *
      * @return the scheduled handle, or null when arming was skipped because the token is terminal
      */
+    @SuppressWarnings({"ReferenceEquality", "EmptyCatch"})
     private @Nullable ScheduledFuture<?> scheduleDeadline(
             ScheduledExecutorService deadlineTimer,
             ScheduledExecutorService timer,

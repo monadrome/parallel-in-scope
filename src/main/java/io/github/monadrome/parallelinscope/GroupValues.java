@@ -202,7 +202,7 @@ public final class GroupValues<V> {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
     private static <T> @Nullable T cast(@Nullable Object value) {
         return (T) value;
     }
