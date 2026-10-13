@@ -240,22 +240,23 @@ public final class TaskGraphObservationScope implements AutoCloseable {
             }
             return;
         } catch (Throwable error) {
-            // Best effort: publish the failure and restore the context before rethrowing.
             restoreCurrentScope();
             try {
                 reportSink.setException(error);
-            } catch (RuntimeException publicationFailure) {
-                error.addSuppressed(publicationFailure);
+            } catch (Throwable publicationFailure) {
+                if (publicationFailure != error) {
+                    error.addSuppressed(publicationFailure);
+                }
             }
             throw error;
         }
         restoreCurrentScope();
-        // Publish before any diagnostic logging: a user-replaceable JUL handler may re-enter this
-        // scope's close(), and the re-entrant call waits on this exact publication — running the
-        // handler first would make the close wait for itself.
-        reportSink.set(report);
-        if (report.anyIssue()) {
-            logIssueQuietly(report);
+        try {
+            reportSink.set(report);
+        } finally {
+            if (report.anyIssue()) {
+                logIssueQuietly(report);
+            }
         }
     }
 

@@ -9,7 +9,7 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 | Location | Mechanism | Application work |
 |---|---|---|
 | Before task execution | `ScopedCallable` runs `Checkpoints.checkpoint()` | None |
-| During blocking I/O | `futureToken.cancel(true)` interrupts the blocking operation | None |
+| While a body runs | Cancellation requests a runner interrupt | Use interruptible operations or client timeouts; I/O response depends on the client |
 | Sliding-window submission | `SlidingWindowSubmitter` stops submitting after cancellation | None |
 
 ### Sliding-window preparation
@@ -23,7 +23,8 @@ unsubmitted tasks from starting. There are no placeholders or later delegate-bin
 `ImmediateResult` data. `unfinishedBodies()` reports direct bodies whose exit was not confirmed;
 terminal cancellation alone does not prove that a body stopped.
 
-Tasks that have not started are skipped, blocked I/O tasks are interrupted, and queued tasks are not submitted.
+Tasks that have not started are skipped, running bodies receive an interrupt request, and unsubmitted
+tasks do not enter the executor. An interrupt request does not guarantee that blocked I/O stops.
 
 ## Add checkpoints to CPU-bound work
 
@@ -77,15 +78,18 @@ Two utilities round out the API:
 
 A positive budget does not prove the scope is uncancelled (fail-fast may already be committed); keep a `checkpoint()` before relying on it.
 
-Add checkpoints at a reasonable granularity: every N iterations of a long loop, between expensive phases, or at the entry to a recursive walk. I/O calls and very short functions normally need no manual checkpoint.
+Add checkpoints at a reasonable granularity: every N iterations of a long loop, between expensive phases, or at the entry to a recursive walk. Check cancellation before starting expensive I/O and configure the client's timeouts; very short functions normally need no extra checkpoint.
 
 ## Do not swallow cancellation
 
 ```java
 global.par(ParId.of("myExecutor")).map(items, item -> {
     try {
-        riskyOperation(item);
-    } catch (Exception ex) {
+        return riskyOperation(item);
+    } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("interrupted while loading item", ex);
+    } catch (IOException ex) {
         Checkpoints.propagateCancellation(ex);
         log.error("failed", ex);
         return defaultValue;
@@ -93,7 +97,10 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`propagateCancellation` re-throws every `CancellationException`. Any other exception is passed through unchanged — unless the current scope is already cancelled, in which case it throws `LeanCancellationException` instead of returning.
+This example degrades recoverable I/O failures only; cancellation exceptions escape the catch clauses.
+`propagateCancellation` rethrows cancellation exceptions or a committed scope cancellation. It does
+not restore the flag for an ordinary `InterruptedException`: a Function must restore and translate
+that exception with its original cause, as above. A group member's Callable can throw it directly.
 
 ## Cancellation sources
 

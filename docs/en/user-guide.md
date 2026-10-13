@@ -405,6 +405,11 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 The report future stays pending until the scope closes; every normally returning `close()` guarantees it is done, so it can be read synchronously with `Futures.getDone` or observed with `Futures.addCallback` — registering a callback after close never misses the result. `status()` distinguishes a disabled policy (`DISABLED`), a clean detection (`NO_ISSUE`), and a detected cycle or self-loop (`ISSUE`); a detection failure ends the future in failure instead of producing a report. The future is read-only: `cancel(...)` returns `false` and affects neither detection nor business tasks. An observation scope does not merge graphs from separate `ParRuntime` instances.
 
+Publication precedes ISSUE logging. A direct report listener's Error may still escape close, but
+does not retract the report or skip the diagnostic attempt; a failing logging handler is isolated.
+If detection and publication both throw Error, the detection error remains primary and is the
+future's failure cause, with the distinct publication error suppressed.
+
 The graph records every unit an admission of this runtime creates — a batch, a group member, a combine — and who waits for whom: the caller of `map`, `mapAndCombine`, or `runAll` waits for every unit it admits, while a combine only consumes its inputs. Detection projects the waits onto executors: a body blocked on work queued to a starvation-prone pool is an edge between the two pools, and a cycle of such edges — a pool waiting on itself included — is reported as `ISSUE` with `executorCycle()` / `executorSelfLoop()`. The rendered `executorEdges()` and `taskEdges()` list only the waits on that cycle and the units behind them.
 
 Queries such as `TaskGraphObservationScope.hasExecutorCycle()` cover every admission recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
@@ -438,6 +443,12 @@ Consumers can still take elements that were queued before `close()`; no recovery
 
 ## Integration recipes {#integration-recipes}
 
+`Par.map` rejects a null mapping function before admission, even for empty or null input.
+A caller already carrying an interrupt flag still receives frozen task failures with their original
+causes and keeps that flag. A checkpoint that commits an inherited deadline reports TIMEOUT for
+both the group and the member or combine that observed it; time passing alone does not reclassify
+a spontaneous business cancellation exception.
+
 ### MDC (SLF4J)
 
 Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
@@ -450,28 +461,33 @@ private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
         new TransmittableThreadLocal<>();
 
 // Submitting thread: declare this call's diagnostic fields.
+Map<String, String> previousDiagnostic = DIAGNOSTIC.get();
 DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
 try {
     TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
             BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
 } finally {
-    DIAGNOSTIC.remove();
+    if (previousDiagnostic == null) DIAGNOSTIC.remove();
+    else DIAGNOSTIC.set(previousDiagnostic);
 }
 
 Account fetchAccount(String id) {
     Map<String, String> fields = DIAGNOSTIC.get();
-    if (fields != null) fields.forEach(MDC::put);   // body entry: TTL -> MDC
+    Map<String, String> previousMdc = MDC.getCopyOfContextMap();
     try {
+        if (fields != null) fields.forEach(MDC::put);
         return load(id);
     } finally {
-        MDC.clear();
+        if (previousMdc == null) MDC.clear();
+        else MDC.setContextMap(previousMdc);
     }
 }
 ```
 
 This covers library-managed work only. The library performs the TTL capture and restore around each
 task, so these bodies need no TTL agent; code on the same pool that submits directly, outside this
-library, still has to wrap TTL itself.
+library, still has to wrap TTL itself. Saving and restoring both values also preserves enclosing
+contexts when a body runs directly on the caller or makes a nested library call.
 
 ### OpenTelemetry
 
@@ -519,12 +535,19 @@ String fetch(String url) throws IOException {
     }
 }
 
-TaskBatchResult<String> bodies = httpPar.map(urls, this::fetch,
+TaskBatchResult<String> bodies = httpPar.map(urls, url -> {
+    try {
+        return fetch(url);
+    } catch (IOException failure) {
+        throw new UncheckedIOException(failure);
+    }
+},
         BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
 ```
 
-The batch timeout bounds the whole batch; the client-side connect/read timeouts are the hard bound
-on one call.
+The batch deadline requests cancellation across the batch. HttpURLConnection's connect and read
+timeouts bound their respective waits; the read timeout is not a deadline for the entire response.
+A body or resource close that ignores interruption can outlive the batch's bounded cleanup.
 
 ### Metrics callbacks
 
