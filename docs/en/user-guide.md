@@ -475,31 +475,32 @@ library, still has to wrap TTL itself.
 
 ### OpenTelemetry
 
-The same shape carries a span context: put the OTel `Context` in a TransmittableThreadLocal and make
-it current at body entry.
+Capture the complete OTel `Context` on this call's thread and make it current inside each body.
+The captured value includes the parent span, baggage, and custom context keys:
 
 ```java
-private static final TransmittableThreadLocal<Context> REQUEST_CONTEXT =
-        new TransmittableThreadLocal<>();
-
+Context parent = Context.current();
 TaskBatchResult<String> batch = databasePar.map(ids, id -> {
-    Context parent = REQUEST_CONTEXT.get();
-    SpanBuilder builder = tracer.spanBuilder("load");
-    if (parent != null) {
-        builder.setParent(parent);
-    }
-    Span span = builder.startSpan();
-    try (Scope ignored = span.makeCurrent()) {
+    Span span = tracer.spanBuilder("load").setParent(parent).startSpan();
+    try (Scope ignored = parent.with(span).makeCurrent()) {
         return load(id);
     } finally {
-        span.end();               // end this body's span, restoring the previous current context
+        span.end();
     }
 }, BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
-The names follow the standard OTel API for illustration; no real dependency is implied. The rules
-are that the `Scope` from `makeCurrent()` closes inside the body and the span always ends. The
-library only moves the TTL value to the worker; it knows nothing about spans.
+The application supplies the OTel APIs; the library has no runtime OTel dependency. Closing the
+`Scope` restores the previous context on this body thread; `span.end()` ends the body's span and
+does not restore context. For nested calls, capture `Context.current()` again while the outer
+body's scope is active, rather than reusing a request-root snapshot. Setting a span's parent alone
+does not make baggage or custom keys current.
+
+This wrapper creates spans only for bodies that actually enter it. Cancellation or a synchronous
+return can precede the exit of a body that ignores interruption, so neither is a reason to end that
+body's span early. The library does not create task spans or automatically propagate arbitrary
+ThreadLocal values. An OTel Java agent may supply context propagation for supported executors and
+configurations; its presence alone is not a guarantee for every refill, combine, or custom executor.
 
 ### Client timeouts
 
