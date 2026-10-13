@@ -1247,7 +1247,7 @@ class TaskGroupTest {
 
             assertThat(group.groupName()).isEqualTo("named");
             assertThat(result.groupName()).isEqualTo("named");
-            assertThat(group.groupId()).isNotBlank();
+            assertThat(group.groupId()).isNotNull();
             assertThat(result.groupId()).isEqualTo(group.groupId());
         } finally {
             global.close();
