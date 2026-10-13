@@ -1,0 +1,126 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphFixtures.java
+  s_fba21e67c23aac::t_9a0ea85d0b028e 47
+  s_fba21e67c23aac::t_9295983b35cda4 14-15,21-28,30-31
+  s_fba21e67c23aac::t_e0ac7c2442d0dd 84,86-87,90,93-101
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphBatchIdentityTest.java
+  s_fba21e67c23aac::t_ee4854354bc5de 93
+src/main/java/io/github/monadrome/parallelinscope/TaskId.java
+  s_fba21e67c23aac::t_7d7751ffe58d0b 1-12,14,19-20,25-43,45,47,49-51,53,58,61-63,65,70,73-80,82-85,87-91,93-94
+  s_fba21e67c23aac::t_4e584fec88647f 13,15-18,21-24,44,46,48,52,54-57,59-60,64,66-69,71-72,81,86,92
+src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java
+  s_fba21e67c23aac::t_3c9123b67a5174 48,51
+  s_fba21e67c23aac::t_b62bc2edbe9444 122
+  s_fba21e67c23aac::t_d10746c03a1079 59
+  s_fba21e67c23aac::t_51549d7aa4cc09 99
+  s_fba21e67c23aac::t_ec69d0f6ed89e8 239
+  s_fba21e67c23aac::t_1ee7afeab80f0d 95
+  s_90b56b9ac5aff5::t_b22b60ebbd1b87 132-141,144-165,167-170
+src/test/java/io/github/monadrome/parallelinscope/TaskIdentityTest.java
+  s_fba21e67c23aac::t_6feca5bc289d82 13
+  s_fba21e67c23aac::t_e0ed6c14a4c4e9 1-12,14-29,32,34-115
+  s_fba21e67c23aac::t_b20f041b6a87b3 30-31,33
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_12a8a2e64c5bf1::t_cb975413d9e71d 107
+  s_fba21e67c23aac::t_a73292ad709c82 15
+  s_12a8a2e64c5bf1::t_31f5d1007f9d00 87-88
+  s_fba21e67c23aac::t_b79ceab5ea11db 46
+  s_12a8a2e64c5bf1::t_c70b861d7f2a2d 147
+  s_12a8a2e64c5bf1::t_69c1a40010f7a4 72-73
+  s_12a8a2e64c5bf1::t_e4ef23262066ae 67
+  s_12a8a2e64c5bf1::t_5b30df14102855 128
+  s_12a8a2e64c5bf1::t_e3d12529d90a11 50,54,58,62
+  s_fba21e67c23aac::t_a4c58bd70f385f 26
+  s_12a8a2e64c5bf1::t_5c2bd5c7757e48 78
+src/main/java/io/github/monadrome/parallelinscope/TaskNode.java
+  s_fba21e67c23aac::t_58fbf75cd2b373 71
+  s_fba21e67c23aac::t_b79e28d3eb5ce8 26
+  s_fba21e67c23aac::t_7a24ffea4b5525 50
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportTest.java
+  s_fba21e67c23aac::t_0ade7d935a48af 57-58,60
+  s_fba21e67c23aac::t_913eb9351879b9 72
+  s_9adb225d9d4dbe::t_282253155a875a 75,105-106
+  s_fba21e67c23aac::t_882f5014603c80 92-94
+docs/en/migration-v0.3.md
+  s_527ee058754c0f::t_942305ad9d29b5 8
+  s_fba21e67c23aac::t_3a5d41d82cdd86 89-132,135-141
+src/main/java/io/github/monadrome/parallelinscope/TaskUnit.java
+  s_fba21e67c23aac::t_64247de341154b 1-13
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupRun.java
+  s_fba21e67c23aac::t_f31f6ec31b61db 1-13
+design/task-graph.md
+  s_fba21e67c23aac::t_812cf15d8194b9 26,28-30
+src/test/java/io/github/monadrome/parallelinscope/TaskIdTest.java
+  s_fba21e67c23aac::t_8ba1a09e6a619f 52-53
+  s_fba21e67c23aac::t_8bfa644a77a38a 37
+  s_fba21e67c23aac::t_2962a70f910c2a 1-36,38-51,54-55
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphSnapshotConsistencyTest.java
+  s_fba21e67c23aac::t_29eeba0722c9fd 95
+  s_1503957580b8e1::t_82540c6cdb3d5c 112,115
+src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java
+  s_fba21e67c23aac::t_dc08589a2cda76 27
+  s_fba21e67c23aac::t_a756b9d5bb6573 63
+  s_fba21e67c23aac::t_91f72d100eabae 33-39
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportFutureTest.java
+  s_fba21e67c23aac::t_355bda080b2c92 109
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_fba21e67c23aac::t_914b7ea4865499 43-44,48
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphTest.java
+  s_fba21e67c23aac::t_821e3760b9af42 109
+  s_fba21e67c23aac::t_2cc3acd9119a60 161
+CHANGELOG.md
+  s_00c0ca58d01782::t_4c5f613b2916d2 108
+  s_ede93b60fe0bb3::t_1305cefdf5cc53 151
+  s_ede93b60fe0bb3::t_d93679459b4fdf 173
+  s_fba21e67c23aac::t_67d4485fe73ae6 51-52
+  s_1503957580b8e1::t_c0d832fcf4e698 46-47
+  s_1503957580b8e1::t_dbb01ce29b0da7 113-116
+  s_ede93b60fe0bb3::t_aeb41a8cf37b0b 86
+  s_ede93b60fe0bb3::t_c30de2f3c03f74 172
+  s_ede93b60fe0bb3::t_d81eefed3af14b 174
+  s_527ee058754c0f::t_a0c735533eaac7 125-126,129-132,136
+src/main/java/io/github/monadrome/parallelinscope/TaskCompletion.java
+  s_fba21e67c23aac::t_c32ad889a95ff9 3
+  s_fba21e67c23aac::t_d859600bb7dd17 207-217,221-229
+  s_12a8a2e64c5bf1::t_fb1bfe31b8b629 15
+  s_fba21e67c23aac::t_d7d3ec3aa37e3c 27-28,39-40,49-51
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 52
+  s_fba21e67c23aac::t_2035cb811e7d9d 65,74,87,100,116,123,128-129,133,142-151,164,167,179-183,188
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_938b0dc5cfbf6a::t_cba78adf29f41f 7
+  s_55445120998176::t_ac0351710b9ff2 58
+  s_55445120998176::t_f2bdf455bf2c91 336
+  s_fba21e67c23aac::t_7ab868d1312456 67-69,71
+  s_55445120998176::t_b1fb0fbfd8bf46 10-11
+  s_938b0dc5cfbf6a::t_0bcffbf3b476b1 346
+docs/zh/migration-v0.3.md
+  s_fba21e67c23aac::t_b727a81d2402f6 82-120,123-128
+  s_527ee058754c0f::t_942305ad9d29b5 7
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_55445120998176::t_d7fc5ac555dc46 178
+  s_ede93b60fe0bb3::t_9f6ec61a08c8b0 477-478
+  s_1503957580b8e1::t_0324218d70fc93 873-874,876-887,889,891-901,906-907,909-911,914-925,928-931
+  s_fba21e67c23aac::t_5afdea11749d9d 69
+  s_ede93b60fe0bb3::t_d6a3ca356556d7 83-89,908
+  s_55445120998176::t_96292bade96fe6 7
+  s_ede93b60fe0bb3::t_f81cd8b90d8517 475
+  s_5d0f233ae46b2c::t_5b9d8c2dad0091 26-27,29,119-125,127-132,846-847,857-858,866-872,890,902,975-979,984-986,1076-1080,1094-1095,1098,1104,1133,1188-1190
+  s_fba21e67c23aac::t_3b564ad141e1b7 181
+  s_ede93b60fe0bb3::t_a6a97a4cc9d149 561
+  s_ede93b60fe0bb3::t_65848d67e3c21c 160-166
+  s_ede93b60fe0bb3::t_95874d6cad03c8 476,808,823-824
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_ede93b60fe0bb3::t_0bdbff94dcea22 160
+  s_ede93b60fe0bb3::t_307f060cc96584 181-186
+  s_ede93b60fe0bb3::t_6d58f0b044f14c 282-283,287-288
+  s_1503957580b8e1::t_06a651e771108c 227-230
+  s_ede93b60fe0bb3::t_a32c35ca314464 232,241,245,264,269,273,292,296
+  s_fba21e67c23aac::t_cf2f4dd28d9fe9 237
+  s_fba21e67c23aac::t_7ef55d0259aee7 195
+  s_ede93b60fe0bb3::t_bb58d98240ff9b 55-57,124-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2ac9606bb3c6cf077ff88480a57b6a98ec1a85b7",
+  "prompts": {}
+}
