@@ -1,0 +1,19 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphFixtures.java
+  s_fba21e67c23aac::t_9a0ea85d0b028e 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "85955d790238d088cda012229b3164be32722a6b",
+  "prompts": {},
+  "sessions": {
+    "s_fba21e67c23aac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69684fac-a9ed-4ef0-8be3-89d948e087c7",
+        "model": "deepseek-v4-1-flash-260910"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
