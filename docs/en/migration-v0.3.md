@@ -88,6 +88,13 @@ resolving them to one worker per task.
 
 ## Waiting and resource ownership
 
+Earlier 0.3 snapshots could throw an unrelated ISE when freezing a failed task for an interrupted
+caller; the same calls now return the original failure and preserve the flag. A member or combine
+checkpoint that commits its inherited deadline now reports TIMEOUT at both task and group level,
+instead of task TIMEOUT with group MEMBER_CANCELLED. Update outcome-based monitoring accordingly.
+`Par.map` now rejects a null mapper immediately, including for empty/null input; supply a real mapper.
+No signatures change. No TIMEOUT is inferred solely because time passed without a cancellation event.
+
 map/runAll declare no InterruptedException. Result and cleanup waits ignore interruption and restore
 the flag; caller interruption no longer requests cancellation. Deadlines, fail-fast, ancestor tokens,
 worker interruption and checkpoints remain active. Public runtime awaitQuiescence remains interruptible.

@@ -22,7 +22,7 @@ CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已由 `8
   的适用理由；对原生 StructuredTaskScope 与虚拟线程分别说明选择条件、目标 JDK/preview
   状态和语义差异。材料可复用 demo 的 Java 8 成本文章，事实按实施时官方版本复核。
 - stable/next 的阅读与下载入口对齐：不要让使用者跟 stable 坐标复制 next API。每个示例
-  标明适用版本，用真正构件编译、运行、退出；发布链的证据职责见 [P0018](P0018-artifact-verification.md)。
+  标明适用版本，用真正构件编译、运行、退出；发布链的证据职责见 [P0023](P0023-artifact-verification.md)。
 - 人类贡献路径：保留已有 issue-first 及 dev base，明确作者负责复现/测试/迁移，维护者
   负责独立审查/PIT；外部作者不需要安装维护者的 cmux/AI 工具或自动 push。
 - 发布站点与 demo 的实际入口：先核对当前部署和 URL，再修导航/徽章；英文 demo 的
@@ -72,5 +72,5 @@ JDK 用户能判断适用性，人类贡献者能按 CONTRIBUTING 完成小修�
 
 Claude `67244035` 与 Codex `01a120ae` 的 2026-10-09 同题 OSS 审计和交叉比较。
 保留“公开构件优先于本地绿”的纠正，撤回陈旧本地 main 与同名本地 snapshot 的证据。
-文档内部语义/CHANGELOG/BACKLOG 清理仍归 [P0011](P0011-documentation-maintenance.md)，
+文档内部语义/CHANGELOG/BACKLOG 清理仍归 [P0022](P0022-documentation-maintenance.md)，
 不再维护第二份细节清单。

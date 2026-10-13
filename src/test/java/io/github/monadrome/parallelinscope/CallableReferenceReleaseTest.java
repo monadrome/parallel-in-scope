@@ -26,9 +26,9 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Kernel-level reference-release contract (decision §9): the user callable must become unreachable
+ * Kernel-level reference-release contract: the user callable must become unreachable
  * through the framework on every terminal path. Probes are the package-private holder states, not
- * GC timing (decision §16).
+ * GC timing. See design/execution-future-simplification.md.
  */
 class CallableReferenceReleaseTest {
 

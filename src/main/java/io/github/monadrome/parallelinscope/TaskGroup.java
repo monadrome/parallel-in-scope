@@ -805,26 +805,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
         // combine, and the group token cannot observe SUCCESS before the combine completes.
         groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
-        // Member level: bind only members whose own deadline is strictly tighter than the group's.
-        // A member timeout escalates to the group token while the group bind is still pending, so
-        // the group converges on TIMEOUT, not FAILED. A member that inherits the group deadline
-        // resolves to exactly the same deadlineNanos and skips this step: downward propagation is
-        // wired by the CancellationToken constructor listener (group token -> member token
-        // PROPAGATED_CANCELLED), and member future cancellation is covered by the group bind above,
-        // so a member bind would only arm a redundant timer for the same instant. Note that a
-        // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
-        // attribution reads the group token instead (see classifyCancelled). The combine follows
-        // the same rule: its own tighter deadline escalates to the group as TIMEOUT.
         for (MemberState member : membersAndTerminal) {
             CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
-            if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
-                continue;
-            }
             memberToken.addStateListener(state -> {
                 if (state == CancellationToken.State.TIMEOUT) {
                     groupToken.timeoutCancel();
                 }
             });
+            if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
+                continue;
+            }
             memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
         }
     }

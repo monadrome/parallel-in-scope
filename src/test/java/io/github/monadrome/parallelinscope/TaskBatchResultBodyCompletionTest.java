@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  * body-completion bookkeeping of the sliding-window paths: every prepared task must release its
  * slot exactly once, whether it ran, was cancelled, rejected, or abandoned.
  */
-class TaskBatchBodyCompletionTest {
+class TaskBatchResultBodyCompletionTest {
 
     private static BatchOptions options(String name) {
         return BatchOptions.timeout(name, Duration.ofSeconds(30));

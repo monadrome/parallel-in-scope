@@ -337,7 +337,8 @@ public final class Par {
             @Nullable Collection<T> elements,
             Function<? super T, ? extends @Nullable R> function,
             BatchOptions options) {
-        Objects.requireNonNull(options, "options cannot be null");
+        com.google.common.base.Preconditions.checkNotNull(options, "options cannot be null");
+        com.google.common.base.Preconditions.checkNotNull(function, "function cannot be null");
         return runtime.whileOpen(() -> mapWhileOpen(elements, function, options));
     }
 
