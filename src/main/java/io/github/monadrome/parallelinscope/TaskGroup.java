@@ -66,7 +66,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /** Process-local group identities: diagnostics only, never persisted. */
     private static final AtomicLong GROUP_SEQUENCE = new AtomicLong();
 
-    private final String groupId = "group-" + GROUP_SEQUENCE.incrementAndGet();
+    private final TaskId<TaskGroupRun> groupId = TaskId.group(String.valueOf(GROUP_SEQUENCE.incrementAndGet()));
     private final String groupName;
     private final long startTimeNanos;
     private final long deadlineNanos;
@@ -178,7 +178,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         this.members = ImmutableMap.copyOf(publicMembers);
     }
 
-    public String groupId() {
+    public TaskId<TaskGroupRun> groupId() {
         return groupId;
     }
 

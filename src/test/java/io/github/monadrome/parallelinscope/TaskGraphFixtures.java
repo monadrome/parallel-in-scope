@@ -11,15 +11,24 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Hand-built inputs for graph tests: nodes on named pools, with no runtime, scope, or thread ever
- * involved. A node named for id {@code a} renders as {@code task-a[a]}.
+ * involved. A node for the token {@code a} is named {@code task-a} and renders as {@code
+ * task-a[unit-a]}.
  */
 final class TaskGraphFixtures {
 
     private TaskGraphFixtures() {}
 
+    /**
+     * The unit id of a fixture token: the token is the label, so a node built twice from one token
+     * is one node, exactly as a resolved unit is created once.
+     */
+    static TaskId<TaskUnit> unitId(String token) {
+        return TaskId.unit(token);
+    }
+
     /** A node with no executor: it belongs to task graphs but never to the executor projection. */
-    static TaskNode node(String id) {
-        return new TaskNode(id, "task-" + id, null, null, false, TaskType.IO_BOUND, 1, 1, Long.MAX_VALUE);
+    static TaskNode node(String token) {
+        return new TaskNode(unitId(token), "task-" + token, null, null, false, TaskType.IO_BOUND, 1, 1, Long.MAX_VALUE);
     }
 
     /** A pool whose queue parks a submission behind busy workers, so a blocked body can starve it. */
@@ -72,15 +81,24 @@ final class TaskGraphFixtures {
             return new Pool(identity, checkNotNull(otherLabel), starvationProne);
         }
 
-        /** A node for unit {@code id} running on this pool, resolved with no budget left. */
+        /** A node for unit token {@code id} running on this pool, resolved with no budget left. */
         TaskNode node(String id) {
-            return new TaskNode(id, "task-" + id, identity, label, starvationProne, TaskType.CPU_BOUND, 1, 1, 0L);
+            return new TaskNode(
+                    unitId(id), "task-" + id, identity, label, starvationProne, TaskType.CPU_BOUND, 1, 1, 0L);
         }
 
-        /** A node for unit {@code id} running on this pool, resolved with no deadline at all. */
+        /** A node for unit token {@code id} running on this pool, resolved with no deadline at all. */
         TaskNode unboundedNode(String id) {
             return new TaskNode(
-                    id, "task-" + id, identity, label, starvationProne, TaskType.CPU_BOUND, 1, 1, Long.MAX_VALUE);
+                    unitId(id),
+                    "task-" + id,
+                    identity,
+                    label,
+                    starvationProne,
+                    TaskType.CPU_BOUND,
+                    1,
+                    1,
+                    Long.MAX_VALUE);
         }
     }
 

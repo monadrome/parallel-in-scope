@@ -126,7 +126,7 @@ class SynchronousExecutionTest {
                 })
                 .runAll();
         assertThat(group.groupName()).isEqualTo("sum");
-        assertThat(group.groupId()).isNotBlank();
+        assertThat(group.groupId()).isNotNull();
         assertThat(group.startTimeNanos()).isNotZero();
         assertThat(group.endTimeNanos()).isGreaterThanOrEqualTo(group.startTimeNanos());
         assertThat(group.deadlineNanos()).isGreaterThan(group.startTimeNanos());
