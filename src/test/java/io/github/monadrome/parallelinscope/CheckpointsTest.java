@@ -325,8 +325,8 @@ class CheckpointsTest {
         CountDownLatch releaseLock = new CountDownLatch(1);
         Thread holder = new Thread(() -> {
             lock.lock();
-            lockHeld.countDown();
             try {
+                lockHeld.countDown();
                 releaseLock.await();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
