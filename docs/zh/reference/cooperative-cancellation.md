@@ -16,7 +16,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 | 位置 | 机制 | 你需要做什么 |
 |---|---|---|
 | 任务执行前 | `ScopedCallable` 在调用你的代码之前自动执行一次 `Checkpoints.checkpoint()` | 无需任何操作 |
-| I/O 阻塞期间 | `futureToken.cancel(true)` 发送 `Thread.interrupt()`，阻塞操作抛出 `InterruptedException` | 无需任何操作 |
+| body 运行期间 | 取消请求向 runner 投递中断 | 使用可中断操作或客户端超时；I/O 是否响应由客户端决定 |
 | 滑动窗口提交循环 | `SlidingWindowSubmitter` 在每次提交前检查取消状态，发现取消后停止提交剩余任务 | 无需任何操作 |
 
 ## 滑动窗口准备与终态
@@ -30,7 +30,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 
 这意味着：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
-- **正在阻塞等待 I/O 的任务**会被 interrupt 唤醒。
+- **正在运行的任务**收到中断请求；这不保证阻塞 I/O 会停止。
 - **正在排队等待提交的任务**不会被提交。
 
 ## 你需要做什么：在 CPU 密集型代码中手动插入 Checkpoint
@@ -123,7 +123,7 @@ void traverse(TreeNode node) {
 ```
 
 **不需要插入 checkpoint 的位置：**
-- I/O 操作附近（HTTP 调用、数据库查询等）——interrupt 已经能中断这些操作。
+- 已由可中断操作响应取消的阻塞等待；昂贵 I/O 发起前仍应检查取消，并配置客户端超时。
 - 执行时间极短的函数——任务本身很快结束，取消没有意义。
 - 框架自动 checkpoint 已覆盖的地方（任务执行前）。
 
@@ -134,13 +134,11 @@ void traverse(TreeNode node) {
 ```java
 global.par(ParId.of("myExecutor")).map(items, item -> {
     try {
-        riskyOperation(item);
-    } catch (Exception e) {
-        // 错误做法：吞掉了所有异常，包括取消异常
-        // log.error("failed", e);
-        // return defaultValue;
-
-        // 正确做法：先让取消异常透传，再处理其他异常
+        return riskyOperation(item);
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("interrupted while loading item", e);
+    } catch (IOException e) {
         Checkpoints.propagateCancellation(e);
         log.error("failed", e);
         return defaultValue;
@@ -148,7 +146,9 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 }, options);
 ```
 
-`Checkpoints.propagateCancellation(e)` 会检查异常是否为 `CancellationException`，如果是则重新抛出；否则照常返回，让后续的异常处理逻辑继续执行——**除非当前作用域已被取消**，此时它会抛出 `LeanCancellationException` 而不是返回。
+本例只降级可恢复的 I/O 失败，取消异常直接越过 catch。`propagateCancellation` 重新抛出取消异常
+或已提交的 scope 取消；它不负责普通 `InterruptedException` 的标志恢复。Function 须如上恢复标志
+并以原异常为 cause 转译；组成员的 Callable 可以直接抛出受检中断异常。
 
 ## 用 `Checkpoints.sleep()` 替代 `Thread.sleep()`
 
@@ -194,6 +194,6 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 当 B 失败时：
 1. 外层 token 转为 `FAIL_FAST`。
 2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELLED`。
-3. A 和 C 的内层任务在下一次 checkpoint 或 I/O 阻塞时响应取消。
+3. A 和 C 的内层任务在下一次 checkpoint 或可中断阻塞操作时响应取消；普通 I/O 仍依赖客户端。
 
 你不需要手动编排这个传播——前提是内层任务中有足够的 checkpoint。

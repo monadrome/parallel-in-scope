@@ -109,6 +109,15 @@ TaskSubmissions.submitScoped(prepared, unit, executor); // executor.execute outs
 
 该内核同时供 `Par.map()` 和 Group 使用，避免两套取消/phase/TTL/ScopedCallable 实现。Batch 仍在其上保留 `SlidingWindowSubmitter` 的滑动窗口，Group 不使用滑动窗口。
 
+### 7.4 批次调用参数
+
+普通 Par.map MUST 在准备、空输入返回或 executor 提交之前拒绝 null mapping function，
+以带参数名的 NullPointerException 表达 caller violation；MUST NOT 把它包装成 USER_FAILURE。
+校验先 options 再 function，之后才进入 runtime 准入与 inherited-timeout 校验，和
+mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批次。
+历史来源：`proposal:P0010`；其余执行器诊断方向见
+[P0021](proposal/P0021-executor-boundary-diagnostics.md)。
+
 ## 9. 单任务运行内核的复用边界
 
 ### 9.1 必须复用

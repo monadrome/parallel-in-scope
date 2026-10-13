@@ -352,6 +352,10 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
 
+报告先发布，再写 ISSUE 日志。直接 report listener 的 Error 仍可从 close 传播，但不会撤回
+报告或跳过诊断尝试；日志 handler 失败仍被隔离。检测与发布都抛 Error 时，检测错误保持为
+主异常与 future cause，不同的发布错误保留为 suppressed。
+
 任务图记录本运行时每次准入创建的单元（批次、组成员、汇总）以及「谁等待谁」：`map`、`mapAndCombine`、`runAll` 的调用方等待它准入的每一个单元，汇总只消费它的输入。检测把等待关系投影到执行器上：一个 body 阻塞等待排在饥饿型池里的工作，就是两个池之间的一条边；这类边形成环（包括池等待自己）时报告 `ISSUE`，由 `executorCycle()` / `executorSelfLoop()` 标出。渲染出的 `executorEdges()` 与 `taskEdges()` 只列环上的等待关系及其背后的单元。
 
 `TaskGraphObservationScope.hasExecutorCycle()` 等查询覆盖调用前已记录的全部准入；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
@@ -385,38 +389,47 @@ Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 
 ## 集成配方 {#integration-recipes}
 
+Par.map 在准入前拒绝 null mapping function，即使输入为空或 null。已带中断标志的调用方
+仍得到原 cause 的冻结失败结果并保留标志。checkpoint 提交继承 deadline 时，组与观察到超时
+的成员/combine 都报告 TIMEOUT；仅时间经过不会把业务自抛取消异常重新分类。
+
 ### 与 MDC（SLF4J）协作
 
 库的上下文传播基于 Alibaba TransmittableThreadLocal：准备任务时捕获，worker 上恢复。MDC 是
 普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在 body 入口
-写入 MDC、在 finally 清理：
+写入 MDC、在 finally 恢复原值：
 
 ```java
 private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
         new TransmittableThreadLocal<>();
 
 // 提交线程：声明本次调用的诊断字段
+Map<String, String> previousDiagnostic = DIAGNOSTIC.get();
 DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
 try {
     TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
             BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
 } finally {
-    DIAGNOSTIC.remove();
+    if (previousDiagnostic == null) DIAGNOSTIC.remove();
+    else DIAGNOSTIC.set(previousDiagnostic);
 }
 
 Account fetchAccount(String id) {
     Map<String, String> fields = DIAGNOSTIC.get();
-    if (fields != null) fields.forEach(MDC::put);   // body 入口：TTL -> MDC
+    Map<String, String> previousMdc = MDC.getCopyOfContextMap();
     try {
+        if (fields != null) fields.forEach(MDC::put);
         return load(id);
     } finally {
-        MDC.clear();
+        if (previousMdc == null) MDC.clear();
+        else MDC.setContextMap(previousMdc);
     }
 }
 ```
 
 这只覆盖经本库管理的任务：库在每次任务前后自行做 TTL 捕获与恢复，因此这些 body 无需 TTL agent；
-同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。
+同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在
+direct/CallerRuns 或嵌套调用时保留外层上下文。
 
 ### 与 OpenTelemetry 协作
 
@@ -462,11 +475,18 @@ String fetch(String url) throws IOException {
     }
 }
 
-TaskBatchResult<String> bodies = httpPar.map(urls, this::fetch,
+TaskBatchResult<String> bodies = httpPar.map(urls, url -> {
+    try {
+        return fetch(url);
+    } catch (IOException failure) {
+        throw new UncheckedIOException(failure);
+    }
+},
         BatchOptions.timeout("fetch", Duration.ofSeconds(5)));
 ```
 
-批 timeout 给出整批预算；客户端的 connect/read 超时才是单次调用的硬边界。
+批 deadline 对整批请求取消。HttpURLConnection 的 connect/read 超时分别约束对应的等待，
+read timeout 不是读取整个响应的总 deadline。忽略中断的 body 或资源 close 仍可能超过有界清理预算。
 
 ### 指标回调
 
