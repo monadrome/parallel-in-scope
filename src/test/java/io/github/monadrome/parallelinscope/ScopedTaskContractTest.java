@@ -84,7 +84,7 @@ class ScopedTaskContractTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCause(boom);
             if (entry == Entry.GROUP) {
-                TaskGroupReport result = lastGroupResult(global);
+                TaskGroupReport result = lastGroupResult();
                 // A recorded member failure takes precedence over the group token state: even
                 // though convergence runs while the group token is still RUNNING, the group
                 // adopts the failed member's own outcome.
@@ -180,7 +180,7 @@ class ScopedTaskContractTest {
             assertThat(event.startTimeNanos()).isZero();
             assertThat(event.endTimeNanos()).isZero();
             if (entry == Entry.GROUP) {
-                TaskGroupReport result = lastGroupResult(global);
+                TaskGroupReport result = lastGroupResult();
                 assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
                         .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
                 assertThat(result.members().get("task").failure()).isInstanceOf(SubmissionException.class);
@@ -334,7 +334,7 @@ class ScopedTaskContractTest {
 
     private static final ThreadLocal<TaskGroup<?, ?>> LAST_GROUP = new ThreadLocal<>();
 
-    private static TaskGroupReport lastGroupResult(ParRuntime global) throws Exception {
+    private static TaskGroupReport lastGroupResult() throws Exception {
         TaskGroup<?, ?> group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");

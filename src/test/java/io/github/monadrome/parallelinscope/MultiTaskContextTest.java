@@ -170,24 +170,30 @@ class MultiTaskContextTest {
 
     /** Minimal executor identity object; no tasks are submitted by this test. */
     private static final class ExecutorServiceStub extends AbstractExecutorService {
+        @Override
         public void shutdown() {}
 
+        @Override
         public List<Runnable> shutdownNow() {
             return Collections.emptyList();
         }
 
+        @Override
         public boolean isShutdown() {
             return false;
         }
 
+        @Override
         public boolean isTerminated() {
             return false;
         }
 
+        @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) {
             return true;
         }
 
+        @Override
         public void execute(Runnable command) {
             throw new UnsupportedOperationException();
         }

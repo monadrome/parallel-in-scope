@@ -219,7 +219,9 @@ class GroupDraftContractTest {
     }
 
     /** An inner class whose type variable lives in its owner rather than in its own arguments. */
+    @SuppressWarnings("UnusedTypeParameter")
     private static final class Outer<T> {
+        @SuppressWarnings("ClassCanBeStatic")
         final class Inner {}
     }
 

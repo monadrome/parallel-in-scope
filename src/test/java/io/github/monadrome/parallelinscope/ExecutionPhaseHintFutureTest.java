@@ -401,7 +401,7 @@ public class ExecutionPhaseHintFutureTest {
         CountDownLatch releaseWorker = new CountDownLatch(1);
 
         try {
-            submit(listeningPool, completions, () -> {
+            ListenableFuture<Integer> running = submit(listeningPool, completions, () -> {
                 workerStarted.countDown();
                 releaseWorker.await();
                 return 0;
@@ -416,6 +416,8 @@ public class ExecutionPhaseHintFutureTest {
 
             pool.purge();
             assertThat(pool.getQueue()).isEmpty();
+            releaseWorker.countDown();
+            assertThat(running.get(5, TimeUnit.SECONDS)).isZero();
         } finally {
             releaseWorker.countDown();
             pool.shutdownNow();

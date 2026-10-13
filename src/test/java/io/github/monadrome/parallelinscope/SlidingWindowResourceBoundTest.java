@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +24,6 @@ import org.junit.jupiter.api.Test;
 class SlidingWindowResourceBoundTest {
 
     private static final int BATCHES = 24;
-    private static final int ELEMENTS = 2;
     private static final String SUBMITTER = "io.github.monadrome.parallelinscope.SlidingWindowSubmitter";
 
     @Test
@@ -33,7 +33,8 @@ class SlidingWindowResourceBoundTest {
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         // Occupy the only business worker so every batch hands off its first element and then waits
         // for a completion that cannot arrive.
-        worker.submit(() -> Uninterruptibles.awaitUninterruptibly(occupierRelease));
+        Future<?> occupier = worker.submit(() -> Uninterruptibles.awaitUninterruptibly(occupierRelease));
+        assertThat(occupier).isNotDone();
 
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("work"), worker).build();
@@ -90,6 +91,7 @@ class SlidingWindowResourceBoundTest {
         assertThat(callers).allMatch(Thread::isAlive);
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private static long parkedSubmitterThreads() {
         Thread current = Thread.currentThread();
         return Thread.getAllStackTraces().entrySet().stream()

@@ -176,6 +176,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * ends with the settle itself and takes no cleanup budget. A failed pin is a broken kernel
      * invariant, reported when the freeze reads it.
      */
+    @SuppressWarnings("EmptyCatch")
     private static void awaitAttribution(TaskFuture<?> task) {
         try {
             Uninterruptibles.getUninterruptibly(settledAttributionOf(task));
