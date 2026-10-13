@@ -420,30 +420,30 @@ Account fetchAccount(String id) {
 
 ### 与 OpenTelemetry 协作
 
-同样的形态可以携带 span 上下文：把 OTel `Context` 放进 TransmittableThreadLocal，在 body 入口
-使其成为当前上下文。
+在本次调用线程上捕获完整 OTel `Context`，然后在每个 body 内将它设为当前上下文。
+捕获值包含父 span、baggage 与自定义 context key：
 
 ```java
-private static final TransmittableThreadLocal<Context> REQUEST_CONTEXT =
-        new TransmittableThreadLocal<>();
-
+Context parent = Context.current();
 TaskBatchResult<String> batch = databasePar.map(ids, id -> {
-    Context parent = REQUEST_CONTEXT.get();
-    SpanBuilder builder = tracer.spanBuilder("load");
-    if (parent != null) {
-        builder.setParent(parent);
-    }
-    Span span = builder.startSpan();
-    try (Scope ignored = span.makeCurrent()) {
+    Span span = tracer.spanBuilder("load").setParent(parent).startSpan();
+    try (Scope ignored = parent.with(span).makeCurrent()) {
         return load(id);
     } finally {
-        span.end();               // 结束本 body 的 span，并恢复此前的当前上下文
+        span.end();
     }
 }, BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
-这里用标准 OTel API 命名示意，不引入真实依赖。要点是 `makeCurrent()` 返回的 `Scope` 必须在
-body 内关闭，span 也必须始终 `end()`。库只负责把 TTL 值带到 worker，不感知 span。
+应用自己提供 OTel API，库没有 OTel 运行时依赖。关闭 `Scope` 才会在该 body 线程上恢复原
+context；`span.end()` 只结束 body 的 span，不恢复 context。嵌套调用应在外层 body 的 Scope
+仍生效时重新捕获 `Context.current()`，不要复用请求根的旧快照。仅设置 span 父级不会让
+baggage 或自定义 key 成为当前值。
+
+包装器只为实际进入它的 body 建 span。取消或同步返回可能早于忽略中断的 body 退出，
+因此不能据此提前结束该 body 的 span。库不自动建任务 span，也不承诺传播任意 ThreadLocal。
+OTel Java agent 可能为支持的 executor 和配置提供传播；仅仅挂了 agent，不能保证所有补窗、
+汇总或自定义 executor 路径都得到正确上下文。
 
 ### 客户端超时
 

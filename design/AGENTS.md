@@ -126,3 +126,10 @@
 | [proposal/P0010-executor-boundary-diagnostics.md](proposal/P0010-executor-boundary-diagnostics.md) | shutdown CallerRuns、wrapper 身份与全量准备/timeout action 资源边界的诊断及测量 |
 | [proposal/P0011-documentation-maintenance.md](proposal/P0011-documentation-maintenance.md) | 收割文档审计的未决示例、契约、历史记录、BACKLOG 与工作流维护项 |
 | [proposal/P0012-comment-and-javadoc-maintenance.md](proposal/P0012-comment-and-javadoc-maintenance.md) | 具体 javadoc 错误、失效指针与重复文字的后续修复，不引入注释门禁 |
+| [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
+| [proposal/P0014-interrupted-result-freezing.md](proposal/P0014-interrupted-result-freezing.md) | 已中断 caller 的失败结果冻结仍抛 ISE 的窄修复；保留原 cause、flag 与当前落定归因 |
+| [proposal/P0015-deadline-attribution-consistency.md](proposal/P0015-deadline-attribution-consistency.md) | 继承 deadline 成员 TIMEOUT 的组级上升与收敛，区分真实遗漏和待选择的 RUNNING 时钟后备规则 |
+| [proposal/P0016-report-publication-diagnostics.md](proposal/P0016-report-publication-diagnostics.md) | 直接 report listener Error 跳过 ISSUE 诊断的修复，保留发布、重入顺序与检测根因 |
+| [proposal/P0017-oss-adoption-path.md](proposal/P0017-oss-adoption-path.md) | stable/next 首用、原生 JDK 选型、人类贡献职责与公开入口维护；历史网络结论重新核验 |
+| [proposal/P0018-artifact-verification.md](proposal/P0018-artifact-verification.md) | 构建/CI/公开下载构件身份、真实 Java 8 消费、发布实际结果与源码追溯；复用已有发布和 consumer |
+| [proposal/P0019-result-exhaustive-matching.md](proposal/P0019-result-exhaustive-matching.md) | ImmediateResult 穷尽匹配的 typestate 候选与同步单任务获取需求复核；不恢复公开运行句柄 |
