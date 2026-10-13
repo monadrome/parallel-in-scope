@@ -44,7 +44,7 @@ final class TaskGraphFixtures {
     /**
      * Two starvation-prone pools waiting on each other: {@code a} on {@code pool-a} forks {@code b} on
      * {@code pool-b}, which forks {@code c} back on {@code pool-a}. Its report renders {@code pool-a ->
-     * pool-b}, {@code pool-b -> pool-a}, and {@code task-a[a] -> task-b[b]}.
+     * pool-b}, {@code pool-b -> pool-a}, and {@code task-a[unit-a] -> task-b[unit-b]}.
      */
     static TaskGraph twoPoolCycle() {
         Pool first = pronePool("pool-a");
