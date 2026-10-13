@@ -43,3 +43,8 @@ supplied ExecutorService；MUST 保留用户选择的提交对象与包装器行
 只保留 outcome、首失败、身份和收敛时间的轻量记录，最终出口才冻结公开快照。
 MUST 保留收敛时刻与 body 退出时刻的区别；先迁移内部 live 消费及 barrier 交错测试，
 不能将删除动态查询当成已经解决重复快照，也不能提前合并生命周期。
+
+旧重落分支 `bec55e9`/`e11cf28` 的单次 terminal 分类也是候选，不是已经证实必须引入的
+carrier。已完成 future 的中断独立读取先按 [P0014](P0014-interrupted-result-freezing.md) 做
+窄修复；若进一步统一冻结，MUST 保留当前 `attributedOnSettle` 的落定 outcome，不能覆盖
+成 token 的冻结时读值。运行时快照、Scope 自愈与时间注入已实现，不再作为本提案新增能力。
