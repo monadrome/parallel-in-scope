@@ -42,8 +42,6 @@ class VariableLinkedBlockingQueueTest {
         pool.shutdownNow();
     }
 
-    // ==================== construction & capacity ====================
-
     @Test
     void constructor_nonPositiveCapacity_rejected() {
         assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<>(0));
@@ -118,8 +116,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("first", queue.poll());
         assertEquals("second", queue.poll());
     }
-
-    // ==================== blocking put/take signalling ====================
 
     /**
      * A putter parked on a full queue must be released when a take frees a slot; the take path's
@@ -342,7 +338,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("done", putter.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     }
 
-    // ==================== lock-leak probes ====================
     // A mutation removing an unlock/fullyUnlock leaks the lock; a second cross-thread call
     // on the same lock then never completes, so asserting its completion kills the mutation.
 
@@ -474,8 +469,6 @@ class VariableLinkedBlockingQueueTest {
         assertOtherThreadOfferCompletes(queue);
     }
 
-    // ==================== non-blocking & timed operations ====================
-
     @Test
     void offer_nonBlocking_full_returnsFalse() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
@@ -558,8 +551,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("a", queue.take());
         assertEquals(2, queue.remainingCapacity());
     }
-
-    // ==================== removal, contains, clear, drainTo ====================
 
     @Test
     void remove_object_present_removesFirstMatch() {
@@ -753,8 +744,6 @@ class VariableLinkedBlockingQueueTest {
         };
     }
 
-    // ==================== iterator ====================
-
     @Test
     void iterator_traversal_inFifoOrder() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
@@ -830,8 +819,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("b", it.next());
         assertFalse(it.hasNext());
     }
-
-    // ==================== helpers ====================
 
     /** Asserts that a cross-thread offer completes, i.e. the putLock is not leaked. */
     private void assertOtherThreadOfferCompletes(VariableLinkedBlockingQueue<String> queue) throws Exception {

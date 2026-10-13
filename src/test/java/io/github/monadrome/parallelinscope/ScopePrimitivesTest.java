@@ -26,8 +26,6 @@ import org.junit.jupiter.api.Test;
  */
 class ScopePrimitivesTest {
 
-    // ==================== ExecutorIdentity ====================
-
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
@@ -54,8 +52,6 @@ class ScopePrimitivesTest {
             pool.shutdownNow();
         }
     }
-
-    // ==================== Par ids ====================
 
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
@@ -109,8 +105,6 @@ class ScopePrimitivesTest {
             executor.shutdownNow();
         }
     }
-
-    // ==================== MultiTaskContext.resolve ====================
 
     private static MultiTaskContext resolve(int parallelism, Duration timeout, int taskCount, MultiTaskContext parent) {
         BatchOptions options = BatchOptions.timeout("batch", timeout);
@@ -173,8 +167,6 @@ class ScopePrimitivesTest {
         assertThatThrownBy(() -> MultiTaskContext.resolution(null, 1)).isInstanceOf(NullPointerException.class);
     }
 
-    // ==================== ScopedCallable timing ====================
-
     // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
@@ -207,8 +199,6 @@ class ScopePrimitivesTest {
     private static TaskExecutionContext task(MultiTaskContext context, int index) {
         return new TaskExecutionContext(context, index, Ticker.systemTicker().read());
     }
-
-    // ==================== ParRuntime lifecycle & scheduler adapter ====================
 
     @Test
     void runtimeBindingsExposeTheExactRegisteredExecutorAndStayDistinct() {
