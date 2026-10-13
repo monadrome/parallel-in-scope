@@ -92,7 +92,7 @@ class TaskGraphSnapshotConsistencyTest {
         TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
         assertThat(report.executorCycle()).isTrue();
         assertThat(report.executorSelfLoop()).isFalse();
-        assertThat(report.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-c[c]");
+        assertThat(report.taskEdges()).contains("task-a[unit-a] -> task-b[unit-b]", "task-b[unit-b] -> task-c[unit-c]");
         assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 

@@ -367,7 +367,8 @@ class ObservationFutureTest {
                     group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(summary.taskName()).isEqualTo("page");
-            assertThat(summary.unitId()).isEqualTo(group.groupId());
+            assertThat(summary.unitId()).isNull();
+            assertThat(summary.groupId()).isEqualTo(group.groupId());
             assertThat(summary.taskIndex()).isZero();
             assertThat(summary.result()).isSameAs(result);
             assertThat(summary.outcome()).isEqualTo(TaskOutcome.SUCCESS);

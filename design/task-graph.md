@@ -23,9 +23,11 @@
 ## 2. 设计原则
 
 **P1 节点是任意任务单元，只描述自己。** 单任务、`Par.map` 批次、组成员、终端汇总——每个准入单元恰好解析出
-一个不可变 `TaskNode`。节点只携带单元自己的事实：身份（`unitId`）、名称、执行器（`ExecutorIdentity`、展示
+一个不可变 `TaskNode`。节点只携带单元自己的事实：身份（`TaskId<TaskUnit>`）、名称、执行器（`ExecutorIdentity`、展示
 标签、是否 starvation-prone）、形状（任务类型、生效并行度、任务数、解析时的 deadline 预算）。节点 MUST NOT
-持有父节点、子节点、图、token、future 或任务体的引用；节点按 `unitId` 判等。
+持有父节点、子节点、图、token、future 或任务体的引用；节点按 `unitId` 判等。组运行不是任务单元（没有自己的
+body、也不进图），它的身份是另一个空间 `TaskId<TaskGroupRun>`，由组的完成摘要 `TaskCompletion.groupId()`
+携带；两个空间在编译期互不转换。
 
 **P2 邻接关系只属于图。** 「谁等待谁」「谁消费谁」只由 `TaskGraph` 的边表达。执行内核的结构父指针服务于
 取消、deadline 与 scope 继承，它不是图边，图边也不从它机械派生：准入点按真实的等待与数据关系独立写出片段
