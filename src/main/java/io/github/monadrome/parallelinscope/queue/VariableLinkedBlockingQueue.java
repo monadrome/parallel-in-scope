@@ -346,6 +346,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     void unlink(Node<E> p, Node<E> trail) {
         p.item = null;
         trail.next = p.next;
@@ -424,6 +425,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     }
 
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public int drainTo(Collection<? super E> c, int maxElements) {
         if (c == null) throw new NullPointerException();
         if (c == this) throw new IllegalArgumentException();
@@ -484,6 +486,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
             return current != null;
         }
 
+        @SuppressWarnings("ReferenceEquality")
         private @Nullable Node<E> nextNode(Node<E> p) {
             for (; ; ) {
                 Node<E> s = p.next;
@@ -509,6 +512,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         }
 
         @Override
+        @SuppressWarnings("ReferenceEquality")
         public void remove() {
             if (lastRet == null) throw new IllegalStateException();
             fullyLock();

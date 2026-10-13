@@ -76,6 +76,7 @@ class ExecutorRuntimeTest {
         // execute() offers to the queue before it grows past corePoolSize, so the buffering queue
         // parks the child behind the blocked worker and maximumPoolSize is never consulted: one
         // core thread with an unbounded thread bound still starves.
+        @SuppressWarnings("ErroneousThreadPoolConstructorChecker")
         ThreadPoolExecutor pool =
                 new ThreadPoolExecutor(1, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         try {

@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -53,7 +54,7 @@ class TaskFutureTest {
 
             // Element 0 occupies the only slot; elements 1 and 2 are still waiting for one, yet
             // already answer with their task identity.
-            assertThat(batch.results()).allMatch(future -> future instanceof TaskFuture);
+            assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             TaskFuture<String> pending = batch.results().get(2);
             assertThat(pending.taskName()).isEqualTo("orders");
             assertThat(pending.outcome()).isEqualTo(TaskOutcome.RUNNING);
@@ -85,7 +86,7 @@ class TaskFutureTest {
                                     .parallelism(2)
                                     .taskType(TaskType.IO_BOUND));
 
-            assertThat(batch.results()).allMatch(future -> future instanceof TaskFuture);
+            assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             for (TaskFuture<String> element : batch.results()) {
                 assertThat(element.taskName()).isEqualTo("rejected");
                 assertThat(element.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -130,7 +131,8 @@ class TaskFutureTest {
             assertThat(group.terminalFuture().orElseThrow(() -> new AssertionError("no combine declared")))
                     .isInstanceOf(TaskFuture.class);
             assertThat(group.findMember("user")).contains(userFuture);
-            assertThat(group.members().values()).allMatch(future -> future instanceof TaskFuture);
+            assertThat(group.members().values())
+                    .allSatisfy(future -> assertThat(future).isNotNull());
             assertThat(group.completionFuture()).isInstanceOf(TaskFuture.class);
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
@@ -470,15 +472,15 @@ class TaskFutureTest {
                             BatchOptions.timeout("orders", Duration.ofMillis(50)));
             TaskFuture<String> element = batch.results().get(0);
 
-            AtomicReference<TaskOutcome> terminal = new AtomicReference<>();
-            AtomicBoolean regressed = new AtomicBoolean();
+            Optional<TaskOutcome> terminal = Optional.empty();
+            boolean regressed = false;
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (System.nanoTime() < deadline) {
                 TaskOutcome observed = element.outcome();
                 if (observed == TaskOutcome.RUNNING) {
-                    regressed.set(terminal.get() != null);
+                    regressed = terminal.isPresent();
                 } else {
-                    terminal.set(observed);
+                    terminal = Optional.of(observed);
                     if (element.isDone()) break;
                 }
             }
