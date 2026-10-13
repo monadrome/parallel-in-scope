@@ -45,10 +45,10 @@ final class TaskObservation<T> {
     private final Supplier<TaskCompletion<T>> settledSnapshot;
     private final AtomicInteger pendingSignals;
 
-    /** Identity for {@link #publishSkipped}; null only on the custom-snapshot shape. */
+    /** Identity for {@link #publishSkipped}; null on the shapes no unit backs. */
     private final @Nullable String taskName;
 
-    private final @Nullable String unitId;
+    private final @Nullable TaskId<TaskUnit> unitId;
     private final int taskIndex;
     private final long submitTimeNanos;
 
@@ -56,7 +56,7 @@ final class TaskObservation<T> {
             Supplier<TaskCompletion<T>> settledSnapshot,
             int pendingSignals,
             @Nullable String taskName,
-            @Nullable String unitId,
+            @Nullable TaskId<TaskUnit> unitId,
             int taskIndex,
             long submitTimeNanos) {
         this.settledSnapshot = settledSnapshot;
@@ -92,11 +92,11 @@ final class TaskObservation<T> {
     /**
      * Creates the observation of a task view without execution instrumentation — a derived fluent
      * view or a test-created task: publishes when {@code settle} terminates, with zero timings and
-     * the task name standing in for the unit id.
+     * no unit identity. No unit backs such a view, so its name must not stand in for one.
      */
     static <T> TaskObservation<T> unattributed(String taskName, CancellationToken token, ListenableFuture<T> settle) {
         TaskObservation<T> observation = new TaskObservation<>(
-                () -> settledSnapshot(taskName, taskName, 0, 0, 0, 0, token, settle), 1, taskName, taskName, 0, 0);
+                () -> settledSnapshot(taskName, null, 0, 0, 0, 0, token, settle), 1, taskName, null, 0, 0);
         settle.addListener(observation::signal, directExecutor());
         return observation;
     }
@@ -119,7 +119,7 @@ final class TaskObservation<T> {
      * abandonment keeps whichever snapshot published first.
      */
     void publishSkipped(TaskOutcome outcome, @Nullable Throwable failure) {
-        Verify.verify(unitId != null, "custom-snapshot observation cannot publish a skipped snapshot");
+        Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
         publish(TaskCompletion.snapshot(
                 Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, outcome, null, failure));
     }
@@ -235,7 +235,7 @@ final class TaskObservation<T> {
 
     private static <T> TaskCompletion<T> settledSnapshot(
             String taskName,
-            String unitId,
+            @Nullable TaskId<TaskUnit> unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,

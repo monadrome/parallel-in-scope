@@ -86,6 +86,50 @@ exceptions. Consumer listeners are outside the business scope/resource lifetime.
 and `parallelism(int)` rejects zero or negative with `IllegalArgumentException` instead of silently
 resolving them to one worker per task.
 
+## Typed task identities
+
+Task unit and task-group identities are value types now, not `String`. A `TaskCompletion` snapshot
+used to carry both identity spaces in one `unitId()` field: a real task reported its unit id
+(`"unit-N"`), while a group's own completion summary reported the group id (`"group-N"`) through the
+same accessor, so the two spaces were interchangeable anywhere a `String` was accepted.
+
+Before:
+
+```java
+Map<String, List<TaskCompletion<String>>> byUnit = new HashMap<>();
+for (TaskCompletion<String> c : batch.completions()) {
+    byUnit.computeIfAbsent(c.unitId(), k -> new ArrayList<>()).add(c);
+}
+byUnit.put(groupResult.groupId(), List.of());   // compiles: a group id joins the unit ids
+```
+
+After:
+
+```java
+Map<TaskId<TaskUnit>, List<TaskCompletion<String>>> byUnit = new HashMap<>();
+for (TaskCompletion<String> c : batch.completions()) {
+    byUnit.computeIfAbsent(c.unitId(), k -> new ArrayList<>()).add(c);
+}
+byUnit.put(groupResult.groupId(), List.of());   // does not compile
+```
+
+`TaskId<K>` is an immutable value type whose phantom kind parameter separates the spaces:
+`TaskId<TaskUnit>` names a task unit and `TaskId<TaskGroupRun>` names one group run, and neither
+converts to the other. Equality covers the kind as well as the label, so `TaskId.unit("1")` and
+`TaskId.group("1")` are never equal; `toString()` still renders `unit-7` and `group-3`. The phantom
+tags `TaskUnit` and `TaskGroupRun` are new public types. Mint an id for a synthetic record with
+`TaskId.unit("label")`.
+
+Signature changes:
+
+- `TaskCompletion.unitId()` returns `@Nullable TaskId<TaskUnit>`. It is null where no unit backs the
+  record: a group run's own summary, and a derived view (fluent chaining over a task future), which
+  used to report its task name in this field.
+- `TaskCompletion.groupId()` is new: `@Nullable TaskId<TaskGroupRun>`, non-null on a group's own
+  completion summary and null on every other record.
+- `TaskCompletion.succeeded(...)` and `failed(...)` take `TaskId<TaskUnit>` instead of `String`.
+- `TaskGroupResult.groupId()` returns `TaskId<TaskGroupRun>`.
+
 ## Waiting and resource ownership
 
 map/runAll declare no InterruptedException. Result and cleanup waits ignore interruption and restore

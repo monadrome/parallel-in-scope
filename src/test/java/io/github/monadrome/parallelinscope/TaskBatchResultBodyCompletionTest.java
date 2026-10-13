@@ -226,7 +226,8 @@ class TaskBatchBodyCompletionTest {
         SettableFuture<String> observationSignal = SettableFuture.create();
         CancellationToken token = new CancellationToken();
         TaskObservation<String> observation = TaskObservation.of(
-                () -> TaskCompletion.snapshot("element", "batch", 0, 0, 0, 0, TaskOutcome.SUCCESS, "done", null),
+                () -> TaskCompletion.snapshot(
+                        "element", TaskId.unit("batch"), 0, 0, 0, 0, TaskOutcome.SUCCESS, "done", null),
                 observationSignal);
         TaskBatch<String> batch =
                 TaskBatch.of(Collections.singletonList(Task.of("element", token, element, observation)));

@@ -106,7 +106,7 @@ class TaskGraphTest {
 
         assertThatThrownBy(() -> TaskGraph.builder().admit(unit, unit))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("a task unit cannot depend on itself: task-unit[unit]");
+                .hasMessage("a task unit cannot depend on itself: task-unit[unit-unit]");
         assertThatThrownBy(() -> TaskGraph.builder().fork(unit, sameId)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> TaskGraph.builder().join(unit, unit)).isInstanceOf(IllegalArgumentException.class);
     }
@@ -158,7 +158,7 @@ class TaskGraphTest {
 
         assertThat(graph.toString())
                 .isEqualTo(graph.asValueGraph().toString())
-                .contains("task-a[a]", "task-b[b]", "FORK");
+                .contains("task-a[unit-a]", "task-b[unit-b]", "FORK");
     }
 
     @Test

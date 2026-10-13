@@ -79,6 +79,45 @@ BatchOptions 的 parallelism 不再用 -1 哨兵表示"不限制"：缺省值改
 （解析时被任务总数封顶，默认行为不变），且 parallelism(int) 对 0/负数抛
 IllegalArgumentException，不再静默当作"每任务一 worker"。
 
+## 身份类型化
+
+任务单元与任务组的身份改为值类型，不再是 `String`。`TaskCompletion` 快照过去用一个
+`unitId()` 字段承载两个身份空间：真实任务报告自己的单元 id（`"unit-N"`），而组自身的完成摘要
+通过同一个访问器报告组 id（`"group-N"`），于是只要接受 `String` 的地方两者就能互换。
+
+改前：
+
+```java
+Map<String, List<TaskCompletion<String>>> byUnit = new HashMap<>();
+for (TaskCompletion<String> c : batch.completions()) {
+    byUnit.computeIfAbsent(c.unitId(), k -> new ArrayList<>()).add(c);
+}
+byUnit.put(groupResult.groupId(), List.of());   // 编译通过：组 id 混进单元 id
+```
+
+改后：
+
+```java
+Map<TaskId<TaskUnit>, List<TaskCompletion<String>>> byUnit = new HashMap<>();
+for (TaskCompletion<String> c : batch.completions()) {
+    byUnit.computeIfAbsent(c.unitId(), k -> new ArrayList<>()).add(c);
+}
+byUnit.put(groupResult.groupId(), List.of());   // 编译失败
+```
+
+`TaskId<K>` 是不可变值类型，幻影类型参数把两个空间分开：`TaskId<TaskUnit>` 命名一个任务单元，
+`TaskId<TaskGroupRun>` 命名一次组运行，两者互不转换。判等同时比较种类与标签，
+`TaskId.unit("1")` 与 `TaskId.group("1")` 永不相等；`toString()` 仍渲染 `unit-7` 与 `group-3`。
+幻影标签 `TaskUnit`、`TaskGroupRun` 为新增公开类型。自造记录用 `TaskId.unit("label")` 取 id。
+
+签名变化：
+
+- `TaskCompletion.unitId()` 返回 `@Nullable TaskId<TaskUnit>`。没有单元支撑该记录时为 null：
+  组自身的完成摘要，以及派生视图（在任务 future 上做流式链式调用），后者过去在这个字段里报告任务名。
+- 新增 `TaskCompletion.groupId()`：`@Nullable TaskId<TaskGroupRun>`，仅在组自身的完成摘要上非空。
+- `TaskCompletion.succeeded(...)` / `failed(...)` 的 unitId 参数改为 `TaskId<TaskUnit>`。
+- `TaskGroupResult.groupId()` 返回 `TaskId<TaskGroupRun>`。
+
 ## 等待与资源所有权
 
 map/runAll 不声明 InterruptedException；等待结果和有界清理均不因中断退出，结束恢复
