@@ -1,0 +1,90 @@
+design/task-graph.md
+  s_fba21e67c23aac::t_812cf15d8194b9 26,28-30
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportFutureTest.java
+  s_fba21e67c23aac::t_355bda080b2c92 105
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphFixtures.java
+  s_fba21e67c23aac::t_9295983b35cda4 14-15,21-28,30-31
+  s_fba21e67c23aac::t_e0ac7c2442d0dd 84,86-87,90,93-101
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fba21e67c23aac::t_5afdea11749d9d 69
+  s_fba21e67c23aac::t_3b564ad141e1b7 181
+src/main/java/io/github/monadrome/parallelinscope/TaskId.java
+  s_fba21e67c23aac::t_7d7751ffe58d0b 1-12,14,19-20,25-43,45,47,49-51,53,58,61-63,65,70,73-80,82-85,87-91,93-94
+  s_fba21e67c23aac::t_4e584fec88647f 13,15-18,21-24,44,46,48,52,54-57,59-60,64,66-69,71-72,81,86,92
+CHANGELOG.md
+  s_fba21e67c23aac::t_67d4485fe73ae6 51-52
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_fba21e67c23aac::t_914b7ea4865499 43-44,48
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  s_fba21e67c23aac::t_cf2f4dd28d9fe9 237
+  s_fba21e67c23aac::t_7ef55d0259aee7 195
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphReportTest.java
+  s_fba21e67c23aac::t_0ade7d935a48af 57-58,60
+  s_fba21e67c23aac::t_913eb9351879b9 72
+  s_fba21e67c23aac::t_882f5014603c80 92-94
+docs/zh/migration-v0.3.md
+  s_fba21e67c23aac::t_b727a81d2402f6 82-120
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_fba21e67c23aac::t_7ab868d1312456 67-69,71
+src/main/java/io/github/monadrome/parallelinscope/TaskUnit.java
+  s_fba21e67c23aac::t_64247de341154b 1-13
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupRun.java
+  s_fba21e67c23aac::t_f31f6ec31b61db 1-13
+src/main/java/io/github/monadrome/parallelinscope/TaskNode.java
+  s_fba21e67c23aac::t_b79e28d3eb5ce8 26
+  s_fba21e67c23aac::t_58fbf75cd2b373 71
+  s_fba21e67c23aac::t_7a24ffea4b5525 50
+docs/en/migration-v0.3.md
+  s_fba21e67c23aac::t_3a5d41d82cdd86 89-132
+src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java
+  s_fba21e67c23aac::t_ec69d0f6ed89e8 238
+  s_fba21e67c23aac::t_1ee7afeab80f0d 95
+  s_fba21e67c23aac::t_d10746c03a1079 59
+  s_fba21e67c23aac::t_51549d7aa4cc09 99
+  s_fba21e67c23aac::t_3c9123b67a5174 48,51
+  s_fba21e67c23aac::t_b62bc2edbe9444 122
+src/main/java/io/github/monadrome/parallelinscope/TaskCompletion.java
+  s_fba21e67c23aac::t_c32ad889a95ff9 3
+  s_fba21e67c23aac::t_2035cb811e7d9d 65,74,87,100,116,123,128-129,133,142-151,164,167,179-183,188
+  s_fba21e67c23aac::t_d859600bb7dd17 207-217,221-229
+  s_fba21e67c23aac::t_d7d3ec3aa37e3c 27-28,39-40,49-51
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_fba21e67c23aac::t_a4c58bd70f385f 26
+  s_fba21e67c23aac::t_b79ceab5ea11db 46
+  s_fba21e67c23aac::t_a73292ad709c82 15
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphSnapshotConsistencyTest.java
+  s_fba21e67c23aac::t_29eeba0722c9fd 95
+src/test/java/io/github/monadrome/parallelinscope/TaskIdTest.java
+  s_fba21e67c23aac::t_8ba1a09e6a619f 52-53
+  s_fba21e67c23aac::t_2962a70f910c2a 1-36,38-51,54-55
+  s_fba21e67c23aac::t_8bfa644a77a38a 37
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphTest.java
+  s_fba21e67c23aac::t_2cc3acd9119a60 161
+  s_fba21e67c23aac::t_821e3760b9af42 109
+src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java
+  s_fba21e67c23aac::t_dc08589a2cda76 27
+  s_fba21e67c23aac::t_91f72d100eabae 33-39
+  s_fba21e67c23aac::t_a756b9d5bb6573 63
+src/test/java/io/github/monadrome/parallelinscope/TaskIdentityTest.java
+  s_fba21e67c23aac::t_b20f041b6a87b3 30-31,33
+  s_fba21e67c23aac::t_6feca5bc289d82 13
+  s_fba21e67c23aac::t_e0ed6c14a4c4e9 1-12,14-29,32,34-115
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphBatchIdentityTest.java
+  s_fba21e67c23aac::t_ee4854354bc5de 93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fa4e9139a557582eb228596acbab16d67cc8702c",
+  "prompts": {},
+  "sessions": {
+    "s_fba21e67c23aac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69684fac-a9ed-4ef0-8be3-89d948e087c7",
+        "model": "deepseek-v4-1-flash-260910"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
