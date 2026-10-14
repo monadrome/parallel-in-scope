@@ -30,14 +30,19 @@ class BatchOptionsTest {
     void withersRoundTripEveryFieldWithoutMutatingTheOriginal() {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
-        BatchOptions derived = base.parallelism(3).taskType(TaskType.CPU_BOUND).rejectEnqueue(true);
+        BatchOptions derived = base.parallelism(3)
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true)
+                .closeGrace(Duration.ofMillis(200));
 
         assertThat(base.parallelism()).isEqualTo(Integer.MAX_VALUE);
         assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(base.rejectEnqueue()).isFalse();
+        assertThat(base.closeGrace()).isEmpty();
         assertThat(derived.parallelism()).isEqualTo(3);
         assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
         assertThat(derived.rejectEnqueue()).isTrue();
+        assertThat(derived.closeGrace()).contains(Duration.ofMillis(200));
         assertThat(derived.timeout()).isEmpty();
     }
 
@@ -62,6 +67,24 @@ class BatchOptionsTest {
         assertThatThrownBy(() -> BatchOptions.timeout("load", Duration.ofMillis(-1)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> BatchOptions.timeout("load", null)).isInstanceOf(NullPointerException.class);
+    }
+
+    /**
+     * The close grace is a cleanup budget rather than an execution timeout, so its validation
+     * differs from the deadline above: {@link Duration#ZERO} is meaningful here, because it makes
+     * the close cancel-only, while a negative grace is not a budget at all. Both the zero and the
+     * negative path are pinned at the declaration site, not only on {@link Validation}.
+     */
+    @SuppressWarnings("NullAway")
+    @Test
+    void closeGraceAcceptsZeroAndRejectsNegativeOrNull() {
+        BatchOptions base = BatchOptions.timeout("load", Duration.ofSeconds(30));
+
+        assertThat(base.closeGrace(Duration.ZERO).closeGrace()).contains(Duration.ZERO);
+        assertThatThrownBy(() -> base.closeGrace(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("closeGrace must not be negative");
+        assertThatThrownBy(() -> base.closeGrace(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
