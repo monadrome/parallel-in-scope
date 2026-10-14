@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.concurrent.CancellationException;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,6 +28,6 @@ class LeanCancellationExceptionTest {
     @Test
     void thrownException_remainsCancellationException() {
         Throwable thrown = new LeanCancellationException("cancel");
-        assertThat(thrown).isInstanceOf(java.util.concurrent.CancellationException.class);
+        assertThat(thrown).isInstanceOf(CancellationException.class);
     }
 }

@@ -1,8 +1,8 @@
 package demo.basic;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
  */
 public class BasicParDemo {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         System.out.println("=== BasicParDemo ===");
         System.out.println("演示 Par.map() 基本用法\n");
 
@@ -65,6 +65,8 @@ public class BasicParDemo {
             // 7. 获取结果
             System.out.println("\n处理完成!");
             System.out.println("结果: " + result.reportString());
+            System.out.println("值: " + result.valuesOrThrow());
+            System.out.println("任务体已退出: " + result.bodyCompletionConfirmed());
 
         } finally {
             // 8. 清理资源

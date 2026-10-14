@@ -1,94 +1,21 @@
 # 批量调用最佳实践：HTTP/DB/RPC 完整方案
 
 
-批量调用是后端开发中最常见的并发场景。本文通过三个真实场景，展示如何用 `parallel-in-scope` 一行代码解决并发控制、超时、fail-fast 问题。
+批量调用是后端开发中最常见的并发场景。两个最典型场景的完整问题导向分析（含原生写法复现）见
+[G5. 批量 HTTP 调用](G5-batch-http-calls.md)（并发控制 + 超时 + fail-fast）与
+[G6. 数据库批量查询](G6-batch-db-query.md)（分片并行）。本文补充一个混合 IO 场景，
+并汇总跨场景通用的模式与反模式。
 
 ---
 
-## 场景一：批量 HTTP 调用
-
-调用 10 个下游微服务（订单、用户、支付、库存...），要求：
-- 最多 5 个并发（别把下游打爆）
-- 3 秒超时（快速失败）
-- 一个挂了就取消其余（fail-fast）
-
-```java
-ParRuntime config = ParRuntime.builder()
-        .register(ParId.of("http-pool"), Executors.newFixedThreadPool(8))
-        .build();
-Par par = config.defaultPar();
-
-List<String> services = Arrays.asList(
-        "order", "user", "payment", "inventory", "notification",
-        "billing", "shipping", "review", "recommendation", "analytics");
-
-BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
-        .taskType(TaskType.IO_BOUND)
-        .parallelism(5);       // 最多 5 个并发，保护下游
-
-TaskBatchResult<String> result = par.map( services, svc -> {
-    return callDownstream(svc);  // 你的 HTTP 调用逻辑
-}, opts);
-
-Thread.sleep(3500);  // 等待任务完成
-System.out.println(result.reportString());
-// 正常: SUCCESS:10
-// 部分超时: SUCCESS:7,MEMBER_CANCELED:3
-// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1
-```
-
-关键点：
-- `taskType(IO_BOUND)` 让框架知道这是 IO 任务，线程调度策略自动优化
-- `parallelism(5)` 用滑动窗口调度，一个完成才提交下一个，队列深度始终受控
-- fail-fast 自动生效——首个任务抛异常，剩余未完成任务立即被取消
-
----
-
-## 场景二：数据库分片查询
-
-查询 10000 条用户数据，按 ID 分 10 片并行查询，最后合并结果：
-
-```java
-List<Long> allIds = IntStream.rangeClosed(1, 10000)
-        .mapToObj(Long::valueOf).collect(Collectors.toList());
-
-// 手动分片：每 1000 个 ID 一片
-List<List<Long>> shards = new ArrayList<>();
-for (int i = 0; i < allIds.size(); i += 1000) {
-    shards.add(allIds.subList(i, Math.min(i + 1000, allIds.size())));
-}
-// shards.size() == 10
-
-BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
-        .taskType(TaskType.IO_BOUND)
-        .parallelism(3);       // DB 连接池就 3 个，别超了
-
-TaskBatchResult<List<User>> result = par.map( shards, shard -> {
-    return userMapper.selectByIds(shard);  // 你的 DAO 调用
-}, opts);
-
-// 合并分片结果
-List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.results()) {
-    allUsers.addAll(future.get(30, TimeUnit.SECONDS));
-}
-System.out.println("查询到 " + allUsers.size() + " 条记录");
-```
-
-关键点：
-- `parallelism(3)` 匹配 DB 连接池大小，不会超出连接数
-- 分片数 > parallelism 时，框架自动排队——先跑 3 片，完成一个再启动下一个
-- 30 秒超时覆盖慢查询场景，超时后自动取消剩余分片
-
----
-
-## 场景三：混合 IO 调用
+## 场景：混合 IO 调用
 
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000)).parallelism(6).taskType(TaskType.IO_BOUND)         // 统一 5 秒超时
-        .build();
+BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
+        .parallelism(6)
+        .taskType(TaskType.IO_BOUND);   // 统一 5 秒超时
 
 TaskBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
@@ -101,7 +28,6 @@ TaskBatchResult<Object> result = par.map( tasks, task -> {
 }, opts);
 
 // fail-fast: 任何一个失败，其余自动取消
-Thread.sleep(5500);
 String report = result.reportString();
 ```
 
@@ -116,7 +42,9 @@ String report = result.reportString();
 
 ### 1. 超时必须设
 
-不设超时 = 任务可能永远挂起。新 API 不再提供默认超时：`timeout(Duration)` 与 `inheritTimeout()` 必须二选一，根级调用缺省 `.build()` 会直接抛异常。根据业务场景显式设置：
+不设超时 = 任务可能永远挂起。API 不提供默认超时：`timeout(name, Duration)` 与
+`inheritTimeout(name)` 两个工厂必须显式二选一——都不调用就构造不出选项对象。根据业务场景
+显式设置：
 
 ```java
 // 快速 HTTP 调用
@@ -145,7 +73,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1 | firstException=timeout"
+// "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
 
 // 结构化访问
 TaskBatchResult.BatchReport r = result.report();
@@ -153,7 +81,9 @@ Map<TaskOutcome, Integer> counts = r.stateCounts();
 Throwable firstError = r.firstException();
 ```
 
-生产环境中，可以把 `reportString()` 打到日志里，配合 TaskListener 做监控告警。
+生产环境中，可以把 `reportString()` 打到日志里，配合 `completions()` 的可用终态快照做监控告警（见 G1）。
+返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unfinishedBodies()`，
+`bodyCompletionConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
 
 ### 4. 异常不要吞
 
@@ -176,14 +106,15 @@ par.map( items, item -> {
 
 ## 反模式
 
-**1. `parallelism=Integer.MAX_VALUE`**
+**1. 大批量无界提交（不写 `parallelism` 或显式 `Integer.MAX_VALUE`）**
 
 ```java
-// 错误: 等于没有并发控制
+// 错误: 大批量不设限 = 没有并发控制
+// 注意这也是默认状态：缺省 parallelism 即 Integer.MAX_VALUE（解析时被任务总数封顶）
 BatchOptions.timeout("bad", java.time.Duration.ofMillis(3000)).parallelism(Integer.MAX_VALUE);
 ```
 
-正确做法：设一个合理的值，匹配下游资源。
+正确做法：设一个合理的值，匹配下游资源；`.parallelism(n)` 的显式值必须为正。
 
 **2. 不设超时**
 
