@@ -227,7 +227,9 @@ changes, run an independent review with its own budget:
   ```
 
   Classify every survivor before reporting: equivalent mutants are not coverage
-  gaps. PIT needs no permission and touches only `target/`.
+  gaps. PIT needs no permission and touches only `target/`. The PIT goal does
+  not recompile: after reverting or restoring sources mid-investigation, run
+  `mvn test-compile` first or it mutates stale bytecode in `target/classes`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 9; consult them when
