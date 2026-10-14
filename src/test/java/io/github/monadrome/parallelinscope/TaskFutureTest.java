@@ -37,8 +37,6 @@ class TaskFutureTest {
 
     private static final Duration SCOPE_TIMEOUT = Duration.ofSeconds(30);
 
-    // ==================== delivery completeness ====================
-
     @Test
     void batchDeliversEveryElementAsATaskFutureInsideAndOutsideTheWindow() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -163,8 +161,6 @@ class TaskFutureTest {
             pool.shutdownNow();
         }
     }
-
-    // ==================== outcome attribution ====================
 
     @Test
     void succeededTaskReadsSuccessWithoutAFailure() throws Exception {
@@ -395,8 +391,6 @@ class TaskFutureTest {
         }
     }
 
-    // ==================== races and stability ====================
-
     @Test
     void aCancellationSignalRacingTheCascadeIsAttributedToTheDeadline() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -576,8 +570,6 @@ class TaskFutureTest {
                 .hasCauseInstanceOf(IllegalStateException.class);
     }
 
-    // ==================== delegation transparency ====================
-
     @Test
     void cancelInterruptsTheWorkerThroughTheTaskView() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -658,8 +650,6 @@ class TaskFutureTest {
             pool.shutdownNow();
         }
     }
-
-    // ==================== deadline budget ====================
 
     @Test
     void deadlineAndRemainingBudgetComeFromTheOwningScope() throws Exception {
@@ -755,8 +745,6 @@ class TaskFutureTest {
             Thread.interrupted();
         }
     }
-
-    // ==================== helpers ====================
 
     private static TaskOptions memberOptions() {
         return TaskOptions.timeout(SCOPE_TIMEOUT);

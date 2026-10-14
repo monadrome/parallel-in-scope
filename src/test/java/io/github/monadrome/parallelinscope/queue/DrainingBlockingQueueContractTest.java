@@ -36,8 +36,6 @@ class DrainingBlockingQueueContractTest {
         Thread.interrupted();
     }
 
-    // ==================== Construction ====================
-
     @Test
     void constructorStoresInitialElementsInFifoOrderAndValidates() {
         DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(
@@ -71,8 +69,6 @@ class DrainingBlockingQueueContractTest {
                 () -> new DrainingBlockingQueue<>(2, Arrays.asList("STOP"), poisonPolicy));
         assertEquals(0, new DrainingBlockingQueue<String>(2, Arrays.asList(), poisonPolicy).size());
     }
-
-    // ==================== Snapshot queries ====================
 
     @Test
     void toArrayOverloadsExposeIndependentFifoSnapshots() {
@@ -123,8 +119,6 @@ class DrainingBlockingQueueContractTest {
         queue.addAll(Arrays.asList("a", "b"));
         assertEquals("[a, b]", queue.toString());
     }
-
-    // ==================== Spliterator ====================
 
     @Test
     void spliteratorAdvancesThroughAllElementsExactlyOnce() {
@@ -222,8 +216,6 @@ class DrainingBlockingQueueContractTest {
         return combined;
     }
 
-    // ==================== Iterator ====================
-
     @Test
     void iteratorRemovesOnlyReturnedElementsAndGuardsMisuse() {
         DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(5);
@@ -265,8 +257,6 @@ class DrainingBlockingQueueContractTest {
         }
         return values;
     }
-
-    // ==================== Shutdown policy matrix ====================
 
     @Test
     void throwingPolicyRejectsMutationAfterDrainedButDeliversPoisonToReaders() throws InterruptedException {
@@ -333,8 +323,6 @@ class DrainingBlockingQueueContractTest {
         assertEquals(0, queue.size());
     }
 
-    // ==================== awaitDrained ====================
-
     @Test
     void awaitDrainedTimesOutOnOpenQueueAndReturnsFastWhenAlreadyDrained() throws InterruptedException {
         DrainingBlockingQueue<String> open = new DrainingBlockingQueue<>(2);
@@ -393,8 +381,6 @@ class DrainingBlockingQueueContractTest {
             throws InterruptedException {
         return queue.awaitDrained(timeout, unit);
     }
-
-    // ==================== Capacity signalling across threads ====================
 
     @Test
     void pollFreesCapacitySoBlockedTimedProducerEventuallySucceeds() throws Exception {
@@ -468,8 +454,6 @@ class DrainingBlockingQueueContractTest {
         assertEquals(1, queue.poll());
     }
 
-    // ==================== drainTo ====================
-
     @Test
     void drainToHonorsBoundsOrderingAndSelfReferenceGuard() {
         DrainingBlockingQueue<Integer> queue = ranged(5);
@@ -505,8 +489,6 @@ class DrainingBlockingQueueContractTest {
         assertEquals(Collections.singletonList(11), target);
         assertTrue(queue.drained());
     }
-
-    // ==================== Batched predicate removal ====================
 
     @Test
     void removeIfHandlesMoreThanOneTraversalBatchWithOrderPreserved() {
