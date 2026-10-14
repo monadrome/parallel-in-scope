@@ -56,6 +56,38 @@ class GroupDraftContractTest {
         }
     }
 
+    /**
+     * The close grace is validated where it is declared, before any run state exists, and the
+     * validation is the same rule the batch side applies. {@link Duration#ZERO} is a legitimate
+     * budget — it makes the close cancel-only — so only a negative or null grace is rejected, which
+     * is what separates it from the group deadline validated at the entry point above. A rejected
+     * grace must also leave the stage usable: validation reports, it does not seal the draft.
+     */
+    @SuppressWarnings("NullAway")
+    @Test
+    void closeGraceIsValidatedAtTheDeclarationSite() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            GroupStart start = global.group("page", TIMEOUT);
+
+            assertThat(start.closeGrace(Duration.ZERO)).isSameAs(start);
+            assertThatThrownBy(() -> start.closeGrace(Duration.ofMillis(-1)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("closeGrace must not be negative");
+            assertThatThrownBy(() -> start.closeGrace(null)).isInstanceOf(NullPointerException.class);
+            assertThat(start.closeGrace(Duration.ofMillis(50))
+                            .par("one", global.par(ParId.of("worker")), String.class, () -> "1")
+                            .runAll()
+                            .groupName())
+                    .isEqualTo("page");
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
     @Test
     void foreignParsAreRejectedAtDeclarationTime() {
         ExecutorService firstExecutor = Executors.newSingleThreadExecutor();
