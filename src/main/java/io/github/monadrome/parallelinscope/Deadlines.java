@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import java.time.Duration;
+
 /**
  * Saturated arithmetic on {@link System#nanoTime()} deadlines, shared by every place that turns a
  * timeout into a deadline or a deadline back into a remaining wait.
@@ -14,6 +16,28 @@ package io.github.monadrome.parallelinscope;
 final class Deadlines {
 
     private Deadlines() {}
+
+    /**
+     * Returns the duration in nanoseconds, saturated to {@link Long#MAX_VALUE} on positive
+     * overflow and to {@link Long#MIN_VALUE} on negative overflow.
+     *
+     * <p>{@link Duration#toNanos()} throws {@link ArithmeticException} past about 292 years in
+     * either direction. Every caller treats a positive budget that large as "no limit", which the
+     * {@link Long#MAX_VALUE} sentinel already means. A negative budget means "already elapsed" to
+     * every caller: each blocking primitive reads a non-positive nanos timeout as elapsed, so the
+     * negative end saturation keeps that meaning instead of turning it into a ~292-year wait.
+     *
+     * @param duration the duration to convert
+     * @return the duration in nanoseconds, saturated to {@link Long#MIN_VALUE} or {@link
+     *     Long#MAX_VALUE} when it does not fit
+     */
+    static long saturatedNanos(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException overflow) {
+            return duration.isNegative() ? Long.MIN_VALUE : Long.MAX_VALUE;
+        }
+    }
 
     /**
      * Returns the nanoseconds left until {@code deadlineNanos}: {@code 0} once the deadline has
@@ -40,9 +64,9 @@ final class Deadlines {
 
     /**
      * Returns the deadline {@code durationNanos} after {@code nowNanos}, saturated to
-     * {@link Long#MAX_VALUE} when the sum overflows. The duration is expected to be non-negative,
-     * which is what every caller validates; a negative one is applied as-is so that an
-     * already-elapsed deadline stays in the past.
+     * {@link Long#MAX_VALUE} when the sum overflows. Positive durations saturate; a negative one is
+     * applied as-is so that an already-elapsed deadline stays in the past — {@code awaitQuiescence}
+     * passes the saturated negative sentinel here for an already-elapsed non-positive wait.
      *
      * @param nowNanos a {@link System#nanoTime()} reading
      * @param durationNanos the timeout to apply, normally non-negative
