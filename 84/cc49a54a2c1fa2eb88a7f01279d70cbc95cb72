@@ -1,0 +1,21 @@
+AGENTS.md
+  s_b7bf79a54d72f3::t_201206cbd2818e 230-232
+BACKLOG.md
+  s_b7bf79a54d72f3::t_220ca59c27aea9 322-343
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "84cc49a54a2c1fa2eb88a7f01279d70cbc95cb72",
+  "prompts": {},
+  "sessions": {
+    "s_b7bf79a54d72f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9a98966e-c414-449e-bf31-975c8eb2c01f",
+        "model": "glm-5.3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
