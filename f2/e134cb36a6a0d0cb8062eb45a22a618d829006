@@ -1,0 +1,23 @@
+src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java
+  s_fba21e67c23aac::t_816facd2f0873d 33-36
+  s_fba21e67c23aac::t_450dd794d44647 72-89
+  s_fba21e67c23aac::t_2d5f265152b71c 41,45
+src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java
+  s_fba21e67c23aac::t_923aa9506abeec 59-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f2e134cb36a6a0d0cb8062eb45a22a618d829006",
+  "prompts": {},
+  "sessions": {
+    "s_fba21e67c23aac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69684fac-a9ed-4ef0-8be3-89d948e087c7",
+        "model": "deepseek-v4-1-flash-260910"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
