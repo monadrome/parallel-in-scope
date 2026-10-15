@@ -89,6 +89,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     private final ImmutableList<String> memberNames;
     private final ImmutableList<TypeToken<?>> memberTypes;
+    private final ImmutableList<TaskKey<?>> memberKeys;
     private final @Nullable MemberState terminal;
     private final Map<String, TaskFuture<?>> members;
     private final SettableFuture<TaskGroupReport> completion = SettableFuture.create();
@@ -150,12 +151,15 @@ final class TaskGroup<V, R> implements AutoCloseable {
         this.orderedMembers = this.memberStates.values().asList();
         ImmutableList.Builder<String> names = ImmutableList.builder();
         ImmutableList.Builder<TypeToken<?>> types = ImmutableList.builder();
+        ImmutableList.Builder<TaskKey<?>> keys = ImmutableList.builder();
         for (MemberState member : this.orderedMembers) {
             names.add(member.name);
             types.add(member.type);
+            keys.add(member.key);
         }
         this.memberNames = names.build();
         this.memberTypes = types.build();
+        this.memberKeys = keys.build();
         this.terminal = terminal;
         this.membersAndTerminal = terminal == null
                 ? this.orderedMembers
@@ -237,10 +241,12 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     member.view.observationView(), budget, start, "member observation signal");
         }
         Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
+        Map<TaskKey<?>, ImmediateResult<?>> keyedResults = new LinkedHashMap<>();
         Map<String, TaskCompletion<?>> observations = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             ImmediateResult<Object> immediate = freezeResult(member);
             results.put(member.name, immediate);
+            keyedResults.put(member.key, immediate);
             TaskCompletion<?> observed = finalObservation(member, immediate);
             if (observed != null) {
                 observations.put(member.name, observed);
@@ -264,11 +270,15 @@ final class TaskGroup<V, R> implements AutoCloseable {
         Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
         BodyCompletionTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
         ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
+        if (terminal != null) {
+            keyedResults.put(terminal.key, com.google.common.base.Verify.verifyNotNull(terminalResult));
+        }
         return new TaskGroupResult<>(
                 report,
                 memberNames,
                 memberTypes,
                 results,
+                keyedResults,
                 observations,
                 frozenValues,
                 terminalResult,
@@ -626,11 +636,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
                 ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 MemberState state = new MemberState(
-                        slot.name,
-                        slot.type,
-                        taskContext,
-                        future,
-                        par.executorRuntime().submissionExecutor());
+                        slot.key, taskContext, future, par.executorRuntime().submissionExecutor());
                 states.put(slot.name, state);
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
@@ -666,14 +672,14 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());
                 String combineName = combineSlot.name;
                 TypeToken<?> combineType = combineSlot.type;
-                Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
+                Callable<Object> body =
+                        () -> assembleTerminal(combineName, combineType, combineBody, states, combineSlot.valueView);
                 ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
                 terminal = new MemberState(
-                        combineName,
-                        combineType,
+                        combineSlot.key,
                         taskContext,
                         future,
                         par.executorRuntime().submissionExecutor());
@@ -746,9 +752,25 @@ final class TaskGroup<V, R> implements AutoCloseable {
             String combineName,
             TypeToken<?> combineType,
             CombineBody<Object, Object> body,
-            Map<String, MemberState> states)
+            Map<String, MemberState> states,
+            boolean valueView)
             throws Exception {
-        return checkDeclaredType(combineName, combineType, body.apply(foldMemberValues(states)));
+        @Nullable Object input = valueView ? memberValues(states) : foldMemberValues(states);
+        return checkDeclaredType(combineName, combineType, body.apply(input));
+    }
+
+    private static GroupValues<Object> memberValues(Map<String, MemberState> states) {
+        ImmutableList.Builder<String> names = ImmutableList.builder();
+        ImmutableList.Builder<TypeToken<?>> types = ImmutableList.builder();
+        ImmutableList.Builder<TaskKey<?>> keys = ImmutableList.builder();
+        List<@Nullable Object> collected = new ArrayList<>(states.size());
+        for (MemberState member : states.values()) {
+            names.add(member.name);
+            types.add(member.type);
+            keys.add(member.key);
+            collected.add(settledValue(member));
+        }
+        return GroupValues.of(names.build(), types.build(), keys.build(), collected, foldValues(collected));
     }
 
     /**
@@ -1047,7 +1069,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private void setValues(List<@Nullable Object> collected) {
-        values.set(GroupValues.of(memberNames, memberTypes, collected, (V) foldValues(collected)));
+        values.set(GroupValues.of(memberNames, memberTypes, memberKeys, collected, (V) foldValues(collected)));
     }
 
     /**
@@ -1170,6 +1192,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /** Internal per-run state of one frozen member or of the terminal combine. */
     static final class MemberState {
+        final TaskKey<?> key;
         final String name;
 
         /** The token declared for this slot; every typed lookup and the body check compare to it. */
@@ -1190,16 +1213,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
         private final AtomicBoolean counted = new AtomicBoolean();
 
         private MemberState(
-                String name,
-                TypeToken<?> type,
+                TaskKey<?> key,
                 TaskExecutionContext context,
                 ExecutionPhaseHintFuture<Object> future,
                 Executor executor) {
-            this.name = name;
-            this.type = type;
+            this.key = key;
+            this.name = key.name();
+            this.type = key.type();
             this.context = context;
             this.future = future;
-            this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
+            this.view = Task.of(this.name, context.multiTaskContext().cancellationToken(), future);
             this.executor = executor;
         }
 

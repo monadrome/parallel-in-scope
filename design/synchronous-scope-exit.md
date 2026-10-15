@@ -80,6 +80,7 @@ return runtime.group("profile", Duration.ofSeconds(3))
 | 各 group stage.runAll | 同步 TaskGroupResult<V,R>，保持一次性、创建线程、阶段 guard |
 | Batch.results | 输入顺序 List<ImmediateResult<T>> |
 | Group.results / resultOf / resultAt | 名称/位置终态容器，TypeToken 精确匹配 |
+| Group.resultOf(TaskKey) | 按原声明 key 的对象身份即时读取成员或终端容器，规则见组声明契约 §4.1 |
 | Group.valuesResult | ImmediateResult<GroupValues<V>>；combine 失败也使聚合失败 |
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
