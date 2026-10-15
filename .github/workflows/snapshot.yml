@@ -1,26 +1,23 @@
 name: Snapshot
 
-# Publish a fresh `0.3.0-SNAPSHOT` to the Central snapshot repository when the development
-# line has moved on. The README recommends the snapshot coordinates to first-time callers, so
-# a published snapshot that lags the tree makes the quick start fail to compile for anyone who
-# follows it; this workflow keeps the lag to about a day instead of leaving it until someone
-# remembers to push a tag.
+# Publish `0.4.0-SNAPSHOT` when the development line has moved past Central's
+# last publication in UTC days, preserving the previous development line's policy.
 #
 # Triggered by a push rather than by a schedule, because GitHub registers a workflow only from
 # the repository's default branch: a `schedule` trigger in a file that exists only on
-# `dev/v0.3.0` never fires, and `workflow_dispatch` is not offered for it either. A `push`
+# a development branch never fires, and `workflow_dispatch` is not offered for it either. A `push`
 # trigger carries no such restriction -- the workflow file travels with the branch that was
-# pushed. `release.yml` does live on the default branch, so pushing the `v0.3.0-SNAPSHOT` tag
+# pushed. `release.yml` does live on the default branch, so pushing the `v0.4.0-SNAPSHOT` tag
 # remains the way to publish by hand before the next push.
 #
 # A real daily schedule (one that also fires on days without a push) would need this file on
-# the default branch; making `dev/v0.3.0` the default branch is the alternative.
+# the default branch; making the development branch the default branch is the alternative.
 on:
   push:
-    branches: [dev/v0.3.0]
+    branches: [dev/v0.4.0]
   # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
   # publishes once. Kept because it is the only way to publish on a day the branch does not
-  # move without pushing the `v0.3.0-SNAPSHOT` tag by hand.
+  # move without pushing the `v0.4.0-SNAPSHOT` tag by hand.
   workflow_dispatch:
 
 permissions:
@@ -58,7 +55,7 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       # Skip unless the branch has moved past what Central serves. Central's own
-      # `<lastUpdated>` is the record of the last publish -- the `v0.3.0-SNAPSHOT` tag is no
+      # `<lastUpdated>` is the record of the last publish -- the snapshot tag is no
       # longer maintained as a marker of the published revision.
       #
       # Both stamps are UTC `yyyyMMddHHmmss`, so they compare as plain integers: no date
@@ -69,7 +66,7 @@ jobs:
       # The comparison reads the branch tip's committer date, which rebase, amend, and
       # squash-pick all move forward, so a rewritten branch is republished rather than
       # skipped. The known miss is a branch whose tip carries a deliberately older committer
-      # date; pushing the `v0.3.0-SNAPSHOT` tag publishes past it.
+      # date; pushing the matching snapshot tag publishes past it.
       - name: Decide whether Central already has this tree
         id: gate
         run: |

@@ -5,7 +5,7 @@
 
 ## 1. 添加依赖
 
-`0.3.0` 线当前以 `0.3.0-SNAPSHOT` 发布，快照不在默认 Central 仓库中，需要先声明快照仓库：
+开发线使用 `0.4.0-SNAPSHOT`，快照不在默认 Central 仓库中，需要先声明快照仓库；也可以先在仓库根目录运行 `mvn install` 使用本地构件：
 
 ```xml
 <repositories>
@@ -18,11 +18,11 @@
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
 </dependency>
 ```
 
-最新的稳定版是 `0.2.0`，但它的 API 与本篇不同（`GlobalPar` / `ParName`）；从 `0.2.x` 升级请先读
+最新的稳定版是 `0.3.0`，可使用稳定版坐标；从 `0.2.x` 升级请先读
 [v0.3 迁移指南](../../../../docs/zh/migration-v0.3.md)。
 
 ## 2. 最小示例
