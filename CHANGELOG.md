@@ -7,6 +7,17 @@
 - Make the never-started batch observation test wait for its blocking task to
   enter before cancellation, avoiding a scheduling race in release verification.
 
+### Features
+
+- Add the read-only `ParResolver` API, implemented by `ParRuntime`, so application components can
+  receive a frozen `ParId`-to-`Par` discovery view from the composition root without introducing a
+  mutable service locator.
+- Add the optional `opentelemetry-api` integration through `OpenTelemetryTaskDecorator`. It captures
+  the complete current OTel `Context`, creates one internal span per entered body, restores the
+  context on the same thread, records and rethrows failures, and ends the span after body exit.
+  `OpenTelemetryTaskDecorator.global(...)` uses OTel's global provider discovery; the core execution
+  pipeline still creates no spans automatically.
+
 ### Build
 
 - Start the `0.4.0-SNAPSHOT` development line on `dev/v0.4.0`, preserving the

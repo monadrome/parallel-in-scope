@@ -5,11 +5,11 @@
 
 > 本文定义 parallel-in-scope 的**扩展边界**：用户如何在不破坏结构化并发语义的前提下，给任务体加上自己的横切能力（MDC、追踪、指标、重试），以及哪些对象归库、哪些归用户。
 > 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
-> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务体本身（§10 含暂缓理由与重开条件）。** TTL 包装器检测与 L8 守卫已落地（2026-09-25，见 §6 落地记录）。
+> **状态：定稿——不提供任务装饰器 SPI，任务体仍是唯一用户扩展点；OTel 有一个显式的可选包装工具（§5.3）。** TTL 包装器检测与 L8 守卫已落地（2026-09-25，见 §6 落地记录）。
 
 ## 0. 一句话结论
 
-**唯一的用户扩展点是任务体本身**：用户在提交前自助包装自己的 `Callable`（§5）；库的上下文回放由构造保证位于一切用户代码之外，不需要、也不提供装饰器 SPI。
+**唯一的用户扩展点是任务体本身**：用户在提交前自助包装自己的 `Callable`（§5）；库的上下文回放由构造保证位于一切用户代码之外，不提供任务装饰器 SPI。`OpenTelemetryTaskDecorator` 是同一原则下的可选、显式工具，不改变执行内核。
 
 可保证的语义有明确边界：
 
@@ -191,6 +191,20 @@ par.map(elements, item -> {
 }, options);
 ```
 
+使用 `OpenTelemetryTaskDecorator.capture(tracer)` 可以复用相同的 Context 捕获、Scope 恢复和
+Span 生命周期配方，同时支持需要 checked exception 的 `Callable`：
+
+```java
+OpenTelemetryTaskDecorator otel = OpenTelemetryTaskDecorator.capture(tracer);
+par.map(elements, otel.function("batch-element", this::work), options);
+```
+
+该类位于核心 artifact 但只通过 Maven optional 的 `opentelemetry-api` 编译依赖；核心不会自动
+创建 span。`global("instrumentation-name")` 通过 OTel 的 `GlobalOpenTelemetry` provider 发现
+获取 tracer。每个实际进入包装 body 的调用创建一个 INTERNAL span；异常会被记录并原样重新抛出，
+Scope 和 span 都在 body 线程的 finally 路径结束。它不是 per-Par 注册的 SPI，也不覆盖 body 的
+异步逃逸。
+
 group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal combine 则在
 `.combine(name, par, type, CombineBody)` 的 `CombineBody.apply(V)` 内自行包装。两者同样处于
 库的上下文层与生命周期层之内。
@@ -347,7 +361,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 | 方案 | 否决理由 |
 |---|---|
-| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（2026-09-26 拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
+| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **仍不提供（2026-09-26 拍板，2026-10-15 复核）**。`OpenTelemetryTaskDecorator` 只是用户显式创建的 body 包装工具，不是库注册面；任务体仍由调用方拥有，指标已有观测快照（§5.4）。只有出现跨调用点统一装饰且平台层包装入口不足，或库新增不由用户创作 body 的提交路径，才重开 SPI 讨论 |
 | executor 包装 SPI | JDK 的 `ExecutorService` 已是扩展点；再加一层只会让身份、内省与上下文范围问题更隐蔽（P9–P11） |
 | future 级包装 | 破坏 phase/取消/身份（P7）；future 级能力应进库扩展 |
 | 关闭/替换上下文包装的开关 | 直接破 I1（P14） |
@@ -359,7 +373,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 1. ~~TTL 包装器检测~~——已落地（2026-09-25，见 §6 落地记录）；
 2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md`——文档定稿（零 SPI 方向）；CHANGELOG 已记上述检测与 L8 两条修复；
-3. 用户文档（中英）：自助包装守则与范例（§5）、观测快照指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
+3. 用户文档（中英）：自助包装守则、`ParResolver` 注入和 `OpenTelemetryTaskDecorator` 范例（§5）、观测快照指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
 
 ## 12. 参考
 

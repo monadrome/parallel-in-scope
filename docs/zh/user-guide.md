@@ -25,6 +25,15 @@ Par databasePar = global.par(ParId.of("database"));
 
 id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 与 timeout-action 服务，绝不会关闭它们。队列清理由执行器所有者负责。
 
+`ParRuntime` 实现只读的 `ParResolver` API。组件需要发现已注册入口时，把这个接口在装配边界注入：
+
+```java
+ParResolver services = global;
+OrderService orders = new OrderService(services.resolve(ParId.of("database")));
+```
+
+解析不会创建或替换入口；未知 id 以 `IllegalArgumentException` 失败。
+
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
 
 注册时读取执行器自身的结构，读不出的事实不做任何声明。它判断池上的任务体在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——取保守答案，并在组成根提示一次。
@@ -437,21 +446,17 @@ direct/CallerRuns 或嵌套调用时保留外层上下文。
 捕获值包含父 span、baggage 与自定义 context key：
 
 ```java
-Context parent = Context.current();
-TaskBatchResult<String> batch = databasePar.map(ids, id -> {
-    Span span = tracer.spanBuilder("load").setParent(parent).startSpan();
-    try (Scope ignored = parent.with(span).makeCurrent()) {
-        return load(id);
-    } finally {
-        span.end();
-    }
-}, BatchOptions.timeout("load", Duration.ofSeconds(3)));
+OpenTelemetryTaskDecorator otel = OpenTelemetryTaskDecorator.capture(tracer);
+TaskBatchResult<String> batch = databasePar.map(
+        ids,
+        otel.function("load", this::load),
+        BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
-应用自己提供 OTel API，库没有 OTel 运行时依赖。关闭 `Scope` 才会在该 body 线程上恢复原
-context；`span.end()` 只结束 body 的 span，不恢复 context。嵌套调用应在外层 body 的 Scope
-仍生效时重新捕获 `Context.current()`，不要复用请求根的旧快照。仅设置 span 父级不会让
-baggage 或自定义 key 成为当前值。
+`opentelemetry-api` 是可选依赖；只有显式使用这个适配器时才会创建 span。`capture` 保存完整
+当前 context，包括 baggage 和自定义 key。适配器在 body 线程关闭 `Scope`、结束 span，记录抛出的
+失败并保留原异常。嵌套调用应在外层 body 仍是 current 时重新捕获。`OpenTelemetryTaskDecorator.global("instrumentation-name")`
+通过 OTel 的全局 provider/服务发现获取 tracer。
 
 包装器只为实际进入它的 body 建 span。取消或同步返回可能早于忽略中断的 body 退出，
 因此不能据此提前结束该 body 的 span。库不自动建任务 span，也不承诺传播任意 ThreadLocal。

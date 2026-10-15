@@ -3,19 +3,20 @@
 ## 蒸馏摘要
 
 - 核心出发点：把任务体自助包装的 OTel 用法变成可验证的接入路径，区分上下文传播、任务 span
-  创建和指标消费，避免错误父级、上下文残留与误判 agent 覆盖范围。
+  创建和指标消费，避免错误父级、上下文残留与误判 agent 覆盖范围。`OpenTelemetryTaskDecorator`
+  已提供显式的可选 API 包装，`ParResolver` 已提供构建后只读的入口发现。
 - 不变量与拟议 MUST：核心 MUST 继续复用现有 TTL/准备/取消管道；Scope MUST 在打开它的线程、
   body 动态范围内关闭，任务 span MUST 在该 body 退出时结束。手工传播 MUST 保留完整 Context，
   嵌套执行 MUST 捕获本次调用的当前父级。兼容声明 MUST 有固定版本的真实 SDK/agent 验证。
-- 被否决方向及理由：本轮不增加核心运行时依赖、自动建 span 或装饰器 SPI；已有 body 包装能
-  表达当前用法。Executor advice 的 Context 传播不等于建 span，也不自动等于 TTL 集合重复捕获；
+- 被否决方向及理由：本轮不增加核心运行时的强制依赖、自动建 span 或装饰器 SPI；可选的
+  `opentelemetry-api` 适配工具只在用户显式包装 body 时生效。Executor advice 的 Context 传播不等于建 span，也不自动等于 TTL 集合重复捕获；
   不宣称任意 executor 挂 agent 即可用，不因 queue 的 ADR 0006 推断 OTel 可选模块永久禁止。
 
 ## 当前实现与剩余目标
 
 入口是同步 `Par.map`、`mapAndCombine` 和组链 `runAll`；没有公开运行中的 Task/TaskFuture
 句柄或提交前钩子。`TaskSubmissions.prepare` 在准入线程捕获登记的 TTL，`ScopedCallable`
-包住实际 body；普通 OTel ContextStorage 不因此自动加入传播集合。当前手工配方见
+包住实际 body；普通 OTel ContextStorage 不因此自动加入传播集合。当前手工配方和适配器见
 [用户指南](../../docs/en/user-guide.md#opentelemetry) 与
 [包装契约](../extension-and-wrapping.md#53-追踪)。
 
@@ -48,7 +49,8 @@ TaskBatchResult<String> result = par.map(ids, id -> {
 }, BatchOptions.timeout("load", timeout));
 ```
 
-落地后该段代码不变，由真实 SDK 测试与发布的用法说明支持。`parent.with(span)` 同时携带
+适配器落地后推荐使用 `OpenTelemetryTaskDecorator.capture(tracer).function(...)`，它保持同一
+完整 Context、Scope 和 Span 生命周期；手工形式仍然有效。`parent.with(span)` 同时携带
 baggage/自定义 Context key；只用 `setParent` 设置 span 父级不会把这些值设为当前上下文。
 每次调用重新捕获，内层调用在外层 body 的 Scope 内捕获，MUST NOT 永久复用请求根的 TTL
 快照盖掉新的父级。消除的是示例被误当普遍传播保证、父级扁平化和 Scope/end 责任混淆；
@@ -65,9 +67,9 @@ Future 已取消或同步出口已返回，都不证明忽略中断的 body 已�
 |---|---|
 | 只修示例 | 纠正已有教学错误，但不足以宣布 agent 兼容 |
 | 文档 + 真实 SDK 测试 + agent 消费端 | 建议；测试依赖与版本经项目权限流程确认后再加，核心运行时不增加依赖 |
-| 核心直接依赖 OTel 或自动生成任务 span | 暂不采用；没有证明所有用户都需要该遥测成本及 API 责任 |
+| 核心强制依赖 OTel 或自动生成任务 span | 不采用；没有证明所有用户都需要该遥测成本及 API 责任。`opentelemetry-api` 以 optional 依赖提供显式包装工具 |
 | 可复制 body 包装工具、调用方平台适配 | 可用现有机制表达；需证明捕获时点、嵌套刷新、异常和资源恢复 |
-| 可选 OTel artifact/装饰器 SPI | 条件候选；按包装契约的真实需求与平台层不足条件重新评估，不能把评审共识当需求证据 |
+| OTel 装饰器 SPI | 不采用；`OpenTelemetryTaskDecorator` 是调用方显式创建的普通工具，不是 per-Par 注册面。只有包装契约 §10 的重开条件成立时再评估 |
 | ContextStorage 的 TTL wrapper | 待实验的替代方案；涉及全局安装顺序、还原语义和 agent 类加载器边界，不作为默认配方 |
 
 Agent advice 与 `Context.taskWrapping(executor)` 是不同机制。后者返回包装对象、按 execute
@@ -100,3 +102,21 @@ agent 运行本库。官方源码入口是
 [executors instrumentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/tree/main/instrumentation/executors)
 与 [Context API](https://github.com/open-telemetry/opentelemetry-java/tree/main/context)；实施时固定
 revision/版本重验，不将历史 main 链接当当前兼容证明。当前调用点已按 `fb6af08` 重新核对。
+
+## 实施复核与处置（2026-10-15）
+
+- 独立只读复核保留一项验证缺口：此前只有 Mockito API 测试，不能证明真实 SDK exporter 的
+  父级和 Context 行为。已补固定版本 `opentelemetry-sdk-testing:1.67.0` 测试，覆盖 real SDK
+  parent span、custom Context key、Scope 恢复和导出；因此无 agent 的基本 SDK 路径已验证。
+- Java agent 的独立 JVM 矩阵（补窗、组成员、terminal、direct/CallerRuns、取消、worker 复用和
+  自定义 executor）仍未运行，继续按“未验证”报告；实现和文档不宣称 agent 普遍兼容。
+- 复核提出 optional OTel 类在缺少 optional 依赖时被反射扫描可能触发 `NoClassDefFoundError`。
+  这是 Maven optional API 的预期边界，不改变实现；用户指南已明确只有显式使用适配器才需该依赖，
+  后续发布 consumer 应把“无 OTel 依赖的核心用法”和“显式 OTel 用法”分开验证。
+- 复核提出失败路径没有单独断言 Context 恢复；已由 `try`/`finally` 的实现保证，成功路径回归测试
+  覆盖恢复，real SDK 测试也在 body 返回后检查 outer Context；未发现可复现缺陷。
+- `ParResolver` 生命周期、并发、Java 8 和泛型问题未复现，保持为构建后只读 runtime view；样式层
+  的 `Objects.requireNonNull` 差异不作为缺陷。
+- 复核中 Maven Central consumer 的失败来自本地缓存的旧 `0.4.0-SNAPSHOT`，不是当前 diff；安装
+  当前 worktree artifact 后 consumer 以 Java 8 目标编译并通过全部 9 个测试，且未传递 optional
+  OTel 依赖。该复核发现已驳回为环境/缓存问题，验证结果保留为通过。

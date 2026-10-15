@@ -32,6 +32,17 @@ one executor. `Par.id()` returns the entry's id.
 
 Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and timeout-action services only, never a registered executor. Queue cleanup belongs to the executor owner.
 
+`ParRuntime` implements the read-only `ParResolver` API. Inject that interface when a component
+needs to discover an already-registered entry, keeping lookup at the composition boundary:
+
+```java
+ParResolver services = global;
+OrderService orders = new OrderService(services.resolve(ParId.of("database")));
+```
+
+Resolution never creates or replaces an entry, and an unknown id fails with
+`IllegalArgumentException`.
+
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: blocking-risk detection is disabled for it.
 
 Registration reads a supplied executor's own structure and claims nothing it cannot read. It determines whether a task body can be starved of a thread while blocking on a child task. Anything the library cannot see through — a pool you decorated before registering, a `ForkJoinPool`, a framework-managed executor — yields the conservative answer, and says so once at the composition root.
@@ -495,22 +506,19 @@ Capture the complete OTel `Context` on this call's thread and make it current in
 The captured value includes the parent span, baggage, and custom context keys:
 
 ```java
-Context parent = Context.current();
-TaskBatchResult<String> batch = databasePar.map(ids, id -> {
-    Span span = tracer.spanBuilder("load").setParent(parent).startSpan();
-    try (Scope ignored = parent.with(span).makeCurrent()) {
-        return load(id);
-    } finally {
-        span.end();
-    }
-}, BatchOptions.timeout("load", Duration.ofSeconds(3)));
+OpenTelemetryTaskDecorator otel = OpenTelemetryTaskDecorator.capture(tracer);
+TaskBatchResult<String> batch = databasePar.map(
+        ids,
+        otel.function("load", this::load),
+        BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
-The application supplies the OTel APIs; the library has no runtime OTel dependency. Closing the
-`Scope` restores the previous context on this body thread; `span.end()` ends the body's span and
-does not restore context. For nested calls, capture `Context.current()` again while the outer
-body's scope is active, rather than reusing a request-root snapshot. Setting a span's parent alone
-does not make baggage or custom keys current.
+The `opentelemetry-api` dependency is optional; the core execution pipeline does not create spans
+unless this adapter is used. `capture` saves the complete current context, including baggage and
+custom keys. The adapter closes the `Scope` and ends each span in the body thread, records thrown
+failures, and preserves the original exception. For nested calls, capture a new adapter while the
+outer body is current. `OpenTelemetryTaskDecorator.global("instrumentation-name")` obtains its
+tracer through OTel's global provider/service discovery.
 
 This wrapper creates spans only for bodies that actually enter it. Cancellation or a synchronous
 return can precede the exit of a body that ignores interruption, so neither is a reason to end that
