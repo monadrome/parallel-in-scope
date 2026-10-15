@@ -13,7 +13,7 @@ class BasicParDemoTest {
 
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
-    void testBasicParDemoRunsSuccessfully() {
+    void testBasicParDemoRunsSuccessfully() throws Exception {
         // 验证 BasicParDemo 的 main 方法能够正常执行
         // 这里不捕获输出，只验证不抛出异常
         BasicParDemo.main(new String[] {});

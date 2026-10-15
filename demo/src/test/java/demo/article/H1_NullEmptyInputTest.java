@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -80,7 +80,10 @@ public class H1_NullEmptyInputTest {
         TaskBatchResult<String> result = par.map(nullList, item -> item.toUpperCase(), opts);
 
         // 安全返回，结果列表为空
-        assertThat(result.results()).isEmpty();
+        assertThat(result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .isEmpty();
         // report() 也不会抛异常，状态统计为空
         assertThat(result.report().stateCounts()).isEmpty();
     }
@@ -93,7 +96,10 @@ public class H1_NullEmptyInputTest {
         List<String> emptyList = Collections.emptyList();
         TaskBatchResult<String> result = par.map(emptyList, item -> item.toUpperCase(), opts);
 
-        assertThat(result.results()).isEmpty();
+        assertThat(result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .isEmpty();
         assertThat(result.report().stateCounts()).isEmpty();
     }
 
@@ -106,10 +112,15 @@ public class H1_NullEmptyInputTest {
         TaskBatchResult<String> result = par.map(input, item -> item.toUpperCase(), opts);
 
         // 3 个任务全部提交
-        assertThat(result.results()).hasSize(3);
+        assertThat(result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .hasSize(3);
         // 验证结果值
         List<String> values = new ArrayList<>();
-        for (com.google.common.util.concurrent.ListenableFuture<String> future : result.results()) {
+        for (com.google.common.util.concurrent.ListenableFuture<String> future : result.results().stream()
+                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                .collect(java.util.stream.Collectors.toList())) {
             try {
                 values.add(future.get());
             } catch (Exception e) {

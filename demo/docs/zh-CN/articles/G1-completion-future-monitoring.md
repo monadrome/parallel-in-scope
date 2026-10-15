@@ -29,50 +29,56 @@ Future<String> future = pool.submit(() -> {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `ParRuntime.builder().taskListener(listener)` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskCompletion)`，无需侵入业务代码。
+`parallel-in-scope` 把任务观测做成同步执行的结果数据：`Par.map` 等待结果确定并尝试有界清理后，
+返回的 `TaskBatchResult.completions()` 按输入顺序提供可用的终态快照。
+可以直接读取，或交给自己的监控 executor 消费，无需侵入业务代码。
 
 `TaskCompletion` 包含完整的任务生命周期信息：
-- `taskContext()` — 当前 task 的只读上下文，包含 batch、taskIndex 和计时
-- `taskName()` — 任务名称（来自传给 `Par.map` 的 `BatchOptions.name()`）
+- `taskName()` / `unitId()` / `taskIndex()` — 任务名称（来自传给 `Par.map` 的 `BatchOptions` 名称）、批次标识和输入下标
 - `successful()` / `result()` — 成功状态和任务返回值
 - `executionTime()` — 实际执行耗时，返回 `Duration`
 - `waitTime()` — 等待耗时（从提交到开始执行的间隔），返回 `Duration`
 - `totalTime()` — 总耗时（等待 + 执行），返回 `Duration`
-- `failure()` — 任务异常（成功时为 null）
+- `outcome()` / `failure()` — 终态归因与任务异常（成功时 failure 为 null）
 
-这些数据足以对接任何监控系统：用 `executionTime().toMillis()` 计算延迟直方图，用 `successful()` 统计成功率，用 `waitTime().toMillis()` 监控线程池水位，并可通过 `taskContext().taskIndex()` 定位批次中的具体输入位置。
+快照只在结果确定**且**直接任务体退出后可用，计时为最终值；失败、取消、拒绝均保留真实 outcome，
+从未开始的任务 start/end 为零。清理预算耗尽时，尚无最终快照的项为 null，返回后不会补写。
+此时用 `results()` / `report()` 统计全部任务状态，用 `unfinishedBodies()` 报告未确认退出项；
+不要把缺失快照计作零耗时。可用快照通过 `executionTime()`、`waitTime()` 接入延迟和排队监控。
 
 ## 代码
 
 ```java
-
-// 注册监控监听器
-ConcurrentHashMap<String, Long> taskTimings = new ConcurrentHashMap<>();
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
-        .taskListener(event -> {
-            // 每个任务完成时自动回调，零侵入
-            taskTimings.put(event.taskName(), event.executionTime().toMillis());
-            if (event.failure() != null) {
-                log.error("Task {} failed: {}", event.taskName(),
-                        event.failure().getMessage());
-            }
-            // 推送到 Prometheus / Micrometer
-            Timer.builder("task.duration")
-                .tag("name", event.taskName())
-                .register(meterRegistry)
-                .record(event.executionTime().toNanos(), TimeUnit.NANOSECONDS);
-        })
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
 // 业务代码无需任何监控逻辑
 BatchOptions opts = BatchOptions.timeout("order-query", java.time.Duration.ofMillis(3000)).parallelism(5);
-TaskBatchResult<Order> result = par.map( orderIds, id -> {
+TaskBatchResult<Order> result = par.map(orderIds, id -> {
     return orderService.query(id);  // 纯业务逻辑，不碰监控
 }, opts);
+
+// 结果已冻结；监控线程、并发度和异常策略由消费者选择
+callbackExecutor.execute(() -> {
+    for (TaskCompletion<Order> event : result.completions()) {
+        if (event == null) {
+            continue; // 清理预算内未拿到最终观测
+        }
+        if (event.failure() != null) {
+            log.error("Task {} failed: {}", event.taskName(),
+                    event.failure().getMessage());
+        }
+        Timer.builder("task.duration")
+            .tag("name", event.taskName())
+            .register(meterRegistry)
+            .record(event.executionTime().toNanos(), TimeUnit.NANOSECONDS);
+    }
+});
 ```
 
 ---
 
-> 📁 完整测试代码：[G1_TaskListenerMonitoringTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java)
+> 📁 完整测试代码：[G1_CompletionFutureMonitoringTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java)

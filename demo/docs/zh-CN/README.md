@@ -15,7 +15,7 @@
 - [A2. 嵌套任务取消传播](articles/A2-nested-cancel-propagation.md)
 - [A3. Lean 与 Fat 取消异常](articles/A3-lean-vs-fat-exception.md)
 - [D1. get(timeout) 后任务仍运行](articles/D1-get-timeout-task-still-running.md)
-- [D2. 延迟绑定竞态](articles/D2-late-bind-race-condition.md)
+- [D2. 批次统一超时](articles/D2-late-bind-race-condition.md)
 - [G3. 协作式取消检查点](articles/G3-checkpoints-cooperative-cancel.md)
 
 ## 上下文与 API
@@ -35,7 +35,7 @@
 
 ## 监控与集成
 
-- [G1. TaskListener 监控](articles/G1-task-listener-monitoring.md)
+- [G1. 完成快照监控](articles/G1-completion-future-monitoring.md)
 - [G2. 批量结果报告](articles/G2-batch-result-report.md)
 - [G4. 命名线程池](articles/G4-named-executor-pool.md)
 - [G5. 批量 HTTP 调用](articles/G5-batch-http-calls.md)
@@ -43,6 +43,5 @@
 
 ## 设计边界
 
-- [I1. Idea Graveyard](articles/I1-idea-graveyard.md)
 - [I2. Java 8 兼容成本](articles/I2-java8-compatibility-cost.md)
 - [I4. 与 CompletableFuture.allOf 对比](articles/I4-vs-completable-future.md)
