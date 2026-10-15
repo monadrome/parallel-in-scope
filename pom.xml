@@ -6,7 +6,7 @@
 
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>parallel-in-scope</name>
@@ -19,7 +19,7 @@
         <connection>scm:git:https://github.com/monadrome/parallel-in-scope.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/monadrome/parallel-in-scope.git</developerConnection>
         <url>https://github.com/monadrome/parallel-in-scope</url>
-        <tag>v0.3.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
