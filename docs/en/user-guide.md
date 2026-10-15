@@ -180,6 +180,42 @@ exact TypeToken checks. A query cannot widen a declared token, even for a null o
 TypeToken for parameterized values. Runtime validation checks non-null values against the token's raw
 class.
 
+For reusable typed addresses, declare keys once and use the same objects for declaration and reads:
+
+```java
+TaskKey<User> userKey = TaskKey.of("user", User.class);
+TaskKey<Account> accountKey = TaskKey.of("account", Account.class);
+TaskKey<Profile> profileKey = TaskKey.of("profile", Profile.class);
+
+TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .combineValues(profileKey, httpPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
+        .runAll();
+ImmediateResult<User> user = result.resultOf(userKey);
+Profile profile = result.terminalValueOrThrow();
+```
+
+`TaskKey.of("orders", new TypeToken<List<Order>>() {})` supports generic results. The key binds
+the body and lookup to the same `T`; a mismatched body or assignment fails to compile without raw
+types or unchecked casts. The token also preserves raw-class runtime validation, not deep checking
+of erased container elements. Store shared keys in `static final` fields when appropriate.
+
+Key equality is object identity: another key with the same name and type cannot read the slot.
+Unknown keys throw `IllegalArgumentException`, including on empty groups and null-valued members.
+Group names still must be unique across members and the combine, including mixed keyed and string
+declarations. A key can be reused across runs; each run keeps separate results and fresh execution IDs.
+`valueOf(key)` reads successful member values, including null; `resultOf(key)` reads a member's or
+combine's terminal container, including failures and cancellations. The combine is excluded from
+`GroupValues`, the name-based member results, and member positions.
+
+`combineValues` receives the member-value view instead of the nested tuple; it uses the same
+deadline, cancellation, TTL capture, executor checks, and success-gated terminal submission as
+`combine`. For tuple input, use `combine(key, par, body)`. Both forms accept explicit `TaskOptions`
+before the body. Existing name/type declarations and tuple reads remain supported.
+
 `terminalResult()` is null only when no combine was declared; a successful null combine has a
 present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` preserve group
 failure conventions: rethrow unchecked failures, wrap checked failures in CompletionException, and

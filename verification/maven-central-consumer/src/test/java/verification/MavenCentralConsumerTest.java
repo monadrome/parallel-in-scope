@@ -10,6 +10,7 @@ import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
+import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -37,6 +38,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MavenCentralConsumerTest {
 
     private static final ParId CONSUMER = ParId.of("consumer-pool");
+
+    @Test
+    void artifactExposesTypedKeysToAJava8Consumer() throws Exception {
+        TaskKey<String> user = TaskKey.of("user", String.class);
+        TaskKey<List<Integer>> orders = TaskKey.of("orders", new TypeToken<List<Integer>>() {});
+        TaskKey<Integer> total = TaskKey.of("total", Integer.class);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<String, List<Integer>>, Integer> result = runtime.group("keys", Duration.ofSeconds(5))
+                    .par(user, par, () -> "alice")
+                    .par(orders, par, () -> Arrays.asList(2, 3))
+                    .combineValues(total, par, values -> values.valueOf(orders).stream().mapToInt(Integer::intValue).sum())
+                    .runAll();
+            String name = result.valuesOrThrow().valueOf(user);
+            List<Integer> orderValues = result.resultOf(orders).valueOrThrow();
+            assertEquals("alice", name);
+            assertEquals(Arrays.asList(2, 3), orderValues);
+            assertEquals(Integer.valueOf(5), result.resultOf(total).valueOrThrow());
+            assertThrows(IllegalArgumentException.class, () -> result.resultOf(TaskKey.of("user", String.class)));
+            assertThrows(IllegalArgumentException.class, () -> result.valuesOrThrow().valueOf(total));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
     @Test
     void publishedArtifactCanBeResolvedAndUsed() throws Exception {
