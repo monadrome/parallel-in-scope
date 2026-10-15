@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -136,14 +136,34 @@ class G4_NamedExecutorPoolTest {
                     cpuOpts);
 
             // 验证：IO 任务确实跑在 io-pool 上
-            for (int i = 0; i < ioResult.results().size(); i++) {
-                String result = ioResult.results().get(i).get(5, TimeUnit.SECONDS);
+            for (int i = 0;
+                    i
+                            < ioResult.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .size();
+                    i++) {
+                String result = ioResult.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(i)
+                        .get(5, TimeUnit.SECONDS);
                 assertThat(result).as("IO 任务应跑在 io-pool 上").contains("io-pool");
             }
 
             // 验证：CPU 任务确实跑在 cpu-pool 上
-            for (int i = 0; i < cpuResult.results().size(); i++) {
-                String result = cpuResult.results().get(i).get(5, TimeUnit.SECONDS);
+            for (int i = 0;
+                    i
+                            < cpuResult.results().stream()
+                                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                    .collect(java.util.stream.Collectors.toList())
+                                    .size();
+                    i++) {
+                String result = cpuResult.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList())
+                        .get(i)
+                        .get(5, TimeUnit.SECONDS);
                 assertThat(result).as("CPU 任务应跑在 cpu-pool 上").contains("cpu-pool");
             }
 

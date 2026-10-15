@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -101,7 +101,9 @@ public class E2_SubmitterPoolOffloadingTest {
 
             // 收集结果
             List<Integer> results = new ArrayList<>();
-            for (Future<Integer> f : result.results()) {
+            for (Future<Integer> f : result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())) {
                 results.add(f.get(5, TimeUnit.SECONDS));
             }
 
