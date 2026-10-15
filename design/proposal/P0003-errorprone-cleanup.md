@@ -144,14 +144,12 @@
 - `src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseCartesianTest.java:40 [UnnecessaryAsync]`：局部 `AtomicBoolean` 不逃逸并无并发需要，应改为普通布尔容器或返回值。
 - `src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:473 [UnnecessaryAsync]`：局部并发容器不逃逸，应改为非并发类型而不改变断言。
 
-### 需要逐条判断的告警（8 条）
+### 需要逐条判断的告警（6 条）
 
 - `src/main/java/io/github/monadrome/parallelinscope/Checkpoints.java:214 [WaitNotInLoop]`：条件等待当前直接调用一次，需要确认调用方是否已有外层状态条件；若没有则必须补循环。
 - `src/main/java/io/github/monadrome/parallelinscope/Checkpoints.java:613 [TypeParameterUnusedInFormals]`：泛型只出现在返回类型，需确认调用点后移除类型参数或改为安全签名。
 - `src/test/java/io/github/monadrome/parallelinscope/CheckpointsTest.java:327 [LockNotBeforeTry]`：锁获取与释放 `try` 之间有语句，需调整到紧邻 `try` 并确认异常路径语义。
 - `src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:80 [ErroneousThreadPoolConstructorChecker]`：测试故意构造无界队列来验证饥饿诊断，应保留语义并考虑窄抑制及理由。
-- `src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:222 [UnusedTypeParameter]`：嵌套测试类型参数未被自身参数使用，需移除并确认 TypeToken 测试仍覆盖外部类型变量。
-- `src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:223 [ClassCanBeStatic]`：内部类不引用外部实例，应改为静态嵌套类。
 - `src/test/java/io/github/monadrome/parallelinscope/ParRuntimeGlobalSlotTest.java:122 [RethrowReflectiveOperationExceptionAsLinkageError]`：反射字段缺失代表测试环境/二进制链接错误，应按建议抛出 `LinkageError` 并保留原始原因。
 - `src/main/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueue.java:1267 [AssignmentExpression]`：循环内赋值表达式降低可读性，应拆成独立赋值语句。
 

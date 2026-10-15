@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -210,22 +209,19 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TypeToken<Object> memberType = TypeToken.of(Object.class);
                 TaskGroup<Tuple2<Object, Object>, Void> group = global.groupDraft("cancel", Duration.ofSeconds(30))
                         .par(
-                                "blocker",
+                                TaskKey.<Object>named("blocker"),
                                 global.par(ParId.of("worker")),
                                 TaskOptions.timeout(Duration.ofSeconds(30)),
-                                memberType,
                                 () -> runUnlessQueued("blocker", release, queuedRuns))
                         .par(
-                                "queued",
+                                TaskKey.<Object>named("queued"),
                                 global.par(ParId.of("worker")),
                                 TaskOptions.timeout(Duration.ofSeconds(30)),
-                                memberType,
                                 () -> runUnlessQueued("queued", release, queuedRuns))
                         .submitAll();
-                assertThat(group.futureOf("queued", memberType).cancel(true)).isTrue();
+                assertThat(group.futureOf("queued").cancel(true)).isTrue();
                 TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
@@ -306,17 +302,16 @@ class ScopedTaskContractTest {
                     .results()
                     .get(0);
         }
-        TypeToken<Object> memberType = TypeToken.of(Object.class);
+        TaskKey<Object> member = TaskKey.named(name);
         TaskGroup<Object, Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
                 .par(
-                        name,
+                        member,
                         global.par(ParId.of("worker")),
                         TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType),
-                        memberType,
                         task)
                 .submitAll();
         LAST_GROUP.set(group);
-        return group.futureOf(name, memberType);
+        return group.futureOf(member);
     }
 
     private static Object callUnchecked(Callable<Object> task) {

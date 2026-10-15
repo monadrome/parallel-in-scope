@@ -27,7 +27,7 @@ account-page group
   （成员声明即携带本次 `Callable`），`runAll()` 在唯一的提交时点统一冻结并同步执行至完成；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`（声明期解析并绑定到 owner）；
-- 类型安全的成员值视图（`GroupValues`/`Tuple2`，按名/按位置的 `TypeToken` 精确匹配查询）；
+- 类型安全的成员值视图（`GroupValues`/`Tuple2`，按原 `TaskKey<T>` 查询；名称/位置查询未类型化）；
 - 所有冻结成员的最终收敛结果和组级 telemetry；
 - 与现有单任务执行、取消、队列清理和观测能力复用。
 
@@ -146,7 +146,7 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
   §19.1，全文见 git 历史 `db2ab2d`）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取声明名；
-- 成员选项 MAY 省略：不带 options 的 `par(name, par, type, body)` 重载等价于传
+- 成员选项 MAY 省略：不带 options 的 `par(key, par, body)` 重载等价于传
   `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
   因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
   需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
