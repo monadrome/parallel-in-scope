@@ -62,7 +62,7 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 
 声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
 旧 step、重复提交）抛 `IllegalStateException`；声明参数错误（名称为 null/空白/重复、`Par`
-为 null 或不属于 owner、body/options/type 为 null、type 为 primitive 或含未解析类型变量）
+为 null 或不属于 owner、body/options/key 为 null）
 按 JDK 惯例抛 `NullPointerException`/`IllegalArgumentException`。
 
 不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。

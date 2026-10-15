@@ -207,8 +207,8 @@ TaskGroup 已按名称、声明类型和左嵌套 Tuple2 支持独立异构 Call
 
 ```java
 TaskGroupResult<Tuple2<User, Order>, Void> result = runtime.group("load", Duration.ofSeconds(3))
-        .par("user", ioPar, User.class, () -> fetchUser(id))
-        .par("order", ioPar, Order.class, () -> fetchOrder(id))
+        .par(TaskKey.<User>named("user"), ioPar, () -> fetchUser(id))
+        .par(TaskKey.<Order>named("order"), ioPar, () -> fetchOrder(id))
         .runAll();
 ```
 

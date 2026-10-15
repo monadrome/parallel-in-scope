@@ -15,7 +15,7 @@ P0015 的已提交成员/terminal TIMEOUT 上升遗漏已并入
 
 ```java
 TaskGroupResult<Integer, Void> result = runtime.group("load", timeout)
-        .par("member", par, Integer.class, () -> { throw ownCancellation; })
+        .par(TaskKey.<Integer>named("member"), par, () -> { throw ownCancellation; })
         .runAll();
 TaskOutcome outcome = result.resultOf("member").outcome();
 ```

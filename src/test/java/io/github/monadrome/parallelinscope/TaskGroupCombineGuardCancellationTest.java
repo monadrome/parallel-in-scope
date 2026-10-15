@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Set;
@@ -87,16 +86,14 @@ class TaskGroupCombineGuardCancellationTest {
             try {
                 TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
-                                "a",
+                                TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
-                                TypeToken.of(String.class),
                                 () -> "a")
                         .combine(
-                                "sum",
+                                TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
-                                TypeToken.of(String.class),
                                 values -> {
                                     bodyRan.set(true);
                                     return "combined";
@@ -155,10 +152,9 @@ class TaskGroupCombineGuardCancellationTest {
             try {
                 TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
-                                "a",
+                                TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
-                                TypeToken.of(String.class),
                                 () -> {
                                     // Held until cancel() has committed below; the cancellation's
                                     // interrupt releases this wait early.
@@ -166,10 +162,9 @@ class TaskGroupCombineGuardCancellationTest {
                                     return "a";
                                 })
                         .combine(
-                                "sum",
+                                TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
-                                TypeToken.of(String.class),
                                 values -> {
                                     bodyRan.set(true);
                                     return "combined";

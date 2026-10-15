@@ -17,7 +17,7 @@
 
 ```java
 runtime.group("request", totalTimeout)
-        .par("pipeline", coordinatorPar, new TypeToken<List<Report>>() {}, () -> {
+        .par(TaskKey.<List<Report>>named("pipeline"), coordinatorPar, () -> {
             List<Value> values = ioPar.map(ids, this::fetch,
                     BatchOptions.inheritTimeout("fetch")).valuesOrThrow();
             return reportPar.map(values, this::render,

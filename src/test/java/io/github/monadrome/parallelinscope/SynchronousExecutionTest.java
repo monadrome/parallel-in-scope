@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.base.Verify;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
@@ -77,24 +76,23 @@ class SynchronousExecutionTest {
     }
 
     @Test
-    void groupKeepsTypedShapeExactTokensAndNullableCombine() throws Exception {
-        TypeToken<List<String>> strings = new TypeToken<List<String>>() {};
+    void groupKeepsTypedShapeKeysAndNullableCombine() throws Exception {
+        TaskKey<List<String>> names = TaskKey.named("names");
         CombineBody<Tuple2<Tuple2<List<String>, Integer>, Boolean>, @Nullable Void> nullableCombine = values -> null;
         TaskGroupResult<Tuple2<Tuple2<List<String>, Integer>, Boolean>, @Nullable Void> group = runtime.group(
                         "typed", TIMEOUT)
-                .par("names", par, strings, () -> Collections.singletonList("alice"))
-                .par("count", par, Integer.class, () -> 2)
-                .par("flag", par, Boolean.class, () -> true)
-                .combine("terminal", par, new TypeToken<@Nullable Void>() {}, nullableCombine)
+                .par(names, par, () -> Collections.singletonList("alice"))
+                .par(TaskKey.<Integer>named("count"), par, () -> 2)
+                .par(TaskKey.<Boolean>named("flag"), par, () -> true)
+                .combine(TaskKey.<@Nullable Void>named("terminal"), par, nullableCombine)
                 .runAll();
         Tuple2<Tuple2<List<String>, Integer>, Boolean> tuple =
                 Verify.verifyNotNull(group.valuesOrThrow().typedValues());
         assertThat(Verify.verifyNotNull(tuple.first()).first()).containsExactly("alice");
         assertThat(Verify.verifyNotNull(tuple.first()).second()).isEqualTo(2);
         assertThat(tuple.second()).isTrue();
-        assertThat(group.resultOf("names", strings).valueOrThrow()).containsExactly("alice");
-        assertThat(group.resultAt(1, TypeToken.of(Integer.class)).valueOrThrow())
-                .isEqualTo(2);
+        assertThat(group.resultOf(names).valueOrThrow()).containsExactly("alice");
+        assertThat(group.resultAt(1).valueOrThrow()).isEqualTo(2);
         assertThat(group.resultAt(2).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(group.terminalResult()).isNotNull();
         assertThat(group.terminalValueOrThrow()).isNull();
@@ -102,9 +100,7 @@ class SynchronousExecutionTest {
                 .isEqualTo(Collections.singletonList("alice"));
         assertThat(group.bodyCompletionConfirmed()).isTrue();
         assertThat(group.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 4);
-        assertThatThrownBy(() -> group.resultOf("names", new TypeToken<List<Integer>>() {}))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> group.resultAt(1, TypeToken.of(Number.class)))
+        assertThatThrownBy(() -> group.resultOf(TaskKey.<List<Integer>>named("names")))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> group.resultOf("unknown")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> group.resultAt(-1)).isInstanceOf(IndexOutOfBoundsException.class);
@@ -118,9 +114,9 @@ class SynchronousExecutionTest {
     @Test
     void groupExposesNonNullCombineNamedResultsAndExecutionIdentity() throws Exception {
         TaskGroupResult<Tuple2<Integer, Integer>, Integer> group = runtime.group("sum", TIMEOUT)
-                .par("left", par, Integer.class, () -> 1)
-                .par("right", par, Integer.class, () -> 2)
-                .combine("sum", par, Integer.class, values -> {
+                .par(TaskKey.<Integer>named("left"), par, () -> 1)
+                .par(TaskKey.<Integer>named("right"), par, () -> 2)
+                .combine(TaskKey.<Integer>named("sum"), par, values -> {
                     Tuple2<Integer, Integer> tuple = Verify.verifyNotNull(values);
                     return Verify.verifyNotNull(tuple.first()) + Verify.verifyNotNull(tuple.second());
                 })
@@ -131,37 +127,11 @@ class SynchronousExecutionTest {
         assertThat(group.endTimeNanos()).isGreaterThanOrEqualTo(group.startTimeNanos());
         assertThat(group.deadlineNanos()).isGreaterThan(group.startTimeNanos());
         assertThat(group.results()).containsOnlyKeys("left", "right");
-        assertThat(group.resultOf("right", TypeToken.of(Integer.class)).valueOrThrow())
-                .isEqualTo(2);
+        assertThat(group.resultOf("right").valueOrThrow()).isEqualTo(2);
         assertThat(group.resultOf("right")).isSameAs(group.resultAt(1));
         assertThatThrownBy(() -> group.results().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThat(group.terminalValueOrThrow()).isEqualTo(3);
         assertThat(group.orThrow()).isSameAs(group);
-    }
-
-    // NullAway: deliberate null argument — probes the null-rejection contract
-    @SuppressWarnings("NullAway")
-    @Test
-    void classOverloadOfResultOfMatchesTheTypeTokenOverload() throws Exception {
-        TaskGroupResult<Tuple2<String, Integer>, Void> group = runtime.group("lookup", TIMEOUT)
-                .par("name", par, String.class, () -> "alice")
-                .par("count", par, Integer.class, () -> 41)
-                .runAll();
-
-        // The Class shorthand reads the same member under the same exact-match rule.
-        assertThat(group.resultOf("name", String.class).valueOrThrow()).isEqualTo("alice");
-        assertThat(group.resultOf("count", Integer.class).valueOrThrow()).isEqualTo(41);
-        assertThat(group.resultOf("name", String.class).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        assertThat(group.resultAt(0, String.class).valueOrThrow()).isEqualTo("alice");
-
-        assertThatThrownBy(() -> group.resultOf("name", Object.class))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("java.lang.String")
-                .hasMessageContaining("java.lang.Object");
-        assertThatThrownBy(() -> group.resultOf("absent", String.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> group.resultAt(1, String.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> group.resultOf("count", int.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> group.resultOf("name", (Class<String>) null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -173,10 +143,10 @@ class SynchronousExecutionTest {
         IllegalStateException failure = new IllegalStateException("sibling failed");
         TaskGroupResult<Tuple2<Integer, Integer>, Void> parent = runtime.group("parent", TIMEOUT)
                 .closeGrace(Duration.ZERO)
-                .par("nested", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("nested"), par, () -> {
                     try {
                         TaskGroupResult<Integer, Void> nested = runtime.groupInheriting("child")
-                                .par("child", par, Integer.class, () -> {
+                                .par(TaskKey.<Integer>named("child"), par, () -> {
                                     childEntered.countDown();
                                     try {
                                         new CountDownLatch(1).await();
@@ -194,7 +164,7 @@ class SynchronousExecutionTest {
                         childReturned.countDown();
                     }
                 })
-                .par("failure", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("failure"), par, () -> {
                     Verify.verify(childEntered.await(2, TimeUnit.SECONDS), "child did not start");
                     throw failure;
                 })
@@ -213,7 +183,7 @@ class SynchronousExecutionTest {
     void groupRethrowsOriginalErrorsWhileImmediateLeftWrapsThem() {
         AssertionError failure = new AssertionError("business error");
         TaskGroupResult<Integer, Void> group = runtime.group("error", TIMEOUT)
-                .par("body", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("body"), par, () -> {
                     throw failure;
                 })
                 .runAll();
@@ -237,7 +207,7 @@ class SynchronousExecutionTest {
         InterruptedException original = new InterruptedException("body failed before member propagation");
         TaskGroup<Integer, Void> group = runtime.groupDraft("pending-propagation", Duration.ofSeconds(30))
                 .closeGrace(Duration.ZERO)
-                .par("body", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("body"), par, () -> {
                     entered.countDown();
                     fail.await();
                     throw original;
@@ -317,7 +287,7 @@ class SynchronousExecutionTest {
             try {
                 if (group) {
                     result.set(runtime.group("wait", TIMEOUT)
-                            .par("body", par, Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("body"), par, () -> {
                                 entered.countDown();
                                 release.await();
                                 return 42;
@@ -388,7 +358,7 @@ class SynchronousExecutionTest {
                 if (group) {
                     TaskGroupResult<Integer, Void> result = runtime.group("cleanup", Duration.ofMillis(150))
                             .closeGrace(Duration.ofSeconds(2))
-                            .par("body", par, Integer.class, () -> body.apply(1))
+                            .par(TaskKey.<Integer>named("body"), par, () -> body.apply(1))
                             .runAll();
                     assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
                     assertThat(Verify.verifyNotNull(result.members().get("body"))
@@ -460,7 +430,7 @@ class SynchronousExecutionTest {
             if (group) {
                 taskGroup.set(runtime.group("stuck", Duration.ofMillis(150))
                         .closeGrace(Duration.ofMillis(10))
-                        .par("body", par, Integer.class, () -> {
+                        .par(TaskKey.<Integer>named("body"), par, () -> {
                             entered.countDown();
                             Uninterruptibles.awaitUninterruptibly(release);
                             return 1;
@@ -528,7 +498,7 @@ class SynchronousExecutionTest {
         IllegalArgumentException primary = new IllegalArgumentException("body failed");
         Exception closeFailure = new Exception("close failed");
         TaskGroupResult<Integer, Void> result = runtime.group("resource", TIMEOUT)
-                .par("body", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("body"), par, () -> {
                     try (AutoCloseable resource = () -> {
                         closed.incrementAndGet();
                         throw closeFailure;
@@ -581,10 +551,10 @@ class SynchronousExecutionTest {
     void groupCheckedFailureAndCombineFailureKeepTheirCauses() {
         Exception checked = new Exception("checked failure");
         TaskGroupResult<Integer, String> memberFailure = runtime.group("failed-member", TIMEOUT)
-                .par("body", par, Integer.class, () -> {
+                .par(TaskKey.<Integer>named("body"), par, () -> {
                     throw checked;
                 })
-                .combine("combine", par, String.class, value -> "unused")
+                .combine(TaskKey.<String>named("combine"), par, value -> "unused")
                 .runAll();
         assertThat(memberFailure.failedTaskName()).isEqualTo("body");
         assertThat(memberFailure.valuesResult().failure()).isSameAs(checked);
@@ -597,8 +567,8 @@ class SynchronousExecutionTest {
         assertThat(memberFailure.reportString()).contains("failedTask=body");
         AssertionError error = new AssertionError("combine failure");
         TaskGroupResult<Integer, String> combineFailure = runtime.group("failed-combine", TIMEOUT)
-                .par("body", par, Integer.class, () -> 1)
-                .combine("combine", par, String.class, value -> {
+                .par(TaskKey.<Integer>named("body"), par, () -> 1)
+                .combine(TaskKey.<String>named("combine"), par, value -> {
                     throw error;
                 })
                 .runAll();
@@ -630,7 +600,7 @@ class SynchronousExecutionTest {
             assertThatThrownBy(batch::valuesOrThrow).hasCauseInstanceOf(SubmissionException.class);
             TaskGroupResult<Integer, Void> group = rejecting
                     .group("rejected", TIMEOUT)
-                    .par("body", rejected, Integer.class, () -> 1)
+                    .par(TaskKey.<Integer>named("body"), rejected, () -> 1)
                     .runAll();
             assertThat(group.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(Verify.verifyNotNull(group.resultAt(0).failure()).getCause())
@@ -724,7 +694,7 @@ class SynchronousExecutionTest {
         try {
             TaskGroupResult<Integer, Void> result = runtime.group("late-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
-                    .par("resource", par, Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("resource"), par, () -> {
                         try (AutoCloseable resource = () -> {
                             throw closeFailure;
                         }) {
@@ -772,7 +742,7 @@ class SynchronousExecutionTest {
         try {
             TaskGroupResult<Integer, Void> result = runtime.group("cancel-shaped-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
-                    .par("resource", par, Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("resource"), par, () -> {
                         try (AutoCloseable resource = () -> {
                             if (closeFailure instanceof InterruptedException) {
                                 throw (InterruptedException) closeFailure;

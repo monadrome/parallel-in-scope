@@ -1,13 +1,13 @@
 # User Guide
 
-> This guide documents the `0.3.0` release. `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [v0.2 migration guide](migration-v0.2.md). Applications coming from `0.2.x` migrate through the [v0.3 migration guide](migration-v0.3.md).
+> This guide follows `0.4.0-SNAPSHOT`. Stable installation examples use `0.3.0`; group declarations on the development line require the [typed-key migration](migration-v0.3.md#adopting-typed-keys-on-the-04-development-line). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
 It also coordinates a fixed heterogeneous set of named operations through one-shot groups. A group is
 declared and submitted as one one-shot fluent chain —
-`runtime.group(name, timeout).par(...).runAll()` — in which each member states its name, `Par`,
-declared type, and this run's body at once; it is not a dynamically growing batch.
+`runtime.group(name, timeout).par(...).runAll()` — in which each member states its typed key, `Par`,
+and this run's body at once; it is not a dynamically growing batch.
 
 ## Build the execution topology
 
@@ -140,20 +140,19 @@ summarize, and the call rejects it like an empty group with a combine. Element r
 
 ## Execute a heterogeneous task group {#task-group}
 
-Declare fixed named tasks with their Par, declared type, and body. `runAll()` consumes the chain,
+Declare fixed named tasks with their typed key, Par, and body. `runAll()` consumes the chain,
 runs it once, and returns a typed terminal result. Declaration is single-threaded and performs no
 submission, deadline calculation, timer installation, or TTL capture; the timeout starts at execution.
-Saved stale stages, repeated execution, foreign Pars, duplicate names, and unresolved/primitive type
-tokens are rejected. Only the draft's creating thread may execute it.
+Saved stale stages, repeated execution, foreign Pars, and duplicate names are rejected.
+Only the draft's creating thread may execute it.
 
 ```java
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .closeGrace(Duration.ofSeconds(1))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .combine("profile", httpPar, Profile.class,
-                values -> buildProfile(values.first(), values.second()))
+        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
+        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> buildProfile(values.first(), values.second()))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
@@ -167,25 +166,24 @@ snapshot. A ThreadPoolExecutor's rejection handler may not run the combine inlin
 direct executor remains supported.
 
 ```java
+TaskKey<User> userKey = TaskKey.named("user");
 TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par(userKey, databasePar, () -> loadUser(userId))
         .runAll();
-ImmediateResult<User> user = one.resultOf("user", TypeToken.of(User.class));
+ImmediateResult<User> user = one.resultOf(userKey);
 User value = user.valueOrThrow();
 ```
 
-`resultOf` and `resultAt` expose terminal member results by name/declaration position, with optional
-exact TypeToken checks. A query cannot widen a declared token, even for a null or failed value.
-`Class<T>` declarations are shorthand for non-generic types, with or without custom TaskOptions; use
-TypeToken for parameterized values. Runtime validation checks non-null values against the token's raw
-class.
+`resultOf(key)` returns a typed result. Dynamic `resultOf(name)` and `resultAt(index)` return
+`ImmediateResult<?>`; dynamic value lookups return `Object`. There are no runtime type tokens or
+result type checks.
 
 For reusable typed addresses, declare keys once and use the same objects for declaration and reads:
 
 ```java
-TaskKey<User> userKey = TaskKey.of("user", User.class);
-TaskKey<Account> accountKey = TaskKey.of("account", Account.class);
-TaskKey<Profile> profileKey = TaskKey.of("profile", Profile.class);
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
 
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
@@ -198,15 +196,15 @@ ImmediateResult<User> user = result.resultOf(userKey);
 Profile profile = result.terminalValueOrThrow();
 ```
 
-`TaskKey.of("orders", new TypeToken<List<Order>>() {})` supports generic results. The key binds
+`TaskKey<List<Order>> orders = TaskKey.named("orders")` supports generic results. The key binds
 the body and lookup to the same `T`; a mismatched body or assignment fails to compile without raw
-types or unchecked casts. The token also preserves raw-class runtime validation, not deep checking
-of erased container elements. Store shared keys in `static final` fields when appropriate.
+types or unchecked casts, which remain the caller's responsibility. Store shared keys in
+`static final` fields when appropriate.
 
 Key equality is object identity: another key with the same name and type cannot read the slot.
 Unknown keys throw `IllegalArgumentException`, including on empty groups and null-valued members.
-Group names still must be unique across members and the combine, including mixed keyed and string
-declarations. A key can be reused across runs; each run keeps separate results and fresh execution IDs.
+Task names still must be unique across members and the combine. A key can be reused across runs;
+each run keeps separate results and fresh execution IDs.
 `valueOf(key)` reads successful member values, including null; `resultOf(key)` reads a member's or
 combine's terminal container, including failures and cancellations. The combine is excluded from
 `GroupValues`, the name-based member results, and member positions.
@@ -235,10 +233,10 @@ build the flat object there, while the shape is still typed:
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .par("order", httpPar, Order.class, () -> loadOrder(userId))
-        .combine("profile", httpPar, Profile.class, values -> new Profile(
+        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
+        .par(TaskKey.<Order>named("order"), httpPar, () -> loadOrder(userId))
+        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> new Profile(
                 values.first().first(),
                 values.first().second(),
                 values.second()))
@@ -302,7 +300,7 @@ Place task-local resources inside the body:
 ```java
 TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
         .closeGrace(Duration.ofSeconds(1))
-        .par("read", databasePar, String.class, () -> {
+        .par(TaskKey.<String>named("read"), databasePar, () -> {
             try (Reader reader = openReader()) {
                 return readAll(reader);
             }

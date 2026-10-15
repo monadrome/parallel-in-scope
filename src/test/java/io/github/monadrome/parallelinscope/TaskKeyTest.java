@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.ForwardingExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -28,9 +27,9 @@ import org.junit.jupiter.api.Test;
 @SuppressWarnings("NullAway.Init")
 class TaskKeyTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private final TaskKey<String> user = TaskKey.of("user", String.class);
-    private final TaskKey<List<Integer>> orders = TaskKey.of("orders", new TypeToken<List<Integer>>() {});
-    private final TaskKey<Integer> total = TaskKey.of("total", Integer.class);
+    private final TaskKey<String> user = TaskKey.named("user");
+    private final TaskKey<List<Integer>> orders = TaskKey.named("orders");
+    private final TaskKey<Integer> total = TaskKey.named("total");
     private ExecutorService pool;
     private ParRuntime runtime;
     private Par par;
@@ -49,12 +48,10 @@ class TaskKeyTest {
     }
 
     @Test
-    void keysKeepTheirDeclaredNameAndTypeButUseObjectIdentity() {
+    void keysKeepTheirDeclaredNameButUseObjectIdentity() {
         assertThat(user.name()).isEqualTo("user");
-        assertThat(user.type()).isEqualTo(TypeToken.of(String.class));
-        assertThat(user).hasToString("user").isNotEqualTo(TaskKey.of("user", String.class));
-        assertThat(orders.type()).isEqualTo(new TypeToken<List<Integer>>() {});
-        assertThat(TaskKey.of(" user ", String.class).name()).isEqualTo(" user ");
+        assertThat(user).hasToString("user").isNotEqualTo(TaskKey.named("user"));
+        assertThat(TaskKey.named(" user ").name()).isEqualTo(" user ");
     }
 
     @Test
@@ -71,17 +68,41 @@ class TaskKeyTest {
         assertThat(orderValues).containsExactly(2, 3);
         assertThat(result.resultOf(user)).isSameAs(result.resultOf("user"));
         assertThat(result.resultOf(orders).valueOrThrow()).containsExactly(2, 3);
-        assertThat(values.valueOf("orders", orders.type())).isEqualTo(orderValues);
-        assertThat(values.typeAt(1)).isEqualTo(orders.type());
+        assertThat(values.valueOf("orders")).isEqualTo(orderValues);
         assertThat(values.typedValues()).isEqualTo(Tuple2.of("alice", Arrays.asList(2, 3)));
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void dynamicViewsKeepDeclarationPositionsNamesAndNullableValues() {
+        TaskGroupResult<Tuple2<String, Integer>, Integer> result = runtime.group("page", TIMEOUT)
+                .par(user, par, () -> "alice")
+                .par(total, par, () -> null)
+                .combine(TaskKey.<Integer>named("terminal"), par, values -> 1)
+                .runAll();
+        GroupValues<?> values = result.valuesOrThrow();
+
+        assertThat(values.size()).isEqualTo(2);
+        assertThat(values.valueAt(0)).isEqualTo(values.valueOf("user")).isEqualTo("alice");
+        assertThat(values.valueAt(1)).isNull();
+        assertThat(values.valueOf("total")).isNull();
+        assertThat(result.resultAt(0)).isSameAs(result.resultOf(user));
+        assertThat(result.resultAt(1)).isSameAs(result.resultOf(total));
+        assertThatThrownBy(() -> values.valueAt(-1)).isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> values.valueAt(2)).isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> values.valueOf("missing")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> values.valueOf((String) null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> values.valueOf("terminal")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> result.resultOf("terminal")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(result.failedTaskResult()).isEmpty();
     }
 
     @Test
     void sameNameKeysCannotReadAnotherKeysSlotEvenWithADifferentType() {
         TaskGroupResult<String, Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, () -> "alice").runAll();
-        TaskKey<String> sameType = TaskKey.of("user", String.class);
-        TaskKey<Integer> wrongType = TaskKey.of("user", Integer.class);
+        TaskKey<String> sameType = TaskKey.named("user");
+        TaskKey<Integer> wrongType = TaskKey.named("user");
 
         assertThatThrownBy(() -> result.resultOf(sameType)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> result.resultOf(wrongType)).isInstanceOf(IllegalArgumentException.class);
@@ -91,9 +112,9 @@ class TaskKeyTest {
     }
 
     @Test
-    void aLegacyNameDeclarationDoesNotRegisterAnIndependentKey() {
+    void anIndependentSameNameKeyCannotReadADeclaration() {
         TaskGroupResult<String, Void> result = runtime.group("page", TIMEOUT)
-                .par("user", par, String.class, () -> "alice")
+                .par(TaskKey.<String>named("user"), par, () -> "alice")
                 .runAll();
 
         assertThatThrownBy(() -> result.resultOf(user)).isInstanceOf(IllegalArgumentException.class);
@@ -122,7 +143,7 @@ class TaskKeyTest {
         assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(result.resultOf(user).valueOrThrow()).isNull();
         assertThat(result.valuesOrThrow().valueOf(user)).isNull();
-        assertThatThrownBy(() -> result.valuesOrThrow().valueOf(TaskKey.of("user", String.class)))
+        assertThatThrownBy(() -> result.valuesOrThrow().valueOf(TaskKey.named("user")))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -161,21 +182,22 @@ class TaskKeyTest {
     }
 
     @Test
-    void keyAndLegacyDeclarationsCanBeMixedInBothDirections() {
+    void keysWorkForFirstAndLaterDeclarations() {
+        TaskKey<Integer> count = TaskKey.named("count");
         TaskGroupResult<Tuple2<String, Integer>, Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
-                .par("count", par, Integer.class, () -> 2)
+                .par(count, par, () -> 2)
                 .combineValues(
                         total,
                         par,
                         values ->
                                 checkNotNull(checkNotNull(values).valueOf(user)).length()
-                                        + checkNotNull(values.valueOf("count", Integer.class)))
+                                        + checkNotNull(values.valueOf(count)))
                 .runAll();
         assertThat(result.terminalValueOrThrow()).isEqualTo(7);
 
         assertThat(runtime.group("other", TIMEOUT)
-                        .par("count", par, Integer.class, () -> 2)
+                        .par(TaskKey.<Integer>named("count"), par, () -> 2)
                         .par(user, par, () -> "bob")
                         .runAll()
                         .valuesOrThrow()
@@ -198,6 +220,7 @@ class TaskKeyTest {
                     .runAll();
             assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.resultOf(user).failure()).isSameAs(failure);
+            assertThat(result.failedTaskResult()).contains(result.resultOf(user));
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(submissions).hasValue(0);
             assertThatThrownBy(() -> result.resultOf(user).valueOrThrow())
@@ -226,10 +249,10 @@ class TaskKeyTest {
     void duplicateNamesAndKeysAreRejectedWithoutConsumingTheCurrentStage() {
         GroupStep<String> stage = runtime.group("page", TIMEOUT).par(user, par, () -> "alice");
         assertThatThrownBy(() -> stage.par(user, par, () -> "again")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> stage.par(TaskKey.of("user", Integer.class), par, () -> 1))
+        assertThatThrownBy(() -> stage.par(TaskKey.named("user"), par, () -> 1))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> stage.combine(user, par, value -> value)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> stage.par("user", par, String.class, () -> "again"))
+        assertThatThrownBy(() -> stage.par(TaskKey.<String>named("user"), par, () -> "again"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(stage.par(total, par, () -> 2).runAll().outcome()).isEqualTo(TaskOutcome.SUCCESS);
     }
@@ -305,33 +328,33 @@ class TaskKeyTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    void uncheckedBodiesStillFailTheExistingRawClassCheck() {
+    void uncheckedBodiesAreTheCallersResponsibility() throws Exception {
         Callable rawBody = () -> 42;
         TaskGroupResult<String, Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, rawBody).runAll();
-        assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(result.resultOf(user).failure()).isInstanceOf(ClassCastException.class);
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.resultOf("user").valueOrThrow()).isEqualTo(42);
+        assertThatThrownBy(() -> {
+                    String value = result.valuesOrThrow().valueOf(user);
+                    assertThat(value).isNotNull();
+                })
+                .isInstanceOf(ClassCastException.class);
 
         CombineBody rawCombine = value -> 42;
         TaskGroupResult<Integer, String> combined = runtime.group("page", TIMEOUT)
                 .par(total, par, () -> 1)
                 .combineValues(user, par, rawCombine)
                 .runAll();
-        assertThat(combined.resultOf(user).failure()).isInstanceOf(ClassCastException.class);
+        assertThat(combined.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(combined.resultOf(user).failure()).isNull();
+        assertThat((Object) combined.resultOf(user).valueOrThrow()).isEqualTo(42);
     }
 
     @Test
     @SuppressWarnings("NullAway")
-    void factoriesRejectInvalidNamesAndTypes() {
-        assertThatThrownBy(() -> TaskKey.of(null, String.class)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> TaskKey.of(" ", String.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TaskKey.of("user", (Class<String>) null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> TaskKey.of("user", (TypeToken<String>) null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> TaskKey.of("number", int.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TaskKey.of("nothing", void.class)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () -> TaskKey.of("unresolved", TypeToken.of(List.class.getTypeParameters()[0])))
-                .isInstanceOf(IllegalArgumentException.class);
+    void factoriesRejectInvalidNames() {
+        assertThatThrownBy(() -> TaskKey.named(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> TaskKey.named(" ")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
