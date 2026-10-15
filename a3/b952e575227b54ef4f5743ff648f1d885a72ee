@@ -1,0 +1,43 @@
+pom.xml
+  s_267349bbc6df50::t_94805773662a5f 9,22
+demo/docs/en/README.md
+  s_267349bbc6df50::t_32766d449927b6 7
+CHANGELOG.md
+  s_267349bbc6df50::t_94805773662a5f 5-14
+demo/pom.xml
+  s_267349bbc6df50::t_94805773662a5f 9,21
+.github/workflows/snapshot.yml
+  s_267349bbc6df50::t_94805773662a5f 3-4,8,10,14,17,20,58,69
+demo/README.en.md
+  s_267349bbc6df50::t_32766d449927b6 7
+verification/maven-central-consumer/pom.xml
+  s_267349bbc6df50::t_94805773662a5f 21
+demo/docs/zh-CN/README.md
+  s_267349bbc6df50::t_32766d449927b6 5
+CONTRIBUTING.md
+  s_267349bbc6df50::t_32766d449927b6 126
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_267349bbc6df50::t_32766d449927b6 8,21,25
+demo/AGENTS.md
+  s_267349bbc6df50::t_94805773662a5f 7-8
+demo/README.md
+  s_267349bbc6df50::t_32766d449927b6 5,12-13,56
+AGENTS.md
+  s_267349bbc6df50::t_94805773662a5f 11-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a3b952e575227b54ef4f5743ff648f1d885a72ee",
+  "prompts": {},
+  "sessions": {
+    "s_267349bbc6df50": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13e55-7215-7a13-997a-78b2c3709453",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
