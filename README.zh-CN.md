@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![交互式演示](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> 当前开发版本：`0.3.0-SNAPSHOT`，已发布到 Central 快照仓库；最新稳定版：`0.2.0`。
+> 最新稳定版：`0.3.0`。
 > `0.3.0` 对任务组 API 做了破坏性重设计——从 `0.2.x` 升级请先阅读
 > [v0.3 迁移指南](docs/zh/migration-v0.3.md)。
 
@@ -16,20 +16,13 @@
 
 ## 快速开始
 
-以下示例面向 `0.3.0` 线。快照版本不在默认 Central 仓库中，需要先声明快照仓库：
+从 Maven Central 添加依赖：
 
 ```xml
-<repositories>
-    <repository>
-        <id>central-snapshots</id>
-        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-    </repository>
-</repositories>
-
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 

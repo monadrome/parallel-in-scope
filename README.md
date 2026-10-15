@@ -8,8 +8,7 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> Current development version: `0.3.0-SNAPSHOT`, published to the Central snapshot repository.
-> Latest stable release: `0.2.0`. The `0.3.0` line is a breaking redesign of the task-group API —
+> Latest stable release: `0.3.0`. This version is a breaking redesign of the task-group API —
 > migrating from `0.2.x`? Read the [v0.3 migration guide](docs/en/migration-v0.3.md) first.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
@@ -17,21 +16,13 @@ context propagation, sliding-window scheduling, and thread-pool deadlock diagnos
 
 ## Quick Start
 
-The snippets below target the `0.3.0` line. Snapshots are not served by the default Central
-repository, so declare the snapshot repository next to the dependency:
+Add the dependency from Maven Central:
 
 ```xml
-<repositories>
-    <repository>
-        <id>central-snapshots</id>
-        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-    </repository>
-</repositories>
-
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
