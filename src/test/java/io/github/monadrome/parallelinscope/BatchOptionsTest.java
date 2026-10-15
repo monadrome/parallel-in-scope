@@ -13,15 +13,17 @@ import org.junit.jupiter.api.Test;
 class BatchOptionsTest {
 
     @Test
-    void defaultsAreOneWorkerPerTaskCpuBoundRejectingAndFailOnRejection() {
+    void defaultsAreUncappedIoBoundEnqueueingAndFailOnRejection() {
         BatchOptions options = BatchOptions.timeout("load", Duration.ofSeconds(30));
 
         assertThat(options.name()).isEqualTo("load");
-        assertThat(options.parallelism()).isEqualTo(-1);
-        assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(options.rejectEnqueue()).isTrue();
-        // No task type implies the caller-thread fallback, CPU_BOUND included.
-        assertThat(options.runOnCallerThread()).isFalse();
+        assertThat(options.parallelism()).isEqualTo(Integer.MAX_VALUE);
+        // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
+        // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
+        // refuse every task submitted with default options, leaving its capacity unused and sending
+        // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
+        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.rejectEnqueue()).isFalse();
     }
 
     @Test
@@ -29,21 +31,23 @@ class BatchOptionsTest {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
         BatchOptions derived = base.parallelism(3)
-                .taskType(TaskType.IO_BOUND)
-                .rejectEnqueue(false)
-                .runOnCallerThread(true);
+                .taskType(TaskType.CPU_BOUND)
+                .rejectEnqueue(true)
+                .closeGrace(Duration.ofMillis(200));
 
-        assertThat(base.parallelism()).isEqualTo(-1);
-        assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(base.rejectEnqueue()).isTrue();
-        assertThat(base.runOnCallerThread()).isFalse();
+        assertThat(base.parallelism()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(base.rejectEnqueue()).isFalse();
+        assertThat(base.closeGrace()).isEmpty();
         assertThat(derived.parallelism()).isEqualTo(3);
-        assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(derived.rejectEnqueue()).isFalse();
-        assertThat(derived.runOnCallerThread()).isTrue();
+        assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(derived.rejectEnqueue()).isTrue();
+        assertThat(derived.closeGrace()).contains(Duration.ofMillis(200));
         assertThat(derived.timeout()).isEmpty();
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void nameIsValidatedOnceAndPreservedVerbatim() {
         String longName = "order-pipeline-stage-7";
@@ -54,6 +58,8 @@ class BatchOptionsTest {
         assertThatThrownBy(() -> BatchOptions.inheritTimeout("  ")).isInstanceOf(IllegalArgumentException.class);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void rejectsNonPositiveExplicitTimeouts() {
         assertThatThrownBy(() -> BatchOptions.timeout("load", Duration.ZERO))
@@ -63,16 +69,33 @@ class BatchOptionsTest {
         assertThatThrownBy(() -> BatchOptions.timeout("load", null)).isInstanceOf(NullPointerException.class);
     }
 
+    /**
+     * The close grace is a cleanup budget rather than an execution timeout, so its validation
+     * differs from the deadline above: {@link Duration#ZERO} is meaningful here, because it makes
+     * the close cancel-only, while a negative grace is not a budget at all. Both the zero and the
+     * negative path are pinned at the declaration site, not only on {@link Validation}.
+     */
+    @SuppressWarnings("NullAway")
+    @Test
+    void closeGraceAcceptsZeroAndRejectsNegativeOrNull() {
+        BatchOptions base = BatchOptions.timeout("load", Duration.ofSeconds(30));
+
+        assertThat(base.closeGrace(Duration.ZERO).closeGrace()).contains(Duration.ZERO);
+        assertThatThrownBy(() -> base.closeGrace(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("closeGrace must not be negative");
+        assertThatThrownBy(() -> base.closeGrace(null)).isInstanceOf(NullPointerException.class);
+    }
+
     @Test
     void explicitTimeoutAndParallelismResolveIntoTheBatchContext() {
-        MultiTaskContext context = MultiTaskContext.resolve(
+        MultiTaskContext context = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("write", Duration.ofSeconds(3))
                         .parallelism(8)
                         .taskType(TaskType.IO_BOUND)
                         .rejectEnqueue(false)
                         .spec(),
-                2,
-                null);
+                2));
 
         assertThat(context.name()).isEqualTo("write");
         assertThat(context.taskCount()).isEqualTo(2);
@@ -83,27 +106,38 @@ class BatchOptionsTest {
     }
 
     @Test
-    void nonPositiveParallelismMeansOneWorkerPerTask() {
-        MultiTaskContext context = MultiTaskContext.resolve(
-                BatchOptions.timeout("read", Duration.ofSeconds(3)).spec(), 4, null);
+    void defaultParallelismIsCappedByTaskCount() {
+        MultiTaskContext context = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("read", Duration.ofSeconds(3)).spec(), 4));
 
         assertThat(context.effectiveParallelism()).isEqualTo(4);
     }
 
     @Test
+    void rejectsNonPositiveParallelism() {
+        assertThatThrownBy(() ->
+                        BatchOptions.timeout("read", Duration.ofSeconds(3)).parallelism(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                        BatchOptions.timeout("read", Duration.ofSeconds(3)).parallelism(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void inheritedTimeoutWithoutParentIsRejectedAtResolution() {
-        assertThatThrownBy(() -> MultiTaskContext.resolve(
-                        BatchOptions.inheritTimeout("read").spec(), 1, null))
+        assertThatThrownBy(() -> MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.inheritTimeout("read").spec(), 1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no enclosing deadline to inherit");
     }
 
     @Test
     void inheritedTimeoutResolvesToTheParentDeadline() {
-        MultiTaskContext parent = MultiTaskContext.resolve(
-                BatchOptions.timeout("outer", Duration.ofMillis(100)).spec(), 1, null);
-        MultiTaskContext child =
-                MultiTaskContext.resolve(BatchOptions.inheritTimeout("inner").spec(), 1, parent);
+        MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("outer", Duration.ofMillis(100)).spec(), 1));
+        MultiTaskContext child = MultiTaskContext.resolve(
+                MultiTaskContext.resolution(BatchOptions.inheritTimeout("inner").spec(), 1)
+                        .structuralParent(parent));
 
         assertThat(child.deadlineNanos()).isEqualTo(parent.deadlineNanos());
     }

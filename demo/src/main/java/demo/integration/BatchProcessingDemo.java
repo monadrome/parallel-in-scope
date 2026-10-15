@@ -1,8 +1,8 @@
 package demo.integration;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -73,7 +73,9 @@ public class BatchProcessingDemo {
 
             // 6. 性能分析（使用实际计算结果，而非输入数据）
             List<Integer> computedResults = new ArrayList<>();
-            for (java.util.concurrent.Future<Integer> future : result.results()) {
+            for (java.util.concurrent.Future<Integer> future : result.results().stream()
+                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                    .collect(java.util.stream.Collectors.toList())) {
                 try {
                     computedResults.add(future.get());
                 } catch (Exception e) {

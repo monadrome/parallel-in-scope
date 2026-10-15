@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>取消中断为什么会落到下一个任务</title>
+<style>
+:root{color-scheme:light;--ink:#20262b;--muted:#59636c;--line:#dce2e5;--red:#b42d49;--green:#13765c;--blue:#246baa;--paper:#f5f8fa}
+*{box-sizing:border-box}body{margin:0;background:white;color:var(--ink);font:16px/1.7 system-ui,-apple-system,"PingFang SC",sans-serif;letter-spacing:0}main{max-width:1060px;margin:auto;padding:38px 26px 64px}h1{font-size:30px;line-height:1.35;margin:8px 0 14px}h2{font-size:21px;margin:30px 0 12px}p{margin:10px 0}small,.muted{color:var(--muted)}code,pre,.state{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.9em}header{border-bottom:1px solid var(--line);padding-bottom:22px}.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:24px 0 16px}.modes{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}button{font:inherit;cursor:pointer;border:0;background:var(--paper);color:var(--ink);padding:9px 16px}button[aria-pressed=true]{background:var(--ink);color:white}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.icon{font-size:22px;min-width:44px;padding:3px 10px;border:1px solid var(--line);border-radius:4px}.stepcount{font-variant-numeric:tabular-nums;min-width:65px}.scene{border:1px solid var(--line);border-radius:6px;overflow:hidden}.lane{display:grid;grid-template-columns:135px 1fr;min-height:102px;border-bottom:1px solid var(--line)}.lane:last-child{border:0}.label{background:var(--paper);padding:18px 16px;font-weight:600;font-size:14px}.track{padding:16px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.event{padding:6px 12px;border-left:4px solid var(--blue);background:#edf4fa;font-size:14px}.event.bad{border-color:var(--red);background:#fbeef1}.event.good{border-color:var(--green);background:#eaf5f0}.state{font-size:13px;color:var(--muted)}.explanation{min-height:110px;margin-top:14px;padding:16px 20px;background:var(--paper);border-left:4px solid var(--blue)}.explanation.bad{border-color:var(--red)}.explanation.good{border-color:var(--green)}.explanation strong{display:block;margin-bottom:4px}input[type=range]{width:100%;accent-color:var(--blue);margin:16px 0}.columns{display:grid;grid-template-columns:1fr 1fr;gap:26px}pre{background:var(--paper);border:1px solid var(--line);padding:18px;overflow:auto;font-size:13px;line-height:1.7;border-radius:5px}ul{padding-left:23px}li{margin:8px 0}.evidence{display:grid;grid-template-columns:1fr 1fr;gap:18px}.result{border-top:3px solid var(--red);padding:12px 0}.result.safe{border-color:var(--green)}footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;color:var(--muted);font-size:13px}a{color:var(--blue)}@media(max-width:620px){main{padding:22px 16px 40px}h1{font-size:25px}.columns,.evidence{grid-template-columns:1fr}.lane{grid-template-columns:94px 1fr}.label{padding:16px 10px}.track{padding:12px}.explanation{min-height:155px}button{padding:8px 12px}}
+</style>
+<main>
+<header><small>parallel-in-scope / runner 退出协议</small><h1>中断的是线程，取消的是任务</h1><p>A 保存下来的 worker 引用仍然指向同一条线程。但等中断真正投递时，这条线程可能已经开始执行 B。</p></header>
+<div class="controls"><div class="modes" aria-label="协议选择"><button id="old" aria-pressed="true">现有竞态</button><button id="fixed" aria-pressed="false">握手修复</button></div><button class="icon" id="back" title="上一步" aria-label="上一步">←</button><button class="icon" id="next" title="下一步" aria-label="下一步">→</button><span class="stepcount" id="count"></span></div>
+<div class="scene" aria-live="polite"><div class="lane"><div class="label">取消线程</div><div class="track" id="cancel"></div></div><div class="lane"><div class="label">同一 worker</div><div class="track" id="worker"></div></div><div class="lane"><div class="label">共享状态</div><div class="track state" id="state"></div></div></div>
+<input type="range" id="scrub" min="0" max="5" value="0" aria-label="时序步骤">
+<div class="explanation" id="explain" aria-live="polite"></div>
+<h2>根因：清空引用并不撤回已经读到的引用</h2>
+<p><code>runner = null</code> 只影响后续读取。取消线程已经保存的局部变量 <code>executing</code> 不会随之变成 null。<code>volatile</code> 保证可见性，却没有把“读取 → 投递”变成一个不可分割的操作。</p>
+<p>worker 在 A 与 B 之间清一次中断标志也无效：中断可以在清理之后才到达。再检查一次 runner 也无效：检查之后仍可暂停。</p>
+<h2>推荐协议：投递先登记，退出等交接</h2>
+<div class="columns"><div><p>取消侧必须在读取 runner <strong>之前</strong>登记；退出侧必须在等待 <strong>之前</strong>撤销 runner，并在等待结束后才恢复线程标志。</p><pre>// 共享字段
+volatile Thread runner;
+volatile boolean delivering;
+
+// interruptTask()
+delivering = true;
+try {
+    Thread t = runner;
+    if (t != null) t.interrupt();
+} finally {
+    delivering = false;
+}</pre></div><div><p>这是最小协议示意，沿用 FutureTask 的在途投递等待思路。它不改变取消归因，也不需要增加公开 API。</p><pre>// run() 的退出路径
+runner = null;
+while (delivering) {
+    Thread.yield();
+}
+
+// 然后完成其余清理，恢复入口标志
+restoreEntryInterruptState();
+
+// 最后返回执行器，worker 才可运行 B</pre><small>示意省略了 @Nullable、现有 phase 通知与上下文恢复。restoreEntryInterruptState() 是说明用名称。</small></div></div>
+<h2>为什么这能覆盖两种竞争顺序？</h2>
+<ul><li><strong>取消先拿到 worker：</strong>登记投递 → 读到 worker → 退出侧清空 runner → 退出侧看到投递中，等待 → 投递结束 → 恢复标志 → B。中断无法迟到到 B。</li><li><strong>退出先完成撤销：</strong>退出侧清空 runner → 检查时没有在途投递 → 取消侧才登记 → 取消侧读到 null。它没有可中断的旧 runner。</li></ul>
+<p>关键是两个 volatile 字段上的读写顺序。不能把“投递中”移到读取 runner 之后，也不能把退出等待移到清空 runner 之前。</p>
+<h2>本次实测</h2><div class="evidence"><div class="result"><strong>当前工作树源码 · Java 8</strong><p><code>reused before delivery = true<br>B interrupted = true</code></p></div><div class="result safe"><strong>/tmp 最小握手副本 · Java 8</strong><p><code>reused before delivery = false<br>B interrupted = false</code></p></div></div>
+<p class="muted">探针重写 Thread.interrupt()，在实际投递前用闩锁暂停取消线程，让 A 正常退出，并模拟线程池任务间清标志。它控制的是合法的暂停窗口，而非随机等待。此处结果来自真实 Java 探针；上方时间线是协议演示。</p>
+<h2>正式落地时的边界</h2><ul><li>这个布尔标志依赖 AbstractFuture 对一次成功 cancel(true) 只调用一次 interruptTask()；若以后支持多个独立投递者，必须改用能协调多投递者的协议。</li><li>投递结束必须在 finally 中发布，包括 interrupt() 抛异常时。等待不能被取消中断提前打断。</li><li>只等待中断投递完成，不等待 A 的任务体配合取消。自定义 interrupt() 若永久阻塞，安全退出也会被阻塞；不能用超时放行来重新引入越界。</li><li>应补充取消早于 runner 发布、cancel(false)、inline、入口标志恢复、投递异常和正常完成竞争的测试。当前 Java 8 探针不是完整回归验收；本轮未独立复核 JDK 25。</li></ul>
+<footer>握手协议已落实到工作树源码。验证与评审记录：<a href="runner-interrupt-delivery.md">runner-interrupt-delivery.md</a> · 源码：<a href="../src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java">ExecutionPhaseHintFuture.java</a> · 契约：<a href="interruption-contract.md">interruption-contract.md</a></footer>
+</main>
+<script>
+const sequences={old:[
+ ['A 尚在执行','任务 A 执行中','runner = worker','同一线程，不同任务','此时中断 worker 可以唤醒 A。',''],
+ ['读取 executing = runner，然后暂停','任务 A 执行中','runner = worker；executing = worker','危险窗口打开','取消线程保留了线程引用，但 interrupt() 还没有投递。',''],
+ ['仍然暂停','A 退出：runner = null，恢复标志','runner = null；executing = worker','引用已经脱离任务生命周期','清空 runner 不会清空取消线程局部变量里的 executing。',''],
+ ['仍然暂停','worker 开始执行无关任务 B','runner = null；executing = worker','线程已经复用','任务间清理已完成，B 正在同一条线程上运行。','bad'],
+ ['恢复执行：executing.interrupt()','B 收到 A 的取消中断','runner = null；worker 的中断标志置位','中断越过了任务边界','interrupt() 只认识线程，不认识 A。它命中了当前占用 worker 的 B。','bad'],
+ ['cancel(true) 返回','B 的阻塞可能抛 InterruptedException','A 已取消；B 被误伤','错误已经发生','这是迟到投递，不是 B 继承了 A 留下的脏标志。','bad']
+],fixed:[
+ ['A 尚在执行','任务 A 执行中','runner = worker；delivering = false','同样的起点','修复仍允许取消线程与任务退出并发。',''],
+ ['delivering = true；读取 runner，然后暂停','任务 A 执行中','runner = worker；delivering = true','先登记，再读取','只要取消线程可能保存 worker，退出侧就能观察到投递正在进行。',''],
+ ['仍然暂停','A 退出：runner = null；等待投递','runner = null；delivering = true','worker 暂不能交给 B','A 的任务体已退出，但 run() 尚未返回执行器。','good'],
+ ['恢复执行：executing.interrupt()','仍在 A 的退出边界内','runner = null；delivering = true','中断被限制在 A 的窗口内','线程还没有执行 B，因此这次中断不会误伤 B。','good'],
+ ['finally：delivering = false','等待结束，恢复入口中断标志','runner = null；delivering = false','完成安全交接','投递结束后再清理标志，才能阻止迟到中断越界。','good'],
+ ['cancel(true) 返回','worker 开始执行 B','runner = null；delivering = false','B 不受 A 的取消影响','运行线程可以复用；A 的中断投递已经结束。','good']
+]};
+let mode='old',step=0;
+const el=id=>document.getElementById(id);
+function render(){const [c,w,s,title,body,tone]=sequences[mode][step];for(const [id,value] of [['cancel',c],['worker',w]]){el(id).replaceChildren();const span=document.createElement('span');span.className='event '+tone;span.textContent=value;el(id).append(span)}el('state').textContent=s;el('explain').className='explanation '+tone;el('explain').replaceChildren();const strong=document.createElement('strong');strong.textContent=title;el('explain').append(strong,document.createTextNode(body));el('count').textContent=(step+1)+' / 6';el('scrub').value=step;el('back').disabled=step===0;el('next').disabled=step===5;el('old').setAttribute('aria-pressed',mode==='old');el('fixed').setAttribute('aria-pressed',mode==='fixed')}
+el('old').onclick=()=>{mode='old';render()};el('fixed').onclick=()=>{mode='fixed';render()};el('back').onclick=()=>{step=Math.max(0,step-1);render()};el('next').onclick=()=>{step=Math.min(5,step+1);render()};el('scrub').oninput=e=>{step=Number(e.target.value);render()};render();
+</script>
+</html>

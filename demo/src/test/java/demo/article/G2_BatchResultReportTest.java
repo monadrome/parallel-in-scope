@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
@@ -110,7 +110,9 @@ class G2_BatchResultReportTest {
     }
 
     private static void awaitTerminalStates(TaskBatchResult<?> result) throws Exception {
-        for (com.google.common.util.concurrent.ListenableFuture<?> future : result.results()) {
+        for (com.google.common.util.concurrent.ListenableFuture<?> future : result.results().stream()
+                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                .collect(java.util.stream.Collectors.toList())) {
             try {
                 future.get(5, TimeUnit.SECONDS);
             } catch (ExecutionException | CancellationException ignored) {

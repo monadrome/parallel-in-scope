@@ -1,19 +1,25 @@
 <!--
 Thanks for contributing! First time here? Please read CONTRIBUTING.md first:
-most changes need an issue before a pull request.
+external contributions beyond the trivial list need an issue before a pull
+request.
 -->
 
 ## Summary
 
-<!-- What changed and why — explain the motivation, not the file list. -->
+<!-- What changed and why — explain the motivation, not the file list.
+
+If this PR adds or changes a public API or a documented contract, the summary
+must carry the concrete rationale: the best code a user can write today, the
+same code with the change applied, and the failure mode the change removes.
+When no issue is linked, this description is the only record of the decision —
+make it self-contained. -->
 
 ## Related issue
 
 <!--
 `Closes #NN` when this PR completes the issue, `Refs #NN` when it is one step
-of it. May be omitted for changes that don't require an issue (renames, typo
-fixes, small obvious bug fixes, test-only repairs, internal refactors,
-dependency bumps, routine maintenance — see AGENTS.md, "Issue Tracking").
+of it. Issues are opt-in (see AGENTS.md, "Issue Tracking"): maintainer-driven
+work may omit this, but then the Summary above must stand alone as the record.
 -->
 
 Closes #
@@ -32,8 +38,16 @@ changes don't need Java tests — delete the rows that don't apply and say so. -
 
 <!--
 The 0.x line accepts breaking changes with a documented rationale. If this PR
-renames or alters a public API or a documented contract, update
-docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md in the same PR.
+renames or alters a public API or a documented contract, update both migration
+guides of the release line in the same PR: docs/en/migration-v<major>.<minor>.md
+and docs/zh/migration-v<major>.<minor>.md, with <major>.<minor> from the pom.xml
+version (docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md on 0.3.0-SNAPSHOT).
+
+CI checks the signatures: the build job's "Check public API changes against the
+merge base" step fails when a public or protected member of a public type is
+removed or its signature changes and this PR does not change both guides.
+Additions pass and are listed in the job summary. Behavior and contract changes
+are invisible to that check and still need the notes.
 -->
 
 - [ ] No breaking changes

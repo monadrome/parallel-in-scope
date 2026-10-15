@@ -1,23 +1,24 @@
 package io.github.monadrome.parallelinscope;
 
+import static io.github.monadrome.parallelinscope.TaskGraphFixtures.node;
+import static io.github.monadrome.parallelinscope.TaskGraphFixtures.pronePool;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.graph.ValueGraph;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import io.github.monadrome.parallelinscope.TaskGraphFixtures.Pool;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression coverage for the derived-snapshot contract of {@link TaskGraphData}: every query sees
- * the edges recorded before it, a new edge invalidates the cached snapshot, and one close detection
- * pass reports flags and rendered edges taken from a single snapshot.
+ * The derived-snapshot contract of {@link TaskGraphData}: a snapshot is reused until a fragment is
+ * recorded, every query sees the fragments recorded before it, and one close detection pass reports
+ * flags and rendered edges taken from a single snapshot.
  */
 class TaskGraphSnapshotConsistencyTest {
 
@@ -27,134 +28,90 @@ class TaskGraphSnapshotConsistencyTest {
     }
 
     @Test
-    void taskCycleRefreshesAfterAnEarlierNegativeQuery() {
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
+    void aSnapshotIsReusedBetweenWritesAndReplacedByTheNext() {
+        TaskGraphData data = new TaskGraphData();
+        data.record(TaskGraph.builder().fork(node("a"), node("b")).build());
 
-            TaskGraphData data = TaskGraphObservationScope.data();
-            assertThat(data).isNotNull();
-            assertThat(TaskGraphObservationScope.hasTaskCycle()).isFalse();
+        TaskGraphData.Snapshot before = data.snapshot();
+        assertThat(data.snapshot()).isSameAs(before);
 
-            ValueGraph<String, List<TaskEdge>> before = data.graph();
-            assertThat(data.graph()).isSameAs(before);
+        data.record(TaskGraph.builder().fork(node("b"), node("c")).build());
 
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
-
-            assertThat(TaskGraphObservationScope.hasTaskCycle()).isTrue();
-            assertThat(data.graph()).isNotSameAs(before);
-            assertThat(data.graph().edges()).hasSize(2);
-        } finally {
-            global.close();
-        }
-    }
-
-    @Test
-    void taskSelfLoopRefreshesAfterAnEarlierNegativeQuery() {
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
-
-            TaskGraphData data = TaskGraphObservationScope.data();
-            assertThat(data).isNotNull();
-            assertThat(TaskGraphObservationScope.hasSelfLoop()).isFalse();
-
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", plainEdge());
-
-            assertThat(TaskGraphObservationScope.hasSelfLoop()).isTrue();
-            assertThat(data.graph().edges()).hasSize(2);
-        } finally {
-            global.close();
-        }
+        TaskGraphData.Snapshot after = data.snapshot();
+        assertThat(after).isNotSameAs(before);
+        assertThat(after.tasks().asValueGraph().edges()).hasSize(2);
+        assertThat(before.tasks().asValueGraph().edges()).hasSize(1);
+        assertThat(after.executors()).isSameAs(data.snapshot().executors());
     }
 
     @Test
     void executorPredicatesRefreshAfterAnEarlierNegativeQuery() {
-        ExecutorService firstPool = Executors.newSingleThreadExecutor();
-        ExecutorService secondPool = Executors.newSingleThreadExecutor();
+        Pool first = pronePool("first");
+        Pool second = pronePool("second");
         ParRuntime global = ParRuntime.builder().build();
-        try {
-            ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
-            ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);
-            try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-                TaskGraphObservationScope.logTaskPair(
-                        "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity));
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+            scope.record(
+                    TaskGraph.builder().admit(first.node("a"), second.node("b")).build());
+            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
+            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
-                TaskGraphData data = TaskGraphObservationScope.data();
-                assertThat(data).isNotNull();
-                assertThat(data.executorCycle()).isFalse();
-                assertThat(data.executorSelfLoop()).isFalse();
+            scope.record(
+                    TaskGraph.builder().admit(second.node("b"), first.node("c")).build());
+            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isTrue();
+            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
-                TaskGraphObservationScope.logTaskPair(
-                        "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity));
-
-                assertThat(data.executorCycle()).isTrue();
-                assertThat(data.executorSelfLoop()).isFalse();
-
-                TaskGraphObservationScope.logTaskPair(
-                        "c", "task-c", "c", "task-c", identityEdge(firstIdentity, firstIdentity));
-
-                assertThat(data.executorSelfLoop()).isTrue();
-            } finally {
-                global.close();
-            }
+            scope.record(
+                    TaskGraph.builder().admit(first.node("c"), first.node("d")).build());
+            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isTrue();
         } finally {
-            firstPool.shutdownNow();
-            secondPool.shutdownNow();
+            global.close();
         }
     }
 
     @Test
-    void closeUsesTheLatestSingleSnapshotAfterEarlierQueries() {
-        AtomicReference<DeadlockDetectionListener.DeadlockDetectionEvent> captured = new AtomicReference<>();
+    void closeUsesTheLatestSingleSnapshotAfterEarlierQueries() throws Exception {
+        Pool first = pronePool("pool-a");
+        Pool second = pronePool("pool-b");
         ParRuntime global = ParRuntime.builder()
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder()
-                        .enabled(true)
-                        .listener(captured::set)
-                        .build())
+                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", riskyEdge("pool-a", "pool-b"));
-
-            // Negative queries before the reverse edges exist must not pin the close-time answer.
-            assertThat(TaskGraphObservationScope.hasTaskCycle()).isFalse();
-            assertThat(TaskGraphObservationScope.hasSelfLoop()).isFalse();
+        ListenableFuture<TaskGraphReport> reportFuture;
+        try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
+            scope.record(
+                    TaskGraph.builder().admit(first.node("a"), second.node("b")).build());
             assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
             assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
-            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", riskyEdge("pool-b", "pool-a"));
+            scope.record(
+                    TaskGraph.builder().admit(second.node("b"), first.node("c")).build());
+            reportFuture = scope.reportFuture();
         } finally {
             global.close();
         }
 
-        DeadlockDetectionListener.DeadlockDetectionEvent event = captured.get();
-        assertThat(event).isNotNull();
-        assertThat(event.hasTaskCycle()).isTrue();
-        assertThat(event.hasSelfLoop()).isFalse();
-        assertThat(event.hasExecutorCycle()).isTrue();
-        assertThat(event.hasExecutorSelfLoop()).isFalse();
-        assertThat(event.taskEdges()).contains("task-a[a] -> task-b[b]", "task-b[b] -> task-a[a]");
-        assertThat(event.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
+        TaskGraphReport report = Objects.requireNonNull(Futures.getDone(reportFuture));
+        assertThat(report.executorCycle()).isTrue();
+        assertThat(report.executorSelfLoop()).isFalse();
+        assertThat(report.taskEdges()).contains("task-a[unit-a] -> task-b[unit-b]", "task-b[unit-b] -> task-c[unit-c]");
+        assertThat(report.executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     @Test
-    void deadlockProneEdgeWithoutExecutorNamesIsSkippedInsteadOfFailingEveryQuery() {
+    void aUnitWithoutAnExecutorIsSkippedInsteadOfFailingEveryQuery() {
         TaskGraphData data = new TaskGraphData();
-        data.logTaskPair(
-                "a", "task-a", "b", "task-b", new TaskEdge(1, TaskType.CPU_BOUND, null, null, 1, Duration.ZERO, true));
+        data.record(TaskGraph.builder()
+                .admit(node("a"), pronePool("pool").node("b"))
+                .build());
 
-        assertThat(data.graph().nodes()).containsExactlyInAnyOrder("a", "b");
-        assertThat(data.taskCycle()).isFalse();
-        assertThat(data.executorGraph().nodes()).isEmpty();
-        assertThat(data.executorCycle()).isFalse();
-        assertThat(data.executorSelfLoop()).isFalse();
+        assertThat(data.snapshot().tasks().asValueGraph().nodes()).hasSize(2);
+        assertThat(data.snapshot().executors().asValueGraph().nodes()).isEmpty();
+        assertThat(data.snapshot().executors().cycle()).isFalse();
+        assertThat(data.snapshot().executors().selfLoop()).isFalse();
     }
 
     /**
-     * Pins concurrent-write visibility, not the snapshot-refresh defect: as long as no query runs
-     * before the writers, the previous memoizing implementation also answered this one correctly.
-     * The refresh contract itself is pinned by the earlier-negative-query probes above, which
-     * discriminate because they read before the edge is recorded.
+     * Pins concurrent-write visibility: every fragment whose record completed before the query is in
+     * the next snapshot, whole.
      */
     @Test
     void concurrentCompletedWritesArePresentInTheNextSnapshot() throws Exception {
@@ -162,16 +119,19 @@ class TaskGraphSnapshotConsistencyTest {
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(writers);
         ExecutorService pool = Executors.newFixedThreadPool(writers);
-        ParRuntime global = ParRuntime.builder().build();
-        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
-            TaskGraphData data = TaskGraphObservationScope.data();
-            assertThat(data).isNotNull();
+        TaskNode root = node("root");
+        TaskGraphData data = new TaskGraphData();
+        try {
             for (int i = 0; i < writers; i++) {
-                String child = "child-" + i;
+                TaskNode child = node("child-" + i);
+                TaskNode grandchild = node("grandchild-" + i);
                 pool.execute(() -> {
                     try {
                         start.await();
-                        data.logTaskPair("root", "root", child, child, plainEdge());
+                        data.record(TaskGraph.builder()
+                                .admit(root, child)
+                                .admit(child, grandchild)
+                                .build());
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     } finally {
@@ -182,33 +142,16 @@ class TaskGraphSnapshotConsistencyTest {
             start.countDown();
             assertThat(done.await(10, TimeUnit.SECONDS)).isTrue();
 
-            ValueGraph<String, List<TaskEdge>> graph = data.graph();
-            assertThat(graph.nodes()).hasSize(writers + 1);
-            assertThat(graph.edges()).hasSize(writers);
-            assertThat(data.taskCycle()).isFalse();
-            assertThat(data.selfLoop()).isFalse();
+            TaskGraph graph = data.snapshot().tasks();
+            assertThat(graph.asValueGraph().nodes()).hasSize(1 + 2 * writers);
+            assertThat(graph.asValueGraph().edges()).hasSize(2 * writers);
+            assertThat(graph.asValueGraph().successors(root)).hasSize(writers);
             for (int i = 0; i < writers; i++) {
-                String child = "child-" + i;
-                assertThat(graph.edgeValueOrDefault("root", child, Collections.emptyList()))
-                        .hasSize(1);
+                assertThat(graph.asValueGraph().hasEdgeConnecting(node("child-" + i), node("grandchild-" + i)))
+                        .isTrue();
             }
         } finally {
             pool.shutdownNow();
-            global.close();
         }
-    }
-
-    /** Non-deadlock-prone edge: task-level coverage without executor-level edges. */
-    private static TaskEdge plainEdge() {
-        return new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(1_000), false);
-    }
-
-    /** Executor-name edge with no supplied-executor identities. */
-    private static TaskEdge riskyEdge(String sourceExecutor, String targetExecutor) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, targetExecutor, sourceExecutor, 1, Duration.ZERO, true);
-    }
-
-    private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, "target", "source", 1, Duration.ZERO, true);
     }
 }

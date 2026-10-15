@@ -3,7 +3,8 @@
 
 ## 1. 目标
 
-本测试集验证 `TaskBatchResult.report()` 和 `reportString()` 对批次当前状态的真实表达能力，并验证 `Par.map()` fail-fast 后的报告仍满足公开契约。
+本测试集验证 TaskBatchResult.report()/reportString() 对冻结终态结果的表达，并验证 Par.map
+fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING，也不会在返回后更新。
 
 测试不把线程调度产生的偶然状态数量当作产品契约。凡是断言精确数量的场景，都必须先通过已完成 Future 或显式同步原语建立确定状态。
 
@@ -11,10 +12,10 @@
 
 | 能力 | 稳定契约 | 测试层级 |
 |---|---|---|
-| 状态分类 | 每个 Future 被归入 `RUNNING`、`SUCCESS`、`FAILED`、`CANCELLED` 之一 | 核心单元测试 |
-| 状态计数 | 所有状态计数之和等于结果 Future 数量 | 单元测试、集成测试 |
-| 首异常 | 返回 results 列表中第一个失败 Future 的 cause；没有失败时为 null | 核心单元测试 |
-| 快照语义 | `report()` 反映调用时状态；Future 后续完成时需再次调用以获取新快照 | 核心单元测试 |
+| 状态分类 | 每个冻结结果为 SUCCESS、USER_FAILURE、SUBMISSION_FAILURE 或 MEMBER_CANCELLED/GROUP_CANCELLED/FAIL_FAST/TIMEOUT 之一，不含 RUNNING | 核心单元测试 |
+| 状态计数 | 所有计数之和等于冻结结果数量 | 单元测试、集成测试 |
+| 首异常 | results 中第一个 USER_FAILURE/SUBMISSION_FAILURE 的 cause；纯取消/超时可为 null | 核心单元测试 |
+| 快照语义 | report 只读取冻结数据，重复查询不变化 | 核心单元测试 |
 | 报告不可变 | 已生成报告的状态 map 不允许调用方修改 | 核心单元测试 |
 | 文本摘要 | 按状态枚举顺序输出计数；有失败时追加首异常消息 | 核心单元测试 |
 | 全成功批次 | 所有结果成功、无首异常、摘要只有 `SUCCESS` | Demo 集成测试 |
@@ -24,13 +25,14 @@
 
 ### 3.1 核心单元测试
 
-直接使用 Guava 的 immediate/settable future 构造状态，不启动线程池。
+直接使用 ImmediateResult 构造终态，不启动线程池。包内 live-future 测试属于独立层，
+不能用它推断公开结果仍在运行或返回后变化。
 
 这层负责精确验证：
 
 - 混合状态的准确数量；
 - 首异常按结果列表顺序选择，而不是按完成先后选择；
-- `RUNNING` 到 `SUCCESS` 的快照变化；
+- 重复查询冻结报告的稳定性，不含 RUNNING；
 - 空批次行为；
 - 状态 map 不可变；
 - `reportString()` 的完整格式。
@@ -46,13 +48,13 @@
 1. 一个 sibling 已进入阻塞状态；
 2. 指定任务抛出根异常；
 3. fail-fast 取消阻塞 sibling 和尚未运行的任务；
-4. 等待所有 Future 进入终态后生成报告。
+4. map 返回冻结结果后读取报告。
 
 集成测试的首要不变量是：
 
 ```text
 所有状态计数之和 == 输入任务数
-至少存在一个 FAILED
+至少存在一个 USER_FAILURE
 firstException == 触发 fail-fast 的根异常
 ```
 
@@ -62,7 +64,7 @@ firstException == 触发 fail-fast 的根异常
 
 ### 固定普通并发任务的成功/失败数量
 
-例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `FAILED`。后续任务可能在执行到异常之前已经被取消。
+例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `USER_FAILURE`。后续任务可能在执行到异常之前已经被取消。
 
 ### 使用 sleep 排列线程时序
 
@@ -81,7 +83,7 @@ sleep 只能提高某种执行顺序出现的概率，不能建立 happens-befor
 | 用例 | 场景 | 关键断言 |
 |---|---|---|
 | mixed terminal states | success + two failures + cancellation | 精确计数、列表首失败、完整字符串 |
-| running snapshot | settable future 未完成后再完成 | 旧报告不变，新报告更新 |
+| frozen report | 重复读取终态报告 | 内容一致且不含 RUNNING |
 | empty batch | 空 Future 列表 | 空 map、null 异常、空字符串 |
 | immutable report | 修改 stateCounts | 抛 `UnsupportedOperationException` |
 | all-success integration | `Par.map()` 全部返回 | 总数 N、无异常、`SUCCESS:N` |
