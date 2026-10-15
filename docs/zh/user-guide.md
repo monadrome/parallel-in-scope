@@ -157,6 +157,33 @@ User value = user.valueOrThrow();
 null 或失败值也不跳过校验。普通类型可用 Class（带不带自定义 TaskOptions 均可），参数化类型用
 TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深度校验。
 
+也可以用 `TaskKey<T>` 将名称与类型集中声明一次，再按原 key 读取：
+
+```java
+TaskKey<User> userKey = TaskKey.of("user", User.class);
+TaskKey<Account> accountKey = TaskKey.of("account", Account.class);
+TaskKey<Profile> profileKey = TaskKey.of("profile", Profile.class);
+TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .combineValues(profileKey, httpPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
+        .runAll();
+ImmediateResult<User> user = result.resultOf(userKey);
+```
+
+泛型结果用 `TaskKey.of("orders", new TypeToken<List<Order>>() {})`。key 按对象身份区分，
+同名同类型的新 key 不能读取旧槽位；应复用原对象，常用 key 可保存为 `static final`。
+同一个 key 可跨运行复用，结果与执行 ID 逐次隔离。组内成员和终端的名称仍须唯一。
+`valueOf(key)` 只读成功成员值，允许 null；未知 key 抛 `IllegalArgumentException`。
+`resultOf(key)` 可读成员或终端的成功、失败、取消容器。key 不证明成员已经注册。
+
+`combineValues` 接收 `GroupValues<V>`，通过 key 读取成员，不能读取终端自己；
+它复用原有 terminal 的 deadline、TTL、取消、成功门控和拒绝规则。原有 `combine` 仍接收
+静态元组，也支持终端 key。两者均可在 body 前传入 `TaskOptions`。声明和读取共享 `T`，
+错误 body 或赋值类型在正常泛型调用中不能编译；原始类检查保留，但不验证擦除后的集合元素。
+
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
 组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 保持原异常习惯：unchecked 原样抛、
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
