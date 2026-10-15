@@ -4,7 +4,6 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Test;
  * {@code Error}.
  */
 class TaskGroupValuesFutureTest {
+    private static final TaskKey<Integer> KEY_SECOND_INTEGER = TaskKey.named("second");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
@@ -35,8 +35,8 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try (TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
-                .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
+                .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                .par(TaskKey.<Integer>named("count"), global.par(ParId.of("worker")), () -> 41)
                 .submitAll()) {
             GroupValues<Tuple2<String, Integer>> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
 
@@ -65,7 +65,7 @@ class TaskGroupValuesFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
-                .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                     throw boom;
                 })
                 .submitAll()) {
@@ -90,21 +90,21 @@ class TaskGroupValuesFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch secondSettled = new CountDownLatch(1);
         TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
-                .par("first", global.par(ParId.of("worker")), String.class, () -> {
+                .par(TaskKey.<String>named("first"), global.par(ParId.of("worker")), () -> {
                     // Two workers, so this one blocks while the member declared after it finishes.
                     if (!secondSettled.await(10, TimeUnit.SECONDS)) {
                         throw new IllegalStateException("the second member never settled");
                     }
                     return "declared-first";
                 })
-                .par("second", global.par(ParId.of("worker")), Integer.class, () -> 42)
+                .par(KEY_SECOND_INTEGER, global.par(ParId.of("worker")), () -> 42)
                 .submitAll();
         try {
             // The order is forced by this thread observing the second member's *future* complete,
             // not by a latch its body counts down on its way out. Releasing from inside the second
             // body would only order the bodies: the first future could still settle first, and an
             // implementation that assembled values in completion order would pass.
-            assertThat(group.futureOf("second", TypeToken.of(Integer.class)).get(5, TimeUnit.SECONDS))
+            assertThat(group.futureOf(KEY_SECOND_INTEGER).get(5, TimeUnit.SECONDS))
                     .isEqualTo(42);
             secondSettled.countDown();
             GroupValues<Tuple2<String, Integer>> values = group.valuesFuture().get(5, TimeUnit.SECONDS);
@@ -127,8 +127,8 @@ class TaskGroupValuesFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("combine boom");
         try (TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
-                .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                     throw boom;
                 })
                 .submitAll()) {
@@ -158,7 +158,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return "late";
@@ -186,7 +186,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", Duration.ofMillis(150))
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         release.await(10, TimeUnit.SECONDS);
                         return "late";
                     })
@@ -230,7 +230,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return "value";
@@ -267,7 +267,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return "value";

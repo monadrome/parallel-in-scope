@@ -104,7 +104,7 @@ class VirtualDeadlineTest {
             AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(runtime.group("gated", Duration.ofSeconds(5))
-                            .par("m", runtime.par(ParId.of("worker")), Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("m"), runtime.par(ParId.of("worker")), () -> {
                                 started.countDown();
                                 new CountDownLatch(1).await();
                                 return 1;
@@ -229,7 +229,7 @@ class VirtualDeadlineTest {
             AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(outer.group("outer", Duration.ofMinutes(10))
-                            .par("m", outer.par(ParId.of("outer")), Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("m"), outer.par(ParId.of("outer")), () -> {
                                 nested.set(inner.par(ParId.of("inner"))
                                         .map(
                                                 Arrays.asList(1),
@@ -298,18 +298,17 @@ class VirtualDeadlineTest {
                     () -> {
                         try {
                             outerOutcome.set(outer.group("outer", Duration.ofMinutes(10))
-                                    .par("nest", outer.par(ParId.of("outer")), Integer.class, () -> {
+                                    .par(TaskKey.<Integer>named("nest"), outer.par(ParId.of("outer")), () -> {
                                         nestedOutcome.set(inner.group("nested", Duration.ofMinutes(10))
                                                 .par(
-                                                        "tight",
+                                                        TaskKey.<Integer>named("tight"),
                                                         inner.par(ParId.of("inner")),
                                                         TaskOptions.timeout(Duration.ofMinutes(1)),
-                                                        com.google.common.reflect.TypeToken.of(Integer.class),
                                                         () -> 1)
                                                 .runAll());
                                         return 1;
                                     })
-                                    .par("boom", outer.par(ParId.of("outer")), Integer.class, () -> {
+                                    .par(TaskKey.<Integer>named("boom"), outer.par(ParId.of("outer")), () -> {
                                         // Fail fast only once the nested member bind is in flight.
                                         try {
                                             if (!pausing.pauseEntered.await(10, TimeUnit.SECONDS)) {

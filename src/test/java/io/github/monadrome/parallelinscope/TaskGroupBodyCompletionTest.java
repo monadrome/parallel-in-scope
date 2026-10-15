@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -31,6 +30,8 @@ import org.junit.jupiter.api.Test;
  * cancel plus bounded wait on task-body exit, driven by the shared body-completion signal.
  */
 class TaskGroupBodyCompletionTest {
+    private static final TaskKey<String> KEY_OUTER_STRING = TaskKey.named("outer");
+    private static final TaskKey<Integer> KEY_QUICK_INTEGER = TaskKey.named("quick");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
@@ -60,7 +61,7 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch closeReturned = new CountDownLatch(1);
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("close-waits", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
                         return 1;
@@ -104,10 +105,9 @@ class TaskGroupBodyCompletionTest {
             // No closeGrace configured: the wait budget is the remaining deadline at close time.
             TaskGroup<Integer, Void> group = global.groupDraft("derived", Duration.ofMillis(300))
                     .par(
-                            "ignoring",
+                            TaskKey.<Integer>named("ignoring"),
                             global.par(ParId.of("worker")),
                             TaskOptions.timeout(Duration.ofMillis(300)),
-                            TypeToken.of(Integer.class),
                             () -> {
                                 entered.countDown();
                                 try {
@@ -152,7 +152,7 @@ class TaskGroupBodyCompletionTest {
             // grace and keep waiting for the body to exit instead of failing or skipping the wait.
             TaskGroup<Integer, Void> group = global.groupDraft("astronomic-grace", TIMEOUT)
                     .closeGrace(Duration.ofSeconds(Long.MAX_VALUE))
-                    .par("ignoring", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("ignoring"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
                         return 1;
@@ -193,10 +193,9 @@ class TaskGroupBodyCompletionTest {
             TaskGroup<Integer, Void> group = global.groupDraft("exhausted", Duration.ofMillis(300))
                     .closeGrace(Duration.ofMillis(400))
                     .par(
-                            "ignoring",
+                            TaskKey.<Integer>named("ignoring"),
                             global.par(ParId.of("worker")),
                             TaskOptions.timeout(Duration.ofMillis(300)),
-                            TypeToken.of(Integer.class),
                             () -> {
                                 entered.countDown();
                                 try {
@@ -242,7 +241,7 @@ class TaskGroupBodyCompletionTest {
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("zero-grace", TIMEOUT)
                     .closeGrace(Duration.ZERO)
-                    .par("ignoring", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("ignoring"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         try {
                             awaitIgnoringInterrupt(release);
@@ -299,7 +298,7 @@ class TaskGroupBodyCompletionTest {
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("warn-visible", TIMEOUT)
                     .closeGrace(Duration.ofMillis(200))
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
                         return 1;
@@ -335,7 +334,7 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("interrupted-entry", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
                         return 1;
@@ -374,7 +373,7 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("await-contract", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return 1;
@@ -426,7 +425,7 @@ class TaskGroupBodyCompletionTest {
         AtomicReference<Throwable> outcome = new AtomicReference<>();
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("mid-wait", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
                         return 1;
@@ -466,7 +465,7 @@ class TaskGroupBodyCompletionTest {
         AtomicReference<Throwable> closeFailure = new AtomicReference<>();
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("self-await", TIMEOUT)
-                    .par("self", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("self"), global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         try {
                             Objects.requireNonNull(groupRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
@@ -506,7 +505,7 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch groupReady = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("nested-guard", TIMEOUT)
-                    .par("outer", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(KEY_OUTER_STRING, global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         // The inner task's executor is a direct executor service, so it runs inline
                         // on the member thread and the inner body nests under the member body on the
@@ -530,7 +529,7 @@ class TaskGroupBodyCompletionTest {
             groupRef.set(group);
             groupReady.countDown();
 
-            assertThat(group.futureOf("outer", TypeToken.of(String.class)).get(2, TimeUnit.SECONDS))
+            assertThat(group.futureOf(KEY_OUTER_STRING).get(2, TimeUnit.SECONDS))
                     .isEqualTo("guarded");
         } finally {
             global.close();
@@ -548,11 +547,11 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("observation", TIMEOUT)
-                    .par("quick", global.par(ParId.of("worker")), Integer.class, () -> 1)
+                    .par(KEY_QUICK_INTEGER, global.par(ParId.of("worker")), () -> 1)
                     .submitAll();
 
             Futures.addCallback(
-                    group.futureOf("quick", TypeToken.of(Integer.class)).completionFuture(),
+                    group.futureOf(KEY_QUICK_INTEGER).completionFuture(),
                     new FutureCallback<TaskCompletion<Integer>>() {
                         @Override
                         public void onSuccess(@Nullable TaskCompletion<Integer> completion) {
@@ -592,12 +591,12 @@ class TaskGroupBodyCompletionTest {
         AtomicInteger combineRuns = new AtomicInteger();
         try {
             TaskGroup<Integer, String> group = global.groupDraft("combine-cancel", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return 1;
                     })
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         combineRuns.incrementAndGet();
                         return "combined";
                     })
@@ -624,8 +623,8 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Integer, String> group = global.groupDraft("combine-ok", TIMEOUT)
-                    .par("value", global.par(ParId.of("worker")), Integer.class, () -> 40)
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> "combined")
+                    .par(TaskKey.<Integer>named("value"), global.par(ParId.of("worker")), () -> 40)
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> "combined")
                     .submitAll();
 
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
@@ -670,7 +669,7 @@ class TaskGroupBodyCompletionTest {
         AtomicInteger trueResults = new AtomicInteger();
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("multi-waiter", TIMEOUT)
-                    .par("blocked", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return 1;
@@ -714,11 +713,11 @@ class TaskGroupBodyCompletionTest {
         int[] writes = new int[2];
         try {
             TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("visibility", TIMEOUT)
-                    .par("first", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("first"), global.par(ParId.of("worker")), () -> {
                         writes[0] = 1;
                         return 1;
                     })
-                    .par("second", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("second"), global.par(ParId.of("worker")), () -> {
                         writes[1] = 2;
                         return 2;
                     })
