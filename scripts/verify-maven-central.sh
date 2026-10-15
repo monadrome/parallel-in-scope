@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:-0.3.0-SNAPSHOT}"
+version="${1:-0.3.0}"
 # The version selects the artifact directory the cleanup below removes and is passed
 # through to the consumer build; accept only a plain Maven version so it can never be
 # a path that escapes that directory.
 if [[ ! "$version" =~ ^[0-9A-Za-z]+([.-][0-9A-Za-z]+)*$ ]]; then
-  echo "error: refusing version '$version': expected a plain Maven version such as 0.3.0-SNAPSHOT" >&2
+  echo "error: refusing version '$version': expected a plain Maven version such as 0.3.0" >&2
   exit 2
 fi
 

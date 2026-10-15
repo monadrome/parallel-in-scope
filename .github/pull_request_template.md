@@ -41,7 +41,7 @@ The 0.x line accepts breaking changes with a documented rationale. If this PR
 renames or alters a public API or a documented contract, update both migration
 guides of the release line in the same PR: docs/en/migration-v<major>.<minor>.md
 and docs/zh/migration-v<major>.<minor>.md, with <major>.<minor> from the pom.xml
-version (docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md on 0.3.0-SNAPSHOT).
+version (docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md on 0.3.0).
 
 CI checks the signatures: the build job's "Check public API changes against the
 merge base" step fails when a public or protected member of a public type is

@@ -99,10 +99,10 @@ set +e
 bash "$target" "" > "$work/out" 2>&1
 code=$?
 set -e
-if [ "$code" -eq 0 ] && grep -qF -- "-Dparallel-in-scope.version=0.3.0-SNAPSHOT" "$FAKE_MVN_LOG"; then
-  pass "empty argument falls back to the default snapshot version"
+if [ "$code" -eq 0 ] && grep -qE -- '-Dparallel-in-scope.version=0\.3\.0( |$)' "$FAKE_MVN_LOG"; then
+  pass "empty argument falls back to the default release version"
 else
-  fail "empty argument: expected exit 0 with the default snapshot version, got $code"
+  fail "empty argument: expected exit 0 with the default release version, got $code"
 fi
 
 # Exhausted retries: mvn fails all 12 attempts and the script gives up.

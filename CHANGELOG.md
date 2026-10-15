@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-15
+
 ### Breaking changes
 - Remove automatic purge, `ParRuntimePurgePolicy`, `Builder.purgePolicy(...)`, and all purge policy,
   enablement, and threshold accessors/mutators from `ParRuntime`. Executor owners perform needed
