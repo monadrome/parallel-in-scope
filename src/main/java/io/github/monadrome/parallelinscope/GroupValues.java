@@ -1,7 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.TypeToken;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,32 +14,24 @@ import org.jspecify.annotations.Nullable;
  * Read-only snapshot of one group run's successful member values, published by {@link
  * TaskGroupResult#valuesOrThrow()} and handed to a terminal {@link CombineBody}.
  *
- * <p>Slots are addressed two ways, and both views read the same slot: by zero-based declaration
- * position ({@link #valueAt(int)}, {@link #typeAt(int)}) and by the member name declared in the
- * fluent chain ({@link #valueOf(String)}, {@link #typeOf(String)}). The order is the order the
- * {@code par} calls were written, never the order tasks completed in.
- *
- * <p>Every accessor has an untyped form returning {@code Object} and a typed form taking the {@link
- * TypeToken} that was declared for that slot. The typed form requires the query token to be exactly
- * equal to the declared token — no widening to a supertype — so asking for {@code
- * TypeToken<List<Order>>} where {@code TypeToken<List<Customer>>} was declared is rejected at the
- * lookup instead of surfacing as a {@code ClassCastException} at the use site. The equality check
- * runs even when the stored value is null: null is a legitimate successful value, not a wildcard
- * that skips validation.
+ * <p>Typed lookup uses the exact {@link TaskKey} supplied at declaration. Dynamic lookup by
+ * zero-based declaration position ({@link #valueAt(int)}) or name ({@link #valueOf(String)})
+ * returns {@code Object}. The order is the order the {@code par} calls were written, never the
+ * order tasks completed in. Successful null values are allowed.
  *
  * <p>The snapshot is shallowly immutable and never blocks: it is built only after every member has
  * completed, from already-settled futures. User objects inside it are not copied or frozen.
  *
- * <p>The declared tokens are not deep runtime validation. A token proves which parameterized type
- * the caller asked for; it cannot prove that every element inside a {@code List} matches, because
- * that information is erased.
+ * <p>Types are enforced by the compiler; no runtime type information is stored or checked.
+ * Raw types and unchecked casts can defeat this guarantee and are the caller's responsibility.
  *
  * @param <V> the group's assembled member-value type
  * @since 0.3.0
  */
 public final class GroupValues<V> {
     private final ImmutableList<String> names;
-    private final ImmutableList<TypeToken<?>> declaredTypes;
+
+    private final ImmutableList<TaskKey<?>> keys;
 
     /** Null-tolerant by design: {@code ImmutableList} rejects nulls, successful member values allow them. */
     private final List<@Nullable Object> values;
@@ -46,21 +40,22 @@ public final class GroupValues<V> {
 
     private GroupValues(
             ImmutableList<String> names,
-            ImmutableList<TypeToken<?>> declaredTypes,
+            ImmutableList<TaskKey<?>> keys,
             List<@Nullable Object> values,
             @Nullable V typedValues) {
         this.names = names;
-        this.declaredTypes = declaredTypes;
+
+        this.keys = keys;
         this.values = Collections.unmodifiableList(new ArrayList<>(values));
         this.typedValues = typedValues;
     }
 
     static <V> GroupValues<V> of(
             ImmutableList<String> names,
-            ImmutableList<TypeToken<?>> declaredTypes,
+            ImmutableList<TaskKey<?>> keys,
             List<@Nullable Object> values,
             @Nullable V typedValues) {
-        return new GroupValues<>(names, declaredTypes, values, typedValues);
+        return new GroupValues<>(names, keys, values, typedValues);
     }
 
     /** The number of plain members; the terminal combine never occupies a slot. */
@@ -99,84 +94,18 @@ public final class GroupValues<V> {
     }
 
     /**
-     * The value at a declaration position, checked against the token declared for that slot.
+     * Reads a member using the exact key object supplied at declaration. A successful null is
+     * returned as null; an absent key throws even when another member has the same name and type.
+     * The terminal combine is not a member of this view.
      *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than {@link #size()}
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared token
+     * @throws NullPointerException if the key is null
+     * @throws IllegalArgumentException if the key was not declared as a member of this group
      */
-    public <T> @Nullable T valueAt(int index, TypeToken<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        checkIndex(index);
-        requireDeclaredType(index, expectedType);
+    public <T> @Nullable T valueOf(TaskKey<T> key) {
+        checkNotNull(key, "key cannot be null");
+        int index = keys.indexOf(key);
+        checkArgument(index >= 0, "no member declared with task key '%s'", key);
         return cast(values.get(index));
-    }
-
-    /**
-     * The value at a declaration position, checked against the class declared for that slot.
-     *
-     * <p>Shorthand for {@link #valueAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic result
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than {@link #size()}
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
-     */
-    public <T> @Nullable T valueAt(int index, Class<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        return valueAt(index, TypeToken.of(expectedType));
-    }
-
-    /**
-     * The value of the named member, checked against the token declared for that slot.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared token
-     */
-    public <T> @Nullable T valueOf(String name, TypeToken<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        int index = locate(name);
-        requireDeclaredType(index, expectedType);
-        return cast(values.get(index));
-    }
-
-    /**
-     * The value of the named member, checked against the class declared for that slot.
-     *
-     * <p>Shorthand for {@link #valueOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic result
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared type
-     */
-    public <T> @Nullable T valueOf(String name, Class<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        return valueOf(name, TypeToken.of(expectedType));
-    }
-
-    /**
-     * The token declared for the member at a declaration position, for callers that genuinely
-     * address slots dynamically and need to inspect the schema before reading.
-     *
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than {@link #size()}
-     */
-    public TypeToken<?> typeAt(int index) {
-        checkIndex(index);
-        return declaredTypes.get(index);
-    }
-
-    /**
-     * The token declared for the named member.
-     *
-     * @throws NullPointerException if {@code name} is null
-     * @throws IllegalArgumentException if no member was declared with that name
-     */
-    public TypeToken<?> typeOf(String name) {
-        return declaredTypes.get(locate(name));
     }
 
     private void checkIndex(int index) {
@@ -193,14 +122,6 @@ public final class GroupValues<V> {
             throw new IllegalArgumentException("no member named '" + name + "'");
         }
         return index;
-    }
-
-    private void requireDeclaredType(int index, TypeToken<?> expectedType) {
-        TypeToken<?> declared = declaredTypes.get(index);
-        if (!declared.equals(expectedType)) {
-            throw new IllegalArgumentException("member '" + names.get(index) + "' (index " + index
-                    + ") was declared as " + declared + " but queried as " + expectedType);
-        }
     }
 
     @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})

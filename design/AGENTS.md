@@ -58,7 +58,7 @@
 
 | 文档 | 摘要 |
 |---|---|
-| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **组声明契约 + 评审基线**：一次性链式草稿 `group(name, timeout).par(name, par, type, body)….runAll()`、step builder 三接口（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、`Class<T>` 裸类重载、`GroupValues`/`Tuple2` 值视图与 `TypeToken` 精确匹配、统一准入与单次草稿生命周期；§9 是可推广的评审与验证教训 |
+| [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **组声明契约 + 评审基线**：一次性链式草稿 `group(name, timeout).par(key, par, body)….runAll()`、三阶段 builder、引用身份 `TaskKey<T>` 的编译期类型安全、无运行期类型令牌的值视图、统一准入与单次生命周期；§9 是评审与验证教训 |
 | [synchronous-scope-exit.md](synchronous-scope-exit.md) | **同步出口契约**：`runAll()`/`Par.map` 在调用线程同步执行至完成或失败、外部 root 取消不依赖运行句柄、有界清理等待；§6–§7 是验证与对抗性评审记录 |
 | [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`） |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
@@ -123,7 +123,7 @@
 | [proposal/P0006-execution-protocol-consolidation.md](proposal/P0006-execution-protocol-consolidation.md) | 集中 Batch/Group 重复终端及清理协议、核实包内旧 live 表面与 listening 适配 |
 | [proposal/P0007-result-read-allocation.md](proposal/P0007-result-read-allocation.md) | 冻结结果值读取减少重复统计与分配，先测量再选缓存或索引 |
 | [proposal/P0008-runtime-drain-diagnostics.md](proposal/P0008-runtime-drain-diagnostics.md) | 有界、按需的未退出运行身份诊断，不钉住业务结果 |
-| [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 较大异构组按名称读取终端输入，明确运行期校验的代价 |
+| [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 类型化 key 输入已落地；仅保留动态 schema 的字符串具名终端入口候选，明确运行期校验的代价 |
 | [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
 | [proposal/P0017-oss-adoption-path.md](proposal/P0017-oss-adoption-path.md) | stable/next 首用、原生 JDK 选型、人类贡献职责与公开入口维护；历史网络结论重新核验 |
 | [proposal/P0019-result-exhaustive-matching.md](proposal/P0019-result-exhaustive-matching.md) | ImmediateResult 穷尽匹配的 typestate 候选与同步单任务获取需求复核；不恢复公开运行句柄 |

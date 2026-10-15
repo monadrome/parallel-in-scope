@@ -60,9 +60,9 @@ try (TaskGroup<Tuple2<User, Account>, Profile> group = runtime
 
 ```java
 return runtime.group("profile", Duration.ofSeconds(3))
-        .par("user", dbPar, User.class, () -> loadUser(id))
-        .par("account", httpPar, Account.class, () -> loadAccount(id))
-        .combine("profile", httpPar, Profile.class,
+        .par(TaskKey.<User>named("user"), dbPar, () -> loadUser(id))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(id))
+        .combine(TaskKey.<Profile>named("profile"), httpPar,
                 values -> buildProfile(values.first(), values.second()))
         .runAll()
         .terminalValueOrThrow();
@@ -79,7 +79,8 @@ return runtime.group("profile", Duration.ofSeconds(3))
 | Par.map | 同步 TaskBatchResult<T> |
 | 各 group stage.runAll | 同步 TaskGroupResult<V,R>，保持一次性、创建线程、阶段 guard |
 | Batch.results | 输入顺序 List<ImmediateResult<T>> |
-| Group.results / resultOf / resultAt | 名称/位置终态容器，TypeToken 精确匹配 |
+| Group.results / resultOf / resultAt | 名称/位置未类型化终态容器 |
+| Group.resultOf(TaskKey) | 按原声明 key 的对象身份即时读取成员或终端容器，规则见组声明契约 §4.1 |
 | Group.valuesResult | ImmediateResult<GroupValues<V>>；combine 失败也使聚合失败 |
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
@@ -106,7 +107,7 @@ ExecutionException.cause"，不承诺异常类型；取消形状不等于 Cancel
 
 Batch 聚合保留 ExecutionException 报执行失败、CancellationException 报纯取消；
 Group 聚合保留 unchecked 原样抛、checked 包装 CompletionException。结果函数不重跑 body。
-TypeToken、raw class 校验、左嵌套 Tuple2、nullable 值与空组均保持。
+类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。左嵌套 Tuple2、nullable 值与空组保持。
 
 asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isCancelled=false。
 库执行产生的取消是 failed future：无已记录失败时 cause 为归一化取消异常；组聚合已有记录失败时

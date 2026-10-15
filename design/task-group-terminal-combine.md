@@ -50,7 +50,11 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 ## 4. API
 
-combine 在链尾声明：`GroupStep.combine(name, par, [options,] type, body)` 返回
+类型化 key 与 `combineValues` 的输入选择见
+[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。它只参数化同一个
+prepared terminal 的输入组装，下面的准备、join、取消、TTL 与拒绝规则对两种输入一致。
+
+combine 在链尾声明：`GroupStep.combine(key, par, [options,] body)` 返回
 `CombinedGroupStep`，其上只有 `runAll()`——不能再声明 `par` 或第二个 combine（编译期排除，
 对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine body 是
 `CombineBody<V, R>`，直接接收普通成员的值视图 `V`（单成员为值本身，多成员为左嵌套
@@ -59,11 +63,10 @@ combine 在链尾声明：`GroupStep.combine(name, par, [options,] type, body)` 
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, List<Order>>, Inventory>, AccountPage> result =
         runtime.group("account-page", Duration.ofSeconds(3))
-                .par("user", databasePar, User.class, () -> users.load(request.userId()))
-                .par("orders", httpPar, new TypeToken<List<Order>>() {}, () -> orderClient.load())
-                .par("inventory", inventoryPar, Inventory.class, () -> inventoryClient.load())
-                .combine("assemble-page", cpuPar, AccountPage.class,
-                        values -> new AccountPage(
+                .par(TaskKey.<User>named("user"), databasePar, () -> users.load(request.userId()))
+                .par(TaskKey.<List<Order>>named("orders"), httpPar, () -> orderClient.load())
+                .par(TaskKey.<Inventory>named("inventory"), inventoryPar, () -> inventoryClient.load())
+                .combine(TaskKey.<AccountPage>named("assemble-page"), cpuPar, values -> new AccountPage(
                                 values.first().first(), values.first().second(), values.second()))
                 .runAll();
 AccountPage page = result.terminalValueOrThrow();
@@ -78,8 +81,8 @@ AccountPage page = result.terminalValueOrThrow();
 
 要点：
 
-- combine 的值视图只提供已成功的值，不暴露 future，也不执行等待；成员值的类型由声明时的
-  `TypeToken`/`Class` 精确匹配保证（见 group-one-shot 的 `GroupValues` 契约），成功 member
+- combine 的值视图只提供已成功的值，不暴露 future，也不执行等待；成员值的类型由声明与读取
+  共享的 `TaskKey<T>` 在编译期保证（见 group-one-shot 的 `GroupValues` 契约），成功 member
   的返回值可以为 null；
 - 至多一个 combine、且只能在所有 `par` 之后声明：链尾 `CombinedGroupStep` 只暴露
   `runAll()`，第二个 combine 与 combine 后再 `par` 都在编译期不可表达；
@@ -104,9 +107,8 @@ AccountPage page = result.terminalValueOrThrow();
 
 - combine body 接收声明顺序的 `V`：单成员为值本身，多成员为左嵌套 `Tuple2`；分量可为 null；
 - 读取不阻塞：combine 运行时所有 member 已成功；
-- 类型安全由声明时的 `TypeToken`/`Class` 精确匹配承担（primitive 与含未解析类型变量的
-  token 在声明时拒绝）；按名/按位置的事后查询用 `TaskGroupResult.resultOf`/`resultAt`，
-  同样精确匹配；
+- 类型安全由声明与读取共享的 `TaskKey<T>` 承担，不做结果的运行期类型校验；
+  按名/按位置的事后查询返回未类型化结果，原 key 查询返回类型化结果；
 - combine 函数只能依赖 member 值与声明前可达的环境。combine 由框架在最后一个 member 成功时
   调度，与声明之后、提交之前的其他调用线程代码之间没有同步边。
 

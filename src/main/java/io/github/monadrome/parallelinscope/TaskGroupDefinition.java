@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -15,8 +14,8 @@ import org.jspecify.annotations.Nullable;
  * needs — the group name, the forced choice between an explicit timeout and an inherited one, the
  * optional close grace, the plain member slots in declaration order, and the optional terminal
  * combine slot. Each slot carries its name, the {@link Par} resolved at declaration time, immutable
- * {@link TaskOptions}, and the {@link TypeToken} that the member's runtime type check and every
- * later typed lookup compare against.
+ * {@link TaskOptions}, and the {@link TaskKey} used for typed result lookup. No runtime type
+ * information is retained.
  *
  * <p>Members and the combine arrive as two separate arguments rather than one list tagged by kind,
  * so "at most one combine" is a property of the structure instead of a rule this constructor has to
@@ -78,20 +77,22 @@ final class TaskGroupDefinition {
     }
 
     /**
-     * One declared slot: name, the {@link Par} it runs on, options, and declared result type. A slot
+     * One declared slot: key, the {@link Par} it runs on, and options. A slot
      * carries no kind tag: it is a member or the combine by virtue of which argument it arrived in.
      */
     static final class Slot {
         final String name;
         final Par par;
         final TaskOptions options;
-        final TypeToken<?> type;
+        final TaskKey<?> key;
+        final boolean valueView;
 
-        Slot(String name, Par par, TaskOptions options, TypeToken<?> type) {
-            this.name = name;
+        Slot(TaskKey<?> key, Par par, TaskOptions options, boolean valueView) {
+            this.key = key;
+            this.valueView = valueView;
+            this.name = key.name();
             this.par = par;
             this.options = options;
-            this.type = type;
         }
     }
 }

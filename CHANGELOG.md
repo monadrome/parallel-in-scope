@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Features
+
+- Add `TaskKey<T>.named(name)` for typed group declarations and result lookup.
+  `par(key, par, [options,] body)` and `combine(key, par, [options,] body)` bind the body to
+  the key's type; `GroupValues.valueOf(key)` reads members, and `TaskGroupResult.resultOf(key)`
+  reads member or terminal results. Keys use object identity and may be reused across runs.
+  `combineValues(key, par, [options,] body)` receives a `GroupValues` view for keyed input access
+  through the existing prepared terminal. Names stay unique; types are checked only at compile time.
+  Remove string-plus-`Class`/`TypeToken` declarations, typed name/position lookup overloads,
+  `typeAt`/`typeOf`, and raw-class result validation. Migrate declarations and typed reads to
+  the same key object; generic results need no runtime token. Dynamic name/position lookups
+  remain untyped, and tuple combines remain supported. Raw types and unchecked casts are the
+  caller's responsibility. Literal-null one-argument
+  `valueOf(null)` / `resultOf(null)` calls now require a `String` or `TaskKey` cast to disambiguate.
+
 ### Fixed
 
 - Make the never-started batch observation test wait for its blocking task to

@@ -4,6 +4,11 @@ The 0.3 API executes synchronously: internal tasks remain parallel, but `Par.map
 `runAll()` return frozen values/failures after result convergence and bounded cleanup.
 There is no public asynchronous submission or running result scope.
 
+## Adopting typed keys on the 0.4 development line
+
+The 0.4 group API replaces the 0.3 type-token protocol with reference-identity `TaskKey<T>`.
+See the [v0.4 migration guide](migration-v0.4.md) for before/after examples and removed APIs.
+
 ## From an earlier 0.3 snapshot
 
 Before:

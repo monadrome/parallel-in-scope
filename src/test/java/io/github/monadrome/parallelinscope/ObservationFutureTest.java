@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.Test;
  * task body has exited.
  */
 class ObservationFutureTest {
+    private static final TaskKey<String> KEY_USER_STRING = TaskKey.named("user");
 
     private static final Duration SCOPE_TIMEOUT = Duration.ofSeconds(30);
 
@@ -364,7 +364,7 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -382,9 +382,8 @@ class ObservationFutureTest {
 
             // The member's own observation keeps its per-task direct attribution, while the group
             // result remains the authority for post-convergence attribution.
-            TaskCompletion<String> member = group.futureOf("user", TypeToken.of(String.class))
-                    .completionFuture()
-                    .get(2, TimeUnit.SECONDS);
+            TaskCompletion<String> member =
+                    group.futureOf(KEY_USER_STRING).completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(member.taskName()).isEqualTo("user");
             assertThat(member.successful()).isTrue();
             assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
@@ -403,7 +402,7 @@ class ObservationFutureTest {
         IllegalStateException boom = new IllegalStateException("boom");
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         throw boom;
                     })
                     .submitAll();

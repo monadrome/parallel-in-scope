@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
@@ -41,11 +40,13 @@ class TaskGroupCombineTest {
             AtomicInteger combineRuns = new AtomicInteger();
             AtomicReference<String> combineThread = new AtomicReference<>();
             AtomicReference<String> combineTask = new AtomicReference<>();
-            TypeToken<List<String>> ordersType = new TypeToken<List<String>>() {};
             TaskGroup<Tuple2<String, List<String>>, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("io")), String.class, () -> "alice")
-                    .par("orders", global.par(ParId.of("io")), ordersType, () -> Collections.singletonList("order-1"))
-                    .combine("assemble", global.par(ParId.of("cpu")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("io")), () -> "alice")
+                    .par(
+                            TaskKey.<List<String>>named("orders"),
+                            global.par(ParId.of("io")),
+                            () -> Collections.singletonList("order-1"))
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("cpu")), values -> {
                         combineRuns.incrementAndGet();
                         combineThread.set(Thread.currentThread().getName());
                         combineTask.set(Objects.requireNonNull(TaskExecutionContext.current())
@@ -83,10 +84,10 @@ class TaskGroupCombineTest {
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("failure", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(TaskKey.<String>named("failure"), global.par(ParId.of("worker")), () -> {
                         throw new IllegalStateException("boom");
                     })
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     })
@@ -116,8 +117,8 @@ class TaskGroupCombineTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         throw new IOException("assemble failed");
                     })
                     .submitAll();
@@ -150,8 +151,8 @@ class TaskGroupCombineTest {
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupReport result = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                    .combine("assemble", global.par(ParId.of("rejecting")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("rejecting")), values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     })
@@ -184,12 +185,11 @@ class TaskGroupCombineTest {
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupReport result = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .combine(
-                            "assemble",
+                            TaskKey.<String>named("assemble"),
                             global.par(ParId.of("rejecting")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineRuns.incrementAndGet();
                                 return "unreachable";
@@ -302,8 +302,8 @@ class TaskGroupCombineTest {
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                    .combine("assemble", global.par(ParId.of("throwing")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("throwing")), values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     })
@@ -333,12 +333,12 @@ class TaskGroupCombineTest {
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroup<Integer, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("slow", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("worker")), () -> {
                         running.countDown();
                         Thread.sleep(10_000);
                         return 1;
                     })
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     })
@@ -364,12 +364,11 @@ class TaskGroupCombineTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupReport result = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .combine(
-                            "assemble",
+                            TaskKey.<String>named("assemble"),
                             global.par(ParId.of("worker")),
                             TaskOptions.timeout(Duration.ofMillis(100)),
-                            TypeToken.of(String.class),
                             values -> {
                                 Thread.sleep(10_000);
                                 return "unreachable";
@@ -398,9 +397,9 @@ class TaskGroupCombineTest {
             // positions are the declaration order of the par calls, and a member that succeeded
             // with null keeps its slot.
             TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> null)
-                    .par("count", global.par(ParId.of("worker")), Integer.class, () -> 41)
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> null)
+                    .par(TaskKey.<Integer>named("count"), global.par(ParId.of("worker")), () -> 41)
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         Tuple2<String, Integer> members = Objects.requireNonNull(values);
                         assertThat(members.first()).isNull();
                         assertThat(members.second()).isEqualTo(41);
@@ -425,8 +424,8 @@ class TaskGroupCombineTest {
             // succeeded with null makes the whole input null rather than a one-element tuple.
             AtomicReference<Object> seenInput = new AtomicReference<>();
             TaskGroupResult<String, String> result = global.group("single", TIMEOUT)
-                    .par("only", global.par(ParId.of("worker")), String.class, () -> null)
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .par(TaskKey.<String>named("only"), global.par(ParId.of("worker")), () -> null)
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         seenInput.set(values);
                         return "ok";
                     })
@@ -451,22 +450,22 @@ class TaskGroupCombineTest {
         try {
             Par worker = global.par(ParId.of("worker"));
             GroupDraft.Step<String> step =
-                    global.groupDraft("page", TIMEOUT).par("user", worker, String.class, () -> "value");
+                    global.groupDraft("page", TIMEOUT).par(TaskKey.<String>named("user"), worker, () -> "value");
 
-            assertThatThrownBy(() -> step.combine(null, worker, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named(null), worker, values -> "unused"))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> step.combine("assemble", null, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named("assemble"), null, values -> "unused"))
                     .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> step.combine(" ", worker, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named(" "), worker, values -> "unused"))
                     .isInstanceOf(IllegalArgumentException.class);
 
             GroupDraft.Combined<String, String> combined =
-                    step.combine("assemble", worker, String.class, values -> "ok");
+                    step.combine(TaskKey.<String>named("assemble"), worker, values -> "ok");
             // One combine per group: the successful combine consumed the stage, so any further
             // combine() off that reference fails before name or owner validation.
-            assertThatThrownBy(() -> step.combine("user", worker, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named("user"), worker, values -> "unused"))
                     .isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> step.combine("second", worker, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named("second"), worker, values -> "unused"))
                     .isInstanceOf(IllegalStateException.class);
             // The rejected declarations left nothing behind: the submitted group holds exactly the
             // one member and the one combine declared above.
@@ -487,16 +486,16 @@ class TaskGroupCombineTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             Par worker = global.par(ParId.of("worker"));
-            GroupDraft.Step<String> step =
-                    global.groupDraft("page", TIMEOUT).par("assemble", worker, String.class, () -> "member-value");
+            GroupDraft.Step<String> step = global.groupDraft("page", TIMEOUT)
+                    .par(TaskKey.<String>named("assemble"), worker, () -> "member-value");
 
             // The name-uniqueness rule is symmetric: a combine declared after a member cannot take
             // the member's name, and the failed declaration leaves no combine behind.
-            assertThatThrownBy(() -> step.combine("assemble", worker, String.class, values -> "unused"))
+            assertThatThrownBy(() -> step.combine(TaskKey.<String>named("assemble"), worker, values -> "unused"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("duplicate name 'assemble'");
 
-            TaskGroupReport result = step.combine("assemble-page", worker, String.class, values -> "unused")
+            TaskGroupReport result = step.combine(TaskKey.<String>named("assemble-page"), worker, values -> "unused")
                     .submitAll()
                     .completionFuture()
                     .get(2, TimeUnit.SECONDS);
@@ -517,8 +516,8 @@ class TaskGroupCombineTest {
             // The members finish quickly; the combine then sleeps past the group deadline: the
             // group reports TIMEOUT, proving the fan-out wait and the combine share one budget.
             TaskGroupReport result = global.groupDraft("page", Duration.ofMillis(100))
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         Thread.sleep(10_000);
                         return "unreachable";
                     })

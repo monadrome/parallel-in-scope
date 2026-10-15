@@ -1,234 +1,119 @@
-# TaskGroup 一次性链式 API 重构方案
-
-> 公开执行/结果形状（`runAll()` 同步返回、`ImmediateResult` 数据与有界清理状态）见
-> [同步出口契约](synchronous-scope-exit.md)；本文约束组的声明形状与统一准入，
-> 底层取消、直接 body 退出、TTL 与调度不变量仍适用。
-
-> 本文是 TaskGroup 组声明契约；与本文冲突的既有 design 文档一律以本文为准。
-> 评审与验证教训见 §9。
-> 本方案取代仅增加整数索引重载的局部提案。目标用法只运行一次，因此不留与三阶段签名的兼容层。
-> 基线说明：被删除的 `defineGroup*`/`TaskGroupDefinition.Member`/`TaskGroup.Bindings` **从未随任何发布版交付**（`pom.xml` 为 `0.3.0-SNAPSHOT`，最近 tag 为 `v0.2.0`），所以这是发布前重塑，不是已发布契约的破坏性变更。真正的成本在仓库内：测试、`docs/`、`demo/`、Maven-Central 消费者，见 §8。
+# 一次性 TaskGroup 声明与类型化结果契约
 
 ## 1. 决策摘要
 
-采用一次性链式草稿：`runtime.group(...).par(name, par, type, body).par(...).runAll()`。每个 `par` 同时声明一个普通成员的 `TypeToken<T>` 并保存**本次** `Callable<? extends T>`；它不执行任务。公开终端 `runAll()`（经包私有 `submitAll()` 完成统一准入）是唯一的提交边界，同步执行至完成。用户不再预建可重复使用的 `TaskGroupDefinition`，也不需要 `Member<T>` 或 `TaskGroup.Bindings`。
+Group 是异构协调范围。每次运行通过
+`runtime.group(name, timeout).par(key, par, body)…runAll()` 声明和执行。
+`TaskKey<T>` 是可复用的类型化槽位地址；`TaskId` 是逐次生成的执行身份，两者不互换。
+类型安全由声明与读取共享的泛型参数保证，结果不保存或校验运行期类型令牌。
+本决策按 [第一性原理](first-principles.md) 复用现有执行管道，消除重复指定类型产生的漂移。
 
-运行期按声明顺序注册全部普通成员（包私有 `MemberState` 记录，见生命周期契约 §4.3），完整注册表先于任何 executor 调用发布。成员 future 永不为 null，任务成功返回 null 仍由 future 正常表达。收敛后冻结的结果携带 `GroupValues<V>` 视图：`typedValues()` 用左结合的 `Tuple2` 保存编译期类型；`valueAt` 和 `valueOf` 分别按零起始声明位置和成员名查询，既提供返回 `Object` 的动态入口，也提供接收 `TypeToken<T>` 的类型化入口。注册 token 与查询 token 必须精确相等。不引入 `Tuple3...TupleN`；`TypeToken` 为动态寻址提供运行时类型协议，不取代静态元组类型。
+## 2. 改前、改后与迁移
 
-整组值的聚合容器（`valuesResult()`，`ImmediateResult<GroupValues<V>>`）随冻结结果一同发布：整组成功时为成功值；已记录失败时携带该失败（combine 失败同样使聚合失败）；纯取消/超时/成员直消时为取消形失败（Left 的异常形状见同步出口契约 §3）。冻结结果在 `runAll()` 返回前已确定，不存在 pending 态。
-
-裸类重载在本文定稿：`par`/`combine` 的每种 `TypeToken<T>` 形式（省略或携带 `TaskOptions`）都有对应的 `Class<T>` 形式（§3）。`TypeToken.of(Foo.class)` 这种纯仪式在声明侧消失，带选项的声明也不例外。
-
-临时对象的分配成本不是采用该方案的理由。理由是目标用法只运行一次：旧 definition 的不变性和并发复用保证对这类调用没有收益，却要求用户分别维护结构、句柄和本次绑定。新的草稿仍必须一次冻结。
-
-## 2. 改前、改后与失败模式
-
-旧三阶段路径由 `TaskGroupDefinition.Builder` 声明、`TaskGroup.Bindings` 登记本次 body，再由 `ParRuntime.submitGroup` 提交（均已删除）：
+0.3 的最佳具名读取：
 
 ```java
-TaskGroupDefinition.Builder builder = runtime.defineGroup("account-page", timeout);
-TaskGroupDefinition.Member<User> user = builder.task("user", databasePar);
-TaskGroupDefinition.Member<List<Order>> orders = builder.task("orders", httpPar);
-TaskGroupDefinition definition = builder.build();
-
-try (TaskGroup group = runtime.submitGroup(definition, bindings -> {
-    bindings.task(user, () -> users.load(id));
-    bindings.task(orders, () -> orderClient.load(id));
-})) {
-    User userValue = group.future(user).get();
-    TaskGroupResult result = group.completionFuture().get();
-}
+runtime.group("user", timeout).par("user", par, User.class, this::loadUser)
+        .runAll().resultOf("user", User.class);
 ```
 
-改后同一运行的名称、执行器、声明类型、策略和 body 只登记一次：
+0.4：
 
 ```java
-TypeToken<List<Order>> ordersType = new TypeToken<List<Order>>() {};
-TaskGroupResult<Tuple2<User, List<Order>>, Void> result = runtime
-        .group("account-page", timeout)
-        .par("user", databasePar, User.class, () -> users.load(id))
-        .par("orders", httpPar, ordersType, () -> orderClient.load(id))
-        .runAll();
-GroupValues<Tuple2<User, List<Order>>> values = result.valuesOrThrow();
-Tuple2<User, List<Order>> typed = checkNotNull(values.typedValues());
-User userValue = checkNotNull(typed.first());
-User byName = checkNotNull(values.valueOf("user", TypeToken.of(User.class)));
-List<Order> byIndex = checkNotNull(values.valueAt(1, ordersType));
-Object dynamic = values.valueOf("user");
+TaskKey<User> user = TaskKey.named("user");
+runtime.group("user", timeout).par(user, par, this::loadUser).runAll().resultOf(user);
+TaskKey<List<Order>> orders = TaskKey.named("orders");
 ```
 
-消除的失败模式：单次运行无需在两阶段之间保留和传递句柄，不会遗漏 `build()`，也不会把本次 body 绑定到另一份 definition；动态位置读取无需另建名称到位置的映射；动态类型化查询会在取值时拒绝不匹配的声明类型，而非让错误在更远处表现为 `ClassCastException`。保留的风险：写错名称或索引、或将业务上错误的 body 登记到某个位置，仍需由调用方发现；传入 token 由调用方选择，因此动态查询不等同于编译期键。
+声明体类型、泛型容器元素类型或读取赋值不匹配 MUST 在正常泛型调用中编译失败。
+迁移时为每个成员和终端保存 key；删除声明和查询的 Class/TypeToken 参数，
+把类型化具名查询改为原 key。动态位置/名称查询保留未类型化返回值；
+`typeAt/typeOf` 和携带 Class/TypeToken 的重载移除。`TaskKey.of(name, type)` 改为
+`TaskKey.named(name)`，类型写在变量声明或显式工厂类型参数中。
 
-## 3. 公开签名草图
+## 3. 阶段与提交边界
 
-```java
-public final class ParRuntime implements AutoCloseable {
-    public GroupStart group(String name, Duration timeout);
-    public GroupStart groupInheriting(String name);
-}
+- `GroupStart` 支持 closeGrace、首个 par 和空组 runAll。
+- `GroupStep<V>` 支持后续 par、combine、combineValues 和 runAll。
+- `CombinedGroupStep<V,R>` 仅支持 runAll。
 
-public interface GroupStart {
-    GroupStart closeGrace(Duration grace);
-    <T> GroupStep<T> par(
-            String name, Par par, TypeToken<T> type, Callable<? extends T> body);
-    <T> GroupStep<T> par(
-            String name, Par par, Class<T> type, Callable<? extends T> body);
-    <T> GroupStep<T> par(
-            String name, Par par, TaskOptions options,
-            TypeToken<T> type, Callable<? extends T> body);
-    <T> GroupStep<T> par(
-            String name, Par par, TaskOptions options,
-            Class<T> type, Callable<? extends T> body);
-    TaskGroupResult<Void, Void> runAll(); // empty group
-}
+首个成员的 T 成为 V；后续成员将 V 扩为左嵌套 Tuple2。
+combine 接收 V；combineValues 接收只含成功普通成员的 GroupValues<V>。
+两者通过同一 prepared terminal 执行，MUST 共享成功门控、deadline、TTL、取消、
+拒绝和有界清理机制。terminal 不在普通成员的位置、名称结果或 GroupValues 中，
+但 TaskGroupResult.resultOf(key) MUST 支持 terminal 的 key。
 
-public interface GroupStep<V> {
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, TypeToken<T> type, Callable<? extends T> body);
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, Class<T> type, Callable<? extends T> body);
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, TaskOptions options,
-            TypeToken<T> type, Callable<? extends T> body);
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, TaskOptions options,
-            Class<T> type, Callable<? extends T> body);
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TypeToken<R> type,
-            CombineBody<? super V, ? extends R> body);
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, Class<R> type,
-            CombineBody<? super V, ? extends R> body);
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TaskOptions options,
-            TypeToken<R> type,
-            CombineBody<? super V, ? extends R> body);
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TaskOptions options,
-            Class<R> type,
-            CombineBody<? super V, ? extends R> body);
-    TaskGroupResult<V, Void> runAll();
-}
-
-public interface CombinedGroupStep<V, R> {
-    TaskGroupResult<V, R> runAll();
-}
-
-@FunctionalInterface
-public interface CombineBody<V, R> {
-    @Nullable R apply(@Nullable V values) throws Exception;
-}
-
-public final class GroupValues<V> {
-    public int size();
-    public @Nullable V typedValues();
-    public @Nullable Object valueAt(int index);
-    public @Nullable Object valueOf(String name);
-    public <T> @Nullable T valueAt(int index, TypeToken<T> expectedType);
-    public <T> @Nullable T valueOf(String name, TypeToken<T> expectedType);
-    public TypeToken<?> typeAt(int index);
-    public TypeToken<?> typeOf(String name);
-}
-
-public final class Tuple2<A, B> {
-    public static <A, B> Tuple2<A, B> of(@Nullable A first, @Nullable B second);
-    public @Nullable A first();
-    public @Nullable B second();
-    // equals/hashCode/toString：值语义，便于断言与日志
-}
-```
-
-`GroupStart`、`GroupStep<V>` 和 `CombinedGroupStep<V,R>` 是公开的 step builder **接口**，不是 scope；实现类保持包私有。运行对象 `TaskGroup<V,R>` 同样包私有，公开侧只见 `runAll()` 返回的冻结 `TaskGroupResult<V,R>`（访问器面以同步出口契约 §3 为准）。`TypeToken<T>` 与对应 `Callable<? extends T>` 在同一个调用中绑定，首个 `par` 把 `V` 设为 `T1`；后续依次扩为 `Tuple2<T1,T2>`、`Tuple2<Tuple2<T1,T2>,T3>`。单成员成功值允许 null，因此 `typedValues()` 返回 `@Nullable V`；`Tuple2` 两端也允许 null。`terminalResult()` 为 null 表示**未声明** combine——它由结果自己表达，而不是由 `R` 是否等于 `Void` 推断，因此一个返回 `Void` 的 combine 与一个无 combine 的组能被区分。`GroupValues` 始终只包含普通成员，terminal 不占它的名称或位置。
-
-**裸类重载的取舍**：每个 `Class<T>` 形式都等价于对应的 `TypeToken.of(type)` 形式，因此运行期类型检查、token 精确匹配、错误时机完全一致，没有第二条代码路径；参数化类型仍须写 `TypeToken`，因为 `Class` 承载不了类型参数。代价是每个 `par`/`combine` 方法族多两个重载；收益是声明侧不再出现 `TypeToken.of(User.class)`。副作用：类型参数写成**裸 `null` 字面量**在重载下不再可编译（原本是运行期 NPE）；传入持有 null 的 `TypeToken`/`Class` 变量仍在声明时抛 `NullPointerException`。
-
-最初只给省略 `TaskOptions` 的形态提供 `Class` 重载，理由是控制每个 step 的重载数；带选项的 `Class` 形式随后补齐（0.3.0 开发线），推翻理由：查询侧（`GroupValues.valueOf/valueAt`、`TaskGroupResult.resultOf/resultAt`）已为每个 `TypeToken` 形式补了 `Class` 重载，声明侧唯独缺带选项的一种，调用方一旦带上选项就被迫写回 `TypeToken.of(...)`，与两侧都采用的方向相反；重载只多出每个方法族一个，且全部委托同一条 `TypeToken` 路径，不增加语义面。
-
-| 暴露接口 | 本阶段可调用 | 下一阶段 |
-|---|---|---|
-| `GroupStart` | `closeGrace`、首个 `par`、`runAll`（空组） | `par` → `GroupStep<T>`；`runAll` → `TaskGroupResult<Void,Void>` |
-| `GroupStep<V>` | 后续 `par`、一次 `combine`、`runAll` | `par` → `GroupStep<Tuple2<V,T>>`；`combine` → `CombinedGroupStep<V,R>`；`runAll` → `TaskGroupResult<V,Void>` |
-| `CombinedGroupStep<V,R>` | `runAll` | `TaskGroupResult<V,R>` |
-
-这使链尾 `combine(...).par(...)`、`combine(...).combine(...)` 和 `par(...).closeGrace(...)` 在正常链式写法中无法编译。三个接口不继承彼此：否则后续阶段会重新暴露前一阶段的错误操作，或让首成员的泛型推导覆盖已有 `V`。`ParRuntime` 只返回库内实现，其他公开方法不接收用户实现的 step builder；Java 8 无法封闭公开接口的实现集合，但这不扩大执行管道。
-
-以当前公共面为基线：新增 **6 个本库公开类型**（3 个 step builder 接口 `GroupStart`、`GroupStep`、`CombinedGroupStep`，以及 `CombineBody`、`GroupValues`、`Tuple2`），复用现有 Guava `TypeToken` 而不新增类型；`ParRuntime` 新增 2 个创建方法。删除 `defineGroup*`/`submitGroup` 与 `TaskGroupDefinition` 的公共形态及其嵌套 `Builder`/`Member`、`TaskGroup.Bindings`/`CombineContext`/旧 `CombineBody`（`TaskGroupDefinition` 本身降为包私有纯结构，`TaskFuture` 降为包私有）。保留 `TaskGroupResult`、`TaskCompletion` 和 `TaskOptions` 的角色。公开运行句柄（成员 future 查询、`cancel`/`close`/`awaitBodyCompletion`）在同步出口落地时移除，结果访问器以同步出口契约 §3 为准。本方案与同期的 API 面缩减草案（`api-surface-reduction-2026-09-27.md`）方向相反：那三项缩减候选不在本方案删除清单内，两者的取舍由维护者在实施 PR 中一并裁定。实施 PR 应用 API diff 复核精确声明数。
+声明 MUST NOT 创建运行期取消 token、future、绝对 deadline、timer、TTL 快照或调用 executor。
+runAll 是唯一公开准入边界；它同步等待结果收敛并尝试有界清理，保持调用线程中断标志。
+参见 [同步出口](synchronous-scope-exit.md) 和 [提交契约](task-group-submission.md)。
 
 ## 4. 一次性生命周期与统一提交
 
-`group(name, timeout)` 延续显式正数预算；`groupInheriting(name)` 只在提交现场有外层 scoped task 时有效。`par` 立即校验名称非 null/非空白/不重复、`Par` 属于本 `ParRuntime`，且 body/选项/`TypeToken` 非 null；省略选项等于 `TaskOptions.inheritTimeout()`。token 必须是无未解析类型变量的具体引用类型；原始类型为 primitive 或仍含 `TypeVariable` 的 token 在声明时拒绝。`closeGrace` 仅在首个 `par` 前设置。声明阶段不创建取消 token、future、绝对 deadline、timer 或 TTL 快照，也不调用 executor。timeout 从提交准备边界起算（见 [提交契约 §7.2](task-group-submission.md)）。
+### 4.1 类型化声明键
 
-Java 没有 move 语义。包私有实现让每个阶段持有同一份内部状态及阶段序号；`par`/`combine` 成功时递增序号，旧接口对象随即失效。通过保存的旧引用继续追加或提交、同一阶段第二次提交、从旧阶段分叉，均抛 `IllegalStateException`；step 接口的编译期限制不能替代这道运行时检查。`closeGrace` 不推进阶段，只在 `GroupStart` 有效。草稿只允许创建线程调用其变更与提交方法。第一次合法提交消耗草稿，无论后续成功或失败都不可重试。成功时把 body 逐项移入 prepared task，失败时清空框架所持引用；调用方自己保存的 callable 不归框架清理。未提交而被调用方长期保存的草稿仍可能持有 request closure，这是本方案明确的生命周期代价。
+- key MUST 按对象身份判等，MUST NOT 按名称、类型或渲染内容恢复身份。
+- key MUST 只保留诊断名称，MUST NOT 存储 Class/TypeToken 或进行结果运行期类型校验。
+- 名称 MUST 在普通成员和终端之间唯一。重复 key 因重复名称被拒绝。
+- key 为 null MUST 抛 NullPointerException；名称在工厂处校验非 null、非空白。
+- 校验失败 MUST NOT 预留名称或推进 stage。
+- 同一个 key MUST 能跨运行复用；结果按运行隔离，执行身份逐次生成。
+- GroupValues.valueOf(key) MUST 只读取普通成员，允许成功 null；未注册 key MUST 抛
+  IllegalArgumentException，包括同名新 key、终端 key 和空组中的 key。
+- TaskGroupResult.resultOf(key) MUST 即时返回已注册成员或终端的成功、失败或取消结果；
+  未注册 key MUST 抛 IllegalArgumentException。
+- 动态名称/位置值查询 MUST 返回 Object，结果容器查询返回 ImmediateResult<?>；
+  MUST NOT 提供允许调用者任意选择 T 的 `<T> T valueOf(String)`。
 
-包私有 `submitAll` 冻结有序槽位，在一次 `ParRuntime.whileOpen()` 中解析提交现场的结构 parent、TTL、observation 和 deadline，准备并注册全部成员与可选 terminal。成员严格按 `par` 声明顺序登记，完整注册表发布后才依声明顺序提交各 executor。它仍与 `ParRuntime.close()` 做整体 admission 线性化；不能在注册完成前让 direct executor 执行用户代码。单个 executor handoff 或用户 body 在 admission 后失败时，提交仍返回已接纳的组，失败经 future/outcome 表达。取消树、fail-fast、deadline 上限、body-exit、TaskGraph 和观测沿用同包内核，不复制 `TaskSubmissions` 或 `ScopedCallable`（见 [提交契约 §9](task-group-submission.md)）。
+raw type 或 unchecked cast 可破坏泛型约束，由调用者负责。框架 MUST NOT 将这种违规
+通过额外原始类检查转换为 USER_FAILURE；后续使用处仍可能产生 JVM 插入的 ClassCastException。
+用户 body 自身抛出的 ClassCastException 与其他异常一样，仍是 USER_FAILURE。
+同名 key 不碰撞并不表示允许重复诊断名称；身份寻址和组内名称唯一是独立约束。
 
-注册表是运行过程中的成员结果索引，而不是成功值快照：位置寻址不依赖任务完成顺序，成员执行 future 由内核以 `ExecutionPhaseHintFuture<Object>` 准备，不必把 `ListenableFuture<T>` 做违反泛型不变性的强转。每个成员的 token、计时、归因和成员 future 由包私有 `MemberState`/`Task` 视图持有；公开侧只读冻结结果，不接触运行中的 future。terminal combine 的 future 独立保存，不进入普通成员注册表。
+### 4.2 草稿生命周期
 
-## 5. 值视图、聚合容器与 terminal combine
+草稿只能由创建线程使用；每次调用 MUST 先校验线程和当前 stage，再校验参数。
+par/combine 成功后推进 stage，旧阶段失效；runAll 第一次合法调用消耗草稿，
+即使执行失败也不能重试。closeGrace 只能在首个成员前设置且不推进阶段。
+body/options/Par/key 不得为 null，Par 必须属于创建草稿的 runtime。
+省略选项等于 TaskOptions.inheritTimeout()。
 
-`GroupValues` 只在**整组成功**后构建。收敛时按声明顺序读取每个已完成成员 future 的值，构建允许 null 的不可修改值列表；它与声明名、`TypeToken<?>` 逐槽对齐，位置寻址不依赖任务完成顺序。`typedValues()` 按相同顺序左结合成静态类型树；`valueAt(i)` 和 `valueOf(name)` 读取同一槽位。空组返回 size 为 0 的视图，`typedValues()` 为 null。Guava `ImmutableMap<String,Object>` 和 `ImmutableList<Object>` 不能直接承载含 null 的最终成功值，因此值列表是允许 null 的普通不可修改列表。该快照是浅层不可变的，不深拷贝用户对象。
+group(name, timeout) 要求显式正数预算；groupInheriting 只在提交现场有外层 scoped task 时有效。
+deadline 从统一提交准备边界起算。body 在准备后移交执行管道；失败路径清空框架持有的 payload。
+尚未提交的草稿可能保留请求 closure，这是显式草稿生命周期的代价。
 
-**聚合容器的完成契约（定稿）**：整组值经 `valuesResult()`（`ImmediateResult<GroupValues<V>>`）表达，与组结果同一份冻结数据：
+## 5. 值视图与终端
 
-| 组终态 | 聚合容器 |
-|---|---|
-| 全部普通成员（及已声明的 terminal）成功 | 成功，值是该组的有序 `GroupValues` |
-| 已记录失败（成员或 terminal 的 `USER_FAILURE`/`SUBMISSION_FAILURE`） | 失败，携带该失败；combine 失败也使聚合失败 |
-| 无记录失败的取消：`MEMBER_CANCELLED`、组/父级取消、`TIMEOUT` | 失败，取消形异常 |
+combineValues 的 GroupValues 输入在普通成员全部成功后构建，先于终端结果；
+公开聚合值视图只在整组成功后可读。值、名称和 key 按声明顺序逐槽对齐；
+完成顺序不影响位置。快照浅层不可变，值列表允许 null。typedValues 是单成员值或左嵌套
+Tuple2；空组为 null。combineValues 始终收到视图，单成员成功 null 不会把视图本身变成 null。
+combine 则直接收到 V，单成员成功 null 时输入可为 null。
 
-Left 的异常形状、`valuesOrThrow()` 的升级规则与取消归因见同步出口契约 §3。冻结结果在 `runAll()` 返回前已确定，不存在 pending 态。聚合容器不携带部分值，也不因为组成功而保证 terminal 已成功：terminal 成功已包含在"整组成功"判定内。
-
-带 `TypeToken<T>` 的 `valueAt`/`valueOf` 先定位槽位，再要求 `expectedType.equals(declaredType)`，不做宽松的父类型匹配；匹配后才把可为 null 的值作为 `@Nullable T` 返回。`typeAt`/`typeOf` 公开该槽位的声明 token，供确实动态的调用方检查 schema。相同规则用于 `TaskGroupResult.resultAt`/`resultOf` 的类型化重载，所以错误 token 在取值时就被拒绝，而不会延迟到使用处。即使成员成功返回 null，也必须先校验 token；null 不是跳过类型检查的特殊通道。未带 token 的重载保持返回 `Object`/`@Nullable Object`，用于未知 schema 的动态调用。
-
-`par` 的 `TypeToken<T>` 与 `Callable<? extends T>` 在编译期共享 `T`。任务体正常返回非 null 值时，在标记成员成功前用 `declaredType.getRawType().isInstance(value)` 校验原始类；不匹配按该成员的 `USER_FAILURE` 收敛，并保留含成员名、声明类型、实际类名的 `ClassCastException`。该检查由 prepared callable 的包装层执行（提交时构造），因此裸类重载与 `TypeToken` 形式走同一条路径。terminal combine 用其声明 `TypeToken<R>` 做同一检查。类型擦除使这个检查不能证明 `List<Order>` 内每个元素都是 `Order`；token 的精确相等保证查询方请求的是已声明的参数化类型，而不是对任意对象做任意泛型强转。调用方使用 raw type 或未检查 cast 时，容器内容仍可能违规，这是 Java 泛型边界，不宣称深度运行时校验。
-
-聚合容器不代表单次任务执行。成员或 terminal 非成功时，它不提供部分值：失败或取消由其自身 Left 表达（见上表）；`runAll()` 仍正常返回完整的 `TaskGroupResult`，其中每个成员和可选 terminal 有终态快照。按名/按位置的结果容器 `resultOf`/`resultAt` 与成员快照 `members()` 在返回后即可读取。
-
-`combine` 是链尾的可选全量 join。其 body 接收普通成员的 `V`（可能含 null），只在全部成员成功后于指定 `Par` 执行；`CombinedGroupStep` 仅暴露 `runAll`，不提供 `par` 或第二次 `combine`。声明时提供 `TypeToken<R>`，使 terminal 返回类型也可做上述原始类检查。terminal 的取消 token、TTL、deadline 在提交准备阶段创建，executor 拒绝归为 `SUBMISSION_FAILURE`——combine 的 caller-thread 回退被固定关闭，所以框架不会把用户 body 调度到最后完成成员的回调线程上；唯一例外是 combine 的 `Par` 背后是 direct executor，那时它按 direct executor 的通用语义内联在提交线程上运行，与本组的收敛路径无关（见 [terminal combine 契约 §3](task-group-terminal-combine.md)）。terminal 值通过 `terminalValueOrThrow()`/`terminalResult()` 取得，快照仍由 `TaskGroupResult.terminal()` 提供。"零普通成员但有 combine"的形态不存在；单独任务用单成员组（`Par.submit` 已随同步出口降为内部入口）。
+terminalResult 为 null 仅表示未声明 combine；返回 Void/null 的 combine 仍有结果容器。
+成员失败导致 terminal 跳过，但成员及 terminal 的 key 结果必须可读。
+terminal 失败使聚合值读取失败，单独成功成员的结果仍可读。
+运行、取消、拒绝、观测和清理语义见 [终端契约](task-group-terminal-combine.md)。
 
 ## 6. 错误时机
 
-| 情况 | 时机与异常 | 提交结果 |
-|---|---|---|
-| null、空白/重复名称、foreign Par、非法 timeout/close grace、null 或未解析/primitive 类型 token | `group`/`par`/`combine` 当次调用抛 `NullPointerException` 或 `IllegalArgumentException` | 无运行资源 |
-| 旧阶段分叉、重复提交、异线程操作草稿、combine 后追加 | 当次调用抛 `IllegalStateException` | 无运行资源 |
-| inherit 组无外层 task、owner 已关闭、准备失败 | 提交（`runAll`）同步抛出并清空框架持有的 body | 无 executor 调用 |
-| `resultAt`/`valueAt` 越界 | 查询时抛 `IndexOutOfBoundsException`，消息含 index 与 size | 已提交组不受影响 |
-| `resultOf`/`valueOf` 未知名称 | 查询时抛 `IllegalArgumentException`，消息含名称 | 已提交组不受影响 |
-| 期望 token 为 null 或与声明 token 不相等 | 查询时分别抛 `NullPointerException`、`IllegalArgumentException`，消息含名称/索引和两个类型 | 已提交组不受影响；即使值为 null 也执行匹配 |
-| body 通过 raw/未检查代码返回与 token 原始类不符的非 null 值 | 成员完成前形成 `ClassCastException` 并按 `USER_FAILURE` 收敛 | 已接纳组正常收敛 |
-| 聚合容器在非成功组上的 Left | 组收敛时冻结：有记录失败携带该失败，否则为取消形异常 | 已接纳组正常收敛 |
-| 成员 body、combine 或 executor 失败，取消或 timeout | admission 后从 `TaskGroupResult` 观测 | 组正常收敛 |
+工厂校验名称；声明期校验归属、参数和重复名称；准入期检查 runtime 及继承 deadline。
+executor rejection 和 body 异常作为运行结果记录。结果查询不等待、不消费中断标志，
+且不因当前线程被中断而改变只读行为。
 
-`resultOf(null)`/`valueOf(null)` 抛 `NullPointerException`。成功 null 返回 null，未知名称抛异常，二者不混淆。`TaskCompletion.taskIndex()` 保持现有单任务 unit 下标含义，组成员仍为 0；元组位置是另一种寻址坐标。
+## 7. 取舍
 
-## 7. 代价、否决与迁移
+省去 Class/TypeToken 的反射、存储和比较，以及每个声明/查询的重复类型参数。
+不再支持运行期 schema 类型自省；动态调用方自行处理 Object。
+key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 raw/unchecked 调用。
+不引入全局 key 注册、反射类型捕获、Tuple3…TupleN 或第二条执行路径。
+嵌套 Tuple2 仍可用于静态折叠；成员较多时 combineValues 提供 key 寻址。
 
-保留：单一 admission、单次草稿生命周期、每成员 `Par`/`TaskOptions`、可选 terminal combine、结构化取消与 deadline、TTL、观测和完整归因。`TaskBatchResult` 仍只负责同构 Batch。`GroupValues` 的名称与位置入口借 `TypeToken` 做运行时 schema 检查；编译期的结果结构来自 `par(TypeToken<T>, Callable<? extends T>)` 与 `Tuple2`，符合 [第一性原理](first-principles.md) 的单一内核与显式作用域判据。
+## 8. 验证要求
 
-失去与代价：不能预建一份 immutable definition 并并发重复运行；每次请求重新声明、校验和分配草稿。每个 `par`/`combine` 都须显式提供类型（`Class<T>` 或 `TypeToken<T>`）；参数化类型要用匿名子类或常量声明，增加调用样板与存储/比较开销。嵌套 `Tuple2` 的类型签名和 `first()/second()` 随成员数增长会难读，`TaskGroupResult<V,R>`/combine 泛型也较复杂；Java 8 没有 `var`，接收结果的声明必须写全嵌套元组类型。无 token 的 `valueOf`/`valueAt` 仍需业务强转，数字位置对重排敏感；有 token 的重载也只在运行时发现名称与声明类型不符。结果视图与 `TaskGroupResult` 的快照并存，终态读取有两个入口（值 vs 归因快照），文档与测试需各自覆盖。未提交草稿可能保留 closure，用户返回的可变对象不会被结果视图冻结。空组 combine 被移除。当前没有性能证据证明重复声明的开销可忽略；这是以不需要多次运行同一结构为前提的产品取舍。
-
-否决**无 token** 的 `<T> T valueOf(String)`、`<T> T valueAt(int)`：`T` 可被调用方随意选，属于伪类型安全。引入 `TypeToken<T>` 后可提供经声明 token 精确匹配的类型化动态查询，但它仍不是编译期键，也不能普遍验证被擦除的泛型容器内容。不定义 `Tuple3...TupleN` 或按元数生成 `GroupRunN`；也不以 `ImmutableMap<String,Object>` 返回完整结果，因为 null 成员值是合法成功结果。带 `TaskOptions` 的 `Class<T>` 形式已补齐，最初的否决及推翻理由见 §3。
-
-这是对未发布 API 的重塑，不是已发布契约的破坏性变更（见文首基线说明）。迁移时把 `defineGroup*` + `Builder.task` + `build` + `submitGroup` 合并为每次运行的一条 `group*().par(name, par, type, body).runAll()` 链；删除 `Member<T>` 保存点，为每个成员声明类型（裸类用 `Foo.class`，参数化类型用 `TypeToken` 匿名子类）。类型化整体值改读 `valuesOrThrow()` 的 `typedValues()`；动态查找优先用带 token 的 `valueOf`/`valueAt`，或结果容器 `resultOf`/`resultAt`；旧 `Bindings.combine` 改为链尾带类型 token 的 `combine`，terminal 用 `terminalValueOrThrow()`。反复使用同一拓扑的调用方也须逐次建链。不提供兼容 shim。
-
-## 8. 验证矩阵与实施
-
-| 维度 | 必须验证 |
-|---|---|
-| Java 8 类型 | 二、三成员链的类型推断；`TypeToken.of(User.class)`、`User.class` 与 `TypeToken<List<Order>>` 绑定 body；嵌套 `Tuple2` 无强转读取；单成员与元组中的 null；JSpecify/NullAway 和 Java 8 release 编译 |
-| step builder | 正常链式调用中 `combine().par()`、第二次 `combine`、成员后 `closeGrace` 不可编译；保存旧阶段引用后分叉或重复提交、异线程使用均拒绝；提交/准备失败后 body 引用释放 |
-| 顺序与类型 | 重名、空名、foreign Par、null/未解析/primitive token 立即拒绝；成员注册表依声明顺序构建且先于任一 executor 提交；位置查询、名称查询与最终值槽位一致；完成顺序不影响索引；未知名称、token 不匹配和成功 null 可区分 |
-| 聚合容器 | 整组成功为成功值且值有序；成员失败时 Left 携带该失败；无记录失败的取消/超时为取消形 Left；combine 失败也使聚合失败；空组 size 0 且 `typedValues()` 为 null |
-| 擦除边界 | 参数化 token 精确匹配；错误的原始返回类归为 `USER_FAILURE`；`List<Order>` 内部元素不做无法保证的深度验证 |
-| 统一准入 | 注册完整后才调用 executor；与 runtime close 竞争要么全接纳要么全拒绝；handoff `Error` 收敛为结果 |
-| 结构化语义 | 直消、fail-fast、父/组/成员 deadline、TTL、TaskGraph、body exit 和 close grace 与现行路径一致 |
-| 聚合与 combine | 全组成功才构建 `GroupValues`；失败时 `TaskGroupResult` 仍完整；combine 恰好执行一次或正确跳过，terminal 不占普通成员索引；`terminalResult()` 为 null 与返回 `Void` 的 combine 可区分 |
-
-实施要求：复用包私有执行内核，不复制 `TaskSubmissions`/`ScopedCallable`；
-`verification/maven-central-consumer` 在 CI 的 `java8-runtime` job 用真实 JDK 8 编译，
-新链式调用必须纳入其中，让最深的泛型推断由真 javac 8 检验；编译测试应直接覆盖第 2 节
-的使用示例。
+覆盖 Java 8 编译期正反例、参数化类型、泛型方法内创建 key、可空值、
+身份寻址、跨运行复用、重复声明不消耗 stage、过期/跨线程阶段、foreign runtime，
+以及两种 terminal 输入的成功门控、显式选项、取消、TTL、拒绝和有界清理。
+外部消费、独立只读评审、反向验证和 scoped PIT 分别报告；不能互相替代。
 
 ## 9. 评审与验证教训
 
@@ -264,6 +149,35 @@ Left 的异常形状、`valuesOrThrow()` 的升级规则与取消归因见同步
 - 手写 stub 可能让被测机制空转甚至挂住（见
   [interruption-contract.md](interruption-contract.md) §7）；关键路径用真实实现。
 
-依赖行为记录：Guava 构造期就拒绝顶层为裸类型变量的 `TypeToken`，因此声明期校验实际
-拦截的是**嵌套**未解析变量的 token（如 `List<T>`，包括藏在 owner type 里的）；测试要
-同时覆盖嵌套与 owner 两种形态。
+### 类型化 key 的评审与验证
+
+独立只读 Codex CLI harness 在 cmux `task-key-review` 工作区逐条对照类型化 key 契约，
+检查 Java 8、泛型、身份、生命周期、取消与终端输入；未确认实现缺陷。以下测试发现均保留并修正：
+
+- 仅断言终端非成功，无法排除失败成员仍触发终端提交。改为同时要求 `FAIL_FAST` 和
+  terminal executor 零提交，避免输入组装失败掩盖成功门控错误。
+- 仅断言 `TIMEOUT`，无法区分显式成员预算与组预算。加入明显早于组 deadline 的收敛上限；
+  临时丢弃显式选项后测试实际失败，恢复选项后通过。
+- 旧 combine 的覆盖不能替代新值视图入口。新增 join 前取消、终端运行中取消、终端拒绝，
+  分别检查 key 结果、提交或调用次数及 body 退出确认。
+- 配合中断退出不能证明有界清理。另用独立 latch 保持 body 未退出，通过有界 `Future.get`
+  观察清理返回及未退出摘要；finally 释放 body、确认退出、排空 finish worker 并关闭 scope。
+  复审指出同步调用 finish 可能在故障时卡住测试，改为上述受控 worker 后确认无阻塞发现。
+- key 身份查询的反向验证临时改用名称定位，同名 key 冒用测试实际失败；恢复引用身份后通过。
+
+类型令牌实现的历史验证见提交 `ae30391`；移除类型令牌后的验证与评审单独记录，不沿用历史分数。
+
+### 无运行期类型令牌的复审
+
+独立只读 gpt-6-astra 按本文 MUST/MUST NOT 核对泛型、Java 8、身份查询、草稿守卫、
+结果冻结及取消/终端交错，未发现生产代码缺陷。两项文档发现均保留并修正：终端契约仍写
+已移除的字符串加类型声明；本文把 combineValues 输入的构建时机错误写成整组成功后。
+修正后的文本分别描述 key 声明，以及“普通成员全成功后构建输入、整组成功后公开聚合值”。
+这些修正不改变执行行为。CLI 评审曾因连接重试无法完成，不计为通过的独立评审。
+
+类型令牌测试移除后，动态名称/位置与可空槽位的边界覆盖须独立保留，不能由 key 测试代替。
+反向验证临时按名称解析 key，同名 key 冒用测试失败；恢复引用身份后全套测试通过。
+本轮 scoped PIT 覆盖 TaskKey、GroupValues、TaskGroupResult，包含 VOID_METHOD_CALLS。
+剩余幸存者仅为值视图及结果的位置上界/显式检查：底层列表仍抛出契约要求的同类异常，
+按现有值与异常类型契约等价。唯一未覆盖变异是 GroupValues.toString 的诊断文本返回值，
+不宣称已覆盖该分支或调度内核的全量变异。真实 JDK 8 消费与行为测试分别验证。

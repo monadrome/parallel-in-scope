@@ -1,4 +1,8 @@
-# 具名终端输入
+# 字符串具名终端输入
+
+类型化 key 终端输入已由 `combineValues(TaskKey, Par, body)` 实现，现行规则见
+[组声明契约](../group-one-shot-api-refactor-codex.md#41-类型化声明键)。本提案仅保留未知 schema
+或字符串名称消费方的入口候选；下方字符串重载仍未实现，须以真实动态消费需求重新论证。
 
 ## 蒸馏摘要
 
@@ -13,11 +17,12 @@
 当前三成员汇总：
 
 ```java
-.combine("profile", cpuPar, Profile.class, values -> buildProfile(
+.combine(TaskKey.<Profile>named("profile"), cpuPar, values -> buildProfile(
         values.first().first(), values.first().second(), values.second()))
 ```
 
-可选草图，复用现有 `GroupValues` 和同一个 prepared terminal：
+可选草图，复用现有 `GroupValues` 和同一个 prepared terminal；它仍未实现，且当前
+不再有 Class/TypeToken schema，若推进必须重新论证恢复该协议的成本：
 
 ```java
 .combineValues("profile", cpuPar, Profile.class, values -> buildProfile(

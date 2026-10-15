@@ -1,11 +1,11 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -88,7 +88,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
     private final ImmutableList<MemberState> membersAndTerminal;
 
     private final ImmutableList<String> memberNames;
-    private final ImmutableList<TypeToken<?>> memberTypes;
+
+    private final ImmutableList<TaskKey<?>> memberKeys;
     private final @Nullable MemberState terminal;
     private final Map<String, TaskFuture<?>> members;
     private final SettableFuture<TaskGroupReport> completion = SettableFuture.create();
@@ -149,13 +150,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
         this.memberStates = ImmutableMap.copyOf(memberStates);
         this.orderedMembers = this.memberStates.values().asList();
         ImmutableList.Builder<String> names = ImmutableList.builder();
-        ImmutableList.Builder<TypeToken<?>> types = ImmutableList.builder();
+
+        ImmutableList.Builder<TaskKey<?>> keys = ImmutableList.builder();
         for (MemberState member : this.orderedMembers) {
             names.add(member.name);
-            types.add(member.type);
+
+            keys.add(member.key);
         }
         this.memberNames = names.build();
-        this.memberTypes = types.build();
+
+        this.memberKeys = keys.build();
         this.terminal = terminal;
         this.membersAndTerminal = terminal == null
                 ? this.orderedMembers
@@ -237,10 +241,12 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     member.view.observationView(), budget, start, "member observation signal");
         }
         Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
+        Map<TaskKey<?>, ImmediateResult<?>> keyedResults = new LinkedHashMap<>();
         Map<String, TaskCompletion<?>> observations = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             ImmediateResult<Object> immediate = freezeResult(member);
             results.put(member.name, immediate);
+            keyedResults.put(member.key, immediate);
             TaskCompletion<?> observed = finalObservation(member, immediate);
             if (observed != null) {
                 observations.put(member.name, observed);
@@ -264,11 +270,14 @@ final class TaskGroup<V, R> implements AutoCloseable {
         Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
         BodyCompletionTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
         ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
+        if (terminal != null) {
+            keyedResults.put(terminal.key, com.google.common.base.Verify.verifyNotNull(terminalResult));
+        }
         return new TaskGroupResult<>(
                 report,
                 memberNames,
-                memberTypes,
                 results,
+                keyedResults,
                 observations,
                 frozenValues,
                 terminalResult,
@@ -338,40 +347,15 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return memberNamed(name).view;
     }
 
-    /**
-     * The future of the plain member at a declaration position, checked against the declared token.
-     *
-     * <p>The query token must be exactly the declared token — no widening to a supertype — so a
-     * wrong token is rejected here rather than surfacing as a {@code ClassCastException} at the
-     * {@code get()} site. The check runs regardless of whether the member has succeeded, and
-     * regardless of whether its value is null.
-     *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
-     *     count
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared token;
-     *     the message carries the position and both types
-     */
-    public <T> TaskFuture<T> futureAt(int index, TypeToken<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        MemberState member = memberAt(index);
-        requireDeclaredType(member, expectedType, "the member at index " + index);
-        return castView(member);
-    }
-
-    /**
-     * The future of the named plain member, checked against the declared token.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared token; the message carries the name and both
-     *     types
-     */
-    public <T> TaskFuture<T> futureOf(String name, TypeToken<T> expectedType) {
-        Objects.requireNonNull(expectedType, "expectedType cannot be null");
-        MemberState member = memberNamed(name);
-        requireDeclaredType(member, expectedType, "member '" + name + "'");
-        return castView(member);
+    @SuppressWarnings("ReferenceEquality")
+    <T> TaskFuture<T> futureOf(TaskKey<T> key) {
+        checkNotNull(key, "key cannot be null");
+        for (MemberState member : memberStates.values()) {
+            if (member.key == key) {
+                return castView(member);
+            }
+        }
+        throw new IllegalArgumentException("no member declared with task key '" + key + "'");
     }
 
     /**
@@ -528,13 +512,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return member;
     }
 
-    private static void requireDeclaredType(MemberState member, TypeToken<?> expectedType, String what) {
-        if (!member.type.equals(expectedType)) {
-            throw new IllegalArgumentException(
-                    what + " was declared as " + member.type + " but queried as " + expectedType);
-        }
-    }
-
     @SuppressWarnings("unchecked")
     private static <T> TaskFuture<T> castView(MemberState member) {
         return (TaskFuture<T>) member.view;
@@ -546,8 +523,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * member context and future, and the terminal combine's pipeline, taking each body from the
      * one-shot {@code payloads}. Runs inside one {@link ParRuntime#whileOpen} admission.
      *
-     * <p>Each member body is wrapped in the type check its declared token promises, and the terminal
-     * combine's body is wrapped to receive the assembled member values. On any preparation failure
+     * <p>The terminal combine's body is wrapped to receive the assembled member values. On any preparation failure
      * every prepared future is cancelled — releasing the bodies the kernel took — and the exception
      * propagates so the caller can discard the untaken payloads; no user code runs on this path.
      *
@@ -619,18 +595,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 par.warnIfEnqueueRefusalInert(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
-                // The payload moves into the prepared future here; the RunBindings slot is cleared
-                // by the take, so a half-prepared group holds no body the kernel has not adopted.
-                // The wrapper is what turns a body that violates its declared token into an ordinary
-                // member failure instead of a later ClassCastException at a caller's use site.
-                Callable<Object> body = typeChecked(slot.name, slot.type, payloads.takeCallable(memberIndex++));
+                Callable<Object> body = payloads.takeCallable(memberIndex++);
                 ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 MemberState state = new MemberState(
-                        slot.name,
-                        slot.type,
-                        taskContext,
-                        future,
-                        par.executorRuntime().submissionExecutor());
+                        slot.key, taskContext, future, par.executorRuntime().submissionExecutor());
                 states.put(slot.name, state);
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
@@ -664,16 +632,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());
-                String combineName = combineSlot.name;
-                TypeToken<?> combineType = combineSlot.type;
-                Callable<Object> body = () -> assembleTerminal(combineName, combineType, combineBody, states);
+                Callable<Object> body = () -> assembleTerminal(combineBody, states, combineSlot.valueView);
                 ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
                 terminal = new MemberState(
-                        combineName,
-                        combineType,
+                        combineSlot.key,
                         taskContext,
                         future,
                         par.executorRuntime().submissionExecutor());
@@ -712,43 +677,29 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Wraps a member body so that a non-null result violating the member's declared token fails the
-     * member instead of escaping as a {@code ClassCastException} at some later, unrelated read.
-     *
-     * <p>A null result is always accepted: a member that succeeds with null is a successful member,
-     * and its declared token is checked at lookup time rather than here.
-     */
-    private static Callable<Object> typeChecked(String memberName, TypeToken<?> declaredType, Callable<Object> body) {
-        return () -> checkDeclaredType(memberName, declaredType, body.call());
-    }
-
-    private static @Nullable Object checkDeclaredType(
-            String memberName, TypeToken<?> declaredType, @Nullable Object value) {
-        if (value == null) {
-            return null;
-        }
-        Class<?> rawType = declaredType.getRawType();
-        if (!rawType.isInstance(value)) {
-            throw new ClassCastException(
-                    "'" + memberName + "' was declared as " + declaredType + " but its body returned an instance of "
-                            + value.getClass().getName());
-        }
-        return value;
-    }
-
-    /**
      * Assembles the terminal combine's input from the frozen member registry and applies the body.
      *
      * <p>The combine runs only after every member succeeded, so each member future is already
      * settled; anything else is a framework invariant violation rather than user input.
      */
     private static @Nullable Object assembleTerminal(
-            String combineName,
-            TypeToken<?> combineType,
-            CombineBody<Object, Object> body,
-            Map<String, MemberState> states)
-            throws Exception {
-        return checkDeclaredType(combineName, combineType, body.apply(foldMemberValues(states)));
+            CombineBody<Object, Object> body, Map<String, MemberState> states, boolean valueView) throws Exception {
+        @Nullable Object input = valueView ? memberValues(states) : foldMemberValues(states);
+        return body.apply(input);
+    }
+
+    private static GroupValues<Object> memberValues(Map<String, MemberState> states) {
+        ImmutableList.Builder<String> names = ImmutableList.builder();
+
+        ImmutableList.Builder<TaskKey<?>> keys = ImmutableList.builder();
+        List<@Nullable Object> collected = new ArrayList<>(states.size());
+        for (MemberState member : states.values()) {
+            names.add(member.name);
+
+            keys.add(member.key);
+            collected.add(settledValue(member));
+        }
+        return GroupValues.of(names.build(), keys.build(), collected, foldValues(collected));
     }
 
     /**
@@ -1047,7 +998,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private void setValues(List<@Nullable Object> collected) {
-        values.set(GroupValues.of(memberNames, memberTypes, collected, (V) foldValues(collected)));
+        values.set(GroupValues.of(memberNames, memberKeys, collected, (V) foldValues(collected)));
     }
 
     /**
@@ -1170,10 +1121,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /** Internal per-run state of one frozen member or of the terminal combine. */
     static final class MemberState {
+        final TaskKey<?> key;
         final String name;
-
-        /** The token declared for this slot; every typed lookup and the body check compare to it. */
-        final TypeToken<?> type;
 
         /** The engine object: submitted to the executor, never handed to the caller. */
         final ExecutionPhaseHintFuture<Object> future;
@@ -1190,16 +1139,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
         private final AtomicBoolean counted = new AtomicBoolean();
 
         private MemberState(
-                String name,
-                TypeToken<?> type,
+                TaskKey<?> key,
                 TaskExecutionContext context,
                 ExecutionPhaseHintFuture<Object> future,
                 Executor executor) {
-            this.name = name;
-            this.type = type;
+            this.key = key;
+            this.name = key.name();
+
             this.context = context;
             this.future = future;
-            this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
+            this.view = Task.of(this.name, context.multiTaskContext().cancellationToken(), future);
             this.executor = executor;
         }
 

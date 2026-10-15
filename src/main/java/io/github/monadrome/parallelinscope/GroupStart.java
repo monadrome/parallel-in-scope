@@ -1,6 +1,5 @@
 package io.github.monadrome.parallelinscope;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 
@@ -35,6 +34,20 @@ import java.util.concurrent.Callable;
 public interface GroupStart {
 
     /**
+     * Declares the first member using a reusable typed key. The key supplies the name and type;
+     * lookup must use this exact key object. Names remain unique across the entire group.
+     * No runtime type token is stored or checked.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> body);
+
+    /** Declares the first keyed member with explicit task options. */
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+
+    /**
      * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores
      * interruption and restores the flag; it does not extend task execution deadlines.
      *
@@ -48,67 +61,6 @@ public interface GroupStart {
      * @throws IllegalStateException if a member is already declared, or this stage is stale
      */
     GroupStart closeGrace(Duration grace);
-
-    /**
-     * Declares the first plain member and opens the chain.
-     *
-     * <p>The type token and the body are bound in one call, so the member's declared type cannot
-     * drift from the body that produces it. The name must be non-null, non-blank, and unique across
-     * every member and the combine; the {@code Par} must belong to the {@code ParRuntime} that
-     * created this stage. The token must be a concrete reference type: a primitive raw type or a
-     * token still containing a type variable is rejected here, before any run state exists.
-     *
-     * @param name the member name; the key for {@link GroupValues#valueOf} and diagnostics
-     * @param par the {@code Par} this member's body runs on
-     * @param type the member's declared result type
-     * @param body this run's task body, invoked at most once after submission
-     * @return the next stage, whose {@code V} is this member's type
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
-     */
-    <T> GroupStep<T> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body);
-
-    /**
-     * Declares the first plain member using a plain class instead of a {@link TypeToken}.
-     *
-     * <p>Shorthand for {@link #par(String, Par, TypeToken, Callable)} with {@code
-     * TypeToken.of(type)}: identical validation, identical runtime type check, no second code path.
-     * Use it for non-generic result types; parameterized types still need a token, because a {@code
-     * Class} cannot carry them.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
-     */
-    <T> GroupStep<T> par(String name, Par par, Class<T> type, Callable<? extends T> body);
-
-    /**
-     * Declares the first plain member with explicit options rather than {@link
-     * TaskOptions#inheritTimeout()}.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
-     */
-    <T> GroupStep<T> par(String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body);
-
-    /**
-     * Declares the first plain member with explicit options, using a plain class instead of a
-     * {@link TypeToken}.
-     *
-     * <p>Shorthand for {@link #par(String, Par, TaskOptions, TypeToken, Callable)} with {@code
-     * TypeToken.of(type)}: identical validation, identical runtime type check, no second code path.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
-     */
-    <T> GroupStep<T> par(String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body);
 
     /**
      * Executes an empty group: no members, no combine, immediately successful.
