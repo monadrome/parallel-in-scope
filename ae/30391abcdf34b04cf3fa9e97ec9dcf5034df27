@@ -1,0 +1,87 @@
+docs/en/migration-v0.3.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 7-29
+src/main/java/io/github/monadrome/parallelinscope/GroupStep.java
+  s_dc77a65e20a26b::t_747e26a7a4e484 45
+  s_dc77a65e20a26b::t_4934a9619a87ba 27-44,46-50
+design/group-one-shot-api-refactor-codex.md
+  s_dc77a65e20a26b::t_47835433c707f1 332-334
+  s_dc77a65e20a26b::t_9220d76a6d583a 325
+  s_dc77a65e20a26b::t_203b012b4e44bf 313-324,326-331,335-339
+  s_dc77a65e20a26b::t_d999a04305c8ee 159-201
+design/task-group-terminal-combine.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 53-56
+src/main/java/io/github/monadrome/parallelinscope/CombineBody.java
+  s_dc77a65e20a26b::t_d999a04305c8ee 15,57
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_dc77a65e20a26b::t_d999a04305c8ee 13,42-65
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_dc77a65e20a26b::t_4934a9619a87ba 89-90,92-95,98
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_dc77a65e20a26b::t_747e26a7a4e484 639
+  s_dc77a65e20a26b::t_63759318010cf9 92,154,158,162,244,249,273-275,281,675-676,682,755-756,759-773,1072,1195,1216,1220-1222,1225
+  s_dc77a65e20a26b::t_9168c9c06d3c6b 758
+CHANGELOG.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 5-15
+design/proposal/P0009-named-terminal-input.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 1-5
+design/AGENTS.md
+  s_dc77a65e20a26b::t_473e9993186d37 126
+src/main/java/io/github/monadrome/parallelinscope/GroupValues.java
+  s_dc77a65e20a26b::t_9168c9c06d3c6b 3-5,117,119
+  s_dc77a65e20a26b::t_6ac1ed4fb5c346 118
+  s_dc77a65e20a26b::t_63759318010cf9 44,54,59,67,70,108-116,120
+src/test/java/io/github/monadrome/parallelinscope/TaskKeyCompileTest.java
+  s_dc77a65e20a26b::t_ea71ceb3136ec8 1-18,21-23,31-37,40-44,47,50-58,66,82-84
+  s_dc77a65e20a26b::t_747e26a7a4e484 19-20,24-30,38-39,45-46,48-49,59-65,67-81
+src/main/java/io/github/monadrome/parallelinscope/TaskKey.java
+  s_dc77a65e20a26b::t_9168c9c06d3c6b 3,7-11,35,66-67,69,77-115
+  s_dc77a65e20a26b::t_747e26a7a4e484 4,70-76
+  s_dc77a65e20a26b::t_473e9993186d37 68
+  s_dc77a65e20a26b::t_4934a9619a87ba 1-2,5-6,12-34,36-65,116-123
+docs/zh/user-guide.md
+  s_dc77a65e20a26b::t_4e4eded8242705 160-186
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_dc77a65e20a26b::t_63759318010cf9 38,50,60,223-234
+docs/zh/migration-v0.3.md
+  s_dc77a65e20a26b::t_4e4eded8242705 6-20
+design/synchronous-scope-exit.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 83
+src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+  s_dc77a65e20a26b::t_4934a9619a87ba 38-46
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_dc77a65e20a26b::t_a60e3d02e6e61a 45
+src/test/java/io/github/monadrome/parallelinscope/TaskKeyTest.java
+  s_dc77a65e20a26b::t_e9ac965afe04be 21,23,189-200,202-206,281,285-286,291-292,297-298,303,412-484,520-545
+  s_dc77a65e20a26b::t_ea71ceb3136ec8 1-2,4-6,8,12-19,24-80,83-88,91-104,109-112,115-118,121-134,136-138,142-156,158-167,174-188,207-213,217-241,244-250,253-260,263-268,271-276,304-309,312-316,320-331,546-547
+  s_dc77a65e20a26b::t_24cb85ff548cd1 11,485-500,502-504,506-510
+  s_dc77a65e20a26b::t_4e4eded8242705 511-519
+  s_dc77a65e20a26b::t_747e26a7a4e484 81-82,89-90,105-108,119-120,139-141,168-173,214-216,242-243,251-252,261-262,269-270,277-280,282-284,287-290,293-296,299-302,310-311,317-319
+  s_dc77a65e20a26b::t_cd529d7422f1d4 332-334
+  s_dc77a65e20a26b::t_498c4ba2bf05b4 20,501,505
+  s_dc77a65e20a26b::t_844d856f1c5bdb 352-354,370-371,379-380,394-397,399-410
+  s_dc77a65e20a26b::t_e794ab820c3799 3,113-114,135,157
+  s_dc77a65e20a26b::t_3ea3a729ee418b 7,10,22,335-351,355-369,372-378,381-393,398,411
+docs/en/user-guide.md
+  s_dc77a65e20a26b::t_d999a04305c8ee 183-218
+src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java
+  s_dc77a65e20a26b::t_6ac1ed4fb5c346 253
+  s_dc77a65e20a26b::t_473e9993186d37 100,102,129,131
+  s_dc77a65e20a26b::t_4934a9619a87ba 56,61-62,73-74,79-81,110-118,139-149,202,208,244-252,254-256,329-334,336-368
+  s_dc77a65e20a26b::t_747e26a7a4e484 335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ae30391abcdf34b04cf3fa9e97ec9dcf5034df27",
+  "prompts": {},
+  "sessions": {
+    "s_dc77a65e20a26b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13eeb-e8fb-7ff3-9087-ef334d100f3f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
