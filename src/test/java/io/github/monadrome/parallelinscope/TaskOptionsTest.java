@@ -26,12 +26,11 @@ class TaskOptionsTest {
                 .map(Method::getName)
                 .collect(Collectors.toCollection(TreeSet::new));
 
-        // No name, no parallelism, no listener: identity comes from the Member handle (or the
-        // explicit name at Par.submit) and a single task has no fan-out to limit, so those fields
-        // must not exist rather than be silently ignored.
+        // No name, no parallelism, no listener: identity comes from the name declared to the
+        // group chain (or the explicit name at Par.submit) and a single task has no fan-out to
+        // limit, so those fields must not exist rather than be silently ignored.
         assertThat(names)
-                .isEqualTo(new TreeSet<>(
-                        Arrays.asList("inheritTimeout", "rejectEnqueue", "runOnCallerThread", "taskType", "timeout")));
+                .isEqualTo(new TreeSet<>(Arrays.asList("inheritTimeout", "rejectEnqueue", "taskType", "timeout")));
     }
 
     @Test
@@ -40,35 +39,36 @@ class TaskOptionsTest {
     }
 
     @Test
-    void defaultsAreCpuBoundRejectingAndFailOnRejection() {
+    void defaultsAreIoBoundEnqueueingAndFailOnRejection() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
-        assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(options.rejectEnqueue()).isTrue();
-        // No task type implies the caller-thread fallback, CPU_BOUND included.
-        assertThat(options.runOnCallerThread()).isFalse();
+        // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
+        // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
+        // refuse every task submitted with default options, leaving its capacity unused and sending
+        // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
+        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.rejectEnqueue()).isFalse();
     }
 
     @Test
     void withersReturnNewInstancesWithoutMutatingTheOriginal() {
-        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.IO_BOUND);
+        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.CPU_BOUND);
 
-        TaskOptions derived =
-                base.rejectEnqueue(false).taskType(TaskType.CPU_BOUND).runOnCallerThread(true);
+        TaskOptions derived = base.rejectEnqueue(true).taskType(TaskType.IO_BOUND);
 
-        assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(base.rejectEnqueue()).isTrue();
-        assertThat(base.runOnCallerThread()).isFalse();
-        assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(derived.rejectEnqueue()).isFalse();
-        assertThat(derived.runOnCallerThread()).isTrue();
+        assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(base.rejectEnqueue()).isFalse();
+        assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.timeout()).contains(Duration.ofSeconds(1));
 
         TaskOptions inherited = TaskOptions.inheritTimeout();
-        assertThat(inherited.taskType(TaskType.IO_BOUND).taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(inherited.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(inherited.taskType(TaskType.CPU_BOUND).taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(inherited.taskType()).isEqualTo(TaskType.IO_BOUND);
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void rejectsNonPositiveExplicitTimeouts() {
         assertThatThrownBy(() -> TaskOptions.timeout(Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
@@ -82,19 +82,17 @@ class TaskOptionsTest {
         UnitSpec spec = TaskOptions.timeout(Duration.ofSeconds(3))
                 .taskType(TaskType.IO_BOUND)
                 .rejectEnqueue(false)
-                .runOnCallerThread(true)
                 .spec("get-user");
 
         assertThat(spec.name()).isEqualTo("get-user");
         assertThat(spec.requestedParallelism()).isEqualTo(1);
-        assertThat(spec.timeout()).contains(Duration.ofSeconds(3));
+        assertThat(spec.timeout()).isEqualTo(Duration.ofSeconds(3));
         assertThat(spec.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(spec.rejectEnqueue()).isFalse();
-        assertThat(spec.runOnCallerThread()).isTrue();
     }
 
     @Test
-    void specKeepsAnInheritedTimeoutEmpty() {
-        assertThat(TaskOptions.inheritTimeout().spec("member").timeout()).isEmpty();
+    void specKeepsAnInheritedTimeoutNull() {
+        assertThat(TaskOptions.inheritTimeout().spec("member").timeout()).isNull();
     }
 }
