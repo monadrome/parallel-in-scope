@@ -102,25 +102,30 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
+        CountDownLatch started = new CountDownLatch(1);
         try {
             TaskBatch<String> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList("blocker", "queued-a", "queued-b"),
-                            item -> holdUninterruptibly(block, item),
-                            BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
+                            item -> {
+                                started.countDown();
+                                return holdUninterruptibly(block, item);
+                            },
+                            BatchOptions.timeout("window", SCOPE_TIMEOUT)
+                                    .parallelism(1)
+                                    .closeGrace(Duration.ZERO));
 
-            // Element 0 occupies the only slot; the other two are still waiting for one and the
-            // batch close abandons them before submission.
+            assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             batch.close();
             block.countDown();
 
             List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(completions).hasSize(3);
+            assertThat(completions.get(0).startTimeNanos()).isGreaterThan(0L);
             for (int index = 1; index < 3; index++) {
                 TaskCompletion<String> abandoned = completions.get(index);
                 assertThat(abandoned.taskIndex()).isEqualTo(index);
                 assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-                // Never started: zero timings and durations, but a real outcome and identity.
                 assertThat(abandoned.startTimeNanos()).isZero();
                 assertThat(abandoned.endTimeNanos()).isZero();
                 assertThat(abandoned.executionTime()).isZero();
