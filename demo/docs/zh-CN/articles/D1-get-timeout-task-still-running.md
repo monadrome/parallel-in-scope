@@ -36,7 +36,7 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 `parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `BatchOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
 
-1. **请求取消**：通过 `CancellationToken` 的 `lateBind` 机制，批次超时后取消所有未完成任务，并尝试中断正在执行的任务线程。
+1. **请求取消**：批次级 `CancellationToken` 在任何任务进入执行器之前完成绑定；超时触发后取消所有未完成任务，并尝试中断正在执行的任务线程。
 
 2. **协作式取消**：对于不会因中断自动退出的任务，可在循环或阶段边界调用 `Checkpoints.checkpoint("api-call", true)`（名称需与 `BatchOptions` 的任务名一致），主动检测当前 scope 的取消状态并提前退出。
 

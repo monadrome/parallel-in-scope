@@ -1,6 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thread-local submission state used only while submitting work to an executor.
@@ -9,24 +9,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * SmartBlockingQueue} apply the unit's enqueue policy before a worker begins executing a task.
  */
 final class SubmissionScope {
-    private static final ThreadLocal<MultiTaskContext> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable MultiTaskContext> CURRENT = new ThreadLocal<>();
 
     private SubmissionScope() {}
 
     /** Returns the unit currently being submitted, or null outside a submission. */
-    public static @Nullable MultiTaskContext current() {
+    static @Nullable MultiTaskContext current() {
         return CURRENT.get();
     }
 
     /** Installs a unit for one submission and returns the unit it replaced. */
-    public static @Nullable MultiTaskContext install(MultiTaskContext context) {
+    static @Nullable MultiTaskContext install(MultiTaskContext context) {
         MultiTaskContext previous = CURRENT.get();
         CURRENT.set(context);
         return previous;
     }
 
     /** Restores the unit returned from {@link #install(MultiTaskContext)}. */
-    public static void restore(@Nullable MultiTaskContext context) {
+    static void restore(@Nullable MultiTaskContext context) {
         if (context == null) CURRENT.remove();
         else CURRENT.set(context);
     }

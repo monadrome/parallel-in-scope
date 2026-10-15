@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -24,12 +25,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 /** Exercises cancellation triggers across pending, cooperative, and non-cooperative workloads. */
 public class CancellationTriggerCartesianTest {
 
-    private enum Trigger {
+    enum Trigger {
         TIMEOUT,
         MANUAL_INTERRUPT
     }
 
-    private enum Workload {
+    enum Workload {
         PENDING,
         RUNNING_IO_GATE,
         RUNNING_CPU_COOPERATIVE,
@@ -58,16 +59,20 @@ public class CancellationTriggerCartesianTest {
 
         try {
             fixture.awaitEntry();
-            token.bind(Collections.singletonList(fixture.future), submitter, timer);
+            ListenableFuture<?> aggregate = token.bind(Collections.singletonList(fixture.future), submitter, timer);
             if (trigger == Trigger.MANUAL_INTERRUPT) {
                 token.cancel(true);
             }
 
             CancellationToken.State expected =
-                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELED;
+                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELLED;
             awaitState(token, expected);
             awaitCancelled(fixture.future);
             awaitCancelled(submitter);
+            await().until(aggregate::isDone);
+            if (!aggregate.isCancelled()) {
+                Futures.getUnchecked(aggregate);
+            }
 
             if (workload == Workload.PENDING) {
                 assertThat(fixture.interrupted).isFalse();
@@ -94,14 +99,19 @@ public class CancellationTriggerCartesianTest {
 
         try {
             fixture.awaitEntry();
-            token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
+            ListenableFuture<?> aggregate =
+                    token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             token.cancel(false);
 
-            awaitState(token, CancellationToken.State.CANCELED);
+            awaitState(token, CancellationToken.State.CANCELLED);
             awaitCancelled(fixture.future);
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")
                     .isFalse();
+            await().until(aggregate::isDone);
+            if (!aggregate.isCancelled()) {
+                Futures.getUnchecked(aggregate);
+            }
         } finally {
             fixture.close();
             timer.shutdownNow();
@@ -113,7 +123,7 @@ public class CancellationTriggerCartesianTest {
             throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (token.state() != expected && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(token.state()).isEqualTo(expected);
     }
@@ -122,7 +132,7 @@ public class CancellationTriggerCartesianTest {
     private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!future.isCancelled() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(future).isCancelled();
     }
@@ -131,7 +141,7 @@ public class CancellationTriggerCartesianTest {
     private static void awaitTrue(AtomicBoolean value) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!value.get() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1L);
         }
         assertThat(value).isTrue();
     }
@@ -143,7 +153,6 @@ public class CancellationTriggerCartesianTest {
 
     /** Owns one controlled workload and its independent cleanup channel. */
     private static final class WorkFixture implements AutoCloseable {
-        private final Workload workload;
         private final ExecutorService rawExecutor;
         private final ListeningExecutorService executor;
         private final CountDownLatch entered;
@@ -154,7 +163,6 @@ public class CancellationTriggerCartesianTest {
 
         /** Creates a fixture around an already-constructed workload Future. */
         private WorkFixture(
-                Workload workload,
                 ExecutorService rawExecutor,
                 ListeningExecutorService executor,
                 CountDownLatch entered,
@@ -162,7 +170,6 @@ public class CancellationTriggerCartesianTest {
                 CountDownLatch exited,
                 AtomicBoolean interrupted,
                 ListenableFuture<Integer> future) {
-            this.workload = workload;
             this.rawExecutor = rawExecutor;
             this.executor = executor;
             this.entered = entered;
@@ -173,10 +180,11 @@ public class CancellationTriggerCartesianTest {
         }
 
         /** Creates pending or entered work with deterministic entry and release controls. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static WorkFixture create(Workload workload) {
             if (workload == Workload.PENDING) {
                 return new WorkFixture(
-                        workload,
                         null,
                         null,
                         new CountDownLatch(0),
@@ -193,7 +201,7 @@ public class CancellationTriggerCartesianTest {
             AtomicBoolean interrupted = new AtomicBoolean();
             ListenableFuture<Integer> future =
                     listening.submit(() -> runWorkload(workload, entered, release, exited, interrupted));
-            return new WorkFixture(workload, raw, listening, entered, release, exited, interrupted, future);
+            return new WorkFixture(raw, listening, entered, release, exited, interrupted, future);
         }
 
         /** Runs the selected workload until release or cooperative interruption. */
@@ -214,7 +222,12 @@ public class CancellationTriggerCartesianTest {
                 entered.countDown();
                 if (workload == Workload.RUNNING_CPU_COOPERATIVE) {
                     while (release.getCount() > 0 && !Thread.currentThread().isInterrupted()) {
-                        Thread.yield();
+                        try {
+                            Thread.sleep(1L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
                     }
                     if (Thread.currentThread().isInterrupted()) {
                         interrupted.set(true);

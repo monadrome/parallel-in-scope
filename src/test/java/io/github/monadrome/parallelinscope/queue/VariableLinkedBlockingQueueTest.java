@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +41,6 @@ class VariableLinkedBlockingQueueTest {
     void shutdownPool() {
         pool.shutdownNow();
     }
-
-    // ==================== construction & capacity ====================
 
     @Test
     void constructor_nonPositiveCapacity_rejected() {
@@ -117,8 +116,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("first", queue.poll());
         assertEquals("second", queue.poll());
     }
-
-    // ==================== blocking put/take signalling ====================
 
     /**
      * A putter parked on a full queue must be released when a take frees a slot; the take path's
@@ -341,7 +338,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals("done", putter.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     }
 
-    // ==================== lock-leak probes ====================
     // A mutation removing an unlock/fullyUnlock leaks the lock; a second cross-thread call
     // on the same lock then never completes, so asserting its completion kills the mutation.
 
@@ -425,7 +421,7 @@ class VariableLinkedBlockingQueueTest {
     void leak_fromContains_blocksOtherOffer() throws Exception {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
         queue.offer("a");
-        queue.contains("a");
+        var unused = queue.contains("a");
         assertOtherThreadOfferCompletes(queue);
     }
 
@@ -433,7 +429,7 @@ class VariableLinkedBlockingQueueTest {
     void leak_fromToArray_blocksOtherOffer() throws Exception {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
         queue.offer("a");
-        queue.toArray();
+        var unused = queue.toArray();
         assertOtherThreadOfferCompletes(queue);
     }
 
@@ -450,7 +446,7 @@ class VariableLinkedBlockingQueueTest {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
-        it.hasNext();
+        var unused = it.hasNext();
         assertOtherThreadOfferCompletes(queue);
     }
 
@@ -473,8 +469,6 @@ class VariableLinkedBlockingQueueTest {
         assertOtherThreadOfferCompletes(queue);
     }
 
-    // ==================== non-blocking & timed operations ====================
-
     @Test
     void offer_nonBlocking_full_returnsFalse() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
@@ -482,6 +476,8 @@ class VariableLinkedBlockingQueueTest {
         assertFalse(queue.offer("b"));
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void offer_null_rejected() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
@@ -556,8 +552,6 @@ class VariableLinkedBlockingQueueTest {
         assertEquals(2, queue.remainingCapacity());
     }
 
-    // ==================== removal, contains, clear, drainTo ====================
-
     @Test
     void remove_object_present_removesFirstMatch() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
@@ -620,6 +614,8 @@ class VariableLinkedBlockingQueueTest {
         assertTrue(queue.offer("c"));
     }
 
+    // NullAway: deliberate null arguments — probes the null-rejection contract
+    @SuppressWarnings("NullAway")
     @Test
     void drainTo_selfOrNull_rejected() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
@@ -748,8 +744,6 @@ class VariableLinkedBlockingQueueTest {
         };
     }
 
-    // ==================== iterator ====================
-
     @Test
     void iterator_traversal_inFifoOrder() {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
@@ -826,8 +820,6 @@ class VariableLinkedBlockingQueueTest {
         assertFalse(it.hasNext());
     }
 
-    // ==================== helpers ====================
-
     /** Asserts that a cross-thread offer completes, i.e. the putLock is not leaked. */
     private void assertOtherThreadOfferCompletes(VariableLinkedBlockingQueue<String> queue) throws Exception {
         BlockedCall<Boolean> caller = BlockedCall.start(pool, () -> queue.offer("probe"));
@@ -862,6 +854,8 @@ class VariableLinkedBlockingQueueTest {
      * Runs a call on the pool and exposes both the worker thread (for parking detection) and the
      * future (for the terminal result).
      */
+    // NullAway: 'future' is assigned by the static start() factory right after construction
+    @SuppressWarnings("NullAway.Init")
     private static final class BlockedCall<T> {
         private final AtomicReference<Thread> thread = new AtomicReference<>();
         private Future<T> future;
@@ -894,6 +888,7 @@ class VariableLinkedBlockingQueueTest {
         }
 
         interface CheckedCall<T> {
+            @Nullable
             T run() throws Exception;
         }
     }

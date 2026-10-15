@@ -2,7 +2,8 @@
 
 > **Note (v0.3).** The `0.2.x` API described in this guide has itself been replaced in `0.3.0`:
 > `ParName`, `TaskKey`, `TaskGroupOptions`, and the rest of the task-group surface were removed
-> or redesigned around `defineGroup*` / `submitGroup` / `Bindings`. Applications on `0.2.x`
+> or redesigned around the one-shot chain `runtime.group(name, timeout).par(...).runAll()`.
+> Applications on `0.2.x`
 > should continue on to [Migrating to v0.3](migration-v0.3.md).
 
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.
@@ -104,7 +105,7 @@ Task outcome classification is unified into a single enum, `TaskOutcome`, replac
 the earlier internal `FutureState` and `TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
 former member-reason values so it serves both batch reports and group member results. Mapping from
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
-`TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
+`TaskOutcome.MEMBER_CANCELLED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
 Consequently `TaskBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
 each group member's terminal snapshot (`TaskGroupResult.members()` values, of the unified
 `TaskCompletion` type) exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
@@ -155,16 +156,16 @@ Batch-level element cancellation no longer surfaces as a bare cancellation: the 
 classifies a directly cancelled element through the same fail-fast trigger that a failed element
 uses, and batch reports now attribute cancelled elements from the batch token's committed state
 (`Par.map` results always carry it): `TIMEOUT` for deadline expiry, `FAIL_FAST` for the cascade
-after a sibling failure, `GROUP_CANCELED` for batch-level or propagated cancellation, and
-`MEMBER_CANCELED` when no framework path committed. Because the batch shares one token across
+after a sibling failure, `GROUP_CANCELLED` for batch-level or propagated cancellation, and
+`MEMBER_CANCELLED` when no framework path committed. Because the batch shares one token across
 elements, the element whose direct cancellation triggered the cascade also reads `FAIL_FAST`;
 per-element initiator attribution requires a task group. `TaskBatchResult` instances are constructed
 by the execution API; its former public `of(...)` factories are now package-private.
 
 Task groups changed semantics accordingly: cancelling one member (its future or its token) now
 cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member
-reports `MEMBER_CANCELED`, unfinished siblings report `GROUP_CANCELED`, and the group converges
-on `GROUP_CANCELED`.
+reports `MEMBER_CANCELLED`, unfinished siblings report `GROUP_CANCELLED`, and the group converges
+on `GROUP_CANCELLED`.
 
 ## Terminal vocabulary unification
 
@@ -172,8 +173,8 @@ on `GROUP_CANCELED`.
 `TaskGroupResult.completionReason()` is renamed to `outcome()` and now returns `TaskOutcome`.
 Mapping from the removed enum: `SUCCESS` → `TaskOutcome.SUCCESS`; `TIMEOUT` → `TaskOutcome.TIMEOUT`;
 `FAILED` → the failed task's own outcome (`USER_FAILURE` or `SUBMISSION_FAILURE`, see
-`failedTaskName()`); `CANCELED` → `GROUP_CANCELED` when the group was canceled as a whole or the
-cancellation propagated from an enclosing scope, and `MEMBER_CANCELED` when the cancellation
+`failedTaskName()`); `CANCELLED` → `GROUP_CANCELLED` when the group was cancelled as a whole or the
+cancellation propagated from an enclosing scope, and `MEMBER_CANCELLED` when the cancellation
 originated from a member.
 
 A task-group member or terminal combine now takes its execution-time diagnostic name from its
@@ -182,14 +183,14 @@ task-graph labels with the name used to retrieve the future and result snapshot.
 options are `TaskOptions`, which has no name field to be ignored. Because the failure source may also be the terminal combine,
 `TaskGroupResult.failedMemberName()` is renamed to `failedTaskName()`.
 
-`CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →
-`FAIL_FAST`, `TIMEOUT_CANCELED` → `TIMEOUT`, `MUTUAL_CANCELED` → `CANCELED`, and
-`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged. `code()` is
+`CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELLED` →
+`FAIL_FAST`, `TIMEOUT_CANCELLED` → `TIMEOUT`, `MUTUAL_CANCELLED` → `CANCELLED`, and
+`PROPAGATING_CANCELLED` → `PROPAGATED_CANCELLED`. `RUNNING` and `SUCCESS` are unchanged. `code()` is
 removed (the integer encoding was an implementation detail with no consumers); the
 `shouldInterruptCurrentThread()` semantics are unchanged and now read as a direct enum comparison.
 
-`ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELED_BEFORE_RUN` to match the single-L
-`CANCELED` spelling used across the library.
+`ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELLED_BEFORE_RUN` to match the single-L
+`CANCELLED` spelling used across the library.
 
 `GlobalExecutionPolicy` is removed: its only content was the `TaskListener` list, so listeners are
 now registered directly on `GlobalPar.Builder`. `GlobalExecutionPolicy.builder().taskListener(l).build()`

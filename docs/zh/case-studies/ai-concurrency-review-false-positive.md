@@ -1,5 +1,8 @@
 # AI 对并发代码审查的误报复盘
 
+> 本文复盘的事件发生在 `0.1.x` 时代，文中代码使用当时的历史 API（`CancellationToken.lateBind()`、
+> `FAIL_FAST_CANCELLED`、`getState()`）；这些 API 后来已删除或更名——取消绑定改为在提交前完成，
+> 现行状态词表见[协作式取消](../reference/cooperative-cancellation.md)。复盘结论与具体 API 无关。
 
 ## 背景
 
@@ -35,7 +38,7 @@ AI 的判断是：
 3. `catchingAsync` 捕获失败，并返回一个已取消 future。
 4. `failFastFuture` 进入失败/取消路径，而不是成功路径。
 5. `addCallback` 调用 `onFailure`。
-6. `onFailure` 执行 `allFutures.cancel(true)`，并把状态设置为 `FAIL_FAST_CANCELED`。
+6. `onFailure` 执行 `allFutures.cancel(true)`，并把状态设置为 `FAIL_FAST_CANCELLED`。
 
 也就是说，AI 把 “捕获异常后返回 cancelled future” 误解成了 “捕获异常后恢复为成功 future”。
 这类错误在并发代码中很常见：控制流不是只由异常捕获决定，还受到 future 状态机语义影响。
@@ -58,7 +61,7 @@ public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
     failed.setException(new RuntimeException("boom"));
 
     await().untilAsserted(() -> {
-        assertEquals(CancellationToken.State.FAIL_FAST_CANCELED, token.getState());
+        assertEquals(CancellationToken.State.FAIL_FAST_CANCELLED, token.getState());
         assertTrue(sibling.isCancelled(), "sibling future should be cancelled by fail-fast");
         assertTrue(submitCanceller.isCancelled(), "submit canceller should be cancelled by fail-fast");
     });
@@ -69,7 +72,7 @@ public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
 
 | 断言 | 说明 |
 |---|---|
-| 状态是 `FAIL_FAST_CANCELED` | 没有误入 `SUCCESS` |
+| 状态是 `FAIL_FAST_CANCELLED` | 没有误入 `SUCCESS` |
 | 兄弟 future 被取消 | 快速失败确实传播到了同批任务 |
 | `submitCanceller` 被取消 | 剩余提交流程也被停止 |
 

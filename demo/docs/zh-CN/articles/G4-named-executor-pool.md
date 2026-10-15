@@ -39,7 +39,8 @@ processReport(cpuPool);   // 错误：报表任务误用了计算池
 ```java
 ExecutorService ioPool = Executors.newFixedThreadPool(16);
 ExecutorService cpuPool = Executors.newFixedThreadPool(4);
-ExecutorService reportPool = Executors.newSingleThreadExecutor();
+ExecutorService reportPool = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
 // 命名注册：一个 ParRuntime 统一管理所有线程池
 ParRuntime config = ParRuntime.builder()
@@ -74,6 +75,11 @@ TaskBatchResult<Report> reports = par.map( months, month -> {
 | 传错风险 | 编译通过，运行时才发现 | 名字不匹配直接报错 |
 | 生命周期管理 | 散落各处，容易漏关 | 集中在 ParRuntime，统一管理 |
 | 新增池 | 改方法签名，改调用方 | `.register(ParId.of("new-pool"), pool)` 一行注册 |
+
+> ⚠️ 注册时要用**物理池**：`newFixedThreadPool(n)`、`newCachedThreadPool()` 直接返回
+> `ThreadPoolExecutor`，队列清理与阻塞风险检测都可用；`newSingleThreadExecutor()`、
+> `listeningDecorator(...)` 等工厂返回的是装饰器，库看不透它们——注册时会有 WARN 日志，
+> 且这两个能力失效。需要单线程池时，显式 `new ThreadPoolExecutor(1, 1, ...)` 即可。
 
 ---
 
