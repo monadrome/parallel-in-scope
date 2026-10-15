@@ -51,7 +51,7 @@ the unsettled cancellation estimate. Both conditions must hold:
 
 ```text
 P >= capacityPressureThreshold
-R >= canceledRatioThreshold
+R >= cancelledRatioThreshold
 ```
 
 The first qualifying signal CASes `IDLE` to `SUBMITTED` and schedules one
