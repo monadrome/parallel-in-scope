@@ -1,12 +1,12 @@
 package io.github.monadrome.parallelinscope;
 
 import java.util.Objects;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
 final class TaskExecutionContext {
 
-    private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
@@ -16,34 +16,34 @@ final class TaskExecutionContext {
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
 
-    public TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
+    TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
         this(multiTaskContext, taskIndex, submitTimeNanos, null);
     }
 
     /**
      * Creates a context carrying the task-body slot registered with the submission's shared
-     * completion tracker; {@code null} for tasks outside any tracked submission (a single {@code
-     * Par.submit}).
+     * completion tracker; {@code null} only for a task prepared outside any tracked submission,
+     * which production entry points no longer do.
      */
-    public TaskExecutionContext(
+    TaskExecutionContext(
             MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
-        if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+        Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
         this.bodyState = bodyState;
     }
 
-    public MultiTaskContext multiTaskContext() {
+    MultiTaskContext multiTaskContext() {
         return multiTaskContext;
     }
 
     /** Returns the stable index of this task's input element within its batch. */
-    public int taskIndex() {
+    int taskIndex() {
         return taskIndex;
     }
 
-    public long submitTimeNanos() {
+    long submitTimeNanos() {
         return submitTimeNanos;
     }
 
@@ -53,28 +53,28 @@ final class TaskExecutionContext {
         return bodyState;
     }
 
-    public long startTimeNanos() {
+    long startTimeNanos() {
         return startTimeNanos;
     }
 
-    public long endTimeNanos() {
+    long endTimeNanos() {
         return endTimeNanos;
     }
 
-    public long executionTimeNanos() {
+    long executionTimeNanos() {
         return endTimeNanos - startTimeNanos;
     }
 
-    public long waitTimeNanos() {
+    long waitTimeNanos() {
         return startTimeNanos - submitTimeNanos;
     }
 
-    public long totalTimeNanos() {
+    long totalTimeNanos() {
         return endTimeNanos - submitTimeNanos;
     }
 
     /** Returns the task currently executing on this thread, or null outside a scoped task. */
-    public static @Nullable TaskExecutionContext current() {
+    static @Nullable TaskExecutionContext current() {
         return CURRENT.get();
     }
 
