@@ -12,7 +12,7 @@
 > migrating from `0.2.x`? Read the [v0.3 migration guide](docs/en/migration-v0.3.md) first.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
-context propagation, sliding-window scheduling, and thread-pool deadlock diagnostics.
+context propagation, sliding-window scheduling, and thread-pool deadlock and starvation diagnostics.
 
 ## Quick Start
 
