@@ -8,9 +8,13 @@ The library targets three recurring Java 8 problems: cancellation that cannot re
 
 `Par.map` gives a batch a clear scope, executor, task type, parallelism, timeout, and result report. The scope makes failure and cancellation ownership visible. It also gives the implementation one place to enforce fail-fast behavior, sliding-window submission, and parent-child cancellation.
 
-## Late binding
+## Prepare, bind, then submit
 
-Cancellation and timeout wiring is completed after all futures have been created. This late-binding step avoids races where an early task fails before the rest of the batch has been connected to the same cancellation token. The trade-off is a slightly more explicit internal lifecycle in exchange for deterministic batch semantics.
+Every element has its execution future prepared before cancellation and timeout wiring. Binding
+finishes before any task is submitted, including tasks that an executor runs on the caller.
+The sliding window controls admission of those same prepared futures; there are no placeholders or
+later delegate swaps. Public execution waits for terminal results and bounded cleanup, then returns
+frozen values and failures.
 
 ## Two cancellation exceptions
 
@@ -26,9 +30,10 @@ Submitting every item at once can flood a queue and make nested calls deadlock. 
 the current task's cancellation and nesting ownership. A separate internal submission scope exists
 only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
 before a task starts. Neither context is relayed through arbitrary user executor submissions.
-`TaskGraphObservationScope` records task and executor relationships in a request-scoped graph so
-the library can detect cycles that a thread dump would otherwise reveal only after production
-impact. This is executor deadlock detection, not a replacement for lock analysis.
+`TaskGraphObservationScope` records which task units wait for which in a request-scoped graph and
+projects those waits onto executors, so the library can detect pool wait cycles that a thread dump
+would otherwise reveal only after production impact. This is executor deadlock detection, not a
+replacement for lock analysis.
 
 ## Deliberate boundaries
 

@@ -9,14 +9,18 @@ The report API must describe completed, failed, cancelled, and timed-out work wi
 - Results preserve the input order where the API promises ordering.
 - Successful, failed, cancelled, and timed-out tasks are reported separately.
 - A task failure triggers fail-fast cancellation of the remaining batch.
-- `report()` remains stable after all futures have completed.
-- Empty and partially completed batches have deterministic counts.
+- `report()` reads frozen terminal results and stays stable on repeated reads; it never reports RUNNING.
+- Empty and failed/cancelled batches have deterministic counts.
 
 ## Test layers
 
 ### Unit tests
 
-Construct immediate, settable, and cancelled futures directly. This keeps state assertions deterministic and avoids starting an unnecessary executor for every case. Assert exact counts and states instead of checking that a string merely contains a fragment.
+Construct terminal ImmediateResult values directly. This keeps public report assertions deterministic
+without starting an executor. Internal live-future tests are a separate layer and do not imply that
+the public TaskBatchResult changes after return. Assert exact counts and states instead of checking
+that a string merely contains a fragment. firstException selects the first USER_FAILURE or
+SUBMISSION_FAILURE in input order; pure timeout/cancellation may have a null firstException.
 
 ### Demo integration tests
 
