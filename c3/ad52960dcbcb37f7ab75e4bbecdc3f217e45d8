@@ -1,0 +1,179 @@
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_dc77a65e20a26b::t_190dbd9cc6c27e 43-45,59,111-114,127-129,148-150
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 56,61,107,112,119,124,180,185,191,196
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphExportTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 204-206
+src/main/java/io/github/monadrome/parallelinscope/GroupValues.java
+  s_dc77a65e20a26b::t_3326df412ead6a 17-20,25-26
+  s_dc77a65e20a26b::t_c2ee5171b407d2 33,47,58
+src/main/java/io/github/monadrome/parallelinscope/GroupStep.java
+  s_dc77a65e20a26b::t_3326df412ead6a 10
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphObservationScopeTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 263-265
+src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+  s_dc77a65e20a26b::t_3326df412ead6a 39-43
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupFailedTaskResultTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 35,52-53,75-76
+design/proposal/P0004-shared-root-budget.md
+  s_dc77a65e20a26b::t_80ba0535332256 20
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupBodyCompletionTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 33-34,508,532,550,554
+  s_dc77a65e20a26b::t_c2ee5171b407d2 64,108,155,196,244,301,337,376,428,468,594,599,626-627,672,716,720
+design/proposal/P0020-deadline-attribution-policy.md
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 18
+design/proposal/P0003-errorprone-cleanup.md
+  s_dc77a65e20a26b::t_e897820b0568a1 147
+design/extension-and-wrapping.md
+  s_dc77a65e20a26b::t_8f2c158f6c7495 195
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 232
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_dc77a65e20a26b::t_ffd79267317b5b 351-358
+  s_dc77a65e20a26b::t_c2ee5171b407d2 91,153,157,161,598,635,686,688,693,698,702,1001,1148
+  s_dc77a65e20a26b::t_dd2a57f29a146c 3,350
+  s_dc77a65e20a26b::t_ac63de7e89a18b 526
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupListenerFailureTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 26,39,50,62
+src/test/java/io/github/monadrome/parallelinscope/TaskKeyCompileTest.java
+  s_dc77a65e20a26b::t_c6afdf70ac8b54 81-82
+  s_dc77a65e20a26b::t_31217015a37cc1 52-76,80
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 103,184,189,221-222,251,311,478,494,525,553,560,589,597,700,705,766,770,841,843,845,848,854,857,1002,1111-1114,1190,1255,1294,1354
+  s_dc77a65e20a26b::t_74ad473957ec97 920,968,1038,1075
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 38-52,67-68,71-72,80,120,131,134,157,166,283,289,349-350,356-357,362-363,395,431,455,521,530,635,736,740,745-746,800,838-839,865,868,873,890,893,898-900,917,960,1029,1055,1151,1158,1380,1404,1412
+  s_dc77a65e20a26b::t_c84e7f9ad41179 927
+src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 220
+src/test/java/io/github/monadrome/parallelinscope/VirtualDeadlineTest.java
+  s_dc77a65e20a26b::t_190dbd9cc6c27e 107,232,301,311
+  s_dc77a65e20a26b::t_c84e7f9ad41179 304
+src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 31-33,103,108,133,135,137,140-141,144-145,160-161,192,197,215-216,238-239,250
+  s_dc77a65e20a26b::t_f035ab0b54f645 249,299,301,303,306
+  s_dc77a65e20a26b::t_690e33cde62e52 154
+  s_dc77a65e20a26b::t_c2ee5171b407d2 82,109,128,130-131,162,217,240,268-269,272,275,295,297
+design/AGENTS.md
+  s_dc77a65e20a26b::t_258fa6d6a7d48f 61
+design/synchronous-scope-exit.md
+  s_dc77a65e20a26b::t_d49b93c2bae6ad 63-65
+  s_dc77a65e20a26b::t_0fe992e6484de6 82,110
+src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 31,367,385-386,405
+src/test/java/io/github/monadrome/parallelinscope/TaskKeyTest.java
+  s_dc77a65e20a26b::t_3f161c93b7266b 223
+  s_dc77a65e20a26b::t_713d2c0d835f41 51,115,185-186,189,195,331,335-341,348-349,355
+  s_dc77a65e20a26b::t_ea7fa17d3a7f77 76-99
+  s_dc77a65e20a26b::t_190dbd9cc6c27e 30-32,53-54,71,104-105,117,146,200,252,255,356-357
+  s_dc77a65e20a26b::t_f035ab0b54f645 350
+src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 54,59-60,67,122-123,143,202,207,214,251-252,273,311-313,340,343
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 36-37,49,70,89,102,377,379
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineInlineGuardTest.java
+  s_dc77a65e20a26b::t_c84e7f9ad41179 80
+  s_dc77a65e20a26b::t_c2ee5171b407d2 70,75,136,141,174,179,215,220,253,258,263
+src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 174,186
+src/test/java/io/github/monadrome/parallelinscope/InheritedDeadlineAttributionTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 47,50
+docs/en/migration-v0.3.md
+  s_dc77a65e20a26b::t_0f84a8d9378246 9-10
+docs/en/user-guide.md
+  s_dc77a65e20a26b::t_80ba0535332256 153-155,184-186,236-239,303
+  s_dc77a65e20a26b::t_c3ab7fd030bcaf 3,9-10,143,146-147,169,171,173,177-179,199,201-202,206-207
+design/proposal/P0009-named-terminal-input.md
+  s_dc77a65e20a26b::t_e897820b0568a1 20,24-25
+design/task-group-submission.md
+  s_dc77a65e20a26b::t_0fe992e6484de6 65
+src/test/java/io/github/monadrome/parallelinscope/BodyCompletionBarrierInterruptTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 160
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphAdmissionTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 95,116,155,195-197,219,222-224,251-253,271
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupValuesFutureTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 28,100,107
+  s_dc77a65e20a26b::t_c2ee5171b407d2 38-39,68,93,130-131,161,189,233,270
+docs/zh/user-guide.md
+  s_dc77a65e20a26b::t_80ba0535332256 134-136,163-165,205-208,263
+  s_dc77a65e20a26b::t_0fe992e6484de6 3,7
+  s_dc77a65e20a26b::t_bf8e737f26d3d5 126,128,148,150,152,156-158,176,185-186
+src/test/java/io/github/monadrome/parallelinscope/TaskIdentityTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 55,77
+src/main/java/io/github/monadrome/parallelinscope/CombineBody.java
+  s_dc77a65e20a26b::t_dd2a57f29a146c 43,49-50
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 89,94,155,165
+src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 329
+design/first-principles.md
+  s_dc77a65e20a26b::t_0fe992e6484de6 55
+design/group-one-shot-api-refactor-codex.md
+  s_dc77a65e20a26b::t_832a8a755e63ad 1,5-9,11,13,16-17,20,23-25,28-32,34,36-38,40-44,46-48,55-70,74-78,80-82,84,88-90,92-95,99-101,103,105-109,111,113-116,168
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 86-87
+  s_dc77a65e20a26b::t_ea4d300728aba3 169-183
+docs/en/migration-v0.4.md
+  s_dc77a65e20a26b::t_95d95257932c89 1-45
+design/task-group-api-and-options.md
+  s_dc77a65e20a26b::t_0fe992e6484de6 30
+  s_dc77a65e20a26b::t_8f2c158f6c7495 149
+docs/zh/migration-v0.3.md
+  s_dc77a65e20a26b::t_38c0f397e24be2 8-9
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 35,56
+CHANGELOG.md
+  s_dc77a65e20a26b::t_0a3a69ef2256f3 7,12-17
+src/main/java/io/github/monadrome/parallelinscope/TaskKey.java
+  s_dc77a65e20a26b::t_8b0ba4112f91d5 11-13,21,26,28-29,31-32
+src/test/java/io/github/monadrome/parallelinscope/GroupClassOptionsOverloadTest.java
+  s_dc77a65e20a26b::t_ac63de7e89a18b 14,46,62,79
+  s_dc77a65e20a26b::t_c2ee5171b407d2 50,57,66-67,74,83-84,93
+docs/zh/migration-v0.4.md
+  s_dc77a65e20a26b::t_95d95257932c89 1-42
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 44-49,87,90,120-121,154-155,188,190,305-306,336,341,367,369,400-402,427-428,453,455,457,459,463,466,468,489-490,494,498,519-520
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_dc77a65e20a26b::t_3326df412ead6a 17-18
+  s_dc77a65e20a26b::t_ac63de7e89a18b 80
+docs/zh/reference/cooperative-cancellation.md
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 82
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 41-42,156,160,166,180
+  s_dc77a65e20a26b::t_c2ee5171b407d2 68-71,105-120
+docs/en/reference/cooperative-cancellation.md
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 68
+src/test/java/io/github/monadrome/parallelinscope/InterruptedResultFreezingTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 74,84-85
+src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
+  s_dc77a65e20a26b::t_202c471eb6d383 79-80,84,94,103
+  s_dc77a65e20a26b::t_c2ee5171b407d2 85-87,95,117-119,130,146,149,167,186,210,290,361,433,501,554,557,570-571,603,697,745
+mkdocs/mkdocs.yml
+  s_dc77a65e20a26b::t_95d95257932c89 17,155
+design/task-group-terminal-combine.md
+  s_dc77a65e20a26b::t_0fe992e6484de6 84-85,110-111
+  s_dc77a65e20a26b::t_8f2c158f6c7495 57
+  s_dc77a65e20a26b::t_80ba0535332256 66-69
+src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 112-113,257,262
+  s_dc77a65e20a26b::t_fd21c8e23fd4ed 36-39,111,119,218,223,354,360,652,657,663-664
+src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 214,219,224
+  s_dc77a65e20a26b::t_c84e7f9ad41179 305,308,314
+src/test/java/io/github/monadrome/parallelinscope/BusinessFailureAttributionTest.java
+  s_dc77a65e20a26b::t_c2ee5171b407d2 42,47,75-77
+docs/zh/design/idea-graveyard.md
+  s_dc77a65e20a26b::t_2efb2d14e3b3a7 210-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c3ad52960dcbcb37f7ab75e4bbecdc3f217e45d8",
+  "prompts": {},
+  "sessions": {
+    "s_dc77a65e20a26b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13eeb-e8fb-7ff3-9087-ef334d100f3f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
