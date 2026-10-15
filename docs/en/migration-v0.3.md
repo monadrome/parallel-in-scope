@@ -4,6 +4,29 @@ The 0.3 API executes synchronously: internal tasks remain parallel, but `Par.map
 `runAll()` return frozen values/failures after result convergence and bounded cleanup.
 There is no public asynchronous submission or running result scope.
 
+## Adopting typed keys on the 0.4 development line
+
+The new `TaskKey<T>` is a reference-identity result address, distinct from the removed 0.2 key API.
+Existing 0.3 declarations remain supported. For typed named reads, replace:
+
+```java
+runtime.group("user", timeout).par("user", par, User.class, this::loadUser)
+        .runAll().resultOf("user", User.class);
+```
+
+with one reusable declaration key:
+
+```java
+TaskKey<User> user = TaskKey.of("user", User.class);
+runtime.group("user", timeout).par(user, par, this::loadUser).runAll().resultOf(user);
+```
+
+Reuse the exact key object; reconstructing it from its name does not address an existing member.
+For terminal input by key, use `combineValues` with a terminal key and read `values.valueOf(user)`;
+the existing tuple-based `combine` remains supported. Keys do not replace per-run `TaskId` values.
+The new one-argument overloads make literal-null `valueOf(null)` and `resultOf(null)` ambiguous;
+cast deliberate null test arguments to `String` or `TaskKey<T>`.
+
 ## From an earlier 0.3 snapshot
 
 Before:
