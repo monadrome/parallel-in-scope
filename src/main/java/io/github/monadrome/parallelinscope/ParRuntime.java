@@ -66,6 +66,7 @@ public final class ParRuntime implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
+    private final AtomicInteger activeObservations = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Monitor quiescenceMonitor = new Monitor();
     private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
@@ -278,6 +279,35 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
+     * Opens a runtime observation for direct work submitted to this topology's registered
+     * executors.
+     *
+     * <p>The scope samples each distinct physical executor at the requested interval and publishes
+     * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
+     * instances can produce saturation evidence; other registered executors are named in the
+     * report as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise
+     * change user work.
+     *
+     * @param samplingInterval the positive interval between samples
+     * @return the closeable observation scope
+     * @throws NullPointerException if {@code samplingInterval} is null
+     * @throws IllegalArgumentException if {@code samplingInterval} is not positive
+     * @throws IllegalStateException if this runtime has begun shutdown
+     */
+    public ThreadPoolStarvationObservationScope openThreadPoolStarvationObservation(Duration samplingInterval) {
+        Validation.requirePositive(samplingInterval, "sampling interval");
+        return whileOpen(() -> {
+            activeObservations.incrementAndGet();
+            try {
+                return new ThreadPoolStarvationObservationScope(this, samplingInterval, runtimes);
+            } catch (RuntimeException | Error failure) {
+                activeObservations.decrementAndGet();
+                throw failure;
+            }
+        });
+    }
+
+    /**
      * Opens a one-shot task-group declaration with an explicit group timeout.
      *
      * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and nothing runs
@@ -431,20 +461,21 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the in-flight work this topology still tracks — admissions setting up a batch plus
-     * undrained batches — which is what {@link #awaitQuiescence(Duration)} waits on.
+     * Returns the in-flight work this topology still tracks — admissions setting up a batch,
+     * undrained batches, and open diagnostic observations — which is what {@link
+     * #awaitQuiescence(Duration)} waits on.
      */
     public int inFlight() {
-        return activeAdmissions.get() + activeBatches.get();
+        return activeAdmissions.get() + activeBatches.get() + activeObservations.get();
     }
 
     /**
      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
-     * and how many admitted runs still have an incomplete aggregate body-exit signal (one signal per
-     * run, covering every body of that run).
+     * how many starvation observations are open, and how many admitted runs still have an
+     * incomplete aggregate body-exit signal (one signal per run, covering every body of that run).
      *
-     * <p>The four readings are independent samples of concurrent counters: the snapshot is a
+     * <p>The five readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
      * linearizable state — it must not drive control flow, and it never replaces the quiescence
      * guarantee.
@@ -453,7 +484,11 @@ public final class ParRuntime implements AutoCloseable {
      */
     public ParRuntimeSnapshot snapshot() {
         return new ParRuntimeSnapshot(
-                closed.get(), activeAdmissions.get(), activeBatches.get(), liveBodySignals.size());
+                closed.get(),
+                activeAdmissions.get(),
+                activeBatches.get(),
+                activeObservations.get(),
+                liveBodySignals.size());
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
@@ -484,6 +519,7 @@ public final class ParRuntime implements AutoCloseable {
         if (closed.get()
                 && activeAdmissions.get() == 0
                 && activeBatches.get() == 0
+                && activeObservations.get() == 0
                 && servicesShutdown.compareAndSet(false, true)) {
             timerService.shutdown();
             timeoutActionPool.shutdown();
@@ -542,6 +578,15 @@ public final class ParRuntime implements AutoCloseable {
     /** Scheduler adapter that keeps deadline detection separate from timeout actions. */
     ScheduledExecutorService timeoutScheduler() {
         return timeoutScheduler;
+    }
+
+    ScheduledFuture<?> scheduleStarvationSampling(Runnable action, long intervalNanos) {
+        return timerService.scheduleAtFixedRate(action, intervalNanos, intervalNanos, TimeUnit.NANOSECONDS);
+    }
+
+    void starvationObservationClosed() {
+        activeObservations.decrementAndGet();
+        shutdownServicesWhenAdmissionsComplete();
     }
 
     /** The root clock domain for tokens this runtime creates; see the field documentation. */
