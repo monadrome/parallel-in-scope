@@ -390,6 +390,32 @@ if (report.status() == TaskGraphReport.Status.ISSUE) {
 
 executor 环与自环只按注册的 executor 对象本身检测，从不按 `ParId` 名称：两个 `ParId` 指向同一个池即为同一节点，单凭名称永远构不成环。顶层调用没有父 executor，不产生 executor 边；只有任务体内的嵌套调用才会产生。
 
+## 观测直接提交的工作
+
+任务图观测只覆盖通过本库准入的工作。直接提交到注册 executor 的任务没有依赖边；应用同时
+运行这类非结构化工作时，可以显式开启线程池饥饿观测：
+
+```java
+ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+try (ThreadPoolStarvationObservationScope observation =
+        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+    reportFuture = observation.reportFuture();
+    pool.execute(requestHandler);
+    submitOtherDirectWork(pool);
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
+    log.warn("Potential thread-pool starvation: {}", report);
+}
+```
+
+作用域只采样 `global` 注册的不同物理 `ThreadPoolExecutor`，不会包装、提交、取消或中断用户任务。
+只有连续采样同时看到当前 worker 全部忙、队列有积压且完成数没有前进时，才报告
+`POTENTIAL_STARVATION`。这是运行时风险信号，不证明 worker 正在阻塞，也不证明存在依赖环。
+`NO_ISSUE` 表示所有注册 executor 都可观测且没有捕获到信号；包装器或无法读取的 executor
+会列在 `unsupportedExecutors()` 中，且在没有其它可见池报告证据时状态为
+`INSUFFICIENT_VISIBILITY`。预计需要诊断积压时，作用域至少保持两个采样间隔。
+
 ## 清理已取消的排队任务
 
 库不再自动 purge 注册的执行器。取消项可能留在物理队列里，直到 worker 取出或执行器所有者主动移除。有界队列里的取消项仍占用容量，可能使后续提交被拒绝。执行前取消仍会释放任务的 Callable 捕获和 body slot。

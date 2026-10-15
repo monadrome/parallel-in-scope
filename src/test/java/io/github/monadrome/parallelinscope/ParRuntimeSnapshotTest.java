@@ -37,6 +37,7 @@ class ParRuntimeSnapshotTest {
         assertThat(snapshot.closed()).isFalse();
         assertThat(snapshot.activeAdmissions()).isZero();
         assertThat(snapshot.undrainedBatches()).isZero();
+        assertThat(snapshot.activeObservations()).isZero();
         assertThat(snapshot.unexitedBodySignals()).isZero();
         assertThat(snapshot.toString()).contains("closed=false");
     }
