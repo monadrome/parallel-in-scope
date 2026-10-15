@@ -123,7 +123,7 @@ documented rationale. If your change renames or alters a public API or a
 documented contract, update both migration guides of the current release line
 in the same pull request: `docs/en/migration-v<major>.<minor>.md` and
 `docs/zh/migration-v<major>.<minor>.md`, where `<major>.<minor>` comes from the
-`pom.xml` version (on `0.3.0-SNAPSHOT`,
+`pom.xml` version (on `0.3.0`,
 [docs/en/migration-v0.3.md](docs/en/migration-v0.3.md) and
 [docs/zh/migration-v0.3.md](docs/zh/migration-v0.3.md)). State the rationale
 in the PR description.
