@@ -1,0 +1,19 @@
+src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java
+  s_267349bbc6df50::t_7888224d20b6fc 105,110-116,118,124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1bb3cbfd7a81b8036c0d01dacd4dd3283b285397",
+  "prompts": {},
+  "sessions": {
+    "s_267349bbc6df50": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13e55-7215-7a13-997a-78b2c3709453",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
