@@ -48,6 +48,9 @@ import org.jspecify.annotations.Nullable;
  * deadline timer and the threads that run timeout actions; registered executors are borrowed and
  * are never shut down by this object.
  *
+ * <p>The runtime also implements the read-only {@link ParResolver} view so application components
+ * can receive entry discovery without receiving a mutable service locator.
+ *
  * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
  * processing while the framework-owned services drain; {@code close()} itself does not wait for
@@ -55,7 +58,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.3.0
  */
-public final class ParRuntime implements AutoCloseable {
+public final class ParRuntime implements AutoCloseable, ParResolver {
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
     private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<ParId, Par> pars;
@@ -242,6 +245,7 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /** Returns the {@link Par} registered under the given id, or empty when none is. */
+    @Override
     public Optional<Par> find(ParId id) {
         return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
     }
