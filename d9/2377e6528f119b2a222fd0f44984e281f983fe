@@ -1,0 +1,65 @@
+scripts/issue_agent/gates.py
+  ai_agent 1-196
+scripts/issue_agent/tests/test_landing.py
+  ai_agent 1-212
+scripts/issue_agent/prompts/fix.md
+  ai_agent 1-13
+scripts/issue_agent/github.py
+  ai_agent 1-241
+scripts/issue_agent/tests/test_outcomes.py
+  ai_agent 1-409
+scripts/issue_agent/schemas.py
+  ai_agent 1-84
+scripts/issue_agent/tests/test_safety.py
+  ai_agent 1-71
+scripts/issue_agent/triage.py
+  ai_agent 1-95
+scripts/issue_agent/schedule.py
+  ai_agent 1-69
+scripts/issue-agent.py
+  ai_agent 1-12
+scripts/issue_agent/issues.py
+  ai_agent 1-156
+scripts/issue_agent/render.py
+  ai_agent 1-139
+scripts/issue_agent/pipeline.py
+  ai_agent 1-184
+scripts/issue_agent/tests/test_gates.py
+  ai_agent 1-167
+scripts/issue_agent/tests/test_policy.py
+  ai_agent 1-142
+scripts/issue_agent/prompts/implement.md
+  ai_agent 1-44
+scripts/issue_agent/agents.py
+  ai_agent 1-164
+scripts/issue_agent/workspace.py
+  ai_agent 1-51
+scripts/issue_agent/proc.py
+  ai_agent 1-67
+scripts/issue_agent/prompts/review.md
+  ai_agent 1-39
+scripts/issue_agent/work.py
+  ai_agent 1-89
+scripts/issue_agent/config.py
+  ai_agent 1-153
+scripts/issue_agent/labels.py
+  ai_agent 1-70
+scripts/issue_agent/prompts/triage.md
+  ai_agent 1-37
+scripts/issue_agent/landing.py
+  ai_agent 1-194
+scripts/issue_agent/cli.py
+  ai_agent 1-106
+scripts/issue_agent/tests/test_issues.py
+  ai_agent 1-125
+scripts/issue_agent/policy.py
+  ai_agent 1-150
+scripts/issue_agent/outcomes.py
+  ai_agent 1-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d92377e6528f119b2a222fd0f44984e281f983fe",
+  "prompts": {}
+}
