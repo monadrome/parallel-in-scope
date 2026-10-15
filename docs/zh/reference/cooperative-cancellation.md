@@ -79,7 +79,7 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 `remaining()` 让任务体把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
 
 ```java
-.par("user", ioPar, User.class, () -> {
+.par(TaskKey.<User>named("user"), ioPar, () -> {
     Checkpoints.checkpoint();
     Duration budget = Checkpoints.remaining().orElse(configuredClientTimeout);
     // budget 为零说明 deadline 已耗尽：拒绝发起调用，不要把零 timeout 传给

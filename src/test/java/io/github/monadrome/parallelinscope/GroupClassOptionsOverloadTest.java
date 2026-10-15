@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -12,9 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * The {@code (TaskOptions, Class)} forms of {@code GroupStart.par}, {@code GroupStep.par}, and
- * {@code GroupStep.combine} apply the supplied options and declare the class as the slot's type,
- * exactly as their {@code (TaskOptions, TypeToken)} counterparts do with {@code TypeToken.of}.
+ * Keyed declarations apply explicit task options to first members, later members, and combines.
  *
  * <p>The options are observed through a member timeout far tighter than the group's: honored, it
  * ends the run within milliseconds; dropped in favor of the inherited deadline, the run would last
@@ -46,45 +43,45 @@ class GroupClassOptionsOverloadTest {
     }
 
     @Test
-    void theFirstMemberAppliesItsOptionsAndDeclaresTheClass() {
+    void theFirstKeyedMemberAppliesItsOptions() {
         long start = System.nanoTime();
 
         TaskGroupResult<String, Void> result = runtime.group("first", GROUP_TIMEOUT)
-                .par("blocked", par, TIGHT, String.class, () -> {
+                .par(TaskKey.<String>named("blocked"), par, TIGHT, () -> {
                     never.await();
                     return "unreachable";
                 })
                 .runAll();
 
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
-        assertThat(result.resultOf("blocked", String.class).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultOf("blocked").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
     }
 
     @Test
-    void aLaterMemberAppliesItsOptionsAndDeclaresTheClass() {
+    void aLaterKeyedMemberAppliesItsOptions() {
         long start = System.nanoTime();
 
         TaskGroupResult<Tuple2<Integer, String>, Void> result = runtime.group("later", GROUP_TIMEOUT)
-                .par("count", par, Integer.class, () -> 1)
-                .par("blocked", par, TIGHT, String.class, () -> {
+                .par(TaskKey.<Integer>named("count"), par, () -> 1)
+                .par(TaskKey.<String>named("blocked"), par, TIGHT, () -> {
                     never.await();
                     return "unreachable";
                 })
                 .runAll();
 
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
-        assertThat(result.resultAt(1, String.class).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultAt(1).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
     }
 
     @Test
-    void theCombineAppliesItsOptionsAndDeclaresTheClass() {
+    void theKeyedCombineAppliesItsOptions() {
         long start = System.nanoTime();
 
         TaskGroupResult<Integer, String> result = runtime.group("combined", GROUP_TIMEOUT)
-                .par("count", par, Integer.class, () -> 1)
-                .combine("join", par, TIGHT, String.class, values -> {
+                .par(TaskKey.<Integer>named("count"), par, () -> 1)
+                .combine(TaskKey.<String>named("join"), par, TIGHT, values -> {
                     never.await();
                     return "unreachable";
                 })
@@ -93,22 +90,6 @@ class GroupClassOptionsOverloadTest {
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
         assertThat(result.terminalResult()).isNotNull();
         assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(result.resultOf("count", Integer.class).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-    }
-
-    /** Passes null on purpose: the forms must reject it like the token forms do. */
-    @SuppressWarnings("NullAway")
-    @Test
-    void theClassFormsValidateExactlyLikeTheTokenForms() {
-        assertThatThrownBy(() -> runtime.group("primitive", GROUP_TIMEOUT).par("n", par, TIGHT, int.class, () -> 1))
-                .isInstanceOf(IllegalArgumentException.class);
-        Class<String> missing = null;
-        assertThatThrownBy(() -> runtime.group("null", GROUP_TIMEOUT).par("s", par, TIGHT, missing, () -> "x"))
-                .isInstanceOf(NullPointerException.class);
-        TaskOptions noOptions = null;
-        assertThatThrownBy(() -> runtime.group("null", GROUP_TIMEOUT)
-                        .par("s", par, String.class, () -> "x")
-                        .combine("j", par, noOptions, String.class, values -> "x"))
-                .isInstanceOf(NullPointerException.class);
+        assertThat(result.resultOf("count").outcome()).isEqualTo(TaskOutcome.SUCCESS);
     }
 }

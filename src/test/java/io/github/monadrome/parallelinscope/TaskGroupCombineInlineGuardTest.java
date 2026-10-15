@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -68,26 +67,23 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .par(
-                            "b",
+                            TaskKey.<String>named("b"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "b")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             // rejectEnqueue is requested so the queue refuses the combine and the
                             // handler decides its fate. Without it the default enqueues onto the
                             // 100-deep queue and the combine simply waits for a worker, which is the
                             // correct behavior but not the one under test here.
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -137,16 +133,14 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
-                            TypeToken.of(String.class),
                             values -> "combined")
                     .submitAll();
 
@@ -177,16 +171,14 @@ class TaskGroupCombineInlineGuardTest {
             // violated here, so the combine must run normally.
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -220,16 +212,14 @@ class TaskGroupCombineInlineGuardTest {
             // rejection handler.
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("direct")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -260,22 +250,19 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .par(
-                            "b",
+                            TaskKey.<String>named("b"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "b")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";

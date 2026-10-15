@@ -40,15 +40,14 @@ import org.jspecify.annotations.Nullable;
  * {@code Par}. Registering an executor that reroutes work is a decision about where work runs, and
  * this library reports where each task ran rather than trying to prevent it.
  *
- * <p>The body is supplied at declaration, next to its {@code TypeToken<R>}, and may capture this
+ * <p>The body is supplied at declaration, next to its {@code TaskKey<R>}, and may capture this
  * run's request. It must still be a pure function of member values and its declaration-time
  * captures: the framework schedules it the moment the last member succeeds, so there is no
  * need for the caller to orchestrate it after submission. The synchronous runAll returns only
  * after the combine result is terminal and bounded cleanup has been attempted.
  *
- * <p>The declared {@code TypeToken<R>} is enforced at runtime exactly like a member's: a non-null
- * result whose class does not match the token's raw type fails the combine with a {@link
- * ClassCastException} recorded as {@link TaskOutcome#USER_FAILURE}.
+ * <p>The key binds the result type at compile time, exactly like a member's. There is no runtime
+ * result type check; raw types and unchecked casts are the caller's responsibility.
  *
  * <p>The {@code throws Exception} clause mirrors the member {@code Callable}: a checked failure is
  * recorded as {@link TaskOutcome#USER_FAILURE} with the original exception, exactly like a failed
