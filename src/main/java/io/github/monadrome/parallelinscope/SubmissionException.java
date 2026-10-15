@@ -8,7 +8,7 @@ package io.github.monadrome.parallelinscope;
 final class SubmissionException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-    public SubmissionException(Throwable cause) {
+    SubmissionException(Throwable cause) {
         super("Task submission failed", cause);
     }
 }
