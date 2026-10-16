@@ -1,10 +1,10 @@
 package demo.basic;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
@@ -66,7 +66,10 @@ public class CancellationDemo {
 
             // Wait until every task has succeeded, failed, or been cancelled. Unlike allAsList,
             // successfulAsList itself completes normally when individual tasks are cancelled.
-            Futures.successfulAsList(result.results()).get();
+            Futures.successfulAsList(result.results().stream()
+                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                            .collect(java.util.stream.Collectors.toList()))
+                    .get();
             long endTime = System.currentTimeMillis();
 
             // 3. 查看结果

@@ -58,9 +58,9 @@ List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
 TaskBatchResult<String> result = par.map( urls, url -> {
     // 框架已自动处理：
     //   - CancellationToken 取消检查（ScopedCallable 内部）
-    //   - 超时控制（CancellationToken.lateBind）
+    //   - 超时控制（批次级 CancellationToken，提交前绑定）
     //   - 并发限制（SlidingWindowSubmitter 滑动窗口）
-    //   - SPI 回调（TaskListener）
+    //   - 完成观测（返回结果中可用的最终快照）
     // 只需关注业务逻辑
     return doFetch(url);
 }, opts);

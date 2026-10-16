@@ -16,6 +16,12 @@ mvn -f demo/pom.xml test
 mvn -f demo/pom.xml exec:java
 ```
 
+The demo resolves `io.github.monadrome:parallel-in-scope` at the version pinned by
+`parallel-in-scope.version` in its `pom.xml`. Override it on the command line with
+`-Dparallel-in-scope.version=<version>`; CI passes the version it just built from the
+repository root, so the demo verifies the current source tree instead of a possibly stale
+pinned default.
+
 Run a specific example:
 
 ```bash
@@ -33,7 +39,7 @@ The demo depends on the published library artifact and acts as an external consu
 demo -> io.github.monadrome:parallel-in-scope
 ```
 
-Examples use the `demo.*` namespace and access only public API types from the root package (`ParRuntime`, `Par`, `BatchOptions`, `TaskBatchResult`, `TaskGroupDefinition`, `TaskGroup`, listeners) and the `queue` package. Cancellation, context, graph, and scheduling internals are package-private in the root package, so consumer code cannot import them.
+Examples use the `demo.*` namespace and access only public API types from the root package (`ParRuntime`, `Par`, `BatchOptions`, `TaskBatchResult`, `TaskGroupResult`, `ImmediateResult`, `GroupStart`, `GroupStep`, `GroupValues`, `Tuple2`) and the `queue` package. Execution is synchronous; existing Guava consumer examples explicitly adapt completed results with `asFuture()`. Cancellation, context, graph, and scheduling internals are package-private in the root package.
 
 ## Documentation
 
