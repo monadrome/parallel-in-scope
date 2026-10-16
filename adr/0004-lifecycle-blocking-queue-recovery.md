@@ -22,7 +22,7 @@ Java 8 bytecode while exposing the backed reverse-view behavior available on new
 
 Use a one-way `OPEN -> CLOSING -> CLOSED` lifecycle, detach queued elements into a recovery list at
 shutdown, and keep `drainTo(Collection)` available after shutdown to claim recovery elements in FIFO
-order. `remainingList()` remains the post-termination inspection API. Poison signaling is virtual and
+order. `remainingList()` remains the post-termination inspection API. Poison signalling is virtual and
 identity-based; it is never stored in the queue or recovery list.
 
 ## Alternatives Considered

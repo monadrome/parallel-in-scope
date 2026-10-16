@@ -35,7 +35,8 @@ future maintainers apply or revisit the decision.
 - Use concrete project types and paths, but do not duplicate source code or
   README material.
 - Match the existing ADR language and terminology.
-- Do not add ADRs to README or MkDocs navigation unless explicitly requested.
+- Do not add ADRs to README or MkDocs navigation (`mkdocs/mkdocs.yml`) unless
+  explicitly requested.
 
 ## Validation
 
