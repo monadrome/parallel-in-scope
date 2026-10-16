@@ -1,10 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
 import com.alibaba.ttl.TtlCallable;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 /**
  * Shared single-task preparation and submission used by both entry points.
@@ -15,8 +13,8 @@ import java.util.function.Consumer;
  * <ul>
  *   <li>Wrapping a user {@link Callable} with {@link ScopedCallable} lifecycle instrumentation and
  *       a TTL snapshot, and presenting it as an {@link ExecutionPhaseHintFuture}
- *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch, with the
- *       caller-thread fallback the task's options request on executor rejection
+ *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch; rejection
+ *       handling remains the bound executor's responsibility
  * </ul>
  *
  * <p>The entry points keep their distinct topologies on top of this: the batch path drives a
@@ -31,41 +29,40 @@ final class TaskSubmissions {
      * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the current
      * thread's TTL context for replay on the worker thread.
      */
-    public static <V> Callable<V> wrapScoped(
-            TaskExecutionContext taskContext, Callable<V> callable, List<TaskListener> taskListeners) {
-        return TtlCallable.get(new ScopedCallable<>(taskContext, callable, taskListeners), true, true);
+    static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
+        return TtlCallable.get(new ScopedCallable<>(taskContext, callable), true, true);
     }
 
     /**
      * Prepares one scoped task as an {@link ExecutionPhaseHintFuture}. The returned future is not
-     * running yet; the caller decides when and where to submit it.
+     * running yet; the caller decides when and where to submit it. Its {@link TaskObservation} is
+     * attached here, so every later {@code Task} view of the future exposes the same observation
+     * future.
      *
      * @param taskContext per-task execution context carrying the batch and task index
      * @param callable user task
-     * @param taskListeners SPI listeners notified when the task completes
-     * @param phaseObserver consumer of execution-phase hints for queue maintenance
      * @return the prepared future, still in {@code SUBMITTED} phase
      */
-    public static <V> ExecutionPhaseHintFuture<V> prepare(
-            TaskExecutionContext taskContext,
-            Callable<V> callable,
-            List<TaskListener> taskListeners,
-            Consumer<? super ExecutionPhase> phaseObserver) {
-        return ExecutionPhaseHintFuture.create(
-                wrapScoped(taskContext, callable, taskListeners), phaseObserver, taskContext.bodyState());
+    static <V> ExecutionPhaseHintFuture<V> prepare(TaskExecutionContext taskContext, Callable<V> callable) {
+        ExecutionPhaseHintFuture<V> future =
+                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.bodyState());
+        future.observation(TaskObservation.forTask(taskContext, future));
+        return future;
     }
 
     /**
      * Submits a prepared future to {@code executor} with the unit's {@link SubmissionScope}
-     * installed, so enqueue policies see the submitting unit. A task whose options request the
-     * caller-thread fallback runs inline when rejected; any other rejection fails the future with
-     * a {@link SubmissionException} without running user code.
+     * installed, so enqueue policies see the submitting unit. A rejection fails the future with a
+     * {@link SubmissionException} without running user code.
+     *
+     * <p>The scope installed here covers the submission only. An executor that runs the task inside
+     * {@code execute()} would otherwise leave it installed around the body as well, which {@link
+     * ExecutionPhaseHintFuture#run()} undoes.
      */
-    public static void submitScoped(
-            ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean runOnCallerThread) {
+    static void submitScoped(ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor) {
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            future.submitPrepared(executor, runOnCallerThread);
+            future.submitPrepared(executor);
         } finally {
             SubmissionScope.restore(previous);
         }

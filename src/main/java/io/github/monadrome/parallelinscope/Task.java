@@ -5,13 +5,14 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@link TaskFuture} implementation the library delivers; it is package-private because
@@ -20,41 +21,43 @@ import javax.annotation.Nullable;
  *
  * <p>A task is a thin forwarding shell over the future that actually carries its outcome, plus the
  * name and {@link CancellationToken} that belong to the task rather than to that future. The shell
- * owns its identity from creation on: a future waiting for a free concurrency slot already answers
- * with its final name, deadline, and token attribution before anything is submitted, and neither
- * submission nor abandonment changes them.
+ * owns its identity from creation on: an element still waiting for a free concurrency slot already
+ * answers with its final name, deadline, and token attribution, because the shell wraps the prepared
+ * future from the start and submission never swaps the delegate underneath it.
  *
  * <p>Forwarding is literal: {@link #get()}, {@link #cancel(boolean)}, {@link #isDone()}, and
- * {@link #addListener(Runnable, java.util.concurrent.Executor)} behave exactly as they do on the
+ * {@link #addListener(Runnable, Executor)} behave exactly as they do on the
  * delegate, including the interruption and cancellation-cascade semantics. Only read-only
  * information is added.
- *
- * <p>Two shapes exist, created by {@link #of} and {@link #placeholder}. A placeholder is handed to
- * the caller before its task has an executor slot; it stays registered with the caller's own
- * listeners and cancellations, and is later bound to the real future — or abandoned, when the task
- * will never run.
  */
 final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
 
     private final ListenableFuture<T> delegate;
     private final String taskName;
     private final CancellationToken token;
-    private final @Nullable SettableFuture<T> placeholder;
-    private volatile boolean handedOff;
+    private final TaskObservation<T> observation;
+    private final @Nullable SettableFuture<TaskOutcome> settledAttribution;
 
     private Task(
             String taskName,
             CancellationToken token,
             ListenableFuture<T> delegate,
-            @Nullable SettableFuture<T> placeholder) {
+            TaskObservation<T> observation,
+            @Nullable SettableFuture<TaskOutcome> settledAttribution) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.token = Objects.requireNonNull(token, "token cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
-        this.placeholder = placeholder;
+        this.observation = Objects.requireNonNull(observation, "observation cannot be null");
+        this.settledAttribution = settledAttribution;
     }
 
     /**
      * Wraps a future that already represents this task's execution.
+     *
+     * <p>The observation is the one the {@link TaskSubmissions} pipeline attached to the prepared
+     * future, so the caller-facing view and the future that executes the task publish the same
+     * observation. A delegate carrying none — a derived view or a test-created task — gets an
+     * unattributed observation publishing on settle.
      *
      * @param <T> the task result type
      * @param taskName the task name reported by {@link #taskName()}
@@ -63,69 +66,70 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * @return the task view over {@code delegate}
      */
     static <T> Task<T> of(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
-        return new Task<>(taskName, token, delegate, null);
+        return new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), null);
     }
 
     /**
-     * Creates a task whose execution is not submitted yet, backed by a fresh placeholder future.
-     *
-     * <p>A caller may register listeners and cancel the placeholder before it is bound; those
-     * registrations stay on the placeholder, so {@link #bind} completes it by following the real
-     * future instead of replacing the delegate.
-     *
-     * @param <T> the task result type
-     * @param taskName the task name reported by {@link #taskName()}
-     * @param token the token owning this task's cancellation and deadline
-     * @return the task view over a new placeholder
+     * Wraps a future with an explicit observation, for task views whose snapshot cannot be derived
+     * from a prepared future — the group completion summary.
      */
-    static <T> Task<T> placeholder(String taskName, CancellationToken token) {
-        SettableFuture<T> placeholder = SettableFuture.create();
-        return new Task<>(taskName, token, placeholder, placeholder);
+    static <T> Task<T> of(
+            String taskName, CancellationToken token, ListenableFuture<T> delegate, TaskObservation<T> observation) {
+        return new Task<>(taskName, token, delegate, observation, null);
     }
 
     /**
-     * Binds this placeholder to the future that will actually run the task.
+     * Wraps a batch element or a batch's terminal combine, and pins its attribution at the moment
+     * its delegate settles: {@link #settledAttribution()} completes with the {@link #outcome()} read
+     * by a listener registered here, on whichever thread settles the delegate.
      *
-     * <p>From here on the placeholder follows {@code real}: the caller's listeners fire with its
-     * outcome, and a placeholder cancelled beforehand cancels {@code real} in turn. If the
-     * placeholder was already terminated by an abandonment that raced the handoff, {@code real} is
-     * cancelled as well, so a caller told the task never ran never observes user code still
-     * executing underneath.
+     * <p>A batch shares one token across its elements, and an element's own failure commits that
+     * token's {@code FAIL_FAST} through the bind's aggregate listener on the same delegate. Reading
+     * the token later — when the batch freezes — would let that commit reattribute the element that
+     * caused it: a body that raised its own {@link java.util.concurrent.CancellationException} or
+     * {@link InterruptedException} reads {@link TaskOutcome#USER_FAILURE} while the token is still
+     * running and {@link TaskOutcome#FAIL_FAST} once its own failure committed the cascade. The pin
+     * fixes the read to completion time, the moment a group member is classified in
+     * {@code TaskGroup.memberCompleted}.
      *
-     * @param real the submitted task future
-     * @throws IllegalStateException if this task was not created as a placeholder
+     * <p>Callers MUST create this view before binding the token: the pin is then registered on the
+     * delegate ahead of the bind's listeners, and Guava's {@code AbstractFuture} runs a settled
+     * future's listeners in registration order, so the pin reads the token before this element's
+     * own failure can commit it. The view is still the element's only caller-visible handle from
+     * creation on; the pin only adds read-only information.
+     *
+     * <p>Classification of a settled delegate reads only immutable future state and the token's
+     * atomic state, so it does not throw; should it ever fail, the pin carries that failure instead
+     * of staying pending, and the freeze surfaces it as a broken invariant rather than hanging.
      */
-    void bind(ListenableFuture<T> real) {
-        SettableFuture<T> placeholder = placeholderOrThrow();
-        handedOff = true;
-        if (!placeholder.setFuture(real)) {
-            real.cancel(true);
-        }
+    static <T> Task<T> attributedOnSettle(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
+        SettableFuture<TaskOutcome> attribution = SettableFuture.create();
+        Task<T> view = new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), attribution);
+        delegate.addListener(
+                () -> {
+                    try {
+                        attribution.set(view.outcome());
+                    } catch (Throwable classificationFailure) {
+                        attribution.setException(classificationFailure);
+                    }
+                },
+                MoreExecutors.directExecutor());
+        return view;
     }
 
     /**
-     * Completes a placeholder whose task will never be submitted, so the batch cannot stay pending.
-     *
-     * @param reason the failure reported to the caller, or {@code null} to complete the placeholder
-     *     as cancelled when the batch itself is being cancelled
-     * @throws IllegalStateException if this task was not created as a placeholder
+     * The observation attached by {@link TaskSubmissions#prepare} when {@code delegate} is a
+     * prepared task future; otherwise an unattributed observation keyed on the delegate alone.
      */
-    void abandon(@Nullable Throwable reason) {
-        SettableFuture<T> placeholder = placeholderOrThrow();
-        handedOff = true;
-        if (reason == null) {
-            placeholder.cancel(true);
-        } else {
-            placeholder.setException(new SubmissionException(reason));
+    private static <T> TaskObservation<T> observationOf(
+            String taskName, CancellationToken token, ListenableFuture<T> delegate) {
+        if (delegate instanceof ExecutionPhaseHintFuture) {
+            TaskObservation<T> prepared = ((ExecutionPhaseHintFuture<T>) delegate).observation();
+            if (prepared != null) {
+                return prepared;
+            }
         }
-    }
-
-    private SettableFuture<T> placeholderOrThrow() {
-        SettableFuture<T> current = placeholder;
-        if (current == null) {
-            throw new IllegalStateException("task '" + taskName + "' was not created as a placeholder");
-        }
-        return current;
+        return TaskObservation.unattributed(taskName, token, delegate);
     }
 
     @Override
@@ -140,11 +144,18 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public TaskOutcome outcome() {
+        // A recorded submission failure outranks the future's own state. A batch element failed by
+        // a handoff failure is claimed before it is settled, and the token's fail-fast cascade can
+        // cancel it in between; without this the element would report that cancellation instead of
+        // the submission failure that actually ended it.
+        if (recordedSubmissionFailure() != null) {
+            return TaskOutcome.SUBMISSION_FAILURE;
+        }
         if (!delegate.isDone()) {
             return TaskOutcome.RUNNING;
         }
         if (delegate.isCancelled()) {
-            return TokenOutcomes.forCanceled(token, TaskOutcome.MEMBER_CANCELED);
+            return TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED);
         }
         try {
             // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
@@ -153,21 +164,22 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             Futures.getDone(delegate);
             return TaskOutcome.SUCCESS;
         } catch (ExecutionException failure) {
-            return classifyFailure(failure.getCause());
+            return classifyFailure(token, failure.getCause());
         }
     }
 
     /**
      * Classifies a completed failure. A failure that merely signals observed cancellation — a
      * checkpoint or an interrupt that won the race against the cascade cancel — is attributed
-     * through the token instead of being recorded as a user failure.
+     * through the token instead of being recorded as a user failure. Shared by {@link #outcome()}
+     * and the observation snapshot, so a task reads the same attribution on both.
      */
-    private TaskOutcome classifyFailure(@Nullable Throwable cause) {
+    static TaskOutcome classifyFailure(CancellationToken token, @Nullable Throwable cause) {
         if (cause instanceof SubmissionException) {
             return TaskOutcome.SUBMISSION_FAILURE;
         }
         if (TokenOutcomes.causedByCancellation(cause)) {
-            return TokenOutcomes.forCanceled(token, TaskOutcome.USER_FAILURE);
+            return TokenOutcomes.forCancelled(token, TaskOutcome.USER_FAILURE);
         }
         return TaskOutcome.USER_FAILURE;
     }
@@ -184,6 +196,12 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public @Nullable Throwable failure() {
+        // Read the recorded failure directly: a claimed element may have been cancelled by the
+        // cascade before it was settled, and exceptionNow() rejects a cancelled future.
+        SubmissionException recorded = recordedSubmissionFailure();
+        if (recorded != null) {
+            return recorded;
+        }
         TaskOutcome outcome = outcome();
         if (outcome != TaskOutcome.USER_FAILURE && outcome != TaskOutcome.SUBMISSION_FAILURE) {
             return null;
@@ -191,7 +209,34 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         return FutureInspector.exceptionNow(delegate);
     }
 
-    // ==================== package-private fluent derivation ====================
+    /**
+     * The submission failure recorded on the prepared future this view wraps, if any. Views over
+     * anything else — a derived view, a group summary, a test-created task — have none.
+     */
+    private @Nullable SubmissionException recordedSubmissionFailure() {
+        return delegate instanceof ExecutionPhaseHintFuture
+                ? ((ExecutionPhaseHintFuture<T>) delegate).submissionFailure()
+                : null;
+    }
+
+    @Override
+    public ListenableFuture<TaskCompletion<T>> completionFuture() {
+        return observation.view();
+    }
+
+    /** The observation view, for the batch and group observation aggregates. */
+    ListenableFuture<TaskCompletion<T>> observationView() {
+        return observation.view();
+    }
+
+    /**
+     * The outcome pinned when the delegate settled, for views built by {@link #attributedOnSettle};
+     * null for every other view, which attributes from the token at read time.
+     */
+    @Nullable
+    ListenableFuture<TaskOutcome> settledAttribution() {
+        return settledAttribution;
+    }
 
     /**
      * Returns a fluent view of the delegate; {@code from} returns an already-fluent future
@@ -203,7 +248,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /** Wraps a future derived from this task, which keeps this task's name and token. */
     private <R> Task<R> derived(ListenableFuture<R> derived) {
-        return new Task<>(taskName, token, derived, null);
+        return new Task<>(taskName, token, derived, TaskObservation.unattributed(taskName, token, derived), null);
     }
 
     /**
@@ -238,15 +283,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      */
     @Override
     public String toString() {
-        StringBuilder description = new StringBuilder("Task[name=")
-                .append(taskName)
-                .append(", state=")
-                .append(outcome())
-                .append(", remaining=")
-                .append(deadlineNanos() == Long.MAX_VALUE ? "unbounded" : remaining());
-        if (placeholder != null) {
-            description.append(", placeholder=").append(handedOff ? "handed-off" : "pending");
-        }
-        return description.append(']').toString();
+        return "Task[name=" + taskName + ", state=" + outcome() + ", remaining="
+                + (deadlineNanos() == Long.MAX_VALUE ? "unbounded" : remaining()) + "]";
     }
 }
