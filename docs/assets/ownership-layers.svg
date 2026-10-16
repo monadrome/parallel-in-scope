@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="610" viewBox="0 0 900 610" role="img" aria-label="三层所有权模型：应用层拥有线程池，ParRuntime/Par 绑定并借用 executor，MultiTaskContext 承载每次调用的取消令牌与 deadline">
+  <defs>
+    <marker id="arrow-own" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3fb950"/>
+    </marker>
+    <marker id="arrow-borrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d29922"/>
+    </marker>
+    <marker id="arrow-inner" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8957e5"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="900" height="610" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+
+  <!-- title -->
+  <text x="450" y="44" text-anchor="middle" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="24" font-weight="700" fill="#e6edf3">三层所有权模型</text>
+  <text x="450" y="68" text-anchor="middle" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" fill="#9da7b3">所有权向下 owns ↓ · 借用在下 borrows ↑（所有权不转移）</text>
+
+  <!-- ============ Layer 1: Application ============ -->
+  <rect x="40" y="86" width="820" height="112" rx="12" fill="#161b22" stroke="#1f6feb" stroke-width="1.5"/>
+  <text x="64" y="114" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#58a6ff">应用层 · Application</text>
+
+  <rect x="64" y="126" width="356" height="56" rx="8" fill="#0d1117" stroke="#1f6feb" stroke-width="1"/>
+  <text x="84" y="150" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" font-weight="600" fill="#79c0ff">ExecutorService</text>
+  <text x="84" y="170" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#9da7b3">线程池 · 长生命周期资源</text>
+
+  <text x="448" y="150" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" fill="#c9d1d9">应用创建、拥有并关闭线程池</text>
+  <text x="448" y="170" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#6e7681">the app owns the pool for its whole lifetime</text>
+
+  <!-- ============ Arrows L1 -> L2 ============ -->
+  <line x1="380" y1="204" x2="380" y2="246" stroke="#3fb950" stroke-width="2.5" marker-end="url(#arrow-own)"/>
+  <text x="364" y="229" text-anchor="end" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#3fb950">owns · 创建并拥有</text>
+
+  <line x1="560" y1="246" x2="560" y2="204" stroke="#d29922" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-borrow)"/>
+  <text x="576" y="229" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#d29922">borrows · 绑定借用，不拥有</text>
+
+  <!-- ============ Layer 2: ParRuntime / Par ============ -->
+  <rect x="40" y="252" width="820" height="150" rx="12" fill="#161b22" stroke="#8957e5" stroke-width="1.5"/>
+  <text x="64" y="280" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#d2a8ff">运行时层 · <tspan font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="14">ParRuntime / Par</tspan></text>
+
+  <rect x="64" y="294" width="336" height="90" rx="8" fill="#0d1117" stroke="#8957e5" stroke-width="1"/>
+  <text x="84" y="322" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" font-weight="600" fill="#d2a8ff">ParRuntime</text>
+  <text x="84" y="344" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#9da7b3">注册 Par 时校验 executor 身份</text>
+  <text x="84" y="364" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#6e7681">validates executor identity at registration</text>
+
+  <line x1="408" y1="339" x2="486" y2="339" stroke="#8957e5" stroke-width="2" marker-end="url(#arrow-inner)"/>
+  <text x="447" y="328" text-anchor="middle" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" fill="#9da7b3">注册 register</text>
+
+  <rect x="500" y="294" width="336" height="90" rx="8" fill="#0d1117" stroke="#8957e5" stroke-width="1"/>
+  <text x="520" y="322" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" font-weight="600" fill="#d2a8ff">Par</text>
+  <text x="520" y="344" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#9da7b3">一个 Par 绑定一个 executor</text>
+  <text x="520" y="364" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#6e7681">rejects submission after runtime close</text>
+
+  <!-- ============ Arrows L2 -> L3 ============ -->
+  <line x1="380" y1="408" x2="380" y2="450" stroke="#3fb950" stroke-width="2.5" marker-end="url(#arrow-own)"/>
+  <text x="364" y="433" text-anchor="end" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#3fb950">owns · 每次调用创建</text>
+
+  <line x1="560" y1="450" x2="560" y2="408" stroke="#d29922" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-borrow)"/>
+  <text x="576" y="433" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#d29922">borrows · 借用已绑定的 executor</text>
+
+  <!-- ============ Layer 3: MultiTaskContext ============ -->
+  <rect x="40" y="456" width="820" height="110" rx="12" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="64" y="484" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="600" fill="#56d364">调用层 · 每次调用 per call</text>
+
+  <rect x="64" y="496" width="772" height="56" rx="8" fill="#0d1117" stroke="#3fb950" stroke-width="1"/>
+  <text x="84" y="520" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" font-weight="600" fill="#56d364">MultiTaskContext</text>
+  <text x="84" y="540" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#9da7b3">一次调用的运行时状态</text>
+
+  <rect x="330" y="506" width="220" height="36" rx="18" fill="#0d1117" stroke="#3fb950" stroke-width="1"/>
+  <text x="440" y="529" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#7ee787">CancellationToken</text>
+
+  <rect x="566" y="506" width="254" height="36" rx="18" fill="#0d1117" stroke="#3fb950" stroke-width="1"/>
+  <text x="693" y="529" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#7ee787">deadlineNanos <tspan fill="#9da7b3">min(自身, 父级)</tspan></text>
+
+  <!-- legend -->
+  <line x1="64" y1="588" x2="96" y2="588" stroke="#3fb950" stroke-width="2.5" marker-end="url(#arrow-own)"/>
+  <text x="104" y="592" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#9da7b3">实线 = owns 拥有（向下）</text>
+  <line x1="300" y1="588" x2="332" y2="588" stroke="#d29922" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-borrow)"/>
+  <text x="340" y="592" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#9da7b3">虚线 = borrows 借用（向上，所有权不转移）</text>
+</svg>
