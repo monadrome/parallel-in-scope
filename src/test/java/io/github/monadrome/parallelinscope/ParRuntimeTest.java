@@ -220,82 +220,6 @@ class ParRuntimeTest {
     }
 
     @Test
-    void nestedBatchesAcrossExecutorsShareCancellationContextAndObservationGraph() throws Exception {
-        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
-        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("outer"), outerExecutor)
-                .register(ParId.of("inner"), innerExecutor)
-                .build();
-        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
-                    .submitBatch(
-                            Collections.singletonList(2),
-                            value -> {
-                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
-                                        .submitBatch(
-                                                Collections.singletonList(value),
-                                                item -> item + 1,
-                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
-                                try {
-                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
-                                } catch (Exception failure) {
-                                    throw new RuntimeException(failure);
-                                }
-                            },
-                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
-
-            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
-            assertThat(observation.graph().asValueGraph().edges()).isNotEmpty();
-        } finally {
-            global.close();
-            outerExecutor.shutdownNow();
-            innerExecutor.shutdownNow();
-        }
-    }
-
-    @Test
-    void topLevelBatchInstallsObservationOnPreexistingWorkerAndPropagatesItToNestedBatch() throws Exception {
-        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
-        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        outerExecutor.submit(() -> {}).get(2, TimeUnit.SECONDS);
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("outer"), outerExecutor)
-                .register(ParId.of("inner"), innerExecutor)
-                .build();
-        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            AtomicReference<TaskGraphObservationScope> scopeOnOuterWorker = new AtomicReference<>();
-            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
-                    .submitBatch(
-                            Collections.singletonList(2),
-                            value -> {
-                                scopeOnOuterWorker.set(TaskGraphObservationScope.current());
-                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
-                                        .submitBatch(
-                                                Collections.singletonList(value),
-                                                item -> item + 1,
-                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
-                                try {
-                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
-                                } catch (Exception failure) {
-                                    throw new RuntimeException(failure);
-                                }
-                            },
-                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
-
-            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(scopeOnOuterWorker.get()).isSameAs(observation);
-            assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
-            assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
-        } finally {
-            global.close();
-            outerExecutor.shutdownNow();
-            innerExecutor.shutdownNow();
-        }
-    }
-
-    @Test
     void nestedSlidingWindowsDoNotSerializeTheirSubmitterLoops() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
@@ -735,27 +659,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void observationIsOwnedAndClosedExactlyOnce() {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register(ParId.of("io"), executor).build();
-        try {
-            TaskGraphObservationScope observation = global.openTaskGraphObservation();
-            assertThat(observation.owner()).isSameAs(global);
-            assertThat(observation.closed()).isFalse();
-            assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
-            observation.close();
-            observation.close();
-            assertThat(observation.closed()).isTrue();
-            assertThat(TaskGraphObservationScope.current()).isNull();
-        } finally {
-            global.close();
-            executor.shutdownNow();
-        }
-    }
-
-    @Test
-    void rejectsNewBatchesAndObservationsAfterCloseWithoutClosingBorrowedExecutor() {
+    void rejectsNewBatchesAfterCloseWithoutClosingBorrowedExecutor() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -764,7 +668,6 @@ class ParRuntimeTest {
 
             assertThat(global.closed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
-            assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> global.par(ParId.of("io"))
                             .submitBatch(
                                     Collections.singletonList(1),
@@ -868,14 +771,6 @@ class ParRuntimeTest {
     }
 
     @Test
-    void policiesExposeConfiguredValuesAndDisabledDefaults() {
-        ParRuntimeDeadlockPolicy deadlock =
-                ParRuntimeDeadlockPolicy.builder().enabled(true).build();
-        assertThat(deadlock.enabled()).isTrue();
-        assertThat(ParRuntimeDeadlockPolicy.builder().build().enabled()).isFalse();
-    }
-
-    @Test
     void cancelledQueueEntriesRetainCapacityUntilTheExecutorOwnerPurges() throws Exception {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.MILLISECONDS, new java.util.concurrent.ArrayBlockingQueue<>(1));
@@ -914,17 +809,13 @@ class ParRuntimeTest {
     }
 
     @Test
-    void exposesImmutableTopologyAndConfiguredPolicies() {
+    void exposesImmutableTopology() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ParRuntimeDeadlockPolicy deadlock =
-                    ParRuntimeDeadlockPolicy.builder().enabled(true).build();
-            ParRuntime global = ParRuntime.builder()
-                    .deadlockPolicy(deadlock)
-                    .register(ParId.of("one"), executor)
-                    .build();
+            ParRuntime global =
+                    ParRuntime.builder().register(ParId.of("one"), executor).build();
 
-            assertThat(global.deadlockPolicy()).isSameAs(deadlock);
+            assertThat(global.executorWaitReport().cyclicComponents()).isEmpty();
             assertThat(global.find(ParId.of("one"))).contains(global.par(ParId.of("one")));
             assertThat(global.find(ParId.of("missing"))).isEmpty();
             assertThat(global.pars()).containsOnlyKeys(ParId.of("one"));

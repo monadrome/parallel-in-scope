@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -237,11 +238,11 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void nestedSubmissionRecordsTaskGraphEdge(Entry entry) throws Exception {
+    void nestedSubmissionOnTheSamePoolRecordsAnExecutorSelfLoop(Entry entry) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global = global(executor);
         try {
-            try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            {
                 Object value = global.par(ParId.of("worker"))
                         .submitBatch(
                                 Collections.singletonList("outer"),
@@ -262,8 +263,10 @@ class ScopedTaskContractTest {
                         .get(2, TimeUnit.SECONDS);
 
                 assertThat(value).isEqualTo("inner-value");
-                assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
-                assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
+                List<ExecutorWaitReport.Component> cycles =
+                        global.executorWaitReport().cyclicComponents();
+                assertThat(cycles).hasSize(1);
+                assertThat(cycles.get(0).cycle()).containsExactly(ImmutableSet.of(ParId.of("worker")));
             }
         } finally {
             global.close();

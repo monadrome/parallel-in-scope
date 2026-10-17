@@ -1,7 +1,7 @@
 # TaskGroup 设计契约：观测与验收
 
 > 组的声明形状见 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)；
-> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束观测快照、TaskGraph
+> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束观测快照、执行器等待
 > 规则、并发不变量与验收矩阵。
 >
 > 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
@@ -34,12 +34,12 @@ combine）已终态、不可变结果已发布，不存在组完成回调的注�
 增补裁定 §19.8，全文见 git 历史 `db2ab2d`）；其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
 同步返回使"先观察终态再消费"成为结构保证，不再需要回调语义。
 
-## 11. TaskGraph 规则
+## 11. 执行器等待规则
 
-图模型（节点、`FORK`/`JOIN` 边、准入片段、执行器投影与检测）的契约在
-[task-graph.md](task-graph.md)。本节只约束 Group 侧与 scope 生命周期。
+执行器等待图（节点、等待的记录、有环强连通分量的检测与报告、诊断发布）的契约在
+[task-graph.md](task-graph.md)。本节只约束 Group 侧。
 
-Group membership 不是依赖关系：
+Group membership 不是等待关系：
 
 ```text
 group
@@ -58,26 +58,15 @@ fake-group-batch -> A/B/C
 
 规则：
 
-- 一次 `runAll` 的成员与汇总作为**一个**片段并入：caller（scoped task 内创建时）`FORK` 每个成员与汇总，
-  每个成员 `JOIN` 汇总；请求线程创建的 Group 没有 caller，只写节点与 `JOIN`；
-- 成员之间 MUST NOT 有边，MUST NOT 虚构 group 节点；groupId/memberName 的 membership 只写入 Group telemetry；
-- member callable 内部调用 `Par.map()` 时，现有 `TaskExecutionContext.current()` 使该 Batch 成为 member 的真实结构化 child；
-- 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警（`JOIN` 不进入执行器投影）。
-
-派生视图的一致性：
-
-- 每次查询（`hasExecutorCycle()` / `hasExecutorSelfLoop()` 以及导出使用的图）MUST 包含其线性化点之前
-  已完成并入的全部片段；并入新片段之后 MUST NOT 复用旧快照；
-- `close()` 发布的 `TaskGraphReport`（经 `TaskGraphObservationScope.reportFuture()`）中的任务图、执行器投影、
-  两个标志与渲染文本 MUST 来自同一份不可变快照，MUST NOT 混用不同时点的读取结果。
-- 没有执行器身份的节点 MUST 在投影中跳过，MUST NOT 让无关查询失败；这些节点仍保留在任务图中。
-- scope `close()` MUST 先恢复调用线程的外层 scope 并完成 `reportFuture()` 的发布，再运行任何
-  可替换的 JUL 日志 handler：handler 是用户代码，可以重入同一个 scope 的 `close()`；重入调用
-  等待的正是这次发布，先日志后发布会形成自等待死锁。
-- scope 生命周期不限于打开线程：close 可在任何线程执行。已关闭 scope 在读取时 MUST 被跳过，
-  观察到最近的仍开放外层 scope；之后的 close MUST 能穿过已关闭的残留绑定完成恢复。关闭调用
-  够不到的线程上的绑定在下一次读取时自愈，已关闭 scope MUST NOT 继续记录边，也不得把外层
-  开放 scope 屏蔽成「无 scope」。
+- 一次 `runAll` 的等待作为**一组**安装：scoped task 内创建时，结构父单元的执行器等待每个成员与汇总所在的
+  starvation-prone 执行器；请求线程创建的 Group 没有等待者，不记录；
+- 成员之间、成员与汇总之间 MUST NOT 记录等待，MUST NOT 虚构 group 节点；groupId/memberName 的 membership
+  只写入 Group telemetry；
+- member callable 内部调用 `Par.map()` 时，现有 `TaskExecutionContext.current()` 使该 Batch 成为 member 的真实
+  结构化 child，member 所在执行器等待该 Batch 的执行器；
+- 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警；
+- 准备失败的 Group MUST NOT 记录任何等待；
+- 记录与告警 MUST NOT 改变 Group 的提交、取消、deadline 或结果；告警不在提交线程上运行。
 
 ## 13. 并发不变量
 
@@ -155,11 +144,11 @@ fake-group-batch -> A/B/C
 30. TTL 值以提交准备阶段为捕获时点传播并恢复；声明期登记时的值不构成快照，普通 ThreadLocal
     不承诺传播。
 
-### 14.6 TaskGraph 与关闭
+### 14.6 执行器等待与关闭
 
-31. 请求线程 Group 不产生 membership dependency edge，只有成员→汇总的 `JOIN`；
-32. outer scoped task 创建 Group 时，只产生 outer `FORK` 成员与汇总、成员 `JOIN` 汇总的真实边，且作为一个片段并入；
-33. member 内嵌套 `Par.map()` 产生 member `FORK` child Batch 的真实边；
+31. 请求线程 Group 不记录任何等待；
+32. outer scoped task 创建 Group 时，只记录 outer 执行器等待成员与汇总执行器，且作为一组安装；
+33. member 内嵌套 `Par.map()` 记录 member 执行器等待 child Batch 执行器；
 34. 同一 executor 的 siblings 不因 membership 产生 self-loop；
 35. ParRuntime close 后拒绝新提交；先于 close 完成 admission 的完整 Group 可继续运行；
 36. close 前完整冻结的成员继续走终止、timeout 和 telemetry；
@@ -174,7 +163,7 @@ fake-group-batch -> A/B/C
 - Group 与 Batch 共享单任务运行内核（`TaskSubmissions`），没有复制取消/phase/ScopedCallable 逻辑；
 - submit admission、cancel、run、rejection、timeout 的竞态均有确定且测试覆盖的结果；
 - 所有冻结成员 future 必然终态；
-- TaskGraph 只记录真实结构化依赖；
+- 执行器等待图只记录真实的同步等待；
 - 全量 Maven 测试通过且 Java 8 main source 兼容；
 - 用户文档说明 `group(...)`/`par`/`combine`/`runAll`、closeGrace、deadline、成员取消归因和
-  observation 生命周期。
+  执行器等待报告。

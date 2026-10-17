@@ -338,8 +338,7 @@ class GroupDraftContractTest {
                                 || TaskExecutionContext.class.isAssignableFrom(fieldType)
                                 || MultiTaskContext.class.isAssignableFrom(fieldType)
                                 || BodyCompletionTracker.class.isAssignableFrom(fieldType)
-                                || TaskBodyState.class.isAssignableFrom(fieldType)
-                                || TaskGraphObservationScope.class.isAssignableFrom(fieldType))
+                                || TaskBodyState.class.isAssignableFrom(fieldType))
                         .as(
                                 "field %s.%s must not be declared as user executable or run state",
                                 current.getName(), field.getName())

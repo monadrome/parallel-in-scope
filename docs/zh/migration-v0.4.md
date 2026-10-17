@@ -135,3 +135,44 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 - 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
 
 从外部取消一次正在运行的执行目前仍没有公开入口；显式取消输入是在途提案。
+
+## 执行器等待报告
+
+死锁风险检测从请求作用域移到运行时。删除 `TaskGraphObservationScope`、`TaskGraphReport`、
+`ParRuntimeDeadlockPolicy`、`ParRuntime.openTaskGraphObservation()`、`ParRuntime.deadlockPolicy()` 与
+`ParRuntime.Builder.deadlockPolicy(...)`。0.3 迁移指南推荐的静态 `hasExecutorCycle()` /
+`hasExecutorSelfLoop()` 一并删除：它们不看死锁策略，作用域关闭后恒为 `false`。
+
+改前：
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .register(ParId.of("io"), ioPool)
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    service.handleRequest();
+}
+if (Futures.getDone(reportFuture).status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("potential deadlock: {}", Futures.getDone(reportFuture));
+}
+```
+
+改后：
+
+```java
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicComponents()) {
+    log.warn("potential deadlock: {}", cycle);
+}
+```
+
+- 删除作用域与策略：记录常开，每次嵌套调用只多一次查表。
+- 环第一次形成时还会打一条 JUL `WARNING`；通过 JUL 配置路由或屏蔽它。
+- `cyclicComponents()` 取代 `status()`、`executorCycle()`、`executorSelfLoop()`；`cycle()` 只有一项的
+  单个执行器就是自环。`toString()` 取代 `executorEdges()` 与 `taskEdges()`。
+- 报告在运行时的整个生命周期内累积，并合并不同请求的等待。没有「单个请求的结论」：需要对某段代码
+  下结论时，像测试那样让它跑在一个专用的 `ParRuntime` 上。

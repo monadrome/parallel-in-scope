@@ -51,9 +51,6 @@ final class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
-        // wrapper that TaskSubmissions.wrapScoped creates for every entry point.
-
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();

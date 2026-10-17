@@ -168,7 +168,7 @@ deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无
 - 不重开已否决 ThrowingFunction；map 仍标准 Function。
 
 迁移路径与用户代码见 docs/en/migration-v0.3.md、docs/zh/migration-v0.3.md。
-TaskGraphObservationScope.reportFuture 保留：它是 request 诊断，不是运行业务句柄。
+执行器等待诊断由 `ParRuntime.executorWaitReport()` 读取（见 [task-graph.md](task-graph.md)），它是运行时诊断，不是运行业务句柄。
 queue 不在本次机制变更范围。
 
 ## 6. 验证记录

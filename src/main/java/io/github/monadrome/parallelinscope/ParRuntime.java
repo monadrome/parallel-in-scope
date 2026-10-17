@@ -7,6 +7,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -65,7 +66,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
     private final @Nullable ParId defaultId;
-    private final ParRuntimeDeadlockPolicy deadlockPolicy;
+    private final ExecutorWaitGraph executorWaits;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
@@ -108,7 +109,6 @@ public final class ParRuntime implements AutoCloseable {
     private final ScheduledExecutorService timeoutScheduler;
 
     private ParRuntime(Builder builder) {
-        this.deadlockPolicy = builder.deadlockPolicy;
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
@@ -132,6 +132,7 @@ public final class ParRuntime implements AutoCloseable {
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
+        ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
             ExecutorRuntime runtime = identityRuntimes.get(identity);
@@ -189,12 +190,14 @@ public final class ParRuntime implements AutoCloseable {
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
             }
+            aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
             builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime));
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
         this.pars = ImmutableMap.copyOf(builtPars);
+        this.executorWaits = new ExecutorWaitGraph(aliases.build(), timeoutActionPool);
     }
 
     public static Builder builder() {
@@ -258,8 +261,26 @@ public final class ParRuntime implements AutoCloseable {
         return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
     }
 
-    public ParRuntimeDeadlockPolicy deadlockPolicy() {
-        return deadlockPolicy;
+    /**
+     * Returns the executor waits-for structure this runtime has observed so far.
+     *
+     * <p>Every nested synchronous call — {@code Par.map}, {@code Par.mapAndCombine}, or a task group's
+     * {@code runAll()} made inside a task body — records which registered executor waits for which;
+     * no scope or switch is needed. When those waits first form a cycle among starvation-prone pools,
+     * the runtime also logs one JUL {@code WARNING} per cyclic component, from a runtime-owned thread
+     * rather than the submitting one. The report accumulates for the runtime's lifetime and is a
+     * structural risk signal, not a deadlock proof; see {@link ExecutorWaitReport}.
+     *
+     * @return the current immutable snapshot
+     * @since 0.4.0
+     */
+    public ExecutorWaitReport executorWaitReport() {
+        return executorWaits.report();
+    }
+
+    /** The runtime's executor waits-for graph, recorded at every nested admission. */
+    ExecutorWaitGraph executorWaits() {
+        return executorWaits;
     }
 
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
@@ -275,18 +296,6 @@ public final class ParRuntime implements AutoCloseable {
     /** Package-private identity index; runtime binding is not a public application API. */
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
-    }
-
-    /**
-     * Opens a request-scoped task-graph observation owned by this topology.
-     *
-     * <p>The caller must close the returned scope. Only nested batches belonging to this same
-     * {@code ParRuntime} join it; crossing to another topology deliberately starts no shared graph.
-     *
-     * @throws IllegalStateException if this ParRuntime has begun shutdown
-     */
-    public TaskGraphObservationScope openTaskGraphObservation() {
-        return whileOpen(() -> new TaskGraphObservationScope(this));
     }
 
     /**
@@ -683,16 +692,9 @@ public final class ParRuntime implements AutoCloseable {
 
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
-        private ParRuntimeDeadlockPolicy deadlockPolicy =
-                ParRuntimeDeadlockPolicy.builder().build();
         private @Nullable ParId defaultId;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
-
-        public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
-            this.deadlockPolicy = Objects.requireNonNull(policy);
-            return this;
-        }
 
         /**
          * Registers a logical entry with one exact executor object.

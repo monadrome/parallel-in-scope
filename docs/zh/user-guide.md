@@ -382,35 +382,19 @@ TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
 
 ## 观测嵌套工作 {#nested-observation}
 
-任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）对 `close()` 冻结的图运行一次潜在死锁检测，把结果发布到 `reportFuture()`。检测到循环只表示结构风险，不证明线程当前已经死锁。
+每个 `ParRuntime` 都常开地记录其注册的执行器之间「谁同步等待谁」，不需要作用域。任务体里调用 `map`、`mapAndCombine` 或 `runAll` 时，它等待自己准入的每一个单元；被等待的单元运行在饥饿型池上时，就记一条从任务体所在池到那个池的等待。汇总只消费输入，不增加自己的等待；顶层调用没有等待方。记录下来的等待第一次形成环（包括池等待自己）时，运行时在自有线程上（从不在提交线程上）打一条 JUL `WARNING`。
+
+任何时候都可以读取当前状态，例如在测试末尾：
 
 ```java
-ParRuntime global = ParRuntime.builder()
-        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
-        .build();
-ListenableFuture<TaskGraphReport> reportFuture;
-try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-    // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
-    reportFuture = observation.reportFuture();
-    service.handleRequest();
-}
-TaskGraphReport report = Futures.getDone(reportFuture);
-if (report.status() == TaskGraphReport.Status.ISSUE) {
-    log.warn("Potential deadlock: {}", report);
-}
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 ```
 
-报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
+`cyclicComponents()` 列出每个有环强连通分量：`members()`、一个按等待顺序排列的具体 `cycle()`，以及 `toString()` 中每条等待首次观测到的一对任务单元。每个执行器以其全部注册 `ParId` 的集合表示——两个 id 指向同一个池就是同一个执行器，单凭名称永远构不成环。
 
-报告先发布，再写 ISSUE 日志。直接 report listener 的 Error 仍可从 close 传播，但不会撤回
-报告或跳过诊断尝试；日志 handler 失败仍被隔离。检测与发布都抛 Error 时，检测错误保持为
-主异常与 future cause，不同的发布错误保留为 suppressed。
-
-任务图记录本运行时每次准入创建的单元（批次、组成员、汇总）以及「谁等待谁」：`map`、`mapAndCombine`、`runAll` 的调用方等待它准入的每一个单元，汇总只消费它的输入。检测把等待关系投影到执行器上：一个 body 阻塞等待排在饥饿型池里的工作，就是两个池之间的一条边；这类边形成环（包括池等待自己）时报告 `ISSUE`，由 `executorCycle()` / `executorSelfLoop()` 标出。渲染出的 `executorEdges()` 与 `taskEdges()` 只列环上的等待关系及其背后的单元。
-
-`TaskGraphObservationScope.hasExecutorCycle()` 等查询覆盖调用前已记录的全部准入；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
-
-executor 环与自环只按注册的 executor 对象本身检测，从不按 `ParId` 名称：两个 `ParId` 指向同一个池即为同一节点，单凭名称永远构不成环。顶层调用没有父 executor，不产生 executor 边；只有任务体内的嵌套调用才会产生。
+报告在运行时的整个生命周期内累积，因此是结构性风险信号，不是死锁证明：一个环可能由从未重叠的不同请求的等待组成——两个请求在两个有界池上互相饿死正是这种形状——而留有余量的池也可能永远不会饿死。报告为空不说明外部 future、直接提交给执行器的任务、锁、看不透或未注册的执行器以及其他运行时的情况。等待记在单元提交到的执行器上；`CallerRunsPolicy` 内联执行任务体时，被阻塞的线程可能属于另一个池。告警是尽力而为的——失败的日志 handler 可能让它丢失——报告则始终可读。需要对某段代码单独下结论时，让它跑在一个专用的 `ParRuntime` 上。
 
 ## 观测直接提交的工作
 
