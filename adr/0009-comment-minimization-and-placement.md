@@ -11,6 +11,13 @@ The repository convention to write code without inline comments is too broad whe
 
 The 2026-10-09 comment audit rejected comment-count and line-length gates, and rejected a mechanical set of comment ownership rules. Those limits remain sound; maintainers still need a small set of qualitative principles to review comments consistently.
 
+## Roles
+
+- **Local comments** explain a nearby implementation fact that is difficult to infer from the code, such as an ordering requirement, an interleaving, or a dependency behavior. They are proof annotations, not API documentation.
+- **Javadoc** describes the contract of a callable surface for its reader: observable results, boundaries, nullability, exceptions, and lifecycle. It does not replace a local correctness proof or a design record.
+- **Design documents and ADRs** are the canonical home for durable rationale, cross-method invariants, rejected alternatives, and reconsideration criteria. They should not duplicate routine code facts.
+- **Test comments and test Javadoc** explain a non-obvious test setup, interleaving, or regression surface. Historical provenance belongs in design history, not beside an assertion.
+
 ## Decision
 
 1. Minimize explanatory comments. Express behavior through names, structure, and tests where those already make the relevant fact clear. Remove comments that only restate behavior or provenance.

@@ -287,7 +287,6 @@ public class CancellationTokenTest {
         f2.set("b");
         f3.set("c");
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
         assertAggregateDone(aggregate);
@@ -297,11 +296,10 @@ public class CancellationTokenTest {
     public void testBind_timeout_stateTransitionsToTimeoutCancelled() throws Exception {
         CancellationToken token = withDeadlineAfter(100);
 
-        SettableFuture<String> f1 = SettableFuture.create(); // never completed
+        SettableFuture<String> f1 = SettableFuture.create();
 
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
-        // Wait for timeout to fire
         Thread.sleep(300);
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertAggregateDone(aggregate);
@@ -321,7 +319,6 @@ public class CancellationTokenTest {
 
         f1.setException(new RuntimeException("boom"));
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
         assertAggregateDone(aggregate);
@@ -829,7 +826,6 @@ public class CancellationTokenTest {
 
         parent.cancel(true);
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertAggregateDone(aggregate);

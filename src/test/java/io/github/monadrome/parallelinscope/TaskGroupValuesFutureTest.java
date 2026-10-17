@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
- * Completion contract of {@link TaskGroup#valuesFuture()} (design §5, §8): the aggregated values
+ * Completion contract of {@link TaskGroup#valuesFuture()}:
  * future settles exactly once when the group converges and never stays pending, so a caller that
  * waits on it can always tell success, failure, and cancellation apart.
  *
