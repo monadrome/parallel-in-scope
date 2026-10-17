@@ -270,6 +270,29 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 ---
 
+## 无 deadline 工厂（`unbounded()`）
+
+**请求：** 为 `BatchOptions`/`TaskOptions`/`ParRuntime.group` 补一个「不设上限」的工厂，作为 `timeout(...)` 与 `inheritTimeout(...)` 之外的第三种选择。
+
+**为什么不做：**
+
+1. **deadline 是同步作用域唯一的活性来源。** `map`/`runAll` 不可中断地等待，调用方中断不取消执行，公开面也没有运行句柄。无 deadline 的顶层作用域里，一个不配合中断的任务体会让调用线程永远挂住，没有任何出口。
+2. **「二选一、无第三态」是刻意的。** 漏写 timeout 编译不过；`unbounded()` 不消除任何遗漏，只是给「不设上限」一个被认可的名字，削弱这层刻意保留的摩擦。
+3. **表达力已经够了。** 「长」任务写一个宽松的运维上界即可，它同时是生产防护；代价只是每个作用域一个定时器，作用域落定即移除。「永远」几乎从来不是真实需求。
+
+**替代方案：**
+
+```java
+TaskBatchResult<Report> reports = par.map(shards, this::rebuild,
+        BatchOptions.timeout("nightly-rebuild", Duration.ofHours(6)));
+```
+
+嵌套调用用 `inheritTimeout(...)` 继承外层预算。不要用 `ChronoUnit.FOREVER`、`Duration.ofSeconds(Long.MAX_VALUE)` 这类天文数字：超过约 292 年后 deadline 会饱和，取消后不再等待任务体退出（已知缺陷，见 BACKLOG O-3）。
+
+**重开条件：** 出现「任何有限上界都有害，而不只是不便」的具体用例，并同时给出无 deadline 作用域的活性方案。
+
+---
+
 ## 不会有的东西
 
 以下特性与 parallel-in-scope 的定位有根本冲突，不会被考虑：
