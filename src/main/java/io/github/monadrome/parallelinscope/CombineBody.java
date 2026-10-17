@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
  * orchestrate the underlying tasks. A member body returning null is a successful member: for a
  * one-member group that makes the whole input null, and for larger groups the {@code Tuple2} itself
  * is never null while its individual components may be.
+ * {@link GroupStep#combineValues} instead supplies a {@link GroupValues} view for typed key lookup.
  *
  * <p>The body runs exactly once, inside the same scoped-task machinery as a member (execution
  * context, TTL replay, deadline, cooperative cancellation, observation snapshot). It runs on a
@@ -53,7 +54,7 @@ import org.jspecify.annotations.Nullable;
  * recorded as {@link TaskOutcome#USER_FAILURE} with the original exception, exactly like a failed
  * member.
  *
- * @param <V> the group's assembled member-value type
+ * @param <V> the group's assembled member-value type, or its GroupValues view for combineValues
  * @param <R> the assembled result type
  * @since 0.3.0
  */

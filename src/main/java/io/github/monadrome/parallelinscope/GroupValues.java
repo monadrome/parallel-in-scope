@@ -1,5 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
 import java.util.ArrayList;
@@ -38,6 +41,7 @@ import org.jspecify.annotations.Nullable;
 public final class GroupValues<V> {
     private final ImmutableList<String> names;
     private final ImmutableList<TypeToken<?>> declaredTypes;
+    private final ImmutableList<TaskKey<?>> keys;
 
     /** Null-tolerant by design: {@code ImmutableList} rejects nulls, successful member values allow them. */
     private final List<@Nullable Object> values;
@@ -47,10 +51,12 @@ public final class GroupValues<V> {
     private GroupValues(
             ImmutableList<String> names,
             ImmutableList<TypeToken<?>> declaredTypes,
+            ImmutableList<TaskKey<?>> keys,
             List<@Nullable Object> values,
             @Nullable V typedValues) {
         this.names = names;
         this.declaredTypes = declaredTypes;
+        this.keys = keys;
         this.values = Collections.unmodifiableList(new ArrayList<>(values));
         this.typedValues = typedValues;
     }
@@ -58,9 +64,10 @@ public final class GroupValues<V> {
     static <V> GroupValues<V> of(
             ImmutableList<String> names,
             ImmutableList<TypeToken<?>> declaredTypes,
+            ImmutableList<TaskKey<?>> keys,
             List<@Nullable Object> values,
             @Nullable V typedValues) {
-        return new GroupValues<>(names, declaredTypes, values, typedValues);
+        return new GroupValues<>(names, declaredTypes, keys, values, typedValues);
     }
 
     /** The number of plain members; the terminal combine never occupies a slot. */
@@ -96,6 +103,21 @@ public final class GroupValues<V> {
      */
     public @Nullable Object valueOf(String name) {
         return values.get(locate(name));
+    }
+
+    /**
+     * Reads a member using the exact key object supplied at declaration. A successful null is
+     * returned as null; an absent key throws even when another member has the same name and type.
+     * The terminal combine is not a member of this view.
+     *
+     * @throws NullPointerException if the key is null
+     * @throws IllegalArgumentException if the key was not declared as a member of this group
+     */
+    public <T> @Nullable T valueOf(TaskKey<T> key) {
+        checkNotNull(key, "key cannot be null");
+        int index = keys.indexOf(key);
+        checkArgument(index >= 0, "no member declared with task key '%s'", key);
+        return cast(values.get(index));
     }
 
     /**

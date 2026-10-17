@@ -24,6 +24,30 @@ import java.util.concurrent.Callable;
  */
 public interface GroupStep<V> {
 
+    /** Declares a member with the key's name and type; lookup uses this exact key object. */
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> body);
+
+    /** Declares a keyed member with explicit task options. */
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+
+    /** Declares a keyed terminal combine using the group's assembled member-value type. */
+    <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, CombineBody<? super V, ? extends R> body);
+
+    /** Declares a keyed terminal combine with explicit task options. */
+    <R> CombinedGroupStep<V, R> combine(
+            TaskKey<R> key, Par par, TaskOptions options, CombineBody<? super V, ? extends R> body);
+
+    /**
+     * Declares a keyed terminal combine whose input is the successful member-value view.
+     * Use {@link GroupValues#valueOf(TaskKey)} to read members by their declaration keys.
+     * The combine runs through the same prepared terminal as {@link #combine}; it cannot read itself.
+     */
+    <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, CombineBody<GroupValues<V>, ? extends R> body);
+
+    /** Declares a value-view terminal combine with explicit task options. */
+    <R> CombinedGroupStep<V, R> combineValues(
+            TaskKey<R> key, Par par, TaskOptions options, CombineBody<GroupValues<V>, ? extends R> body);
+
     /**
      * Declares another plain member, widening the group's value type to {@code Tuple2<V, T>}.
      *

@@ -1,4 +1,8 @@
-# 具名终端输入
+# 字符串具名终端输入
+
+类型化 key 终端输入已由 `combineValues(TaskKey, Par, body)` 实现，现行规则见
+[组声明契约](../group-one-shot-api-refactor-codex.md#41-类型化声明键)。本提案仅保留未知 schema
+或字符串名称消费方的入口候选；下方字符串重载仍未实现，须以真实动态消费需求重新论证。
 
 ## 蒸馏摘要
 

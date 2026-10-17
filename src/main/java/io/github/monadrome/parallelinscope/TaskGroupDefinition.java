@@ -86,12 +86,16 @@ final class TaskGroupDefinition {
         final Par par;
         final TaskOptions options;
         final TypeToken<?> type;
+        final TaskKey<?> key;
+        final boolean valueView;
 
-        Slot(String name, Par par, TaskOptions options, TypeToken<?> type) {
-            this.name = name;
+        Slot(TaskKey<?> key, Par par, TaskOptions options, boolean valueView) {
+            this.key = key;
+            this.valueView = valueView;
+            this.name = key.name();
             this.par = par;
             this.options = options;
-            this.type = type;
+            this.type = key.type();
         }
     }
 }

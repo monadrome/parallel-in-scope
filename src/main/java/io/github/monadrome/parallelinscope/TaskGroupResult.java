@@ -35,6 +35,7 @@ public final class TaskGroupResult<V, R> {
     private final ImmutableList<String> names;
     private final ImmutableList<TypeToken<?>> types;
     private final Map<String, ImmediateResult<?>> results;
+    private final Map<TaskKey<?>, ImmediateResult<?>> keyedResults;
     private final Map<String, TaskCompletion<?>> members;
     private final ImmediateResult<GroupValues<V>> values;
     private final @Nullable ImmediateResult<R> terminalResult;
@@ -46,6 +47,7 @@ public final class TaskGroupResult<V, R> {
             ImmutableList<String> names,
             ImmutableList<TypeToken<?>> types,
             Map<String, ImmediateResult<?>> results,
+            Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
             Map<String, TaskCompletion<?>> members,
             ImmediateResult<GroupValues<V>> values,
             @Nullable ImmediateResult<R> terminalResult,
@@ -55,6 +57,7 @@ public final class TaskGroupResult<V, R> {
         this.names = names;
         this.types = types;
         this.results = ImmutableMap.copyOf(results);
+        this.keyedResults = ImmutableMap.copyOf(keyedResults);
         this.members = ImmutableMap.copyOf(members);
         this.values = values;
         this.terminalResult = terminalResult;
@@ -215,6 +218,20 @@ public final class TaskGroupResult<V, R> {
      */
     public ImmediateResult<?> resultOf(String name) {
         return resultAt(locate(name));
+    }
+
+    /**
+     * Reads a member's or terminal combine's frozen result using its exact declaration key.
+     * Successful, failed, and cancelled tasks are all readable; this method never waits.
+     *
+     * @throws NullPointerException if the key is null
+     * @throws IllegalArgumentException if the key was not declared in this group
+     */
+    public <T> ImmediateResult<T> resultOf(TaskKey<T> key) {
+        checkNotNull(key, "key cannot be null");
+        ImmediateResult<?> result = keyedResults.get(key);
+        checkArgument(result != null, "no task declared with task key '%s'", key);
+        return cast(Verify.verifyNotNull(result));
     }
 
     /**

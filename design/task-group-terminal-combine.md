@@ -50,6 +50,10 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 ## 4. API
 
+类型化 key 与 `combineValues` 的输入选择见
+[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。它只参数化同一个
+prepared terminal 的输入组装，下面的准备、join、取消、TTL 与拒绝规则对两种输入一致。
+
 combine 在链尾声明：`GroupStep.combine(name, par, [options,] type, body)` 返回
 `CombinedGroupStep`，其上只有 `runAll()`——不能再声明 `par` 或第二个 combine（编译期排除，
 对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine body 是

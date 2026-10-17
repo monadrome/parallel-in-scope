@@ -156,6 +156,49 @@ public final class Tuple2<A, B> {
 
 ## 4. 一次性生命周期与统一提交
 
+### 4.1 类型化声明键
+
+`TaskKey<T>` 将名称与具体 `Class<T>` / `TypeToken<T>` 集中在一个不可变对象，声明和读取
+共享同一个 `T`。它是可跨运行复用的槽位地址，不是某次执行的 `TaskId`。
+
+改前的最佳具名读取：
+
+```java
+runtime.group("user", timeout).par("user", par, User.class, this::loadUser)
+        .runAll().resultOf("user", User.class);
+```
+
+改后：
+
+```java
+TaskKey<User> user = TaskKey.of("user", User.class);
+runtime.group("user", timeout).par(user, par, this::loadUser).runAll().resultOf(user);
+```
+
+消除声明与查询重复指定类型带来的运行期类型不匹配；任务体或读取赋值的类型不匹配 MUST
+在正常泛型调用中编译失败。raw type / unchecked cast 仍可破坏约束，保留原始类检查，
+不宣称能验证擦除后的容器元素类型。具体 token 校验在 key 创建时完成，字符串声明维持
+原有声明期校验顺序。下述规则适用于 key 入口：
+
+- key MUST 按对象身份判等，MUST NOT 按名称、类型或渲染内容恢复身份。
+- 名称 MUST 在组成员及终端之间唯一，混用字符串与 key 声明也一样；校验失败 MUST NOT
+  预留名称或推进 stage。既有创建线程、过期 stage、owner 校验同样适用。
+- 同一个 key MUST 能在不同组运行中复用；结果 MUST 按运行隔离，执行身份仍逐次生成。
+- `GroupValues.valueOf(key)` MUST 只读取普通成员，null 成功值返回 null；未注册 key
+  （包括同名同类型新 key）MUST 抛 `IllegalArgumentException`。
+- `TaskGroupResult.resultOf(key)` MUST 支持普通成员和已声明的终端，成功、失败、取消均可
+  即时读取；未注册 key MUST 抛 `IllegalArgumentException`。key 为 null MUST 抛 NPE。
+- `combineValues(key, par, [options,] body)` MUST 复用同一个 prepared terminal，输入是
+  已成功成员的 `GroupValues<V>`，不含终端自己；`combine` 继续接收原有 `V`。
+  两种输入 MUST 共享成功门控、原始类检查、deadline、TTL、取消、拒绝与有界清理机制。
+
+key 的创建与 body 绑定无需全局注册；字符串与位置 API 继续支持动态 schema。新增
+一参数 key 查询会使裸 null 字面量与字符串重载歧义，迁移时显式转成目标参数类型。
+不采用纯 `named<T>(name)`：本库已有的运行期原始类检查与 `typeAt/typeOf` schema 需要
+保留具体 token；把类型移到 key 工厂即可去掉查询端的重复参数。
+
+### 4.2 草稿生命周期
+
 `group(name, timeout)` 延续显式正数预算；`groupInheriting(name)` 只在提交现场有外层 scoped task 时有效。`par` 立即校验名称非 null/非空白/不重复、`Par` 属于本 `ParRuntime`，且 body/选项/`TypeToken` 非 null；省略选项等于 `TaskOptions.inheritTimeout()`。token 必须是无未解析类型变量的具体引用类型；原始类型为 primitive 或仍含 `TypeVariable` 的 token 在声明时拒绝。`closeGrace` 仅在首个 `par` 前设置。声明阶段不创建取消 token、future、绝对 deadline、timer 或 TTL 快照，也不调用 executor。timeout 从提交准备边界起算（见 [提交契约 §7.2](task-group-submission.md)）。
 
 Java 没有 move 语义。包私有实现让每个阶段持有同一份内部状态及阶段序号；`par`/`combine` 成功时递增序号，旧接口对象随即失效。通过保存的旧引用继续追加或提交、同一阶段第二次提交、从旧阶段分叉，均抛 `IllegalStateException`；step 接口的编译期限制不能替代这道运行时检查。`closeGrace` 不推进阶段，只在 `GroupStart` 有效。草稿只允许创建线程调用其变更与提交方法。第一次合法提交消耗草稿，无论后续成功或失败都不可重试。成功时把 body 逐项移入 prepared task，失败时清空框架所持引用；调用方自己保存的 callable 不归框架清理。未提交而被调用方长期保存的草稿仍可能持有 request closure，这是本方案明确的生命周期代价。
@@ -267,3 +310,30 @@ Left 的异常形状、`valuesOrThrow()` 的升级规则与取消归因见同步
 依赖行为记录：Guava 构造期就拒绝顶层为裸类型变量的 `TypeToken`，因此声明期校验实际
 拦截的是**嵌套**未解析变量的 token（如 `List<T>`，包括藏在 owner type 里的）；测试要
 同时覆盖嵌套与 owner 两种形态。
+
+### 类型化 key 的评审与验证
+
+独立只读 Codex CLI harness 在 cmux `task-key-review` 工作区逐条对照类型化 key 契约，
+检查 Java 8、泛型、身份、生命周期、取消与终端输入；未确认实现缺陷。以下测试发现均保留并修正：
+
+- 仅断言终端非成功，无法排除失败成员仍触发终端提交。改为同时要求 `FAIL_FAST` 和
+  terminal executor 零提交，避免输入组装失败掩盖成功门控错误。
+- 仅断言 `TIMEOUT`，无法区分显式成员预算与组预算。加入明显早于组 deadline 的收敛上限；
+  临时丢弃显式选项后测试实际失败，恢复选项后通过。
+- 旧 combine 的覆盖不能替代新值视图入口。新增 join 前取消、终端运行中取消、终端拒绝，
+  分别检查 key 结果、提交或调用次数及 body 退出确认。
+- 配合中断退出不能证明有界清理。另用独立 latch 保持 body 未退出，通过有界 `Future.get`
+  观察清理返回及未退出摘要；finally 释放 body、确认退出、排空 finish worker 并关闭 scope。
+  复审指出同步调用 finish 可能在故障时卡住测试，改为上述受控 worker 后确认无阻塞发现。
+- key 身份查询的反向验证临时改用名称定位，同名 key 冒用测试实际失败；恢复引用身份后通过。
+
+PIT 聚焦类型化 key、成功成员视图与冻结组结果，包含 `VOID_METHOD_CALLS`。
+反射得到的顶层 `TypeVariable` 可通过 `TypeToken.of(Type)` 构造，不能把匿名子类构造器
+的拒绝推广到该路径；工厂拒绝测试覆盖此入口。未覆盖的返回分支是参数化类型的 raw type
+递归检查发现类型变量：标准反射规定此 raw type 为声明类，Guava 的原始类解析也先将其
+转成 `Class`，所以正常反射类型不能到达此防御分支。幸存者逐一属于重复索引防护：
+值视图的位置读取、类型读取、带 token 的位置读取，及结果的位置读取与带 token 读取中移除
+显式边界检查，仍由底层列表抛出相同异常类型；两处把上界从 `>= size` 改成 `> size` 也由
+底层列表拒绝。按值与异常类型契约等价，异常文本可能不同，不把它们计作类型安全覆盖缺口。
+行为测试、真实 Java 8 构件消费、静态独立评审、反向验证与该限定范围的变异分析分别验证，
+不以其中一项代替另一项，也不据此宣称调度内核的全量变异覆盖。

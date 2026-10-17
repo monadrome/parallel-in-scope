@@ -35,6 +35,16 @@ import java.util.concurrent.Callable;
 public interface GroupStart {
 
     /**
+     * Declares the first member using a reusable typed key. The key supplies the name and type;
+     * lookup must use this exact key object. Names remain unique across the entire group.
+     * The lifecycle, ownership, and validation rules of {@link #par(String, Par, TypeToken, Callable)} apply.
+     */
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> body);
+
+    /** Declares the first keyed member with explicit task options. */
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+
+    /**
      * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores
      * interruption and restores the flag; it does not extend task execution deadlines.
      *
