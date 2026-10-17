@@ -1,7 +1,7 @@
 # 公开 TimeSource SPI：是否把内部截止时钟缝公开
 
 > 入库说明：2026-10-27 按维护者要求入库，属分析输入，不是现行契约，不约束实现；实现状态按 `5906cf3` 核对。
-> 实现状态：推荐关闭，现状与推荐一致：`ticker`/`timeoutScheduler` 仍是包私有测试缝。§7 的替代交付物（如何测试使用本库的代码的指南）未见于 `docs/`。
+> 实现状态：已收割。2026-10-27 否决公开 SPI，结论与理由见 decision-log 的 public-time-source-spi-2026-10-27 行；§7 的测试指南已落地为 `docs/{en,zh}/testing/testing-your-code.md`（示例对当前库实测：TIMEOUT 40/40，不设 `closeGrace` 时 `bodyCompletionConfirmed()` 38/40，设 1s 后 40/40）。§7 的可选内部跟进（`build()` 校验成对）未做。
 
 > 状态：**设计提案，待拍板**。本文覆盖最终清单 #21：是否把 `ParRuntime.Builder` 的包私有
 > 时钟缝（commit `568e2d0`）公开成用户可注入的 TimeSource SPI。基线：dev/v0.3.0 HEAD dd12641。
