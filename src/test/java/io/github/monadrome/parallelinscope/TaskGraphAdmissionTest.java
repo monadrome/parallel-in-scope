@@ -92,9 +92,8 @@ class TaskGraphAdmissionTest {
         try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
             runtime.group("outer", Duration.ofSeconds(10))
                     .par(
-                            "body",
+                            TaskKey.<Integer>named("body"),
                             caller,
-                            Integer.class,
                             () -> batch.map(Arrays.asList(1, 2), value -> value, BatchOptions.inheritTimeout("fan-out"))
                                     .valuesOrThrow()
                                     .size())
@@ -114,9 +113,8 @@ class TaskGraphAdmissionTest {
         try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
             runtime.group("outer", Duration.ofSeconds(10))
                     .par(
-                            "body",
+                            TaskKey.<Integer>named("body"),
                             caller,
-                            Integer.class,
                             () -> batch.mapAndCombine(
                                             Arrays.asList(1, 2),
                                             value -> value,
@@ -154,9 +152,8 @@ class TaskGraphAdmissionTest {
         try {
             runtime.group("outer", Duration.ofSeconds(10))
                     .par(
-                            "body",
+                            TaskKey.<Integer>named("body"),
                             caller,
-                            Integer.class,
                             () -> batch.mapAndCombine(
                                             Arrays.asList(1, 2),
                                             value -> value,
@@ -195,9 +192,9 @@ class TaskGraphAdmissionTest {
         TaskGraph graph;
         try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
             runtime.group("page", Duration.ofSeconds(10))
-                    .par("left", batch, Integer.class, () -> 1)
-                    .par("right", batch, Integer.class, () -> 2)
-                    .combine("sum", caller, Integer.class, values -> 3)
+                    .par(TaskKey.<Integer>named("left"), batch, () -> 1)
+                    .par(TaskKey.<Integer>named("right"), batch, () -> 2)
+                    .combine(TaskKey.<Integer>named("sum"), caller, values -> 3)
                     .runAll();
             graph = scope.graph();
         }
@@ -219,13 +216,12 @@ class TaskGraphAdmissionTest {
         try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
             runtime.group("outer", Duration.ofSeconds(10))
                     .par(
-                            "body",
+                            TaskKey.<Integer>named("body"),
                             caller,
-                            Integer.class,
                             () -> runtime.groupInheriting("inner")
-                                    .par("left", batch, Integer.class, () -> 1)
-                                    .par("right", batch, Integer.class, () -> 2)
-                                    .combine("sum", batch, Integer.class, values -> 3)
+                                    .par(TaskKey.<Integer>named("left"), batch, () -> 1)
+                                    .par(TaskKey.<Integer>named("right"), batch, () -> 2)
+                                    .combine(TaskKey.<Integer>named("sum"), batch, values -> 3)
                                     .runAll()
                                     .terminalValueOrThrow())
                     .runAll();
@@ -252,9 +248,9 @@ class TaskGraphAdmissionTest {
         CountingGraphData data = new CountingGraphData();
         try (TaskGraphObservationScope scope = new TaskGraphObservationScope(runtime, data)) {
             runtime.group("page", Duration.ofSeconds(10))
-                    .par("left", batch, Integer.class, () -> 1)
-                    .par("right", batch, Integer.class, () -> 2)
-                    .combine("sum", batch, Integer.class, values -> 3)
+                    .par(TaskKey.<Integer>named("left"), batch, () -> 1)
+                    .par(TaskKey.<Integer>named("right"), batch, () -> 2)
+                    .combine(TaskKey.<Integer>named("sum"), batch, values -> 3)
                     .runAll();
             assertThat(scope.graph().asValueGraph().nodes()).hasSize(3);
         }
@@ -272,7 +268,7 @@ class TaskGraphAdmissionTest {
         TaskGraph graph;
         try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
             assertThat(runtime.group("outer", Duration.ofSeconds(10))
-                            .par("body", caller, String.class, () -> {
+                            .par(TaskKey.<String>named("body"), caller, () -> {
                                 captured.set(batch.mapAndCombine(
                                         Arrays.asList(1, 2),
                                         value -> value,

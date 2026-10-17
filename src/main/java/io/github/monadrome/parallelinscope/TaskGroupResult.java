@@ -9,7 +9,6 @@ import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 public final class TaskGroupResult<V, R> {
     private final TaskGroupReport report;
     private final ImmutableList<String> names;
-    private final ImmutableList<TypeToken<?>> types;
+
     private final Map<String, ImmediateResult<?>> results;
     private final Map<TaskKey<?>, ImmediateResult<?>> keyedResults;
     private final Map<String, TaskCompletion<?>> members;
@@ -45,7 +44,6 @@ public final class TaskGroupResult<V, R> {
     TaskGroupResult(
             TaskGroupReport report,
             ImmutableList<String> names,
-            ImmutableList<TypeToken<?>> types,
             Map<String, ImmediateResult<?>> results,
             Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
             Map<String, TaskCompletion<?>> members,
@@ -55,7 +53,7 @@ public final class TaskGroupResult<V, R> {
             Map<String, Integer> unfinishedBodies) {
         this.report = report;
         this.names = names;
-        this.types = types;
+
         this.results = ImmutableMap.copyOf(results);
         this.keyedResults = ImmutableMap.copyOf(keyedResults);
         this.members = ImmutableMap.copyOf(members);
@@ -232,74 +230,6 @@ public final class TaskGroupResult<V, R> {
         ImmediateResult<?> result = keyedResults.get(key);
         checkArgument(result != null, "no task declared with task key '%s'", key);
         return cast(Verify.verifyNotNull(result));
-    }
-
-    /**
-     * The result container at a declaration position, checked against the type token declared for
-     * that slot. The match is exact: a supertype or a raw type of the declared type is rejected.
-     *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
-     *     count
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultAt(int index, TypeToken<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        checkIndex(index);
-        checkArgument(
-                types.get(index).equals(expectedType),
-                "member at index %s was declared as %s but queried as %s",
-                index,
-                types.get(index),
-                expectedType);
-        return cast(resultAt(index));
-    }
-
-    /**
-     * The result container at a declaration position, checked against the class declared for that
-     * slot.
-     *
-     * <p>Shorthand for {@link #resultAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic member
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
-     *     count
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultAt(int index, Class<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultAt(index, TypeToken.of(expectedType));
-    }
-
-    /**
-     * The named member's result container, checked against the type token declared for that slot.
-     * The match is exact: a supertype or a raw type of the declared type is rejected.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultOf(String name, TypeToken<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultAt(locate(name), expectedType);
-    }
-
-    /**
-     * The named member's result container, checked against the class declared for that slot.
-     *
-     * <p>Shorthand for {@link #resultOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic member
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultOf(String name, Class<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultOf(name, TypeToken.of(expectedType));
     }
 
     /** Reads successful group values; rethrows unchecked failures and wraps checked failures. */

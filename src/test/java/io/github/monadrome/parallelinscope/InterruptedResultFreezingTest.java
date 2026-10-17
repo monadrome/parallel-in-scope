@@ -71,7 +71,7 @@ class InterruptedResultFreezingTest {
                 case GROUP:
                     result = runtime.group("group", TIMEOUT)
                             .closeGrace(Duration.ZERO)
-                            .par("member", par, Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("member"), par, () -> {
                                 throw failure;
                             })
                             .runAll()
@@ -81,8 +81,8 @@ class InterruptedResultFreezingTest {
                 case GROUP_TERMINAL:
                     result = runtime.group("group", TIMEOUT)
                             .closeGrace(Duration.ZERO)
-                            .par("member", par, Integer.class, () -> 1)
-                            .combine("terminal", par, Integer.class, values -> {
+                            .par(TaskKey.<Integer>named("member"), par, () -> 1)
+                            .combine(TaskKey.<Integer>named("terminal"), par, values -> {
                                 throw failure;
                             })
                             .runAll()

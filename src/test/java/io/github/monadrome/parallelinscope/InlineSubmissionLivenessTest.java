@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
@@ -172,7 +171,7 @@ class InlineSubmissionLivenessTest {
 
         try {
             TaskGroup<?, Void> group = global.groupDraft("inline-group", DEADLINE)
-                    .par("a", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
+                    .par(TaskKey.<Integer>named("a"), global.par(ParId.of("worker")), memberOptions, () -> {
                         try {
                             secondStarted.await();
                         } catch (InterruptedException e) {
@@ -184,7 +183,7 @@ class InlineSubmissionLivenessTest {
                         }
                         return 1;
                     })
-                    .par("b", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
+                    .par(TaskKey.<Integer>named("b"), global.par(ParId.of("worker")), memberOptions, () -> {
                         secondStarted.countDown();
                         return 2;
                     })

@@ -192,7 +192,7 @@ par.map(elements, item -> {
 ```
 
 group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal combine 则在
-`.combine(name, par, type, CombineBody)` 的 `CombineBody.apply(V)` 内自行包装。两者同样处于
+`.combine(key, par, CombineBody)` 的 `CombineBody.apply(V)` 内自行包装。两者同样处于
 库的上下文层与生命周期层之内。
 
 捕获完整 Context 不等于只设置 span 的父级：body 的 `makeCurrent` 同时回放 baggage 与
@@ -229,7 +229,7 @@ for (TaskCompletion<T> event : batch.completions()) {
 
 ```java
 global.group("retry", Duration.ofSeconds(5))
-        .par("flaky", httpPar, Result.class, () -> {
+        .par(TaskKey.<Result>named("flaky"), httpPar, () -> {
             for (int attempt = 1; ; attempt++) {
                 Checkpoints.checkpoint();        // 协作式取消：已取消则在此抛出（R5）
                 try {

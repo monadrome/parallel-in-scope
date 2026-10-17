@@ -1,10 +1,10 @@
 # 使用指南
 
-> 本文档面向 `0.3.0` 正式版。使用 `ParConfig` 或 `ParOptions` 的 `0.1.x` 示例不能直接用于本版本，请先阅读 [v0.2 迁移指南](migration-v0.2.md)；从 `0.2.x` 升级请阅读 [v0.3 迁移指南](migration-v0.3.md)。
+> 本文档跟随 `0.4.0-SNAPSHOT`；稳定版安装示例仍使用 `0.3.0`。开发线的组声明需要按 [迁移指南](migration-v0.3.md) 改用类型化 key；更早的 API 见 [v0.2 迁移指南](migration-v0.2.md)。
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
-它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出名称、`Par`、声明类型与本次运行的 body；它不是可动态增长的批次。
+它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出类型化 key、`Par` 与本次运行的 body；它不是可动态增长的批次。
 
 ## 构建执行拓扑
 
@@ -123,18 +123,17 @@ fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`body
 
 ## 执行异构任务组 {#task-group}
 
-声明每个成员的名称、Par、类型和 body。`runAll()` 消耗草稿、执行一次并返回有类型的终态
+声明每个成员的类型化 key、Par 和 body。`runAll()` 消耗草稿、执行一次并返回有类型的终态
 结果。声明期不提交、不计算 deadline、不创建 timer/TTL 快照，timeout 从执行边界起算。
-草稿仅创建线程可使用；旧阶段、重复执行、外国 Par、重名、原始类型和未解析类型变量均被拒绝。
+草稿仅创建线程可使用；旧阶段、重复执行、外国 Par 和重名均被拒绝。
 
 ```java
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .closeGrace(Duration.ofSeconds(1))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .combine("profile", httpPar, Profile.class,
-                values -> buildProfile(values.first(), values.second()))
+        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
+        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> buildProfile(values.first(), values.second()))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
@@ -146,23 +145,24 @@ deadline，任务外调用失败。成员/combine 的 TaskOptions 可缩短预�
 combine 在提交线程 inline，明确注册的 direct executor 保持支持。
 
 ```java
+TaskKey<User> userKey = TaskKey.named("user");
 TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par(userKey, databasePar, () -> loadUser(userId))
         .runAll();
-ImmediateResult<User> user = one.resultOf("user", TypeToken.of(User.class));
+ImmediateResult<User> user = one.resultOf(userKey);
 User value = user.valueOrThrow();
 ```
 
-`resultOf/resultAt` 按名称/声明位置查询成员终态，TypeToken 必须精确匹配，不能拓宽；
-null 或失败值也不跳过校验。普通类型可用 Class（带不带自定义 TaskOptions 均可），参数化类型用
-TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深度校验。
+`resultOf(key)` 返回类型化结果；按名称/声明位置查询成员终态的 `resultOf(name)` 和
+`resultAt(index)` 返回 `ImmediateResult<?>`，动态值查询返回 `Object`。
+不再保存或检查运行期类型令牌。
 
 也可以用 `TaskKey<T>` 将名称与类型集中声明一次，再按原 key 读取：
 
 ```java
-TaskKey<User> userKey = TaskKey.of("user", User.class);
-TaskKey<Account> accountKey = TaskKey.of("account", Account.class);
-TaskKey<Profile> profileKey = TaskKey.of("profile", Profile.class);
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
@@ -173,7 +173,7 @@ TaskGroupResult<Tuple2<User, Account>, Profile> result = global
 ImmediateResult<User> user = result.resultOf(userKey);
 ```
 
-泛型结果用 `TaskKey.of("orders", new TypeToken<List<Order>>() {})`。key 按对象身份区分，
+泛型结果用 `TaskKey<List<Order>> orders = TaskKey.named("orders")`。key 按对象身份区分，
 同名同类型的新 key 不能读取旧槽位；应复用原对象，常用 key 可保存为 `static final`。
 同一个 key 可跨运行复用，结果与执行 ID 逐次隔离。组内成员和终端的名称仍须唯一。
 `valueOf(key)` 只读成功成员值，允许 null；未知 key 抛 `IllegalArgumentException`。
@@ -182,7 +182,8 @@ ImmediateResult<User> user = result.resultOf(userKey);
 `combineValues` 接收 `GroupValues<V>`，通过 key 读取成员，不能读取终端自己；
 它复用原有 terminal 的 deadline、TTL、取消、成功门控和拒绝规则。原有 `combine` 仍接收
 静态元组，也支持终端 key。两者均可在 body 前传入 `TaskOptions`。声明和读取共享 `T`，
-错误 body 或赋值类型在正常泛型调用中不能编译；原始类检查保留，但不验证擦除后的集合元素。
+错误 body 或赋值类型在正常泛型调用中不能编译；不做结果的运行期类型校验，
+raw type 和 unchecked cast 造成的类型违规由调用方负责。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
 组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 保持原异常习惯：unchecked 原样抛、
@@ -201,10 +202,10 @@ combine，因此 body 可以直接写 `values -> null`。
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .par("order", httpPar, Order.class, () -> loadOrder(userId))
-        .combine("profile", httpPar, Profile.class, values -> new Profile(
+        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
+        .par(TaskKey.<Order>named("order"), httpPar, () -> loadOrder(userId))
+        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> new Profile(
                 values.first().first(),
                 values.first().second(),
                 values.second()))
@@ -259,7 +260,7 @@ bodyCompletionConfirmed 只确认直接 batch 元素、group 成员及 combine �
 ```java
 TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
         .closeGrace(Duration.ofSeconds(1))
-        .par("read", databasePar, String.class, () -> {
+        .par(TaskKey.<String>named("read"), databasePar, () -> {
             try (Reader reader = openReader()) {
                 return readAll(reader);
             }

@@ -65,7 +65,7 @@ Two utilities round out the API:
 `remaining()` lets a task body hand its real budget to a downstream call instead of a separately configured timeout:
 
 ```java
-.par("user", ioPar, User.class, () -> {
+.par(TaskKey.<User>named("user"), ioPar, () -> {
     Checkpoints.checkpoint();
     Duration budget = Checkpoints.remaining().orElse(configuredClientTimeout);
     if (budget.isZero() || budget.equals(Duration.ofNanos(Long.MAX_VALUE))) {

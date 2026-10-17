@@ -49,12 +49,37 @@ class TaskKeyCompileTest {
                 .isFalse();
     }
 
+    @Test
+    void java8AcceptsKeysInsideGenericMethodsWithoutReifyingTheType() throws Exception {
+        assertThat(compiles("TaskKey<T> itemKey = TaskKey.named(\"item\");"
+                        + "TaskKey<java.util.List<T>> listKey = TaskKey.named(\"list\");"
+                        + "TaskGroupResult<T, java.util.List<T>> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
+                        + ".par(itemKey, par, () -> item)"
+                        + ".combine(listKey, par, v -> java.util.Collections.singletonList(v)).runAll();"
+                        + "T v = r.valuesOrThrow().valueOf(itemKey);"
+                        + "java.util.List<T> l = r.resultOf(listKey).valueOrThrow();"))
+                .isTrue();
+    }
+
+    @Test
+    void java8RejectsWrongLaterMembersAndTupleCombinesWithExplicitOptions() throws Exception {
+        String start = "runtime.group(\"g\", java.time.Duration.ofSeconds(1)).par(count, par, () -> 1)";
+        assertThat(compiles(
+                        start + ".par(names, par, TaskOptions.inheritTimeout(), () -> java.util.Arrays.asList(1));"))
+                .isFalse();
+        assertThat(compiles(start + ".combine(names, par, TaskOptions.inheritTimeout(), v -> 1);"))
+                .isFalse();
+        assertThat(compiles("String wrong = values.valueOf(\"count\");")).isFalse();
+        assertThat(compiles("ImmediateResult<String> wrong = result.resultAt(0);"))
+                .isFalse();
+    }
+
     private boolean compiles(String statements) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         String source = "import io.github.monadrome.parallelinscope.*;"
-                + "class KeyConsumer { void use(ParRuntime runtime, Par par, GroupValues<?> values, TaskGroupResult<?, ?> result) {"
-                + "TaskKey<Integer> count = TaskKey.of(\"count\", Integer.class);"
-                + "TaskKey<java.util.List<String>> names = TaskKey.of(\"names\", new com.google.common.reflect.TypeToken<java.util.List<String>>() {});"
+                + "class KeyConsumer { <T> void use(ParRuntime runtime, Par par, GroupValues<?> values, TaskGroupResult<?, ?> result, T item) throws Exception {"
+                + "TaskKey<Integer> count = TaskKey.named(\"count\");"
+                + "TaskKey<java.util.List<String>> names = TaskKey.named(\"names\");"
                 + statements + "}}";
         JavaFileObject file =
                 new SimpleJavaFileObject(URI.create("string:///KeyConsumer.java"), JavaFileObject.Kind.SOURCE) {

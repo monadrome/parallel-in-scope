@@ -260,9 +260,9 @@ class TaskGraphObservationScopeTest {
         TaskGraphObservationScope scope = global.openTaskGraphObservation();
         try {
             try (TaskGroup<Tuple2<Integer, Integer>, Integer> group = global.groupDraft("page", Duration.ofSeconds(30))
-                    .par("left", par, Integer.class, () -> 1)
-                    .par("right", par, Integer.class, () -> 2)
-                    .combine("join", par, Integer.class, values -> {
+                    .par(TaskKey.<Integer>named("left"), par, () -> 1)
+                    .par(TaskKey.<Integer>named("right"), par, () -> 2)
+                    .combine(TaskKey.<Integer>named("join"), par, values -> {
                         Tuple2<Integer, Integer> members = Objects.requireNonNull(values);
                         return Objects.requireNonNull(members.first()) + Objects.requireNonNull(members.second());
                     })

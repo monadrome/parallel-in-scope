@@ -5,18 +5,8 @@
 
 ## 在 0.4 开发线采用类型化 key
 
-新的 `TaskKey<T>` 是按对象身份寻址的结果键，与 0.2 已删除的同名 API 不同。既有 0.3
-字符串和位置接口继续可用。可把重复的声明／查询类型参数集中到一个 key：
-
-```java
-TaskKey<User> user = TaskKey.of("user", User.class);
-runtime.group("user", timeout).par(user, par, this::loadUser).runAll().resultOf(user);
-```
-
-声明与读取须复用原 key，不能靠同名重建。终端按 key 读取输入时用 `combineValues`，
-通过 `values.valueOf(user)` 取得成员值；原有元组 `combine` 保留。key 可跨运行复用，
-不替代每次运行生成的 `TaskId`。新增重载使一参数 `valueOf(null)` / `resultOf(null)`
-出现歧义；刻意传 null 的测试须显式转成 `String` 或 `TaskKey<T>`。
+0.4 用按对象身份寻址的 TaskKey<T> 替代 0.3 的类型令牌协议。
+改前/改后示例与移除的 API 见 [v0.4 迁移指南](migration-v0.4.md)。
 
 ## 从早期 0.3 快照迁移
 

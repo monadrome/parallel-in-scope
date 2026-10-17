@@ -201,9 +201,9 @@ class TaskGraphExportTest {
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
             Par par = global.par(ParId.of("worker"));
             global.group("page", Duration.ofSeconds(10))
-                    .par("left", par, Integer.class, () -> 1)
-                    .par("right", par, Integer.class, () -> 2)
-                    .combine("sum", par, Integer.class, values -> 3)
+                    .par(TaskKey.<Integer>named("left"), par, () -> 1)
+                    .par(TaskKey.<Integer>named("right"), par, () -> 2)
+                    .combine(TaskKey.<Integer>named("sum"), par, values -> 3)
                     .runAll();
 
             TaskGraph graph = observation.graph();

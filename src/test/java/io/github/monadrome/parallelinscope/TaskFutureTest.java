@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -34,6 +33,10 @@ import org.junit.jupiter.api.Test;
  * deadline reporting.
  */
 class TaskFutureTest {
+    private static final TaskKey<String> KEY_USER_STRING = TaskKey.named("user");
+    private static final TaskKey<String> KEY_SLOW_STRING = TaskKey.named("slow");
+    private static final TaskKey<String> KEY_INHERITED_STRING = TaskKey.named("inherited");
+    private static final TaskKey<String> KEY_TIGHTER_STRING = TaskKey.named("tighter");
 
     private static final Duration SCOPE_TIMEOUT = Duration.ofSeconds(30);
 
@@ -105,25 +108,15 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
             TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", SCOPE_TIMEOUT)
-                    .par(
-                            "user",
-                            global.par(ParId.of("worker")),
-                            memberOptions(),
-                            TypeToken.of(String.class),
-                            () -> "alice")
-                    .par(
-                            "orders",
-                            global.par(ParId.of("worker")),
-                            memberOptions(),
-                            TypeToken.of(Integer.class),
-                            () -> 7)
-                    .combine("assemble", global.par(ParId.of("worker")), String.class, values -> {
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), memberOptions(), () -> "alice")
+                    .par(TaskKey.<Integer>named("orders"), global.par(ParId.of("worker")), memberOptions(), () -> 7)
+                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         Tuple2<String, Integer> members = Objects.requireNonNull(values);
                         return members.first() + ":" + members.second();
                     })
                     .submitAll();
 
-            TaskFuture<String> userFuture = group.futureOf("user", TypeToken.of(String.class));
+            TaskFuture<String> userFuture = group.futureOf(KEY_USER_STRING);
             assertThat(userFuture).isInstanceOf(TaskFuture.class);
             assertThat(userFuture.taskName()).isEqualTo("user");
             assertThat(group.terminalFuture().orElseThrow(() -> new AssertionError("no combine declared")))
@@ -222,13 +215,12 @@ class TaskFutureTest {
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
-                            "slow",
+                            KEY_SLOW_STRING,
                             global.par(ParId.of("worker")),
                             memberOptions(),
-                            TypeToken.of(String.class),
                             () -> startedThenHold(started, block, "never"))
                     .submitAll();
-            TaskFuture<String> member = group.futureOf("slow", TypeToken.of(String.class));
+            TaskFuture<String> member = group.futureOf(KEY_SLOW_STRING);
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
             assertThat(member.cancel(true)).isTrue();
@@ -262,16 +254,14 @@ class TaskFutureTest {
         try {
             TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
-                            "first",
+                            TaskKey.<String>named("first"),
                             global.par(ParId.of("worker")),
                             memberOptions(),
-                            TypeToken.of(String.class),
                             () -> startedThenHold(started, block, "never"))
                     .par(
-                            "second",
+                            TaskKey.<String>named("second"),
                             global.par(ParId.of("worker")),
                             memberOptions(),
-                            TypeToken.of(String.class),
                             () -> startedThenHold(started, block, "never"))
                     .submitAll();
 
@@ -361,14 +351,13 @@ class TaskFutureTest {
                                         .cancellationToken());
                                 TaskGroup<String, Void> group = global.groupDraft("inner", SCOPE_TIMEOUT)
                                         .par(
-                                                "slow",
+                                                KEY_SLOW_STRING,
                                                 global.par(ParId.of("inner")),
                                                 memberOptions(),
-                                                TypeToken.of(String.class),
                                                 () -> startedThenHold(memberStarted, block, "never"))
                                         .submitAll();
                                 innerGroup.set(group);
-                                innerMember.set(group.futureOf("slow", TypeToken.of(String.class)));
+                                innerMember.set(group.futureOf(KEY_SLOW_STRING));
                                 return awaitQuietly(group.completionFuture()) == null ? "cancelled" : "done";
                             },
                             BatchOptions.timeout("outer", SCOPE_TIMEOUT));
@@ -660,21 +649,19 @@ class TaskFutureTest {
         try {
             TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
-                            "inherited",
+                            KEY_INHERITED_STRING,
                             global.par(ParId.of("worker")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> hold(block, "x"))
                     .par(
-                            "tighter",
+                            KEY_TIGHTER_STRING,
                             global.par(ParId.of("worker")),
                             TaskOptions.timeout(Duration.ofMillis(200)),
-                            TypeToken.of(String.class),
                             () -> hold(block, "y"))
                     .submitAll();
 
-            TaskFuture<String> inheritedFuture = group.futureOf("inherited", TypeToken.of(String.class));
-            TaskFuture<String> tighterFuture = group.futureOf("tighter", TypeToken.of(String.class));
+            TaskFuture<String> inheritedFuture = group.futureOf(KEY_INHERITED_STRING);
+            TaskFuture<String> tighterFuture = group.futureOf(KEY_TIGHTER_STRING);
             long groupDeadline = group.completionFuture().deadlineNanos();
 
             assertThat(inheritedFuture.deadlineNanos()).isEqualTo(groupDeadline);

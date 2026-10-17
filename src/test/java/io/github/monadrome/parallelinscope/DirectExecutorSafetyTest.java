@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -218,15 +217,10 @@ class DirectExecutorSafetyTest {
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
         try {
             TaskGroup<?, ?> group = runtime.groupDraft("g", Duration.ofSeconds(5))
-                    .par(
-                            "a",
-                            runtime.par(ParId.of("d")),
-                            TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
-                            () -> {
-                                Thread.currentThread().interrupt();
-                                return "a";
-                            })
+                    .par(TaskKey.<String>named("a"), runtime.par(ParId.of("d")), TaskOptions.inheritTimeout(), () -> {
+                        Thread.currentThread().interrupt();
+                        return "a";
+                    })
                     .submitAll();
 
             TaskGroupReport result = group.completionFuture().get(5, TimeUnit.SECONDS);

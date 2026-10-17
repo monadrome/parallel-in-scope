@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -39,6 +38,8 @@ import org.junit.jupiter.api.Test;
  * convergence that reads a member mid-update.
  */
 class TaskGroupConvergenceTest {
+    private static final TaskKey<Integer> KEY_SIBLING_INTEGER = TaskKey.named("sibling");
+    private static final TaskKey<Integer> KEY_CANCELLED_INTEGER = TaskKey.named("cancelled");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int MEMBERS = 4;
@@ -64,10 +65,10 @@ class TaskGroupConvergenceTest {
                 // out rather than looped: MEMBERS is four.
                 TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "first-failure-" + round, TIMEOUT)
-                        .par("m0", global.par(ParId.of("worker")), Integer.class, failingBody(0, ready, fire))
-                        .par("m1", global.par(ParId.of("worker")), Integer.class, failingBody(1, ready, fire))
-                        .par("m2", global.par(ParId.of("worker")), Integer.class, failingBody(2, ready, fire))
-                        .par("m3", global.par(ParId.of("worker")), Integer.class, failingBody(3, ready, fire))
+                        .par(TaskKey.<Integer>named("m0"), global.par(ParId.of("worker")), failingBody(0, ready, fire))
+                        .par(TaskKey.<Integer>named("m1"), global.par(ParId.of("worker")), failingBody(1, ready, fire))
+                        .par(TaskKey.<Integer>named("m2"), global.par(ParId.of("worker")), failingBody(2, ready, fire))
+                        .par(TaskKey.<Integer>named("m3"), global.par(ParId.of("worker")), failingBody(3, ready, fire))
                         .submitAll();
                 assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
                 fire.countDown();
@@ -101,10 +102,22 @@ class TaskGroupConvergenceTest {
                 // declared here.
                 TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "visibility-" + round, TIMEOUT)
-                        .par("m0", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
-                        .par("m1", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
-                        .par("m2", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
-                        .par("m3", global.par(ParId.of("worker")), Integer.class, blockingBody(started, release))
+                        .par(
+                                TaskKey.<Integer>named("m0"),
+                                global.par(ParId.of("worker")),
+                                blockingBody(started, release))
+                        .par(
+                                TaskKey.<Integer>named("m1"),
+                                global.par(ParId.of("worker")),
+                                blockingBody(started, release))
+                        .par(
+                                TaskKey.<Integer>named("m2"),
+                                global.par(ParId.of("worker")),
+                                blockingBody(started, release))
+                        .par(
+                                TaskKey.<Integer>named("m3"),
+                                global.par(ParId.of("worker")),
+                                blockingBody(started, release))
                         .submitAll();
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
@@ -140,17 +153,17 @@ class TaskGroupConvergenceTest {
         CountDownLatch hold = new CountDownLatch(1);
         try {
             TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("callback-error", TIMEOUT)
-                    .par("cancelled", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(KEY_CANCELLED_INTEGER, global.par(ParId.of("worker")), () -> {
                         hold.await();
                         return 1;
                     })
-                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(KEY_SIBLING_INTEGER, global.par(ParId.of("worker")), () -> {
                         hold.await(30, TimeUnit.SECONDS);
                         return 2;
                     })
                     .submitAll();
             Futures.addCallback(
-                    group.futureOf("sibling", TypeToken.of(Integer.class)),
+                    group.futureOf(KEY_SIBLING_INTEGER),
                     new FutureCallback<Integer>() {
                         @Override
                         public void onSuccess(@Nullable Integer result) {}
@@ -164,8 +177,7 @@ class TaskGroupConvergenceTest {
 
             // Cancelling one member directly cascades through the group token into the sibling's
             // future, where the callback above throws before "cancelled" is counted.
-            assertThatThrownBy(() -> group.futureOf("cancelled", TypeToken.of(Integer.class))
-                            .cancel(true))
+            assertThatThrownBy(() -> group.futureOf(KEY_CANCELLED_INTEGER).cancel(true))
                     .isInstanceOf(AssertionError.class);
 
             TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);

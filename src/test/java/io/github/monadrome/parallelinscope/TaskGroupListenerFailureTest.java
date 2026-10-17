@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +23,7 @@ import org.junit.jupiter.api.Test;
  * earlier one, where the throwing listener is attached to a member's own observation future.
  */
 class TaskGroupListenerFailureTest {
+    private static final TaskKey<String> KEY_USER_STRING = TaskKey.named("user");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
@@ -36,7 +36,7 @@ class TaskGroupListenerFailureTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return "value";
@@ -47,7 +47,7 @@ class TaskGroupListenerFailureTest {
             // The member's observation future is caller-reachable, and a throwing direct listener on
             // it runs on the thread that publishes the observation — inside the member's own
             // completion path, before the barrier has counted that member.
-            group.futureOf("user")
+            group.futureOf(KEY_USER_STRING)
                     .completionFuture()
                     .addListener(
                             () -> {
@@ -59,8 +59,7 @@ class TaskGroupListenerFailureTest {
             // Both the member and the group must still settle. If the Error escapes into the
             // publication path, the member's observation finishes but the barrier never counts it,
             // and the group stays pending forever.
-            assertThat(group.futureOf("user", TypeToken.of(String.class)).get(5, TimeUnit.SECONDS))
-                    .isEqualTo("value");
+            assertThat(group.futureOf(KEY_USER_STRING).get(5, TimeUnit.SECONDS)).isEqualTo("value");
             assertThat(group.completionFuture().get(5, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).typedValues())
