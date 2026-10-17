@@ -24,12 +24,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 /** Exercises parent cancellation timing across pending and running child work. */
 public class CancellationPropagationCartesianTest {
 
-    private enum ParentTiming {
+    enum ParentTiming {
         BEFORE_CHILD_BIND,
         AFTER_CHILD_BIND
     }
 
-    private enum ChildWork {
+    enum ChildWork {
         PENDING,
         RUNNING
     }
@@ -42,6 +42,7 @@ public class CancellationPropagationCartesianTest {
     }
 
     /** Verifies parent-to-child cancellation effects independently from state classification. */
+    @SuppressWarnings("FutureReturnValueIgnored")
     @ParameterizedTest(name = "{0};childWork={1}")
     @MethodSource("propagationCases")
     public void parentCancellationReachesPendingAndRunningChildWork(ParentTiming timing, ChildWork childWork)
@@ -75,6 +76,7 @@ public class CancellationPropagationCartesianTest {
     }
 
     /** Specifies consistent propagation classification when the parent was already cancelled. */
+    @SuppressWarnings("FutureReturnValueIgnored")
     @Test
     public void alreadyCancelledParentClassifiesChildAsPropagatingCancellation() {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
@@ -89,7 +91,7 @@ public class CancellationPropagationCartesianTest {
             assertThat(childFuture).isCancelled();
             assertThat(child.state())
                     .as("parent cancellation should have one state regardless of bind timing")
-                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELED);
+                    .isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         } finally {
             timer.shutdownNow();
         }
@@ -99,7 +101,7 @@ public class CancellationPropagationCartesianTest {
     private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!future.isCancelled() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1);
         }
         assertThat(future).isCancelled();
     }
@@ -108,7 +110,7 @@ public class CancellationPropagationCartesianTest {
     private static void awaitTrue(AtomicBoolean value) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!value.get() && System.nanoTime() < deadline) {
-            Thread.yield();
+            Thread.sleep(1);
         }
         assertThat(value).isTrue();
     }
@@ -141,6 +143,8 @@ public class CancellationPropagationCartesianTest {
         }
 
         /** Creates pending work or running work parked at a controlled gate. */
+        // NullAway: deliberate null arguments — probes the null-rejection contract
+        @SuppressWarnings("NullAway")
         private static ChildFixture create(ChildWork work) {
             if (work == ChildWork.PENDING) {
                 return new ChildFixture(

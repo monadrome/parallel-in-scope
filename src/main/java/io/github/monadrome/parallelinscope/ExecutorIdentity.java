@@ -21,15 +21,16 @@ final class ExecutorIdentity {
     private final ExecutorService supplied;
     private final int hash;
 
-    public ExecutorIdentity(ExecutorService supplied) {
+    ExecutorIdentity(ExecutorService supplied) {
         this.supplied = Objects.requireNonNull(supplied, "supplied executor cannot be null");
         this.hash = System.identityHashCode(supplied);
     }
 
-    public ExecutorService suppliedExecutor() {
+    ExecutorService suppliedExecutor() {
         return supplied;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     @Override
     public boolean equals(Object other) {
         return other instanceof ExecutorIdentity && ((ExecutorIdentity) other).supplied == supplied;

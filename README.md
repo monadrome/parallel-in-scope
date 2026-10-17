@@ -6,6 +6,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.monadrome/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.monadrome/parallel-in-scope)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
+[![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
 > Current development version: `0.3.0-SNAPSHOT`, published to the Central snapshot repository.
 > Latest stable release: `0.2.0`. The `0.3.0` line is a breaking redesign of the task-group API —
@@ -34,36 +35,81 @@ repository, so declare the snapshot repository next to the dependency:
 </dependency>
 ```
 
-Register every logical entry with the executor it must use, once at the composition root:
+Register every logical entry with the executor it must use, once at the composition root, and close
+both the runtime and your own executors when the application shuts down:
 
 ```java
+ExecutorService ioPool = Executors.newFixedThreadPool(8);
+ExecutorService httpPool = Executors.newFixedThreadPool(4);
+
 ParRuntime runtime = ParRuntime.builder()
-        .register(ParId.of("io"), Executors.newFixedThreadPool(8))
+        .register(ParId.of("io"), ioPool)
+        .register(ParId.of("http"), httpPool)
         .build();
 
-BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
-        .parallelism(4)
-        .taskType(TaskType.IO_BOUND);
+Par ioPar = runtime.par(ParId.of("io"));
+Par httpPar = runtime.par(ParId.of("http"));
 
-TaskBatchResult<User> result = runtime.par(ParId.of("io"))
-        .map(userIds, userService::findById, options);
+try {
+    BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
+            .parallelism(4)
+            .taskType(TaskType.IO_BOUND);
 
-for (TaskFuture<User> future : result.results()) {
-    System.out.println(future.taskName() + " -> " + future.outcome());
+    TaskBatchResult<User> result = ioPar.map(userIds, userService::findById, options);
+
+    for (ImmediateResult<User> item : result.results()) {
+        System.out.println(item.outcome());
+    }
+
+    TaskGroupResult<Tuple2<User, Account>, Profile> group = runtime
+            .group("profile", Duration.ofSeconds(3))
+            .par("user", ioPar, User.class, () -> loadUser(userId))
+            .par("account", httpPar, Account.class, () -> loadAccount(userId))
+            .combine("profile", httpPar, Profile.class,
+                    values -> buildProfile(values.first(), values.second()))
+            .runAll();
+    Profile profile = group.terminalValueOrThrow();
+} finally {
+    runtime.close();
+    try {
+        runtime.awaitQuiescence(Duration.ofSeconds(30));
+    } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+    }
+    ioPool.shutdownNow();
+    httpPool.shutdownNow();
 }
 ```
 
-Two contracts shape that first call:
+Three contracts shape that first call:
 
 - **The timeout is a forced choice.** A batch declares either `BatchOptions.timeout(name, duration)`
   or `BatchOptions.inheritTimeout(name)`; there is no third state, so a batch cannot run unbounded
   by omission, and an explicit timeout is capped by any enclosing deadline.
 - **A batch is fail-fast.** The first failure cancels the rest of the batch, including elements that
-  were never submitted. Read `TaskFuture.outcome()` for the per-element verdict (`USER_FAILURE`,
-  `TIMEOUT`, `FAIL_FAST`, …) and close the `TaskBatchResult` to release the batch.
+  were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
+  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `bodyCompletionConfirmed()`
+  before releasing resources shared by direct bodies, and confirm nested exits separately.
+- **Parallelism defaults to no cap.** `BatchOptions` starts at `Integer.MAX_VALUE`, which resolution
+  caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
+  explicitly to bound the sliding window; zero or negative values are rejected at the entry.
+
+The same snippet also declares a **task group**: a fixed set of named tasks, each with its own `Par`,
+declared type, and body, aggregated by one terminal `combine`. `runAll()` executes the chain once and
+returns a frozen result; read the terminal value with `terminalValueOrThrow()`.
 
 `ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
-the executors you registered.
+the executors you registered, so the example closes both pools itself in the `finally` block.
+
+Cross-thread context propagation runs on Alibaba `TransmittableThreadLocal` (TTL): a TTL value is
+captured when the task is prepared and restored on the worker thread — a plain `ThreadLocal` does
+not cross the pool boundary:
+
+```java
+TransmittableThreadLocal<String> traceId = new TransmittableThreadLocal<>();
+traceId.set("req-42");
+// the mapper inside par.map(...) reads "req-42" on the pool thread
+```
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
@@ -71,11 +117,11 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 ## Core Capabilities
 
 - Fail-fast cancellation within a task batch
-- Timeout, explicit, and parent-to-child cancellation propagation
+- Deadline, fail-fast, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
-- Cross-thread `ThreadLocal` context propagation
-- CPU / IO task-aware scheduling
-- Monitoring SPI for execution, queueing, and failures
+- Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
+- Task-type-aware queue admission (`TaskType` drives `SmartBlockingQueue` refusal, not scheduling)
+- Frozen task observations: `completions()` / group `members()` and `terminal()`
 - Cycle detection across task and executor graphs
 
 ## Documentation
@@ -83,6 +129,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 | Entry | Contents |
 |---|---|
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
+| [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
 | [English documentation](docs/en/index.md) | User guide, API contracts, design notes, and case studies |
 | [v0.3 migration guide](docs/en/migration-v0.3.md) | Breaking changes from the `0.2.x` task-group API |
 | [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
@@ -93,6 +140,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 ## Compatibility and Build
 
 - Runtime: Java 8+
+- Build JDK: 25 (LTS) — Error Prone/NullAway run at compile time; the artifact still targets Java 8 bytecode
 - Build tool: Maven 3.x
 - Published artifact: root `parallel-in-scope` project
 - Examples: independent `demo/` project, not published

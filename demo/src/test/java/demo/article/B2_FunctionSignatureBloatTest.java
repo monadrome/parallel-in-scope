@@ -3,9 +3,9 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public class B2_FunctionSignatureBloatTest {
     private static String fetchWithBloat(String url, String traceId, long timeoutMs, boolean[] cancelFlag) {
         // 手动检查取消
         if (cancelFlag[0]) {
-            return "CANCELED";
+            return "CANCELLED";
         }
         // 手动传递 traceId（模拟 MDC 设置）
         String oldTrace = Thread.currentThread().getName();
@@ -130,7 +130,10 @@ public class B2_FunctionSignatureBloatTest {
                 opts);
 
         // Par.map() returns immediately; wait for the terminal states before reporting.
-        Futures.allAsList(result.results()).get();
+        Futures.allAsList(result.results().stream()
+                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                        .collect(java.util.stream.Collectors.toList()))
+                .get();
 
         // 验证所有任务成功完成
         String report = result.reportString();
@@ -159,7 +162,7 @@ public class B2_FunctionSignatureBloatTest {
                     //   - 取消检查（ScopedCallable 内部 checkpoint）
                     //   - 超时控制（CancellationToken.lateBind）
                     //   - 并发限制（滑动窗口调度）
-                    //   - 任务生命周期（TaskListener SPI 回调）
+                    //   - 任务生命周期（completionFuture 终态快照）
                     //
                     // 开发者只需写纯业务代码，无需任何管道参数
                     processedCount.incrementAndGet();

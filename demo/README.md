@@ -52,7 +52,7 @@ chmod +x scripts/run-demos.sh
 
 ## 架构约束
 
-这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 正式发布前，坐标解析为从代码树根目录 `mvn install` 安装的本地 `0.3.0-SNAPSHOT` 构建。
+这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 正式发布前，坐标解析为从代码树根目录 `mvn install` 安装的本地 `0.3.0-SNAPSHOT` 构建。CI 在根项目 `install` 之后把刚构建的版本传给 demo，使 demo 始终验证当前代码树的构件，而不是 `pom.xml` 里可能落后的默认版本。
 
 ### 依赖方向
 
@@ -63,7 +63,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.monadrome.parallelinscope` (ParRuntime, Par, BatchOptions, TaskBatchResult, listeners)
+- `io.github.monadrome.parallelinscope` (ParRuntime, Par, BatchOptions, TaskBatchResult, TaskGroupResult, ImmediateResult)
 - `io.github.monadrome.parallelinscope.queue` (independent general-purpose queues)
 
 Cancellation, context, graph, and scheduling internals are package-private in the root package, so
@@ -90,7 +90,9 @@ A: 内核类与 API 同包但使用 package-private 强制隐藏。示例只使�
 
 ### Q: 如何更新依赖版本？
 
-A: 修改 `pom.xml` 中的 `parallel-in-scope.version` 属性。
+A: 修改 `pom.xml` 中的 `parallel-in-scope.version` 属性，或在命令行用
+`-Dparallel-in-scope.version=<version>` 覆盖。CI 会传入根项目刚构建的版本，因此
+demo 验证的是当前代码树的构件；本地手动构建时该属性仍需与根项目版本一致。
 
 ### Q: 如何验证架构约束？
 

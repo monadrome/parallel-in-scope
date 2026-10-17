@@ -1,6 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Per-task body lifecycle slot registered with a {@link BodyCompletionTracker} before submission.
@@ -37,6 +40,13 @@ final class TaskBodyState {
     private final BodyCompletionTracker tracker;
     private final String name;
 
+    /**
+     * Terminal signal of this slot: set exactly once, by the winning transition to {@code EXITED}
+     * or {@code SKIPPED}, before the shared tracker is released. Observation futures key on it so
+     * a waiter that observes body completion through the tracker already finds this slot terminal.
+     */
+    private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
+
     TaskBodyState(BodyCompletionTracker tracker, String name) {
         this.tracker = tracker;
         this.name = name;
@@ -64,10 +74,13 @@ final class TaskBodyState {
     /**
      * Publishes body exit, releasing the slot once. Idempotent: the normal path publishes after the
      * user body's finally and the outer future finally retries as a fallback, so a missed inner
-     * publish (for example a context-install failure) cannot leak the slot.
+     * publish (for example a context-install failure) cannot leak the slot. The terminal signal is
+     * set before the tracker release, so observation futures keyed on it are published before any
+     * body-completion waiter can return.
      */
     void exited() {
         if (state.compareAndSet(State.RUNNING, State.EXITED)) {
+            BodyCompletionTracker.complete(terminal);
             tracker.release();
         }
     }
@@ -75,7 +88,13 @@ final class TaskBodyState {
     /** Marks the task as never entering its body, releasing the slot once. */
     void skipped() {
         if (state.compareAndSet(State.PENDING, State.SKIPPED)) {
+            BodyCompletionTracker.complete(terminal);
             tracker.release();
         }
+    }
+
+    /** The terminal signal of this slot, for observation-future barriers. */
+    ListenableFuture<@Nullable Void> terminal() {
+        return terminal;
     }
 }

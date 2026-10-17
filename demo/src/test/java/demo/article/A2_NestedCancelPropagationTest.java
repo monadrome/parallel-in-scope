@@ -2,9 +2,9 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
@@ -133,9 +133,19 @@ class A2_NestedCancelPropagationTest {
                                 innerOptions);
 
                         // 等待内层结果（阻塞导致外层超时）
-                        for (int i = 0; i < innerResult.results().size(); i++) {
+                        for (int i = 0;
+                                i
+                                        < innerResult.results().stream()
+                                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                                .collect(java.util.stream.Collectors.toList())
+                                                .size();
+                                i++) {
                             try {
-                                innerResult.results().get(i).get();
+                                innerResult.results().stream()
+                                        .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
+                                        .collect(java.util.stream.Collectors.toList())
+                                        .get(i)
+                                        .get();
                             } catch (Exception e) {
                                 // 被取消或失败
                             }

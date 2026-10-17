@@ -3,34 +3,46 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.util.concurrent.Futures;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
-/** Contract tests for {@link Par#submit(String, java.util.concurrent.Callable, TaskOptions)}. */
+/** Contract tests for {@link Par#submit(String, Callable, TaskOptions)}. */
 class ParSubmitTest {
 
     @Test
     void submitRunsOneScopedTaskWithNameAndDeadline() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("worker"), executor)
-                .taskListener(listenerCompletion::set)
-                .build();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "single",
                             () -> {
-                                MultiTaskContext unit =
-                                        TaskExecutionContext.current().multiTaskContext();
+                                MultiTaskContext unit = Objects.requireNonNull(TaskExecutionContext.current())
+                                        .multiTaskContext();
                                 assertThat(unit.name()).isEqualTo("single");
                                 return "done";
                             },
@@ -39,37 +51,54 @@ class ParSubmitTest {
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(listenerCompletion.get().taskName()).isEqualTo("single");
+            TaskCompletion<String> completion = task.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(completion.taskName()).isEqualTo("single");
+            assertThat(completion.result()).isEqualTo("done");
         } finally {
             global.close();
             executor.shutdownNow();
         }
     }
 
+    /**
+     * Replaces a test of the {@code runOnCallerThread} option, which asked the library to run the body
+     * on the submitting thread when the executor rejected it. There is no such option: a rejection is
+     * a submission failure, and the body does not run. An executor that wants to run tasks on the
+     * submitting thread says so by being that kind of executor.
+     */
     @Test
-    void submitRunsOnTheCallerThreadWhenOptionsRequestIt() throws Exception {
+    void submitFailsWithoutRunningUserCodeWhenTheExecutorRejects() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), rejected).build();
-        Thread caller = Thread.currentThread();
+        AtomicBoolean ran = new AtomicBoolean();
         try {
-            TaskFuture<Thread> task = global.par(ParId.of("worker"))
+            TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
-                            "inline",
-                            Thread::currentThread,
-                            TaskOptions.timeout(Duration.ofSeconds(30)).runOnCallerThread(true));
+                            "rejected",
+                            () -> {
+                                ran.set(true);
+                                return "never";
+                            },
+                            TaskOptions.timeout(Duration.ofSeconds(30)));
 
-            assertThat(task.get(2, TimeUnit.SECONDS)).isSameAs(caller);
-            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isInstanceOf(SubmissionException.class)
+                    .cause()
+                    .isInstanceOf(RejectedExecutionException.class);
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(ran).isFalse();
         } finally {
             global.close();
         }
     }
 
     /**
-     * The default: a rejected task fails without entering user code, for every task type.
-     * {@code CPU_BOUND} is the default type, so this is what an unconfigured task does.
+     * The default: a rejected task fails without entering user code, for every task type. No task
+     * type or rejection handling is declared, so this is what an unconfigured task does.
      */
     @Test
     void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
@@ -89,7 +118,7 @@ class ParSubmitTest {
                             TaskOptions.timeout(Duration.ofSeconds(30)));
 
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                    .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(bodyRan.get()).isFalse();
@@ -149,12 +178,11 @@ class ParSubmitTest {
                 .register(ParId.of("inner"), inner)
                 .build();
         try {
-            TaskBatchResult<String> batch = global.par(ParId.of("outer"))
-                    .map(
+            TaskBatch<String> batch = global.par(ParId.of("outer"))
+                    .submitBatch(
                             Arrays.asList("a"),
-                            ignored ->
-                                    com.google.common.util.concurrent.Futures.getUnchecked(global.par(ParId.of("inner"))
-                                            .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
+                            ignored -> Futures.getUnchecked(global.par(ParId.of("inner"))
+                                    .submit("nested", () -> "nested-value", TaskOptions.inheritTimeout())),
                             BatchOptions.timeout("outer-batch", Duration.ofSeconds(30)));
 
             assertThat(batch.valuesOrThrow()).containsExactly("nested-value");
@@ -177,6 +205,138 @@ class ParSubmitTest {
                     .isInstanceOf(IllegalStateException.class);
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void inertRejectEnqueueIsReportedOncePerParAndNeverForAQueueThatHonorsIt() throws Exception {
+        ExecutorService plain = Executors.newFixedThreadPool(2);
+        ThreadPoolExecutor smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(4));
+        ParRuntime global = ParRuntime.builder()
+                // Two Par names on one physical pool: the diagnostic is per Par, not per executor.
+                .register(ParId.of("plain"), plain)
+                .register(ParId.of("plain-two"), plain)
+                .register(ParId.of("smart"), smart)
+                .build();
+        Logger parLogger = Logger.getLogger(Par.class.getName());
+        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        parLogger.addHandler(capture);
+        try {
+            Par par = global.par(ParId.of("plain"));
+            // The option is off for this call, so there is nothing to report yet.
+            par.submit(
+                            "silent",
+                            () -> "a",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(false))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).isEmpty();
+
+            // A fixed pool's default queue never reads the flag: say so once, not once per task.
+            // The flag is requested explicitly because it is off by default: an inert-flag warning
+            // presupposes a caller who asked for enqueue rejection, and the default no longer does.
+            par.submit(
+                            "loud",
+                            () -> "b",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
+                    .get(2, TimeUnit.SECONDS);
+            par.submit(
+                            "loud-again",
+                            () -> "c",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
+            assertThat(records.get(0).getMessage()).contains("plain", "inert");
+
+            global.par(ParId.of("plain-two"))
+                    .submit(
+                            "loud-other",
+                            () -> "d",
+                            TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(2);
+
+            // A SmartBlockingQueue reads the flag, so the caller is not warned about an inert one.
+            global.par(ParId.of("smart"))
+                    .submit("quiet", () -> "e", TaskOptions.timeout(Duration.ofSeconds(30)))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(records).hasSize(2);
+        } finally {
+            parLogger.removeHandler(capture);
+            global.close();
+            plain.shutdownNow();
+            smart.shutdownNow();
+        }
+    }
+
+    /**
+     * A single submit whose executor handoff throws an {@code Error} still returns its future: the
+     * task never reached a worker, so the future terminates as {@code SUBMISSION_FAILURE} with the
+     * original {@code Error} behind the {@code SubmissionException}, and {@code submit} itself does
+     * not rethrow.
+     */
+    @Test
+    void submitFailsFutureWhenExecutorHandoffThrowsError() {
+        ExecutorService broken = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public List<Runnable> shutdownNow() {
+                shutdown = true;
+                return Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return shutdown;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                throw new AssertionError("handoff broken");
+            }
+        };
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("broken"), broken).build();
+        try {
+            TaskFuture<Integer> task = global.par(ParId.of("broken"))
+                    .submit("single", () -> 1, TaskOptions.timeout(Duration.ofSeconds(30)));
+
+            assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(task.failure()).isInstanceOf(SubmissionException.class).hasCauseInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(SubmissionException.class);
+        } finally {
+            global.close();
+            broken.shutdownNow();
         }
     }
 }

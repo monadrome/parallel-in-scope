@@ -25,12 +25,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK
+      # Build JDK: release builds run the same enforcer as CI, which requires JDK 25; the
+      # published artifact still targets release 8 bytecode.
+      - name: Set up build JDK
         uses: actions/setup-java@v5
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
-          java-version: 17
+          java-version: 25
           distribution: temurin
           cache: maven
           server-id: central
@@ -46,15 +48,25 @@ jobs:
 
       - name: Verify library and demo
         run: |
+          LIBRARY_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
           mvn -B -ntp clean install
-          mvn -B -ntp -f demo/pom.xml package
+          mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
 
+      # `maven.repository.credentialScope=id` restores credential matching by server id. The
+      # runner image's Maven scopes credentials by repository origin, and the `central` server
+      # that `setup-java` writes into settings.xml is associated with the super-POM's
+      # `https://repo.maven.apache.org`, so the Central snapshot endpoint is refused the
+      # credentials and answers 401 -- this command failed that way in `snapshot.yml` on
+      # 2026-10-09 after the image's Maven was updated. Maven names this switch in its warning.
       - name: Publish to Maven Central
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn -B -ntp -Prelease -DskipTests deploy
+        run: >-
+          mvn -B -ntp -Prelease -DskipTests
+          -Dmaven.repository.credentialScope=id
+          deploy
 
       - name: Create GitHub release
         if: ${{ !contains(github.ref_name, '-SNAPSHOT') }}

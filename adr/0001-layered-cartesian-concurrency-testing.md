@@ -88,6 +88,14 @@ Workload behavior and `TaskType` SHALL be independent axes. Naming a task
 
 #### L3. Admission phase
 
+> Vocabulary note: `PLACEHOLDER` and `ABANDONED_PLACEHOLDER` are legacy names.
+> The states they model are unchanged and still required — an element outside the
+> initial window while earlier work is gated, and an element cancelled or
+> abandoned before admission — but no placeholder future backs them any more; the
+> element's handle wraps its prepared future from creation on
+> ([ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)). The
+> sliding window itself is unchanged.
+
 | Value | Deterministic setup |
 |---|---|
 | `INITIAL_SUBMITTED` | index is below `min(taskCount, parallelism)` |
@@ -271,8 +279,11 @@ When a new test exposes a production defect during diagnostic work:
 4. the observed behavior, expected behavior, impact, and source evidence are
    recorded in the deep test report.
 
-The current report is
-[`../tmp/deep-concurrency-test-report.md`](../tmp/deep-concurrency-test-report.md).
+The report this record referred to lived at `todo/deep-concurrency-test-report.md` and was
+removed with the rest of the exploratory notes in `82e886a` (2026-08-27). It is recoverable from
+history with `git show 82e886a^:todo/deep-concurrency-test-report.md`; later deep-test material
+lives in `reports/`, which is out of the main line and archived on the `backup/scratch-materials`
+branch.
 
 ## Alternatives Considered
 
