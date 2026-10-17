@@ -16,7 +16,7 @@
 | 提案 | 结论与残值 |
 |---|---|
 | group-api-redesign-v0.3-decision | 结构定义与执行绑定分离、`ParId`、`GlobalPar` 更名 `ParRuntime`。组 API 部分后被一次性链式草稿取代；拓扑与命名沿革仍有参考价值 |
-| task-type-semantics-v0.3-proposal | `TaskType` 是意图声明，`TaskType.MIXED` 拍板保留、**明确不重开**；executor 拒绝处置归 executor 所有，`runOnCallerThread` 选项在 0.3.0 发布前删除（`df89b43`） |
+| task-type-semantics-v0.3-proposal | `TaskType.MIXED` 保留、不重开的结论**已由 [adr/0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) 推翻**：`TaskType` 改为可选诊断声明（`COMPUTE`/`BLOCKING`/`UNKNOWN`），理由全文在 ADR。本稿其余结论仍有效：executor 拒绝处置归 executor 所有，`runOnCallerThread` 选项在 0.3.0 发布前删除（`df89b43`） |
 | par-map-throwing-function-v0.3-proposal | **已否决**：`Par.map` 保留标准 `java.util.function.Function`，不引入受检异常签名。§5–§7 全部作废，仅防重提 |
 | jspecify-null-safety-v0.3-proposal | 迁到 JSpecify + NullAway 编译期强制。现行约定以根 AGENTS.md 与 `docs/en/reference/nullability-annotations.md` 为准 |
 | batch-submission-failure-semantics | handoff 失败统一以 `SubmissionException`/`SUBMISSION_FAILURE` 终结受影响 future；跨过 admission 后不同步抛出；`valuesOrThrow()` 是整批升级路径 |
@@ -79,7 +79,7 @@
 | test-comment-audit-2026-10-09 | 具体指针/编号、横幅/旁白、等待 helper、重复文字与 placeholder 断言进入 P0012；`7bf46f6` 的局部术语修复不代表整份清单完成。历史口吻的回归理由和窄抑制用途保留，不按注释密度重构测试 |
 | proposal-mechanism-2026-10-12 | 机制蒸馏进 [proposal-lifecycle.md](proposal-lifecycle.md)；B 只查回指与残留共存，不证明蒸馏质量。取消“否决稿不入库”的矛盾教义，明确部分落地拆分与历史回指合法悬空；不新增蒸馏脚本 |
 | task-graph-snapshot-consistency-plan、task-group-convergence-lock-removal-proposal（2026-10-27 收割，二稿全文在 `cacf590:design/analysis/`，下同） | 两者均已实现：`TaskGraphData` 写入即失效缓存快照、写入与物化同锁；`TaskGroup` 收敛改为原子计数，已无 `synchronized`。去锁稿的相邻议题：terminal 统一与两入口重复解析观测 scope 进 [P0006](proposal/P0006-execution-protocol-consolidation.md)；**否决**把 TTL CRR 内联进 `ScopedCallable`（`TtlCallable.call()` 只做 CRR 与引用释放，内联要手写 TTL 契约并失去 `TtlEnhanced` 标记），**否决**用 `Transmitter.registerThreadLocal` 托管 `TaskExecutionContext`/`SubmissionScope` 的 `CURRENT`（二者刻意不跨线程传播，自动 CRR 会让内层任务继承外层 context） |
-| overdesign-analysis-code-only / -with-docs-2026-10-02、overdesign-deletion-review-2026-09-28 | 已落地：任务侧环查询删除、标签图兜底与 `"NA"` 删除、滑窗改完成线程补窗、`ActionGate` 删除（`dc22650`）、executor tags 删除、`rawCheckpoint` 恢复标志（`8d8be45`）、`Par` 与 `TaskGraphData` 的转发层删除；purge 两项随自动 purge 移出主线失效。保留：`TaskType.MIXED`（已拍板不重开）、`ParRuntimeDeadlockPolicy`、`BlockingRisk` 的保留判断后因无读者删除。F1 由 test-only-kernel-surface-retirement 稿、F5 由 graph-detection 稿与 BACKLOG A-P1、F10 由 batch-group-read-surface 稿、F11 由 checkpoints-convergence 稿承接，四稿待拍板；F6–F8 残余进 P0006 |
+| overdesign-analysis-code-only / -with-docs-2026-10-02、overdesign-deletion-review-2026-09-28 | 已落地：任务侧环查询删除、标签图兜底与 `"NA"` 删除、滑窗改完成线程补窗、`ActionGate` 删除（`dc22650`）、executor tags 删除、`rawCheckpoint` 恢复标志（`8d8be45`）、`Par` 与 `TaskGraphData` 的转发层删除；purge 两项随自动 purge 移出主线失效。保留：`TaskType.MIXED`（原拍板不重开，后由 [adr/0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) 推翻）、`ParRuntimeDeadlockPolicy`、`BlockingRisk` 的保留判断后因无读者删除。F1 由 test-only-kernel-surface-retirement 稿、F5 由 graph-detection 稿与 BACKLOG A-P1、F10 由 batch-group-read-surface 稿、F11 由 checkpoints-convergence 稿承接，四稿待拍板；F6–F8 残余进 P0006 |
 | issue-candidates-from-session-analyses-2026-10-10 | I1（`Futures.getDone`）、I4、I9、I11 已修，I3 任务侧已删；I2 的两次读取矛盾只在包私有活体类型上，冻结的 `ImmediateResult` 自洽，用户不可达，不立项。I3 执行器侧与 I5 归 graph-detection 稿，I6 归 test-only 稿，I7 见上一行，I8 归 public-time-source 稿，I10 归 P0019 |
 | kimi-review-0.3.0-snapshot、codex-session-01a0e758-independent-verification-2026-10-14 | kimi 审核由 issue #45–#47、#49 承接并关闭，B3 throwing `Function` 已否决（见 v0.3 重构簇），B1 残余在 BACKLOG。codex 报告的队列性能项与 BACKLOG 漂移已按机制名改写进 BACKLOG P-P4/P-P5，`remove(Object)` 分配半项确认已由 `96fa94d` 修复 |
 

@@ -20,6 +20,11 @@ principle 10); this file governs only the ADR format.
 - Never rewrite a decision into its replacement. When a decision changes, add a
   successor ADR, or name the live `design/` contract that replaced it; mark the
   old record `Superseded` (or partially superseded) and link both directions.
+- When a successor ADR overturns only a rule or premise inside an older record,
+  edit that text in place so the older record no longer states the overturned
+  rule: state the current rule in one line, name the successor ADR inline, and
+  add it to `Partially superseded by`. Keep the rest of the record as decided;
+  the successor holds the reasoning, and git history holds the previous wording.
 
 ## Condensing Records
 
