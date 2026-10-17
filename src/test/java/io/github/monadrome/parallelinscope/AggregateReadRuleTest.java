@@ -87,8 +87,15 @@ class AggregateReadRuleTest {
         IOException elementFailure = new IOException("element io");
         IOException combineFailure = new IOException("combine io");
 
-        TaskBatchResult<Integer> batch =
-                par.map(Arrays.asList(1, 2), value -> sneakyThrow(elementFailure), BatchOptions.timeout("b", TIMEOUT));
+        TaskBatchResult<Integer> batch = par.map(
+                Arrays.asList(1, 2),
+                value -> {
+                    if (value == 1) {
+                        return sneakyThrow(elementFailure);
+                    }
+                    return value;
+                },
+                BatchOptions.timeout("b", TIMEOUT));
         BatchCombinedResult<Integer, Integer> combined = par.mapAndCombine(
                 Arrays.asList(1, 2), value -> value, BatchOptions.timeout("c", TIMEOUT), par, values -> {
                     throw combineFailure;
