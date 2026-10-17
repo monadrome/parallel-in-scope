@@ -197,8 +197,7 @@ class VirtualDeadlineTest {
                             },
                             BatchOptions.timeout("batch", Duration.ofMinutes(1)));
 
-            assertThat(result.report().stateCounts().get(TaskOutcome.USER_FAILURE))
-                    .isEqualTo(1);
+            assertThat(result.outcomeCounts().get(TaskOutcome.USER_FAILURE)).isEqualTo(1);
             assertThat(result.bodyCompletionConfirmed())
                     .as("the derived cleanup budget must cover the slow body's real exit")
                     .isTrue();
@@ -259,10 +258,7 @@ class VirtualDeadlineTest {
             assertThat(caller.isAlive())
                     .as("the nested deadline must fire on the inherited manual scheduler")
                     .isFalse();
-            assertThat(Objects.requireNonNull(nested.get())
-                            .report()
-                            .stateCounts()
-                            .get(TaskOutcome.TIMEOUT))
+            assertThat(Objects.requireNonNull(nested.get()).outcomeCounts().get(TaskOutcome.TIMEOUT))
                     .isEqualTo(1);
             assertThat(Objects.requireNonNull(outcome.get()).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         } finally {

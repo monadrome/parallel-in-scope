@@ -122,7 +122,7 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 
 上述"读 token 归因 outcome"的映射在根包的包私有 `TokenOutcomes.forCancelled(token, whenUncommitted)`
 中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome`、`ScopedCallable` 的监听器事件、
-`TaskBatchResult.report()` 三方共用：
+批次元素 `Task.outcome()` 的落定归因三方共用：
 
 | token state | 归因 outcome |
 |---|---|

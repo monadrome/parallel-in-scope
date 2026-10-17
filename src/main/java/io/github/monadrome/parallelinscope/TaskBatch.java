@@ -228,7 +228,8 @@ final class TaskBatch<T> implements AutoCloseable {
         }
         Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
         BodyCompletionTracker.warnUnfinished("batch", unfinished, LOGGER);
-        return new TaskBatchResult<>(frozen, observations, unfinished);
+        String batchName = results.isEmpty() ? "" : results.get(0).taskName();
+        return new TaskBatchResult<>(batchName, frozen, observations, unfinished);
     }
 
     /**

@@ -1,21 +1,30 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.collect.Maps.toImmutableEnumMap;
-
 import com.google.common.base.Joiner;
+import com.google.common.base.Throwables;
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Frozen results of a synchronous parallel batch. No accessor waits or cancels work.
+ *
+ * <p>Aggregate reads follow the same rule as {@link TaskGroupResult}: {@link #orThrow()} is the
+ * failure gate, and {@link #valuesOrThrow()} passes through it. The selected failure is the first
+ * element in input order whose outcome is {@code USER_FAILURE} or {@code SUBMISSION_FAILURE}; it is
+ * rethrown as-is when unchecked and wrapped in {@link CompletionException} when checked. A batch
+ * that did not succeed without recording such a failure throws {@link CancellationException}.
  *
  * <p>Terminal results do not prove resource release: cancellation can settle before a body exits.
  * Check bodyCompletionConfirmed before releasing resources shared by this batch's direct bodies.
@@ -26,14 +35,17 @@ import org.jspecify.annotations.Nullable;
  * @since 0.3.0
  */
 public final class TaskBatchResult<T> {
+    private final String batchName;
     private final List<ImmediateResult<T>> results;
     private final List<@Nullable TaskCompletion<T>> completions;
     private final Map<String, Integer> unfinishedBodies;
 
     TaskBatchResult(
+            String batchName,
             List<ImmediateResult<T>> results,
             List<@Nullable TaskCompletion<T>> completions,
             Map<String, Integer> unfinishedBodies) {
+        this.batchName = batchName;
         this.results = ImmutableList.copyOf(results);
         this.completions = Collections.unmodifiableList(new ArrayList<>(completions));
         this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
@@ -63,77 +75,119 @@ public final class TaskBatchResult<T> {
     }
 
     /**
-     * Reads values immediately. The first recorded execution failure in input order takes precedence
-     * over cancellation; pure cancellation throws CancellationException. Success values may be null.
+     * Reads every value after passing through {@link #orThrow()}. Success values may be null.
+     *
+     * @return the values in input order
+     * @throws CompletionException wrapping the selected failure when it is checked
+     * @throws CancellationException when the batch did not succeed and no element recorded a failure
      */
-    public List<@Nullable T> valuesOrThrow() throws ExecutionException {
-        Throwable failure = report().firstException();
-        if (failure != null) {
-            throw new ExecutionException(failure);
-        }
+    public List<@Nullable T> valuesOrThrow() {
+        orThrow();
         List<@Nullable T> values = new ArrayList<>(results.size());
         for (ImmediateResult<T> result : results) {
-            if (result.outcome() != TaskOutcome.SUCCESS) {
-                Throwable cause = result.failure();
-                if (cause instanceof CancellationException) {
-                    throw (CancellationException) cause;
-                }
-                LeanCancellationException cancelled =
-                        new LeanCancellationException("batch element ended with " + result.outcome());
-                cancelled.initCause(cause);
-                throw cancelled;
+            try {
+                values.add(result.valueOrThrow());
+            } catch (ExecutionException impossible) {
+                throw new AssertionError("successful batch element cannot fail", impossible);
             }
-            values.add(result.valueOrThrow());
         }
         return Collections.unmodifiableList(values);
     }
 
-    /** Counts terminal outcomes and reports the first execution failure in input order. */
-    public BatchReport report() {
-        Map<TaskOutcome, Integer> counts =
-                results.stream().collect(toImmutableEnumMap(ImmediateResult::outcome, x -> 1, Integer::sum));
-        Throwable first = null;
-        for (ImmediateResult<T> result : results) {
-            if (result.outcome() == TaskOutcome.USER_FAILURE || result.outcome() == TaskOutcome.SUBMISSION_FAILURE) {
-                first = result.failure();
-                break;
+    /**
+     * Returns this result when every element succeeded; otherwise throws the selected failure. The
+     * first {@code USER_FAILURE} or {@code SUBMISSION_FAILURE} element in input order is selected
+     * and rethrown as-is when unchecked, wrapped in {@link CompletionException} when checked. When
+     * no element recorded such a failure, the first non-successful element's cancellation is thrown
+     * as a {@link CancellationException}.
+     *
+     * @return this result
+     * @since 0.4.0
+     */
+    public TaskBatchResult<T> orThrow() {
+        for (int index = 0; index < results.size(); index++) {
+            ImmediateResult<T> result = results.get(index);
+            if (isRecordedFailure(result)) {
+                throw selectedFailure(
+                        Verify.verifyNotNull(result.failure()), "batch '" + batchName + "' failed at element " + index);
             }
         }
-        return new BatchReport(counts, first);
+        for (ImmediateResult<T> result : results) {
+            if (!result.successful()) {
+                throw asCancellation(result, "batch '" + batchName + "' element ended with ");
+            }
+        }
+        return this;
     }
 
-    /** Returns a one-line terminal outcome summary. */
-    public String reportString() {
-        BatchReport report = report();
-        StringBuilder text =
-                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(report.stateCounts()));
-        if (report.firstException() != null) {
-            text.append(" | firstException=").append(report.firstException().getMessage());
+    /**
+     * Counts terminal outcomes of every element.
+     *
+     * @return an immutable count per outcome; outcomes that did not occur are absent
+     * @since 0.4.0
+     */
+    public Map<TaskOutcome, Integer> outcomeCounts() {
+        EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
+        for (ImmediateResult<T> result : results) {
+            counts.merge(result.outcome(), 1, Integer::sum);
         }
+        return Maps.immutableEnumMap(counts);
+    }
+
+    /**
+     * The first element in input order whose outcome is {@code USER_FAILURE} or {@code
+     * SUBMISSION_FAILURE}. Empty when no element recorded a failure, including a batch that ended by
+     * deadline or cancellation alone. Locate the element with {@code results().indexOf(...)}.
+     *
+     * @return the first failed element's result, or empty
+     * @since 0.4.0
+     */
+    public Optional<ImmediateResult<T>> failedTaskResult() {
+        for (ImmediateResult<T> result : results) {
+            if (isRecordedFailure(result)) {
+                return Optional.of(result);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * A one-line summary for logs: the {@link #outcomeCounts()} and the first recorded failure's
+     * message, as in {@code SUCCESS:2,USER_FAILURE:1 | firstException=boom}. The format is
+     * diagnostic, not a parsing contract.
+     */
+    public String reportString() {
+        StringBuilder text =
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
+        failedTaskResult()
+                .map(ImmediateResult::failure)
+                .ifPresent(failure -> text.append(" | firstException=").append(failure.getMessage()));
         return text.toString();
     }
 
-    /** Immutable terminal outcome counts and first execution failure. */
-    public static final class BatchReport {
-        private final Map<TaskOutcome, Integer> stateCounts;
-        private final @Nullable Throwable firstException;
+    String batchName() {
+        return batchName;
+    }
 
-        BatchReport(Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
-            this.stateCounts = Maps.immutableEnumMap(stateCounts);
-            this.firstException = firstException;
-        }
+    static boolean isRecordedFailure(ImmediateResult<?> result) {
+        return result.outcome() == TaskOutcome.USER_FAILURE || result.outcome() == TaskOutcome.SUBMISSION_FAILURE;
+    }
 
-        public Map<TaskOutcome, Integer> stateCounts() {
-            return stateCounts;
-        }
+    /** The exception an aggregate read throws for a selected failure; an Error is thrown directly. */
+    static RuntimeException selectedFailure(Throwable failure, String message) {
+        Throwables.throwIfInstanceOf(failure, Error.class);
+        return failure instanceof RuntimeException
+                ? (RuntimeException) failure
+                : new CompletionException(message, failure);
+    }
 
-        public @Nullable Throwable firstException() {
-            return firstException;
+    static CancellationException asCancellation(ImmediateResult<?> result, String messagePrefix) {
+        Throwable cause = result.failure();
+        if (cause instanceof CancellationException) {
+            return (CancellationException) cause;
         }
-
-        @Override
-        public String toString() {
-            return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
-        }
+        LeanCancellationException cancelled = new LeanCancellationException(messagePrefix + result.outcome());
+        cancelled.initCause(cause);
+        return cancelled;
     }
 }

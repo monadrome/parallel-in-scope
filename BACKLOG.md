@@ -186,8 +186,8 @@ Guava 的 SEVERE 日志里。
 
 | 成员 | 位置 | 问题 |
 |---|---|---|
-| `TaskCompletion.succeeded(...)` / `failed(...)` | `TaskCompletion.java:66, :87` | 8/9 个位置参数 + 3 个裸纳秒时间戳；仅同包测试用；且让用户能**伪造看起来由库产出的归因记录** |
-| `SmartBlockingQueue.create(int)` | `SmartBlockingQueue.java:82` | 零调用；`capacity <= 0` 返回 `SynchronousQueue`，与公开构造器（`:29`）抛 `IllegalArgumentException` 冲突——一类两契约 |
+| ~~`TaskCompletion.succeeded(...)` / `failed(...)`~~ | — | **已删除（0.4，2026-10-27）**，理由见 decision-log |
+| ~~`SmartBlockingQueue.create(int)`~~ | — | **已删除（0.4，2026-10-27）**，理由见 decision-log |
 | ~~`TaskGroupResult.memberCount()`~~ | ~~`TaskGroupResult.java:91`~~ | 已随 `5d598ac` 删除（零调用，等于 `members().size()`） |
 | `ParRuntime` purge setter + 4 个 live getter | `ParRuntime.java:237-272` | 仅测试调用；构建期 `ParRuntimePurgePolicy` 已能表达。**待确认**是否有运维用途 |
 
@@ -226,8 +226,8 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 | ~~O-4~~ | ~~注册虚拟线程 executor 的告警文案事实错误、处方错误~~ **已修复（工作区，未提交）** | — | — | — |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
 | O-6 | 动态批次 + 终端汇合无组合形态，deadline 语义差异未文档化 | 功能 | 读码 | 中-高 |
-| O-7 | `stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法 | API | 读码 | 低-中 |
-| O-8 | 嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法 | 文档 | 实测 | 低 |
+| ~~O-7~~ | ~~`stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法~~ **已修复（0.4，聚合读取统一）** | — | — | — |
+| ~~O-8~~ | ~~嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法~~ **已修复（0.4，批次读取改非受检）** | — | — | — |
 | O-9 | 主源码零 `@since`；`package-info` 无入口导引 | 文档 | 读码 | 低 |
 | ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
@@ -297,16 +297,12 @@ deadline 核心路径，按仓库惯例需独立对抗性审查。
 归因区分（业务 `TimeoutException` ≠ 框架 TIMEOUT）也已修复。旧条目：动态 N 的汇总只能落在
 调用线程或用固定元数的组包一层。
 
-### O-7 / O-8 · 读取面不对称
+### O-7 / O-8 · 读取面不对称 ——**已修复（0.4，2026-10-27）**
 
-同步化重构后更明显——批次侧 checked、组侧 unchecked：`valuesOrThrow()` 抛 checked
-`ExecutionException`（`TaskBatchResult.java:67`）↔ 组侧 `valuesOrThrow()`/`orThrow()` 均 unchecked
-（`TaskGroupResult.java:151`、`:173`）；计数仍是 `BatchReport.stateCounts()`
-（`TaskBatchResult.java:124`）↔ `TaskGroupResult.outcomeCounts()`（`:190`）两种名字。
-O-8：`Par.map` 的 body 仍是 `Function`（`ThrowingFunction` 已被用户否决，不得重开），实测在 body 内直接
-调用 `valuesOrThrow()` 编译失败；且嵌套 `map` 现在是同步阻塞调用，会占住 worker。修复：文档给出标准
-写法（`Futures.getUnchecked` / 显式 try-catch / 读 `ImmediateResult`）；是否补 unchecked 读取口与
-O-7 同批决策。
+批次聚合读取改用组侧规则：`TaskBatchResult`/`BatchCombinedResult` 新增 `orThrow()`，`valuesOrThrow()`/
+`terminalValueOrThrow()` 非受检；`BatchReport` 删除，计数与首失败改为 `outcomeCounts()`/`failedTaskResult()`。
+批次 body 内嵌套 `valuesOrThrow()` 不再需要 try/catch。规则见 `design/synchronous-scope-exit.md` §3，
+取舍见 decision-log 的 batch-group-read-surface-symmetry 行。
 
 ### O-9 / O-10 · 低成本复利（文档）
 
@@ -328,13 +324,13 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 公开可达签名中。本条记录时的前提（"public final class TaskGroup"）已不成立，无需修复；
 A-P1（`CancellationToken` 孤岛）仍开放。
 
-### O-13 · 纯超时批次的 `report().firstException()` 恒 null
+### O-13 · 纯超时批次的 `failedTaskResult()` 恒为空
 
 来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余（全文 `git show cacf590:design/analysis/kimi-review-0.3.0-snapshot.md`），2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
-但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
-（`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:298` 把 null 钉为期望）。
-待拍板：这是设计如此（firstException 只指用户失败，超时归因读逐元素
+但 `TaskBatchResult.failedTaskResult()`（原 `report().firstException()`）只取用户/提交失败，纯超时批次为空；
+`orThrow()` 此时抛首个非成功元素的取消异常。
+待拍板：这是设计如此（`failedTaskResult()` 只指执行失败，与组侧同义；超时归因读逐元素
 `ImmediateResult.failure()`），还是应为取消类结局提供聚合异常。
 
 ### O-14 · `FAIL_FAST` 同时覆盖"在飞被取消"与"从未提交"的元素，指南未说明

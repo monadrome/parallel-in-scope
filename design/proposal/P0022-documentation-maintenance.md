@@ -33,11 +33,11 @@ P0011 的 MDC/TTL、checked Function、缺少成功返回、中断处理和 IO �
 - task-group-api-and-options 中 failure 只属于业务/提交失败的过强表述、lifecycle 中把直接
   body 确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
   与 group 的 unchecked 包装用具体消费代码解释，不为统一表面添加 throwing callback 家族。
-- PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 report().firstException()
-  只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时可为 null，不代表所有任务成功；取消细节
+- PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 failedTaskResult()
+  只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时为空，不代表所有任务成功；取消细节
   从逐元素 ImmediateResult 读取。FAIL_FAST 可同时覆盖已运行后取消与未提交的元素，单靠
   outcome 不能推断执行历史，应结合可用最终观测。维持现有归因，不为区分这两者增加开关。
-  若要让 firstException 聚合取消，须独立评估 valuesOrThrow 的失败优先级与迁移，不能借
+  若要让 failedTaskResult 聚合取消，须独立评估 orThrow 的失败优先级与迁移，不能借
   文档修订改变契约；历史 O-15 的跨版本 API diff 已实现，不再立项。
 - CHANGELOG 的 0.3 开发项错放 0.2 节须逐项核对引入提交并去重归位；已发布措辞的拼写保留。
   提出 changelog 与行为变更同步约定时补清晰触发条件，不据审计旧列表机械追加条目。
@@ -70,7 +70,7 @@ reviewer 只读，Maven 在单 checkout 串行。外部 consumer 与 NullAway �
 OTel 的完整 Context 示例已按当前包装机制校正，剩余真实 SDK/agent 验证与接入边界归
 [P0013](P0013-opentelemetry-verification.md)。不重新复制各自清单，不把已有 API diff、dev
 贡献基线、自动 snapshot 或已补 TaskGroupResult Javadoc 列为待新建内容。
-结果匹配链与单任务获取的历史剩余方向由 [P0019](P0019-result-exhaustive-matching.md)
+结果匹配链与单任务获取的历史剩余方向由 `proposal:P0019`
 承接，不并入文档修复，也不把修复 failure 中断敏感当作新增 API 的理由。
 
 本提案承接 P0011 尚未实施的方向；其具体缺陷修复已并入活契约。

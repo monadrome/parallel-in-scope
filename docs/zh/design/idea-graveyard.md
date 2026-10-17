@@ -80,7 +80,7 @@ ListenableFuture<Report> report = Futures.transform(allPrices, this::buildReport
 | 退避策略？ | 固定间隔？指数退避？抖动？ |
 | 幂等性？ | 重试一个 HTTP POST 安全吗？ |
 | 重试时是否占用并发窗口？ | 占用则降低吞吐，不占用则可能超出并发限制 |
-| 重试的结果算成功还是另一种状态？ | 影响 `BatchReport` 的统计语义 |
+| 重试的结果算成功还是另一种状态？ | 影响批次结果 `outcomeCounts()` 的统计语义 |
 
 把这些策略内置到框架中，要么做得太简单（覆盖不了实际场景），要么做得太复杂（变成了 Resilience4j）。无论哪种，都偏离了 parallel-in-scope 的定位。
 
@@ -182,7 +182,7 @@ httpPar.map(urls, url -> {
 
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
-1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
+1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。批次结果的状态统计也依赖于预知总任务数。
 2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交 prepared tasks，全部执行 future 在提交前就已准备并绑定。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 

@@ -38,6 +38,9 @@
 - 汇总业务的 `TimeoutException` 是 USER_FAILURE，不是框架 TIMEOUT（bind 按事件来源分类，见
   [cancellation-propagation.md](cancellation-propagation.md) §1）。
 - 汇总失败不篡改元素结果：元素 SUCCESS/失败归因与观测原样保留。
+- MUST：`terminalValueOrThrow()`/`orThrow()` 先检查元素失败、再看汇总自身（规则见
+  [synchronous-scope-exit.md](synchronous-scope-exit.md) §3 聚合读取）。元素失败时汇总只是被级联取消，
+  只读汇总会把业务根因报成 FAIL_FAST 取消。
 
 ## 验证基线
 

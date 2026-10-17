@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -79,10 +80,8 @@ class BatchSettleAttributionTest {
         assertThat(completion).isNotNull();
         assertThat(completion.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(completion.failure()).isSameAs(own);
-        assertThat(result.report().firstException()).isSameAs(own);
-        assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+        assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(own);
+        assertThatThrownBy(result::valuesOrThrow).isSameAs(own);
     }
 
     @Test
@@ -100,8 +99,8 @@ class BatchSettleAttributionTest {
         assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.results().get(0).failure()).isSameAs(own);
         assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+                .isInstanceOf(CompletionException.class)
+                .hasCauseReference(own);
     }
 
     @Test
@@ -122,8 +121,8 @@ class BatchSettleAttributionTest {
             assertThat(sibling.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         }
         assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasRootCauseMessage("the body's own a");
+                .isInstanceOf(CancellationException.class)
+                .hasMessage("the body's own a");
     }
 
     @Test
@@ -148,9 +147,7 @@ class BatchSettleAttributionTest {
         TaskCompletion<Integer> terminal = result.terminal();
         assertThat(terminal).isNotNull();
         assertThat(terminal.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThatThrownBy(result::terminalValueOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+        assertThatThrownBy(result::terminalValueOrThrow).isSameAs(own);
     }
 
     /**
@@ -189,7 +186,10 @@ class BatchSettleAttributionTest {
                     BatchOptions.timeout("own-cancellation", TIMEOUT).closeGrace(Duration.ZERO));
 
             assertThat(result.results().get(0).outcome()).as("run %s", run).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThatThrownBy(result::valuesOrThrow).as("run %s", run).isInstanceOf(ExecutionException.class);
+            assertThatThrownBy(result::valuesOrThrow)
+                    .as("run %s", run)
+                    .isInstanceOf(CancellationException.class)
+                    .hasMessage("the body's own");
         }
     }
 
@@ -211,8 +211,8 @@ class BatchSettleAttributionTest {
                     .contains(TaskOutcome.USER_FAILURE);
             assertThatThrownBy(result::valuesOrThrow)
                     .as("run %s", run)
-                    .isInstanceOf(ExecutionException.class)
-                    .hasRootCauseMessage("the body's own");
+                    .isInstanceOf(CancellationException.class)
+                    .hasMessage("the body's own");
         }
     }
 

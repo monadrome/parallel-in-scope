@@ -254,7 +254,12 @@ public final class TaskGroupResult<V, R> {
         }
     }
 
-    /** Preserves the group's existing unchecked failure and pure-cancellation conventions. */
+    /**
+     * Returns this result on group success; otherwise throws the recorded failure of a member or
+     * the combine — as-is when unchecked, wrapped in {@link CompletionException} when checked — or a
+     * {@link CancellationException} when no task recorded a failure. {@link
+     * TaskBatchResult#orThrow()} and {@link BatchCombinedResult#orThrow()} follow the same rule.
+     */
     public TaskGroupResult<V, R> orThrow() {
         if (outcome() == TaskOutcome.SUCCESS) {
             return this;

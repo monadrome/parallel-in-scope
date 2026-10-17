@@ -52,9 +52,9 @@ for (int i = 0; i < 10; i++) {
 SUCCESS:6
 ```
 
-如果需要结构化数据，调用 `report()` 返回 `BatchReport` 对象：
-- `stateCounts()` — 返回 `Map<TaskOutcome, Integer>`，按状态分组计数
-- `firstException()` — 返回第一个失败任务的异常（无失败时为 null）
+如果需要结构化数据，直接读结果本身（与 `TaskGroupResult` 同名）：
+- `outcomeCounts()` — 返回 `Map<TaskOutcome, Integer>`，按状态分组计数
+- `failedTaskResult()` — 返回输入顺序第一个失败元素的 `ImmediateResult`（无失败时为空 `Optional`）
 
 还可以自定义格式拼接，比如用于日志或监控上报。
 
@@ -80,9 +80,8 @@ System.out.println(result.reportString());
 // 输出示例: SUCCESS:6
 
 // 结构化访问
-TaskBatchResult.BatchReport report = result.report();
-System.out.println("状态统计: " + report.stateCounts());
-System.out.println("首个异常: " + report.firstException());
+System.out.println("状态统计: " + result.outcomeCounts());
+System.out.println("首个失败: " + result.failedTaskResult());
 ```
 
 ### Fail-fast 场景
@@ -92,13 +91,12 @@ System.out.println("首个异常: " + report.firstException());
 这类场景应验证稳定不变量，而不是固定状态数量：
 
 ```java
-TaskBatchResult.BatchReport report = result.report();
-int total = report.stateCounts().values().stream()
+int total = result.outcomeCounts().values().stream()
         .mapToInt(Integer::intValue)
         .sum();
 
 assert total == items.size();
-assert report.firstException() != null;
+assert result.failedTaskResult().isPresent();
 ```
 
 报告示例可能是 `USER_FAILURE:1,FAIL_FAST:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
@@ -110,7 +108,7 @@ assert report.firstException() != null;
 | 代码量 | 20+ 行 | 1 行 |
 | 异常提取 | 手动 getCause() | 自动取第一个失败异常 |
 | 可读性 | 散落在业务逻辑中 | 统一格式，一目了然 |
-| 扩展性 | 每加一个维度多写一段 | report() 返回结构化对象 |
+| 扩展性 | 每加一个维度多写一段 | `outcomeCounts()` / `failedTaskResult()` 直接给出结构化数据 |
 | fail-fast 语义 | 通常没有统一取消协议 | 报告同时反映失败与取消 |
 
 ---

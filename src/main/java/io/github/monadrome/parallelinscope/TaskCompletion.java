@@ -59,54 +59,6 @@ public final class TaskCompletion<T> {
         this.failure = failure;
     }
 
-    /** Creates the record for a successful task, including a possibly-null result. */
-    public static <T> TaskCompletion<T> succeeded(
-            String taskName,
-            TaskId<TaskUnit> unitId,
-            int taskIndex,
-            long submitTimeNanos,
-            long startTimeNanos,
-            long endTimeNanos,
-            @Nullable T result) {
-        return new TaskCompletion<>(
-                taskName,
-                unitId,
-                null,
-                taskIndex,
-                submitTimeNanos,
-                startTimeNanos,
-                endTimeNanos,
-                TaskOutcome.SUCCESS,
-                result,
-                null);
-    }
-
-    /** Creates the record for a failed task; the outcome must be a non-success terminal state. */
-    public static <T> TaskCompletion<T> failed(
-            String taskName,
-            TaskId<TaskUnit> unitId,
-            int taskIndex,
-            long submitTimeNanos,
-            long startTimeNanos,
-            long endTimeNanos,
-            TaskOutcome outcome,
-            Throwable failure) {
-        if (outcome == TaskOutcome.SUCCESS || outcome == TaskOutcome.RUNNING) {
-            throw new IllegalArgumentException("failed record requires a non-success terminal outcome");
-        }
-        return new TaskCompletion<>(
-                taskName,
-                unitId,
-                null,
-                taskIndex,
-                submitTimeNanos,
-                startTimeNanos,
-                endTimeNanos,
-                outcome,
-                null,
-                Objects.requireNonNull(failure, "failure cannot be null"));
-    }
-
     /**
      * Creates a group member's terminal snapshot: the registered member name stands in for {@code
      * taskName}, the index is zero, and the result stays in the member's future.

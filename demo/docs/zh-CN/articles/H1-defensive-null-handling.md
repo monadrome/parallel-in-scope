@@ -44,7 +44,7 @@ for (String item : emptyList) {
 - **`null` 列表**：直接返回空的 `TaskBatchResult`，不抛异常，不提交任何任务
 - **空列表**：同样返回空的 `TaskBatchResult`，零开销
 
-这意味着调用方无需任何防御代码，直接把结果交给下游即可。`TaskBatchResult.results()` 返回空列表，`report()` 返回空的状态统计，不会出现 NPE。
+这意味着调用方无需任何防御代码，直接把结果交给下游即可。`TaskBatchResult.results()` 返回空列表，`outcomeCounts()` 返回空的状态统计，不会出现 NPE。
 
 这种设计遵循"库应该宽容地接受输入"的原则：框架替你兜底，让业务代码专注于核心逻辑。
 

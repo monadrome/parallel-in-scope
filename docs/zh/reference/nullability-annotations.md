@@ -29,7 +29,7 @@ Error Prone/NullAway，同时 `release=8` 保证产物字节码仍是 Java 8。M
 - **参数显式接受 null**：如 `CancellationToken` 的 parent 构造参数可传 `null`
 - **字段与泛型实参可空**：如链式队列节点的 `@Nullable E item`、`@Nullable Node<E> next`
 
-公开示例：`CancellationToken` 的可空 parent、`TaskBatchResult.BatchReport.firstException()`。
+公开示例：`CancellationToken` 的可空 parent、`TaskGroupResult.failedTaskName()`。
 包私有运行时类型对实现状态使用同样的规则。
 
 ## 什么时候不需要标注
@@ -44,7 +44,7 @@ Error Prone/NullAway，同时 `release=8` 保证产物字节码仍是 Java 8。M
 ```java
 static @Nullable TaskExecutionContext current() { ... }
 
-public @Nullable Throwable firstException() { ... }
+public @Nullable String failedTaskName() { ... }
 ```
 
 这里只演示内部源码风格；`TaskExecutionContext` 不是公开 API。

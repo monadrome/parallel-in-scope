@@ -57,7 +57,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".CancellationToken$State",
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
-            BASE_PACKAGE + ".TaskBatchResult$BatchReport",
             BASE_PACKAGE + ".TaskGraphReport$Status",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",

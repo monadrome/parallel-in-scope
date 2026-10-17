@@ -63,7 +63,7 @@ class SynchronousExecutionTest {
         });
         assertThatThrownBy(() -> batch.valuesOrThrow().add("mutation"))
                 .isInstanceOf(UnsupportedOperationException.class);
-        assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.SUCCESS, 2);
+        assertThat(batch.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 2);
         Thread.currentThread().interrupt();
         try {
             TaskBatchResult<Integer> empty = par.map(null, i -> 1, BatchOptions.timeout("empty", TIMEOUT));
@@ -537,12 +537,9 @@ class SynchronousExecutionTest {
                 BatchOptions.timeout("failure", TIMEOUT).closeGrace(Duration.ofSeconds(1)));
         assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         assertThat(result.results().get(1).failure()).isSameAs(original);
-        assertThat(result.report().firstException()).isSameAs(original);
+        assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(original);
         assertThat(result.reportString()).contains("USER_FAILURE:1", "original failure");
-        assertThat(result.report().toString()).contains("original failure");
-        assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCauseReference(original);
+        assertThatThrownBy(result::valuesOrThrow).isSameAs(original);
         assertThat(Verify.verifyNotNull(result.completions().get(0)).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         assertThat(Verify.verifyNotNull(result.completions().get(1)).failure()).isSameAs(original);
     }
@@ -597,7 +594,9 @@ class SynchronousExecutionTest {
             assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(Verify.verifyNotNull(batch.results().get(0).failure()).getCause())
                     .isSameAs(original);
-            assertThatThrownBy(batch::valuesOrThrow).hasCauseInstanceOf(SubmissionException.class);
+            assertThatThrownBy(batch::valuesOrThrow)
+                    .isInstanceOf(SubmissionException.class)
+                    .hasCauseReference(original);
             TaskGroupResult<Integer, Void> group = rejecting
                     .group("rejected", TIMEOUT)
                     .par(TaskKey.<Integer>named("body"), rejected, () -> 1)

@@ -114,9 +114,8 @@ class QuickStartTest {
         String report = result3.reportString();
         assertThat(report).contains("SUCCESS:8");
 
-        // report() 结构化报告
-        TaskBatchResult.BatchReport batchReport = result3.report();
-        assertThat(batchReport.stateCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS, 8);
-        assertThat(batchReport.firstException()).isNull();
+        // outcomeCounts() / failedTaskResult() 结构化读取
+        assertThat(result3.outcomeCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS, 8);
+        assertThat(result3.failedTaskResult()).isEmpty();
     }
 }
