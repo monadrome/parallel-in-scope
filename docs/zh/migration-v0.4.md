@@ -109,3 +109,29 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 删除 `SmartBlockingQueue.create(int)`。它在容量非正时返回 `SynchronousQueue`，同一个整数悄悄切换
 队列语义，而构造器拒绝同一个值。正容量写 `new SmartBlockingQueue<>(capacity)`，交接队列写
 `new SynchronousQueue<>()`；容量来自配置时显式选择其一。
+
+## 内部取消 token
+
+`CancellationToken` 与 `CancellationToken.State` 不再公开。从来没有任何公开方法接收或返回 token，
+所以应用自己创建的 token 与库内工作没有任何连接：它的 deadline 从不触发，`cancel()` 也停不了任何东西。
+
+改前（能编译、能运行，但 deadline 与 `cancel()` 都作用不到这个批次）：
+
+```java
+CancellationToken request = new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+onClientDisconnect(request::cancel);
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+改后：
+
+```java
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(2)));
+```
+
+- 限时用 `BatchOptions.timeout`、`TaskOptions.timeout` 或 `ParRuntime.group(name, timeout)`。
+- 提前结束其余工作：在任务体里抛异常，fail-fast 会取消兄弟任务。
+- 在任务体内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
+- 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
+
+从外部取消一次正在运行的执行目前仍没有公开入口；显式取消输入是在途提案。

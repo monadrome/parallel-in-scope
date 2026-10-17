@@ -192,17 +192,17 @@ Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS`）：
+库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskOutcome`（以下列出取消相关的值）：
 
-| 状态 | Code | 含义 |
-|---|---|---|
-| `RUNNING` | 0 | 正常执行 |
-| `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
-| `TIMEOUT` | -2 | 批次超时 |
-| `CANCELLED` | -3 | 被显式 `cancel()` |
-| `PROPAGATED_CANCELLED` | -4 | 父任务取消，级联传播 |
+| `TaskOutcome` | 含义 |
+|---|---|
+| `FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
+| `TIMEOUT` | 批次或组的 deadline 到期 |
+| `GROUP_CANCELLED` | 所在批次或组被取消，包括父任务取消的级联传播 |
+| `MEMBER_CANCELLED` | 单个组成员自身被取消 |
 
-`shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
+token 本身是包私有的内核类型：用户既拿不到也不需要它，限时用 `BatchOptions.timeout` / `TaskOptions.timeout`，
+在任务体内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。
 
 > 好的并发框架不仅要告诉你"任务被取消了"，还要告诉你"为什么被取消"。
 

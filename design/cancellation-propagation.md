@@ -188,6 +188,16 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
 - 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
   交错测试（gate/latch）照旧，不被时间缝取代。
 
+## 5.3 token 是包私有内核类型
+
+`CancellationToken` 与 `CancellationToken.State` MUST 保持包私有：没有公开成员接收或返回 token，
+用户自建的 token 不会接入任何执行（无调度器、deadline 不触发、`cancel()` 无作用对象），公开它只会制造
+「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskOutcome`；公开 javadoc 与用户文档 MUST NOT 链接或
+教授 token。外部取消一次运行 MUST 通过显式取消输入接入已有执行 token（在途 P0001），MUST NOT 重新公开
+token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
+公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
+deadline、bind 与归因状态机）。历史来源：`proposal:P0025`。
+
 ## 6. 速查表
 
 | API | input 被取消 | output 被取消 |

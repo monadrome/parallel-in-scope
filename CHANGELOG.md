@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Breaking changes
+
+- Make `CancellationToken` and its nested `State` package-private. No public member ever accepted or
+  returned a token, so a token built by application code was connected to no library work: its
+  deadline never fired, because the public constructors carried no deadline scheduler, and
+  `cancel()` stopped nothing. Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or
+  `ParRuntime.group(name, timeout)`; read attribution from `TaskOutcome`; observe cancellation and
+  the remaining budget inside a body with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
+
 ### Features
 
 - Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted

@@ -31,7 +31,7 @@
 | 性能 | P-P6 | 热路径 6 项常数开销 | 读码 | 低 |
 | 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
-| API | A-P1 | `CancellationToken` 是不可达的公开类型 | 复核 | 中（破坏性） |
+| API | ~~A-P1~~ | ~~`CancellationToken` 是不可达的公开类型~~ **已修复：包私有化（0.4）** | 复核 | — |
 | API | A-P2 | 诊断断言无作用域时静默返回 `false` | 复核 | 低-中 |
 | API | A-P3 | `failedTaskName()` 可能是 combine 名且无公开 `failedTask()`（`TaskCompletion.failure()` 口径已修复） | 复核 | 低 |
 | API | A-P6 | 4 处零调用的公开成员 | 读码 | 低-中（破坏性） |
@@ -144,7 +144,7 @@ Guava 的 SEVERE 日志里。
 - **旁证**：`TaskBatchResult.java:158` 的 javadoc 自夸 "forgetting to handle failure is not possible here"，
   恰好在本场景被推翻。
 
-### A-P1 · `CancellationToken` 是不可达的公开类型
+### A-P1 · `CancellationToken` 是不可达的公开类型 ——**已修复（0.4，包私有化）**
 
 公开表面中**没有任何成员返回或接受它**（全量反编译扫描确认），但该类型有 3 个公开构造器、
 `create()`、`cancel()`/`cancel(boolean)`、`state()`/`originState()` 等 10 个公开成员。
