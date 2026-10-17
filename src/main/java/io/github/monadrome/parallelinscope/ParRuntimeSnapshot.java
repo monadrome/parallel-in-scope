@@ -16,12 +16,19 @@ public final class ParRuntimeSnapshot {
     private final boolean closed;
     private final int activeAdmissions;
     private final int undrainedBatches;
+    private final int activeObservations;
     private final int unexitedBodySignals;
 
-    ParRuntimeSnapshot(boolean closed, int activeAdmissions, int undrainedBatches, int unexitedBodySignals) {
+    ParRuntimeSnapshot(
+            boolean closed,
+            int activeAdmissions,
+            int undrainedBatches,
+            int activeObservations,
+            int unexitedBodySignals) {
         this.closed = closed;
         this.activeAdmissions = activeAdmissions;
         this.undrainedBatches = undrainedBatches;
+        this.activeObservations = activeObservations;
         this.unexitedBodySignals = unexitedBodySignals;
     }
 
@@ -38,6 +45,11 @@ public final class ParRuntimeSnapshot {
     /** Admitted runs whose futures have not all reached a terminal state yet. */
     public int undrainedBatches() {
         return undrainedBatches;
+    }
+
+    /** Open thread-pool starvation observations retaining the runtime's diagnostic services. */
+    public int activeObservations() {
+        return activeObservations;
     }
 
     /**
@@ -57,6 +69,7 @@ public final class ParRuntimeSnapshot {
         return "ParRuntimeSnapshot{closed=" + closed
                 + ", activeAdmissions=" + activeAdmissions
                 + ", undrainedBatches=" + undrainedBatches
+                + ", activeObservations=" + activeObservations
                 + ", unexitedBodySignals=" + unexitedBodySignals
                 + '}';
     }

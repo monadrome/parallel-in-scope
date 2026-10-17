@@ -450,6 +450,35 @@ Queries such as `TaskGraphObservationScope.hasExecutorCycle()` cover every admis
 
 Executor cycles and self-loops are detected on the registered executor objects themselves, never on `ParId` names: two `ParId`s naming one pool are the same node, and a name alone never makes a cycle. A top-level call has no parent executor, so it adds no executor edge; only work nested inside a task body can.
 
+## Observe direct executor work
+
+Task-graph observation covers work admitted through this library. Direct submissions to a registered
+executor have no dependency edge, so use the explicit starvation observation when an application
+also runs unstructured work on that pool:
+
+```java
+ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+try (ThreadPoolStarvationObservationScope observation =
+        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+    reportFuture = observation.reportFuture();
+    pool.execute(requestHandler);
+    submitOtherDirectWork(pool);
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
+    log.warn("Potential thread-pool starvation: {}", report);
+}
+```
+
+The scope samples each distinct physical `ThreadPoolExecutor` registered with `global`; it never
+wraps, submits, cancels, or interrupts user tasks. `POTENTIAL_STARVATION` requires consecutive
+samples with every current worker active, queued work present, and no completed-task progress. It
+is a runtime risk signal, not proof that a worker is blocked or that a dependency cycle exists.
+`NO_ISSUE` means every registered executor was visible and no signal was captured. A wrapper or
+foreign executor appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when no
+visible pool reports evidence. Keep the scope open for at least two sampling intervals when the
+backlog is expected to be diagnosed.
+
 ## Purge cancelled queue entries
 
 The library does not automatically purge registered executors. A cancelled task can remain in the physical queue until a worker dequeues it or the executor owner removes it. On a bounded queue, cancelled entries can retain capacity and cause later submissions to be rejected. Cancellation before execution still releases the task's Callable captures and body slot.

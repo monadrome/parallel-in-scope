@@ -39,6 +39,8 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskCompletion",
             BASE_PACKAGE + ".TaskGraphObservationScope",
             BASE_PACKAGE + ".TaskGraphReport",
+            BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport",
             BASE_PACKAGE + ".TaskGroupResult",
             BASE_PACKAGE + ".TaskGroupRun",
             BASE_PACKAGE + ".TaskId",
@@ -57,6 +59,8 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
             BASE_PACKAGE + ".TaskBatchResult$BatchReport",
             BASE_PACKAGE + ".TaskGraphReport$Status",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));

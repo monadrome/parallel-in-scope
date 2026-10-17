@@ -74,6 +74,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [task-graph.md](task-graph.md) | **任务依赖图契约**：借鉴 Guava `common.graph` 的设计原则（节点只描述自己、邻接只属于图、图可独立编写、一个节点可进多张图）、`TaskNode`/`TaskGraph`/`ExecutorGraph` 模型、`FORK`/`JOIN` 边与各准入点的原子片段、执行器 waits-for 投影与检测、报告只渲染环上的边、被排除的替代方案（任务级环检测、`root` 哨兵、标签投影、图驱动执行） |
+| [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 
 ### 取消与队列
 

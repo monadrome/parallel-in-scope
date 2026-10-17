@@ -4,6 +4,14 @@
 
 ### Features
 
+- Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted
+  outside the structured task graph. `ThreadPoolStarvationReport` distinguishes clean observation,
+  potential starvation, and insufficient executor visibility, with immutable per-pool evidence.
+  Sampling only observes registered physical `ThreadPoolExecutor` counters; it never wraps or
+  changes user tasks, and existing task-graph detection remains unchanged. Open observations are
+  included in `ParRuntime.inFlight()` and `ParRuntimeSnapshot.activeObservations()` until their
+  reports publish, so runtime shutdown cannot retire the diagnostic scheduler early.
+
 - Add `TaskKey<T>.named(name)` for typed group declarations and result lookup.
   `par(key, par, [options,] body)` and `combine(key, par, [options,] body)` bind the body to
   the key's type; `GroupValues.valueOf(key)` reads members, and `TaskGroupResult.resultOf(key)`
