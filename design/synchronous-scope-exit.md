@@ -146,6 +146,10 @@ inline body 期间新收到的外部中断一定保留。只读结果/adapter �
 每项结果与 submission loop settled 后开始一次 cleanup budget：
 显式 closeGrace，或剩余 deadline；多个 body/观测屏障共享预算。
 零 grace 单次检查，无无限 join。超时不延长任务执行资格、不恢复被取消任务。
+显式 timeout（`BatchOptions.timeout`、`TaskOptions.timeout`、`ParRuntime.group`）MUST 解析为有限
+deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无 deadline」哨兵，否则不布防定时器、
+默认清理预算归零，更大的 timeout 反而得到更小的清理等待。哨兵只能经继承到达；公开入口都有 deadline。
+时钟读数本身已在钳制点时，钳制后的 deadline 即已过期，真实 `nanoTime()` 到不了这一点。
 观测仅从真实完成的信号读取。返回时未确认退出的 body 仍由 runtime 的现有信号跟踪。
 
 任务局部资源使用 body 内 try-with-resources；库不注册资源、不发现捕获/返回对象。

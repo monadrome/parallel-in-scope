@@ -335,7 +335,9 @@ public final class ParRuntime implements AutoCloseable {
      * <p>The returned stage is single-use and single-threaded; see {@link GroupStart}.
      *
      * @param groupName the group name; diagnostics and result identity
-     * @param timeout the group's explicit execution budget, positive
+     * @param timeout the group's explicit execution budget, positive; a duration whose deadline
+     *     does not fit the clock range resolves to the latest representable deadline, never to "no
+     *     deadline"
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */

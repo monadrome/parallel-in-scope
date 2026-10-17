@@ -15,6 +15,13 @@ import java.time.Duration;
  */
 final class Deadlines {
 
+    /**
+     * The latest finite deadline, one below the {@link Long#MAX_VALUE} no-deadline sentinel. An
+     * explicit timeout whose deadline saturates resolves here, so a declared budget, however large,
+     * stays a deadline and is never mistaken for the absence of one.
+     */
+    static final long LATEST_FINITE_DEADLINE = Long.MAX_VALUE - 1;
+
     private Deadlines() {}
 
     /**

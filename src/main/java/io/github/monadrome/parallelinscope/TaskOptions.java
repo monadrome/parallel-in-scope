@@ -44,6 +44,10 @@ public final class TaskOptions {
     /**
      * Returns options with an explicit timeout.
      *
+     * <p>Any positive duration is accepted. One whose deadline does not fit the clock range
+     * resolves to the latest representable deadline, still capped by the enclosing group; it never
+     * means "no deadline".
+     *
      * @throws NullPointerException if {@code timeout} is null
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */

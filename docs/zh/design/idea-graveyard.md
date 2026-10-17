@@ -287,7 +287,7 @@ TaskBatchResult<Report> reports = par.map(shards, this::rebuild,
         BatchOptions.timeout("nightly-rebuild", Duration.ofHours(6)));
 ```
 
-嵌套调用用 `inheritTimeout(...)` 继承外层预算。不要用 `ChronoUnit.FOREVER`、`Duration.ofSeconds(Long.MAX_VALUE)` 这类天文数字：超过约 292 年后 deadline 会饱和，取消后不再等待任务体退出（已知缺陷，见 BACKLOG O-3）。
+嵌套调用用 `inheritTimeout(...)` 继承外层预算。`ChronoUnit.FOREVER` 这类天文数字也会被接受并解析为有限 deadline，但任务体永远不退出时，取消后的清理等待也近乎无限；需要「取消后不等」就显式写 `closeGrace(Duration.ZERO)`。
 
 **重开条件：** 出现「任何有限上界都有害，而不只是不便」的具体用例，并同时给出无 deadline 作用域的活性方案。
 

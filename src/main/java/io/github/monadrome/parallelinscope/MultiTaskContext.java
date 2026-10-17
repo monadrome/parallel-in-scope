@@ -213,18 +213,23 @@ final class MultiTaskContext {
     /**
      * Resolves a deadline from an explicit timeout or an enclosing ceiling. An explicit timeout
      * expires at the earlier of its own deadline and the ceiling; a null timeout inherits the
-     * ceiling verbatim. Overflow saturates to {@link Long#MAX_VALUE}.
+     * ceiling verbatim, which is the only way to reach the {@link Long#MAX_VALUE} no-deadline
+     * sentinel.
+     *
+     * <p>The explicit sum goes through {@link Deadlines#after} because both ends can be extreme — a
+     * saturated timeout and a negative {@link System#nanoTime()} reading — and a wrapped sum would
+     * read as already expired. Where that sum saturates, the deadline is clamped to {@link
+     * Deadlines#LATEST_FINITE_DEADLINE}: a declared timeout keeps arming its timer and deriving its
+     * cleanup budget from the remaining deadline instead of turning into the sentinel, which arms no
+     * timer and waits for no body exit. A clock reading already at that latest deadline leaves the
+     * clamped deadline expired; no real {@code nanoTime()} gets there.
      */
     static long resolveDeadlineNanos(@Nullable Duration timeout, long ceilingNanos, long nowNanos) {
         if (timeout == null) {
             return ceilingNanos;
         }
         long timeoutNanos = Deadlines.saturatedNanos(timeout);
-        // Both ends can be extreme — a saturated timeout and a far-from-zero clock reading
-        // (nanoTime() may legally be negative) — so the sum goes through Deadlines.after, whose
-        // saturation yields the no-deadline sentinel instead of a negative deadline that
-        // Deadlines.remaining would read as already expired.
-        long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
+        long requestedDeadline = Math.min(Deadlines.after(nowNanos, timeoutNanos), Deadlines.LATEST_FINITE_DEADLINE);
         return Math.min(requestedDeadline, ceilingNanos);
     }
 

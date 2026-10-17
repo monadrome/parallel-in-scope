@@ -146,7 +146,7 @@ class ScopePrimitivesTest {
         assertThat(timed.remaining()).isGreaterThanOrEqualTo(Duration.ZERO);
 
         MultiTaskContext overflow = resolve(0, Duration.ofNanos(Long.MAX_VALUE), 1, null);
-        assertThat(overflow.deadlineNanos()).isEqualTo(Long.MAX_VALUE);
+        assertThat(overflow.deadlineNanos()).isEqualTo(Deadlines.LATEST_FINITE_DEADLINE);
     }
 
     // NullAway: deliberate null arguments — probes the null-rejection contract
