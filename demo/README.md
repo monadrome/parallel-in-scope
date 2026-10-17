@@ -2,15 +2,16 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.3.0` API（以 `0.3.0-SNAPSHOT` 发布），可作为外部消费者示例。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章跟随 `0.4.0-SNAPSHOT` 开发线，可作为外部消费者示例。
 
 ## 快速开始
 
 ### 1. 编译项目
 
 ```bash
+mvn install -DskipTests -Dmaven.javadoc.skip=true
+mvn -f demo/pom.xml clean compile
 cd demo
-mvn clean compile
 ```
 
 ### 2. 运行示例
@@ -52,7 +53,7 @@ chmod +x scripts/run-demos.sh
 
 ## 架构约束
 
-这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；在 `0.3.0` 正式发布前，坐标解析为从代码树根目录 `mvn install` 安装的本地 `0.3.0-SNAPSHOT` 构建。CI 在根项目 `install` 之后把刚构建的版本传给 demo，使 demo 始终验证当前代码树的构件，而不是 `pom.xml` 里可能落后的默认版本。
+这个示例项目是完全独立的，只依赖 parallel-in-scope 构件；默认坐标解析为从代码树根目录 `mvn install` 安装的本地 `0.4.0-SNAPSHOT` 构建。CI 在根项目 `install` 之后把刚构建的版本传给 demo，使 demo 始终验证当前代码树的构件，而不是 `pom.xml` 里可能落后的默认版本。
 
 ### 依赖方向
 

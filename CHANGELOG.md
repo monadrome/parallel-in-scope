@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Make the never-started batch observation test wait for its blocking task to
+  enter before cancellation, avoiding a scheduling race in release verification.
+
+### Build
+
+- Start the `0.4.0-SNAPSHOT` development line on `dev/v0.4.0`, preserving the
+  previous snapshot publication gate and library/demo verification steps.
+
 ## [0.3.0] - 2026-10-15
 
 ### Breaking changes

@@ -4,7 +4,7 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
-> Demo code targets the current `0.3.0` API (`ParRuntime`, `Par`, `ParId`, `BatchOptions`, `TaskGroup`, `GroupStart`, `GroupStep`, `GroupValues`, `Tuple2`), published as `0.3.0-SNAPSHOT`.
+> Demo code tracks the `0.4.0-SNAPSHOT` development line (`ParRuntime`, `Par`, `ParId`, `BatchOptions`, `TaskGroup`, `GroupStart`, `GroupStep`, `GroupValues`, `Tuple2`).
 
 ## Start Here
 

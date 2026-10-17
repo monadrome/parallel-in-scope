@@ -4,6 +4,8 @@
 
 Standalone Java 8 example project consuming the published `parallel-in-scope`
 artifact. Must build independently from the repository's root Maven project.
+The current development line is `dev/v0.4.0`; the demo and its default library
+dependency track `0.4.0-SNAPSHOT`. Install the root project before local tests.
 
 ## Commands
 
