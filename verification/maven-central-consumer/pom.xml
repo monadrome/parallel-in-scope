@@ -18,7 +18,7 @@
              at a published version and resolves it from Maven Central into a throwaway local
              repository instead, so a locally installed copy can never satisfy the check.
              Snapshot versions come from the Central snapshot repository declared below. -->
-        <parallel-in-scope.version>0.3.0-SNAPSHOT</parallel-in-scope.version>
+        <parallel-in-scope.version>0.3.0</parallel-in-scope.version>
     </properties>
 
     <repositories>
