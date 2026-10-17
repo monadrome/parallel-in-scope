@@ -6,6 +6,16 @@ on:
       # Release and snapshot tags alike: the tag must equal `v` plus the Maven version,
       # and the verification step below rejects any tag that does not match.
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+        default: v0.3.0
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 # `contents: write` is only needed by the final step, which publishes the GitHub release for a
 # release tag. Snapshot tags deploy to Central but deliberately do not create a release.
@@ -13,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -21,9 +31,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Validate release tag
+        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]'
+
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+
+      - name: Set up Maven 3.9.11
+        env:
+          MAVEN_SHA512: bcfe4fe305c962ace56ac7b5fc7a08b87d5abd8b7e89027ab251069faebee516b0ded8961445d6d91ec1985dfe30f8153268843c89aa392733d1a3ec956c9978
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/maven.tar.gz" \
+            https://archive.apache.org/dist/maven/maven-3/3.9.11/binaries/apache-maven-3.9.11-bin.tar.gz
+          echo "$MAVEN_SHA512  $RUNNER_TEMP/maven.tar.gz" | sha512sum --check
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.9.11/bin" >> "$GITHUB_PATH"
 
       # Build JDK: release builds run the same enforcer as CI, which requires JDK 25; the
       # published artifact still targets release 8 bytecode.
@@ -43,8 +67,9 @@ jobs:
 
       - name: Verify the tag matches the Maven version
         run: |
+          mvn --version
           MAVEN_VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
-          test "v${MAVEN_VERSION}" = "${GITHUB_REF_NAME}"
+          test "v${MAVEN_VERSION}" = "$RELEASE_TAG"
 
       - name: Verify library and demo
         run: |
@@ -69,7 +94,7 @@ jobs:
           deploy
 
       - name: Create GitHub release
-        if: ${{ !contains(github.ref_name, '-SNAPSHOT') }}
+        if: ${{ !contains(env.RELEASE_TAG, '-SNAPSHOT') }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" --generate-notes --verify-tag
+        run: gh release create "$RELEASE_TAG" --generate-notes --verify-tag
