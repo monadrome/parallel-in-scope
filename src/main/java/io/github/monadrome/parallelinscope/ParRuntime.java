@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.alibaba.ttl.TtlUnwrap;
@@ -45,8 +47,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
  * policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
- * deadline timer and the threads that run timeout actions; registered executors are borrowed and
- * are never shut down by this object.
+ * deadline timer, starvation observation scheduler, and the threads that run timeout actions;
+ * registered executors are borrowed and are never shut down by this object.
  *
  * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
@@ -56,6 +58,7 @@ import org.jspecify.annotations.Nullable;
  * @since 0.3.0
  */
 public final class ParRuntime implements AutoCloseable {
+    private static final Duration MINIMUM_SAMPLING_INTERVAL = Duration.ofMillis(10);
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
     private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<ParId, Par> pars;
@@ -94,6 +97,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Ticker ticker;
 
     private final ScheduledExecutorService timerService;
+    private final ScheduledExecutorService starvationScheduler;
     private final ExecutorService timeoutActionPool;
 
     /**
@@ -113,6 +117,13 @@ public final class ParRuntime implements AutoCloseable {
         ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, factory);
         timer.setRemoveOnCancelPolicy(true);
         this.timerService = timer;
+        ThreadFactory starvationFactory = new ThreadFactoryBuilder()
+                .setNameFormat("ParRuntime-starvation-%d")
+                .setDaemon(true)
+                .build();
+        ScheduledThreadPoolExecutor starvation = new ScheduledThreadPoolExecutor(1, starvationFactory);
+        starvation.setRemoveOnCancelPolicy(true);
+        this.starvationScheduler = starvation;
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.timeoutScheduler = builder.timeoutScheduler != null
                 ? builder.timeoutScheduler
@@ -288,14 +299,18 @@ public final class ParRuntime implements AutoCloseable {
      * report as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise
      * change user work.
      *
-     * @param samplingInterval the positive interval between samples
+     * @param samplingInterval the interval between samples, at least 10 milliseconds
      * @return the closeable observation scope
      * @throws NullPointerException if {@code samplingInterval} is null
-     * @throws IllegalArgumentException if {@code samplingInterval} is not positive
+     * @throws IllegalArgumentException if {@code samplingInterval} is less than 10 milliseconds
      * @throws IllegalStateException if this runtime has begun shutdown
      */
     public ThreadPoolStarvationObservationScope openThreadPoolStarvationObservation(Duration samplingInterval) {
-        Validation.requirePositive(samplingInterval, "sampling interval");
+        checkNotNull(samplingInterval, "sampling interval cannot be null");
+        checkArgument(
+                samplingInterval.compareTo(MINIMUM_SAMPLING_INTERVAL) >= 0,
+                "sampling interval %s must be at least 10 ms",
+                samplingInterval);
         return whileOpen(() -> {
             activeObservations.incrementAndGet();
             try {
@@ -404,24 +419,29 @@ public final class ParRuntime implements AutoCloseable {
      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
      * a {@link Par#map(Collection, Function, BatchOptions)} call already setting up a batch, so that
      * call either completes setup and returns its result or is rejected before any task is
-     * submitted. Services drain batches admitted before shutdown; this method does not wait for
-     * their task bodies to finish.
+     * submitted. Services drain batches admitted before shutdown; open starvation observations
+     * retain the diagnostic services until their scopes close. This method does not wait for task
+     * bodies or observation reports to finish.
      */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            // Symmetric with installGlobal: closing the installed instance releases the slot so a
-            // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
+            int observations = activeObservations.get();
+            if (observations > 0) {
+                LOGGER.warning("ParRuntime.close() is retaining framework services for " + observations
+                        + " open starvation observations; close them to release the services");
+            }
             shutdownServicesWhenAdmissionsComplete();
         }
     }
 
     /**
      * Waits until this topology is closed and fully drained: no admission is setting up a batch,
-     * no admitted batch retains incomplete futures, every admitted task body has exited, and the
-     * framework-owned services have shut down. Call {@link #close()} first; without it this method
-     * simply waits out the timeout.
+     * no admitted batch retains incomplete futures, every admitted task body has exited, no open
+     * starvation observation retains the diagnostic services, and the framework-owned services
+     * have shut down. Call {@link #close()} first; without it this method simply waits out the
+     * timeout.
      *
      * <p>Task-body exit is tracked separately from future completion: a task cancelled while
      * running completes its future immediately but may still be executing user code that ignores
@@ -461,9 +481,9 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the in-flight work this topology still tracks — admissions setting up a batch,
-     * undrained batches, and open diagnostic observations — which is what {@link
-     * #awaitQuiescence(Duration)} waits on.
+     * Returns the in-flight work this topology still tracks: admissions setting up a batch,
+     * undrained batches, and open starvation observations. Open observations retain framework
+     * services and therefore participate in {@link #awaitQuiescence(Duration)}.
      */
     public int inFlight() {
         return activeAdmissions.get() + activeBatches.get() + activeObservations.get();
@@ -474,6 +494,7 @@ public final class ParRuntime implements AutoCloseable {
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
      * how many starvation observations are open, and how many admitted runs still have an
      * incomplete aggregate body-exit signal (one signal per run, covering every body of that run).
+     * Open observations retain framework services after runtime close until their reports publish.
      *
      * <p>The five readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
@@ -522,6 +543,7 @@ public final class ParRuntime implements AutoCloseable {
                 && activeObservations.get() == 0
                 && servicesShutdown.compareAndSet(false, true)) {
             timerService.shutdown();
+            starvationScheduler.shutdown();
             timeoutActionPool.shutdown();
             // Monitor re-evaluates its guards when a thread leaves, waking awaitQuiescence.
             quiescenceMonitor.enter();
@@ -581,7 +603,7 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     ScheduledFuture<?> scheduleStarvationSampling(Runnable action, long intervalNanos) {
-        return timerService.scheduleAtFixedRate(action, intervalNanos, intervalNanos, TimeUnit.NANOSECONDS);
+        return starvationScheduler.scheduleWithFixedDelay(action, intervalNanos, intervalNanos, TimeUnit.NANOSECONDS);
     }
 
     void starvationObservationClosed() {

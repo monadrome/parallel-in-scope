@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Verify.verify;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -26,9 +28,10 @@ import org.jspecify.annotations.Nullable;
  * unstructured activity of interest, then read {@link #reportFuture()}.
  *
  * <p>A pool is considered potentially starved when it has no free worker, queued work remains, and
- * its completed-task count stays unchanged across samples. The condition is deliberately bounded
- * and conservative: a long CPU-bound task can produce the same signal, so the report does not
- * claim a dependency cycle.
+ * its completed-task count stays unchanged across sample pairs separated by the requested
+ * interval. The evidence is sticky for the observation window. The condition is deliberately
+ * bounded and conservative: a long CPU-bound task can produce the same signal, so the report does
+ * not claim a dependency cycle.
  *
  * @since 0.4.0
  */
@@ -36,21 +39,31 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
 
     private final ParRuntime owner;
     private final ImmutableList<ObservedExecutor> executors;
+    private final Duration samplingInterval;
+    private final long intervalNanos;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean sampling = new AtomicBoolean();
     private final AtomicInteger samples = new AtomicInteger();
     private final SettableFuture<ThreadPoolStarvationReport> reportSink = SettableFuture.create();
     private final ListenableFuture<ThreadPoolStarvationReport> reportView = TaskObservation.readOnly(reportSink);
     private final AtomicReference<@Nullable ScheduledFuture<?>> sampler = new AtomicReference<>();
+    private final AtomicReference<@Nullable Throwable> samplingFailure = new AtomicReference<>();
     private final AtomicReference<@Nullable SettableFuture<@Nullable Void>> samplingCompletion =
             new AtomicReference<>();
 
     ThreadPoolStarvationObservationScope(ParRuntime owner, Duration interval, Map<ParId, ExecutorRuntime> runtimes) {
         this.owner = checkNotNull(owner, "owner cannot be null");
-        long intervalNanos = Deadlines.saturatedNanos(Validation.requirePositive(interval, "sampling interval"));
+        this.samplingInterval = Validation.requirePositive(interval, "sampling interval");
+        this.intervalNanos = Deadlines.saturatedNanos(samplingInterval);
         this.executors = observedExecutors(runtimes);
         sampleNow();
-        sampler.set(owner.scheduleStarvationSampling(this::sampleNow, intervalNanos));
+        if (samplingFailure.get() == null) {
+            ScheduledFuture<?> scheduled = owner.scheduleStarvationSampling(this::sampleNow, intervalNanos);
+            sampler.set(scheduled);
+            if (samplingFailure.get() != null) {
+                scheduled.cancel(false);
+            }
+        }
     }
 
     /** Returns the immutable report published when this scope closes. */
@@ -58,7 +71,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
         return reportView;
     }
 
-    /** Returns whether this scope has published its report. */
+    /** Returns whether close has begun; the report may still be publishing. */
     public boolean closed() {
         return closed.get();
     }
@@ -71,25 +84,35 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             if (scheduled != null) {
                 scheduled.cancel(false);
             }
+            Error finalSamplingError = null;
             try {
                 awaitSampling();
-                finalSample();
-                reportSink.set(report());
-            } catch (Throwable failure) {
                 try {
-                    reportSink.setException(failure);
-                } catch (Throwable publicationFailure) {
-                    if (publicationFailure != failure) {
-                        failure.addSuppressed(publicationFailure);
+                    finalSample();
+                } catch (Throwable failure) {
+                    recordSamplingFailure(failure);
+                    if (failure instanceof Error) {
+                        finalSamplingError = (Error) failure;
                     }
                 }
-                if (failure instanceof Error) {
-                    throw (Error) failure;
+                Throwable failure = samplingFailure.get();
+                Error samplingError = failure instanceof Error ? (Error) failure : finalSamplingError;
+                try {
+                    reportSink.set(report());
+                } catch (RuntimeException | Error publicationFailure) {
+                    if (samplingError == null) {
+                        throw publicationFailure;
+                    }
+                    if (samplingError != publicationFailure) {
+                        samplingError.addSuppressed(publicationFailure);
+                    }
                 }
-                if (failure instanceof RuntimeException) {
-                    throw (RuntimeException) failure;
+                if (samplingError != null) {
+                    throw samplingError;
                 }
-                throw new IllegalStateException("thread-pool starvation observation failed", failure);
+            } catch (RuntimeException | Error failure) {
+                reportSink.setException(failure);
+                throw failure;
             } finally {
                 owner.starvationObservationClosed();
             }
@@ -99,7 +122,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
     }
 
     private void sampleNow() {
-        if (closed.get()) {
+        if (closed.get() || samplingFailure.get() != null) {
             return;
         }
         if (!sampling.compareAndSet(false, true)) {
@@ -107,9 +130,11 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
         }
         try {
             if (!closed.get()) {
-                samples.incrementAndGet();
                 sampleExecutors();
+                samples.incrementAndGet();
             }
+        } catch (Throwable failure) {
+            recordSamplingFailure(failure);
         } finally {
             sampling.set(false);
             SettableFuture<@Nullable Void> completion = samplingCompletion.getAndSet(null);
@@ -120,13 +145,21 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
     }
 
     private void finalSample() {
-        samples.incrementAndGet();
         sampleExecutors();
+        samples.incrementAndGet();
     }
 
     private void sampleExecutors() {
         for (ObservedExecutor executor : executors) {
-            executor.sample();
+            executor.sample(intervalNanos);
+        }
+    }
+
+    private void recordSamplingFailure(Throwable failure) {
+        samplingFailure.compareAndSet(null, failure);
+        ScheduledFuture<?> scheduled = sampler.get();
+        if (scheduled != null) {
+            scheduled.cancel(false);
         }
     }
 
@@ -135,9 +168,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             return;
         }
         SettableFuture<@Nullable Void> completion = SettableFuture.create();
-        if (!samplingCompletion.compareAndSet(null, completion)) {
-            throw new IllegalStateException("starvation sampling has multiple waiters");
-        }
+        verify(samplingCompletion.compareAndSet(null, completion), "starvation sampling has multiple waiters");
         if (!sampling.get()) {
             completion.set(null);
         }
@@ -149,8 +180,8 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                     return;
                 } catch (InterruptedException e) {
                     interrupted = true;
-                } catch (java.util.concurrent.ExecutionException impossible) {
-                    return;
+                } catch (ExecutionException impossible) {
+                    verify(false, "starvation sampling completion failed");
                 }
             }
         } finally {
@@ -172,7 +203,18 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                 unsupported.add(executor.label);
             }
         }
-        return ThreadPoolStarvationReport.of(samples.get(), evidence, unsupported);
+        Throwable failure = samplingFailure.get();
+        return ThreadPoolStarvationReport.of(
+                samples.get(),
+                samplingInterval,
+                evidence,
+                unsupported,
+                failure == null ? null : failureMessage(failure));
+    }
+
+    private static String failureMessage(Throwable failure) {
+        String message = failure.getMessage();
+        return message == null || message.isEmpty() ? failure.getClass().getName() : message;
     }
 
     private void awaitReportPublication() {
@@ -184,7 +226,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                     return;
                 } catch (InterruptedException e) {
                     interrupted = true;
-                } catch (java.util.concurrent.ExecutionException done) {
+                } catch (ExecutionException done) {
                     return;
                 }
             }
@@ -227,7 +269,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
         private final String label;
         private final @Nullable ThreadPoolExecutor pool;
         private final AtomicReference<@Nullable Sample> previous = new AtomicReference<>();
-        private final AtomicInteger stagnantSamples = new AtomicInteger();
+        private final AtomicInteger stagnantIntervals = new AtomicInteger();
         private final AtomicReference<ThreadPoolStarvationReport.@Nullable Evidence> issue = new AtomicReference<>();
 
         private ObservedExecutor(String label, ExecutorService executor) {
@@ -235,18 +277,23 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             this.pool = executor instanceof ThreadPoolExecutor ? (ThreadPoolExecutor) executor : null;
         }
 
-        private void sample() {
+        private void sample(long intervalNanos) {
             if (pool == null) {
                 return;
             }
             Sample current = new Sample(
-                    pool.getPoolSize(), pool.getActiveCount(), pool.getQueue().size(), pool.getCompletedTaskCount());
+                    pool.getPoolSize(),
+                    pool.getActiveCount(),
+                    pool.getQueue().size(),
+                    pool.getCompletedTaskCount(),
+                    System.nanoTime());
             Sample prior = previous.getAndSet(current);
             if (prior != null
                     && prior.saturated()
                     && current.saturated()
+                    && current.sampledAtNanos - prior.sampledAtNanos >= intervalNanos
                     && prior.completedTaskCount == current.completedTaskCount) {
-                int stagnant = stagnantSamples.incrementAndGet();
+                int stagnant = stagnantIntervals.incrementAndGet();
                 issue.set(new ThreadPoolStarvationReport.Evidence(
                         label,
                         current.poolSize,
@@ -255,18 +302,20 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                         current.completedTaskCount,
                         stagnant));
             } else {
-                stagnantSamples.set(0);
+                stagnantIntervals.set(0);
             }
         }
     }
 
     private static final class Sample {
+        private final long sampledAtNanos;
         private final int poolSize;
         private final int activeCount;
         private final int queueSize;
         private final long completedTaskCount;
 
-        private Sample(int poolSize, int activeCount, int queueSize, long completedTaskCount) {
+        private Sample(int poolSize, int activeCount, int queueSize, long completedTaskCount, long sampledAtNanos) {
+            this.sampledAtNanos = sampledAtNanos;
             this.poolSize = poolSize;
             this.activeCount = activeCount;
             this.queueSize = queueSize;

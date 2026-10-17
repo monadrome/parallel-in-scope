@@ -43,3 +43,18 @@ Literal-null `valueOf(null)` / `resultOf(null)` calls need a `String` or `TaskKe
 
 Cancellation, deadline, TTL, success-gated terminal submission, and bounded cleanup semantics
 are unchanged. These API removals have no compatibility shims; recompile consumers against 0.4.
+
+## Starvation observation snapshots
+
+Consumers of the earlier 0.4 development API replace `evidence.stagnantSamples()` with
+`evidence.stagnantIntervals()`. The old name suggested a sample count but counted adjacent sample
+pairs; the new accessor counts consecutive stagnant pairs separated by at least the requested
+`report.samplingInterval()`. `report.samples()` counts completed samples, excluding failed attempts.
+
+Use a sampling interval of at least 10 milliseconds; smaller values now throw
+`IllegalArgumentException`. A long-interval scope closed immediately no longer reports starvation
+from a zero-time pair. Handle the new `SAMPLING_FAILED` status and inspect `failureMessage()`. Reports
+complete normally after a sampling exception; a sampling `Error` is rethrown from close after the
+report publishes. Evidence takes priority over failure, which takes priority over unsupported
+executors. Evidence remains a capture-time snapshot even after the pool recovers. No alias for
+`stagnantSamples()` is retained in this unreleased API.
