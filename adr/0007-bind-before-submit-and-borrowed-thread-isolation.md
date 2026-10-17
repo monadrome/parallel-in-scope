@@ -5,6 +5,15 @@
 - Decision scope: batch admission handles, cancellation-wiring order, and thread state on inline execution
 - Supersedes: [ADR 0002](0002-separate-task-execution-and-future-lifecycle.md), placeholder admission and late binding only
 
+> Note (2026-10-27): two facts in the context below changed after this decision; the decision
+> holds for both, as it was written to. The `runOnCallerThread` option was removed (`df89b43`),
+> so a user's `CallerRunsPolicy` is now the only inline path, and the interrupt-loss limit is
+> documented in the user guide rather than on that option. The sliding-window refill no longer
+> runs on a library submitter thread: the listener of the completing element claims and hands
+> off the next one ([sliding-window refill](../design/sliding-window-refill.md)), so the
+> borrowed threads are the caller's, the completing thread, and any thread a rejection handler
+> borrows. Isolation in the Future's run method covers each of them unchanged.
+
 ## Context
 
 [ADR 0002](0002-separate-task-execution-and-future-lifecycle.md) separated task

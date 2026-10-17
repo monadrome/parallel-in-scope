@@ -4,7 +4,8 @@
 
 - 核心出发点：用户示例、现行契约与历史记录各自承担不同责任，修复错误教学与漂移的事实源。
 - 不变量与拟议 MUST：示例 MUST 编译并遵守上下文恢复及 P1–P4；MUST 区分中断投递与 IO 停止、
-  Future 终态与 body 退出。已接受 ADR MUST 保持历史正文，变更使用后继 ADR 与 Superseded 链接。
+  Future 终态与 body 退出。ADR 的决定 MUST NOT 被改写，变更使用后继 ADR 与 Superseded 链接；
+  过时的非决策内容按 adr/AGENTS.md 蒸馏。
 - 被否决方向及理由：不恢复已删除 listener/运行句柄来迎合旧文档，不恢复 throwing Function，
   不按符号零命中宣布整篇 ADR 失效，不将本地路径门禁通过称为示例或语义验证通过。
 
@@ -38,9 +39,6 @@ P0011 的 MDC/TTL、checked Function、缺少成功返回、中断处理和 IO �
   outcome 不能推断执行历史，应结合可用最终观测。维持现有归因，不为区分这两者增加开关。
   若要让 firstException 聚合取消，须独立评估 valuesOrThrow 的失败优先级与迁移，不能借
   文档修订改变契约；历史 O-15 的跨版本 API diff 已实现，不再立项。
-- 0002 的 Everything else stands、0003 的自动 purge、0005 的 GlobalPar 历史形状与现行规则
-  区分；遵循 adr/AGENTS 的后继记录规程，MUST NOT 删改已接受正文来蒸馏它。
-  0001 的旧测试清单、0004 的长尾、0006 的历史行数只是历史证据，不强制同步枚举数字。
 - CHANGELOG 的 0.3 开发项错放 0.2 节须逐项核对引入提交并去重归位；已发布措辞的拼写保留。
   提出 changelog 与行为变更同步约定时补清晰触发条件，不据审计旧列表机械追加条目。
 - BACKLOG 重验开放条目、压缩已关闭条目并统一落点；不要用旧 submitter/purge/签名、旧数字

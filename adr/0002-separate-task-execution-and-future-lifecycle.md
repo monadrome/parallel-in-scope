@@ -4,22 +4,32 @@
 - Date: 2026-07-26
 - Decision scope: Callable, Runnable, and Future execution architecture
 - Supersedes: None
-- Partially superseded by: [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md), placeholder admission and late binding only
+- Partially superseded by: [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)
+  (placeholder admission and late binding); [execution future simplification](../design/execution-future-simplification.md)
+  (automatic cancelled-queue cleanup); [sliding-window refill](../design/sliding-window-refill.md)
+  (refill on a submitter loop)
 
-> Two rules in this record no longer hold: that elements beyond the initial
-> parallelism window are represented by `SettableFuture` placeholders, and that a
-> placeholder delegates to its real Future through `setFuture` on admission. Each
-> element's handle now wraps its prepared Future from creation on, and the
-> cancellation token is bound before submission rather than after it — see
-> [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md) for why.
-> The cost this record lists under Negative — "late binding introduces a short
-> period in which submitted work exists before timeout and fail-fast wiring is
-> complete" — was the defect that forced the change, and is kept here as the
-> historical assessment it was.
+> Note (2026-10-27): what still stands is the separation of execution-side and result-side
+> enhancement, the queued `Runnable` being the returned Future, Guava `ListenableFuture` as the
+> result type, completion-driven admission instead of a semaphore, best-effort cooperative
+> cancellation, and `RUNNING` as a caller-side state. What changed since:
 >
-> Everything else stands: the separation of the three JDK abstractions, the
-> `ListenableFuture` capability requirements, the sliding-window admission model
-> itself, and `RUNNING` as a caller-side Future state.
+> - Elements beyond the initial window are no longer `SettableFuture` placeholders delegated
+>   through `setFuture`, and the token is bound before submission, not late-bound after it
+>   (ADR 0007). The Negative item "late binding introduces a short period in which submitted
+>   work exists before timeout and fail-fast wiring is complete" was the defect that forced it.
+> - The window is refilled by the completing element's listener, not by a submitter loop
+>   parked on a completion queue; the custom completion service is gone.
+> - The library no longer purges executor queues on cancellation; the identity rule below now
+>   serves the executor owner's own `ThreadPoolExecutor.purge()`.
+> - `Par.map` returns a synchronous result rather than an asynchronous batch handle
+>   ([synchronous scope exit](../design/synchronous-scope-exit.md)), and the task-listener
+>   monitoring SPI was removed ([decision log](../design/decision-log.md)).
+>
+> Roles now held by other types: `FutureRunnable` by `ExecutionPhaseHintFuture`,
+> `ConcurrentLimitExecutor` by `SlidingWindowSubmitter`, and the `TaskScopeTl`/`ThreadRelay`
+> context by `TaskExecutionContext`, handed to `ScopedCallable` explicitly at submission while
+> `TtlCallable` relays the remaining transmittable values.
 
 ## Context
 
@@ -42,8 +52,8 @@ In particular:
 - a Future that is not done may be queued, claimed by a worker, or running;
 - cancelling the Future returned by JDK `ExecutorCompletionService` does not
   cancel its distinct queued `QueueingFuture` wrapper;
-- later tasks in a sliding window may have result placeholders before their
-  actual task is submitted;
+- later tasks in a sliding window may need result handles before their actual
+  task is submitted;
 - task context exists on the worker side, while timeout, fail-fast, and parent
   propagation operate on the result side.
 
@@ -56,286 +66,47 @@ claiming stronger cancellation guarantees than Java executors provide.
 The library SHALL separate task-execution enhancement from Future-lifecycle
 enhancement.
 
-`ScopedCallable` owns worker-side execution context and instrumentation.
-`FutureRunnable`, Guava `ListenableFuture`, and `AsyncBatchResult` own
-caller-side result observation and control. `CancellationToken`,
-`ListenableCompletionService`, and `ConcurrentLimitExecutor` bridge the two
-sides.
+- **Execution side.** `ScopedCallable` is the single wrapper around the task
+  body. It installs the task's context and cancellation token, runs an entry
+  checkpoint, records timing, captures the outcome and rethrows it unchanged,
+  and removes task-local state in `finally`. User functions keep ordinary Java
+  signatures; cancellation, context, and timing never become parameters.
+- **Queue identity.** The object handed to the executor (`FutureRunnable`) SHALL also be the `ListenableFuture` returned to
+  the caller and the object published on completion, so cancelling what the
+  caller holds cancels exactly what sits in the queue. It keeps an execution
+  phase (`SUBMITTED`, `RUNNING`, `CANCELLED_BEFORE_RUN`,
+  `CANCEL_REQUESTED_RUNNING`, `TERMINAL`) separate from the Future's result
+  state; the phase classifies queue-relevant cancellation only and does not
+  prove body entry, interrupt observation, or worker termination.
+- **Result side.** The internal result type SHALL be Guava `ListenableFuture`,
+  relying on completion listeners, `ListenableFutureTask`, `allAsList` for
+  fail-fast, `successfulAsList` for cleanup that must complete despite
+  individual failures, and timeout composition.
+- **Admission.** A batch SHALL use a completion-driven sliding window: submit at
+  most `parallelism` tasks, then admit one more per completion, stopping when
+  cancellation requires it. Results stay in input order; completion order is a
+  separate contract.
+- **Cancellation.** Each batch has a `CancellationToken` linked to its parent;
+  its state records why the group ended (success, mutual, propagated, fail-fast,
+  timeout). Cancellation SHALL remain best effort: interruption is a request,
+  a task that ignores it may keep a worker occupied, and cooperative code uses
+  `Checkpoints` adapters, which restore the interrupt flag and translate
+  `InterruptedException` into `LeanCancellationException`.
+- **Inspection.** `FutureInspector` gives a Java 8 state view in which
+  `RUNNING` is deliberately caller-side: any Future that is not done, without
+  distinguishing queued, claimed, or entered work. Reports are snapshots.
 
-The normal execution pipeline is:
-
-```text
-Function<T, R>
-  -> Callable<R>
-  -> ScopedCallable<R>
-  -> FutureRunnable<R> backed by ListenableFutureTask<R>
-  -> executor queue and worker
-  -> ListenableFuture<R>
-  -> AsyncBatchResult<R>
-```
-
-### Callable enhancement
-
-`ScopedCallable<V>` SHALL be the central wrapper for task-body execution. It
-provides the following capabilities:
-
-| Capability | Contract |
-|---|---|
-| Logical identity | Retain task name and logical executor name |
-| Task options | Expose the normalized `ParOptions` for the current task |
-| Cancellation context | Install the task's `CancellationToken` before invoking user code |
-| Entry checkpoint | Check cooperative cancellation before the delegate starts |
-| Local context | Initialize and remove `TaskScopeTl` in the same worker thread |
-| Child relay | Publish cancellation token, options, task name, and executor name through `ThreadRelay` |
-| Current task access | Expose the executing wrapper through `ScopedCallable.current()` |
-| Timing | Record submission, start, and end timestamps |
-| Durations | Report queue wait, execution, and total duration |
-| Outcome capture | Retain the thrown failure for lifecycle reporting and rethrow it unchanged |
-| Monitoring | Emit `TaskListener.TaskEvent` on success and failure |
-| Listener isolation | Log listener failures without changing the task outcome |
-| Cleanup | Remove task-local state and the current-wrapper reference in `finally` |
-
-`Par.map` SHALL convert each input function invocation into a `Callable`, wrap
-it in `ScopedCallable`, and submit only the wrapped form. User task bodies SHALL
-not need cancellation, context, timing, or listener parameters added to their
-function signatures.
-
-### Runnable enhancement
-
-`FutureRunnable<V>` SHALL be the object passed to the executor. It SHALL also
-implement `ListenableFuture<V>` by forwarding to one
-`ListenableFutureTask<V>`. It supports both `Callable<V>` and `Runnable` with a
-fixed result.
-
-The same `FutureRunnable` instance SHALL be:
-
-- the `Runnable` stored in the executor queue;
-- the Future returned to the submitter;
-- the object published to the completion queue.
-
-`FutureRunnable` SHALL maintain an execution phase separate from the delegated
-Future state:
-
-| Phase | Meaning |
-|---|---|
-| `SUBMITTED` | No worker has claimed `run()`; the object may still be queued |
-| `RUNNING` | A worker won the claim race and removed the runnable from the queue |
-| `CANCELLED_BEFORE_RUN` | Cancellation won before worker claim |
-| `CANCEL_REQUESTED_RUNNING` | The Future accepted cancellation after worker claim |
-| `TERMINAL` | `run()` returned |
-
-The phase transition is used only to classify queue-relevant cancellation. It
-does not replace the result state maintained by `ListenableFutureTask` and does
-not prove task-body entry, interrupt observation, or worker termination.
-
-When cancellation wins from `SUBMITTED`, `FutureRunnable` SHALL invoke the
-bound queued-cancellation observer once. When a worker has already claimed the
-task, cancellation SHALL NOT be reported as queued cancellation.
-
-Runnable-based helper APIs have narrower responsibilities:
-
-- `Checkpoints.checkRunnable` performs a pre-execution cancellation check and
-  translates a declared failure type to `FatCancellationException`;
-- `ActionGate` uses a `Runnable` callback to separate action cadence from the
-  cancellation, purge, or maintenance mechanism;
-- timer and submitter executors may dispatch `Runnable` or `Callable` work, but
-  those adapters do not replace `ScopedCallable` as the business-task wrapper.
-
-### Completion service
-
-`ListenableCompletionService<V>` SHALL implement the JDK `CompletionService`
-contract using `FutureRunnable` rather than JDK
-`ExecutorCompletionService.QueueingFuture`.
-
-Before submitting a task, it SHALL register a direct listener that publishes
-the same task object to the completion queue. It SHALL support:
-
-- `submit(Callable<V>)`;
-- `submit(Runnable, V result)`;
-- blocking `take()`;
-- immediate `poll()`;
-- timed `poll(timeout, unit)`.
-
-The completion queue is ordered by completion publication, while the batch
-result list remains ordered by input position. These are separate contracts.
-
-### Sliding-window submission
-
-`ConcurrentLimitExecutor<V>` SHALL accept a list of enhanced `Callable`
-instances and implement a completion-driven sliding window:
-
-1. submit at most `parallelism` initial tasks;
-2. wait for one completion event;
-3. submit one remaining task for the freed slot;
-4. stop later submission when cancellation or submitter interruption requires
-   the window to stop.
-
-For tasks outside the initial window, the result list SHALL contain
-`SettableFuture` placeholders. When a task is admitted, its placeholder SHALL
-delegate to the actual submitted Future using `setFuture`. This preserves input
-order and makes the complete result shape available before every task is
-physically submitted.
-
-The Future running the remaining-submission loop SHALL be returned separately
-as `submitCanceller`. Cancelling a batch must be able to stop both task Futures
-and future admissions.
-
-When admission stops, every placeholder that will never be submitted SHALL reach
-a terminal state. Direct placeholder cancellation produces `CANCELLED`; cancelling
-the submitter Future interrupts its submission loop and records `InterruptedException`
-on abandoned placeholders; a later submission rejection records the rejection cause.
-No abandoned placeholder may remain `LIVE` indefinitely, and `Futures.allAsList` over
-the batch results must be able to complete.
-
-When executor submission rejects a `CPU_BOUND` task, the executor may use the
-existing direct-executor fallback. Other rejection behavior remains explicit
-and is not hidden by Future adaptation.
-
-### Future enhancement
-
-The internal result type SHALL be Guava `ListenableFuture` rather than plain
-JDK `Future`. The architecture relies on these capabilities:
-
-| Capability | Implementation |
-|---|---|
-| Completion listener | `ListenableFuture.addListener` |
-| Callable/Runnable result | `ListenableFutureTask` |
-| Deferred actual Future | `SettableFuture.setFuture` |
-| Fail-fast aggregation | `Futures.allAsList` |
-| Completion-tolerant aggregation | `Futures.successfulAsList` |
-| Timeout | `FluentFuture.withTimeout` |
-| Callback | `FutureCallback` with direct execution |
-| Existing JDK Future adaptation | `JdkFutureAdapters.listenInPoolThread` |
-| Already-listenable input | Reuse the original `ListenableFuture` |
-
-`Par.bind` SHALL attach already-submitted Futures to the current task scope
-without resubmitting them. Existing `ListenableFuture` instances are reused;
-ordinary JDK Futures are adapted. Input order is retained, null elements are
-rejected, and cancellation remains best effort according to the supplied
-Future implementation.
-
-### Cancellation and late binding
-
-Each `Par.map` or `Par.bind` batch SHALL create a `CancellationToken`, linked to
-the current or inherited parent token when present.
-
-After task and submission Futures exist, `CancellationToken.lateBind` SHALL
-connect:
-
-- parent cancellation to the child token;
-- task failure to fail-fast cancellation;
-- the configured timeout to task cancellation;
-- task Futures and the submission-loop Future to common cleanup;
-- successful aggregate completion to the token's success state.
-
-The token states distinguish the reason observed by the framework:
-
-| State | Meaning |
-|---|---|
-| `RUNNING` | No terminal group outcome has won |
-| `SUCCESS` | The aggregate completed successfully |
-| `MUTUAL_CANCELLED` | Application code cancelled the token |
-| `PROPAGATING_CANCELLED` | A parent cancellation propagated to this token |
-| `FAIL_FAST_CANCELLED` | A task failure cancelled the group |
-| `TIMEOUT_CANCELLED` | The group timeout elapsed |
-
-Fail-fast aggregation SHALL use `Futures.allAsList`. Completion and cleanup
-aggregation SHALL use `Futures.successfulAsList` so that individual failures or
-cancellations do not prevent the aggregate cleanup path from completing.
-
-Cancellation SHALL remain best effort:
-
-- Future cancellation may request interruption but cannot force user code to
-  terminate;
-- a task that ignores interruption or blocks in non-interruptible IO may keep a
-  worker occupied after its Future becomes cancelled;
-- `CompletableFuture.cancel(boolean)` does not use the flag to interrupt an
-  underlying computation;
-- cooperative tasks should use `Checkpoints` or `ActionGate` at
-  suitable boundaries.
-
-### Cooperative blocking operations
-
-`Checkpoints` SHALL provide cancellation-aware adapters for task-side
-operations that can block or form useful cooperative boundaries:
-
-- named and raw checkpoints;
-- sleep;
-- `CountDownLatch.await`;
-- `Condition.await`;
-- thread `join`;
-- `Future.get`;
-- blocking-queue `take` and `put`;
-- semaphore timed acquisition;
-- lock timed acquisition;
-- executor termination waits;
-- Runnable and Supplier exception-to-cancellation translation;
-- cancellation-exception propagation from catch blocks.
-
-These adapters check the current token before the operation. When an
-`InterruptedException` is caught, they restore the interrupt flag and throw a
-`LeanCancellationException`.
-
-### Future state inspection and batch reporting
-
-`FutureInspector` and `FutureState` SHALL provide the Java 8-compatible state
-view needed by reporting:
-
-- `RUNNING` for any Future that is not done;
-- `SUCCESS` for normal completion;
-- `FAILED` for exceptional completion;
-- `CANCELLED` for cancellation.
-
-`RUNNING` is deliberately a caller-side Future state. It does not distinguish
-not-yet-submitted placeholders, executor-queued tasks, worker-claimed tasks, or
-entered task bodies.
-
-`FutureInspector.exceptionNow` SHALL return the cause only for a completed,
-failed Future and reject pending, cancelled, and successful Futures.
-
-`AsyncBatchResult<T>` SHALL contain:
-
-- the input-ordered list of individual `ListenableFuture<T>` results;
-- the submission-loop Future, or an immediate completed Future when all tasks
-  were submitted synchronously;
-- a snapshot report counting Futures by `FutureState`;
-- the first observed task failure;
-- a compact report string for diagnostics.
-
-The report is a snapshot. It SHALL NOT imply that pending tasks remain in the
-same state after the report returns.
-
-### Cancelled queue cleanup
-
-Executor queue cleanup SHALL be driven by cancellation of the exact
-`FutureRunnable` submitted to the executor. The queued-cancellation observer
-may notify `HeuristicPurger`, which can coalesce signals and invoke
-`ThreadPoolExecutor.purge()` when configured queue-pressure and cancellation
-thresholds justify a scan.
-
-The cancellation count is an advisory estimate, not authoritative physical
-queue membership. Purge can remove cancelled tasks that have not started; it
-cannot stop a task already claimed by a worker.
-
-### Enforceable semantic boundaries
-
-The following distinctions SHALL remain explicit in implementation,
-documentation, and tests:
+These distinctions SHALL stay explicit in implementation, documentation, and
+tests:
 
 | Observation | Does not prove |
 |---|---|
 | `Future.isCancelled()` | The worker stopped or task body exited |
 | `Future.isDone()` | The executor queue no longer contains a distinct wrapper |
 | `FutureState.RUNNING` | The task body started |
-| `FutureRunnable.RUNNING` phase | The user delegate received a CPU time slice |
+| `RUNNING` execution phase | The user delegate received a CPU time slice |
 | Queued-cancellation signal | The object is still physically in the queue |
-| Completion queue publication | Task results are in input order |
-| Cancelled submission-loop Future | Already-submitted tasks stopped |
-| Placeholder cancellation | An actual executor task existed |
-
-Tests of cross-layer behavior SHALL collect separate evidence for Future
-state, wrapper phase, queue identity, task-body entry, interrupt observation,
-submission-window progress, and cleanup where those distinctions matter.
+| Completion publication | Task results are in input order |
 
 ## Alternatives Considered
 
@@ -389,70 +160,31 @@ concurrency framework.
 ### Positive
 
 - User functions keep ordinary Java signatures while receiving scoped
-  cancellation, context, timing, and monitoring.
+  cancellation, context, and timing.
 - Result Futures support listener-driven completion, aggregation, timeout,
-  fail-fast, parent propagation, and reporting.
-- One queued and returned `FutureRunnable` makes queued cancellation visible to
-  executor maintenance.
+  fail-fast, and parent propagation.
+- One queued and returned object makes queued cancellation visible to executor
+  maintenance.
 - Sliding-window admission bounds queued work while preserving input-ordered
   result handles.
 - Explicit token states retain the reason for group cancellation.
-- Java 8 callers can inspect Future state without depending on later JDK APIs.
 - Execution-side and result-side tests can assert their own observable state
   without inferring one from the other.
 
 ### Negative
 
-- One logical task has several cooperating representations:
-  `ScopedCallable`, `FutureRunnable`, `ListenableFutureTask`, and sometimes a
-  `SettableFuture` placeholder.
+- One logical task has several cooperating representations (the execution
+  wrapper, the queued Future, and the `ListenableFutureTask` it forwards to).
 - Late binding introduces a short period in which submitted work exists before
-  timeout and fail-fast wiring is complete.
+  timeout and fail-fast wiring is complete (see the note above).
 - Adapting a plain JDK Future may consume a helper thread while waiting for its
   completion.
 - Direct listeners must stay small because they execute on the thread that
   completes the Future.
-- Batch state reports are snapshots and may change immediately.
 - Cancellation semantics remain dependent on task cooperation and the supplied
   Future implementation.
 
-### Neutral constraints
-
-- `Callable` remains the primary value-producing task representation.
-- `Runnable` is primarily the executor-queue representation and callback form;
-  the public facade does not add a separate Runnable batch API.
-- `AsyncBatchResult.getResults()` is input ordered; the completion queue is
-  completion ordered.
-- Queue cleanup is heuristic maintenance, not part of the correctness contract
-  for task termination.
-- This ADR describes the current architecture and does not change public APIs.
-
-## Implementation Mapping
-
-| Responsibility | Main implementation |
-|---|---|
-| User-facing map and Future binding | `scope/Par.java` |
-| Task execution wrapper | `internal/ScopedCallable.java` |
-| Queued Runnable and returned Future identity | `internal/FutureRunnable.java` |
-| Completion publication | `internal/ListenableCompletionService.java` |
-| Sliding-window admission | `internal/ConcurrentLimitExecutor.java` |
-| Batch result and reporting | `scope/AsyncBatchResult.java` |
-| Group cancellation and timeout | `cancel/CancellationToken.java` |
-| Cooperative task boundaries | `cancel/Checkpoints.java` |
-| Amortized action checks | `control/ActionGate.java` |
-| Java 8 Future state view | `internal/FutureInspector.java`, `internal/FutureState.java` |
-| Current-task local context | `context/TaskScopeTl.java` |
-| Parent-child context relay | `context/ThreadRelay.java` |
-| Cancelled queue maintenance | `cancel/HeuristicPurger.java` |
-| Timer and submitter services | `scope/ParConfig.java` |
-
-The observation-plane and Cartesian-test rules that verify these distinctions
-are recorded in
-[`0001-layered-cartesian-concurrency-testing.md`](0001-layered-cartesian-concurrency-testing.md).
-
 ## Reconsider When
-
-Revisit this decision when one of these conditions becomes true:
 
 - the minimum supported Java version provides a replacement that preserves
   completion listeners, cancellation propagation, and exact queue identity;
@@ -461,10 +193,15 @@ Revisit this decision when one of these conditions becomes true:
 - the public API adopts a different cancellation primitive with stronger or
   explicitly different semantics;
 - helper-thread Future adaptation becomes an observed scalability bottleneck;
-- task admission no longer needs input-ordered placeholders or a sliding
-  window;
+- task admission no longer needs a sliding window;
 - executor cleanup no longer depends on the queued Runnable also being the
   returned Future.
 
-If the decision changes materially, add a new ADR and mark this record
-`Superseded` rather than rewriting its historical context.
+## History
+
+Condensed on 2026-10-27; the previous full text is
+`git show 1eeaaf0:adr/0002-separate-task-execution-and-future-lifecycle.md`. Removed: the
+capability tables of each wrapper, the `ListenableCompletionService` API, the placeholder,
+`submitCanceller`, and abandoned-placeholder rules, the `lateBind` wiring list, the `Par.bind`
+rules, the `Checkpoints` operation list, the `AsyncBatchResult` fields, the automatic purge
+section, the `ActionGate` and `TaskListener` mentions, and the implementation mapping table.

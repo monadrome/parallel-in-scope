@@ -59,8 +59,9 @@
    `scripts/check-local-links.py`。入库稿照样收割后删除，全文由 git 历史保存。
 10. **决策理由按性质只落一处**，其余位置只放指针：
     - **ADR**（[adr/](../adr/)）：跨模块、难以逆转，或需要关闭重提的决定（产物边界、核心协议
-      顺序、「不要在评审、缺陷分诊或重构提案中重提」一类结论）。ADR 不可变，决定改变时写
-      后继 ADR 并把旧篇标 `Superseded`。
+      顺序、「不要在评审、缺陷分诊或重构提案中重提」一类结论）。ADR 的决定不改写：决定改变时写
+      后继 ADR 并把旧篇标 `Superseded`；过时的非决策内容按 [adr/AGENTS.md](../adr/AGENTS.md)
+      蒸馏删除。
     - **活契约正文的「被排除的替代方案」**：只影响单一契约的取舍，随契约原地改写。
     - **[decision-log.md](decision-log.md)**：入库提案被否决、被取代或分析稿收割后的残值
       （结论、否决理由、落点）；只防重提，不定义当前行为。日志结论需要关闭重提时同时写
@@ -125,7 +126,7 @@
 | [decision-log.md](decision-log.md) | 归档提案的结论与否决理由浓缩表；重提旧方向前先查这里 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
-| [adr/](../adr/) | 架构决策记录（不可变；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准；例外是已在 ADR 里关闭的边界问题（如 [adr/0006](../adr/0006-queues-ship-with-core.md) 的 queue 产物边界），那类结论由 ADR 持有 |
+| [adr/](../adr/) | 架构决策记录（决定不改写，只按 adr/AGENTS.md 蒸馏过时内容；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准；例外是已在 ADR 里关闭的边界问题（如 [adr/0006](../adr/0006-queues-ship-with-core.md) 的 queue 产物边界），那类结论由 ADR 持有 |
 
 ## 在途提案
 
