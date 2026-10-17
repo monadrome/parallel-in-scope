@@ -22,10 +22,6 @@ import org.junit.jupiter.api.Test;
 /**
  * Declaration-entry contract of the one-shot chain: entry-point validation, per-declaration
  * validation, owner binding, and the absence of user-executable state on the result views.
- *
- * <p>This replaces the former definition/builder contract. There is no reusable structure object
- * any more, so the surviving contracts are the ones about what the chain rejects and what the
- * published results are allowed to hold.
  */
 class GroupDraftContractTest {
     private static final TaskKey<Integer> KEY_USER_INTEGER = TaskKey.named("user");
@@ -239,7 +235,6 @@ class GroupDraftContractTest {
                 .par(KEY_COUNT_INTEGER, global.par(ParId.of("worker")), () -> 41)
                 .par(TaskKey.<Boolean>named("flag"), global.par(ParId.of("worker")), () -> true)
                 .submitAll()) {
-            // Position zero is a valid position, and each position reaches its own member.
             assertThat(group.futureAt(0).get(2, TimeUnit.SECONDS)).isEqualTo("alice");
             assertThat(group.futureAt(1).get(2, TimeUnit.SECONDS)).isEqualTo(41);
             assertThat(group.futureAt(2).get(2, TimeUnit.SECONDS)).isEqualTo(true);

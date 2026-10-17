@@ -18,13 +18,9 @@ import org.junit.jupiter.api.Test;
  * Tests that verify the actual interaction between {@link CancellationToken#cancel(boolean)} and
  * {@link CancellationToken#bind}.
  *
- * <p>The original analysis claimed that calling {@code cancel()} before {@code bind()} causes
- * {@code IllegalStateException} because {@code SettableFuture.setFuture} would throw on an already
- * cancelled future. These tests show that Guava's {@code SettableFuture.setFuture} actually returns
- * {@code false} and <em>cancels the supplied future</em>, so cancellation still propagates to the
- * submitted tasks. The real latent issue is that {@code bind} is not idempotent: a second call is
- * silently ignored, its futures taking the state of the first binding — cancelled when cancellation
- * won that first bind, left untouched when the first binding succeeded.
+ * <p>Guava's {@code SettableFuture.setFuture} returns {@code false} and cancels the supplied future
+ * when the target is already cancelled. These tests also pin that {@code bind} is idempotent: a
+ * second call is ignored, and its futures keep the state established by the first binding.
  */
 @SuppressWarnings("FutureReturnValueIgnored")
 class CancellationTokenBindRaceTest {
@@ -54,7 +50,6 @@ class CancellationTokenBindRaceTest {
         SettableFuture<String> task = SettableFuture.create();
         List<ListenableFuture<String>> futures = Collections.singletonList(task);
 
-        // Does not throw.
         token.bind(futures, Futures.immediateVoidFuture(), timer);
 
         assertThat(task).isCancelled();
@@ -122,7 +117,6 @@ class CancellationTokenBindRaceTest {
             }
         }
 
-        // In all observed outcomes the task is cancelled; if it were not, that would be a bug.
         assertThat(notCancelled)
                 .withFailMessage(
                         "Expected all tasks to be cancelled in cancel/bind race, but %s out of %s were not",

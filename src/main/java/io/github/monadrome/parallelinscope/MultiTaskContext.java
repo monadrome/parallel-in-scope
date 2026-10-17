@@ -163,8 +163,6 @@ final class MultiTaskContext {
                 ? cancellationParent.ticker()
                 : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
         long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
-        // A non-positive request has no fallback left: the sliding window would never submit and
-        // the batch would wait forever, so the invariant both producers already keep fails loudly.
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);

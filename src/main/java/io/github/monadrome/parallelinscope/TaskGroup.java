@@ -842,8 +842,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
             if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
                 failedTaskName.compareAndSet(null, member.name);
             }
-            // The combine is not part of memberStates, so memberSuccesses covers members only: the
-            // join condition is every member counted and successful.
             if (terminal != null && memberSuccesses.get() == memberStates.size()) {
                 submitTerminalOnce();
             }
