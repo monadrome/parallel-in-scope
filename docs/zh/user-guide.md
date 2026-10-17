@@ -397,15 +397,18 @@ executor 环与自环只按注册的 executor 对象本身检测，从不按 `Pa
 ## 观测直接提交的工作
 
 任务图观测只覆盖通过本库准入的工作。直接提交到注册 executor 的任务没有依赖边；应用同时
-运行这类非结构化工作时，可以显式开启线程池饥饿观测：
+运行这类非结构化工作时，可以显式开启线程池饥饿观测。下面的有界诊断窗口应在独立于请求
+worker 的应用控制线程上运行；有界等待用于保持观测，不应加入请求处理逻辑：
 
 ```java
 ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+Duration samplingInterval = Duration.ofSeconds(1);
 try (ThreadPoolStarvationObservationScope observation =
-        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+        global.openThreadPoolStarvationObservation(samplingInterval)) {
     reportFuture = observation.reportFuture();
     pool.execute(requestHandler);
     submitOtherDirectWork(pool);
+    TimeUnit.MILLISECONDS.sleep(samplingInterval.multipliedBy(10).toMillis());
 }
 ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
 if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
@@ -423,6 +426,14 @@ if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
 预计需要诊断积压时，作用域至少保持两个采样间隔。
 报告的 `samplingInterval()` 是请求间隔，`samples()` 是实际完成的采样次数。证据计数取自捕获时刻；
 判断 close 时刻的状态需重新采样。
+报告只在 scope 关闭时发布，周期采样不是实时告警流。示例假设任务入队执行；`CallerRunsPolicy`
+可能在提交线程内联执行 handler，此时诊断控制线程还需独立于提交线程。任务入队执行时，控制
+线程关闭窗口不依赖 handler 返回。按控制线程的策略传播 `InterruptedException` 或恢复中断标志；
+try-with-resources 仍会关闭窗口。提交后立即关闭不能诊断持续积压；仅靠请求结束钩子，也无法
+为永不返回的请求发布报告。
+示例保持十个已配置的采样间隔。提前或被中断关闭可能在没有有效样本对时得到 `NO_ISSUE`，
+它不是健康断言。采样 `Error` 在报告发布后重抛；如需在错误处理路径读取报告，应在关闭前保留
+future，并在错误处理逻辑中检查已发布的报告。
 
 ### 限制
 

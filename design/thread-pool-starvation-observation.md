@@ -14,18 +14,33 @@ pool.execute(requestHandler);
 ```
 
 The failure was a queue that stayed non-empty behind all busy workers while the caller only saw a
-timeout or stalled request. The same work can now be observed explicitly:
+timeout or stalled request. The same work can now be observed explicitly. Run this bounded diagnostic
+window on an application control thread independent of the request workers; the bounded wait
+keeps sampling active and must not be added to request handling:
 
 ```java
 ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+Duration samplingInterval = Duration.ofSeconds(1);
 try (ThreadPoolStarvationObservationScope observation =
-        runtime.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+        runtime.openThreadPoolStarvationObservation(samplingInterval)) {
     reportFuture = observation.reportFuture();
     pool.execute(requestHandler);
-    // submit other unstructured work
+    submitOtherDirectWork(pool);
+    TimeUnit.MILLISECONDS.sleep(samplingInterval.multipliedBy(10).toMillis());
 }
 ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
 ```
+
+The example assumes queued submission. `CallerRunsPolicy` can run a handler inline; in that case
+keep the diagnostic control thread separate from submission as well as from request workers.
+With queued submission the control thread closes the window even if the handler stalls. Interruption also
+closes the scope through try-with-resources; propagate `InterruptedException` or restore the interrupt
+flag according to the control thread's policy. Submitting work and immediately closing the scope is
+not a diagnostic window. Reports publish only at close, not while periodic sampling is running.
+The example keeps the window open for ten configured intervals. An early or interrupted close can
+publish `NO_ISSUE` without a qualifying sample pair; it is not a health assertion. A sampling `Error`
+is rethrown after report publication; callers needing that report on the error path should retain
+the future before close and inspect it in their error handler.
 
 The report identifies the pool and captures the pool size, active workers, queue depth, completed
 task count, and the number of no-progress sample pairs supporting the signal. It also records the
@@ -91,6 +106,17 @@ runtime, or a pool where some workers are permanently blocked while other worker
 short tasks. It reports no dependency edge between direct work and library work, and it does not
 explain who waits for whom across pools or runtimes.
 
+Submission ancestry is not a synchronous wait: projecting fire-and-forget submissions can invent
+cycles. Task dependencies can be acyclic while parents occupy all workers needed by queued children;
+the missing resource is executor capacity. The library's task graph is acyclic by construction,
+but its executor projection can identify this capacity-cycle risk for known synchronous waits.
+Direct submissions do not supply those wait edges. Multiple acyclic wait chains sharing a finite pool do
+not alone prove starvation either: the awaited work may still acquire capacity and finish. An
+expandable pool can relieve its own worker shortage without relieving a bounded pool elsewhere in
+the chain, and cannot resolve a logical wait cycle or a held lock. Structural graph evidence and
+pool-wide no-progress evidence therefore remain complementary risk signals, not deadlock proofs.
+This observation adds no general submit/wait wrapper or explicit wait-edge API.
+
 Opening an observation does not add cancellation, deadline, TTL propagation, `SmartBlockingQueue`,
 or `rejectEnqueue` admission semantics to direct tasks. Only TTL wrappers are unwrapped; Guava or
 custom executor decorators must be registered through their physical pool or they appear in
@@ -143,6 +169,14 @@ source of structural cycle evidence.
   test quality, Java 8, and generics. It found missing migration entries and a missing two-failure
   assertion; both v0.4 migration guides and the scheduled-runtime-failure/final-Error test now cover
   them. Its follow-up accepted both fixes and found no new implementation defect.
+- Follow-up review retained the finding that submission-only examples closed before any real
+  interval elapsed. The examples now use a bounded window on an independent application control
+  thread and state that publication requires close. Request-end accounting and general wait
+  interception remain outside this counter-only contract.
+- Kimi's follow-up retained the documentation findings about missing queued work, interval-bound
+  window duration, early interruption, executor projection terminology, and reading published
+  reports after a sampling `Error`. The examples and adjacent guidance now address each point;
+  no new execution or wait-registration mechanism is introduced.
 
 ## Mutation verification
 
@@ -161,3 +195,10 @@ source of structural cycle evidence.
   are the exact elapsed-time boundary, the separate-run interval reset, and the zero-worker and
   empty-queue saturation boundaries described above. The report itself has no surviving mutant in
   this run. This narrower result does not replace the runtime-inclusive run's limitations.
+- The follow-up adds deterministic samples around the exact elapsed-time boundary, separates
+  stagnant runs with progress and an empty queue, and checks zero-worker and empty-queue states.
+  Isolated reversions of each corresponding predicate or reset make its regression test fail;
+  restoring the predicates preserves the original algorithm. A fresh run scoped to the report
+  and executor/sample predicates completed 38 mutants, all killed, with no uncovered, surviving,
+  timed-out, or run-error outcomes. This closes the four predicate gaps in the earlier focused
+  result, not the unrelated runtime coverage gaps from the broad run.

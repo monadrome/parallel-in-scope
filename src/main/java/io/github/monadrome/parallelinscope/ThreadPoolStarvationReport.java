@@ -21,7 +21,7 @@ public final class ThreadPoolStarvationReport {
 
     /** Outcome of the observation. */
     public enum Status {
-        /** All executors were visible, sampling succeeded, and no evidence was captured. */
+        /** All executors were visible, sampling succeeded, and no evidence was captured; deadlock is not ruled out. */
         NO_ISSUE,
         /**
          * A visible pool produced a risk snapshot during the window. Recovery does not clear the

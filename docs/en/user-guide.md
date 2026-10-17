@@ -459,15 +459,19 @@ Executor cycles and self-loops are detected on the registered executor objects t
 
 Task-graph observation covers work admitted through this library. Direct submissions to a registered
 executor have no dependency edge, so use the explicit starvation observation when an application
-also runs unstructured work on that pool:
+also runs unstructured work on that pool. Run this bounded diagnostic window on an application
+control thread independent of request workers. The bounded wait belongs to that control thread,
+not to a request handler:
 
 ```java
 ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+Duration samplingInterval = Duration.ofSeconds(1);
 try (ThreadPoolStarvationObservationScope observation =
-        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+        global.openThreadPoolStarvationObservation(samplingInterval)) {
     reportFuture = observation.reportFuture();
     pool.execute(requestHandler);
     submitOtherDirectWork(pool);
+    TimeUnit.MILLISECONDS.sleep(samplingInterval.multipliedBy(10).toMillis());
 }
 ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
 if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
@@ -488,6 +492,17 @@ sampling failure was captured. Keep the scope open for at least two sampling int
 backlog is expected to be diagnosed.
 The report also exposes the requested `samplingInterval()` and the count of completed `samples()`.
 Evidence contains capture-time counters; sample the pool again to assess its state at close.
+The report publishes only when the scope closes; periodic sampling is not a live alert stream.
+The example assumes queued submission: `CallerRunsPolicy` can run a handler inline, so keep the
+diagnostic control thread separate from submission too in that case. With queued submission the
+control thread closes the window even if a handler stalls. Propagate
+`InterruptedException` or restore the interrupt flag according to that thread's policy;
+try-with-resources still closes the window. Submitting work and immediately closing the scope cannot
+diagnose sustained backlog. A request-completion hook alone cannot publish a report for a request
+that never returns.
+The example spans ten configured intervals. Early or interrupted close can yield `NO_ISSUE` without
+a qualifying sample pair; it is not a health assertion. Sampling `Error` is rethrown after report
+publication; retain the future before close to inspect the published report in an error handler.
 
 ### Limits
 
