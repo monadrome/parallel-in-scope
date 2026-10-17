@@ -6,8 +6,9 @@
 - 不变量与拟议 MUST：删除或移动文字前 MUST 核对承接处覆盖全部命题；
   MUST NOT 将“refuse the call”误教成 Checkpoints.remaining 会触发控制操作。
   公开访问器 MUST 对结果范围、null 与异常条件给出调用者可见的解释。
-- 被否决方向及理由：注释门禁、注释行长检查与 C1–C4 规则方向已在 decision-log 完整否决，
-  不重提。密度、总行数与“零仓库调用”不是删除知识或公开能力的依据。
+- 被否决方向及理由：注释数量/长度门禁、密度检查与机械化归属规则仍由 decision-log 否决，
+  不重提。人工删留与归属原则见 [ADR 0009](../../adr/0009-comment-minimization-and-placement.md)。
+  密度、总行数与“零仓库调用”不是删除知识或公开能力的依据。
 
 ## 已收割与待复核的具体目标
 
@@ -40,8 +41,8 @@ inline-comment-audit 的采纳边界仍由 [decision-log](../decision-log.md) �
 
 改前改后用户都写 `Checkpoints.remaining()` 和当前的结果查询；文档修正使用户知道查询不
 取消执行、不消费 interrupt、成功 null 与不存在 terminal 不同。没有签名迁移。
-对根 AGENTS 的注释措辞与实际理由的冲突只提编辑建议：默认用命名表达，必要语句级证明
-按原规则审阅；不借此调整已否决方向或机械扫描阈值。
+根 AGENTS 的注释原则现由 ADR 0009 定义：默认用命名表达，必要的局部不变量、顺序或竞态证明
+仍可保留；不借此引入机械扫描阈值。
 队列移植标记与 JDK override 的维护遵守 queue/AGENTS，不扩成无差别全仓清扫。
 
 本提案承接 P0012 的剩余维护方向。Checkpoints 的应用责任说明及 reference-release 测试的
