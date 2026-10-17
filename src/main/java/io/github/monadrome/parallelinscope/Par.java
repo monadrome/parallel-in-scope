@@ -97,7 +97,9 @@ public final class Par {
      *
      * <p>This call waits for all results, ignoring interruptions while waiting and restoring the
      * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
-     * fail-fast, and ancestor cancellation still interrupt task runners. Cleanup waits within
+     * fail-fast, and ancestor cancellation still interrupt task runners. A source declared through
+     * {@link BatchOptions#cancelOn(ListenableFuture, boolean)} cancels on any completion with its
+     * explicit interrupt policy. Cleanup waits within
      * {@link BatchOptions#closeGrace(Duration)} (or the remaining deadline when unset); inspect
      * {@link TaskBatchResult#bodyCompletionConfirmed()} before releasing resources shared by direct
      * bodies; nested calls must confirm their own exit separately. Direct
@@ -191,13 +193,7 @@ public final class Par {
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
-        return executeCombined(
-                elements,
-                item -> () -> function.apply(item),
-                unit,
-                options.closeGrace().orElse(null),
-                combinePar,
-                combineBody);
+        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
     }
 
     /**
@@ -218,7 +214,7 @@ public final class Par {
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable Duration closeGrace,
+            BatchOptions options,
             Par combinePar,
             CombineBody<List<@Nullable R>, C> combineBody) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
@@ -237,7 +233,7 @@ public final class Par {
                         .deadlineCeilingNanos(unit.deadlineNanos())
                         .executor(combinePar.executorRuntime(), combinePar.id()));
         combinePar.warnIfEnqueueRefusalInert(terminalUnit);
-        runtime.executorWaits().record(unit.structuralParentNode(), ImmutableList.of(unit.node(), terminalUnit.node()));
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
         // The terminal body reads the settled element futures at run time; the success gate below
@@ -249,8 +245,11 @@ public final class Par {
             terminalFuture.forbidInlineExecution();
         }
         Task<C> terminalView = Task.attributedOnSettle(unit.name(), unit.cancellationToken(), terminalFuture);
-        SlidingWindowSubmitter<R> submitter =
-                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
+        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
+                executorRuntime.submissionExecutor(),
+                unit,
+                bodyCompletion,
+                options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         // Bind before submitting, with the still-pending terminal in the bound set: the token's
@@ -259,7 +258,7 @@ public final class Par {
         List<ListenableFuture<?>> bound = new ArrayList<>(views.size() + 1);
         bound.addAll(views);
         bound.add(terminalView);
-        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), bound, submitCanceller);
+        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, bound, submitCanceller);
         // Armed before submitAll: an inline executor can complete every element inside the initial
         // window. Only an all-successful element aggregate triggers the combine; the callback's
         // failure path leaves the combine to the cascade.
@@ -292,14 +291,25 @@ public final class Par {
     }
 
     /**
-     * Binds element views and the differently-typed terminal view in one call. The bind's element
-     * type is an inference artifact — every entry is a {@code ListenableFuture<?>} — so the raw
-     * cast is confined here.
+     * Admits the declared cancellation source and binds every prepared view in one call. The bind's
+     * element type is an inference artifact — every entry is a {@code ListenableFuture<?>} — so the
+     * raw cast is confined here.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private ListenableFuture<?> bindAll(
-            CancellationToken token, List<? extends ListenableFuture<?>> futures, ListenableFuture<?> submitCanceller) {
-        return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
+            CancellationToken token,
+            BatchOptions options,
+            List<? extends ListenableFuture<?>> futures,
+            ListenableFuture<?> submitCanceller) {
+        CancellationToken.@Nullable RequestCancellationLink cancellation = options.admitCancellation(token);
+        try {
+            return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
+        } catch (RuntimeException | Error failure) {
+            if (cancellation != null) {
+                cancellation.sever();
+            }
+            throw failure;
+        }
     }
 
     /** Reads every element's successful value in input order; the success gate settled them all. */
@@ -398,18 +408,14 @@ public final class Par {
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
-        return executeGlobal(
-                elements,
-                item -> () -> function.apply(item),
-                unit,
-                options.closeGrace().orElse(null));
+        return executeGlobal(elements, item -> () -> function.apply(item), unit, options);
     }
 
     private <T, R> TaskBatch<R> executeGlobal(
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable Duration closeGrace) {
+            BatchOptions options) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
@@ -418,15 +424,17 @@ public final class Par {
                         new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
                         callableMapper.apply(list.get(index))))
                 .collect(toImmutableList());
-        SlidingWindowSubmitter<R> submitter =
-                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
+        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
+                executorRuntime.submissionExecutor(),
+                unit,
+                bodyCompletion,
+                options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         // Bind before submitting: see ADR-0007. The submission canceller cannot come from
         // submitAll, which has not run yet, so it is pre-built here and pointed at the real one
         // afterward; setFuture propagates an early cancellation on to the submitting future.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
-        ListenableFuture<?> completion =
-                unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
+        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         TaskBatch<R> result = submitter.submitAll(tasks, views);

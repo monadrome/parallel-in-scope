@@ -32,7 +32,7 @@
 | 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
 | API | ~~A-P1~~ | ~~`CancellationToken` 是不可达的公开类型~~ **已修复：包私有化（0.4）** | 复核 | — |
-| API | A-P2 | 诊断断言无作用域时静默返回 `false` | 复核 | 低-中 |
+| API | ~~A-P2~~ | ~~诊断断言无作用域时静默返回 `false`~~ **已关闭：随请求级观测一并删除（0.4）** | 复核 | — |
 | API | A-P3 | `failedTaskName()` 可能是 combine 名且无公开 `failedTask()`（`TaskCompletion.failure()` 口径已修复） | 复核 | 低 |
 | API | A-P6 | 4 处零调用的公开成员 | 读码 | 低-中（破坏性） |
 | API | A-P7 | 6 项选项与形状瑕疵 | 读码 | 低 |
@@ -156,7 +156,12 @@ Guava 的 SEVERE 日志里。
 - **修复**：类型 + `State` 包私有化。破坏面：`ParRuntime.java:547` 的 javadoc 链接、
   `PublicApiSurfaceTest` 两行、同包测试不受影响。
 
-### A-P2 · 诊断断言无作用域时静默返回 `false`
+### A-P2 · 诊断断言无作用域时静默返回 `false` ——**已关闭（0.4，随请求级观测一并删除）**
+
+**处置（`59fe375`）**：`TaskGraphObservationScope` 与全部静态 `has*()` 查询已随请求级任务图观测一并删除，
+由常开的运行时执行器等待图取代（`design/task-graph.md`）。新图没有作用域，`ParRuntime.executorWaitReport()`
+在包括关闭之后的任何时候都可读，因此不存在"无作用域时静默返回 false"这一状态。本条不是靠三态查询修复的，
+实例三态化也已在 `design/task-graph.md` §6 被拒绝。以下原文保留作记录。
 
 `TaskGraphObservationScope` 的 `hasTaskCycle()`/`hasSelfLoop()`/`hasExecutorCycle()`/
 `hasExecutorSelfLoop()`（`:110-145`）读静态 TTL 的当前作用域；**无活动作用域时返回 `false`**，
@@ -166,7 +171,8 @@ Guava 的 SEVERE 日志里。
   `DISABLED/NO_ISSUE/ISSUE`。
 - **修复**：改为实例方法 `scope.hasTaskCycle()`（用户本就持有该实例），或返回 `TaskGraphReport.Status`。
 - **状态（任务图重构后）**：任务级 `hasTaskCycle()`/`hasSelfLoop()` 已删除（生产中恒为 false，见
-  `design/task-graph.md` §6）；剩下的 `hasExecutorCycle()`/`hasExecutorSelfLoop()` 仍有本条问题。
+  `design/task-graph.md` §6）；当时剩下的 `hasExecutorCycle()`/`hasExecutorSelfLoop()` 已随 `59fe375`
+  删除，整个公开查询面不复存在。
 
 ### A-P3 · 两个访问器让用户静默出错 ——`failure()` 半项已修复
 
@@ -380,9 +386,9 @@ A-P1（`CancellationToken` 孤岛）仍开放。
    O-9（`@since`）仍开放。O-1 已随同步化重构关闭，O-2 已修复（工作区）。
 2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
 3. **公开面收敛（破坏性，合成一次变更）**：A-P1（`CancellationToken` 孤岛）与 A-P6（零调用公开成员），
-   顺带 A-P2（`has*()` 三态化）、A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
-   同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P3 的
-   `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
+   A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
+   同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P2 已随请求级观测关闭，
+   `has*()` 三态化不再需要；A-P3 的 `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
 4. **开放问题**（走六问清单）：待决策两项——batch+combine（O-6）与 TimeSource（O-11）。
    （parallelism 强制化已随 O-2 定案：保持默认。）
 
@@ -399,7 +405,6 @@ A-P1（`CancellationToken` 孤岛）仍开放。
   `ParRuntime.java:106/:144`、`BodyCompletionTracker.java:220` 的 WARNING 日志直接调用；用户替换的
   JUL handler 抛出时可改变 build/prepare/close 的控制流。同文件的 `warnUnfinished` 已用 quiet-logging
   守卫，风格应统一。代价低；修法：套用既有 quiet-logging 惯例并补回归。
-- 记录（非缺陷）：`TaskGraphObservationScope` 的 ISSUE 诊断仍在报告发布前调用，阻塞型 handler 可推迟
-  发布（R8 已记为 informational）；`ExecutionPhaseHintFuture.java:117` 的 SEVERE 文案未带"阶段"词，
+- 记录（非缺陷）：`ExecutionPhaseHintFuture.java:117` 的 SEVERE 文案未带"阶段"词，
   L7 若按字面要求两站点都带阶段则部分满足。
 

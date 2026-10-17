@@ -410,6 +410,46 @@ No public running handle supports member cancellation or asynchronous submission
 business work into the same group. Application-owned asynchronous wrappers have their own lifetime
 and cancellation, which do not prove the inner synchronous call exited.
 
+### Cancel when a request completes {#request-cancellation}
+
+Use a caller-owned `ListenableFuture<?>` as a request-disconnect input. Completion in any way —
+success, failure, or cancellation — cancels the whole batch or group, including a `mapAndCombine`
+terminal. The explicit `interrupt` argument decides whether running bodies are interrupted; the
+library never infers it from how the source completed and never completes or cancels the source.
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+TaskBatchResult<Price> prices = par.map(
+        skus,
+        this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect, true));
+```
+
+Declare a group's input once on `GroupStart`, before its first member. `TaskOptions` deliberately has
+no member-level `cancelOn`: request cancellation belongs to the whole scope, not to an independent
+member policy.
+
+```java
+TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+        .cancelOn(disconnect, true)
+        .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
+        .runAll();
+```
+
+A source that wins the race produces `GROUP_CANCELLED`; ancestor cancellation, deadlines, and
+fail-fast retain first-wins attribution. `cancelOn(source, false)` remains non-interrupting even when
+a losing deadline or fail-fast callback runs later. Registration happens only after preparation
+succeeds, immediately before binding and submission, so an already-completed source prevents inline
+bodies from running. Empty batches and groups return immediate `SUCCESS` without registering;
+`mapAndCombine` still rejects empty input.
+
+Normal terminal completion deterministically severs the listener's link to the execution without
+finishing the source. Reusing one source across executions creates independent links; options retain
+the source itself and therefore have the request's lifetime. Synchronous return and bounded cleanup
+are unchanged. Interruption is cooperative: it does not prove that arbitrary HTTP/JDBC IO or user
+code has stopped, so keep finite IO timeouts and inspect body-completion results.
+
 ### Read nested results inside a body {#nested-reads}
 
 A nested `map` or `runAll` has already finished when it returns: its results are frozen data, so

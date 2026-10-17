@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -12,8 +13,8 @@ import org.jspecify.annotations.Nullable;
  * <p>It is not a public type any more: a group is declared and submitted in one fluent chain, so
  * there is nothing for a caller to reuse or hold. What remains is the shape the preparation kernel
  * needs — the group name, the forced choice between an explicit timeout and an inherited one, the
- * optional close grace, the plain member slots in declaration order, and the optional terminal
- * combine slot. Each slot carries its name, the {@link Par} resolved at declaration time, immutable
+ * optional close grace and request-cancellation input, the plain member slots in declaration order,
+ * and the optional terminal combine slot. Each slot carries its name, the {@link Par} resolved at declaration time, immutable
  * {@link TaskOptions}, and the {@link TaskKey} used for typed result lookup. No runtime type
  * information is retained.
  *
@@ -33,6 +34,8 @@ final class TaskGroupDefinition {
     private final String name;
     private final @Nullable Duration timeout;
     private final @Nullable Duration closeGrace;
+    private final @Nullable ListenableFuture<?> cancellationSignal;
+    private final boolean cancellationInterrupt;
     private final ImmutableList<Slot> members;
     private final @Nullable Slot combine;
 
@@ -40,11 +43,15 @@ final class TaskGroupDefinition {
             String name,
             @Nullable Duration timeout,
             @Nullable Duration closeGrace,
+            @Nullable ListenableFuture<?> cancellationSignal,
+            boolean cancellationInterrupt,
             List<Slot> members,
             @Nullable Slot combine) {
         this.name = name;
         this.timeout = timeout;
         this.closeGrace = closeGrace;
+        this.cancellationSignal = cancellationSignal;
+        this.cancellationInterrupt = cancellationInterrupt;
         this.members = ImmutableList.copyOf(members);
         this.combine = combine;
     }
@@ -63,6 +70,13 @@ final class TaskGroupDefinition {
     @Nullable
     Duration closeGrace() {
         return closeGrace;
+    }
+
+    CancellationToken.@Nullable RequestCancellationLink admitCancellation(CancellationToken token) {
+        if (cancellationSignal == null) {
+            return null;
+        }
+        return token.cancelOn(cancellationSignal, cancellationInterrupt);
     }
 
     /** The plain members in declaration order. */

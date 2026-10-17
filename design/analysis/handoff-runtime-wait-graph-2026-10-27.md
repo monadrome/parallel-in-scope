@@ -48,7 +48,7 @@
 
 ### 2.3 实现 P0001 `cancelOn`（新能力，纯增量）
 
-需求与协议全文在 [P0001](../proposal/P0001-request-cancellation.md)，要点：
+需求与协议全文见 `git show 59fe375:design/proposal/P0001-request-cancellation.md`（落地后提案按生命周期删除），要点：
 
 - 形状：`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)`；组只在 `GroupStart` 上声明一次。
   `TaskOptions` 是否也需要，实现前先按 `first-principles.md` 判断。

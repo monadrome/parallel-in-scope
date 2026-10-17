@@ -355,6 +355,40 @@ CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常�
 成员直消或异步提交；需同时执行的业务放入同一组。应用自行包装的异步执行有自己的生命周期，
 取消外层 future 不能证明内部同步调用已经退出。
 
+### 请求完成时取消执行 {#request-cancellation}
+
+用调用方持有的 `ListenableFuture<?>` 表示请求断开等外部事件。来源以成功、失败或取消中的任一方式
+完成，都会取消整个批次或任务组，包括 `mapAndCombine` 的终端汇总。是否中断正在运行的 body 只由显式
+`interrupt` 参数决定；库不会从来源的完成方式推断，也不会完成或反向取消来源。
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+TaskBatchResult<Price> prices = par.map(
+        skus,
+        this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect, true));
+```
+
+组的取消输入在 `GroupStart` 上声明一次，必须位于首个成员之前。`TaskOptions` 刻意不提供成员级
+`cancelOn`：请求取消属于整个作用域，而不是一套独立的成员政策。
+
+```java
+TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+        .cancelOn(disconnect, true)
+        .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
+        .runAll();
+```
+
+请求来源先赢时归因为 `GROUP_CANCELLED`；与祖先取消、deadline、fail-fast 的竞态仍按 first-wins。
+`cancelOn(source, false)` 先赢后保持不中断，落败的 deadline/fail-fast 回调也不会升级中断意图。
+只有全部准备成功后才注册来源，随后立即 bind 和提交，因此预完成来源能阻止 inline body 进入用户代码。
+空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 仍拒绝空输入。
+
+执行正常到达终态时会确定性地切断监听到执行的连接，但不会完成来源。同一来源跨多次执行复用时，
+每次都有独立连接；options 会持有来源本身，因此具有请求寿命。同步返回与有界清理不变。中断是协作
+信号，不能证明任意 HTTP/JDBC IO 或用户代码已经停止；仍需有限 IO 超时，并检查 body 退出结果。
+
 ### 在 body 内读取嵌套结果 {#nested-reads}
 
 嵌套的 `map` 或 `runAll` 返回时已经结束：结果是冻结数据，读取从不阻塞，不需要

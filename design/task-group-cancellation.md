@@ -10,9 +10,12 @@
 
 ### 8.1 Token 结构
 
-不新增公共 `GroupCancellationToken`，也不存在公开的组取消入口：组的执行取消来源是显式
-deadline、fail-fast 与祖先取消（见 [同步出口契约](synchronous-scope-exit.md) §4）。Group 内部
-复用现有 `CancellationToken`：
+不新增公共 `GroupCancellationToken`，也不存在公开的组运行句柄或成员直消入口：组的执行取消来源是显式
+deadline、fail-fast、祖先取消与 `GroupStart.cancelOn` 请求来源（见
+[同步出口契约](synchronous-scope-exit.md) §4）。请求来源以任意方式完成时取消现有 group token，
+不替换 parent 链；显式中断意图、注册与确定性切断规则见
+[取消传播契约](cancellation-propagation.md) §5.4。历史来源：`proposal:P0001`。Group 内部复用现有
+`CancellationToken`：
 
 ```text
 outer task token（可空）
@@ -80,11 +83,13 @@ memberDeadline = min(member requested deadline, groupDeadline)
 若成员自己的 deadline 先到并导致该成员失败/取消，Group 应固定 `TIMEOUT`，因为结果 API 已明确区分 timeout；不得把它误报成普通 user failure。
 
 deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min），`bind(List, submitCanceller, timer)`
-不再接收 Duration。Group 的 `start()` 按序做三件事：
+不再接收 Duration。Group 的 `start()` 按序遵守以下步骤：
 
-1. 先给每个成员的 future 挂完成 observer，保证后续 bind 触发的取消都被计数；
-2. 对 group token 做一次 `bind`（组 deadline + 统一 fail-fast + 全成功检测）；
-3. 所有成员与 terminal token MUST 先注册 TIMEOUT 上升监听器，再按 deadline 判断是否省略 bind。
+1. 空组立即 `SUCCESS`，不注册请求来源；
+2. 先给每个成员的 future 挂完成 observer，保证后续 bind 触发的取消都被计数；
+3. 全部准备成功后注册声明的请求来源，紧接着对 group token 做一次 `bind`
+   （组 deadline + 统一 fail-fast + 全成功检测）；预完成来源因此在任何提交前生效；
+4. 所有成员与 terminal token MUST 先注册 TIMEOUT 上升监听器，再按 deadline 判断是否省略 bind。
    监听器在成员 CAS 提交之后、取消动作之前同步调用 `groupToken.timeoutCancel()`。
    **仅当 `memberToken.deadlineNanos() < groupToken.deadlineNanos()`**（即成员拥有比组更紧的
    自己 deadline）时，才对该成员 token `bind` 自己的 future。继承组 deadline 的成员跳过 bind：
@@ -107,7 +112,7 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 组级 outcome 同样读 group token 推导（`TaskGroupResult.outcome()`）：`TIMEOUT` → `TIMEOUT`；
 `FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
 无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELLED`；`PROPAGATED_CANCELLED` 按
-`originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELLED`；`CANCELLED`（用户直接 cancel 组或成员直消
+`originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELLED`；`CANCELLED`（请求来源、内部直消组或成员直消
 级联）→ `GROUP_CANCELLED`；token 仍在 `RUNNING`/`SUCCESS` 时，已记录失败任务优先沿用其
 outcome（失败归因不随完成顺序漂移），否则全部成员成功记 `SUCCESS`，否则
 `MEMBER_CANCELLED`。
@@ -161,7 +166,7 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 - 先校验自等待条件：当前线程正在执行本组成员（含 terminal combine）任务体——含当前线程上
   尚未返回的嵌套 inline 调用——时抛 `IllegalStateException`；守卫沿 `structuralParent` 链判定，
   不只看最内层 current context；任务体需要终止自身所在组时应抛出业务异常走 fail-fast
-  （公开面没有取消入口）；
+  （公开面没有当前组的直消入口）；
 - 存在未完成成员：等同取消（幂等）组 token；取消处理同步竞争任务入口，尚未取得
   执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
 - 取消传播返回后，以 **close grace** 为预算等待全部成员（含 terminal combine）任务体退出。
@@ -179,8 +184,8 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 - 不关闭 `ParRuntime` 或任何注册 executor。
 
 Batch 侧对称：`Par.map` 同步返回前等待全部元素结果与提交循环落定——返回路径自身不发起
-取消，批次的执行取消来源同样是 deadline、fail-fast 与祖先取消，没有独立的 cancel-only 公共
-入口——再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生自剩余
+取消，批次的执行取消来源同样是 deadline、fail-fast、祖先取消与 `BatchOptions.cancelOn` 请求来源，
+没有独立的 cancel-only 运行句柄——再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生自剩余
 deadline）等待任务体退出。全部元素 future 在返回前已终态（含取消终态），因此 `map` 返回时
 `results()` 中每个容器必为终态——即使任务体仍在展开。
 

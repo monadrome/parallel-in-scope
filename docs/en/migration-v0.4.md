@@ -147,8 +147,42 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
   `Checkpoints.remaining()`.
 - Read attribution from `TaskOutcome`; `CancellationToken.State` has no public replacement.
 
-There is still no public handle for cancelling a running execution from outside; an explicit
-cancellation input is an open proposal.
+There is still no public running handle or member-cancellation method. Request-scoped external
+cancellation instead uses the new input below, without making the token public again.
+
+## Request cancellation input
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` and
+`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` are optional additions; code
+that does not declare them keeps its existing behavior. There is deliberately no
+`TaskOptions.cancelOn`, because request cancellation applies to the whole batch or group rather than
+to an independent member policy.
+
+Before, the best available external-request check polled an application flag:
+
+```java
+par.map(skus, sku -> {
+    if (requestCancelled.get()) throw new CancellationException();
+    return fetchPrice(sku);
+}, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+After, complete a caller-owned future on disconnect and declare it on the scope:
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+par.map(skus, this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+```
+
+The failure mode removed is the gap between polling checkpoints: cancellation can now reach a body
+already blocked in a cooperative interruptible wait. Source success, failure, and cancellation all
+trigger cancellation; only the explicit `interrupt` argument chooses interruption. The source stays
+caller-owned, attribution remains first-wins with `GROUP_CANCELLED` when the source wins, and
+`cancel(false)` is not upgraded by losing deadline or fail-fast callbacks. Registration and listener
+severing follow admission and terminal completion; empty batches and groups do not register. This
+does not assert that arbitrary IO has stopped, and synchronous bounded cleanup is unchanged.
 
 ## Executor wait report
 

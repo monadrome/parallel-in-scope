@@ -39,8 +39,8 @@ ExecutorWaitGraph ────────────────────�
 
 ### 4.2 TaskGroup
 
-声明草稿（`GroupDraft`）收集组结构与本次 payload：组名、timeout/closeGrace、成员与可选
-combine 的声明顺序、名称、已解析的 owner-bound `Par`、不可变 `TaskOptions` 和本次 `Callable`；
+声明草稿（`GroupDraft`）收集组结构与本次 payload：组名、timeout/closeGrace、请求来源与显式中断意图、
+成员与可选 combine 的声明顺序、名称、已解析的 owner-bound `Par`、不可变 `TaskOptions` 和本次 `Callable`；
 提交时结构部分冻结为包私有 `TaskGroupDefinition`（不含 body），body 转移为内部 `RunBindings`。
 草稿单次使用、绑定创建线程，owner 关闭后不能再提交。外层上下文和 deadline 归属
 在提交的准备阶段按提交线程解析。成员不新增公共 Context。

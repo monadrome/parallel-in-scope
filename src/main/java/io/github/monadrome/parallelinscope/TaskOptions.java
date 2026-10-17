@@ -13,8 +13,8 @@ import org.jspecify.annotations.Nullable;
  * <p>This type carries only what one task execution reads: its deadline policy, its task type, and
  * its enqueue-rejection policy. A task's name comes from its {@link GroupStart#par} or
  * {@link GroupStep#combine} declaration. A single task has no parallelism to limit. A batch declares
- * {@link BatchOptions}; group-level configuration is declared by {@link ParRuntime#group} and
- * {@link GroupStart#closeGrace}.
+ * {@link BatchOptions}; group-level configuration is declared by {@link ParRuntime#group} and the
+ * whole-scope methods on {@link GroupStart}.
  *
  * <p>The timeout is a forced explicit choice between two factories: {@link #inheritTimeout()}
  * declares that the enclosing scope's deadline is inherited, while {@link #timeout(Duration)} sets

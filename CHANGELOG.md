@@ -27,6 +27,14 @@
 
 ### Features
 
+- Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
+  and `GroupStart.cancelOn(ListenableFuture<?>, boolean)`. Any completion of the caller-owned source
+  cancels the whole batch or group, including `mapAndCombine`; the explicit argument alone controls
+  interruption. Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins) and
+  non-interrupting `cancel(false)` intent, never finish the source, register only after successful
+  preparation immediately before binding, and sever the execution link on terminal completion.
+  Empty batches and groups do not register. `TaskOptions` intentionally has no member-level variant.
+
 - Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted
   outside the structured task graph. `ThreadPoolStarvationReport` distinguishes clean observation,
   potential starvation, sampling failure, and insufficient executor visibility, with immutable

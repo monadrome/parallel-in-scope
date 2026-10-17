@@ -132,7 +132,6 @@
 
 | 提案 | 摘要 |
 |---|---|
-| [proposal/P0001-request-cancellation.md](proposal/P0001-request-cancellation.md) | 请求断开通过 `cancelOn(ListenableFuture<?>, interrupt)` 接入已有执行 token，保留结构化祖先与同步出口 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
 | [proposal/P0004-shared-root-budget.md](proposal/P0004-shared-root-budget.md) | 跨同步 root 的显式预算上界，保留现有外层协调替代方案 |

@@ -577,6 +577,64 @@ public class CancellationTokenTest {
     }
 
     @Test
+    public void requestSourceCancelWithoutInterruptWinsExpiredBind() {
+        CancellationToken token = new CancellationToken(null, System.nanoTime() - 1L);
+        SettableFuture<Void> source = SettableFuture.create();
+        InterruptRecordingFuture work = new InterruptRecordingFuture();
+        token.cancelOn(source, false);
+
+        source.set(null);
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(work.cancelInterrupt).hasValue(false);
+        assertAggregateDone(aggregate);
+    }
+
+    @Test
+    public void requestSourceAlreadyDispatchedTimerRetainsCancelFalseIntent() {
+        ManualClock clock = new ManualClock();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker());
+        SettableFuture<Void> source = SettableFuture.create();
+        SettableFuture<String> work = SettableFuture.create();
+        InterruptRecordingFuture submission = new InterruptRecordingFuture();
+        AlreadyDispatchedTimer timer = new AlreadyDispatchedTimer();
+        token.cancelOn(source, false);
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), submission, timer);
+        Runnable timerAction = timer.dispatched.get();
+        assertThat(timerAction).isNotNull();
+        token.addStateListener(state -> timerAction.run());
+
+        source.set(null);
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(submission.cancelInterrupt).hasValue(false);
+        assertAggregateDone(aggregate);
+    }
+
+    @Test
+    public void requestSourceCancelFalsePublishesIntentBeforeFailFast() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<Void> source = SettableFuture.create();
+        SettableFuture<String> trigger = SettableFuture.create();
+        InterruptRecordingFuture victim = new InterruptRecordingFuture();
+        token.cancelOn(source, false);
+        ListenableFuture<?> aggregate =
+                token.bind(ImmutableList.of(trigger, victim), Futures.immediateVoidFuture(), TIMER);
+        token.addStateListener(state -> {
+            if (state == CancellationToken.State.CANCELLED) {
+                trigger.setException(new RuntimeException("listener failure"));
+            }
+        });
+
+        source.set(null);
+
+        assertThat(victim.cancelInterrupt).hasValue(false);
+        assertAggregateDone(aggregate);
+    }
+
+    @Test
     public void propagatedCancelFalsePublishesIntentBeforeChildListenersRun() {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);

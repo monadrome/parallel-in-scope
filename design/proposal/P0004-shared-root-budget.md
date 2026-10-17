@@ -56,5 +56,5 @@ List<Report> reports = reportPar.map(values, this::render,
 caller interruption 和 body-exit 保证。需要与请求取消提案 P0001 分别评审，避免一个入口同时承担
 “预算值”和“可变取消所有者”两种角色。
 
-与 [P0001](P0001-request-cancellation.md) 分开评审；跨 runtime 时钟域兼容规则与预算耗尽
+与 `proposal:P0001` 分开评审；跨 runtime 时钟域兼容规则与预算耗尽
 行为明确后才可实施。新增选择是兼容的，无旧调用迁移。接口草图没有编译或行为验证。
