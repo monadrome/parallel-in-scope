@@ -61,6 +61,14 @@ token deadline 50ms，300ms 后 state=RUNNING remaining=PT0S（deadline 永不�
 
 ## #3 清理预算不连续（BACKLOG O-3），修法 D1
 
+> **已落地：`ceec76a`**（与本探路并行提交；钳制到 `Deadlines.LATEST_FINITE_DEADLINE`，新增
+> `ExplicitDeadlineSaturationTest`，PIT 已跑，Kimi 独立审查仍在进行）。下文是落地前的探路记录，
+> 仅剩以下未勾选项：
+>
+> - [ ] `TaskGroupResult.deadlineNanos()` javadoc 仍写「`Long.MAX_VALUE` means no deadline」（`:103`）；对公开组已不可达，
+>   探针显示该值可观测地从 MAX 变为 MAX−1，需改写（`ceec76a` 未触及该文件）。
+> - [ ] 等 Kimi 审查结论落地后复核本节。
+
 草稿：`design/analysis/unbounded-timeout-factory-proposal.md` §5（`unbounded()` 已否决，不重开）。
 
 基线实测（nanoTime≈5 天；fail-fast + 不理中断的 1.5 s body）：
