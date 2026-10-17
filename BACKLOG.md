@@ -26,8 +26,8 @@
 | 性能 | P-P1 | `Par.submit` 单价路径成本是批量路径的 2.4× | 实测 | 中 |
 | 性能 | P-P2 | batch 结果对象无条件预建观测聚合 | 读码 | 低-中 |
 | 性能 | P-P3 | 单个 task future 可达即钉住整批跟踪状态 | 读码 | 中低 |
-| 性能 | P-P4 | `remove(Object)` 每次约 1 KB 垃圾 + 两趟遍历 | 读码 | 低 |
-| 性能 | P-P5 | 队列包 6 项零散开销（节点分配在锁内等） | 读码 | 低 |
+| 性能 | P-P4 | `remove(Object)` 两趟遍历（分配半项已修复 `96fa94d`） | 读码 | 低 |
+| 性能 | P-P5 | 队列包 5 项零散开销（节点分配在锁内等） | 读码 | 低 |
 | 性能 | P-P6 | 热路径 6 项常数开销 | 读码 | 低 |
 | 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
@@ -85,24 +85,24 @@
 - **修复**：在 `publish` 获胜路径置空 supplier（**`publishSkipped` 路径不能清**，否则后续 `signal()` NPE）；
   `slots` 在 outstanding 归零时释放。
 
-### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费
+### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费——分配半项**已修复 `96fa94d`**
 
-- `:862-866` 在取锁**之前**无条件分配 `Node<?>[64]` + `Object[64]`（约 1 KB）——空队列、3 元素队列一视同仁。
-- `:899-922` `unlinkIfPresent` 再从 `head` 全扫一趟找前驱。
+- 已修：空队列直接返回，非空队列的搜索缓冲按 live count 定长，超过 64 个元素才用 64 槽批次。
+- 剩余候选（未量化）：确认阶段从 `head` 重扫找前驱。「锁内快照—锁外 equals—锁内按身份确认」是
+  [draining-queue-contract.md](design/draining-queue-contract.md) 的现行要求，两次遍历不是可直接合并的
+  重复；复用前驱提示须先证明不破坏并发重验。
 
-与 JDK 的公平对比：`LinkedBlockingQueue.remove` 同样持双锁全扫，**增量**是"两趟遍历 + 每次 1 KB 垃圾"。
-修复：空队列早退 + 按 `count` 定长；unlink 复用 `bulkRemove` 已有的前驱提示。
-
-### P-P5 · 队列包零散项（读码）
+### P-P5 · 队列包零散项（读码，2026-10-27 按机制名复核）
 
 | 位置 | 问题 |
 |---|---|
-| `DrainingBlockingQueue.java:496,528,692` | `put`/`offer(t)`/`add` 的 `new Node<>` 仍在 `putMonitor` 内（`offer` 已外提） |
-| `:651-668, 710-762` | `peek`/`element`/`remove()` 缺 `poll` 那样的免锁空路径 |
-| `:1180-1193` | `toArray(T[])` 恒双拷贝（`destination` 够大时也先建中间数组） |
-| `:830` | `clear()` 无条件 `signalPutReady()`，含空操作分支 |
-| `VariableLinkedBlockingQueue.java:510-526` | `Itr.remove` 每次从 head 重扫 → `ThreadPoolExecutor.purge()` 场景 O(k·n) |
-| `HeuristicPurger.java:363, :268` | 无条件 CAS 与无条件 `Stopwatch`（日志开关在后面才判） |
+| `DrainingBlockingQueue` 的 `put`、限时 `offer`、`add` | `new Node<>` 仍在 `putMonitor` 内（非阻塞 `offer` 已外提） |
+| `DrainingBlockingQueue` 的 `peek`/`element`/无参 `remove()` | 缺 `poll` 那样的免锁空路径；加快路径须保留与并发入队、`DRAINED`、poison 的 happens-before |
+| `DrainingBlockingQueue.toArray(T[])` | 恒双拷贝（`destination` 够大时也先建中间数组）；须保留「锁内只复制引用、用户数组写入在锁外」 |
+| `DrainingBlockingQueue.clear()` | 无条件 `signalPutReady()`，含空操作分支 |
+| `VariableLinkedBlockingQueue` 迭代器的 `remove` | 每次从 head 重扫 → `ThreadPoolExecutor.purge()` 场景 O(k·n) |
+
+原表还有一行 `HeuristicPurger` 的无条件 CAS 与 `Stopwatch`；该类已随自动 purge 移出主线（`9784312`），不再是待修项。
 
 ### P-P6 · 热路径常数项（读码）
 
@@ -330,7 +330,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ### O-13 · 纯超时批次的 `report().firstException()` 恒 null
 
-来源：`design/analysis/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
+来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余（全文 `git show cacf590:design/analysis/kimi-review-0.3.0-snapshot.md`），2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
 但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
 （`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:298` 把 null 钉为期望）。
