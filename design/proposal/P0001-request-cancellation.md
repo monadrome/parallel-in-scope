@@ -9,7 +9,14 @@
 - 不变量与拟议 MUST：外部来源 MUST 作为已有执行 token 的取消输入，MUST NOT 替换结构化
   祖先；first-wins、bind-before-submit、`cancel(false)` 意图、同步出口与有界清理 MUST 保留。
   来源由用户所有，库 MUST NOT 反向取消或完成来源；执行结束 MUST 切断来源到执行的引用。
+- 输入形状（2026-10-27 改写）：来源是用户持有的 `ListenableFuture<?>`，以任何方式完成即取消；
+  中断策略由注册方显式声明（`cancelOn(signal, interrupt)`），MUST NOT 从来源的完成方式推断——future
+  的终态读不出 `cancel(false)` 与 `cancel(true)` 的区别。归因复用 `GROUP_CANCELLED`。`CancellationToken`
+  已收为包私有（`proposal:P0025`），来源 MUST NOT 是 token。
 - 被否决方向及理由：不先构造第二套 parent 树或 ambient RequestScope，它们增加归因与封口协议；
+  不重新公开 token 作为来源：会暴露父链、deadline、bind 与归因状态机；不新增公开
+  `CancellationSource`：与 future 是重复概念；不接收 `CompletionStage`：Guava future 不实现它，
+  会让库出现两套 future 体系；
   不要求 immutable options 自动清空来源，带请求来源的 options 本来就具有请求寿命；
   不把中断送达宣传为任意 HTTP/JDBC IO 已停止。
 
@@ -37,23 +44,23 @@ par.map(ids, id -> {
 ## 2. 提议形状（草图）
 
 ```java
-CancellationToken requestCancellation = new CancellationToken();
-BatchOptions options = BatchOptions.timeout("fetch", timeout)
-        .cancelWith(requestCancellation);          // 新增，仅 BatchOptions/TaskOptions 或 group 级
-TaskBatchResult<Value> result = par.map(ids, this::fetch, options);
-// 客户端断开事件中：requestCancellation.cancel(); 或 cancel(false)
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+TaskBatchResult<Value> result = par.map(
+        ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(disconnect, true));
+// 组级只在 GroupStart 上加一次：runtime.group("load", timeout).cancelOn(disconnect, true)...
 ```
 
-组级对称形状：`runtime.group("load", timeout).cancellationSource(requestCancellation)...`
-（在 `GroupStart` 上加一次，而不是每个成员 `TaskOptions` 重复）。
+fetch 体内经中断唤醒的阻塞适配器抛出取消；元素归因 `GROUP_CANCELLED`，原 throwable 链保留。
 
-```java
-// 改后同一段代码
-BatchOptions options = BatchOptions.timeout("fetch", timeout).cancelWith(requestCancellation);
-TaskBatchResult<Value> result = par.map(ids, this::fetch, options);
-// fetch 体内的 Checkpoints.sleep/checkAwait 等阻塞适配器在请求取消时被中断唤醒，
-// 元素归因 GROUP_CANCELLED（或新增归因词，见 §4），原 throwable 链保留。
-```
+注册协议（Kimi 评审补出的边界，2026-10-27）：
+
+- 来源在声明/选项期只被保存，准入期在 bind 与提交之前才注册；声明期 MUST NOT 创建运行态。
+- 先安装可切断的持有者，再 `addListener`：已完成的来源会在注册时同步回调，此时 MUST 在任何 body 进入
+  用户代码之前取消。持有者 MUST NOT 直接引用执行 token、future 或结果。
+- 执行 token 到达任一终态即切断持有者；准备阶段失败同样切断。空批次与空组不注册来源，照常立即 `SUCCESS`。
+- `interrupt=false` 时，后续 deadline 或 fail-fast 的落败方 MUST NOT 把已提交的不中断意图升级为中断；
+  first-wins 照旧。
 
 ## 3. 必须先决定的问题
 
@@ -62,11 +69,11 @@ TaskBatchResult<Value> result = par.map(ids, this::fetch, options);
    内部记录。优先沿用 GROUP_CANCELLED，不因输入接入而新增公共 reason enum。
 2. **预取消**：bind 前显式来源已取消 → 准入即拒绝还是照常提交后立刻收敛？建议与父已取消
    的现有行为一致（构造期 listener 同步传播，任务不进入用户代码），不新增异常路径。
-3. **中断策略**：显式 `cancel(false)` 沿 §5.1 的意图传播规则生效；deadline/fail-fast 仍然
-   中断。请求来源没有自己的 deadline。
-4. **token 所有权**：用户 token 只是被借用的来源；库不得调用它的 cancel，也不得在它的
-   futureToken 上留永久 listener——执行 token 终态时必须切断（复用 ParentLink 的
-   sever 机制，双向各一条 link）。
+3. **中断策略**：由 `cancelOn` 的 `interrupt` 参数决定，不读来源的完成方式；来源先赢时其意图沿
+   §5.1 的意图传播规则生效，deadline/fail-fast 先赢时仍然中断。请求来源没有自己的 deadline。
+4. **来源所有权**：用户的 future 只是被借用的来源；库不得完成或取消它。Guava future 不能移除
+   listener，所以挂上的 listener 只持有可切断的引用，执行 token 终态时切断（复用 ParentLink 的
+   sever 机制）。
 5. **引用切断**：执行 token 终态即切断来源到执行的可达链接；不要求可复用 immutable
    options 清空其来源字段。带请求来源的 options 不承诺跨请求复用。
 6. **验证**：覆盖预取消、正常完成解绑、祖先与来源竞速、`cancel(false)` 与 deadline 竞速、

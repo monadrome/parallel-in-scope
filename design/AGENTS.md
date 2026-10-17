@@ -132,7 +132,7 @@
 
 | 提案 | 摘要 |
 |---|---|
-| [proposal/P0001-request-cancellation.md](proposal/P0001-request-cancellation.md) | 请求断开通过显式取消输入接入已有 token，保留结构化祖先与同步出口 |
+| [proposal/P0001-request-cancellation.md](proposal/P0001-request-cancellation.md) | 请求断开通过 `cancelOn(ListenableFuture<?>, interrupt)` 接入已有执行 token，保留结构化祖先与同步出口 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
 | [proposal/P0004-shared-root-budget.md](proposal/P0004-shared-root-budget.md) | 跨同步 root 的显式预算上界，保留现有外层协调替代方案 |
@@ -149,3 +149,5 @@
 | [proposal/P0023-artifact-verification.md](proposal/P0023-artifact-verification.md) | P0018 剩余的构件身份、Java 8 消费与下载源码追溯；发布摘要已按实际 deploy 结果修复 |
 | [proposal/P0024-comment-and-javadoc-maintenance.md](proposal/P0024-comment-and-javadoc-maintenance.md) | P0012 剩余的访问器 Javadoc、重复注释与测试断言维护；责任说明及失效指针已修 |
 | [proposal/P0025-workload-fit-diagnostics.md](proposal/P0025-workload-fit-diagnostics.md) | `TaskType` 改为任务与线程池共用的可选诊断声明（缺省 `UNKNOWN`，不影响执行）：提交时声明比对 + 观测窗口内低 CPU 筛查，发现阻塞任务进计算池；决定见 adr/0008 |
+| [proposal/P0025-internal-cancellation-token.md](proposal/P0025-internal-cancellation-token.md) | `CancellationToken`/`State` 收为包私有，公开归因只用 `TaskOutcome`，外部取消由 P0001 承接 |
+| [proposal/P0026-runtime-executor-wait-graph.md](proposal/P0026-runtime-executor-wait-graph.md) | 运行时级、常开的执行器等待图取代请求级任务图 scope：有环强连通分量报告、准入线程不打日志、删除静态查询与策略 |
