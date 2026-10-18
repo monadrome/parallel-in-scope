@@ -10,6 +10,7 @@ import importlib.util
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -161,6 +162,25 @@ class CollectionTest(unittest.TestCase):
         )
         self.assertEqual(item.status, "unknown")
         self.assertIn("offline", item.reason)
+
+
+class TokenTest(unittest.TestCase):
+    def test_environment_token_wins(self):
+        with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "env-token"}, clear=True):
+            self.assertEqual(updates.github_token(), "env-token")
+
+    def test_gh_fallback(self):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            with mock.patch.object(updates.subprocess, "run") as run:
+                run.return_value = mock.Mock(stdout="gh-token\n")
+                self.assertEqual(updates.github_token(), "gh-token")
+
+    def test_no_token(self):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            with mock.patch.object(
+                updates.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "gh")
+            ):
+                self.assertIsNone(updates.github_token())
 
 
 class RenderTest(unittest.TestCase):
