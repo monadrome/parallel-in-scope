@@ -1,0 +1,102 @@
+name: Dependency audit
+
+# Scheduled workflows only run from the default branch. Keep this file on `main`;
+# the job checks out the development line explicitly and audits that ref.
+#
+# The report is a rolling issue labelled `dependency-audit`. A failed query makes
+# the run red and leaves an `unknown` row in the report; it never reports stale
+# data as current.
+
+on:
+  schedule:
+    # 03:00 UTC on the first of each month (11:00 Asia/Shanghai).
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the development line
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ vars.DEV_BRANCH || 'dev/v0.4.0' }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run the dependency audit
+        id: audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          python3 scripts/check-dependency-updates.py \
+            --format markdown \
+            --ref "${{ vars.DEV_BRANCH || 'dev/v0.4.0' }}" \
+            --timeout 10 \
+            --fail-on-unknown > "$RUNNER_TEMP/dependency-audit.md"
+          status=$?
+          cat "$RUNNER_TEMP/dependency-audit.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Publish the rolling issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="$RUNNER_TEMP/dependency-audit.md"
+          if [ ! -s "$body" ]; then
+            echo "No report was produced; leaving the issue untouched."
+            exit 0
+          fi
+
+          gh label create dependency-audit \
+            --color 0e8a16 \
+            --description "Monthly dependency audit" 2>/dev/null || true
+
+          number="$(gh issue list --label dependency-audit --state open \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file "$body"
+          else
+            gh issue create \
+              --title "[dependency-audit] Monthly dependency report" \
+              --label dependency-audit \
+              --body-file "$body"
+          fi
+
+      - name: Leave a failure note
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create dependency-audit \
+            --color 0e8a16 \
+            --description "Monthly dependency audit" 2>/dev/null || true
+
+          number="$(gh issue list --label dependency-audit --state open \
+            --json number --jq '.[0].number // empty')"
+          body="Scheduled dependency audit failed: $RUN_URL"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create \
+              --title "[dependency-audit] Scheduled run failed" \
+              --label dependency-audit \
+              --body "$body"
+          fi
