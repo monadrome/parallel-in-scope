@@ -761,8 +761,8 @@ public final class ParRuntime implements AutoCloseable {
          * Builds an immutable runtime without taking ownership of registered executors.
          *
          * @throws IllegalArgumentException if the configured default id is not registered, or a
-         *     directly registered thread pool uses {@link ThreadPoolExecutor.DiscardPolicy} or
-         *     {@link ThreadPoolExecutor.DiscardOldestPolicy}
+         *     registered thread pool, including one behind a recognized TTL wrapper, uses {@link
+         *     ThreadPoolExecutor.DiscardPolicy} or {@link ThreadPoolExecutor.DiscardOldestPolicy}
          */
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {
