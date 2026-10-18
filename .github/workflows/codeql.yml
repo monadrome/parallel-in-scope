@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Build JDK: the analysis build runs the same enforcer as CI, which requires JDK 25.
       - name: Set up build JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: 25
           distribution: temurin

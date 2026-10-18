@@ -16,10 +16,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -57,12 +57,12 @@ jobs:
         java-version: [ 25 ]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up build JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: ${{ matrix.java-version }}
           distribution: temurin
@@ -100,12 +100,12 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Two different JDKs on purpose: the library is built by a JDK that Error Prone/NullAway
       # support, and the JDK 8 runtime below only exercises the resulting artifact.
       - name: Set up build JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: 25
           distribution: temurin
@@ -117,7 +117,7 @@ jobs:
           mvn -B -ntp -Dmaven.test.skip=true -Dmaven.javadoc.skip=true clean install
 
       - name: Set up Java 8 runtime
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: 8
           distribution: temurin
