@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -87,8 +88,8 @@ final class ExecutorWaitGraph {
 
     /**
      * Records that {@code waiter}'s body synchronously waits for both {@code firstAwaited} and {@code
-     * secondAwaited}: the two-target form of {@link #record(TaskNode, List)}, so both new waits become
-     * visible together.
+     * secondAwaited}: the two-target form of {@link #record(TaskNode, int, IntFunction)}, so both new
+     * waits become visible together.
      */
     void record(@Nullable TaskNode waiter, TaskNode firstAwaited, TaskNode secondAwaited) {
         if (waiter == null) {
@@ -115,12 +116,14 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * Records one admission: {@code waiter}'s body synchronously waits for every unit in {@code
-     * awaited}. A top-level admission, without a waiter, records nothing. The admission's new waits
-     * become visible together. A failure of the recording itself is reported asynchronously and never
-     * fails the admission.
+     * Records one admission: {@code waiter}'s body synchronously waits for every unit read through
+     * {@code awaitedAt} at indices {@code [0, awaitedCount)}. The accessor must be total over that
+     * range and return non-null units. A top-level admission, without a waiter, records nothing. The
+     * admission's new waits become visible together. A failure of the recording itself is reported
+     * asynchronously and never fails the admission; a failure while reading the units discards the
+     * whole admission.
      */
-    void record(@Nullable TaskNode waiter, List<TaskNode> awaited) {
+    void record(@Nullable TaskNode waiter, int awaitedCount, IntFunction<TaskNode> awaitedAt) {
         if (waiter == null) {
             return;
         }
@@ -130,15 +133,21 @@ final class ExecutorWaitGraph {
         }
         Table<ExecutorIdentity, ExecutorIdentity, Wait> known = current().waits;
         List<Wait> missing = null;
-        for (TaskNode target : awaited) {
-            ExecutorIdentity to = newWaitTarget(from, target, known);
-            if (to == null) {
-                continue;
+        try {
+            for (int index = 0; index < awaitedCount; index++) {
+                TaskNode target = awaitedAt.apply(index);
+                ExecutorIdentity to = newWaitTarget(from, target, known);
+                if (to == null) {
+                    continue;
+                }
+                if (missing == null) {
+                    missing = new ArrayList<>(awaitedCount);
+                }
+                missing.add(new Wait(from, to, waiter + " -> " + target));
             }
-            if (missing == null) {
-                missing = new ArrayList<>(awaited.size());
-            }
-            missing.add(new Wait(from, to, waiter + " -> " + target));
+        } catch (RuntimeException failure) {
+            announce(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
+            return;
         }
         if (missing != null) {
             installOrAnnounce(missing);
