@@ -259,7 +259,6 @@ final class CancellationToken {
                 cancelBoundWork(allFutures);
             };
             long deadlineDelay = Deadlines.remaining(deadlineNanos, ticker.read());
-            @Nullable
             ScheduledFuture<?> timeoutHandle = scheduleDeadline(deadlineTimer, timer, timeoutAction, deadlineDelay);
             if (timeoutHandle != null) {
                 // A token that settles by any path completes futureToken; cancelling the scheduled
@@ -364,7 +363,7 @@ final class CancellationToken {
         }
 
         private void sourceCompleted() {
-            @Nullable Runnable action = cancellationAction.get();
+            Runnable action = cancellationAction.get();
             if (action != null) {
                 action.run();
             }

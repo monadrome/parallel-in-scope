@@ -96,7 +96,7 @@ final class ScopedCallable<V> implements Callable<V> {
 
     @Override
     public String toString() {
-        @Nullable Callable<V> body = delegate;
+        Callable<V> body = delegate;
         return "ScopedCallable{"
                 + "taskName='"
                 + taskContext.multiTaskContext().name()

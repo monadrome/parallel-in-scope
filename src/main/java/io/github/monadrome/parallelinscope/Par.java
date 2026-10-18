@@ -301,7 +301,7 @@ public final class Par {
             BatchOptions options,
             List<? extends ListenableFuture<?>> futures,
             ListenableFuture<?> submitCanceller) {
-        CancellationToken.@Nullable RequestCancellationLink cancellation = options.admitCancellation(token);
+        CancellationToken.RequestCancellationLink cancellation = options.admitCancellation(token);
         try {
             return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
         } catch (RuntimeException | Error failure) {

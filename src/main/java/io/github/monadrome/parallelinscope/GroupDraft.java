@@ -186,7 +186,7 @@ final class GroupDraft {
      * draft's own references as it goes so a submitted draft retains no request closure.
      */
     private TaskGroup.RunBindings takePayloads() {
-        @Nullable Callable<?>[] taskBodies = new Callable<?>[members.size()];
+        Callable<?>[] taskBodies = new Callable<?>[members.size()];
         for (int index = 0; index < members.size(); index++) {
             MemberDecl member = members.get(index);
             taskBodies[index] = member.body;

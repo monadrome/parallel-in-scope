@@ -672,8 +672,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      */
     private static @Nullable Object assembleTerminal(
             CombineBody<Object, Object> body, Map<String, MemberState> states, boolean valueView) throws Exception {
-        @Nullable Object input = valueView ? memberValues(states) : foldMemberValues(states);
-        return body.apply(input);
+        return body.apply(valueView ? memberValues(states) : foldMemberValues(states));
     }
 
     private static GroupValues<Object> memberValues(Map<String, MemberState> states) {
@@ -739,7 +738,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         if (terminal != null) {
             terminal.future.addListener(() -> memberCompleted(terminal), directExecutor());
         }
-        CancellationToken.@Nullable RequestCancellationLink cancellation = definition.admitCancellation(groupToken);
+        CancellationToken.RequestCancellationLink cancellation = definition.admitCancellation(groupToken);
         try {
             // Group level: group deadline, unified fail-fast (any failure or member cancellation), and
             // all-success detection, in one bind over the member futures. The terminal future joins the

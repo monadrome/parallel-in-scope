@@ -105,7 +105,7 @@ public final class TaskCompletion<T> {
 
     /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
     static <T> TaskCompletion<T> withResult(TaskCompletion<?> timing, ImmediateResult<T> result) {
-        @Nullable T value = null;
+        T value = null;
         if (result.outcome() == TaskOutcome.SUCCESS) {
             try {
                 value = result.valueOrThrow();
