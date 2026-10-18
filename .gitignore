@@ -37,10 +37,6 @@ todo/
 .firecrawl/
 skills-lock.json
 
-# Scratch assets
-pelican-check.png
-pelican-bicycle-deepseek-v4.1-flash.svg
-
 # Local planning state
 .planning/
 **/task_plan.md
