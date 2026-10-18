@@ -71,6 +71,9 @@ jobs:
       - name: Check Java formatting
         run: mvn -B -ntp spotless:check
 
+      - name: Check demo Java formatting
+        run: mvn -B -ntp -f demo/pom.xml spotless:check
+
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
 
