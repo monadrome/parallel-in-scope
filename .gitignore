@@ -23,8 +23,10 @@ graph-viz/
 tmp/
 todo/
 
-# Claude
-.claude/
+# Claude (track project skills; keep local settings and worktrees ignored)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 
 # Local senate tooling state and its design draft
 .senate/
