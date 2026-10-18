@@ -14,7 +14,8 @@ The review also assumed that a timeout callback immediately stopped every task. 
 
 1. Read the actual future state transitions instead of inferring behavior from method names.
 2. Separate exception recovery from cancellation propagation.
-3. Trace the late-binding point where all task futures receive the same cancellation token.
+3. Trace preparation and binding to confirm that every task future is connected to its cancellation
+   token before submission.
 4. Check whether a task is blocked, queued, or CPU-bound before claiming that interruption is sufficient.
 5. Reproduce the state transition with a focused test using settable futures.
 

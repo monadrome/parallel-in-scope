@@ -74,3 +74,26 @@ OTel 的完整 Context 示例已按当前包装机制校正，剩余真实 SDK/a
 承接，不并入文档修复，也不把修复 failure 中断敏感当作新增 API 的理由。
 
 本提案承接 P0011 尚未实施的方向；其具体缺陷修复已并入活契约。
+
+## Review Disposition (2026-10-28)
+
+Independent Standards and Spec seats reviewed the English documentation and Javadoc diff, then
+rechecked the first-round fixes against source and tests.
+
+- Retained: the CONTRIBUTING link claimed the issue page already linked v0.4. Reverted to the actual
+  stable v0.3 destination; added the development v0.4 guide to README and the English index instead.
+- Retained: `ParRuntime.close()` omitted observation scopes from the rejected-admission list, and
+  `Checkpoints` overclaimed which methods inspect cancellation. Both contracts now name their actual
+  scope. The starvation close documentation says publication is attempted before a sampling `Error`
+  is rethrown, covering publication failure as well as success.
+- Retained: `TaskCompletion.result()` initially overgeneralized null results. The final text
+  distinguishes embedded values, value-less group-report member/terminal snapshots, and group
+  summaries, matching `withResult`, `memberSnapshot`, `groupSummary`, and `ObservationFutureTest`.
+- Retained: the migration guide's "ImmediateResult reads" was too broad; it now says "value reads".
+  The equivalent CHANGELOG correction and duplicate Features-heading removal are factual cleanup,
+  not changes to released behavior.
+- Downgraded to wording precision: ADR notes now say "direct executor service". The edits remain
+  inside dated notes and do not rewrite either decision.
+- Rejected as scope: Chinese parity changes and the concurrently appearing P0028 proposal/route are
+  outside this English-only task and are not part of its diff. A low-value idea-graveyard paraphrase
+  was reverted rather than creating unnecessary locale drift.

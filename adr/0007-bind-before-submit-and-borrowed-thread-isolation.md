@@ -7,9 +7,10 @@
 
 > Note (2026-10-27): two facts in the context below changed after this decision; the decision
 > holds for both, as it was written to. The `runOnCallerThread` option was removed (`df89b43`),
-> so a user's `CallerRunsPolicy` is now the only inline path, and the interrupt-loss limit is
-> documented in the user guide rather than on that option. The sliding-window refill no longer
-> runs on a library submitter thread: the listener of the completing element claims and hands
+> so inline execution now comes from the user's executor, such as a `CallerRunsPolicy` or a direct
+> executor service, and the interrupt-loss limit is documented in the user guide rather than on that
+> option. The sliding-window refill no longer runs on a library submitter thread: the listener of the
+> completing element claims and hands
 > off the next one ([sliding-window refill](../design/sliding-window-refill.md)), so the
 > borrowed threads are the caller's, the completing thread, and any thread a rejection handler
 > borrows. Isolation in the Future's run method covers each of them unchanged.

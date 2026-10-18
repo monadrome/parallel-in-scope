@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Immutable pair of two nullable values.
  *
- * <p>{@code Tuple2} is the static result shape of a task group: the {@code V} of a submitted {@link
- * TaskGroup} is the first member's type for a one-member group, and left-nested pairs for larger
+ * <p>{@code Tuple2} is the static result shape of a task group: the {@code V} of a {@link
+ * GroupStep} is the first member's type for a one-member group, and left-nested pairs for larger
  * groups — {@code Tuple2<T1, T2>} for two members, {@code Tuple2<Tuple2<T1, T2>, T3>} for three, and
  * so on. The nesting is produced by the step builder, so callers normally never write {@link #of};
  * they read {@link #first()} and {@link #second()} off {@link GroupValues#typedValues()} or off the

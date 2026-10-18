@@ -1,12 +1,13 @@
 # English Documentation
 
-This page is the English entry point for the user guide, API references, design notes, tests, and case studies.
+Start with the full user guide. Use the reference pages for exact contracts and the migration guides when upgrading.
 
 ## User Documentation
 
 | Document | Role |
 |---|---|
 | [Full user guide](user-guide.md) | **Primary guide**: configuration, public APIs, runtime behavior, and advanced features |
+| [v0.4 migration guide](migration-v0.4.md) | Typed task keys, aggregate result reads, and runtime diagnostics on the development line |
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Demo project](https://github.com/monadrome/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
@@ -30,6 +31,7 @@ This page is the English entry point for the user guide, API references, design 
 
 | Document | Role |
 |---|---|
+| [Testing code that uses the library](testing/testing-your-code.md) | Deterministic timeout, cleanup, budget, and result tests |
 | [TaskBatchResult test design](testing/task-batch-result-report-test-design.md) | Stable report contracts and concurrency assertions |
 | [AI concurrency review case study](case-studies/ai-concurrency-review-false-positive.md) | A false-positive review and how to verify it |
 

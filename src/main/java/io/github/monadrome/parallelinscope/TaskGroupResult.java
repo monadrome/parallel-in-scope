@@ -232,7 +232,13 @@ public final class TaskGroupResult<V, R> {
         return cast(Verify.verifyNotNull(result));
     }
 
-    /** Reads successful group values; rethrows unchecked failures and wraps checked failures. */
+    /**
+     * Reads successful group values; rethrows unchecked failures and wraps checked failures.
+     *
+     * @return the member values in declaration order
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when the group did not succeed and no task recorded a failure
+     */
     public GroupValues<V> valuesOrThrow() {
         orThrow();
         try {
@@ -242,7 +248,14 @@ public final class TaskGroupResult<V, R> {
         }
     }
 
-    /** Reads the successful combine value, including null; requires a declared combine. */
+    /**
+     * Reads the successful combine value, including null; requires a declared combine.
+     *
+     * @return the terminal value, possibly null
+     * @throws IllegalStateException if no combine was declared
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when the group did not succeed and no task recorded a failure
+     */
     public @Nullable R terminalValueOrThrow() {
         ImmediateResult<R> result = terminalResult;
         checkState(result != null, "group '%s' declares no combine; use valuesOrThrow()", groupName());
@@ -259,6 +272,10 @@ public final class TaskGroupResult<V, R> {
      * the combine — as-is when unchecked, wrapped in {@link CompletionException} when checked — or a
      * {@link CancellationException} when no task recorded a failure. {@link
      * TaskBatchResult#orThrow()} and {@link BatchCombinedResult#orThrow()} follow the same rule.
+     *
+     * @return this result
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when no task recorded a failure
      */
     public TaskGroupResult<V, R> orThrow() {
         if (outcome() == TaskOutcome.SUCCESS) {

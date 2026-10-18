@@ -21,8 +21,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
  *
- * <p>Every public method checks the current scoped task's cancellation state before starting its
- * operation. A cancelled task produces a {@link LeanCancellationException}, except that {@link
+ * <p>Cancellation checkpoints and blocking-operation adapters check the current scoped task's
+ * cancellation state before starting their operation. A cancelled task produces a {@link
+ * LeanCancellationException}, except that {@link
  * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
  * trace when requested. A task whose deadline has expired is treated as cancelled even if the
  * timer thread has not committed the timeout yet, so deadline enforcement never depends on

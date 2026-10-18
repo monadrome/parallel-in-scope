@@ -121,7 +121,7 @@ public final class BatchCombinedResult<E, C> {
      * Whether every task body — all elements and the terminal combine — exited within the cleanup
      * budget. See {@link TaskBatchResult#bodyCompletionConfirmed()}.
      *
-     * @return {@code true} if all bodies exited
+     * @return {@code true} if every body exited or was atomically prevented from starting
      */
     public boolean bodyCompletionConfirmed() {
         return elements.bodyCompletionConfirmed();
