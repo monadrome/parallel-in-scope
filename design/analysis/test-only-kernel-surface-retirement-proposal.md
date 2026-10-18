@@ -411,4 +411,3 @@ python3 testmap.py runB2-test-javac.log > testmap-B2.out && python3 classify.py 
    用同一套闸门验证。
 5. **落地顺序**：#11 不重叠部分 → 本条（#6 若采纳，其测试迁移在前）→ #11 三项尾巴（§7）。
 6. **decision-log**：写入推翻理由与 §5 的保留理由。
-
