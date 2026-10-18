@@ -137,7 +137,6 @@
 | [proposal/P0004-shared-root-budget.md](proposal/P0004-shared-root-budget.md) | 跨同步 root 的显式预算上界，保留现有外层协调替代方案 |
 | [proposal/P0005-subtree-completion.md](proposal/P0005-subtree-completion.md) | 后代 body 退出的注册与封口原型，保持直接 body 确认语义 |
 | [proposal/P0006-execution-protocol-consolidation.md](proposal/P0006-execution-protocol-consolidation.md) | 集中 Batch/Group 重复终端及清理协议、核实包内旧 live 表面与 listening 适配 |
-| [proposal/P0007-result-read-allocation.md](proposal/P0007-result-read-allocation.md) | 冻结结果值读取减少重复统计与分配，先测量再选缓存或索引 |
 | [proposal/P0008-runtime-drain-diagnostics.md](proposal/P0008-runtime-drain-diagnostics.md) | 有界、按需的未退出运行身份诊断，不钉住业务结果 |
 | [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 类型化 key 输入已落地；仅保留动态 schema 的字符串具名终端入口候选，明确运行期校验的代价 |
 | [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
@@ -148,3 +147,4 @@
 | [proposal/P0023-artifact-verification.md](proposal/P0023-artifact-verification.md) | P0018 剩余的构件身份、Java 8 消费与下载源码追溯；发布摘要已按实际 deploy 结果修复 |
 | [proposal/P0024-comment-and-javadoc-maintenance.md](proposal/P0024-comment-and-javadoc-maintenance.md) | P0012 剩余的访问器 Javadoc、重复注释与测试断言维护；责任说明及失效指针已修 |
 | [proposal/P0025-workload-fit-diagnostics.md](proposal/P0025-workload-fit-diagnostics.md) | `TaskType` 改为任务与线程池共用的可选诊断声明（缺省 `UNKNOWN`，不影响执行）：提交时声明比对 + 观测窗口内低 CPU 筛查，发现阻塞任务进计算池；决定见 adr/0008 |
+| [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |

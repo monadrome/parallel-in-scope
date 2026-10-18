@@ -105,17 +105,22 @@ public final class TaskBatchResult<T> {
      * @since 0.4.0
      */
     public TaskBatchResult<T> orThrow() {
+        ImmediateResult<T> firstCancelled = null;
         for (int index = 0; index < results.size(); index++) {
             ImmediateResult<T> result = results.get(index);
+            if (result.successful()) {
+                continue;
+            }
             if (isRecordedFailure(result)) {
                 throw selectedFailure(
                         Verify.verifyNotNull(result.failure()), "batch '" + batchName + "' failed at element " + index);
             }
-        }
-        for (ImmediateResult<T> result : results) {
-            if (!result.successful()) {
-                throw asCancellation(result, "batch '" + batchName + "' element ended with ");
+            if (firstCancelled == null) {
+                firstCancelled = result;
             }
+        }
+        if (firstCancelled != null) {
+            throw asCancellation(firstCancelled, "batch '" + batchName + "' element ended with ");
         }
         return this;
     }

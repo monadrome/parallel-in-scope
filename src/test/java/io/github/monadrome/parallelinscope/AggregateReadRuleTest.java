@@ -240,6 +240,10 @@ class AggregateReadRuleTest {
                 .isInstanceOf(CancellationException.class)
                 .hasMessage("batch 'manual' element ended with TIMEOUT")
                 .hasCauseReference(detail);
+        assertThatThrownBy(batch::valuesOrThrow)
+                .isInstanceOf(CancellationException.class)
+                .hasMessage("batch 'manual' element ended with TIMEOUT")
+                .hasCauseReference(detail);
     }
 
     @Test
@@ -259,9 +263,11 @@ class AggregateReadRuleTest {
                 ImmediateResult.failed(TaskOutcome.USER_FAILURE, userFailure));
 
         assertThatThrownBy(userFirst::orThrow).isSameAs(userFailure);
+        assertThatThrownBy(userFirst::valuesOrThrow).isSameAs(userFailure);
         assertThat(userFirst.failedTaskResult())
                 .containsSame(userFirst.results().get(2));
         assertThatThrownBy(submissionFirst::orThrow).isSameAs(submissionFailure);
+        assertThatThrownBy(submissionFirst::valuesOrThrow).isSameAs(submissionFailure);
         assertThat(submissionFirst.failedTaskResult())
                 .containsSame(submissionFirst.results().get(0));
     }
@@ -275,6 +281,38 @@ class AggregateReadRuleTest {
 
         assertThat(batch.failedTaskResult()).isEmpty();
         assertThatThrownBy(batch::valuesOrThrow).isSameAs(first);
+    }
+
+    @Test
+    void interruptedReadsKeepFailurePriorityAndTheFirstCancellationAfterSuccessfulValues() {
+        CancellationException first = new CancellationException("first");
+        IOException failure = new IOException("failed after cancellation");
+        TaskBatchResult<Integer> cancelled = manual(
+                ImmediateResult.succeeded(null),
+                ImmediateResult.failed(TaskOutcome.TIMEOUT, first),
+                ImmediateResult.succeeded(3),
+                ImmediateResult.failed(TaskOutcome.FAIL_FAST, new CancellationException("second")));
+        TaskBatchResult<Integer> failed = manual(
+                ImmediateResult.succeeded(1),
+                ImmediateResult.failed(TaskOutcome.TIMEOUT, first),
+                ImmediateResult.failed(TaskOutcome.USER_FAILURE, failure));
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThatThrownBy(cancelled::valuesOrThrow).isSameAs(first);
+            assertThatThrownBy(cancelled::orThrow).isSameAs(first);
+            assertThatThrownBy(failed::valuesOrThrow)
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseReference(failure)
+                    .hasMessage("batch 'manual' failed at element 2");
+            assertThatThrownBy(failed::orThrow)
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseReference(failure)
+                    .hasMessage("batch 'manual' failed at element 2");
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test
