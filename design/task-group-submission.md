@@ -54,7 +54,8 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
 4. 为每个声明创建 member Batch、TaskExecutionContext、成员 future 和执行权竞争对象；
 5. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
-6. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
+6. 空组立即发布 `SUCCESS` 并返回，不创建 timer、不注册请求来源；非空组在全部准备成功后注册声明的
+   请求来源，紧接着完成 group/member bind 与 Group deadline timer；
 7. 按声明顺序向各自目标 executor 提交同一个 prepared future（仍在同一次 admission 内）；
 8. 退出 registry/admission 机制；提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发
    fail-fast，剩余尚未调用
@@ -134,7 +135,6 @@ mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批�
 | `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |
 | `CancellationToken` | outer→group→member 取消传播和中断 |
 | `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
-| `TaskGraphObservationScope` | 请求级观测归属 |
 
 ### 9.2 不得复用
 

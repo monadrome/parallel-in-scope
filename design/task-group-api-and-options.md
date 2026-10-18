@@ -52,7 +52,7 @@ account-page group
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
 | 调度 | `SlidingWindowSubmitter` 滑动窗口 | submit 时为全部成员准备后逐一独立提交 |
 | 完成 | 固定 futures 全部终态 | submit 时冻结的全部成员终态 |
-| 关系 | 嵌套 Batch 可以形成 TaskGraph 依赖边 | membership 本身不是依赖边 |
+| 关系 | 嵌套 Batch 可以形成执行器等待 | membership 本身不是等待 |
 
 Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外暴露 `TaskBatchResult<Object>`。
 
@@ -76,15 +76,16 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、有界清理预算 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源与中断意图 | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
 | `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝 |
 
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
 > `RejectedExecutionHandler`）；本节其余字段划分不受影响。
 
 组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.group(name,
-timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 由
-`GroupStart.closeGrace(Duration)` 承担（必须在首个 `par` 之前设置）。
+timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 与请求取消分别由
+`GroupStart.closeGrace(Duration)`、`GroupStart.cancelOn(ListenableFuture<?>, boolean)` 承担，
+两者都必须在首个 `par` 之前声明。
 
 ```java
 public final class TaskOptions {
@@ -105,6 +106,7 @@ public final class BatchOptions {
     public BatchOptions taskType(TaskType taskType);
     public BatchOptions rejectEnqueue(boolean rejectEnqueue);
     public BatchOptions closeGrace(Duration closeGrace);
+    public BatchOptions cancelOn(ListenableFuture<?> signal, boolean interrupt);
 
     public String name();
     public int parallelism();
@@ -132,9 +134,14 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都返回终态实例）。这比原先
 "`build()` 时校验二者恰有其一"更强，约束的语义不变。
 
-**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`
-返回新实例，原实例不变；不引入 Builder 与中间可变状态。无参工厂
-（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`/
+`closeGrace(...)`/`cancelOn(...)` 返回新实例，原实例不变；不引入 Builder 与中间可变状态。
+无参工厂（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+
+请求取消只属于 Batch/Group 作用域：`TaskOptions` MUST NOT 增加 `cancelOn`，否则同一请求会在成员级
+形成第二套中断政策与归因表面。`GroupStart` 的阶段 guard 与创建线程约束同样适用于 `cancelOn`；
+声明期只保存值，准入协议见 [取消传播契约](cancellation-propagation.md) §5.4。历史来源：
+`proposal:P0001`。
 
 语义逐条不变（拆分只改变值的承载类型，不改变任何解析结果或执行行为）：
 
@@ -152,8 +159,9 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
   需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
 - 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`、嵌套 group）读取
   的是该嵌套提交自己的选项；
-- options 不保存运行状态，可安全复用；组完成观测由 `runAll()` 的同步返回承担，不存在
-  组完成回调的注册入口，options 也不承担回调注册；
+- options 不保存运行状态，可安全复用；带请求来源的 options 会按设计持有该来源，因而具有请求寿命，
+  不要求执行后自动清空。组完成观测由 `runAll()` 的同步返回承担，不存在组完成回调的注册入口，
+  options 也不承担回调注册；
 - 校验时机：`Par` 在声明期解析——草稿保存已解析的 owner-bound `Par`，不存在
   "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `ParRuntime` 在声明期即失败；
   现场相关校验（inherit deadline 是否存在）仍留在提交时。
@@ -161,7 +169,8 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 **内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个
 选项类型提供一个包私有适配方法，把选项折叠成内核载体（name、requestedParallelism、timeout、
 taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取成员声明名，
-requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。签名与三 parent 解耦语义见
+requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求来源不进入 `UnitSpec`，而在
+准入时单独接入执行 token。签名与三 parent 解耦语义见
 [生命周期与状态机 §5](task-group-lifecycle.md)。
 
 ### 3.3 结果类型

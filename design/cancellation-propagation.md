@@ -188,6 +188,47 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
 - 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
   交错测试（gate/latch）照旧，不被时间缝取代。
 
+## 5.3 token 是包私有内核类型
+
+`CancellationToken` 与 `CancellationToken.State` MUST 保持包私有：没有公开成员接收或返回 token，
+用户自建的 token 不会接入任何执行（无调度器、deadline 不触发、`cancel()` 无作用对象），公开它只会制造
+「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskOutcome`；公开 javadoc 与用户文档 MUST NOT 链接或
+教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
+token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
+公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
+deadline、bind 与归因状态机）。历史来源：`git show 8aa8528^:design/proposal/P0025-internal-cancellation-token.md`。
+
+## 5.4 显式请求取消输入
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 与
+`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 把请求断开等外部事件接入
+现有执行 token。它们只表达作用域级取消；`TaskOptions` MUST NOT 增加同名能力，以免在成员上
+制造第二套政策与归因表面。声明只保存来源与显式中断意图，MUST NOT 创建运行状态或注册监听。
+
+- 来源以成功、失败或取消中的任一方式完成时，MUST 以声明的 `interrupt` 调用现有执行 token 的
+  `CANCELLED` 路径。MUST NOT 从来源终态推断中断意图，也 MUST NOT 完成或反向取消用户所有的来源。
+  不新增 parent 树、请求作用域或公共取消句柄。
+- 全部准备成功后、token bind 与任何提交之前 MUST 完成注册；组路径先经过空组捷径。先安装可切断的
+  持有者，再调用 `signal.addListener(..., directExecutor())`，使已完成来源的同步回调先于任何
+  inline body 生效。准备失败 MUST NOT 留下监听；注册后准入失败 MUST 切断持有者并保持原异常行为。
+- 执行 token 的任一终态 MUST 确定性地切断来源到执行的引用。来源监听只到达持有间接取消动作的
+  持有者；终态清空该动作后，不得再直接保留执行 token、运行 future 或结果。MUST NOT 用
+  `WeakReference` 代替显式切断。一个来源跨多次执行复用时，每次准入有独立持有者与生命周期。
+- 来源先赢时沿用 `CANCELLED -> GROUP_CANCELLED` 归因；与祖先、deadline、fail-fast 的竞态继续
+  first-wins。来源以 `cancel(false)` 先赢后，落败的 deadline/fail-fast 回调 MUST NOT 升级中断意图。
+- 空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 的空输入拒绝保持不变。
+  同步出口、有界清理与 body 退出确认保持不变；中断是协作信号，MUST NOT 宣称任意 HTTP/JDBC IO
+  或用户代码已经停止。
+
+被否决的替代方向：重新公开 token 或新增公共 `CancellationSource`（重复概念并暴露内部状态机）；
+接收 `CompletionStage`（形成第二套 future 体系）；ambient `RequestScope` 或第二棵 parent 树
+（增加归因与封口协议）；要求 immutable options 自动清空来源（来源字段本来就随请求寿命持有）。
+历史来源：`proposal:P0001`。
+
+验证与评审：来源注册、终态切断、非中断意图、准入失败、监听注册失败、双目标等待记录与跨线程声明均有反向验证；
+PIT 中本次新增语句的变异全部杀死，残留项逐一归为既有行为语句的覆盖限制，未冒充等价变异。Claude 独立复审因
+harness 无法提供文件工具而未执行，按维护者指示放弃，不计为评审通过。
+
 ## 6. 速查表
 
 | API | input 被取消 | output 被取消 |

@@ -1,9 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
-import static io.github.monadrome.parallelinscope.TaskGraphFixtures.node;
-import static io.github.monadrome.parallelinscope.TaskGraphFixtures.pronePool;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
@@ -17,9 +16,27 @@ import org.junit.jupiter.api.Test;
 /** {@link TaskNode}: identity, rendering, and the rule that a node describes only its own unit. */
 class TaskNodeTest {
 
+    private static TaskNode node(String token) {
+        return new TaskNode(
+                TaskId.unit(token), "task-" + token, null, null, false, TaskType.IO_BOUND, 1, 1, Long.MAX_VALUE);
+    }
+
+    private static TaskNode onPool(String token) {
+        return new TaskNode(
+                TaskId.unit(token),
+                "task-" + token,
+                new ExecutorIdentity(MoreExecutors.newDirectExecutorService()),
+                "pool",
+                true,
+                TaskType.IO_BOUND,
+                1,
+                1,
+                Long.MAX_VALUE);
+    }
+
     @Test
     void nodesAreEqualByUnitIdAlone() {
-        TaskNode onPool = pronePool("pool").node("u");
+        TaskNode onPool = onPool("u");
         TaskNode bare = node("u");
 
         assertThat(onPool).isEqualTo(bare).hasSameHashCodeAs(bare);

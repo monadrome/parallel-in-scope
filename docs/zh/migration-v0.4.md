@@ -109,3 +109,101 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 删除 `SmartBlockingQueue.create(int)`。它在容量非正时返回 `SynchronousQueue`，同一个整数悄悄切换
 队列语义，而构造器拒绝同一个值。正容量写 `new SmartBlockingQueue<>(capacity)`，交接队列写
 `new SynchronousQueue<>()`；容量来自配置时显式选择其一。
+
+## 内部取消 token
+
+`CancellationToken` 与 `CancellationToken.State` 不再公开。从来没有任何公开方法接收或返回 token，
+所以应用自己创建的 token 与库内工作没有任何连接：它的 deadline 从不触发，`cancel()` 也停不了任何东西。
+
+改前（能编译、能运行，但 deadline 与 `cancel()` 都作用不到这个批次）：
+
+```java
+CancellationToken request = new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+onClientDisconnect(request::cancel);
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+改后：
+
+```java
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(2)));
+```
+
+- 限时用 `BatchOptions.timeout`、`TaskOptions.timeout` 或 `ParRuntime.group(name, timeout)`。
+- 提前结束其余工作：在任务体里抛异常，fail-fast 会取消兄弟任务。
+- 在任务体内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
+- 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
+
+公开面仍没有运行句柄或成员直消方法。请求级外部取消改用下面的显式输入，不重新公开 token。
+
+## 请求取消输入
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 与
+`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 是可选新增能力；未声明它们的
+代码保持原行为。`TaskOptions` 刻意没有 `cancelOn`，因为请求取消属于整个批次或组，而不是独立的
+成员政策。
+
+改前，外部请求取消只能在检查点轮询应用标志：
+
+```java
+par.map(skus, sku -> {
+    if (requestCancelled.get()) throw new CancellationException();
+    return fetchPrice(sku);
+}, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+改后，在断开时完成一个调用方持有的 future，并把它声明到作用域上：
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+par.map(skus, this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+```
+
+消除的失败模式是轮询检查点之间的空窗：取消现在能到达已经阻塞在可中断等待中的 body。来源成功、
+失败或取消都会触发取消，是否中断只看显式 `interrupt` 参数。来源仍由调用方所有；归因保持
+first-wins，来源先赢时为 `GROUP_CANCELLED`，`cancel(false)` 不会被落败的 deadline/fail-fast
+回调升级。注册与监听切断分别遵循准入和终态；空批次与空组不注册。这不表示任意 IO 已经停止，
+同步有界清理也不变。
+
+## 执行器等待报告
+
+死锁风险检测从请求作用域移到运行时。删除 `TaskGraphObservationScope`、`TaskGraphReport`、
+`ParRuntimeDeadlockPolicy`、`ParRuntime.openTaskGraphObservation()`、`ParRuntime.deadlockPolicy()` 与
+`ParRuntime.Builder.deadlockPolicy(...)`。0.3 迁移指南推荐的静态 `hasExecutorCycle()` /
+`hasExecutorSelfLoop()` 一并删除：它们不看死锁策略，作用域关闭后恒为 `false`。
+
+改前：
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .register(ParId.of("io"), ioPool)
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    service.handleRequest();
+}
+if (Futures.getDone(reportFuture).status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("potential deadlock: {}", Futures.getDone(reportFuture));
+}
+```
+
+改后：
+
+```java
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicComponents()) {
+    log.warn("potential deadlock: {}", cycle);
+}
+```
+
+- 删除作用域与策略：记录常开，每次嵌套调用只多一次查表。
+- 环第一次形成时还会打一条 JUL `WARNING`；通过 JUL 配置路由或屏蔽它。
+- `cyclicComponents()` 取代 `status()`、`executorCycle()`、`executorSelfLoop()`；`cycle()` 只有一项的
+  单个执行器就是自环。`toString()` 取代 `executorEdges()` 与 `taskEdges()`。
+- 报告在运行时的整个生命周期内累积，并合并不同请求的等待。没有「单个请求的结论」：需要对某段代码
+  下结论时，像测试那样让它跑在一个专用的 `ParRuntime` 上。

@@ -30,7 +30,7 @@
 |---|---|
 | task-listener-removal-proposal-codex | 删除 `TaskListener` SPI；观测归宿为 `completionFuture()` 终态快照（双信号屏障）。落地 `c3fdcfc`；迁移路径在全文内 |
 | task-listener-removal-proposal | 同一提案的未采纳变体，仅评审对照价值 |
-| deadlock-listener-removal-proposal-codex | 删除 `DeadlockDetectionListener` SPI；归宿为 `TaskGraphObservationScope.reportFuture()` 的 `TaskGraphReport` 三态单快照（落地 `7e2ceae`） |
+| deadlock-listener-removal-proposal-codex | 删除 `DeadlockDetectionListener` SPI；归宿为 `TaskGraphObservationScope.reportFuture()` 的 `TaskGraphReport` 三态单快照（落地 `7e2ceae`）；该 scope 与报告在 0.4 被运行时级执行器等待图取代（[task-graph.md](task-graph.md)） |
 | deadlock-listener-removal-proposal-ccyolo / -independent | 同一提案的两个未采纳变体（多模型评审产物），仅评审对照价值 |
 
 ## 其他已决

@@ -120,3 +120,110 @@ capacity, so one integer silently switched queue semantics while the constructor
 value. Write `new SmartBlockingQueue<>(capacity)` for a positive capacity and
 `new SynchronousQueue<>()` for a hand-off queue; choose between them explicitly when the capacity
 comes from configuration.
+
+## Internal cancellation token
+
+`CancellationToken` and `CancellationToken.State` are no longer public. No public method ever
+accepted or returned a token, so a token an application created was never connected to library
+work: its deadline never fired and `cancel()` stopped nothing.
+
+Before (compiles and runs, but neither the deadline nor `cancel()` reaches the batch):
+
+```java
+CancellationToken request = new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+onClientDisconnect(request::cancel);
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+After:
+
+```java
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(2)));
+```
+
+- Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or `ParRuntime.group(name, timeout)`.
+- End the remaining work early by throwing from a body; fail-fast cancels the siblings.
+- Inside a body, observe cancellation and the remaining budget with `Checkpoints.checkpoint()` and
+  `Checkpoints.remaining()`.
+- Read attribution from `TaskOutcome`; `CancellationToken.State` has no public replacement.
+
+There is still no public running handle or member-cancellation method. Request-scoped external
+cancellation instead uses the new input below, without making the token public again.
+
+## Request cancellation input
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` and
+`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` are optional additions; code
+that does not declare them keeps its existing behavior. There is deliberately no
+`TaskOptions.cancelOn`, because request cancellation applies to the whole batch or group rather than
+to an independent member policy.
+
+Before, the best available external-request check polled an application flag:
+
+```java
+par.map(skus, sku -> {
+    if (requestCancelled.get()) throw new CancellationException();
+    return fetchPrice(sku);
+}, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+After, complete a caller-owned future on disconnect and declare it on the scope:
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+par.map(skus, this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+```
+
+The failure mode removed is the gap between polling checkpoints: cancellation can now reach a body
+already blocked in a cooperative interruptible wait. Source success, failure, and cancellation all
+trigger cancellation; only the explicit `interrupt` argument chooses interruption. The source stays
+caller-owned, attribution remains first-wins with `GROUP_CANCELLED` when the source wins, and
+`cancel(false)` is not upgraded by losing deadline or fail-fast callbacks. Registration and listener
+severing follow admission and terminal completion; empty batches and groups do not register. This
+does not assert that arbitrary IO has stopped, and synchronous bounded cleanup is unchanged.
+
+## Executor wait report
+
+Deadlock-risk detection moves from a request scope to the runtime. `TaskGraphObservationScope`,
+`TaskGraphReport`, `ParRuntimeDeadlockPolicy`, `ParRuntime.openTaskGraphObservation()`,
+`ParRuntime.deadlockPolicy()`, and `ParRuntime.Builder.deadlockPolicy(...)` are removed. The static
+`hasExecutorCycle()` / `hasExecutorSelfLoop()` queries that the 0.3 guide recommended are removed with
+them: they ignored the deadlock policy and read `false` once the scope had closed.
+
+Before:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .register(ParId.of("io"), ioPool)
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    service.handleRequest();
+}
+if (Futures.getDone(reportFuture).status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("potential deadlock: {}", Futures.getDone(reportFuture));
+}
+```
+
+After:
+
+```java
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicComponents()) {
+    log.warn("potential deadlock: {}", cycle);
+}
+```
+
+- Delete the scope and the policy: recording is always on and costs a lookup per nested call.
+- A cycle is also logged once as a JUL `WARNING` when it first forms; route or silence it through JUL.
+- `cyclicComponents()` replaces `status()`, `executorCycle()`, and `executorSelfLoop()`; a lone
+  executor whose `cycle()` has one entry is a self-loop. `toString()` replaces `executorEdges()` and
+  `taskEdges()`.
+- The report accumulates for the runtime's lifetime and combines waits from separate requests.
+  There is no per-request verdict: to judge one piece of code, run it against a dedicated
+  `ParRuntime`, as a test would.

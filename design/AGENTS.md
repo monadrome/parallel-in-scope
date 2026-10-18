@@ -80,7 +80,7 @@
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、声明期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员直消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
-| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、Group 侧 TaskGraph 规则与 scope 生命周期（图模型见 task-graph.md）、并发不变量、必测矩阵、验收标准 |
+| [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员观测快照（终态 `TaskCompletion`）、组级完成观测（同步返回）、Group 侧执行器等待规则（图模型见 task-graph.md）、并发不变量、必测矩阵、验收标准 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、body 自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
@@ -89,7 +89,7 @@
 
 | 文档 | 摘要 |
 |---|---|
-| [task-graph.md](task-graph.md) | **任务依赖图契约**：借鉴 Guava `common.graph` 的设计原则（节点只描述自己、邻接只属于图、图可独立编写、一个节点可进多张图）、`TaskNode`/`TaskGraph`/`ExecutorGraph` 模型、`FORK`/`JOIN` 边与各准入点的原子片段、执行器 waits-for 投影与检测、报告只渲染环上的边、被排除的替代方案（任务级环检测、`root` 哨兵、标签投影、图驱动执行） |
+| [task-graph.md](task-graph.md) | **执行器等待图契约**：运行时所有、常开、只增不减的执行器 waits-for 图；只有同步等待成边、两端须为本运行时注册的执行器、一次准入的边原子安装、热路径只读、CAS 安装；报告有环强连通分量与一个具体环、准入线程不打日志、「曾经观测到的结构性风险」语义；被排除的替代方案（请求级 scope、静态查询与策略开关、枚举全部简单环、按时间老化、遇环拒绝） |
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 
 ### 取消与队列
@@ -132,7 +132,6 @@
 
 | 提案 | 摘要 |
 |---|---|
-| [proposal/P0001-request-cancellation.md](proposal/P0001-request-cancellation.md) | 请求断开通过显式取消输入接入已有 token，保留结构化祖先与同步出口 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
 | [proposal/P0004-shared-root-budget.md](proposal/P0004-shared-root-budget.md) | 跨同步 root 的显式预算上界，保留现有外层协调替代方案 |

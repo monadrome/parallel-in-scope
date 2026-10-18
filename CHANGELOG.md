@@ -2,14 +2,45 @@
 
 ## [Unreleased]
 
+### Breaking changes
+
+- Replace request-scoped task-graph observation with an always-on, runtime-level executor wait
+  graph. Every nested synchronous call — `map`, `mapAndCombine`, or `runAll` made inside a task
+  body — records which registered executor waits for which starvation-prone executor; no scope or
+  switch is needed, and waits from unrelated requests now combine, so the classic cross-request
+  cycle (one request waiting from pool A on B, another from B on A) is visible. Read the state with
+  the new `ParRuntime.executorWaitReport()`, whose `ExecutorWaitReport.cyclicComponents()` lists
+  cyclic strongly connected components with members, one concrete cycle, and witnesses, each
+  executor given as all of its registered `ParId`s. When waits first form a cycle, one JUL `WARNING`
+  per component is logged from a runtime-owned thread, never from the submitting one. Remove
+  `TaskGraphObservationScope` (including the static `hasExecutorCycle()` / `hasExecutorSelfLoop()`
+  queries, which ignored the policy and read `false` after close), `TaskGraphReport`,
+  `ParRuntimeDeadlockPolicy`, `ParRuntime.openTaskGraphObservation()`, `ParRuntime.deadlockPolicy()`,
+  and `ParRuntime.Builder.deadlockPolicy(...)`. There is no per-request verdict; run code against a
+  dedicated `ParRuntime` to isolate one.
+- Make `CancellationToken` and its nested `State` package-private. No public member ever accepted or
+  returned a token, so a token built by application code was connected to no library work: its
+  deadline never fired, because the public constructors carried no deadline scheduler, and
+  `cancel()` stopped nothing. Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or
+  `ParRuntime.group(name, timeout)`; read attribution from `TaskOutcome`; observe cancellation and
+  the remaining budget inside a body with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
+
 ### Features
+
+- Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
+  and `GroupStart.cancelOn(ListenableFuture<?>, boolean)`. Any completion of the caller-owned source
+  cancels the whole batch or group, including `mapAndCombine`; the explicit argument alone controls
+  interruption. Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins) and
+  non-interrupting `cancel(false)` intent, never finish the source, register only after successful
+  preparation immediately before binding, and sever the execution link on terminal completion.
+  Empty batches and groups do not register. `TaskOptions` intentionally has no member-level variant.
 
 - Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted
   outside the structured task graph. `ThreadPoolStarvationReport` distinguishes clean observation,
   potential starvation, sampling failure, and insufficient executor visibility, with immutable
   per-pool evidence. Sampling uses an independent daemon scheduler, a minimum 10 millisecond
   interval, and fixed-delay scheduling; it only observes registered physical `ThreadPoolExecutor`
-  counters, never wraps or changes user tasks, and existing task-graph detection remains unchanged.
+  counters and never wraps or changes user tasks.
   Rename evidence `stagnantSamples()` to `stagnantIntervals()` to count qualifying sample pairs;
   evidence remains sticky for the observation window. Reports also
   expose `samplingInterval()`, `SAMPLING_FAILED`, and `failureMessage()`. Open observations are included in

@@ -177,10 +177,10 @@ direct executor 时允许其 inline 契约。线程池路径的其余候选被�
 - combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛：同步提交保证级联取消观察到已提交的组状态，也使失败记录在收敛时确定可见；member 失败保持既有归因规则不变（组级 outcome 优先沿用已记录失败任务的 outcome，见生命周期契约 §6）；
 - combine 复用 Group 的 token 体系、`ParRuntime.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
 
-## 9. 观测与 TaskGraph
+## 9. 观测与执行器等待
 
 - combine 正常产生 `TaskCompletion` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组结果在 combine 终态后才由 `runAll()` 返回（见观测契约 §10.2）；
-- membership 仍不产生 member-to-member 图边。但 combine 是真实的 all-to-one 依赖：
+- membership 仍不产生 member-to-member 关系。combine 是真实的 all-to-one 数据依赖：
 
 ```text
 member A ──┐
@@ -188,7 +188,7 @@ member B ──┼──> combine
 member C ──┘
 ```
 
-- members→combine 是真实的多父依赖，MUST 作为每个成员 `JOIN` combine 的边写入任务图（与成员、caller 的 `FORK` 同属一个准入片段，见 [task-graph.md](task-graph.md) §4）；`JOIN` 不进入执行器投影，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，它的 `FORK` 才参与投影。MUST NOT 伪造单父边或虚构 group batch 节点。
+- members→combine 是数据依赖，不是等待，MUST NOT 记入执行器等待图，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，caller 对成员与 combine 的等待作为一组安装（见 [task-graph.md](task-graph.md) §4）。MUST NOT 伪造单父边或虚构 group batch 节点。
 
 ## 10. 与 idea-graveyard 的关系
 
@@ -242,5 +242,5 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
 8. `totalTasks` 目标含 terminal future；内部 completion 等 terminal future 终态后才完成，组结果在 combine 终态后才返回；
-9. TaskGraph 不写 membership 边；每个成员 `JOIN` combine 的真实边与 caller 的 `FORK` 作为一个片段写入；
+9. 执行器等待不写 membership 或成员→combine 关系；caller 对每个成员与 combine 的等待作为一组安装；
 10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。

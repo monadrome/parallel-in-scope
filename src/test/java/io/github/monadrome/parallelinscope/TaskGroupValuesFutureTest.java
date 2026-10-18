@@ -242,8 +242,8 @@ class TaskGroupValuesFutureTest {
             // refused by any future at all, including a raw sink, and the test would then pass
             // against the unfixed code purely because it lost the race.
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
-            // The group's own publication is not the caller's to cancel: the view refuses, exactly
-            // like TaskGraphObservationScope.reportFuture(). Without that, a cancel here would win
+            // The group's own publication is not the caller's to cancel: the view refuses. Without that, a cancel here
+            // would win
             // the race against convergence and a group that finished SUCCESS would report
             // CancellationException from get().
             assertThat(group.valuesFuture().cancel(true)).isFalse();
