@@ -531,14 +531,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * terminal together, only after every task prepared, so a failed preparation records nothing.
      */
     static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
-        TaskExecutionContext currentTask = TaskExecutionContext.current();
-        MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
+        MultiTaskContext structuralParent = MultiTaskContext.requireDeadlineSource(
+                definition.timeout(), "call group(String, Duration) with an explicit timeout");
         long start = System.nanoTime();
         Duration groupTimeout = definition.timeout();
-        if (groupTimeout == null && structuralParent == null) {
-            throw new IllegalArgumentException(
-                    "no enclosing deadline to inherit; call group(String, Duration) with an explicit timeout");
-        }
         // Deadlines resolve on the token tree's clock domain: a nested group inherits its parent's
         // clock, a root group takes the runtime's. `start` stays on the system clock — it feeds
         // submit times and the report, which are cross-thread real-time observations.

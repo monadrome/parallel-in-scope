@@ -133,6 +133,14 @@ final class MultiTaskContext {
         return new Resolution(spec, taskCount);
     }
 
+    static @Nullable MultiTaskContext requireDeadlineSource(@Nullable Duration timeout, String remedy) {
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        if (timeout == null && currentTask == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; " + remedy);
+        }
+        return currentTask == null ? null : currentTask.multiTaskContext();
+    }
+
     /**
      * Resolves a unit from its parameters: requested parallelism is capped by task count, an
      * explicit timeout uses the earlier of its own and any ceiling deadline, and an inherited

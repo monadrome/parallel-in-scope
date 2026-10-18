@@ -194,6 +194,62 @@ class ParentChildResultRetentionTest {
                 .isNull();
     }
 
+    @Test
+    void nestedEmptyBatchesDoNotAddParentCancellationListeners() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("parent"), direct).build();
+        try {
+            Par par = runtime.par(ParId.of("parent"));
+            TaskFuture<Integer> parent = par.submit(
+                    "parent",
+                    () -> {
+                        CancellationToken token = java.util.Objects.requireNonNull(TaskExecutionContext.current())
+                                .multiTaskContext()
+                                .cancellationToken();
+                        int listenersBefore = parentCancellationListeners(token);
+                        assertThat(par.map(null, value -> value, BatchOptions.inheritTimeout("null-child"))
+                                        .valuesOrThrow())
+                                .isEmpty();
+                        assertThat(par.map(
+                                                Collections.emptyList(),
+                                                value -> value,
+                                                BatchOptions.inheritTimeout("empty-child"))
+                                        .valuesOrThrow())
+                                .isEmpty();
+                        assertThat(parentCancellationListeners(token)).isEqualTo(listenersBefore);
+                        return 1;
+                    },
+                    TaskOptions.timeout(Duration.ofSeconds(30)));
+
+            assertThat(parent.get(5, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            runtime.close();
+            direct.shutdownNow();
+        }
+    }
+
+    private static int parentCancellationListeners(CancellationToken token) throws Exception {
+        Field futureField = CancellationToken.class.getDeclaredField("futureToken");
+        futureField.setAccessible(true);
+        Object future = futureField.get(token);
+        Field listenersField = Class.forName("com.google.common.util.concurrent.AbstractFutureState")
+                .getDeclaredField("listenersField");
+        listenersField.setAccessible(true);
+        Object listener = listenersField.get(future);
+        if (listener == null) {
+            return 0;
+        }
+        Field nextField = listener.getClass().getDeclaredField("next");
+        nextField.setAccessible(true);
+        int count = 0;
+        while (listener != null) {
+            count++;
+            listener = nextField.get(listener);
+        }
+        return count;
+    }
+
     /** Reads the child reference of a token's parent link, or {@code null} when severed/absent. */
     private static @Nullable CancellationToken linkedChild(CancellationToken token) throws Exception {
         Field linkField = CancellationToken.class.getDeclaredField("parentLink");
