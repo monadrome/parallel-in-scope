@@ -28,7 +28,7 @@
 | [并发库的减法哲学](design/philosophy.md) | 核心取舍与边界 |
 | [Idea Graveyard](design/idea-graveyard.md) | 明确不提供的能力及替代方案 |
 | [架构与数据链路](visuals/parallel-in-scope-architecture.html) | 执行、取消、调度和检测链路 |
-| [交互式用户指南](visuals/parallel-in-scope-user-guide.html) | 主要使用路径与快速入口 |
+| [使用入口](visuals/parallel-in-scope-user-guide.html) | 主要使用路径与快速入口 |
 
 ## 测试与案例
 

@@ -17,10 +17,10 @@
   <h1>执行架构（0.4 开发线）</h1>
   <p>旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在，<code>ParName</code> 已更名为 <code>ParId</code>；任务组为一次性链式声明，0.4 起成员以 <code>TaskKey&lt;T&gt;</code> 类型化 key 声明与读取，不再使用 Class/TypeToken。</p>
   <div class="flow">
-    <p><strong>应用装配：</strong><code>ParRuntime.builder()</code> 以 <code>ParId</code> 注册物理执行器并绑定 <code>defaultPar</code>；构建后拓扑不可变，注册的执行器归调用方所有与关闭。</p>
+    <p><strong>应用装配：</strong><code>ParRuntime.builder()</code> 以 <code>ParId</code> 注册物理执行器，可选绑定 <code>defaultPar</code>；构建后拓扑不可变，注册的执行器由调用方拥有并负责关闭。</p>
     <p><strong>一次性声明：</strong><code>ParRuntime.group(name, timeout)</code> 返回 step builder 链（<code>GroupStart</code> → <code>GroupStep</code> → <code>CombinedGroupStep</code>）；每个成员以 <code>TaskKey&lt;T&gt;</code>、<code>Par</code> 与本次 body 一并声明，<code>runAll()</code> 是唯一的执行边界。草稿单线程、不可重放，旧阶段全部失效。</p>
     <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；每个元素在准备期即持有完整执行 future，滑动窗口只决定这些 prepared future 何时进入线程池。</p>
-    <p><strong>执行与观测：</strong><code>map</code>/<code>runAll</code> 同步等待并返回冻结的 <code>ImmediateResult</code> 数据；观测读 <code>completions()</code>/<code>members()</code>/<code>terminal()</code>。每个 <code>ParRuntime</code> 常开记录执行器间的同步等待，首次成环打 JUL <code>WARNING</code>，<code>executorWaitReport()</code> 随时可读。</p>
+    <p><strong>执行与观测：</strong><code>map</code>/<code>runAll</code> 同步等待并返回冻结的 <code>ImmediateResult</code> 数据；观测读 <code>completions()</code>/<code>members()</code>/<code>terminal()</code>。每个 <code>ParRuntime</code> 常开记录执行器间的同步等待（被等待单元运行在饥饿型池上时才记边），记录的等待首次成环时按成环分量打 JUL <code>WARNING</code>，<code>executorWaitReport()</code> 随时可读。</p>
     <p><strong>维护：</strong>队列清理由执行器所有者负责，库不自动 purge；原 purger 保存在 <code>dev/experimental</code> 分支。</p>
   </div>
   <p>完整说明请阅读 <a href="../user-guide/">使用指南</a>、<a href="../reference/cooperative-cancellation/">协作式取消</a>、<a href="../migration-v0.4/">v0.4 迁移指南</a>、<a href="../migration-v0.3/">v0.3 迁移指南</a>、<a href="../migration-v0.2/">v0.2 迁移指南</a> 和 <a href="https://github.com/monadrome/parallel-in-scope/blob/main/adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
