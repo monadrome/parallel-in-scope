@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>parallel-in-scope v0.3 架构</title>
+  <title>parallel-in-scope 执行架构</title>
   <style>
     body { max-width: 760px; margin: 48px auto; padding: 0 24px; color: #1b242b; font: 16px/1.65 system-ui, sans-serif; }
     h1 { margin-bottom: 8px; }
@@ -14,15 +14,15 @@
   </style>
 </head>
 <body>
-  <h1>v0.3 执行架构</h1>
-  <p>此页面已随 v0.3 重构：旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在，<code>ParName</code> 已更名为 <code>ParId</code>；任务组的两阶段「定义结构 + 绑定 body」也已改为一次性链式声明。</p>
+  <h1>执行架构（0.4 开发线）</h1>
+  <p>旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在，<code>ParName</code> 已更名为 <code>ParId</code>；任务组为一次性链式声明，0.4 起成员以 <code>TaskKey&lt;T&gt;</code> 类型化 key 声明与读取，不再使用 Class/TypeToken。</p>
   <div class="flow">
-    <p><strong>应用装配：</strong><code>ParRuntime</code> 以 <code>String</code> 名注册多个 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
-    <p><strong>一次性声明：</strong><code>ParRuntime.group*</code> 返回 step builder 链（<code>GroupStart</code> → <code>GroupStep</code> → <code>CombinedGroupStep</code>）；每个 <code>par</code> 同时声明成员类型与本次 body，<code>submitAll()</code> 是唯一的准入与提交边界。草稿单线程、不可重放，提交后旧阶段全部失效。</p>
-    <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；任务组在一次 <code>whileOpen</code> 准入内完成全部准备、注册与提交（按声明顺序送达各 executor）。</p>
-    <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；组完成经 <code>completionFuture()</code> 与调用方选择的 executor 回调观测。</p>
+    <p><strong>应用装配：</strong><code>ParRuntime.builder()</code> 以 <code>ParId</code> 注册物理执行器并绑定 <code>defaultPar</code>；构建后拓扑不可变，注册的执行器归调用方所有与关闭。</p>
+    <p><strong>一次性声明：</strong><code>ParRuntime.group(name, timeout)</code> 返回 step builder 链（<code>GroupStart</code> → <code>GroupStep</code> → <code>CombinedGroupStep</code>）；每个成员以 <code>TaskKey&lt;T&gt;</code>、<code>Par</code> 与本次 body 一并声明，<code>runAll()</code> 是唯一的执行边界。草稿单线程、不可重放，旧阶段全部失效。</p>
+    <p><strong>单次调用：</strong>批次用 <code>BatchOptions</code>、成员用 <code>TaskOptions</code> 解析为 <code>MultiTaskContext</code>；每个元素在准备期即持有完整执行 future，滑动窗口只决定这些 prepared future 何时进入线程池。</p>
+    <p><strong>执行与观测：</strong><code>map</code>/<code>runAll</code> 同步等待并返回冻结的 <code>ImmediateResult</code> 数据；观测读 <code>completions()</code>/<code>members()</code>/<code>terminal()</code>。每个 <code>ParRuntime</code> 常开记录执行器间的同步等待，首次成环打 JUL <code>WARNING</code>，<code>executorWaitReport()</code> 随时可读。</p>
     <p><strong>维护：</strong>队列清理由执行器所有者负责，库不自动 purge；原 purger 保存在 <code>dev/experimental</code> 分支。</p>
   </div>
-  <p>完整说明请阅读 <a href="../user-guide.md">使用指南</a>、<a href="../migration-v0.3.md">v0.3 迁移指南</a>、<a href="../migration-v0.2.md">v0.2 迁移指南</a> 和 <a href="../../../adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
+  <p>完整说明请阅读 <a href="../user-guide/">使用指南</a>、<a href="../reference/cooperative-cancellation/">协作式取消</a>、<a href="../migration-v0.4/">v0.4 迁移指南</a>、<a href="../migration-v0.3/">v0.3 迁移指南</a>、<a href="../migration-v0.2/">v0.2 迁移指南</a> 和 <a href="https://github.com/monadrome/parallel-in-scope/blob/main/adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
 </body>
 </html>

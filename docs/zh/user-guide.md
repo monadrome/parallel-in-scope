@@ -1,6 +1,6 @@
 # 使用指南
 
-> 本文档跟随 `0.4.0-SNAPSHOT`；稳定版安装示例仍使用 `0.3.0`。开发线的组声明需要按 [迁移指南](migration-v0.3.md) 改用类型化 key；更早的 API 见 [v0.2 迁移指南](migration-v0.2.md)。
+> 本文档跟随 `0.4.0-SNAPSHOT`；稳定版安装示例仍使用 `0.3.0`。开发线的组声明需要按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 

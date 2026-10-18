@@ -1,6 +1,8 @@
 # Idea Graveyard
 
-> Historical examples in this note may use pre-0.2 API. Current application wiring uses `ParRuntime.builder()` and the per-scope option types (`BatchOptions`/`TaskOptions`); see the [v0.3 migration guide](../migration-v0.3.md).
+> This page condenses the full-length Chinese original under `docs/zh/design/idea-graveyard.md` (published at `/zh/design/idea-graveyard/`), which carries the complete reasoning per entry and is the version the project's design-document routes consult.
+>
+> Historical examples in this note may use pre-0.3 API. Current application wiring uses `ParRuntime.builder()`, the per-scope option types (`BatchOptions`/`TaskOptions`), and `TaskKey<T>` for typed group members; see the [user guide](../user-guide.md) and the [v0.4 migration guide](../migration-v0.4.md).
 
 This page records features we seriously considered but ultimately decided not to implement, together with the reasons for rejecting them.
 

@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> 本文部分示例保留 0.2 之前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskOptions`，请以 [v0.3 迁移指南](../migration-v0.3.md) 为准。
+> 本文部分示例保留历史 API。当前应用装配使用 `ParRuntime.builder()`、`BatchOptions`/`TaskOptions` 和 `TaskKey<T>`，请以[使用指南](../user-guide.md)和 [v0.4 迁移指南](../migration-v0.4.md) 为准。
 
 
 > 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
