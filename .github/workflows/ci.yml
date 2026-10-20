@@ -137,3 +137,14 @@ jobs:
           mvn -B -ntp
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           clean test
+
+      # The demo keeps a Java 8 test-runtime baseline; run its tests on the JDK 8
+      # runtime so a post-Java-8 test dependency cannot slip through the JDK 25 build.
+      - name: Run the demo on the Java 8 runtime
+        working-directory: demo
+        env:
+          MAVEN_BASEDIR: ${{ github.workspace }}/demo
+        run: >-
+          mvn -B -ntp
+          -Dparallel-in-scope.version="$LIBRARY_VERSION"
+          test
