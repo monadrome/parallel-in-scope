@@ -40,3 +40,16 @@ key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔�
 
 取消、deadline、TTL、终端成功门控和有界清理保持原语义。移除的 API 不提供兼容 shim，
 消费方须使用 0.4 重新编译。
+
+## 饥饿观测快照
+
+使用早期 0.4 开发 API 的调用方将 `evidence.stagnantSamples()` 改为
+`evidence.stagnantIntervals()`。旧名称暗示采样次数，实际统计相邻样本对；新 accessor
+统计相隔至少 `report.samplingInterval()` 的连续停滞样本对。`report.samples()` 只统计
+已完成的采样，不含失败尝试。
+
+采样间隔至少为 10 毫秒；更小的值现在抛 `IllegalArgumentException`。长间隔 scope
+打开后立即关闭不再用零间隔样本对误报饥饿。调用方须处理新增的 `SAMPLING_FAILED`
+状态并读取 `failureMessage()`。采样异常后报告仍正常完成；采样 `Error` 在 close
+发布报告后继续抛出。证据优先于失败，失败优先于不可见执行器。证据始终是捕获时的
+快照，池恢复后也不会清除。这个未发布 API 不保留 `stagnantSamples()` 兼容别名。

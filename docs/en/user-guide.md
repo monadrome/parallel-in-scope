@@ -30,7 +30,7 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and timeout-action services only, never a registered executor. Queue cleanup belongs to the executor owner.
+Ids are registered at build time. The topology — the id-to-executor bindings, tags, and the policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer, timeout-action, and starvation-sampling services after admitted runs drain and open starvation observations close, never a registered executor. Queue cleanup belongs to the executor owner.
 
 Registered executors must honour the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: blocking-risk detection is disabled for it.
 
@@ -322,8 +322,10 @@ Three separate owners stop at shutdown: the runtime stops accepting work and rel
 services, the runtime waits for admitted bodies, and the application closes the executors it
 registered. Order them that way:
 
+Close all starvation observation scopes before waiting for quiescence.
+
 ```java
-runtime.close();                                      // reject new work; release timer services
+runtime.close();                                      // reject new work; release services after observations close
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // wait for every admitted body to exit
 } catch (InterruptedException interrupted) {
@@ -334,24 +336,27 @@ try {
 }
 ```
 
-`close()` is idempotent and never shuts down a registered executor; it releases the framework's
-timer and timeout-action services and does not wait for in-flight bodies. `awaitQuiescence(Duration)`
-does the body-level wait, but only after `close()`: without it the call simply waits out its timeout,
-and it returns false on timeout. A non-positive timeout performs a single check without waiting and
-reports the current state. It is interruptible, so restore the flag and continue shutdown. The
+`close()` is idempotent and never shuts down a registered executor. Open starvation observations
+keep the timer, timeout-action, and starvation-sampling services alive until their reports publish;
+the runtime logs a warning with the open count. `awaitQuiescence(Duration)` waits for those
+observations as well as admitted bodies, but only after `close()`: without it the call simply waits
+out its timeout, and it returns false on timeout. A non-positive timeout performs a single check
+without waiting and reports the current state. It is interruptible, so restore the flag and continue shutdown. The
 interruption check comes before the state answer, including on an already-quiescent runtime with a
 non-positive timeout: a caller that was interrupted observes `InterruptedException`, not `true`.
 Registered executors remain the application's to stop, after quiescence, with `shutdown()`,
 `shutdownNow()`, or the container's own lifecycle.
 
-Do not read `inFlight()` as a body count. It counts admissions setting up a batch plus undrained
-batches — future-level tracking, not bodies still inside user code. A task cancelled mid-run settles
-its future immediately while its body may still be unwinding, so `inFlight()` can reach zero while a
-body runs. `awaitQuiescence` is the one that waits for both the future drain and body exit.
+Do not read `inFlight()` as a body count. It counts admissions setting up a batch, undrained
+batches, and open starvation observations — future-level tracking plus diagnostic scopes, not bodies
+still inside user code. A task cancelled mid-run settles its future immediately while its body may
+still be unwinding, so `inFlight()` can reach zero while a body runs. `awaitQuiescence` is the one
+that waits for both the future drain and body exit, and it also waits for every observation scope to close.
 
 When `awaitQuiescence` returns false, `ParRuntime.snapshot()` explains why: it samples `closed`,
-active admissions, undrained batches, and unexited body signals into a small diagnostic record. The
-counters are read independently, so the snapshot is not linearizable — log it, don't branch on it.
+active admissions, undrained batches, active starvation observations, and unexited body signals into
+a five-field diagnostic record. The counters are read independently, so the snapshot is not
+linearizable — log it, don't branch on it.
 
 For a failed group, `TaskGroupResult.failedTaskResult()` returns the recorded failure's
 `ImmediateResult` directly — a member or the terminal combine — so callers no longer branch on
@@ -471,13 +476,35 @@ if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
 ```
 
 The scope samples each distinct physical `ThreadPoolExecutor` registered with `global`; it never
-wraps, submits, cancels, or interrupts user tasks. `POTENTIAL_STARVATION` requires consecutive
-samples with every current worker active, queued work present, and no completed-task progress. It
-is a runtime risk signal, not proof that a worker is blocked or that a dependency cycle exists.
-`NO_ISSUE` means every registered executor was visible and no signal was captured. A wrapper or
-foreign executor appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when no
-visible pool reports evidence. Keep the scope open for at least two sampling intervals when the
+wraps, submits, cancels, or interrupts user tasks. Sampling uses a separate daemon scheduler and a
+minimum interval of 10 milliseconds. `POTENTIAL_STARVATION` requires a pair of samples at least one
+interval apart with every current worker active, queued work present, and no completed-task progress.
+Its evidence is a sticky snapshot of a risk seen during the observation window, including
+`stagnantIntervals()`; recovery does not clear it. `SAMPLING_FAILED` exposes a sampling exception in
+`failureMessage()`, while evidence takes priority if both occur. `NO_ISSUE` means every registered
+executor was visible, sampling succeeded, and no signal was captured. A wrapper or foreign executor
+appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when neither evidence nor a
+sampling failure was captured. Keep the scope open for at least two sampling intervals when the
 backlog is expected to be diagnosed.
+The report also exposes the requested `samplingInterval()` and the count of completed `samples()`.
+Evidence contains capture-time counters; sample the pool again to assess its state at close.
+
+### Limits
+
+- The counters are pool-wide: library tasks and direct `execute` tasks count equally, so a long CPU
+  or slow I/O library task can produce `POTENTIAL_STARVATION`.
+- `NO_ISSUE` does not rule out deadlock. Empty queues with all workers blocked, `SynchronousQueue`
+  or other zero-capacity handoff pools, pools not registered with this runtime, and partial worker
+  deadlocks hidden by other completing tasks are outside this signal.
+- Direct tasks and library tasks have no dependency edge here. The report cannot say who waits for
+  whom, including across pools or runtimes.
+- Opening the scope does not add cancellation, deadline, TTL, `SmartBlockingQueue`, or
+  `rejectEnqueue` semantics to direct tasks. Only TTL wrappers are unwrapped; register the physical
+  pool for Guava or custom decorators, or they appear in `unsupportedExecutors()`.
+- Forgetting `close()` keeps framework services and sampling alive after `runtime.close()`, makes
+  `awaitQuiescence` return false, and keeps `activeObservations()` nonzero. Use try-with-resources or
+  one long-lived scope rather than one scope per request; scopes do not auto-close.
+- A custom queue whose counter read blocks can also block scope close while it waits for sampling.
 
 ## Purge cancelled queue entries
 
