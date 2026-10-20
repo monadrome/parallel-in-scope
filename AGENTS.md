@@ -107,16 +107,17 @@ explicit human confirmation before implementing it.
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
-- Minimize explanatory comments. Use names, structure, and tests to express behavior;
-  remove comments that restate them or provenance. Public Javadoc documents
+- Do not add explanatory, restating, or provenance comments between code.
+  Express behavior through names, structure, and tests. Public Javadoc documents
   caller-visible contracts; durable design decisions belong in the existing
-  design/ADR source of truth. Keep a short local comment only for a non-obvious
-  invariant, ordering or race proof, or dependency behavior not otherwise captured;
-  keep it beside the relevant statement when placement matters. Test comments may
-  explain non-obvious interleavings or regression assertions, not narrate obvious
-  setup. Before moving or deleting a comment, preserve every distinct claim. Do not
-  use comment count or length as a deletion criterion or add mechanical
-  comment-density/length gates. See [ADR 0009](adr/0009-comment-minimization-and-placement.md).
+  design/ADR source of truth. Keep a short local comment only for a
+  statement-level ordering, race, or lifetime proof that no declaration-level
+  Javadoc or design document can carry; keep it beside the relevant statement.
+  This applies to library, test, and demo code. The `queue` package's JDK-port
+  parity comments are the only other exception, as `queue/AGENTS.md` requires.
+  Before moving or deleting a comment, preserve every distinct claim. Do not use
+  comment count or length as a deletion criterion, and do not add mechanical
+  comment-density or length gates.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
   Respelled public members need changelog and migration-guide entries. Preserve
