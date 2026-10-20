@@ -23,7 +23,7 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 与 timeout-action 服务，绝不会关闭它们。队列清理由执行器所有者负责。
+id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空、饥饿观测关闭后释放内部 timer、timeout-action 和采样服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
 
@@ -279,8 +279,10 @@ runtime 关闭且 awaitQuiescence 成功后，全部已接纳 body 才确认退�
 停机时有三方各自收尾：runtime 停止接纳新工作并释放自身服务，runtime 等待已接纳 body 退出，
 应用关闭自己注册的执行器。按这个顺序执行：
 
+等待静止前先关闭所有线程池饥饿观测 scope。
+
 ```java
-runtime.close();                                      // 拒绝新工作；释放 timer 服务
+runtime.close();                                      // 拒绝新工作；观测关闭后释放服务
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 body 退出
 } catch (InterruptedException interrupted) {
@@ -291,20 +293,22 @@ try {
 }
 ```
 
-`close()` 幂等，且绝不关闭已注册的执行器；它只释放框架的 timer 与 timeout-action 服务，也不等待
-在途 body。body 级等待由 `awaitQuiescence(Duration)` 完成，但它必须先 `close()`：不先关闭就
-只是把超时等满，超时返回 false。非正的超时只做一次检查、不等待，直接报告当前状态。它可被
-中断，被中断时恢复标志并继续停机。中断检查先于状态答复，即使在已经静止的 runtime 上用非正超时
-调用也一样：已被中断的调用方看到的是 `InterruptedException`，而不是 `true`。已注册执行器仍归应用，
-应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器自身的生命周期停止。
+`close()` 幂等，且绝不关闭已注册的执行器。只要有打开的线程池饥饿观测，框架的 timer、
+timeout-action 和采样 scheduler 会保留到报告发布，并用 WARNING 记录数量；观测全部关闭后才
+释放服务，也不等待在途 body。`awaitQuiescence(Duration)` 会同时等待这些观测、future 排空和
+body 退出，但它必须先 `close()`：不先关闭就只是把超时等满，超时返回 false。非正的超时只做一次
+检查、不等待，直接报告当前状态。它可被中断，被中断时恢复标志并继续停机。中断检查先于状态答复，
+即使在已经静止的 runtime 上用非正超时调用也一样：已被中断的调用方看到的是 `InterruptedException`，
+而不是 `true`。已注册执行器仍归应用，应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器
+自身的生命周期停止。
 
-不要把 `inFlight()` 当成 body 计数。它统计的是正在装配批次的准入数加上尚未排空的批次数——
-future 级跟踪，不是仍在用户代码里的 body。运行中被取消的任务会立即结束其 future，而 body 可能
-仍在回卷，因此 `inFlight()` 可能已经归零而某个 body 仍在运行。真正同时等待 future 排空与 body
-退出的是 `awaitQuiescence`。
+不要把 `inFlight()` 当成 body 计数。它统计正在装配批次的准入数、尚未排空的批次和打开的饥饿观测——
+future 级跟踪加诊断作用域，不是仍在用户代码里的 body。运行中被取消的任务会立即结束其 future，
+而 body 可能仍在回卷，因此 `inFlight()` 可能已经归零而某个 body 仍在运行。真正同时等待 future
+排空、body 退出和观测关闭的是 `awaitQuiescence`。
 
 当 `awaitQuiescence` 返回 false 时，`ParRuntime.snapshot()` 可以解释原因：把 `closed`、进行中
-准入数、未排空批次数和未退出 body 信号数采样成一份诊断记录。各计数独立读取，快照不可线性化
+准入数、未排空批次数、打开的观测数和未退出 body 信号数（五项）采样成一份诊断记录。各计数独立读取，快照不可线性化
 ——用于日志诊断，不要据此分支。
 
 组失败时，`TaskGroupResult.failedTaskResult()` 直接返回被记录失败任务的 `ImmediateResult`
@@ -410,11 +414,28 @@ if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
 ```
 
 作用域只采样 `global` 注册的不同物理 `ThreadPoolExecutor`，不会包装、提交、取消或中断用户任务。
-只有连续采样同时看到当前 worker 全部忙、队列有积压且完成数没有前进时，才报告
-`POTENTIAL_STARVATION`。这是运行时风险信号，不证明 worker 正在阻塞，也不证明存在依赖环。
-`NO_ISSUE` 表示所有注册 executor 都可观测且没有捕获到信号；包装器或无法读取的 executor
-会列在 `unsupportedExecutors()` 中，且在没有其它可见池报告证据时状态为
-`INSUFFICIENT_VISIBILITY`。预计需要诊断积压时，作用域至少保持两个采样间隔。
+采样使用独立 daemon scheduler，最小间隔为 10 毫秒。只有相隔至少一个 interval 的样本对同时看到
+当前 worker 全部忙、队列有积压且完成数没有前进时，才报告 `POTENTIAL_STARVATION`。证据是窗口内
+捕获的粘性快照，`stagnantIntervals()` 表示满足间隔门槛的停滞样本对；恢复不会清除它。
+采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；有证据时证据优先。`NO_ISSUE` 表示
+所有注册 executor 都可观测、采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在
+`unsupportedExecutors()` 中，且在没有证据或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
+预计需要诊断积压时，作用域至少保持两个采样间隔。
+报告的 `samplingInterval()` 是请求间隔，`samples()` 是实际完成的采样次数。证据计数取自捕获时刻；
+判断 close 时刻的状态需重新采样。
+
+### 限制
+
+- 计数器按池统计，库内任务和直接 `execute` 任务同等计入；库内长 CPU/慢 I/O 任务也可能误报。
+- `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
+  runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。
+- 直接任务与库内任务之间没有依赖边，报告不能说明谁等谁，也不覆盖跨池/跨 runtime 的等待关系。
+- 开观测不会给直接任务补上取消、deadline、TTL、`SmartBlockingQueue` 或 `rejectEnqueue` 准入语义。
+  只有 TTL wrapper 会被看穿；Guava/自定义装饰器应注册底层池，否则进入 `unsupportedExecutors()`。
+- 忘记 `close()` 会让服务和采样在 `runtime.close()` 后继续、使 `awaitQuiescence` 返回 false 且
+  `activeObservations()` 保持非零。推荐 try-with-resources 或一个长生命周期 scope，不要每个请求开一个；
+  scope 不会自动关闭。
+- 自定义队列的计数读取若阻塞，scope close 在等待该次采样时也可能无界等待。
 
 ## 清理已取消的排队任务
 
