@@ -26,7 +26,7 @@ for (int i = 0; i < 2; i++) {
 
 解决线程池嵌套死锁的核心原则是**打破循环等待**。最直接的方案是为不同层级的任务使用独立的线程池——外层用 `FixedThreadPool` 控制并发度，内层用 `CachedThreadPool` 保证线程供给充足。
 
-`parallel-in-scope` 在此基础上提供了自动化的死锁检测能力。`TaskGraph` 会自动记录父子任务依赖关系，构建 DAG。在请求结束时，通过 Guava `Graphs.hasCycle()` 检测是否存在环路，并结合 `canDeadlock()` 检查涉及的线程池是否为有界池（`FixedThreadPool`）——只有有界池才会触发死锁告警，无界池（`CachedThreadPool`）天然安全。
+`parallel-in-scope` 不公开一个可调用的 `TaskGraph` 或 `Graphs.hasCycle()` API。实际排查应观察 `executorWaitReport()` 提供的等待关系和 starvation 诊断，并为嵌套调用配置明确的超时。
 
 此外，`parallel-in-scope` 通过滑动窗口调度（`SlidingWindowSubmitter`）和超时控制双管齐下：
 - 滑动窗口确保不会一次性向池中灌入过多任务，降低死锁概率
@@ -43,6 +43,7 @@ ExecutorService innerPool = Executors.newCachedThreadPool();
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("outer-pool"), outerPool)
         .register(ParId.of("inner-pool"), innerPool)
+        .defaultPar(ParId.of("outer-pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -55,7 +56,7 @@ TaskBatchResult<String> result = par.map( items, item -> {
     BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
     List<String> subItems = Arrays.asList("a", "b");
-    TaskBatchResult<String> innerResult = par.map( subItems, sub -> {
+    TaskBatchResult<String> innerResult = config.par(ParId.of("inner-pool")).map( subItems, sub -> {
         return item + "-" + sub;
     }, innerOpts);
 

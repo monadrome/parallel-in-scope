@@ -47,6 +47,7 @@ List<String> results = urls.parallelStream()
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("http-pool"), pool)
+        .defaultPar(ParId.of("http-pool"))
         .build();
 Par par = config.defaultPar();
 

@@ -49,6 +49,7 @@ for (Future<List<User>> f : futures) {
 ExecutorService pool = Executors.newFixedThreadPool(8);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("db-pool"), pool)
+        .defaultPar(ParId.of("db-pool"))
         .build();
 Par par = config.defaultPar();
 

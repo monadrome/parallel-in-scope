@@ -1,12 +1,16 @@
 # English Documentation
 
+> This repository page follows `0.4.0-SNAPSHOT`. For the released `0.3.0` line, use the
+> [stable online documentation](https://monadrome.github.io/parallel-in-scope/).
+
 Start with the full user guide. Use the reference pages for exact contracts and the migration guides when upgrading.
 
 ## User Documentation
 
 | Document | Role |
 |---|---|
-| [Full user guide](user-guide.md) | **Primary guide**: configuration, public APIs, runtime behavior, and advanced features |
+| [5-minute quickstart](quickstart.md) | First successful batch in a new Maven project |
+| [Full user guide](user-guide.md) | Configuration, public APIs, runtime behavior, and advanced features |
 | [v0.4 migration guide](migration-v0.4.md) | Typed task keys, aggregate result reads, and runtime diagnostics on the development line |
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |

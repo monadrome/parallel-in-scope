@@ -39,15 +39,15 @@ for (int i = 0; i < 2; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 的死锁检测模块内置了 `canDeadlock()` 判断逻辑。它会检查线程池的队列类型：
+线程池类型会影响嵌套调用的等待风险，但库不提供文章中所述的 `canDeadlock()` 或 `TaskGraph` API。使用 `executorWaitReport()` 观察等待关系，并用超时限制一次调用：
 
 | 线程池类型 | 底层队列 | 是否有界 | 能否死锁 |
 |-----------|---------|---------|---------|
-| `FixedThreadPool` | `LinkedBlockingQueue` | 有界（固定线程数） | 是 |
+| `FixedThreadPool` | `LinkedBlockingQueue` | 通常无界 | 有等待风险 |
 | `CachedThreadPool` | `SynchronousQueue` | 无界（按需创建线程） | 否 |
-| 自定义（`maxPoolSize = MAX_VALUE`） | 任意 | 无界 | 否 |
+| 自定义（`maxPoolSize = MAX_VALUE`） | 任意 | 取决于配置 | 取决于等待关系 |
 
-只有当线程池是有界池时，`TaskGraph` 才会将其纳入死锁图进行环路检测。`CachedThreadPool` 因为使用 `SynchronousQueue`（没有排队能力，每提交一个任务就必须有线程来接），天然不会产生循环等待。
+`CachedThreadPool` 通常能减少因固定线程数造成的等待，但不应把它当作“天然安全”的保证。
 
 在实际开发中，如果你的嵌套并行场景确实需要共享线程池，使用 `CachedThreadPool` 是最简单的安全方案。如果对线程数有严格控制，则应为不同层级的任务分配独立的 `FixedThreadPool`。
 
@@ -61,6 +61,7 @@ ExecutorService cachedPool = Executors.newCachedThreadPool();
 
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("cached-pool"), cachedPool)
+        .defaultPar(ParId.of("cached-pool"))
         .build();
 Par par = config.defaultPar();
 
