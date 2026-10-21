@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
@@ -20,6 +21,7 @@ import org.jspecify.annotations.Nullable;
  * @param <B> the second component type
  * @since 0.3.0
  */
+@Immutable(containerOf = {"A", "B"})
 public final class Tuple2<A, B> {
     private final @Nullable A first;
     private final @Nullable B second;

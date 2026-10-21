@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
 import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 
@@ -14,6 +15,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Package-private by design: adapting an option type to this carrier is the only seam between
  * the public option types and unit resolution, and it must not widen the public API.
  */
+@Immutable
 final class UnitSpec {
     private final String name;
     private final int requestedParallelism;
