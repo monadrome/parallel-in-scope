@@ -211,7 +211,7 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 CPU 任务排队只增加延迟，不增加吞吐。
 
-parallel-in-scope 的做法：CPU 密集型任务，宁可同步执行也不排队。
+parallel-in-scope 的做法：CPU 密集型任务不进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 ```java
 // CPU 密集型
@@ -231,7 +231,7 @@ BatchOptions ioOpts = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
 @Override
 public boolean offer(E e) {
     MultiTaskContext unit = SubmissionScope.current();
-    // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
+    // CPU 密集型任务：拒绝入队；后续行为由 executor 的拒绝策略决定
     if (unit != null && unit.taskType() == TaskType.CPU_BOUND) {
         return false;
     }
@@ -247,7 +247,7 @@ public boolean offer(E e) {
 
 `SmartBlockingQueue` 的策略是：CPU 任务不入队；其他任务是否入队还取决于 `rejectEnqueue`。返回 `false` 后的实际行为由线程池配置的拒绝策略决定，使用 `CallerRunsPolicy` 时才会在调用方线程执行。
 
-> **CPU 任务排队只增加延迟，不增加吞吐。** 宁可调用方线程同步执行，也不让计算密集型任务堵住 IO 通道。
+> **CPU 任务排队只增加延迟，不增加吞吐。** 不让计算密集型任务进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 > 并发控制不是"限制同时执行的任务数"，而是"让正确的任务在正确的时间执行"。
 
@@ -370,7 +370,7 @@ par.map("io-pool", urls, url -> {
 2. **一个 scope，要么全成功，要么第一个失败时停止。** Fail-fast 是唯一语义。
 3. **提交是提交，绑定是绑定。** 不要在上菜之前开酒。
 4. **取消不只是中断线程，还要告诉它为什么。** 双异常策略。
-5. **CPU 任务排队只增加延迟，不增加吞吐。** 宁可同步执行也不堵 IO。
+5. **CPU 任务排队只增加延迟，不增加吞吐。** 不让它进入 `SmartBlockingQueue`，后续行为由线程池拒绝策略决定。
 
 这些不是最佳实践，是设计约束。一旦在某条上让步，整个设计就会像多米诺骨牌一样坍塌。
 

@@ -23,6 +23,6 @@
     <p><strong>执行与观测：</strong><code>map</code>/<code>runAll</code> 同步等待并返回冻结的 <code>ImmediateResult</code> 数据；观测读 <code>completions()</code>/<code>members()</code>/<code>terminal()</code>。每个 <code>ParRuntime</code> 常开记录执行器间的同步等待（被等待单元运行在饥饿型池上时才记边），记录的等待首次成环时按成环分量打 JUL <code>WARNING</code>，<code>executorWaitReport()</code> 随时可读。</p>
     <p><strong>维护：</strong>队列清理由执行器所有者负责，库不自动 purge；原 purger 保存在 <code>dev/experimental</code> 分支。</p>
   </div>
-  <p>完整说明请阅读 <a href="../user-guide/">使用指南</a>、<a href="../reference/cooperative-cancellation/">协作式取消</a>、<a href="../migration-v0.4/">v0.4 迁移指南</a>、<a href="../migration-v0.3/">v0.3 迁移指南</a>、<a href="../migration-v0.2/">v0.2 迁移指南</a> 和 <a href="https://github.com/monadrome/parallel-in-scope/blob/main/adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
+  <p>完整说明请阅读 <a href="../user-guide/">使用指南</a>、<a href="../reference/cooperative-cancellation/">协作式取消</a>、<a href="../migration-v0.4/">v0.4 迁移指南</a>、<a href="../migration-v0.3/">v0.3 迁移指南</a>、<a href="../migration-v0.2/">v0.2 迁移指南</a> 和 <a href="https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/adr/0005-globalpar-executor-binding.md">ADR 0005</a>。</p>
 </body>
 </html>

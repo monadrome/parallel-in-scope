@@ -1,6 +1,6 @@
 # User Guide
 
-> This guide follows `0.4.0-SNAPSHOT`. Stable installation examples use `0.3.0`; group declarations on the development line require the [typed-key migration](migration-v0.3.md#adopting-typed-keys-on-the-04-development-line). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
+> This guide follows `0.4.0-SNAPSHOT`. Stable installation examples use `0.3.0`; group declarations on the development line require the [v0.4 migration guide](migration-v0.4.md). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
@@ -584,7 +584,7 @@ queue.awaitDrained();   // optional: wait until drained
 Job job = queue.take(); // real element before drained; poison after drained
 ```
 
-Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md).
+Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/design/draining-queue-contract.md).
 
 ## Integration recipes {#integration-recipes}
 

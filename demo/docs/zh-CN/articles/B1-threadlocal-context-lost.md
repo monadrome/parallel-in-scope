@@ -66,4 +66,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)
+> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)

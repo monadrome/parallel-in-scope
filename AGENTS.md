@@ -189,11 +189,11 @@ explicit human confirmation before implementing it.
   pass without any javaagent, but self-attach is deprecated and will stop working
   on a future JDK, so treat an attach error as an environment-specific condition
   rather than a code defect. If the Mockito tests do fail with an attach error,
-  rerun with the installed jar passed explicitly — this machine uses
-  `/Users/qinghualin/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar`:
+  rerun with the jar matching the `mockito.version` in `pom.xml` passed explicitly.
+  The current POM value is `5.24.0`:
 
   ```bash
-  mvn -o test -DargLine=-javaagent:$HOME/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar
+  mvn -o test -DargLine=-javaagent:$HOME/.m2/repository/org/mockito/mockito-core/5.24.0/mockito-core-5.24.0.jar
   ```
 
   The `$HOME` form resolves on other checkouts without hardcoding a user path.

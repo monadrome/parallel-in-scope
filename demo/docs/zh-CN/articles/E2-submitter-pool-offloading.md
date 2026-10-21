@@ -66,4 +66,4 @@ TaskBatchResult<Integer> result = par.map( input, x -> {
 
 ---
 
-> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)
+> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)
