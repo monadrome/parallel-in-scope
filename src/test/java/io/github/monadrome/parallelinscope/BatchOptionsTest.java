@@ -13,12 +13,12 @@ import org.junit.jupiter.api.Test;
 class BatchOptionsTest {
 
     @Test
-    void defaultsAreUncappedIoBoundEnqueueingAndFailOnRejection() {
+    void defaultsAreUncappedUndeclaredAndEnqueueing() {
         BatchOptions options = BatchOptions.timeout("load", Duration.ofSeconds(30));
 
         assertThat(options.name()).isEqualTo("load");
         assertThat(options.parallelism()).isEqualTo(Integer.MAX_VALUE);
-        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(options.rejectEnqueue()).isFalse();
     }
 
@@ -27,16 +27,16 @@ class BatchOptionsTest {
         BatchOptions base = BatchOptions.inheritTimeout("load");
 
         BatchOptions derived = base.parallelism(3)
-                .taskType(TaskType.CPU_BOUND)
+                .taskType(TaskType.COMPUTE)
                 .rejectEnqueue(true)
                 .closeGrace(Duration.ofMillis(200));
 
         assertThat(base.parallelism()).isEqualTo(Integer.MAX_VALUE);
-        assertThat(base.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(base.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(base.rejectEnqueue()).isFalse();
         assertThat(base.closeGrace()).isEmpty();
         assertThat(derived.parallelism()).isEqualTo(3);
-        assertThat(derived.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(derived.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.closeGrace()).contains(Duration.ofMillis(200));
         assertThat(derived.timeout()).isEmpty();
@@ -86,7 +86,7 @@ class BatchOptionsTest {
         MultiTaskContext context = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("write", Duration.ofSeconds(3))
                         .parallelism(8)
-                        .taskType(TaskType.IO_BOUND)
+                        .taskType(TaskType.BLOCKING)
                         .rejectEnqueue(false)
                         .spec(),
                 2));
@@ -94,7 +94,7 @@ class BatchOptionsTest {
         assertThat(context.name()).isEqualTo("write");
         assertThat(context.taskCount()).isEqualTo(2);
         assertThat(context.effectiveParallelism()).isEqualTo(2);
-        assertThat(context.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(context.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(context.rejectEnqueue()).isFalse();
         assertThat(context.remaining().toMillis()).isLessThanOrEqualTo(3_000);
     }

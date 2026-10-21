@@ -134,6 +134,49 @@ value. Write `new SmartBlockingQueue<>(capacity)` for a positive capacity and
 `new SynchronousQueue<>()` for a hand-off queue; choose between them explicitly when the capacity
 comes from configuration.
 
+## Task types
+
+`TaskType` is now an optional diagnostic declaration. `IO_BOUND`, `CPU_BOUND`, and `MIXED` are
+removed in favor of `COMPUTE`, `BLOCKING`, and `UNKNOWN`, and the type no longer changes queue
+admission. The constants are renamed rather than kept so code that relied on the old refusal stops
+compiling instead of silently queueing.
+
+Before (`CPU_BOUND` makes a `SmartBlockingQueue` refuse every element; on any other queue it does
+nothing at all):
+
+```java
+par.map(records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND));
+```
+
+After:
+
+```java
+par.map(records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5))
+                .taskType(TaskType.COMPUTE)
+                .rejectEnqueue(true));
+```
+
+| 0.3 | 0.4 |
+|---|---|
+| `taskType(TaskType.CPU_BOUND)`, relying on `SmartBlockingQueue` refusal | `taskType(TaskType.COMPUTE).rejectEnqueue(true)` |
+| `taskType(TaskType.CPU_BOUND)`, as a description only | `taskType(TaskType.COMPUTE)` |
+| `taskType(TaskType.IO_BOUND)` | `taskType(TaskType.BLOCKING)`, or remove the call |
+| `taskType(TaskType.MIXED)` | `taskType(TaskType.BLOCKING)` |
+| no `taskType` call (default `IO_BOUND`) | no call (default `UNKNOWN`); behavior is unchanged |
+
+- The terminal combine of `mapAndCombine` no longer inherits the batch's type. In 0.3 a `CPU_BOUND`
+  batch made a `SmartBlockingQueue` refuse its combine too. A batch's `rejectEnqueue(true)` applies
+  to its elements only, so the combine is now queued like any task; choose the combine `Par` whose
+  pool's queue and rejection policy give the combine the handling you need.
+- Optionally declare each pool's purpose with `register(id, pool, TaskType.COMPUTE)` or `BLOCKING`.
+  A unit whose declared type disagrees with its entry's is logged once per entry and unit name, and
+  an open starvation observation reports low CPU use on `COMPUTE` entries.
+- `ThreadPoolStarvationReport.Status` gains `LOW_CPU_UTILIZATION`, and `anyIssue()` is true for it.
+  `NO_ISSUE` now also requires readable thread CPU time; without it the status is
+  `INSUFFICIENT_VISIBILITY`.
+
 ## Internal cancellation token
 
 `CancellationToken` and `CancellationToken.State` are no longer public. No public method ever

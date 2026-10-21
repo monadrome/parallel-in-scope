@@ -203,7 +203,7 @@ Guava 的 SEVERE 日志里。
 
 | 位置 | 问题 |
 |---|---|
-| `TaskType.java:10-11` | `taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**，且无任何诊断（`rejectEnqueue` 至少有一次 per-Par 告警） |
+| ~~`TaskType.java:10-11`~~ | ~~`taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**~~ **已不适用（0.4，2026-10-30）**：`TaskType` 改为诊断声明、从不影响入队（ADR 0008），由提交时比对与负载匹配筛查消费 |
 | `MultiTaskContext.java:168-169` | `parallelism(0)` 实为最大并发，与"0 个并行"的直觉相反；指南只说了负值 |
 | `MultiTaskContext.java:203-210` | 超大 `Duration` 溢出饱和为 `Long.MAX_VALUE`，而它同时是"无 deadline"哨兵 → 有限超时静默变无限 |
 | ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已修复（工作区，未提交）**：公开查询侧新增 `GroupValues.valueOf(String, Class<T>)`、`TaskGroupResult.resultOf(String, Class<T>)`；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
@@ -238,6 +238,7 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 | ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
 | ~~O-12~~ | ~~`TaskGroup` 成了不可达的公开类型~~ **已不存在**：`TaskGroup` 现为包私有（`TaskGroup.java:59`），`TaskGroupReport` 无公开签名泄漏 | — | — | — |
+| O-16 | 负载匹配筛查的阈值与 CPU 计时开销未实测（2026-10-30 落地时照提案原值） | 功能/校准 | 读码 | 低-中 |
 
 ### O-1 ·（已被同步化重构取代）批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline
 
@@ -343,6 +344,16 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 来源：同上 C1，2026-10-02 复核仍成立。`PublicApiSurfaceTest` 钉的是当前面，
 跨版本 diff（japicmp/revapi 或发布时 javap 计数）缺失；0.x 政策允许破坏性变更，
 更需要机械手段防止"无意"破坏。非发版阻塞。
+
+### O-16 · 负载匹配筛查的阈值与开销未实测（2026-10-30）
+
+来源：`P0025-workload-fit-diagnostics` 落地时的待拍板点。证据：读码，未实测。
+
+- 低 CPU 判定的内部常量（20 个任务体或 1 秒执行时间、CPU/执行时间比 0.5）照提案原值落地，没有在
+  真实负载、GC、容器 CPU 配额下校准；契约与指南都写明它们不是稳定契约。
+- 窗口内每个任务体两次 `ThreadMXBean.getCurrentThreadCpuTime()` 的单次开销没有 JMH 实测：仓库没有
+  JMH 依赖，引入需维护者同意。开销只发生在显式打开的观测窗口内，窗口外每个任务体只多一次 volatile 读。
+- `COMPUTE` 条目上的 `BLOCKING` 单元按提案记 `WARNING`；它是否过响需要使用反馈。
 
 ---
 

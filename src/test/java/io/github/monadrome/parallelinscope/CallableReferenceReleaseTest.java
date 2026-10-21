@@ -297,7 +297,7 @@ class CallableReferenceReleaseTest {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(name, Duration.ofSeconds(30))
                         .parallelism(parallelism)
-                        .taskType(TaskType.IO_BOUND)
+                        .taskType(TaskType.BLOCKING)
                         .spec(),
                 tasks));
     }

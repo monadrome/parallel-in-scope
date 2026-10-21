@@ -70,7 +70,7 @@ class MavenCentralConsumerTest {
         try {
             BatchOptions options = BatchOptions.timeout("consumer-smoke", Duration.ofSeconds(5))
                     .parallelism(2)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
@@ -85,7 +85,7 @@ class MavenCentralConsumerTest {
             assertEquals("consumer-smoke", options.name());
             assertEquals(2, options.parallelism());
             assertEquals(Optional.of(Duration.ofSeconds(5)), options.timeout());
-            assertEquals(TaskType.IO_BOUND, options.taskType());
+            assertEquals(TaskType.BLOCKING, options.taskType());
             assertEquals(CONSUMER, par.id());
             assertEquals(runtime, par.runtime());
         } finally {
@@ -277,7 +277,7 @@ class MavenCentralConsumerTest {
                     value -> awaitInterruption(started, interrupted, value),
                     BatchOptions.timeout("timeout-contract", Duration.ofMillis(200))
                             .parallelism(2)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
             assertThrows(
@@ -311,7 +311,7 @@ class MavenCentralConsumerTest {
                     },
                     BatchOptions.timeout("fail-fast-contract", Duration.ofSeconds(10))
                             .parallelism(3)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertThrows(
                     ExecutionException.class, () -> result.results().get(0).valueOrThrow());
@@ -343,7 +343,7 @@ class MavenCentralConsumerTest {
                                 value -> awaitInterruption(innerStarted, innerInterrupted, value),
                                 BatchOptions.timeout("inner-contract", Duration.ofSeconds(10))
                                         .parallelism(2)
-                                        .taskType(TaskType.IO_BOUND));
+                                        .taskType(TaskType.BLOCKING));
                         innerResult.set(nested);
                         innerReturned.countDown();
                         // Stay in the body until the test releases it, swallowing the interrupt the
@@ -354,7 +354,7 @@ class MavenCentralConsumerTest {
                     },
                     BatchOptions.timeout("outer-contract", Duration.ofMillis(300))
                             .parallelism(1)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
             assertThrows(

@@ -58,7 +58,7 @@ ParRuntime config = ParRuntime.builder()
 Par par = config.defaultPar();
 
 // IO 任务：Thread.sleep 响应中断，超时取消自然生效
-BatchOptions ioOpts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
+BatchOptions ioOpts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.BLOCKING);
 
 List<String> urls = Arrays.asList("url1", "url2", "url3");
 TaskBatchResult<String> result = par.map( urls, url -> {

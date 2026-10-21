@@ -138,7 +138,7 @@ class ScopedTaskContractTest {
             AtomicReference<String> ranOn = new AtomicReference<>();
             String caller = Thread.currentThread().getName();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.COMPUTE, () -> {
                 executions.incrementAndGet();
                 ranOn.set(Thread.currentThread().getName());
                 return "inline";
@@ -155,9 +155,9 @@ class ScopedTaskContractTest {
     }
 
     /**
-     * A rejected task fails without entering user code, for every task type including {@code
-     * CPU_BOUND}. Nothing selects otherwise: the library has no option that elects the submitting
-     * thread, so what a rejection means is decided entirely by the executor's own handler.
+     * A rejected task fails without entering user code, whatever its task type. Nothing selects
+     * otherwise: the library has no option that elects the submitting thread, so what a rejection
+     * means is decided entirely by the executor's own handler.
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
@@ -291,7 +291,7 @@ class ScopedTaskContractTest {
      */
     private static ListenableFuture<Object> submitSingle(
             ParRuntime global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
+        return submitSingle(global, entry, name, TaskType.COMPUTE, task);
     }
 
     private static ListenableFuture<Object> submitSingle(

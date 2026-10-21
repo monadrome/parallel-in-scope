@@ -124,7 +124,7 @@ class G6_BatchDbQueryTest {
 
         BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
                 .parallelism(parallelism)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         long start = System.currentTimeMillis();
 
@@ -184,7 +184,7 @@ class G6_BatchDbQueryTest {
 
         BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
                 .parallelism(parallelism)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         TaskBatchResult<List<User>> result = par.map(
                 shards,

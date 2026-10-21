@@ -63,7 +63,7 @@ public class DeadlockDetectionDemo {
 
             BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5))
                     .parallelism(4)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             long start = System.currentTimeMillis();
 
@@ -114,7 +114,7 @@ public class DeadlockDetectionDemo {
     private static void callTaskB(Par par, int parentItem) {
         BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5))
                 .parallelism(2)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         List<String> items = Arrays.asList("x", "y");
         TaskBatchResult<String> resultB = par.map(

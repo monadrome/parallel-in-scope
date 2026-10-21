@@ -45,7 +45,7 @@ ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
         .build();
 
-BatchOptions options = BatchOptions.timeout("data-task", java.time.Duration.ofMillis(5000)).parallelism(10).taskType(TaskType.IO_BOUND);
+BatchOptions options = BatchOptions.timeout("data-task", java.time.Duration.ofMillis(5000)).parallelism(10).taskType(TaskType.BLOCKING);
 
 TaskBatchResult<Result> result = config.par(ParId.of("my-pool")).map(
         loadLargeDataset(),

@@ -4,7 +4,8 @@ import com.google.errorprone.annotations.Immutable;
 
 /**
  * A diagnostic sample of a {@link ParRuntime}'s shutdown/drain state, produced by {@link
- * ParRuntime#snapshot()}.
+ * ParRuntime#snapshot()}, plus the count of {@link TaskType} mismatches the runtime stopped logging
+ * individually.
  *
  * <p>Each field is an independent read of a concurrent counter, so the snapshot is not
  * linearizable: it explains a stuck {@link ParRuntime#awaitQuiescence(java.time.Duration)} to an
@@ -21,18 +22,21 @@ public final class ParRuntimeSnapshot {
     private final int undrainedBatches;
     private final int activeObservations;
     private final int unexitedBodySignals;
+    private final long suppressedTaskTypeMismatches;
 
     ParRuntimeSnapshot(
             boolean closed,
             int activeAdmissions,
             int undrainedBatches,
             int activeObservations,
-            int unexitedBodySignals) {
+            int unexitedBodySignals,
+            long suppressedTaskTypeMismatches) {
         this.closed = closed;
         this.activeAdmissions = activeAdmissions;
         this.undrainedBatches = undrainedBatches;
         this.activeObservations = activeObservations;
         this.unexitedBodySignals = unexitedBodySignals;
+        this.suppressedTaskTypeMismatches = suppressedTaskTypeMismatches;
     }
 
     /** Whether shutdown has begun; new submissions are rejected once true. */
@@ -67,6 +71,18 @@ public final class ParRuntimeSnapshot {
         return unexitedBodySignals;
     }
 
+    /**
+     * Mismatched {@link TaskType} admissions that were counted instead of logged. The runtime logs
+     * a mismatch once per entry and unit name and remembers at most 1024 such pairs; a mismatch of
+     * any further pair logs one summary warning the first time and is only counted here every time.
+     * It stays zero while unit names are fixed business names.
+     *
+     * @since 0.4.0
+     */
+    public long suppressedTaskTypeMismatches() {
+        return suppressedTaskTypeMismatches;
+    }
+
     @Override
     public String toString() {
         return "ParRuntimeSnapshot{closed=" + closed
@@ -74,6 +90,7 @@ public final class ParRuntimeSnapshot {
                 + ", undrainedBatches=" + undrainedBatches
                 + ", activeObservations=" + activeObservations
                 + ", unexitedBodySignals=" + unexitedBodySignals
+                + ", suppressedTaskTypeMismatches=" + suppressedTaskTypeMismatches
                 + '}';
     }
 }

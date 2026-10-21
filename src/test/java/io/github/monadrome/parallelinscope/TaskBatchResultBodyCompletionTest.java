@@ -190,7 +190,7 @@ class TaskBatchResultBodyCompletionTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("queued").taskType(TaskType.IO_BOUND));
+                            options("queued").taskType(TaskType.BLOCKING));
 
             // Every task is parked in the executor queue: the wait must not succeed early.
             assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isFalse();
@@ -332,7 +332,7 @@ class TaskBatchResultBodyCompletionTest {
                                 sleepInterruptibly(10_000);
                                 return value;
                             },
-                            options("window-external-cancel").parallelism(1).taskType(TaskType.IO_BOUND));
+                            options("window-external-cancel").parallelism(1).taskType(TaskType.BLOCKING));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // Cancelling the window-external element's own view cascades fail-fast: the running
@@ -363,7 +363,7 @@ class TaskBatchResultBodyCompletionTest {
                                 sleepInterruptibly(10_000);
                                 return value;
                             },
-                            options("abandon").parallelism(1).taskType(TaskType.IO_BOUND));
+                            options("abandon").parallelism(1).taskType(TaskType.BLOCKING));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             batch.submitCanceller().cancel(true);
@@ -386,7 +386,7 @@ class TaskBatchResultBodyCompletionTest {
                     .submitBatch(
                             Arrays.asList(1, 2, 3),
                             value -> executions.incrementAndGet(),
-                            options("rejected").taskType(TaskType.IO_BOUND));
+                            options("rejected").taskType(TaskType.BLOCKING));
 
             assertThat(batch.awaitBodyCompletion(Duration.ZERO)).isTrue();
             assertThat(executions).hasValue(0);
@@ -407,7 +407,7 @@ class TaskBatchResultBodyCompletionTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("mid-reject").parallelism(1).taskType(TaskType.IO_BOUND));
+                            options("mid-reject").parallelism(1).taskType(TaskType.BLOCKING));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(1);
@@ -431,7 +431,7 @@ class TaskBatchResultBodyCompletionTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("inline").parallelism(1).taskType(TaskType.CPU_BOUND));
+                            options("inline").parallelism(1).taskType(TaskType.COMPUTE));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);
@@ -821,7 +821,7 @@ class TaskBatchResultBodyCompletionTest {
                                     sleepInterruptibly(10_000);
                                     return value;
                                 },
-                                options("fail-fast-report").parallelism(1).taskType(TaskType.IO_BOUND));
+                                options("fail-fast-report").parallelism(1).taskType(TaskType.BLOCKING));
                 assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(5))).isTrue();
                 assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.RUNNING);
                 batch.close();

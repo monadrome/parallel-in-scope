@@ -79,7 +79,7 @@ Par par = config.defaultPar();
 
 BatchOptions opts = BatchOptions.timeout("batch-api", java.time.Duration.ofMillis(5000))
         .parallelism(4)           // 最多 4 个并发
-        .taskType(TaskType.IO_BOUND);
+        .taskType(TaskType.BLOCKING);
 
 TaskBatchResult<String> result = par.map( urls, url -> {
     MDC.put("traceId", traceId); // TTL 自动传播到子线程

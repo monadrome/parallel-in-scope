@@ -93,11 +93,12 @@ AccountPage page = result.terminalValueOrThrow();
   `terminalValueOrThrow()`，观测快照用 `terminal()`（@Nullable，无 combine 时为 null）；
   `members()` 保持只含普通 member；
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
-  timeout/taskType/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
+  timeout/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
   若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），body 同样不执行、记
-  `SUBMISSION_FAILURE`（§9 验收项 1）。`taskType`/`rejectEnqueue` 对 combine 仍然有效：
-  默认 `IO_BOUND` + `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
-  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。
+  `SUBMISSION_FAILURE`（§9 验收项 1）。`rejectEnqueue` 对 combine 仍然有效：
+  默认 `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
+  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。`taskType` 与 member 一样只是诊断
+  声明（[API 与选项 §3.2.1](task-group-api-and-options.md)），不改变入队。
   身份取 combine 的声明名。`TaskOptions`
   不含 name/listeners，因此 combine 不可能通过选项覆盖 Group 名称或取消策略（见
   [API 与选项 §3.2](task-group-api-and-options.md)）；

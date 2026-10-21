@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class SmartBlockingQueueTest {
     @AfterEach
@@ -30,16 +32,16 @@ class SmartBlockingQueueTest {
         assertThat(queue.capacity()).isEqualTo(2);
     }
 
-    @Test
-    void cpuAndRejectEnqueueScopesRejectButIoScopeQueues() {
+    @ParameterizedTest
+    @EnumSource(TaskType.class)
+    void onlyRejectEnqueueRefusesWhateverTheTaskType(TaskType taskType) {
         SmartBlockingQueue<Integer> queue = new SmartBlockingQueue<>(2);
-        assertOfferRejects(queue, context(TaskType.CPU_BOUND, false), 1);
-        assertOfferRejects(queue, context(TaskType.IO_BOUND, true), 2);
+        assertOfferRejects(queue, context(taskType, true), 1);
 
-        MultiTaskContext previous = SubmissionScope.install(context(TaskType.IO_BOUND, false));
+        MultiTaskContext previous = SubmissionScope.install(context(taskType, false));
         try {
-            assertThat(queue.offer(3)).isTrue();
-            assertThat(queue.poll()).isEqualTo(3);
+            assertThat(queue.offer(2)).isTrue();
+            assertThat(queue.poll()).isEqualTo(2);
         } finally {
             SubmissionScope.restore(previous);
         }

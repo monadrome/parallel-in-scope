@@ -18,7 +18,7 @@ class TaskNodeTest {
 
     private static TaskNode node(String token) {
         return new TaskNode(
-                TaskId.unit(token), "task-" + token, null, null, false, TaskType.IO_BOUND, 1, 1, Long.MAX_VALUE);
+                TaskId.unit(token), "task-" + token, null, null, false, TaskType.BLOCKING, 1, 1, Long.MAX_VALUE);
     }
 
     private static TaskNode onPool(String token) {
@@ -28,7 +28,7 @@ class TaskNodeTest {
                 new ExecutorIdentity(MoreExecutors.newDirectExecutorService()),
                 "pool",
                 true,
-                TaskType.IO_BOUND,
+                TaskType.BLOCKING,
                 1,
                 1,
                 Long.MAX_VALUE);
@@ -77,10 +77,10 @@ class TaskNodeTest {
 
     @Test
     void theBudgetIsTheResolvedNanosAsADuration() {
-        TaskNode node = new TaskNode(TaskId.unit("u"), "unit", null, null, false, TaskType.MIXED, 2, 3, 1_500L);
+        TaskNode node = new TaskNode(TaskId.unit("u"), "unit", null, null, false, TaskType.BLOCKING, 2, 3, 1_500L);
 
         assertThat(node.budget()).isEqualTo(Duration.ofNanos(1_500L));
-        assertThat(node.taskType()).isEqualTo(TaskType.MIXED);
+        assertThat(node.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(node.parallelism()).isEqualTo(2);
         assertThat(node.taskCount()).isEqualTo(3);
         assertThat(node.executor()).isNull();

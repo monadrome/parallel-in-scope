@@ -55,12 +55,12 @@ Par cpuPar = config.par(ParId.of("cpu-pool"));
 Par reportPar = config.par(ParId.of("report-pool"));
 
 // 按名字引用，不可能传错
-BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.IO_BOUND);
+BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.BLOCKING);
 TaskBatchResult<Order> orders = ioPar.map( orderIds, id -> {
     return orderService.fetch(id);  // IO 任务走 io-pool
 }, ioOpts);
 
-BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.CPU_BOUND);
+BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.COMPUTE);
 TaskBatchResult<Double> scores = cpuPar.map( users, user -> {
     return scoreEngine.compute(user);  // 计算任务走 cpu-pool
 }, cpuOpts);

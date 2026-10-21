@@ -67,7 +67,7 @@ class RequestCancellationTest {
         BatchOptions base = BatchOptions.timeout("batch", TIMEOUT);
         BatchOptions derived = base.cancelOn(source, false)
                 .parallelism(2)
-                .taskType(TaskType.CPU_BOUND)
+                .taskType(TaskType.COMPUTE)
                 .rejectEnqueue(true)
                 .closeGrace(Duration.ZERO);
 

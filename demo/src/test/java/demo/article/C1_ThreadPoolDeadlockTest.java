@@ -82,7 +82,7 @@ class C1_ThreadPoolDeadlockTest {
             // 外层：4 个任务，滑动窗口并行度 2
             BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000))
                     .parallelism(2)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4);
             TaskBatchResult<String> result = par.map(

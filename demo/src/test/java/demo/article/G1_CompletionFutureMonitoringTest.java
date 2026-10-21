@@ -112,7 +112,7 @@ public class G1_CompletionFutureMonitoringTest {
         // parallelism=5 确保所有任务同时启动，避免被取消
         BatchOptions opts = BatchOptions.timeout("monitor-demo", java.time.Duration.ofMillis(5000))
                 .parallelism(5)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         // 业务代码：纯逻辑，不碰监控
         TaskBatchResult<String> result = par.map(
@@ -190,7 +190,7 @@ public class G1_CompletionFutureMonitoringTest {
         List<Integer> input = Arrays.asList(1, 2);
         BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000))
                 .parallelism(1)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         TaskBatchResult<String> result = par.map(
                 input,

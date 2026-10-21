@@ -50,7 +50,7 @@ Par par = config.defaultPar();
 
 BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
         .parallelism(4)           // 最多 4 个并发
-        .taskType(TaskType.IO_BOUND);
+        .taskType(TaskType.BLOCKING);
 
 TaskBatchResult<String> result = par.map( services, svc -> {
     return callService(svc);  // 纯业务逻辑

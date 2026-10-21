@@ -66,7 +66,7 @@ class ExecutorWaitGraphTest {
                 executor,
                 null,
                 starvationProne,
-                TaskType.IO_BOUND,
+                TaskType.BLOCKING,
                 1,
                 1,
                 Long.MAX_VALUE);

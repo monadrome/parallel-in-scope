@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verifyNotNull;
 
 import com.alibaba.ttl.TtlUnwrap;
 import com.google.common.annotations.VisibleForTesting;
@@ -73,6 +74,8 @@ public final class ParRuntime implements AutoCloseable {
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Monitor quiescenceMonitor = new Monitor();
     private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
+    private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
+    private final WorkloadFit workloadFit;
 
     /**
      * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter
@@ -109,6 +112,8 @@ public final class ParRuntime implements AutoCloseable {
 
     private ParRuntime(Builder builder) {
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
+        this.workloadFit =
+                new WorkloadFit(builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -191,7 +196,8 @@ public final class ParRuntime implements AutoCloseable {
             }
             aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
-            builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime));
+            TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
+            builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime, taskType));
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
@@ -313,14 +319,16 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Opens a runtime observation for direct work submitted to this topology's registered
-     * executors.
+     * Opens a runtime observation of this topology's registered executors and the task bodies
+     * admitted through them.
      *
      * <p>The scope samples each distinct physical executor at the requested interval and publishes
      * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
      * instances can produce saturation evidence; other registered executors are named in the
-     * report as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise
-     * change user work.
+     * report as insufficiently visible. While the scope is open, library-admitted bodies also record
+     * their thread CPU time and execution time for workload-fit screening against each entry's
+     * {@link TaskType}. The observation does not wrap, submit, cancel, or otherwise change user
+     * work.
      *
      * @param samplingInterval the interval between samples, at least 10 milliseconds
      * @return the closeable observation scope
@@ -521,7 +529,10 @@ public final class ParRuntime implements AutoCloseable {
      * incomplete aggregate body-exit signal (one signal per run, covering every body of that run).
      * Open observations retain framework services after runtime close until their reports publish.
      *
-     * <p>The five readings are independent samples of concurrent counters: the snapshot is a
+     * <p>The snapshot also counts {@link TaskType} mismatches that were not logged individually
+     * because the runtime's memory of reported mismatches was full.
+     *
+     * <p>The six readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
      * linearizable state — it must not drive control flow, and it never replaces the quiescence
      * guarantee.
@@ -534,7 +545,8 @@ public final class ParRuntime implements AutoCloseable {
                 activeAdmissions.get(),
                 activeBatches.get(),
                 activeObservations.get(),
-                liveBodySignals.size());
+                liveBodySignals.size(),
+                taskTypeMismatches.suppressed());
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
@@ -641,6 +653,16 @@ public final class ParRuntime implements AutoCloseable {
         return ticker;
     }
 
+    /** The once-per-pair memory of submission-time task-type mismatches. */
+    TaskTypeMismatches taskTypeMismatches() {
+        return taskTypeMismatches;
+    }
+
+    /** The workload-fit screening that open starvation observations record into. */
+    WorkloadFit workloadFit() {
+        return workloadFit;
+    }
+
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
             implements ScheduledExecutorService {
         private final ScheduledExecutorService scheduler;
@@ -713,16 +735,16 @@ public final class ParRuntime implements AutoCloseable {
      */
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
+        private final Map<ParId, TaskType> taskTypes = new LinkedHashMap<>();
         private @Nullable ParId defaultId;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
+        private @Nullable WorkloadClock workloadClock;
 
         /**
-         * Registers a logical entry with one exact executor object.
-         *
-         * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
-         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
-         * two ids may intentionally use the same physical pool.
+         * Registers a logical entry with one exact executor object and no declared {@link TaskType};
+         * equivalent to {@link #register(ParId, ExecutorService, TaskType)} with {@link
+         * TaskType#UNKNOWN}.
          *
          * @param id the logical entry id
          * @param executor the executor used by the entry
@@ -731,10 +753,36 @@ public final class ParRuntime implements AutoCloseable {
          * @throws IllegalArgumentException if {@code id} is already registered
          */
         public Builder register(ParId id, ExecutorService executor) {
-            Objects.requireNonNull(id, "id cannot be null");
-            if (executors.containsKey(id)) throw new IllegalArgumentException("duplicate Par id '" + id + "'");
-            Objects.requireNonNull(executor, "executor cannot be null");
+            return register(id, executor, TaskType.UNKNOWN);
+        }
+
+        /**
+         * Registers a logical entry with one exact executor object and the work it is meant to
+         * carry.
+         *
+         * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
+         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
+         * two ids may intentionally use the same physical pool; each entry keeps its own task type.
+         *
+         * <p>The task type is diagnostic only. Submission compares it with each unit's declared type
+         * and logs a mismatch once per entry and unit name, and an open starvation observation
+         * screens the entry's bodies for low CPU use when it is {@link TaskType#COMPUTE}. It never
+         * changes how the executor is used.
+         *
+         * @param id the logical entry id
+         * @param executor the executor used by the entry
+         * @param taskType the work the entry is meant to carry, or {@link TaskType#UNKNOWN}
+         * @return this builder
+         * @throws NullPointerException if {@code id}, {@code executor}, or {@code taskType} is null
+         * @throws IllegalArgumentException if {@code id} is already registered
+         */
+        public Builder register(ParId id, ExecutorService executor, TaskType taskType) {
+            checkNotNull(id, "id cannot be null");
+            checkArgument(!executors.containsKey(id), "duplicate Par id '%s'", id);
+            checkNotNull(executor, "executor cannot be null");
+            checkNotNull(taskType, "taskType cannot be null");
             executors.put(id, executor);
+            taskTypes.put(id, taskType);
             return this;
         }
 
@@ -761,6 +809,13 @@ public final class ParRuntime implements AutoCloseable {
         @VisibleForTesting
         Builder timeoutScheduler(ScheduledExecutorService scheduler) {
             this.timeoutScheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
+            return this;
+        }
+
+        /** Test seam: the workload-fit clocks. Package-private; not a supported public SPI. */
+        @VisibleForTesting
+        Builder workloadClock(WorkloadClock clock) {
+            this.workloadClock = checkNotNull(clock, "clock cannot be null");
             return this;
         }
 

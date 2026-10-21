@@ -30,6 +30,10 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
+An entry can also declare the work it is meant to carry:
+`register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)`. The declaration is optional and only
+diagnostic; see [Declare task types](#task-type).
+
 Ids are registered at build time. The topology — the id-to-executor bindings and policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer, timeout-action, and starvation-sampling services after admitted runs drain and open starvation observations close, never a registered executor. Queue cleanup belongs to the executor owner.
 
 Registered executors must honor the `Executor` contract: a task handed to `execute()` runs exactly once. `build()` therefore rejects a directly registered `ThreadPoolExecutor` whose rejection handler is `DiscardPolicy` or `DiscardOldestPolicy` — those policies accept a task and then drop it without running it and without throwing, so nothing would ever complete its future. `AbortPolicy` (a rejection surfaces as `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (the task runs inline) are fine. An executor the library cannot see through, such as a pre-wrapped `listeningDecorator`, is accepted with a warning instead: blocking-risk detection is disabled for it.
@@ -88,33 +92,50 @@ checked, before any cancellation is reported; pure cancellation throws `Cancella
 Successful values may be null. `outcomeCounts()` counts the outcomes and `failedTaskResult()` returns
 the first failed element, the same names `TaskGroupResult` uses.
 
-`TaskType` and `rejectEnqueue` influence `SmartBlockingQueue` admission, not executor selection.
-A plain queue makes `rejectEnqueue` and `CPU_BOUND` inert and emits one diagnostic per `Par`. An executor handoff failure is
-recorded as `SUBMISSION_FAILURE` with a `SubmissionException` retaining the original cause,
-including an Error. Validation and closed-runtime admission errors still throw from the entry.
+An executor handoff failure is recorded as `SUBMISSION_FAILURE` with a `SubmissionException`
+retaining the original cause, including an Error. Validation and closed-runtime admission errors
+still throw from the entry.
 
-`TaskType` defaults to `IO_BOUND` and `rejectEnqueue` to `false`. Install the queue on the physical
-pool and state the policy per batch:
+`rejectEnqueue` is the only option that changes queue admission, and only `SmartBlockingQueue`
+reads it; on any other queue it is inert and the first such submission through a `Par` logs one
+warning. It defaults to `false`. Install the queue on the physical pool and opt in per batch:
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
         4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool)
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
         .build();
 
 TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
         records, this::score,
-        BatchOptions.timeout("score", Duration.ofSeconds(5))
-                .taskType(TaskType.CPU_BOUND)
-                .rejectEnqueue(true));
+        BatchOptions.timeout("score", Duration.ofSeconds(5)).rejectEnqueue(true));
 ```
 
-A `CPU_BOUND` task makes `offer` return false on its own or together with `rejectEnqueue(true)`, so
-the pool grows a thread or runs its rejection handler instead of buffering CPU work behind IO;
-`rejectEnqueue(true)` is redundant with it and only states the intent. With any other queue,
-`TaskType` never changes what the library does and `rejectEnqueue` is inert.
+A refused `offer` makes the pool grow a thread or run its rejection handler instead of buffering
+the task. Idle workers only take queued tasks, so once a fixed-size pool has created all its
+workers every refused task reaches the rejection handler, even while workers are idle.
+
+### Declare task types {#task-type}
+
+`TaskType` is an optional workload declaration on both sides: an entry declares the work it is meant
+to carry at registration, and a batch or task declares what its body does with
+`BatchOptions.taskType` or `TaskOptions.taskType`. The values are `COMPUTE`, `BLOCKING` (any wait:
+I/O, locks, sleeping, joining, or waiting for nested work), and the default `UNKNOWN`. A nested batch
+and the terminal combine of `mapAndCombine` do not inherit the parent's type.
+
+The declaration never changes admission, queueing, rejection, cancellation, deadlines, or outcomes.
+It feeds two diagnostics:
+
+- **Submission-time comparison.** When an entry and a unit both declare a type and they differ, the
+  library logs it once per entry and unit name: `WARNING` for a `BLOCKING` unit on a `COMPUTE` entry,
+  `INFO` for the reverse. The message only says that the declarations disagree. The runtime remembers
+  at most 1024 such pairs; after that it logs one summary and counts further mismatches in
+  `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`. Use fixed unit names, not names built per call.
+- **Low-CPU screening.** An open starvation observation compares each library-admitted body's thread
+  CPU time with its execution time; see [Screen workload fit](#workload-fit). This catches blocking
+  work its author did not know about, which a declaration alone cannot.
 
 ### Combine a batch into one result {#batch-combine}
 
@@ -525,10 +546,11 @@ minimum interval of 10 milliseconds. `POTENTIAL_STARVATION` requires a pair of s
 interval apart with every current worker active, queued work present, and no completed-task progress.
 Its evidence is a sticky snapshot of a risk seen during the observation window, including
 `stagnantIntervals()`; recovery does not clear it. `SAMPLING_FAILED` exposes a sampling exception in
-`failureMessage()`, while evidence takes priority if both occur. `NO_ISSUE` means every registered
-executor was visible, sampling succeeded, and no signal was captured. A wrapper or foreign executor
-appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when neither evidence nor a
-sampling failure was captured. Keep the scope open for at least two sampling intervals when the
+`failureMessage()`, while evidence and a [workload-fit](#workload-fit) `LOW_CPU_UTILIZATION`
+issue take priority, in that order. `NO_ISSUE` means every registered executor was visible, thread
+CPU time was readable, sampling succeeded, and no signal was captured. A wrapper or foreign executor
+appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when neither evidence, a
+workload-fit issue, nor a sampling failure was captured. Keep the scope open for at least two sampling intervals when the
 backlog is expected to be diagnosed.
 The report also exposes the requested `samplingInterval()` and the count of completed `samples()`.
 Evidence contains capture-time counters; sample the pool again to assess its state at close.
@@ -544,8 +566,59 @@ The example spans ten configured intervals. Early or interrupted close can yield
 a qualifying sample pair; it is not a health assertion. Sampling `Error` is rethrown after report
 publication; retain the future before close to inspect the published report in an error handler.
 
+### Screen workload fit {#workload-fit}
+
+The same scope screens task bodies admitted through this runtime. A body that blocks inside a
+compute pool — hidden JDBC, synchronous logging, a later-added RPC — holds one of few threads while
+using little CPU. Declare the pool's purpose and read the measurements after close:
+
+```java
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .build();
+
+ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+try (ThreadPoolStarvationObservationScope observation =
+        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+    reportFuture = observation.reportFuture();
+    runLoadTest();
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+for (ThreadPoolStarvationReport.WorkloadMeasurement measurement : report.workloadMeasurements()) {
+    if (measurement.issue() || measurement.suspectedDeclarationDrift()) {
+        log.warn("Low CPU use, the body may be waiting: {}", measurement);
+    }
+}
+log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
+```
+
+`workloadMeasurements()` holds one entry per `Par`, unit name, and unit type, with counted
+`bodies()`, `cpuTime()`, `executionTime()` (time running, not queued), `cpuToExecutionRatio()`, and
+`lowCpuBodies()`. Only a body that starts and finishes while the scope is open counts; one still
+running at close appears in `excludedBodies()`. Entries sharing one pool and other runtimes are
+measured apart, and work submitted directly with `execute` is never measured.
+
+A measurement with enough samples — currently 20 bodies or one second of execution time — and CPU
+time below half its execution time is an `issue()` when its entry is declared `COMPUTE`. That makes
+the status `LOW_CPU_UTILIZATION` unless starvation evidence was also captured. It is
+`suspectedDeclarationDrift()` when its unit is declared `COMPUTE`; drift alone never changes the
+status. `UNKNOWN` on both sides yields raw measurements only, and `unlabeledPars()` lists the
+entries that contributed bodies without a declaration, so a clean report is not mistaken for full
+coverage. When thread CPU time is unsupported, disabled, or unreadable, `cpuTimeAvailable()` is
+false and the status is at best `INSUFFICIENT_VISIBILITY`; the library never enables CPU timing
+itself.
+
+Outside an open scope a body pays one volatile read. Inside one it pays two thread-CPU and two
+wall-clock reads.
+
 ### Limits
 
+- Low CPU use is a screening lead, not proof of blocking: GC, safepoints, and CPU quota throttling
+  lower the ratio, and spin-waiting raises it. A body that waits for a nested batch holds its own
+  thread while waiting, which says nothing about the nested batch's pool. The thresholds are
+  internal calibration values, not a stable contract.
+- Compute work in a blocking pool is found only by the submission-time comparison, when both sides
+  are declared.
 - The counters are pool-wide: library tasks and direct `execute` tasks count equally, so a long CPU
   or slow I/O library task can produce `POTENTIAL_STARVATION`.
 - `NO_ISSUE` does not rule out deadlock. Empty queues with all workers blocked, `SynchronousQueue`

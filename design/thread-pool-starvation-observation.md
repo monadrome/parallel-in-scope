@@ -3,7 +3,8 @@
 This contract covers the opt-in runtime signal for work submitted directly to a registered
 executor. It complements [task-graph.md](task-graph.md): the runtime's executor wait graph records
 structural waits-for cycles from library admissions, while this observation covers unstructured
-submissions that never record a wait.
+submissions that never record a wait. The same window also screens library-admitted task bodies for
+workload fit against their `TaskType` declarations; see [Workload-fit screening](#workload-fit-screening).
 
 ## User shape
 
@@ -53,12 +54,51 @@ from `evidence.stagnantSamples()` to `evidence.stagnantIntervals()`, use an inte
 milliseconds, and handle `SAMPLING_FAILED` with `failureMessage()`. No compatibility alias is retained
 for this unreleased API because the old name counted pairs rather than samples.
 
+### Workload-fit screening user shape
+
+Before this capability, a body that blocked inside a compute pool had no library signal, and the
+declaration meant to describe it changed execution instead:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool)
+        .build();
+runtime.par(ParId.of("cpu")).map(items, this::transform,
+        BatchOptions.timeout("transform", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND));
+```
+
+The failure was a few bodies blocked on hidden JDBC, synchronous logging, or a later-added RPC
+holding the few threads of a compute pool: same-pool work queued, latency rose, and CPU stayed low.
+`CPU_BOUND` did not report it, and on a `SmartBlockingQueue` pool it made the queue refuse every
+element. The same code now declares both sides without changing execution and is screened inside
+a starvation observation window:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .build();
+try (ThreadPoolStarvationObservationScope observation =
+        runtime.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+    reportFuture = observation.reportFuture();
+    runtime.par(ParId.of("cpu")).map(items, this::transform,
+            BatchOptions.timeout("transform", Duration.ofSeconds(5)));
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+// LOW_CPU_UTILIZATION: WorkloadMeasurement{par='cpu', unit='transform', ..., issue=true}
+```
+
+The unit needs no declaration of its own: the entry's `COMPUTE` declaration covers every body
+submitted through it, including bodies whose author did not know they block. Submission-time
+comparison of the two declarations is part of
+[task-group-api-and-options.md](task-group-api-and-options.md) §3.2.1.
+
 ## Contract
 
 1. The observation MUST be opt-in. Creating a `ParRuntime` or using existing `Par`, `TaskGroup`,
    and `ParRuntime.executorWaitReport()` APIs MUST NOT start sampling.
 2. The observation MUST NOT wrap, submit, cancel, interrupt, reorder, or otherwise alter user
-   tasks. The registered executors remain borrowed resources owned by the application.
+   tasks. The registered executors remain borrowed resources owned by the application. Workload
+   timing runs inside the library's own task wrapper of library-admitted bodies only.
 3. Each distinct physical executor visible through the registered runtime entry MUST be sampled at
    the requested interval, which MUST be at least 10 milliseconds. Multiple `ParId` entries for one
    physical executor MUST share one observation and render their labels together. Sampling MUST run
@@ -72,10 +112,12 @@ for this unreleased API because the old name counted pairs rather than samples.
 5. `POTENTIAL_STARVATION` MUST remain a risk signal. It MUST NOT claim a dependency cycle, prove
    that a worker is blocked, or change task outcomes.
 6. A registered executor that cannot be inspected as a `ThreadPoolExecutor` MUST be named in
-   `unsupportedExecutors()`. Status priority MUST be evidence (`POTENTIAL_STARVATION`), sampling
-   failure (`SAMPLING_FAILED`), unsupported executors (`INSUFFICIENT_VISIBILITY`), then
-   `NO_ISSUE`. `NO_ISSUE` MUST mean all registered executors were visible, sampling did not fail,
-   and no evidence was captured. A sampling failure MUST be retained in `failureMessage()`; a
+   `unsupportedExecutors()`. Status priority MUST be evidence (`POTENTIAL_STARVATION`), a
+   workload-fit issue (`LOW_CPU_UTILIZATION`), sampling failure (`SAMPLING_FAILED`), unsupported
+   executors or unreadable thread CPU time (`INSUFFICIENT_VISIBILITY`), then `NO_ISSUE`.
+   `NO_ISSUE` MUST mean all registered executors were visible, thread CPU time was readable,
+   sampling did not fail, and neither evidence nor a workload-fit issue was captured.
+   `anyIssue()` MUST be true exactly for `POTENTIAL_STARVATION` and `LOW_CPU_UTILIZATION`. A sampling failure MUST be retained in `failureMessage()`; a
    scheduled sampling action MUST catch `Throwable`, record the first failure, and cancel future
    sampling. Closing after a sampling failure MUST publish a normal report; a final-sample `Error`
    or previously recorded sampling `Error` is rethrown only after that report is published.
@@ -91,6 +133,50 @@ for this unreleased API because the old name counted pairs rather than samples.
 9. Sampling and report publication MUST use Java 8 APIs and MUST preserve caller interruption
    state when a concurrent close waits for publication. `samples()` MUST count completed samples,
    and `samplingInterval()` MUST expose the requested interval.
+
+## Workload-fit screening
+
+While a scope is open, every library-admitted task body records its thread CPU time
+(`ThreadMXBean.getCurrentThreadCpuTime()`) and its execution time, excluding time spent queued.
+The declarations it is screened against are in
+[task-group-api-and-options.md](task-group-api-and-options.md) §3.2.1.
+
+1. CPU and wall-clock reads MUST happen only for bodies inside an open window; outside every window
+   a body MUST cost at most one volatile read. Opening a window MUST happen-before the reads of
+   every body that starts after `openThreadPoolStarvationObservation` returns, and the aggregated
+   result MUST happen-before completion of `reportFuture`.
+2. A body MUST register in the windows open when it starts, read both clocks after registering and
+   before committing, and count in a window only when its registration and its commit both precede
+   that window's seal. Registration, commit, and seal MUST each be one atomic update of a per-unit
+   immutable total, so a published measurement is one state: a body registered but not committed at
+   the seal is counted in `excludedBodies()`, and a body registering after the seal is not counted.
+   A sealed total MUST NOT change, so a published report is never modified.
+3. Measurement MUST cover only library-admitted bodies and MUST NOT wrap or change tasks submitted
+   directly to an executor. A measurement MUST be attributed to the submitting
+   `(runtime, Par, unit name, unit TaskType)`; entries or runtimes sharing one physical pool are
+   measured apart, and nothing MUST be inferred about the whole pool or about other submitters.
+4. A measurement has enough samples at 20 counted bodies or one second of execution time, and is low
+   when CPU time is below half the execution time. These are internal calibration values and MUST
+   NOT be documented as stable across GC, hardware, or container environments. A low measurement
+   with enough samples is an `issue()` when the entry is declared `COMPUTE`, whatever the unit
+   declares, and `suspectedDeclarationDrift()` when the unit is declared `COMPUTE`; both can hold.
+   Drift alone MUST NOT change the status. An entry or unit declared `UNKNOWN` contributes raw
+   measurements only, and `unlabeledPars()` MUST name every entry declared `UNKNOWN` that
+   contributed a measured body.
+5. Workload evidence MUST read as a screening lead: low CPU use may come from waiting on I/O, a lock,
+   or nested work, or from runtime pauses or CPU throttling. It MUST NOT claim proven blocking or
+   misuse. A body that waits synchronously for a nested batch holds its own thread while it waits;
+   the report MUST NOT conclude that the nested batch's pool was chosen wrongly. Same-pool nested
+   waits remain the executor wait graph's responsibility.
+6. When thread CPU time is unsupported, disabled when the window opens, or unreadable during it,
+   `cpuTimeAvailable()` MUST be false and the report MUST NOT be `NO_ISSUE`. The library MUST NOT
+   call `setThreadCpuTimeEnabled`. A failed reading drops that body's sample.
+7. Workload diagnostics MUST only report. They MUST NOT fail or replace the result of a task, batch,
+   or group.
+
+Inside a window each body costs two thread-CPU and two wall-clock reads plus one atomic update of
+its unit total at start and at end, per open window. The overhead of the CPU-clock read was not
+measured with a benchmark; it is confined to the opt-in window.
 
 ## Limits and rejected alternatives
 
@@ -134,6 +220,22 @@ The observation does not add an executor decorator, future wrapper, or dependenc
 shapes would create a second execution pipeline and conflict with the extension boundary in
 [extension-and-wrapping.md](extension-and-wrapping.md). The executor wait report remains the
 source of structural cycle evidence.
+
+Workload-fit screening detects a blocking body on a compute entry at run time, but a compute body on
+a blocking entry only through the submission-time comparison, when both sides are declared. CPU
+saturation of a blocking pool may be a legitimate peak and does not prove too many runnable threads,
+and Java 8 `availableProcessors` does not reliably reflect container quotas. Judging that direction
+at run time would need platform-specific runnable-concurrency or context-switch evidence. Thread
+state sampling was rejected as the primary signal because a blocking socket read is `RUNNABLE` in
+the JVM, which misses the most common I/O wait. Starvation evidence and workload measurements stay
+two typed lists rather than one evidence type with a kind tag: they share no field, so a tagged type
+would carry meaningless pool counters on CPU evidence and the reverse. Each entry's declared type is
+read through `Par.taskType()` rather than copied into `ParRuntimeSnapshot`, which samples drain
+counters; the snapshot carries only the mismatch overflow count. A read-write lock around the seal
+was rejected in favor of per-unit atomic totals: one compare-and-set per registration, commit, and
+seal gives the same linearization without blocking a body. Historical source: `proposal:P0025`
+(`P0025-workload-fit-diagnostics`; the same number also names the landed
+`P0025-internal-cancellation-token`).
 
 ## Independent review disposition
 

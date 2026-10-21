@@ -125,7 +125,7 @@ Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // �
 
 ## 下一步
 
-- **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）声明任务类型；只有 `SmartBlockingQueue` 会据此决定是否拒绝入队，executor 的拒绝策略仍由应用配置
+- **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.BLOCKING)`（或 `TaskType.COMPUTE`）声明任务类型，注册时也可以声明池的用途；它只用于诊断，从不改变入队或调度。需要 `SmartBlockingQueue` 拒绝入队时显式写 `rejectEnqueue(true)`
 - **completions()**：消费可用终态快照；清理预算内尚未完成的项为 null（见 G1）
 - **asFuture()**：把 `ImmediateResult` 适配为已完成、不可取消的 `ListenableFuture`
 - **Checkpoints**：在长任务中插入无参的 `Checkpoints.checkpoint()`，实现细粒度的协作式取消

@@ -103,7 +103,7 @@ class E1_QueueFloodingTest {
 
             BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofSeconds(5))
                     .parallelism(parallelism)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             TaskBatchResult<Void> result = par.map(
                     input,

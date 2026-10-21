@@ -13,8 +13,9 @@ import org.jspecify.annotations.Nullable;
  * execution policy applied to every element.
  *
  * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
- * concurrency limit controls the sliding window. Timeout, task type, and enqueue rejection form the
- * execution policy. {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned
+ * concurrency limit controls the sliding window. Timeout and enqueue rejection form the execution
+ * policy; an optional {@link TaskType} declaration is diagnostic only and never changes execution.
+ * {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned
  * cancellation input for the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
@@ -60,7 +61,7 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code name} is blank
      */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null, null, false);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.UNKNOWN, false, null, null, false);
     }
 
     /**
@@ -80,7 +81,7 @@ public final class BatchOptions {
                 name,
                 Integer.MAX_VALUE,
                 Validation.requirePositive(timeout, "timeout"),
-                TaskType.IO_BOUND,
+                TaskType.UNKNOWN,
                 false,
                 null,
                 null,
@@ -104,7 +105,12 @@ public final class BatchOptions {
                 cancellationInterrupt);
     }
 
-    /** Returns a copy of these options with the given task type.
+    /**
+     * Returns a copy of these options with the given diagnostic task type for every element.
+     *
+     * <p>The declaration describes the element bodies; nested batches and the terminal combine of
+     * {@link Par#mapAndCombine} do not inherit it. It never changes admission, enqueueing,
+     * rejection, or any element's outcome; see {@link TaskType}.
      *
      * @throws NullPointerException if {@code taskType} is null
      */
@@ -205,7 +211,7 @@ public final class BatchOptions {
         return Optional.ofNullable(timeout);
     }
 
-    /** Returns the task type declared for every element. */
+    /** Returns the diagnostic task type declared for every element; {@link TaskType#UNKNOWN} by default. */
     public TaskType taskType() {
         return taskType;
     }
