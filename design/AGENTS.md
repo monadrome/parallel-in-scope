@@ -116,6 +116,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [issue-automation.md](issue-automation.md) | 可选的 issue→triage→agent 机制：信任边界（执行只读可信身份文本、不在 issue 事件上跑执行型 agent）、标签状态机与否决、triage 只管自己打的标签、选取与背压、runner 强制执行的门禁（干净导出构建、反向验证、PIT 时效、独立复审、按 SHA 等 CI）、只合入 dev 线、需人工合并的路径 |
+| [llm-review-benchmark.md](llm-review-benchmark.md) | **LLM 评审基准活契约**：日常 `/multi-review` 走 TypeScript CLI；不可变原始证据、版本化 clusters/verdicts/gold 与可复算指标；四态判定、open-world recall 边界、51m 分层预算、gold 隔离与安全边界；被排除的纯 Skill/Python 核心/文本去重/单总分/首期服务方案 |
 | [proposal-lifecycle.md](proposal-lifecycle.md) | 提案入库、蒸馏摘要、落地与否决的删除前提、历史回指、路由及残留门禁；维护提案或收割分析稿时读取 |
 
 ### 设计哲学与决策记录

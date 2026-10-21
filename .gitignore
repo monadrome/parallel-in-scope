@@ -23,6 +23,9 @@ graph-viz/
 tmp/
 todo/
 
+# Local LLM review benchmark evidence (raw logs and derived records stay local)
+.review-benchmark/
+
 # Claude (track project skills; keep local settings and worktrees ignored)
 .claude/*
 !.claude/skills/
