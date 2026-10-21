@@ -128,15 +128,14 @@ export async function runLoggedProcess(spec: ProcessSpec): Promise<ProcessResult
         signalGroup(childPid, 'SIGTERM');
       }
       graceTimer = setTimeout(() => {
+        graceTimer = null;
         if (childPid !== null) {
           signalGroup(childPid, 'SIGKILL');
         }
         settleTimer = setTimeout(() => {
           finish('timed_out', null, 'SIGKILL');
         }, 5000);
-        settleTimer.unref();
       }, spec.graceMs);
-      graceTimer.unref();
     }, spec.timeoutMs);
     timeoutTimer.unref();
 
@@ -145,7 +144,13 @@ export async function runLoggedProcess(spec: ProcessSpec): Promise<ProcessResult
       finish('spawn_error', null, null);
     });
     child.on('close', (code, signal) => {
-      finish(timedOut ? 'timed_out' : 'exited', code, signal);
+      if (timedOut) {
+        if (graceTimer === null) {
+          finish('timed_out', code, signal ?? 'SIGKILL');
+        }
+        return;
+      }
+      finish('exited', code, signal);
     });
   });
 }

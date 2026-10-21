@@ -337,3 +337,24 @@ rates、per-reviewer/union 计数、recall 分子分母和 notes 保留了可解
 **首期服务或数据库。** 文件系统存储可 diff、可审计、无需运维，足以支撑单机、单 runner 的日常
 评审；服务/数据库会引入部署、权限、并发与迁移成本，而当前没有跨机器聚合的硬需求。重新考虑的条件
 是出现多用户并发写入或跨机器汇总的真实需求，并且迁移不破坏 raw 不可变与版本化语义。
+
+## 14. 对抗性评审记录
+
+初始实现的评审基线是 commit `11d28978`。独立 Kimi 复审确认了一个 P1：超时后 leader
+收到 `SIGTERM` 并退出时，`close` 处理器会清理尚未触发的 grace timer；如果 descendant
+忽略 `SIGTERM`/`SIGHUP`，进程组就不会继续收到 `SIGKILL`，从而在 runner 返回后存活。
+该 finding 以一个 detached Node parent/child 场景复现，child 的存活状态是可观察的失败
+信号。
+
+处置是确认并修复：超时路径的 leader `close` 不再取消 grace kill；grace callback 触发时
+先清空 timer 引用，再向整个进程组发送 `SIGKILL`，随后把 attempt 落定为 `timed_out`。
+新增回归测试覆盖 leader 提前退出且 descendant 忽略两种信号的场景。反向验证暂时恢复
+旧实现时回归测试观察到 descendant 仍存活，恢复修复后测试通过。
+
+复审还观察到 `context.json` 保留 fix SHA。该字段属于审计元数据；协议只要求历史 context
+和 reviewer 输入隐藏 fix SHA，允许审计记录保存它，因此该观察被记录为 rejected finding，
+没有改变实现。
+
+其他独立席位未形成通过证据：Codex 因上游 503/卡住未完成，Claude/GLM 因模型不可用或超时
+未完成，OCR 席位超时；本 follow-up 的只读复核席位在等待窗口内无回传后终止。它们的状态按
+blocked 记录，不能计入独立审查通过数或质量结论。
