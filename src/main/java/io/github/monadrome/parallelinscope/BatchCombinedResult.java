@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.base.Verify;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -85,6 +86,7 @@ public final class BatchCombinedResult<E, C> {
      * @throws CompletionException wrapping the selected failure when it is checked
      * @throws CancellationException when the run did not succeed and no task recorded a failure
      */
+    @SuppressWarnings("CheckReturnValue")
     public @Nullable C terminalValueOrThrow() {
         orThrow();
         try {
@@ -104,6 +106,8 @@ public final class BatchCombinedResult<E, C> {
      * @return this result
      * @since 0.4.0
      */
+    @CheckReturnValue
+    @SuppressWarnings("CheckReturnValue")
     public BatchCombinedResult<E, C> orThrow() {
         elements.orThrow();
         if (terminal.successful()) {

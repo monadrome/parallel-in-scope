@@ -113,7 +113,6 @@ class CheckpointsOutcomeTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void checkSupplierRejectsBadArgumentsBeforeRunningTheSupplier() {

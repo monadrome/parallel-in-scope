@@ -30,7 +30,6 @@ class GroupDraftContractTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void groupValidatesNameAndTimeoutAtTheEntryPoint() {
@@ -112,7 +111,6 @@ class GroupDraftContractTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void parRejectsBlankDuplicateAndNullArgumentsAtDeclarationTime() {

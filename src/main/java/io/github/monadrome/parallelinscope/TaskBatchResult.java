@@ -6,6 +6,7 @@ import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -81,6 +82,7 @@ public final class TaskBatchResult<T> {
      * @throws CompletionException wrapping the selected failure when it is checked
      * @throws CancellationException when the batch did not succeed and no element recorded a failure
      */
+    @SuppressWarnings("CheckReturnValue")
     public List<@Nullable T> valuesOrThrow() {
         orThrow();
         List<@Nullable T> values = new ArrayList<>(results.size());
@@ -104,6 +106,7 @@ public final class TaskBatchResult<T> {
      * @return this result
      * @since 0.4.0
      */
+    @CheckReturnValue
     public TaskBatchResult<T> orThrow() {
         ImmediateResult<T> firstCancelled = null;
         for (int index = 0; index < results.size(); index++) {

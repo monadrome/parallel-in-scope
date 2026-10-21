@@ -440,7 +440,6 @@ class TaskGroupCombineTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void combineDeclarationIsValidatedEarly() throws Exception {

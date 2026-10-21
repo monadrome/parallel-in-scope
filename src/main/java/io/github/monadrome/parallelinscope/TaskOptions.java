@@ -2,6 +2,8 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.errorprone.annotations.CheckReturnValue;
+import com.google.errorprone.annotations.Immutable;
 import java.time.Duration;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +25,8 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.3.0
  */
+@CheckReturnValue
+@Immutable
 public final class TaskOptions {
     private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.IO_BOUND, false);
 

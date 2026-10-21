@@ -1,6 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 
@@ -32,6 +34,7 @@ import java.util.concurrent.Callable;
  *
  * @since 0.3.0
  */
+@CheckReturnValue
 public interface GroupStart {
 
     /**
@@ -61,6 +64,7 @@ public interface GroupStart {
      * @throws IllegalArgumentException if {@code grace} is negative
      * @throws IllegalStateException if a member is already declared, or this stage is stale
      */
+    @CanIgnoreReturnValue
     GroupStart closeGrace(Duration grace);
 
     /**
@@ -77,6 +81,7 @@ public interface GroupStart {
      * @throws NullPointerException if {@code signal} is null
      * @throws IllegalStateException if a member is already declared, or this stage is stale
      */
+    @CanIgnoreReturnValue
     GroupStart cancelOn(ListenableFuture<?> signal, boolean interrupt);
 
     /**

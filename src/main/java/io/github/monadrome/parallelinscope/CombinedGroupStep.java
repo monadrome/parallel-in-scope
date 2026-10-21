@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.CheckReturnValue;
+
 /**
  * Final stage of a one-shot task-group declaration that ends in a terminal {@link CombineBody}.
  *
@@ -15,6 +17,7 @@ package io.github.monadrome.parallelinscope;
  * @param <R> the combine's declared result type
  * @since 0.3.0
  */
+@CheckReturnValue
 public interface CombinedGroupStep<V, R> {
 
     /**

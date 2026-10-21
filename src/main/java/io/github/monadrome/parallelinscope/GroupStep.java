@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.concurrent.Callable;
 
 /**
@@ -21,6 +22,7 @@ import java.util.concurrent.Callable;
  * @param <V> the group's assembled member-value type so far
  * @since 0.3.0
  */
+@CheckReturnValue
 public interface GroupStep<V> {
 
     /** Declares a member with the key's name and type; lookup uses this exact key object. */

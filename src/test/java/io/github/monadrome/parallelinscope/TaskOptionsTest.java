@@ -63,7 +63,6 @@ class TaskOptionsTest {
         assertThat(inherited.taskType()).isEqualTo(TaskType.IO_BOUND);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void rejectsNonPositiveExplicitTimeouts() {

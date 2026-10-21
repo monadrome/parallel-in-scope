@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -90,6 +91,7 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the body. */
+    @VisibleForTesting
     boolean delegateReleased() {
         return delegate == null;
     }

@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
+
 /**
  * Immutable, typed address of a declared task result, reusable across group runs.
  *
@@ -15,6 +17,7 @@ package io.github.monadrome.parallelinscope;
  * @param <T> the task's result type
  * @since 0.4.0
  */
+@Immutable
 public final class TaskKey<T> {
     private final String name;
 
