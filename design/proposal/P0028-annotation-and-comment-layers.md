@@ -87,12 +87,11 @@ E（JDK 移植标记）2、A（纯复述）0。逐条清单与 HTML 对照见本
 - one-shot 链的 `par`、`combine`、`combineValues`、`runAll`：前三种返回下一阶段，
   忽略后声明链无法继续；`runAll` 返回冻结结果（`GroupStart.java:46`、
   `GroupStep.java:27,33,44`、`CombinedGroupStep.java:35`）。
-- 所有 `orThrow()`（`TaskBatchResult.java:107`、`TaskGroupResult.java:280`、
-  `TaskGroupReport.java:107`）：虽然返回 `this`，忽略返回值会丢掉失败检查，
-  **不能因 `return this` 豁免**。
-
 **`@CanIgnoreReturnValue`：**
 
+- 所有 `orThrow()`（`TaskBatchResult.java:107`、`TaskGroupResult.java:280`、
+  `TaskGroupReport.java:107`）：返回 `this` 仅用于链式调用；忽略返回值不会跳过方法本身的
+  失败抛出，因此独立 `result.orThrow();` 也是完整用法。
 - `GroupStart.closeGrace`、`GroupStart.cancelOn`：直接修改共享 draft 并返回同一
   阶段（`GroupDraft.java:230,238`）。
 - 若扩大到其他可变 fluent API：`ParRuntime.Builder.register/defaultPar`
@@ -222,8 +221,8 @@ Javadoc，例如 `ExecutionPhaseHintFuture.java:81`、`ScopedCallable.java:92`�
 
 ## 用户代码与边界
 
-不改任何方法签名、返回类型、异常、线程行为。所有拟议注解 `@Retention(CLASS)`，
-运行时不可见；注解本身可单独删除，不改变运行行为。
+不改任何方法签名、返回类型、异常或线程行为。`@CheckReturnValue` 的保留策略是
+`RUNTIME`，其余拟议注解为 `CLASS`；注解本身可单独删除，不改变运行行为。
 
 下游静态分析会受影响：若下游使用 Error Prone，`@CheckReturnValue` 会让忽略
 返回值的位置出现 must-use 诊断，`@CanIgnoreReturnValue` 抵消；`@MustBeClosed`
@@ -299,29 +298,30 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
 5. **最佳努力型方法**：某些 `cancel` 包装、`awaitQuiescence` /
    `awaitBodyCompletion` 的布尔结果是否属于 `@CanIgnoreReturnValue`，需要 API
    语义层面的决定。
-6. **真实命中数**：已由 §实施记录替换：`CheckReturnValue` 5 个唯一站点、
-   `GuardedBy` 18、`MustBeClosedChecker` 100、`Immutable` 0。
+6. **真实命中数**：已由 §实施记录替换；`CheckReturnValue` 初版命中 1 个测试站点和
+   5 个内部 `orThrow()` 调用，`GuardedBy` 18、`MustBeClosedChecker` 100、`Immutable` 0。
 
 ## 实施记录
 
 ### 2026-10-28：注解层落地
 
-已落地（`dev/v0.4.0` 工作树；`mvn clean verify` 970 测试通过，
+已落地（`dev/v0.4.0` 工作树；初版 `mvn clean verify` 970 测试通过，
 `mvn spotless:check` 通过）：
 
 - `@CheckReturnValue`：`BatchOptions`、`TaskOptions`、`GroupStart`、`GroupStep`、
-  `CombinedGroupStep` 类/接口级；四个 `orThrow()` 方法级。
-- `@CanIgnoreReturnValue`：`GroupStart.closeGrace/cancelOn` 及
-  `GroupDraft.Start` 的实现。
+  `CombinedGroupStep` 类/接口级。
+- `@CanIgnoreReturnValue`：`GroupStart.closeGrace/cancelOn` 及 `GroupDraft.Start`
+  的实现；四个 `orThrow()` 也允许独立用于失败检查，初版的五处内部抑制已全部移除。
 - `@Immutable`：`TaskOptions`、`TaskKey`、`ParId`；无 Immutable 诊断。
 - `@GuardedBy`：`DrainingBlockingQueue.head → takeMonitor`、
-  `last → putMonitor`。18 处检查命中全部落在 `fullyLock()` 包装路径或持锁辅助
-  方法；13 个方法加窄 `@SuppressWarnings("GuardedBy")`，未发现真实锁误用。
-  `ParRuntime` 未标注。
+  `last → putMonitor`。初版 18 处检查命中使用 13 个方法级窄抑制；复审发现
+  `bulkRemove` 的 `ancestor` 初始化曾在 `fullyLock()` 之外，现已移入临界区，
+  其余抑制路径均为真实持锁路径。`ParRuntime` 未标注。
 - `@MustBeClosed`：`ParRuntime.Builder.build()` 与
   `openThreadPoolStarvationObservation()`；因 100 处既有测试调用，检查级别先设为
   `WARN`（`pom.xml` 的 `-Xep:MustBeClosedChecker:WARN`）。
-  `TaskBatchResultBodyCompletionTest` 的一处改为 try-with-resources。
+  `TaskBatchResultBodyCompletionTest` 的一处改为 try-with-resources；复审另修复
+  `ParRuntimeTest` 在全局安装失败时未关闭额外 runtime 的真阳性。
 - `@VisibleForTesting`：`ExecutionPhaseHintFuture.callableReleased`、
   `ScopedCallable.delegateReleased`、`TaskGroup.callableReleasedAt/callableReleased`、
   `TaskGroup.RunBindings.taskSlotCleared/combineSlotCleared`、
@@ -333,12 +333,15 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
 
 实际命中数（替换评审阶段的下界估计）：
 
-| 检查 | 真实命中 | 处置 |
+| 检查 | 初版真实命中 | 处置 |
 |---|---:|---|
-| `CheckReturnValue` | 5 个唯一站点 | 1 个测试改为断言；4 个内部 `orThrow()` 副作用调用加窄抑制 |
-| `GuardedBy` | 18 个唯一站点 | 13 个方法级窄抑制；无真实锁误用 |
-| `MustBeClosedChecker` | 100 个唯一测试站点 | 检查级别 WARN；1 处改 try-with-resources，其余待清理 |
+| `CheckReturnValue` | 1 个测试站点 + 5 个内部调用 | 测试改为断言；四个 `orThrow()` 改用 `@CanIgnoreReturnValue`，五处抑制移除 |
+| `GuardedBy` | 18 个唯一站点 | 13 个方法级窄抑制；复审修复一处真实锁外读取 |
+| `MustBeClosedChecker` | 100 个唯一测试站点 | 检查级别 WARN；两处资源关闭修复，其余待清理 |
 | `Immutable` | 0 | — |
+
+复审修复后验证：`mvn clean verify`（970 测试）、`mvn spotless:apply`、
+`check-local-links.py`、`check-design-routes.py` 与 `check-english-docs.py` 通过。
 
 未落地：
 

@@ -44,6 +44,19 @@ Literal-null `valueOf(null)` / `resultOf(null)` calls need a `String` or `TaskKe
 Cancellation, deadline, TTL, success-gated terminal submission, and bounded cleanup semantics
 are unchanged. These API removals have no compatibility shims; recompile consumers against 0.4.
 
+## Static contract annotations
+
+The API now carries Error Prone annotations without changing runtime behavior. Use the returned
+copy from every `BatchOptions` and `TaskOptions` wither and the returned stage from each group
+`par`, `combine`, and `combineValues`; use the frozen result from `runAll`. Standalone
+`result.orThrow();` remains valid because the method itself performs the failure check.
+
+Close resources returned by `ParRuntime.Builder.build()` and
+`openThreadPoolStarvationObservation()` with try-with-resources. Downstream Error Prone builds
+report violations of these `@CheckReturnValue` and `@MustBeClosed` contracts. `orThrow()` uses
+`@CanIgnoreReturnValue`; the library's own `MustBeClosedChecker` remains at WARN during test
+migration, but this does not weaken the published resource-ownership contract.
+
 ## Starvation observation snapshots
 
 Consumers of the earlier 0.4 development API replace `evidence.stagnantSamples()` with

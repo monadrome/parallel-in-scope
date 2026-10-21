@@ -9,7 +9,7 @@ import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.errorprone.annotations.CheckReturnValue;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
@@ -240,7 +240,6 @@ public final class TaskGroupResult<V, R> {
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when the group did not succeed and no task recorded a failure
      */
-    @SuppressWarnings("CheckReturnValue")
     public GroupValues<V> valuesOrThrow() {
         orThrow();
         try {
@@ -258,7 +257,6 @@ public final class TaskGroupResult<V, R> {
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when the group did not succeed and no task recorded a failure
      */
-    @SuppressWarnings("CheckReturnValue")
     public @Nullable R terminalValueOrThrow() {
         ImmediateResult<R> result = terminalResult;
         checkState(result != null, "group '%s' declares no combine; use valuesOrThrow()", groupName());
@@ -280,7 +278,7 @@ public final class TaskGroupResult<V, R> {
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when no task recorded a failure
      */
-    @CheckReturnValue
+    @CanIgnoreReturnValue
     public TaskGroupResult<V, R> orThrow() {
         if (outcome() == TaskOutcome.SUCCESS) {
             return this;

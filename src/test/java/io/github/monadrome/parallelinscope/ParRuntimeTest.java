@@ -302,9 +302,12 @@ class ParRuntimeTest {
             ParRuntime.installGlobal(installed);
 
             assertThat(ParRuntime.global()).isSameAs(installed);
-            assertThatThrownBy(
-                            () -> ParRuntime.installGlobal(ParRuntime.builder().build()))
-                    .isInstanceOf(IllegalStateException.class);
+            ParRuntime rejected = ParRuntime.builder().build();
+            try {
+                assertThatThrownBy(() -> ParRuntime.installGlobal(rejected)).isInstanceOf(IllegalStateException.class);
+            } finally {
+                rejected.close();
+            }
         } finally {
             installed.close();
         }
