@@ -73,9 +73,9 @@ public final class ParRuntimeSnapshot {
 
     /**
      * Mismatched {@link TaskType} admissions that were counted instead of logged. The runtime logs
-     * a mismatch once per entry and unit name and remembers at most 1024 such pairs; a mismatch of
-     * any further pair logs one summary warning the first time and is only counted here every time.
-     * It stays zero while unit names are fixed business names.
+     * a mismatch once per entry and unit name and remembers at most 1024 such pairs; every admission
+     * of a pair it does not remember once it is full is counted here, and the first of them also logs
+     * one summary warning. It stays zero while unit names are fixed business names.
      *
      * @since 0.4.0
      */

@@ -1,14 +1,15 @@
 package io.github.monadrome.parallelinscope;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Delivery of the runtime's diagnostic log messages on a runtime-owned executor.
  *
  * <p>An admitting thread never calls a logging handler, which may throw, block, or re-enter. A
- * failing handler and a rejected delivery after the runtime's services shut down both drop the
- * message: diagnostics are best effort and must not change what the caller observes.
+ * failing handler drops the message, and so does a delivery the executor cannot start: a rejection
+ * after the runtime's services shut down, or a failure creating the executor's thread, which runs
+ * on the admitting thread. Diagnostics are best effort and must not change what the caller
+ * observes; messages are delivered independently, so they may appear out of admission order.
  */
 final class Announcements {
     private Announcements() {}
@@ -22,7 +23,7 @@ final class Announcements {
                     return;
                 }
             });
-        } catch (RejectedExecutionException servicesShutDown) {
+        } catch (RuntimeException deliveryNotStarted) {
             return;
         }
     }

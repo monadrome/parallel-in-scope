@@ -374,6 +374,26 @@ class WorkloadFitScreeningTest {
     }
 
     @Test
+    void anUndeclaredEntryWhoseOnlyBodyLostItsReadingIsStillListedAsUnlabeled() throws Exception {
+        runtime = runtime(builder -> builder.register(CPU, pool));
+
+        ThreadPoolStarvationReport report = observe(() -> runtime.par(CPU)
+                .map(
+                        inputs(1),
+                        value -> {
+                            clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
+                            clock.readable(false);
+                            return value;
+                        },
+                        options("lost")));
+        clock.readable(true);
+
+        assertThat(only(report).bodies()).isZero();
+        assertThat(only(report).excludedBodies()).isEqualTo(1);
+        assertThat(report.unlabeledPars()).containsExactly(CPU);
+    }
+
+    @Test
     void aLowCpuIssueOutranksLostCpuTime() throws Exception {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
 

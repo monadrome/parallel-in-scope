@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,6 +110,69 @@ class TaskTypeMismatchesTest {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    /**
+     * Two new pairs, each admitted twice at once, race for the last free slot. The pair that wins is
+     * remembered once; both admissions of the pair that loses are counted. Each admission is decided
+     * against one consistent state, so the losing pair is never reported silent without being counted.
+     */
+    @Test
+    void twoNewPairsRacingForTheLastSlotCountEveryAdmissionOfTheLoser() throws Exception {
+        int rounds = 20_000;
+        int threads = 4;
+        List<TaskTypeMismatches> tables = new ArrayList<>(rounds);
+        for (int round = 0; round < rounds; round++) {
+            TaskTypeMismatches table = new TaskTypeMismatches(4);
+            for (int i = 0; i < 3; i++) {
+                table.record(PAR, "kept-" + i);
+            }
+            tables.add(table);
+        }
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<List<TaskTypeMismatches.Outcome>>> futures = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                String name = t < 2 ? "x" : "y";
+                futures.add(pool.submit(() -> {
+                    List<TaskTypeMismatches.Outcome> mine = new ArrayList<>(rounds);
+                    for (TaskTypeMismatches table : tables) {
+                        barrier.await(10, TimeUnit.SECONDS);
+                        mine.add(table.record(PAR, name));
+                    }
+                    return mine;
+                }));
+            }
+            List<List<TaskTypeMismatches.Outcome>> perThread = new ArrayList<>();
+            for (Future<List<TaskTypeMismatches.Outcome>> future : futures) {
+                perThread.add(future.get(120, TimeUnit.SECONDS));
+            }
+
+            for (int round = 0; round < rounds; round++) {
+                List<TaskTypeMismatches.Outcome> outcomes = new ArrayList<>();
+                for (List<TaskTypeMismatches.Outcome> mine : perThread) {
+                    outcomes.add(mine.get(round));
+                }
+                assertThat(outcomes)
+                        .as("round %s", round)
+                        .containsExactlyInAnyOrder(
+                                TaskTypeMismatches.Outcome.FIRST,
+                                TaskTypeMismatches.Outcome.SILENT,
+                                TaskTypeMismatches.Outcome.SILENT,
+                                TaskTypeMismatches.Outcome.OVERFLOW);
+                assertThat(tables.get(round).suppressed()).as("round %s", round).isEqualTo(2);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aCapacityMustBePositive() {
+        assertThatThrownBy(() -> new TaskTypeMismatches(0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("capacity 0 must be positive");
     }
 
     private static List<TaskTypeMismatches.Outcome> recordConcurrently(

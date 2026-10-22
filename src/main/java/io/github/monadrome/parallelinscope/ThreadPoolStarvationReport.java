@@ -380,8 +380,9 @@ public final class ThreadPoolStarvationReport {
     }
 
     /**
-     * Returns the entries that ran measured bodies while registered without a {@link TaskType}. Their
-     * bodies can never produce a low-CPU issue, so a clean report says nothing about them.
+     * Returns the entries registered without a {@link TaskType} that registered a body in the window,
+     * counted or excluded. Their bodies can never produce a low-CPU issue, so a clean report says
+     * nothing about them.
      */
     public List<ParId> unlabeledPars() {
         return unlabeledPars;

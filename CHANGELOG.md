@@ -105,8 +105,8 @@
 
 - Deliver the once-per-`Par` inert `rejectEnqueue` warning from a runtime-owned thread instead of the
   submitting thread. A log handler that threw used to fail the submission before any body ran, and
-  one that blocked delayed it; a failing handler now only loses the message. The new `TaskType`
-  mismatch warnings are delivered the same way.
+  one that blocked delayed it; a failing handler or a delivery that cannot start now only loses the
+  message. The new `TaskType` mismatch warnings are delivered the same way.
 - An explicit timeout too large for the clock range — `ChronoUnit.FOREVER`,
   `Duration.ofSeconds(Long.MAX_VALUE)`, or any duration whose deadline overflows — no longer
   resolves to the internal no-deadline sentinel. It resolves to the latest representable deadline,

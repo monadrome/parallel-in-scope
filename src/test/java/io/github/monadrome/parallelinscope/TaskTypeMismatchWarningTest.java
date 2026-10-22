@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -236,12 +237,44 @@ class TaskTypeMismatchWarningTest {
                             BatchOptions.timeout("load", TIMEOUT).taskType(TaskType.BLOCKING));
 
             assertThat(result.valuesOrThrow()).containsExactly(1, 2);
-            await().atMost(Duration.ofSeconds(10))
-                    .untilAsserted(() -> assertThat(records).hasSize(1));
-            assertThat(publishers).isNotEmpty().doesNotContain(Thread.currentThread());
+            Thread admitting = Thread.currentThread();
+            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                assertThat(records).hasSize(1);
+                assertThat(publishers).isNotEmpty();
+            });
+            assertThat(publishers).doesNotContain(admitting);
         } finally {
             parLogger.removeHandler(failing);
             pool.shutdownNow();
+        }
+    }
+
+    /**
+     * A delivery the announcement executor cannot start, such as a failure creating its thread on the
+     * admitting thread, drops the message instead of failing admission; both the mismatch warning and
+     * the inert-refusal warning go through that path.
+     */
+    @Test
+    void anAnnouncementExecutorThatCannotStartADeliveryNeverChangesTheOutcome() {
+        AtomicInteger attempts = new AtomicInteger();
+        try (ParRuntime failing = ParRuntime.builder()
+                .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
+                .announcements(command -> {
+                    attempts.incrementAndGet();
+                    throw new IllegalStateException("cannot create a delivery thread");
+                })
+                .build()) {
+            TaskBatchResult<Integer> result = failing.par(ParId.of("cpu"))
+                    .map(
+                            Arrays.asList(1, 2),
+                            x -> x,
+                            BatchOptions.timeout("load", TIMEOUT)
+                                    .taskType(TaskType.BLOCKING)
+                                    .rejectEnqueue(true));
+
+            assertThat(result.valuesOrThrow()).containsExactly(1, 2);
+            assertThat(attempts).hasValue(2);
+            assertThat(records).isEmpty();
         }
     }
 
@@ -269,7 +302,7 @@ class TaskTypeMismatchWarningTest {
         LogRecord summary = records.get(TaskTypeMismatches.CAPACITY);
         assertThat(summary.getLevel()).isEqualTo(Level.WARNING);
         assertThat(summary.getMessage())
-                .contains("1024 Par and unit-name pairs", "unit 'unit-overflow' on Par 'cpu'")
+                .contains("is full at 1024 Par and unit-name pairs", "unit 'unit-overflow' on Par 'cpu'")
                 .contains("ParRuntimeSnapshot.suppressedTaskTypeMismatches()");
         assertThat(runtime.snapshot().suppressedTaskTypeMismatches()).isEqualTo(2);
         assertThat(runtime.snapshot().toString()).contains("suppressedTaskTypeMismatches=2");

@@ -500,8 +500,8 @@ public final class Par {
                     + " unit is submitted through the intended Par. Logged once per Par and unit name.";
             runtime.announce(() -> LOGGER.log(level, message));
         } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
-            String message = "TaskType mismatches have been logged for " + TaskTypeMismatches.CAPACITY
-                    + " Par and unit-name pairs; further mismatches, starting with unit '" + unit.name()
+            String message = "The runtime's memory of TaskType mismatches is full at " + TaskTypeMismatches.CAPACITY
+                    + " Par and unit-name pairs; mismatches of further pairs, starting with unit '" + unit.name()
                     + "' on Par '" + id + "', are counted in ParRuntimeSnapshot.suppressedTaskTypeMismatches()"
                     + " instead of logged. Use fixed unit names rather than names built per call.";
             runtime.announce(() -> LOGGER.warning(message));
