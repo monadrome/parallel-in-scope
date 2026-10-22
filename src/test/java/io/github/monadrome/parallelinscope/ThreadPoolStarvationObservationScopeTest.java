@@ -8,9 +8,12 @@ import com.alibaba.ttl.threadpool.TtlExecutors;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -531,6 +534,76 @@ class ThreadPoolStarvationObservationScopeTest {
                 .isInstanceOf(RejectedExecutionException.class);
     }
 
+    @Test
+    void stagnantPairRequiresAtLeastTheExactInterval() throws Exception {
+        ThreadPoolExecutor pool = registerPool(new LinkedBlockingQueue<>());
+        long interval = TimeUnit.MILLISECONDS.toNanos(10);
+        for (long elapsed : new long[] {interval - 1, interval, interval + 1}) {
+            DetectorProbe detector = new DetectorProbe(pool, interval);
+            detector.sample(1, 1, 1, 0, 0);
+            assertThat(detector.evidence()).isEmpty();
+            detector.sample(1, 1, 1, 0, elapsed);
+            if (elapsed < interval) {
+                assertThat(detector.evidence()).isEmpty();
+            } else {
+                assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+                    assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+                    assertThat(evidence.executor()).isEqualTo("worker");
+                });
+            }
+        }
+    }
+
+    @Test
+    void separateStagnantRunsResetIntervalsButRetainHistoricalEvidence() throws Exception {
+        ThreadPoolExecutor pool = registerPool(new LinkedBlockingQueue<>());
+        DetectorProbe detector = new DetectorProbe(pool, 10);
+        detector.sample(1, 1, 1, 0, 0);
+        detector.sample(1, 1, 1, 0, 10);
+        detector.sample(1, 1, 1, 0, 20);
+        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+            assertThat(evidence.stagnantIntervals()).isEqualTo(2);
+            assertThat(evidence.completedTaskCount()).isZero();
+        });
+
+        detector.sample(1, 1, 1, 1, 30);
+        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+            assertThat(evidence.stagnantIntervals()).isEqualTo(2);
+            assertThat(evidence.completedTaskCount()).isZero();
+        });
+        detector.sample(1, 1, 1, 1, 40);
+        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+            assertThat(evidence.completedTaskCount()).isEqualTo(1);
+        });
+
+        detector.sample(1, 1, 0, 1, 50);
+        detector.sample(1, 1, 1, 1, 60);
+        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+        });
+        detector.sample(1, 1, 1, 1, 70);
+        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void zeroWorkersCannotProduceStarvationEvidenceEvenWithQueuedWork() throws Exception {
+        DetectorProbe detector = new DetectorProbe(registerPool(new LinkedBlockingQueue<>()), 10);
+        detector.sample(0, 0, 1, 0, 0);
+        detector.sample(0, 0, 1, 0, 10);
+        assertThat(detector.evidence()).isEmpty();
+    }
+
+    @Test
+    void emptyQueueCannotProduceStarvationEvidenceEvenWithAllWorkersActive() throws Exception {
+        DetectorProbe detector = new DetectorProbe(registerPool(new LinkedBlockingQueue<>()), 10);
+        detector.sample(1, 1, 0, 0, 0);
+        detector.sample(1, 1, 0, 0, 10);
+        assertThat(detector.evidence()).isEmpty();
+    }
+
     private ThreadPoolExecutor registerPool(LinkedBlockingQueue<Runnable> queue) {
         ThreadPoolExecutor pool = newPool(queue);
         executor = pool;
@@ -591,6 +664,46 @@ class ThreadPoolStarvationObservationScopeTest {
 
     private static ThreadPoolExecutor newPool(LinkedBlockingQueue<Runnable> queue) {
         return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, queue);
+    }
+
+    private static final class DetectorProbe {
+        private final Object detector;
+        private final Constructor<?> sampleConstructor;
+        private final Method sample;
+        private final AtomicReference<?> issue;
+        private final long intervalNanos;
+
+        private DetectorProbe(ThreadPoolExecutor pool, long intervalNanos) throws Exception {
+            Class<?> detectorType =
+                    Class.forName(ThreadPoolStarvationObservationScope.class.getName() + "$ObservedExecutor");
+            Class<?> sampleType = Class.forName(ThreadPoolStarvationObservationScope.class.getName() + "$Sample");
+            Constructor<?> constructor = detectorType.getDeclaredConstructor(String.class, ExecutorService.class);
+            constructor.setAccessible(true);
+            detector = verifyNotNull(constructor.newInstance("worker", pool));
+            sampleConstructor =
+                    sampleType.getDeclaredConstructor(int.class, int.class, int.class, long.class, long.class);
+            sampleConstructor.setAccessible(true);
+            sample = detectorType.getDeclaredMethod("sample", sampleType, long.class);
+            sample.setAccessible(true);
+            Field issueField = detectorType.getDeclaredField("issue");
+            issueField.setAccessible(true);
+            issue = (AtomicReference<?>) verifyNotNull(issueField.get(detector));
+            this.intervalNanos = intervalNanos;
+        }
+
+        private void sample(int poolSize, int activeCount, int queueSize, long completedTaskCount, long sampledAtNanos)
+                throws Exception {
+            Object value =
+                    sampleConstructor.newInstance(poolSize, activeCount, queueSize, completedTaskCount, sampledAtNanos);
+            sample.invoke(detector, value, intervalNanos);
+        }
+
+        private List<ThreadPoolStarvationReport.Evidence> evidence() {
+            Object value = issue.get();
+            return value == null
+                    ? Collections.emptyList()
+                    : Collections.singletonList((ThreadPoolStarvationReport.Evidence) value);
+        }
     }
 
     private static class CountingSizeQueue extends LinkedBlockingQueue<Runnable> {
