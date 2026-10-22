@@ -287,6 +287,10 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                     pool.getQueue().size(),
                     pool.getCompletedTaskCount(),
                     System.nanoTime());
+            sample(current, intervalNanos);
+        }
+
+        private void sample(Sample current, long intervalNanos) {
             Sample prior = previous.getAndSet(current);
             if (prior != null
                     && prior.saturated()
