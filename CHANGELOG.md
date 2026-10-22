@@ -46,8 +46,8 @@
   `LOW_CPU_UTILIZATION` status, a screening lead for blocking work in a compute pool, including work
   whose author did not know it blocks; low CPU use on a unit declared `COMPUTE` is flagged as
   suspected declaration drift. `unlabeledPars()` names undeclared entries that ran bodies, and
-  unreadable thread CPU time yields `INSUFFICIENT_VISIBILITY` with `cpuTimeAvailable()` false, never
-  `NO_ISSUE`. Outside an open scope a body pays one volatile read; direct executor work is never
+  unreadable thread CPU time sets `cpuTimeAvailable()` false and never yields `NO_ISSUE`; without a
+  higher-priority signal the status is `INSUFFICIENT_VISIBILITY`. Outside an open scope a body pays one volatile read; direct executor work is never
   measured.
 
 - Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
@@ -103,6 +103,10 @@
 
 ### Fixed
 
+- Deliver the once-per-`Par` inert `rejectEnqueue` warning from a runtime-owned thread instead of the
+  submitting thread. A log handler that threw used to fail the submission before any body ran, and
+  one that blocked delayed it; a failing handler now only loses the message. The new `TaskType`
+  mismatch warnings are delivered the same way.
 - An explicit timeout too large for the clock range — `ChronoUnit.FOREVER`,
   `Duration.ofSeconds(Long.MAX_VALUE)`, or any duration whose deadline overflows — no longer
   resolves to the internal no-deadline sentinel. It resolves to the latest representable deadline,

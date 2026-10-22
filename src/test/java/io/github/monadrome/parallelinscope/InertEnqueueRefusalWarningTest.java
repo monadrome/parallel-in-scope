@@ -1,12 +1,16 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -56,6 +60,7 @@ class InertEnqueueRefusalWarningTest {
         runtime = ParRuntime.builder()
                 .register(ParId.of("plain"), plain)
                 .register(ParId.of("smart"), smart)
+                .announcements(MoreExecutors.directExecutor())
                 .build();
     }
 
@@ -128,6 +133,45 @@ class InertEnqueueRefusalWarningTest {
                         values -> 0);
 
         assertThat(records).isEmpty();
+    }
+
+    /**
+     * The warning is delivered on a runtime-owned thread, so a logging handler that throws never
+     * reaches the submitting caller or changes the batch's outcome.
+     */
+    @Test
+    void aFailingLogHandlerNeverChangesTheOutcomeOfAnInertRefusal() throws Exception {
+        Set<Thread> publishers = ConcurrentHashMap.newKeySet();
+        Handler failing = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                publishers.add(Thread.currentThread());
+                throw new IllegalStateException("logging backend unavailable");
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        parLogger.addHandler(failing);
+        try (ParRuntime asynchronous =
+                ParRuntime.builder().register(ParId.of("plain"), plain).build()) {
+            TaskBatchResult<Integer> result = asynchronous
+                    .par(ParId.of("plain"))
+                    .map(
+                            Arrays.asList(1, 2),
+                            x -> x,
+                            BatchOptions.timeout("flag", TIMEOUT).rejectEnqueue(true));
+
+            assertThat(result.valuesOrThrow()).containsExactly(1, 2);
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertThat(records).hasSize(1));
+            assertThat(publishers).isNotEmpty().doesNotContain(Thread.currentThread());
+        } finally {
+            parLogger.removeHandler(failing);
+        }
     }
 
     @Test

@@ -38,6 +38,41 @@ class WorkloadFitTest {
     }
 
     /**
+     * A body registered before the seal and committing after it leaves the sealed total unchanged:
+     * sealing again reports the same excluded body, not a counted one.
+     */
+    @Test
+    void aCommitAfterTheSealNeverChangesTheSealedTotal() {
+        ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
+                .workloadClock(clock)
+                .build()) {
+            MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                            BatchOptions.timeout("work", TIMEOUT).spec(), 1)
+                    .executor(runtime.par(ParId.of("cpu"))));
+            WorkloadFit fit = runtime.workloadFit();
+            WorkloadFit.Window window = fit.open();
+            WorkloadFit.Timing timing = WorkloadFit.start(unit);
+            assertThat(timing).isNotNull();
+
+            WorkloadMeasurement first = fit.close(window).measurements().get(0);
+            clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
+            timing.stop();
+            WorkloadMeasurement resealed = fit.close(window).measurements().get(0);
+
+            assertThat(first.bodies()).isZero();
+            assertThat(first.excludedBodies()).isEqualTo(1);
+            assertThat(resealed.bodies()).isZero();
+            assertThat(resealed.excludedBodies()).isEqualTo(1);
+            assertThat(resealed.executionTime()).isEqualTo(Duration.ZERO);
+        } finally {
+            direct.shutdownNow();
+        }
+    }
+
+    /**
      * Concurrent bodies race the seal. Every published measurement must be one state of the unit:
      * execution and CPU time match exactly the counted bodies, every body that registered is either
      * counted or excluded, at most one body per thread is excluded, and sealing again returns the

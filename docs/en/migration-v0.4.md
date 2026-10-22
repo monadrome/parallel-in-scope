@@ -175,7 +175,7 @@ par.map(records, this::score,
   an open starvation observation reports low CPU use on `COMPUTE` entries.
 - `ThreadPoolStarvationReport.Status` gains `LOW_CPU_UTILIZATION`, and `anyIssue()` is true for it.
   `NO_ISSUE` now also requires readable thread CPU time; without it the status is
-  `INSUFFICIENT_VISIBILITY`.
+  `INSUFFICIENT_VISIBILITY` unless a higher-priority signal was captured.
 
 ## Internal cancellation token
 

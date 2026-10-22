@@ -125,7 +125,8 @@ public final class ThreadPoolStarvationReport {
     /**
      * The thread CPU time and execution time of one unit's bodies admitted through one {@link Par}
      * while the scope was open. A body counts only when it both started and finished inside the
-     * window; one still running at close is an {@linkplain #excludedBodies() excluded body}. Work
+     * window with readable clocks; one still running at close, or whose clock reading failed, is an
+     * {@linkplain #excludedBodies() excluded body}. Work
      * submitted directly to an executor is never measured.
      *
      * <p>The flags need enough samples: the current internal calibration is 20 bodies or one second
@@ -198,7 +199,10 @@ public final class ThreadPoolStarvationReport {
             return bodies;
         }
 
-        /** Bodies that started while the scope was open but had not finished when it closed. */
+        /**
+         * Bodies that started while the scope was open but were not counted: still running when it
+         * closed, or their CPU or wall-clock reading failed.
+         */
         public long excludedBodies() {
             return excludedBodies;
         }
@@ -361,8 +365,10 @@ public final class ThreadPoolStarvationReport {
 
     /**
      * Returns the workload measurement of every unit whose bodies started while the scope was open,
-     * ordered by entry id, unit name, and unit type. An entry or unit declared {@link
-     * TaskType#UNKNOWN} contributes raw measurements only.
+     * ordered by entry id, unit name, and unit type. Each side's {@link TaskType#COMPUTE}
+     * declaration enables its own verdict: the entry's enables {@link WorkloadMeasurement#issue()},
+     * the unit's enables {@link WorkloadMeasurement#suspectedDeclarationDrift()}. A measurement
+     * where neither side is declared {@code COMPUTE} is a raw measurement only.
      */
     public List<WorkloadMeasurement> workloadMeasurements() {
         return workloadMeasurements;
@@ -382,8 +388,10 @@ public final class ThreadPoolStarvationReport {
     }
 
     /**
-     * Returns whether thread CPU time was readable for the whole window. When it was not, no
-     * workload verdict is possible and the status is never {@link Status#NO_ISSUE}.
+     * Returns whether thread CPU time was readable for the whole window. When it was not, the
+     * status is never {@link Status#NO_ISSUE}: it is {@link Status#INSUFFICIENT_VISIBILITY} unless
+     * starvation evidence, a low-CPU issue, or a sampling failure ranks higher. Measurements
+     * committed while the clocks were readable remain valid and can still yield a low-CPU issue.
      */
     public boolean cpuTimeAvailable() {
         return cpuTimeAvailable;

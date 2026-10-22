@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -9,7 +10,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -54,6 +58,7 @@ class TaskTypeMismatchWarningTest {
                 .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
                 .register(ParId.of("io"), direct, TaskType.BLOCKING)
                 .register(ParId.of("plain"), direct)
+                .announcements(MoreExecutors.directExecutor())
                 .build();
     }
 
@@ -196,6 +201,48 @@ class TaskTypeMismatchWarningTest {
                         values -> Objects.requireNonNull(values).size());
 
         assertThat(records).isEmpty();
+    }
+
+    /**
+     * A handler that throws or blocks must not reach admission: the warning is delivered from a
+     * runtime-owned thread, so the batch result does not depend on the logging backend.
+     */
+    @Test
+    void aFailingLogHandlerNeverRunsOnTheAdmittingThreadOrChangesTheOutcome() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        Set<Thread> publishers = ConcurrentHashMap.newKeySet();
+        Handler failing = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                publishers.add(Thread.currentThread());
+                throw new IllegalStateException("logging backend unavailable");
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        parLogger.addHandler(failing);
+        try (ParRuntime asynchronous = ParRuntime.builder()
+                .register(ParId.of("cpu"), pool, TaskType.COMPUTE)
+                .build()) {
+            TaskBatchResult<Integer> result = asynchronous
+                    .par(ParId.of("cpu"))
+                    .map(
+                            Arrays.asList(1, 2),
+                            x -> x,
+                            BatchOptions.timeout("load", TIMEOUT).taskType(TaskType.BLOCKING));
+
+            assertThat(result.valuesOrThrow()).containsExactly(1, 2);
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertThat(records).hasSize(1));
+            assertThat(publishers).isNotEmpty().doesNotContain(Thread.currentThread());
+        } finally {
+            parLogger.removeHandler(failing);
+            pool.shutdownNow();
+        }
     }
 
     @Test

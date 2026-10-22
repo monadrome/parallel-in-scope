@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -102,6 +103,9 @@ public final class ParRuntime implements AutoCloseable {
     private final ScheduledExecutorService timerService;
     private final ScheduledExecutorService starvationScheduler;
     private final ExecutorService timeoutActionPool;
+
+    /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
+    private final Executor announcements;
 
     /**
      * Deadline scheduler handed to every {@link CancellationToken#bind}. Immutable and stateless
@@ -202,7 +206,8 @@ public final class ParRuntime implements AutoCloseable {
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
         this.pars = ImmutableMap.copyOf(builtPars);
-        this.executorWaits = new ExecutorWaitGraph(aliases.build(), timeoutActionPool);
+        this.announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
+        this.executorWaits = new ExecutorWaitGraph(aliases.build(), announcements);
     }
 
     /** Returns a mutable builder for a runtime topology. */
@@ -663,6 +668,11 @@ public final class ParRuntime implements AutoCloseable {
         return workloadFit;
     }
 
+    /** Delivers a diagnostic log message off the calling thread; never throws or blocks the caller. */
+    void announce(Runnable message) {
+        Announcements.deliver(announcements, message);
+    }
+
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
             implements ScheduledExecutorService {
         private final ScheduledExecutorService scheduler;
@@ -740,6 +750,7 @@ public final class ParRuntime implements AutoCloseable {
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
         private @Nullable WorkloadClock workloadClock;
+        private @Nullable Executor announcements;
 
         /**
          * Registers a logical entry with one exact executor object and no declared {@link TaskType};
@@ -775,6 +786,7 @@ public final class ParRuntime implements AutoCloseable {
          * @return this builder
          * @throws NullPointerException if {@code id}, {@code executor}, or {@code taskType} is null
          * @throws IllegalArgumentException if {@code id} is already registered
+         * @since 0.4.0
          */
         public Builder register(ParId id, ExecutorService executor, TaskType taskType) {
             checkNotNull(id, "id cannot be null");
@@ -816,6 +828,13 @@ public final class ParRuntime implements AutoCloseable {
         @VisibleForTesting
         Builder workloadClock(WorkloadClock clock) {
             this.workloadClock = checkNotNull(clock, "clock cannot be null");
+            return this;
+        }
+
+        /** Test seam: the executor that delivers diagnostic log messages. Package-private; not a supported public SPI. */
+        @VisibleForTesting
+        Builder announcements(Executor announcements) {
+            this.announcements = checkNotNull(announcements, "announcements cannot be null");
             return this;
         }
 

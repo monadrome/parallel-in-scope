@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -217,6 +218,7 @@ class ParSubmitTest {
                 .register(ParId.of("plain"), plain)
                 .register(ParId.of("plain-two"), plain)
                 .register(ParId.of("smart"), smart)
+                .announcements(MoreExecutors.directExecutor())
                 .build();
         Logger parLogger = Logger.getLogger(Par.class.getName());
         List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
