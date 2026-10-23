@@ -43,8 +43,8 @@ many small units, and starvation-only reports degraded by unreadable CPU time.
    units MUST count in the entry's `unattributedBodies()` only.
 4. Every total MUST be one immutable value replaced by compare-and-set, so a report reads each total in
    one consistent state and exactly one commit observes a verdict transition. An entry's total and its
-   unit totals are updated separately and may differ by bodies that are finishing. Counts MUST be
-   cumulative and never decrease.
+   unit totals are updated separately and may differ by bodies that are finishing, and by a sample
+   whose bookkeeping failed as item 8 allows. Counts MUST be cumulative and never decrease.
 5. An entry's total is judged in epochs of ten seconds of execution time. An epoch ending with CPU time
    below half its execution time MUST set the entry's `issue()` for the runtime's lifetime when the
    entry is declared `COMPUTE`; a unit declared `COMPUTE` is judged the same way for
@@ -76,6 +76,16 @@ CPU saturation of a blocking pool may be a legitimate peak and does not prove to
 A verdict is sticky, so the current state of a recovered entry is read by comparing the cumulative
 counts of two reports. Without per-unit verdicts, mild blocking in one unit that the entry's epoch
 dilutes is visible only in that unit's numbers.
+
+A `ThreadDeath` from `Thread.stop()` that lands inside the timing or a log delivery is dropped with
+every other `Throwable`, as the task boundary records one from a body as the task's failure. Rethrowing
+it was rejected: a catch clause naming a class makes its declaring class fail to link when that class
+is absent, `ThreadDeath` is deprecated for removal, and `Thread.stop()` has thrown
+`UnsupportedOperationException` since JDK 20. None of the clock readings, the bookkeeping, `execute`,
+or `Handler.publish` declares `InterruptedException`, so a blocking implementation handles an
+interrupt itself under the project's interruption rules; one thrown undeclared is dropped like any
+other `Throwable`, and in production only a log handler can throw it so, on the runtime's own
+delivery thread.
 
 Thread-state sampling was rejected as the primary signal because a blocking socket read is `RUNNABLE`
 in the JVM. Inferring a pool's purpose from its structure was rejected because a pool sized to the
@@ -126,3 +136,21 @@ Mutation coverage after the fixes, on `WorkloadFit*` and `Announcements` with th
 82 mutants, 80 killed, 1 timed out (the negated compare-and-set in `Entry.add` loops forever), and 1
 equivalent survivor, `executionNanos >= 0` in `lowCpu`: at zero execution time the comparison is
 `cpu < -cpu`, false for every CPU delta, which is never negative on one thread.
+
+### Always-on implementation, round 2
+
+Kimi (same seat) and Codex (fresh seat) reviewed the fix commit read-only against the round-1
+dispositions. Both reran the full suite (1024/1024) and PIT, independently reproduced the
+reverse checks of round 1, and passed the attribution race 5/5. The follow-up commit "fix: guard
+screening bookkeeping and document dropped signals" addresses the retained finding.
+
+| Finding | Disposition | Fix and its verified effect |
+|---|---|---|
+| Kimi F1 (P1): the four new catches drop `ThreadDeath`, whose Javadoc asks a catcher to rethrow it | Downgraded to P3, documented under Limits. The probe holds, but the library's other 23 `catch (Throwable)` sites, including the task boundary in `ExecutionPhaseHintFuture.run`, and Guava's `InterruptibleTask` treat it the same way. A probe showed that a catch clause naming an absent class fails with `NoClassDefFoundError` when its class links, on JDK 8 and JDK 25; `ThreadDeath` is deprecated for removal and JDK 25's `Thread.stop()` throws `UnsupportedOperationException` | Limits paragraph |
+| Codex F1 (P1): the same catches drop an `InterruptedException` without restoring the flag | Rejected, documented under Limits. No guarded call declares it, so the interruption rules bind inside a blocking implementation. Both probes throw it undeclared, through the package-private clock seam and a handler run on the caller's thread; in production the clock reads and bookkeeping never throw it and a handler runs on the runtime's delivery pool, which clears the flag before its next task | Limits paragraph |
+| Kimi F2 (P2): no test fails the bookkeeping after both clock readings succeed | Retained | A `Par` spy whose `workload()` throws; moving the bookkeeping out of the guard fails only this test (27 others pass). Contract item 4 and the `ParMeasurement` Javadoc name the unit-only state item 8 allows |
+| Codex F2 (P2): no test interleaves a timing failure with cancellation or interruption | Rejected. The timing never inspects the body's exception, so a cancelled body takes the path `anErrorFromTheClosingReadKeepsTheBodysOwnFailure` pins; reverting the round-1 fix fails that test (reproduced by both reviewers), so the suite does not stay green as claimed. The interrupt half follows Codex F1 | None |
+| Codex, residual risk: the contract drops `StackOverflowError` and other VM errors | Kept by design: they are dropped only while diagnostic code runs, totals are immutable values replaced by compare-and-set, so a failure mid-commit leaves no torn state, and propagating one would replace the body's result, the round-1 P0 | None |
+
+Round 2 confirmed no new blocking finding, so the review stops here; calibration (BACKLOG O-16)
+remains open.

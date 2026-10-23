@@ -59,7 +59,8 @@ public final class WorkloadFitReport {
     /**
      * The screened bodies of one entry. Its counts include the bodies of every unit, attributed or
      * not; a total and the units' totals are each consistent on their own but are updated separately,
-     * so they can differ by bodies that are finishing while the report is read.
+     * so they can differ by bodies that are finishing while the report is read, and by a body whose
+     * bookkeeping failed, for example with an {@link OutOfMemoryError}, after its unit's total counted it.
      *
      * @since 0.4.0
      */
