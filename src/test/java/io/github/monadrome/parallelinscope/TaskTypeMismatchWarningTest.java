@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.MoreExecutors;
@@ -251,31 +252,44 @@ class TaskTypeMismatchWarningTest {
 
     /**
      * A delivery the announcement executor cannot start, such as a failure creating its thread on the
-     * admitting thread, drops the message instead of failing admission; both the mismatch warning and
-     * the inert-refusal warning go through that path.
+     * admitting thread, drops the message instead of failing admission, whether the failure is an
+     * exception or an {@link OutOfMemoryError}; both the mismatch warning and the inert-refusal
+     * warning go through that path. Admission runs inside {@code assertThatCode}, so an error that
+     * escapes fails this test instead of the test JVM.
      */
     @Test
     void anAnnouncementExecutorThatCannotStartADeliveryNeverChangesTheOutcome() {
-        AtomicInteger attempts = new AtomicInteger();
-        try (ParRuntime failing = ParRuntime.builder()
-                .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
-                .announcements(command -> {
-                    attempts.incrementAndGet();
-                    throw new IllegalStateException("cannot create a delivery thread");
-                })
-                .build()) {
-            TaskBatchResult<Integer> result = failing.par(ParId.of("cpu"))
-                    .map(
-                            Arrays.asList(1, 2),
-                            x -> x,
-                            BatchOptions.timeout("load", TIMEOUT)
-                                    .taskType(TaskType.BLOCKING)
-                                    .rejectEnqueue(true));
+        for (Throwable failure : Arrays.<Throwable>asList(
+                new IllegalStateException("cannot create a delivery thread"),
+                new OutOfMemoryError("unable to create native thread"))) {
+            AtomicInteger attempts = new AtomicInteger();
+            List<Integer> values = new ArrayList<>();
+            try (ParRuntime failing = ParRuntime.builder()
+                    .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
+                    .announcements(command -> {
+                        attempts.incrementAndGet();
+                        if (failure instanceof Error) {
+                            throw (Error) failure;
+                        }
+                        throw (RuntimeException) failure;
+                    })
+                    .build()) {
+                assertThatCode(() -> values.addAll(failing.par(ParId.of("cpu"))
+                                .map(
+                                        Arrays.asList(1, 2),
+                                        x -> x,
+                                        BatchOptions.timeout("load", TIMEOUT)
+                                                .taskType(TaskType.BLOCKING)
+                                                .rejectEnqueue(true))
+                                .valuesOrThrow()))
+                        .as("%s", failure)
+                        .doesNotThrowAnyException();
+            }
 
-            assertThat(result.valuesOrThrow()).containsExactly(1, 2);
-            assertThat(attempts).hasValue(2);
-            assertThat(records).isEmpty();
+            assertThat(values).as("%s", failure).containsExactly(1, 2);
+            assertThat(attempts).as("%s", failure).hasValue(2);
         }
+        assertThat(records).isEmpty();
     }
 
     @Test

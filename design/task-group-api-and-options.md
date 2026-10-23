@@ -198,7 +198,8 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
   计数：溢出只在单元名按调用拼接时出现，汇总告警已让它可见（ADR 0010）。
 - 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。日志
   MUST 在 runtime 自有线程上投递，准入线程 MUST NOT 调用日志 handler：handler 抛异常或阻塞、投递执行器
-  拒绝或无法为投递创建线程，都不能影响准入，只丢失该条日志。各条日志独立投递，可能不按准入顺序出现。
+  拒绝或无法为投递创建线程（包括 `OutOfMemoryError`），都不能影响准入，只丢失该条日志。各条日志独立投递，
+  可能不按准入顺序出现。
   惰性拒绝告警同样遵守这一条。
   运行时侧的低 CPU 筛查见 [负载匹配筛查契约](workload-fit-screening.md)。
 

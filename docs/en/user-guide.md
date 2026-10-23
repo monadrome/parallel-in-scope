@@ -546,12 +546,14 @@ epochs of ten seconds of execution time: the first epoch whose CPU time is below
 time sets `issue()` for the runtime's lifetime and logs one `WARNING` from a runtime-owned thread.
 Judging the whole entry catches blocking spread over many small units, and judging per epoch keeps a
 regression after a long healthy period from being diluted. `units()` attributes the totals to up to
-256 unit names per entry; bodies of further units count only in `unattributedBodies()`. A unit
+256 units per entry, a unit being a name with its declared type; bodies of further units count only
+in `unattributedBodies()`. A unit
 declared `COMPUTE` is judged the same way for `suspectedDeclarationDrift()`, logged once at `INFO`;
 drift never sets `issue()`.
 
 Counts are cumulative and never decrease, so the difference between two reports measures the
-interval between them. Undeclared and `BLOCKING` work is never timed and pays nothing, work
+interval between them. A `BLOCKING` unit on a `COMPUTE` entry is timed and counts toward its entry;
+a body whose entry and unit are both undeclared or `BLOCKING` is never timed and pays nothing. Work
 submitted directly with `execute` is never measured, and an entry absent from `pars()` was not
 screened. When thread CPU time is unsupported, disabled, or unreadable, screened bodies count in
 `unmeasuredBodies()` and one `WARNING` says so; the library never enables CPU timing itself. A

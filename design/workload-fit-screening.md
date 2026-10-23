@@ -57,8 +57,11 @@ many small units, and starvation-only reports degraded by unreadable CPU time.
    or misuse.
 7. When thread CPU time is unsupported, disabled, or unreadable, the body MUST count in
    `unmeasuredBodies()` and nowhere else. The library MUST NOT call `setThreadCpuTimeEnabled`.
-8. Screening MUST only report. It MUST NOT fail or replace the result of a task, batch, or group, and an
-   error from the timing MUST still let the body's cleanup run.
+8. Screening MUST only report. It MUST NOT fail or replace the result of a task, batch, or group or
+   keep a body from running: any `Throwable` from the timing or its bookkeeping, an `Error` included,
+   MUST be dropped, keeping the body's own result or exception and letting the body's cleanup run.
+   Such a failure may lose that body's sample or leave it in its unit's total only, and may lose the
+   announcement the sample would have triggered.
 9. `ThreadPoolStarvationObservationScope` and `ThreadPoolStarvationReport` MUST NOT carry workload
    measurements or statuses.
 
@@ -93,7 +96,7 @@ mutation records are in `git show e702947c:design/thread-pool-starvation-observa
 | Round 1, both reviewers: a throwing log handler turned the mismatch warning, and the 0.3 inert `rejectEnqueue` warning, into an admission failure | Holds: all three warnings and the screening warnings are delivered by `Announcements` |
 | Round 1, both reviewers: racing first sightings of one pair each claimed a dedup slot | Holds: the memory is one immutable set replaced by compare-and-set |
 | Round 2, Codex: a duplicate racing a rollback at the capacity boundary went uncounted | Holds for the memory; the counter it corrupted was removed |
-| Round 2, Codex: a failure creating the delivery thread escaped `Announcements.deliver` | Holds: any `RuntimeException` from `execute` drops the message |
+| Round 2, Codex: a failure creating the delivery thread escaped `Announcements.deliver` | Holds, widened below to any `Throwable` from `execute` |
 | Round 2, Codex: the off-thread log tests awaited only the first handler | Holds |
 | Round 2, Kimi: the overflow summary said mismatches "have been logged" | Holds: it says the memory is full |
 | Self-review: an error from the timing skipped restoring the task context | Holds: the timing wraps only the body in `ScopedCallable.callTimed` |
@@ -101,3 +104,25 @@ mutation records are in `git show e702947c:design/thread-pool-starvation-observa
 | Round 1, Codex and Kimi; round 2, Kimi: wording of `cpuTimeAvailable()`, `UNKNOWN` raw measurements, `excludedBodies()`, `unlabeledPars()` | Moot: those accessors were removed |
 | Round 3, Codex: the `suppressedTaskTypeMismatches()` zero promise | Moot: the counter was removed |
 | Self-review: window totals grew without bound per unit name (BACKLOG O-17) | Resolved: no window; at most 256 attributed units per entry |
+
+### Always-on implementation, round 1
+
+Kimi and Codex reviewed the commit that introduced ADR 0010 read-only, in clones without a remote,
+each running the full suite (1020/1020) and reading the changed files. Both found the same blocking
+defect. The follow-up commit "fix: keep screening failures out of task results" addresses the
+retained findings.
+
+| Finding | Disposition | Fix and its verified effect |
+|---|---|---|
+| Kimi F1, Codex F1 (P0): a `Throwable` from a clock reading escaped the timing; at the end it replaced a returned value or the body's own exception, and at the start it kept the body from running | Retained; reproduced with the scripted clock | `WorkloadFit.start` and `Timing.stop` drop any `Throwable` with the sample; contract item 8 names `Error` and the partial-commit states. Reverting the fix fails all three new timing-error tests |
+| Codex F2 (P2): the timing-error test asserted the outcome the contract forbids | Retained | The test asserts `SUCCESS` and the value; a second test keeps the body's own `USER_FAILURE` cause |
+| Kimi F2 (P3): the guides, CHANGELOG, ADR 0010, and `ParRuntime` Javadoc said all `BLOCKING` work goes untimed, but a `BLOCKING` unit on a `COMPUTE` entry is timed | Retained | Reworded: a body is untimed when its entry and unit are both undeclared or `BLOCKING` |
+| Kimi F3 (P3): the guides counted 256 unit names, but a unit is keyed by name and type | Retained | Reworded in both guides |
+| Kimi F4 (P2), noted by Codex: no test raced the last attribution slots or read reports during commits | Retained as a test gap; Kimi's probe passed on the commit | A race of 320 units for 256 slots under a concurrent reader; an off-by-one capacity check and a capacity check outside the retry loop each fail it (the latter 5/5 runs) |
+| Self-review: an `OutOfMemoryError` creating the delivery thread escaped `Announcements.deliver`, which caught only `RuntimeException` | Retained; `ThreadPoolExecutor.execute` propagates it from `Thread.start` | Both delivery paths drop any `Throwable`; the tests run admission inside `assertThatCode`, so a reverted fix fails them as assertions, not as a crash of the test JVM |
+| Kimi, not new: the always-on epoch and threshold are uncalibrated | Already tracked as BACKLOG O-16 | None |
+
+Mutation coverage after the fixes, on `WorkloadFit*` and `Announcements` with the core mutator set:
+82 mutants, 80 killed, 1 timed out (the negated compare-and-set in `Entry.add` loops forever), and 1
+equivalent survivor, `executionNanos >= 0` in `lowCpu`: at zero execution time the comparison is
+`cpu < -cpu`, false for every CPU delta, which is never negative on one thread.

@@ -523,8 +523,8 @@ public final class ParRuntime implements AutoCloseable {
      * <p>The runtime compares each such body's thread CPU time with its execution time and judges each
      * entry in epochs of ten seconds of execution time; the first epoch with CPU use below half sets
      * {@link WorkloadFitReport.ParMeasurement#issue()} and logs one {@code WARNING}. Counts are
-     * cumulative, so two reports bound an interval. Bodies of undeclared or blocking work are never
-     * timed, and work submitted directly to an executor is never measured.
+     * cumulative, so two reports bound an interval. A body whose entry and unit are both undeclared or
+     * blocking is never timed, and work submitted directly to an executor is never measured.
      *
      * @return the current immutable report
      * @since 0.4.0
