@@ -157,8 +157,9 @@ def land(run: Run) -> Outcome:
     if head(run) != run.pushed_sha:
         run.base_sha = fresh_base
         failed = check_gates(run, check_pit=False)
-        if failed or run.human_paths:
-            detail = "; ".join(f"{g.name}: {g.detail[:200]}" for g in failed) or "the rebased diff touches maintainer-merge paths"
+        reasons = human_reasons(run)
+        if failed or reasons:
+            detail = "; ".join([f"{g.name}: {g.detail[:200]}" for g in failed] + reasons)
             return Outcome("review", f"after rebasing onto {run.config.base_branch}: {detail}")
         run.pushed_sha = workspace.push(run.config, run.clone, run.branch, run.pushed_sha)
         state, _ = wait_ci(run, run.pushed_sha)
