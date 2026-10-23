@@ -160,6 +160,35 @@ explicit human confirmation before implementing it.
   rationale explicit so future maintainers can distinguish intentional API
   evolution from accidental breakage.
 
+## Autonomous Completion
+
+- A request to change something authorizes the whole route this file prescribes:
+  implementation, tests, formatting, documentation and migration notes, the
+  review-and-fix loop, commit, and delivery. Do not wait for confirmation between
+  these steps. Stop only for:
+  - a direction the request leaves undecided: public API shape, contract
+    semantics, a concurrency protocol, or a large refactor it did not name;
+  - an action that Permissions or Design Decisions says to confirm first, or an
+    outward action this file does not prescribe (a release, a merge into
+    `main`, a message to people outside the session);
+  - a blocker you cannot remove.
+- Finish all work that does not depend on the open point first, then ask once:
+  list each open decision with your recommendation and what it changes.
+- Settle implementation choices yourself instead of presenting options. Design
+  for the best end state; in `0.x`, compatibility and migration cost are not
+  selection criteria, and migration notes record the break.
+- A request for analysis authorizes the analysis, not applying its proposals.
+- Start new work from the freshly fetched development line named under Current
+  Development Line, not from a stale local branch or `main`.
+- Retry a failure only after addressing its cause, or once when it is a known
+  transient; report a failure that repeats unchanged. When an environment
+  denies an action this file prescribes, leave the exact command in the report
+  instead of working around the denial.
+- When the user corrects the same behavior twice, propose the rule that would
+  have prevented it. Changes to permissions or gates take effect only after a
+  maintainer approves them; until then they do not widen the task that proposed
+  them.
+
 ## Verification And Completion
 
 - Behavior-changing commits list the contract MUST/MUST NOT items they add or
@@ -179,8 +208,9 @@ explicit human confirmation before implementing it.
   the first implementation. Report unrelated failures or blockers; do not claim
   completion while required checks are blocked.
 - Report each check separately and honestly: behavior tests, external consumer,
-  independent review, and mutation coverage are distinct facts. Record a blocked
-  check as blocked with its reason. A PIT run that started but timed out, or
+  independent review, and mutation coverage are distinct facts. Give each check
+  one status (pass, fail, blocked, inconclusive, or skipped) and a reason for
+  every status except pass. A PIT run that started but timed out, or
   produced no `mutations.xml`, is not a pass; never describe a started or partial
   check as passing. Run Maven build/test/PIT serially within one checkout;
   independent verification checkouts may run in parallel.
@@ -197,9 +227,15 @@ explicit human confirmation before implementing it.
   ```
 
   The `$HOME` form resolves on other checkouts without hardcoding a user path.
-- After verification, automatically commit and push the current branch,
-  including documentation maintenance and in-flight proposals. Proposals are
-  tracked under `design/proposal/`; their lifecycle is defined in
+- After verification, commit and deliver to the development line: rebase onto
+  its freshly fetched tip, rerun the checks whose inputs the incoming commits
+  changed, and fast-forward push it; when the push is rejected, repeat from the
+  rebase. Push a separate branch only when the user names one or an open pull
+  request already carries the work, and then update that pull request's
+  description and verification to match its final commits. Contributors
+  without write access open a pull request as `CONTRIBUTING.md` describes.
+- Delivery includes documentation maintenance and in-flight proposals. Proposals
+  are tracked under `design/proposal/`; their lifecycle is defined in
   `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: do not
   commit them on your own initiative; commit one only when the user asks, under
   `design/analysis/` per `design/AGENTS.md` principle 9. Harvest their
@@ -220,20 +256,30 @@ concurrency-sensitive changes, run an independent review with its own budget.
 Use the commit diff as the review baseline so review and fixes can continue in
 later sessions:
 
-- Use a different model or harness (`cmux codexyolo` runs Codex in this repo).
-  The reviewer must not edit files. Name attack surfaces: interleavings,
-  contract versus implementation, test quality, Java 8, and generics.
+- Use a different model or harness than the implementer. Run it through
+  `/multi-review` (`.claude/skills/multi-review/SKILL.md`) on the commit range,
+  which keeps reviewers read-only on a snapshot; when no reviewer CLI can run,
+  use a fresh-context agent on another model in a clone without a remote. The
+  reviewer must not edit files. Name attack surfaces: interleavings, contract
+  versus implementation, test quality, Java 8, and generics.
+- A review counts only when its output shows the reviewer read the diff, by
+  citing changed files or lines. A timeout, a failed run, or a reviewer that
+  cannot read the files is no review: rerun it once, then record the review as
+  blocked, never as clean.
 - Diff each contract MUST/MUST NOT named by the change against the
   implementation line by line; catching drift is a post-commit review duty,
   not a periodic audit.
 - Address confirmed findings in verified follow-up commits. Later rounds review
   those commit diffs, first reading settled findings as the baseline, then
   looking beyond them. Use a fresh seat when context is nearly full or the
-  reviewer starts agreeing with itself.
+  reviewer starts agreeing with itself. Stop when a round confirms no new
+  blocking finding (a defect, a contract violation, or an ineffective test) or
+  after three rounds, and record what remains open with its disposition.
 - Reproduce every finding against the working tree; retain, downgrade, or reject
   it explicitly. Record findings, dispositions (including rejections), and each
-  fix's actual effect in the change's `design/` document. Leave the review
-  workspace open as an audit trail.
+  fix's actual effect in the change's `design/` document, or in the fix commit
+  message when no `design/` document covers the change. Leave the review
+  workspace or run directory in place as an audit trail.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
   the new test fail, then restore the fix.
 - Run mutation coverage with an explicit goal: the `pitest` profile binds no
@@ -292,11 +338,25 @@ investigating review or test blind spots.
 
 ## Permissions
 
-Local tests and Java formatting are authorized with the existing toolchain and
-installed dependencies. Ask before:
+Authorized without asking:
 
-- Installing Maven dependencies or upgrading plugin versions.
-- Deleting files or directories.
+- Local tests, Java formatting, and the repository checks, with the existing
+  toolchain and installed dependencies.
+- Deleting tracked files the change retires or replaces: a landed or rejected
+  proposal, a harvested draft under `design/analysis/`, superseded code, a
+  rename's source. Git keeps them; the commit message says what was deleted and
+  where its behavior or conclusions now live.
+- Patch and minor upgrades of dependencies and plugins in the three POMs the
+  dependency audit reads, once the `dependency-audit` skill has checked their
+  release notes and minimum Java version, and `mvn test` plus the `java8-runtime`
+  job of `.github/workflows/ci.yml`, run locally, pass.
+
+Ask before:
+
+- Adding a dependency or plugin, a major upgrade, a change to the build JDK or
+  the Java 8 baseline, and any edit under `.github/workflows/` or to
+  `mkdocs/requirements.txt`.
+- Deleting untracked files you did not create, or files outside the change.
 - Full release builds or `mvn deploy`.
 
 PIT authorization and scoping are defined under Adversarial Review.
