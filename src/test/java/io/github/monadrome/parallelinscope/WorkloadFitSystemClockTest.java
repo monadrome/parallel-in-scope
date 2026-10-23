@@ -1,11 +1,8 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.time.Duration;
@@ -16,9 +13,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
- * Workload-fit screening on the JVM's own clocks: sleeping bodies on an entry declared for
- * computation use almost no CPU, so the screening reports them without reading the CPU-time setting
- * as anything but a fact.
+ * Workload-fit screening on the JVM's own clocks. The library only reads the thread CPU-time
+ * setting; tests that change it restore it.
  */
 class WorkloadFitSystemClockTest {
 
@@ -35,23 +31,21 @@ class WorkloadFitSystemClockTest {
         }
 
         assertThat(spins).isPositive();
-        assertThat(clock.cpuTimeAvailable()).isTrue();
         assertThat(before).isNotNegative();
         assertThat(clock.currentThreadCpuNanos()).isGreaterThan(before);
     }
 
     /**
-     * With thread CPU timing switched off the clock reports it unavailable and reads a negative
-     * value instead of a plausible zero. The test restores the JVM setting it changed.
+     * With thread CPU timing switched off the clock reads a negative value instead of a plausible
+     * zero. The test restores the JVM setting it changed.
      */
     @Test
-    void theSystemClockReportsDisabledCpuTimingAsUnavailable() {
+    void theSystemClockReadsDisabledCpuTimingAsNegative() {
         ThreadMXBean threads = ManagementFactory.getThreadMXBean();
         assumeTrue(threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled());
         WorkloadClock clock = SystemWorkloadClock.INSTANCE;
         threads.setThreadCpuTimeEnabled(false);
         try {
-            assertThat(clock.cpuTimeAvailable()).isFalse();
             assertThat(clock.currentThreadCpuNanos()).isNegative();
         } finally {
             threads.setThreadCpuTimeEnabled(true);
@@ -59,41 +53,33 @@ class WorkloadFitSystemClockTest {
     }
 
     @Test
-    void sleepingBodiesOnAComputeEntryAreReportedOnTheRealClocks() throws Exception {
+    void sleepingBodiesOnAComputeEntryAreMeasuredOnTheRealClocks() {
         ThreadMXBean threads = ManagementFactory.getThreadMXBean();
         assumeTrue(threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled());
         ExecutorService pool = Executors.newFixedThreadPool(4);
         try (ParRuntime runtime = ParRuntime.builder()
                 .register(ParId.of("cpu"), pool, TaskType.COMPUTE)
                 .build()) {
-            ListenableFuture<ThreadPoolStarvationReport> reportFuture;
-            try (ThreadPoolStarvationObservationScope scope =
-                    runtime.openThreadPoolStarvationObservation(Duration.ofSeconds(10))) {
-                reportFuture = scope.reportFuture();
-                runtime.par(ParId.of("cpu"))
-                        .map(
-                                Collections.nCopies(20, 1),
-                                value -> {
-                                    try {
-                                        Thread.sleep(20);
-                                    } catch (InterruptedException e) {
-                                        Thread.currentThread().interrupt();
-                                    }
-                                    return value;
-                                },
-                                BatchOptions.timeout("sleep", Duration.ofSeconds(30)));
-            }
-            ThreadPoolStarvationReport report = verifyNotNull(Futures.getDone(reportFuture));
+            runtime.par(ParId.of("cpu"))
+                    .map(
+                            Collections.nCopies(20, 1),
+                            value -> {
+                                try {
+                                    Thread.sleep(20);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                                return value;
+                            },
+                            BatchOptions.timeout("sleep", Duration.ofSeconds(30)));
 
-            assertThat(report.cpuTimeAvailable()).isTrue();
-            assertThat(report.workloadMeasurements()).hasSize(1);
-            ThreadPoolStarvationReport.WorkloadMeasurement measurement =
-                    report.workloadMeasurements().get(0);
+            WorkloadFitReport.ParMeasurement measurement =
+                    runtime.workloadFitReport().pars().get(0);
             assertThat(measurement.bodies()).isEqualTo(20);
+            assertThat(measurement.unmeasuredBodies()).isZero();
             assertThat(measurement.executionTime()).isGreaterThanOrEqualTo(Duration.ofMillis(20 * 15));
             assertThat(measurement.cpuToExecutionRatio()).isLessThan(0.5);
-            assertThat(measurement.issue()).isTrue();
-            assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.LOW_CPU_UTILIZATION);
+            assertThat(measurement.issue()).isFalse();
             assertThat(threads.isThreadCpuTimeEnabled()).isTrue();
         } finally {
             pool.shutdownNow();

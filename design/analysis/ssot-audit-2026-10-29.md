@@ -38,7 +38,7 @@
 
 > 2026-10-30 注记：维护者选择路径 1。`TaskType` 已按 ADR 0008 实现，活契约为
 > [task-group-api-and-options.md](../task-group-api-and-options.md) §3.2.1 与
-> [thread-pool-starvation-observation.md](../thread-pool-starvation-observation.md)，提案已删除。
+> [workload-fit-screening.md](../workload-fit-screening.md)（ADR 0010 起改为常开筛查），提案已删除。
 > 上表各行记录的是审计当时的状态。
 
 ### 2. MkDocs 编辑入口绑定 `main`

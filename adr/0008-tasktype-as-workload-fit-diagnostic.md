@@ -7,6 +7,8 @@
   （`TaskType.MIXED` 保留、不重开）；[ADR 0005](0005-globalpar-executor-binding.md) 规则 10 中
   「可影响排队与拒绝策略」；[ADR 0006](0006-queues-ship-with-core.md) 规则 2 中 `TaskType` 的
   排队/拒绝语义
+- Partially superseded by: [ADR 0010](0010-always-on-workload-fit-screening.md)（运行时低 CPU 筛查改为
+  runtime 级常开、按条目判定，不再复用线程池饥饿观测窗口）
 
 ## Context
 
@@ -40,14 +42,14 @@
 4. 两个消费者：
    - **提交时比对**（始终开启）：两侧都声明且不一致时，按 `(Par, 单元名, 方向)` 告警一次；
      任一侧为 `UNKNOWN` 不告警。
-   - **运行时低 CPU 筛查**（复用线程池饥饿观测窗口）：窗口内测量库准入任务体的 CPU 时间与
-     执行墙钟之比，池或单元声明为 `COMPUTE` 而比值偏低时给出证据，未声明的任务也覆盖。
-     该比值只是筛查线索，不是阻塞的证明。
+   - **运行时低 CPU 筛查**：runtime 级常开，测量条目或单元声明为 `COMPUTE` 的库准入任务体，按条目
+     判定，单元只用于归因与漂移（[ADR 0010](0010-always-on-workload-fit-screening.md)）。该比值只是
+     筛查线索，不是阻塞的证明。
 5. 诊断只记录日志或进入报告，MUST NOT 让任务失败。
 
 机制细节、阈值、告警文案与契约条目已于 2026-10-30 落地到活契约：
 [API 与选项 §3.2.1](../design/task-group-api-and-options.md) 与
-[线程池饥饿观测契约](../design/thread-pool-starvation-observation.md)，以活契约为准。提案原文按编号
+[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准。提案原文按编号
 `P0025-workload-fit-diagnostics` 从 git 历史取回。
 
 ## Alternatives Considered
@@ -86,7 +88,8 @@
 - 运行时筛查是启发式的：GC、safepoint、CPU 配额限流会压低比值，自旋会抬高比值；阈值需实测校准，
   不承诺跨环境稳定。
 - 计算任务进阻塞池只在两侧都声明时被发现。
-- 观测窗口内每个任务体多两次线程 CPU 计时读取；JVM 不支持或未开启线程 CPU 计时时，筛查不可用。
+- 条目或单元声明为 `COMPUTE` 的任务体多两次线程 CPU 计时读取（[ADR 0010](0010-always-on-workload-fit-screening.md)）；
+  JVM 不支持或未开启线程 CPU 计时时，筛查不可用。
 - 动态拼接的单元名会让提交时告警按名字分别记录，直到去重上限；单元名应使用固定业务名。
 
 ## Reconsider When

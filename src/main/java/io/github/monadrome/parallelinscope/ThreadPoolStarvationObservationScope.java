@@ -33,14 +33,6 @@ import org.jspecify.annotations.Nullable;
  * bounded and conservative: a long CPU-bound task can produce the same signal, so the report does
  * not claim a dependency cycle.
  *
- * <p>While open, the scope also screens library-admitted task bodies for workload fit: each body's
- * thread CPU time is compared with its execution time and reported per entry and unit name in
- * {@link ThreadPoolStarvationReport#workloadMeasurements()}. Only a body that starts and finishes
- * while the scope is open counts; one still running at close, or whose clock reading failed, is
- * reported as excluded. Outside every
- * open scope a body pays one volatile read; inside one it pays two CPU-clock and two wall-clock
- * reads. Direct executor work is still never wrapped or measured.
- *
  * @since 0.4.0
  */
 public final class ThreadPoolStarvationObservationScope implements AutoCloseable {
@@ -58,7 +50,6 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
     private final AtomicReference<@Nullable Throwable> samplingFailure = new AtomicReference<>();
     private final AtomicReference<@Nullable SettableFuture<@Nullable Void>> samplingCompletion =
             new AtomicReference<>();
-    private final WorkloadFit.Window workloadWindow;
 
     ThreadPoolStarvationObservationScope(ParRuntime owner, Duration interval, Map<ParId, ExecutorRuntime> runtimes) {
         this.owner = checkNotNull(owner, "owner cannot be null");
@@ -73,7 +64,6 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                 scheduled.cancel(false);
             }
         }
-        this.workloadWindow = owner.workloadFit().open();
     }
 
     /** Returns the immutable report published when this scope closes. */
@@ -101,7 +91,6 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             }
             Error finalSamplingError = null;
             try {
-                WorkloadFit.Result workload = owner.workloadFit().close(workloadWindow);
                 awaitSampling();
                 try {
                     finalSample();
@@ -114,7 +103,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                 Throwable failure = samplingFailure.get();
                 Error samplingError = failure instanceof Error ? (Error) failure : finalSamplingError;
                 try {
-                    reportSink.set(report(workload));
+                    reportSink.set(report());
                 } catch (RuntimeException | Error publicationFailure) {
                     if (samplingError == null) {
                         throw publicationFailure;
@@ -207,7 +196,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
         }
     }
 
-    private ThreadPoolStarvationReport report(WorkloadFit.Result workload) {
+    private ThreadPoolStarvationReport report() {
         List<ThreadPoolStarvationReport.Evidence> evidence = new ArrayList<>();
         List<String> unsupported = new ArrayList<>();
         for (ObservedExecutor executor : executors) {
@@ -224,10 +213,7 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
                 samples.get(),
                 samplingInterval,
                 evidence,
-                workload.measurements(),
                 unsupported,
-                workload.unlabeledPars(),
-                workload.cpuTimeAvailable(),
                 failure == null ? null : failureMessage(failure));
     }
 

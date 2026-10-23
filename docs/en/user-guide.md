@@ -133,11 +133,11 @@ It feeds two diagnostics:
   `INFO` for the reverse. The message only says that the declarations disagree, and it is logged from
   a runtime-owned thread, so a log handler that throws or blocks never affects the submission; messages
   are delivered independently and may appear out of submission order. The runtime remembers
-  at most 1024 such pairs; after that it logs one summary and counts further mismatches in
-  `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`. Use fixed unit names, not names built per call.
-- **Low-CPU screening.** An open starvation observation compares each library-admitted body's thread
-  CPU time with its execution time; see [Screen workload fit](#workload-fit). This catches blocking
-  work its author did not know about, which a declaration alone cannot.
+  at most 1024 such pairs; after that it logs one summary and no further mismatch of a new pair. Use
+  fixed unit names, not names built per call.
+- **Low-CPU screening.** The runtime always compares the thread CPU time of bodies admitted through a
+  `COMPUTE` entry or unit with their execution time; see [Screen workload fit](#workload-fit). This
+  catches blocking work its author did not know about, which a declaration alone cannot.
 
 ### Combine a batch into one result {#batch-combine}
 
@@ -518,6 +518,56 @@ assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 
 The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs a body inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
 
+## Screen workload fit {#workload-fit}
+
+A body that blocks inside a compute pool — hidden JDBC, synchronous logging, a later-added RPC —
+holds one of few threads while using little CPU. Declare the pool's purpose and the runtime screens
+it all the time; no scope has to be opened:
+
+```java
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .build();
+
+WorkloadFitReport report = global.workloadFitReport();
+for (WorkloadFitReport.ParMeasurement par : report.pars()) {
+    if (par.issue()) {
+        log.warn("Low CPU use on a compute pool: {}", par);
+    }
+    for (WorkloadFitReport.UnitMeasurement unit : par.units()) {
+        log.info("{} on {}: CPU/execution {}", unit.unit(), par.par(), unit.cpuToExecutionRatio());
+    }
+}
+```
+
+The runtime times only the bodies whose entry or unit is declared `COMPUTE`, comparing each body's
+thread CPU time with its execution time (time running, not queued). It judges every entry's totals in
+epochs of ten seconds of execution time: the first epoch whose CPU time is below half its execution
+time sets `issue()` for the runtime's lifetime and logs one `WARNING` from a runtime-owned thread.
+Judging the whole entry catches blocking spread over many small units, and judging per epoch keeps a
+regression after a long healthy period from being diluted. `units()` attributes the totals to up to
+256 unit names per entry; bodies of further units count only in `unattributedBodies()`. A unit
+declared `COMPUTE` is judged the same way for `suspectedDeclarationDrift()`, logged once at `INFO`;
+drift never sets `issue()`.
+
+Counts are cumulative and never decrease, so the difference between two reports measures the
+interval between them. Undeclared and `BLOCKING` work is never timed and pays nothing, work
+submitted directly with `execute` is never measured, and an entry absent from `pars()` was not
+screened. When thread CPU time is unsupported, disabled, or unreadable, screened bodies count in
+`unmeasuredBodies()` and one `WARNING` says so; the library never enables CPU timing itself. A
+screened body pays two thread-CPU and two wall-clock reads plus an atomic update of its unit's and its
+entry's totals.
+
+### Limits {#workload-fit-limits}
+
+- Low CPU use is a screening lead, not proof of blocking: GC, safepoints, CPU quota throttling, and
+  more runnable threads than cores lower the ratio, and spin-waiting raises it. The epoch length and
+  the threshold are internal calibration values, not a stable contract.
+- A body that waits for a nested batch holds its own thread while waiting, which says nothing about
+  the nested batch's pool.
+- Compute work in a blocking pool is found only by the submission-time comparison, when both sides
+  are declared.
+
 ## Observe direct executor work
 
 Task-graph observation covers work admitted through this library. Direct submissions to a registered
@@ -548,11 +598,10 @@ minimum interval of 10 milliseconds. `POTENTIAL_STARVATION` requires a pair of s
 interval apart with every current worker active, queued work present, and no completed-task progress.
 Its evidence is a sticky snapshot of a risk seen during the observation window, including
 `stagnantIntervals()`; recovery does not clear it. `SAMPLING_FAILED` exposes a sampling exception in
-`failureMessage()`, while evidence and a [workload-fit](#workload-fit) `LOW_CPU_UTILIZATION`
-issue take priority, in that order. `NO_ISSUE` means every registered executor was visible, thread
-CPU time was readable, sampling succeeded, and no signal was captured. A wrapper or foreign executor
-appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when neither evidence, a
-workload-fit issue, nor a sampling failure was captured. Keep the scope open for at least two sampling intervals when the
+`failureMessage()`, while evidence takes priority if both occur. `NO_ISSUE` means every registered
+executor was visible, sampling succeeded, and no signal was captured. A wrapper or foreign executor
+appears in `unsupportedExecutors()` and yields `INSUFFICIENT_VISIBILITY` when neither evidence nor a
+sampling failure was captured. Keep the scope open for at least two sampling intervals when the
 backlog is expected to be diagnosed.
 The report also exposes the requested `samplingInterval()` and the count of completed `samples()`.
 Evidence contains capture-time counters; sample the pool again to assess its state at close.
@@ -568,62 +617,8 @@ The example spans ten configured intervals. Early or interrupted close can yield
 a qualifying sample pair; it is not a health assertion. Sampling `Error` is rethrown after report
 publication; retain the future before close to inspect the published report in an error handler.
 
-### Screen workload fit {#workload-fit}
-
-The same scope screens task bodies admitted through this runtime. A body that blocks inside a
-compute pool — hidden JDBC, synchronous logging, a later-added RPC — holds one of few threads while
-using little CPU. Declare the pool's purpose and read the measurements after close:
-
-```java
-ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
-        .build();
-
-ListenableFuture<ThreadPoolStarvationReport> reportFuture;
-try (ThreadPoolStarvationObservationScope observation =
-        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
-    reportFuture = observation.reportFuture();
-    runLoadTest();
-}
-ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
-for (ThreadPoolStarvationReport.WorkloadMeasurement measurement : report.workloadMeasurements()) {
-    if (measurement.issue() || measurement.suspectedDeclarationDrift()) {
-        log.warn("Low CPU use, the body may be waiting: {}", measurement);
-    }
-}
-log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
-```
-
-`workloadMeasurements()` holds one entry per `Par`, unit name, and unit type, with counted
-`bodies()`, `cpuTime()`, `executionTime()` (time running, not queued), `cpuToExecutionRatio()`, and
-`lowCpuBodies()`. Only a body that starts and finishes while the scope is open counts; one still
-running at close, or whose clock reading failed, appears in `excludedBodies()`. Entries sharing one pool and other runtimes are
-measured apart, and work submitted directly with `execute` is never measured.
-
-A measurement with enough samples — currently 20 bodies or one second of execution time — and CPU
-time below half its execution time is an `issue()` when its entry is declared `COMPUTE`. That makes
-the status `LOW_CPU_UTILIZATION` unless starvation evidence was also captured. It is
-`suspectedDeclarationDrift()` when its unit is declared `COMPUTE`; drift alone never changes the
-status. A measurement where neither side is declared `COMPUTE` is a raw measurement only, and
-`unlabeledPars()` lists the entries that contributed bodies without a declaration, so a clean report
-is not mistaken for full coverage. When thread CPU time is unsupported, disabled, or unreadable,
-`cpuTimeAvailable()` is false and the status is never `NO_ISSUE`: it is `INSUFFICIENT_VISIBILITY`
-unless starvation evidence, a low-CPU issue from samples taken while the clocks were readable, or a
-sampling failure ranks higher. The library never enables CPU timing itself.
-
-Outside an open scope a body pays one volatile read. Inside one it pays two thread-CPU and two
-wall-clock reads.
-
 ### Limits
 
-- Low CPU use is a screening lead, not proof of blocking: GC, safepoints, and CPU quota throttling
-  lower the ratio, and spin-waiting raises it. A body that waits for a nested batch holds its own
-  thread while waiting, which says nothing about the nested batch's pool. The thresholds are
-  internal calibration values, not a stable contract.
-- Compute work in a blocking pool is found only by the submission-time comparison, when both sides
-  are declared.
-- A scope keeps one total per entry, unit name, and unit type until it closes. Unit names built per
-  call make a long-lived scope grow without bound; use fixed unit names.
 - The counters are pool-wide: library tasks and direct `execute` tasks count equally, so a long CPU
   or slow I/O library task can produce `POTENTIAL_STARVATION`.
 - `NO_ISSUE` does not rule out deadlock. Empty queues with all workers blocked, `SynchronousQueue`

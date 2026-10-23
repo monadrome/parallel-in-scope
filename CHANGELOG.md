@@ -38,16 +38,16 @@
 - Declare the work an entry carries with `ParRuntime.Builder.register(ParId, ExecutorService,
   TaskType)` and read it with `Par.taskType()`. At admission, a unit whose declared type disagrees
   with its entry's is logged once per entry and unit name, as `WARNING` for a `BLOCKING` unit on a
-  `COMPUTE` entry and `INFO` for the reverse. The runtime remembers at most 1024 pairs and then
-  counts further mismatches in the new `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`.
-- Screen workload fit inside a starvation observation. While a scope is open, each library-admitted
-  body records its thread CPU time and execution time per entry and unit name in
-  `ThreadPoolStarvationReport.workloadMeasurements()`. Low CPU use on a `COMPUTE` entry is the new
-  `LOW_CPU_UTILIZATION` status, a screening lead for blocking work in a compute pool, including work
-  whose author did not know it blocks; low CPU use on a unit declared `COMPUTE` is flagged as
-  suspected declaration drift. `unlabeledPars()` names undeclared entries that ran bodies, and
-  unreadable thread CPU time sets `cpuTimeAvailable()` false and never yields `NO_ISSUE`; without a
-  higher-priority signal the status is `INSUFFICIENT_VISIBILITY`. Outside an open scope a body pays one volatile read; direct executor work is never
+  `COMPUTE` entry and `INFO` for the reverse. The runtime remembers at most 1024 pairs and then logs
+  one summary instead of further new pairs.
+- Screen workload fit all the time with the new `ParRuntime.workloadFitReport()`. The runtime times
+  the bodies admitted through an entry or unit declared `COMPUTE`, comparing thread CPU time with
+  execution time, and judges each entry in epochs of ten seconds of execution time. The first epoch
+  with CPU use below half sets `ParMeasurement.issue()` and logs one `WARNING`: a screening lead for
+  blocking work in a compute pool, including work whose author did not know it blocks. Judging the
+  entry rather than each unit catches blocking spread over many small units. Units are attributed up
+  to 256 per entry, and a unit declared `COMPUTE` is judged for suspected declaration drift. Counts
+  are cumulative; undeclared and blocking work is never timed, and direct executor work is never
   measured.
 
 - Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`

@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.errorprone.annotations.MustBeClosed;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +77,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Monitor quiescenceMonitor = new Monitor();
     private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
     private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
-    private final WorkloadFit workloadFit;
+    private final WorkloadClock workloadClock;
 
     /**
      * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter
@@ -116,8 +117,7 @@ public final class ParRuntime implements AutoCloseable {
 
     private ParRuntime(Builder builder) {
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
-        this.workloadFit =
-                new WorkloadFit(builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock);
+        this.workloadClock = builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock;
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -324,16 +324,14 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Opens a runtime observation of this topology's registered executors and the task bodies
-     * admitted through them.
+     * Opens a runtime observation for direct work submitted to this topology's registered
+     * executors.
      *
      * <p>The scope samples each distinct physical executor at the requested interval and publishes
      * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
      * instances can produce saturation evidence; other registered executors are named in the
-     * report as insufficiently visible. While the scope is open, library-admitted bodies also record
-     * their thread CPU time and execution time for workload-fit screening against each entry's
-     * {@link TaskType}. The observation does not wrap, submit, cancel, or otherwise change user
-     * work.
+     * report as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise
+     * change user work.
      *
      * @param samplingInterval the interval between samples, at least 10 milliseconds
      * @return the closeable observation scope
@@ -519,6 +517,30 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
+     * Returns the current always-on workload-fit screening of the bodies admitted through entries or
+     * units declared {@link TaskType#COMPUTE}.
+     *
+     * <p>The runtime compares each such body's thread CPU time with its execution time and judges each
+     * entry in epochs of ten seconds of execution time; the first epoch with CPU use below half sets
+     * {@link WorkloadFitReport.ParMeasurement#issue()} and logs one {@code WARNING}. Counts are
+     * cumulative, so two reports bound an interval. Bodies of undeclared or blocking work are never
+     * timed, and work submitted directly to an executor is never measured.
+     *
+     * @return the current immutable report
+     * @since 0.4.0
+     */
+    public WorkloadFitReport workloadFitReport() {
+        List<WorkloadFitReport.ParMeasurement> measurements = new ArrayList<>();
+        for (Par par : pars.values()) {
+            WorkloadFitReport.ParMeasurement measurement = par.workload().measurement(par);
+            if (measurement != null) {
+                measurements.add(measurement);
+            }
+        }
+        return new WorkloadFitReport(measurements);
+    }
+
+    /**
      * Returns the in-flight work this topology still tracks: admissions setting up an execution,
      * undrained runs, and open starvation observations. Open observations retain framework
      * services and therefore participate in {@link #awaitQuiescence(Duration)}.
@@ -534,10 +556,7 @@ public final class ParRuntime implements AutoCloseable {
      * incomplete aggregate body-exit signal (one signal per run, covering every body of that run).
      * Open observations retain framework services after runtime close until their reports publish.
      *
-     * <p>The snapshot also counts {@link TaskType} mismatches that were not logged individually
-     * because the runtime's memory of reported mismatches was full.
-     *
-     * <p>The six readings are independent samples of concurrent counters: the snapshot is a
+     * <p>The five readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
      * linearizable state — it must not drive control flow, and it never replaces the quiescence
      * guarantee.
@@ -550,8 +569,7 @@ public final class ParRuntime implements AutoCloseable {
                 activeAdmissions.get(),
                 activeBatches.get(),
                 activeObservations.get(),
-                liveBodySignals.size(),
-                taskTypeMismatches.suppressed());
+                liveBodySignals.size());
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
@@ -663,9 +681,9 @@ public final class ParRuntime implements AutoCloseable {
         return taskTypeMismatches;
     }
 
-    /** The workload-fit screening that open starvation observations record into. */
-    WorkloadFit workloadFit() {
-        return workloadFit;
+    /** The clocks behind always-on workload-fit screening. */
+    WorkloadClock workloadClock() {
+        return workloadClock;
     }
 
     /** Delivers a diagnostic log message off the calling thread; never throws or blocks the caller. */
@@ -776,9 +794,9 @@ public final class ParRuntime implements AutoCloseable {
          * two ids may intentionally use the same physical pool; each entry keeps its own task type.
          *
          * <p>The task type is diagnostic only. Submission compares it with each unit's declared type
-         * and logs a mismatch once per entry and unit name, and an open starvation observation
-         * screens the entry's bodies for low CPU use when it is {@link TaskType#COMPUTE}. It never
-         * changes how the executor is used.
+         * and logs a mismatch once per entry and unit name, and the runtime screens the entry's bodies
+         * for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
+         * ParRuntime#workloadFitReport()}. It never changes how the executor is used.
          *
          * @param id the logical entry id
          * @param executor the executor used by the entry

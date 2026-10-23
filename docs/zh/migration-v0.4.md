@@ -155,10 +155,8 @@ par.map(records, this::score,
   `SmartBlockingQueue` 拒绝它的 combine。批次的 `rejectEnqueue(true)` 只作用于元素，所以 combine
   现在像普通任务一样入队；需要别的处置时，选用其队列与拒绝策略符合要求的 combine `Par`。
 - 可以用 `register(id, pool, TaskType.COMPUTE)` 或 `BLOCKING` 声明每个池的用途。单元声明与条目声明
-  不一致时，按条目与单元名记录一次；打开的线程池饥饿观测会报告 `COMPUTE` 条目上的低 CPU 占用。
-- `ThreadPoolStarvationReport.Status` 新增 `LOW_CPU_UTILIZATION`，`anyIssue()` 对它为 true。
-  `NO_ISSUE` 现在还要求线程 CPU 时间可读；不可读且没有更高优先级的信号时，状态为
-  `INSUFFICIENT_VISIBILITY`。
+  不一致时，按条目与单元名记录一次；runtime 会一直筛查 `COMPUTE` 条目的低 CPU 占用，每个条目记一条
+  `WARNING`，测量值见 `ParRuntime.workloadFitReport()`。`ThreadPoolStarvationReport` 不变。
 
 ## 内部取消 token
 

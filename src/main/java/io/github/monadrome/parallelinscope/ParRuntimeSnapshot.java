@@ -4,8 +4,7 @@ import com.google.errorprone.annotations.Immutable;
 
 /**
  * A diagnostic sample of a {@link ParRuntime}'s shutdown/drain state, produced by {@link
- * ParRuntime#snapshot()}, plus the count of {@link TaskType} mismatches the runtime stopped logging
- * individually.
+ * ParRuntime#snapshot()}.
  *
  * <p>Each field is an independent read of a concurrent counter, so the snapshot is not
  * linearizable: it explains a stuck {@link ParRuntime#awaitQuiescence(java.time.Duration)} to an
@@ -22,21 +21,18 @@ public final class ParRuntimeSnapshot {
     private final int undrainedBatches;
     private final int activeObservations;
     private final int unexitedBodySignals;
-    private final long suppressedTaskTypeMismatches;
 
     ParRuntimeSnapshot(
             boolean closed,
             int activeAdmissions,
             int undrainedBatches,
             int activeObservations,
-            int unexitedBodySignals,
-            long suppressedTaskTypeMismatches) {
+            int unexitedBodySignals) {
         this.closed = closed;
         this.activeAdmissions = activeAdmissions;
         this.undrainedBatches = undrainedBatches;
         this.activeObservations = activeObservations;
         this.unexitedBodySignals = unexitedBodySignals;
-        this.suppressedTaskTypeMismatches = suppressedTaskTypeMismatches;
     }
 
     /** Whether shutdown has begun; new submissions are rejected once true. */
@@ -71,20 +67,6 @@ public final class ParRuntimeSnapshot {
         return unexitedBodySignals;
     }
 
-    /**
-     * Mismatched {@link TaskType} admissions that were counted instead of logged. The runtime logs
-     * a mismatch once per entry and unit name and remembers at most 1024 such pairs; every admission
-     * of a pair it does not remember once it is full is counted here, and the first of them also logs
-     * one summary warning. It stays zero while the runtime meets at most 1024 distinct mismatched
-     * pairs; fixed unit names keep that number small, but a non-zero count does not prove names are
-     * built per call, since many entries sharing one name also add up.
-     *
-     * @since 0.4.0
-     */
-    public long suppressedTaskTypeMismatches() {
-        return suppressedTaskTypeMismatches;
-    }
-
     @Override
     public String toString() {
         return "ParRuntimeSnapshot{closed=" + closed
@@ -92,7 +74,6 @@ public final class ParRuntimeSnapshot {
                 + ", undrainedBatches=" + undrainedBatches
                 + ", activeObservations=" + activeObservations
                 + ", unexitedBodySignals=" + unexitedBodySignals
-                + ", suppressedTaskTypeMismatches=" + suppressedTaskTypeMismatches
                 + '}';
     }
 }

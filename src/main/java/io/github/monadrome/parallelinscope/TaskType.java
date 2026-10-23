@@ -16,9 +16,9 @@ package io.github.monadrome.parallelinscope;
  * <ul>
  *   <li>Submission compares a unit's type with its entry's type. When both are declared and
  *       differ, the library logs the mismatch once per entry and unit name.
- *   <li>An open {@link ThreadPoolStarvationObservationScope} compares the thread CPU time of
- *       library-admitted bodies with their execution time and reports low CPU use where either side
- *       declares {@link #COMPUTE}.
+ *   <li>The runtime always compares the thread CPU time of library-admitted bodies with their
+ *       execution time where either side declares {@link #COMPUTE}, logs low CPU use once, and
+ *       reports it in {@link ParRuntime#workloadFitReport()}.
  * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)

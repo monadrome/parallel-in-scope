@@ -47,6 +47,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskType",
             BASE_PACKAGE + ".TaskUnit",
             BASE_PACKAGE + ".Tuple2",
+            BASE_PACKAGE + ".WorkloadFitReport",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue",
             BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
             // Nested types are named with the binary '$' separator; the visibility of a nested
@@ -55,7 +56,8 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",
-            BASE_PACKAGE + ".ThreadPoolStarvationReport$WorkloadMeasurement",
+            BASE_PACKAGE + ".WorkloadFitReport$ParMeasurement",
+            BASE_PACKAGE + ".WorkloadFitReport$UnitMeasurement",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));

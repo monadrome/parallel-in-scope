@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Context setup (TaskExecutionContext)
  *   <li>Cooperative cancellation checkpoint
  *   <li>Timing metrics published through the task's observation future
- *   <li>Workload-fit timing of the body while a starvation observation is open
+ *   <li>Workload-fit timing of the body when its entry or unit is declared {@code COMPUTE}
  *   <li>Cleanup on completion
  * </ul>
  *
@@ -84,8 +84,8 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /**
-     * Runs the body inside its workload-fit timing. The timing ends before {@link #call()}'s
-     * cleanup begins, and an error from it still leaves that cleanup to run.
+     * Runs the body inside its workload-fit timing, if it is screened. The timing ends before {@link
+     * #call()}'s cleanup begins, and an error from it still leaves that cleanup to run.
      */
     private V callTimed(Callable<V> body) throws Exception {
         WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());

@@ -24,11 +24,10 @@ class TaskTypeMismatchesTest {
         assertThat(mismatches.record(PAR, "load")).isEqualTo(TaskTypeMismatches.Outcome.FIRST);
         assertThat(mismatches.record(PAR, "load")).isEqualTo(TaskTypeMismatches.Outcome.SILENT);
         assertThat(mismatches.record(ParId.of("io"), "load")).isEqualTo(TaskTypeMismatches.Outcome.FIRST);
-        assertThat(mismatches.suppressed()).isZero();
     }
 
     @Test
-    void aFullMemoryReportsTheOverflowOnceAndCountsEveryNewPairAdmission() {
+    void aFullMemoryReportsTheOverflowOnceThenStaysSilent() {
         TaskTypeMismatches mismatches = new TaskTypeMismatches();
         for (int i = 0; i < TaskTypeMismatches.CAPACITY; i++) {
             assertThat(mismatches.record(PAR, "unit-" + i)).isEqualTo(TaskTypeMismatches.Outcome.FIRST);
@@ -38,7 +37,6 @@ class TaskTypeMismatchesTest {
         assertThat(mismatches.record(PAR, "late-a")).isEqualTo(TaskTypeMismatches.Outcome.SILENT);
         assertThat(mismatches.record(PAR, "late-b")).isEqualTo(TaskTypeMismatches.Outcome.SILENT);
         assertThat(mismatches.record(PAR, "unit-7")).isEqualTo(TaskTypeMismatches.Outcome.SILENT);
-        assertThat(mismatches.suppressed()).isEqualTo(3);
     }
 
     @Test
@@ -50,7 +48,6 @@ class TaskTypeMismatchesTest {
                 .filteredOn(outcome -> outcome == TaskTypeMismatches.Outcome.FIRST)
                 .hasSize(1);
         assertThat(outcomes).doesNotContain(TaskTypeMismatches.Outcome.OVERFLOW);
-        assertThat(mismatches.suppressed()).isZero();
     }
 
     @Test
@@ -69,7 +66,6 @@ class TaskTypeMismatchesTest {
                 .count();
         assertThat(first).isEqualTo(TaskTypeMismatches.CAPACITY);
         assertThat(overflow).isEqualTo(1);
-        assertThat(mismatches.suppressed()).isEqualTo((long) threads * perThread - TaskTypeMismatches.CAPACITY);
     }
 
     /**
@@ -104,21 +100,19 @@ class TaskTypeMismatchesTest {
                     .filteredOn(outcome -> outcome == TaskTypeMismatches.Outcome.FIRST)
                     .hasSize(TaskTypeMismatches.CAPACITY);
             assertThat(outcomes).doesNotContain(TaskTypeMismatches.Outcome.OVERFLOW);
-            assertThat(mismatches.suppressed()).isZero();
             assertThat(mismatches.record(PAR, "one-more")).isEqualTo(TaskTypeMismatches.Outcome.OVERFLOW);
-            assertThat(mismatches.suppressed()).isEqualTo(1);
         } finally {
             pool.shutdownNow();
         }
     }
 
     /**
-     * Two new pairs, each admitted twice at once, race for the last free slot. The pair that wins is
-     * remembered once; both admissions of the pair that loses are counted. Each admission is decided
-     * against one consistent state, so the losing pair is never reported silent without being counted.
+     * Two new pairs, each admitted twice at once, race for the last free slot. Each admission is
+     * decided against one consistent state: the pair that wins is reported once, the pair that loses
+     * is never remembered, and the overflow is reported exactly once.
      */
     @Test
-    void twoNewPairsRacingForTheLastSlotCountEveryAdmissionOfTheLoser() throws Exception {
+    void twoNewPairsRacingForTheLastSlotReportOneWinnerAndOneOverflow() throws Exception {
         int rounds = 20_000;
         int threads = 4;
         List<TaskTypeMismatches> tables = new ArrayList<>(rounds);
@@ -161,7 +155,6 @@ class TaskTypeMismatchesTest {
                                 TaskTypeMismatches.Outcome.SILENT,
                                 TaskTypeMismatches.Outcome.SILENT,
                                 TaskTypeMismatches.Outcome.OVERFLOW);
-                assertThat(tables.get(round).suppressed()).as("round %s", round).isEqualTo(2);
             }
         } finally {
             pool.shutdownNow();
