@@ -1,0 +1,117 @@
+{
+  "claims": [
+    {
+      "id": "cancel-commit-before-cancel",
+      "protocol": "CancellationToken bind",
+      "claim": "Committing FAIL_FAST before cancelBoundWork preserves a listener's chance to fix the cause; reversing the order changes attribution.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+      "mutations": [
+        {
+          "find": "                        transitionTo(FAIL_FAST);\n                        cancelBoundWork(allFutures);",
+          "replace": "                        cancelBoundWork(allFutures);\n                        transitionTo(FAIL_FAST);"
+        }
+      ],
+      "tests": "CancellationTokenTest,TaskGroupCombineGuardCancellationTest,TaskGroupConvergenceTest",
+      "expect": "failure"
+    },
+    {
+      "id": "first-wins-cancellation",
+      "protocol": "CancellationToken first-wins",
+      "claim": "A cancellation that wins first fixes the token state and cause; later transitions must not rewrite it. The bind race test uses two latches to release cancellation paths together.",
+      "method": "existing-test",
+      "tests": "CancellationTokenBindRaceTest",
+      "expect": "pass",
+      "note": "Latch-gated race test; a mutation for the state CAS is still desirable."
+    },
+    {
+      "id": "group-barrier-increment-last",
+      "protocol": "TaskGroup convergence barrier",
+      "claim": "The completedTasks increment must stay last so a converging thread sees the classification, cascade, and fail-fast before it counts a task.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "mutations": [
+        {
+          "find": "            if (completedTasks.incrementAndGet() == totalTasks) {\n                converge();\n            }\n",
+          "replace": ""
+        },
+        {
+          "find": "        if (!member.counted.compareAndSet(false, true)) {\n            return;\n        }\n        try {",
+          "replace": "        if (!member.counted.compareAndSet(false, true)) {\n            return;\n        }\n        if (completedTasks.incrementAndGet() == totalTasks) {\n            converge();\n        }\n        try {"
+        }
+      ],
+      "tests": "TaskGroupConvergenceTest",
+      "expect": "failure"
+    },
+    {
+      "id": "sliding-window-phantom-index",
+      "protocol": "SlidingWindowSubmitter claim/handoff",
+      "claim": "The range check and getAndIncrement are separate; the cancellation getAndSet(size) can leave a phantom index. Removing the range guard must make the stress test observe an index past the end.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java",
+      "mutations": [
+        {
+          "find": "while (nextIndex.get() < size && freeSlots.get() > 0) {",
+          "replace": "while (freeSlots.get() > 0) {"
+        }
+      ],
+      "tests": "SlidingWindowClaimRaceTest",
+      "expect": "failure",
+      "note": "The test hammers 3000 rounds because the interleaving cannot be gated externally."
+    },
+    {
+      "id": "queue-count-before-head-next",
+      "protocol": "DrainingBlockingQueue peek/poll",
+      "claim": "Reading count before head.next provides the happens-before edge to a concurrent enqueue; reversing the reads can produce a spurious null.",
+      "method": "needs-jcstress",
+      "tests": "",
+      "note": "JMM claim; a single-threaded or latch test does not exercise the reordering. Needs jcstress or a JMM-aware harness."
+    },
+    {
+      "id": "runtime-admission-vs-close",
+      "protocol": "ParRuntime admission/close",
+      "claim": "Startup preparation, binds, and submission are one admission against close; removing the admission counter must let a close race the startup and be detected by the runtime tests.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+      "mutations": [
+        {
+          "find": "    private void enterAdmission() {\n        while (true) {\n            if (closed.get()) throw new IllegalStateException(\"ParRuntime is closed\");\n            activeAdmissions.incrementAndGet();\n            if (!closed.get()) return;\n            if (activeAdmissions.decrementAndGet() == 0) {\n                shutdownServicesWhenAdmissionsComplete();\n            }\n        }\n    }\n",
+          "replace": "    private void enterAdmission() {\n        if (closed.get()) throw new IllegalStateException(\"ParRuntime is closed\");\n    }\n"
+        }
+      ],
+      "tests": "ParRuntimeTest,ParRuntimeGlobalSlotTest",
+      "expect": "failure"
+    },
+    {
+      "id": "taskbatch-observation-publication",
+      "protocol": "TaskBatch.finishCombined observation publication",
+      "claim": "finishCombined waits out the observation publication barrier; removing the observationsReady wait must make the publication-barrier test fail.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+      "mutations": [
+        {
+          "find": "        BodyCompletionTracker.awaitSettledUninterruptibly(observationsReady, budget, start, \"batch observation signal\");\n",
+          "replace": "        // publication wait removed by the race-claim harness\n"
+        }
+      ],
+      "tests": "TaskBatchObservationBarrierTest",
+      "expect": "failure"
+    },
+    {
+      "id": "taskgroup-observation-publication",
+      "protocol": "TaskGroup.awaitBodyCompletion observation publication",
+      "claim": "A true awaitBodyCompletion result must wait until every member observation future carries the final snapshot; removing the observation loop must make a test fail.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "mutations": [
+        {
+          "find": "        long budgetNanos = Deadlines.saturatedNanos(timeout);\n        for (MemberState member : membersAndTerminal) {\n            if (!BodyCompletionTracker.awaitSettled(\n                    member.view.observationView(), budgetNanos, startNanos, \"member observation signal\")) {\n                return false;\n            }\n        }\n        return true;",
+          "replace": "        return true;"
+        }
+      ],
+      "tests": "TaskGroupBodyCompletionTest",
+      "expect": "failure",
+      "note": "This claim is separate from the TaskBatch finishCombined path."
+    }
+  ]
+}
