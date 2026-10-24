@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | 性能 | ~~P-P0~~ | ~~已取消的 deadline 永不从定时器队列移除~~ **已修复 `9f8867c`** | 实测 | — |
 | 性能 | P-P1 | `Par.submit` 单价路径成本是批量路径的 2.4× | 实测 | 中 |
-| 性能 | P-P2 | batch 结果对象无条件预建观测聚合 | 读码 | 低-中 |
+| 性能 | ~~P-P2~~ | ~~batch 结果对象无条件预建观测聚合~~ **已修复（0.4）** | 读码 | — |
 | 性能 | P-P3 | 单个 task future 可达即钉住整批跟踪状态 | 读码 | 中低 |
 | 性能 | P-P4 | `remove(Object)` 两趟遍历（分配半项已修复 `96fa94d`） | 读码 | 低 |
 | 性能 | P-P5 | 队列包 5 项零散开销（节点分配在锁内等） | 读码 | 低 |
@@ -68,13 +68,12 @@
   但必须保持"外层聚合是唯一同时覆盖任务 future 与 submitCanceller 的可取消句柄"。
 - **风险**：中——落在取消传播核心路径，按仓库惯例需独立对抗性审查。
 
-### P-P2 · `TaskBatchResult` 无条件预建观测聚合
+### P-P2 · 无条件预建批次观测聚合——已修复（0.4）
 
-`TaskBatchResult.java:59` 在构造时无条件调用 `aggregateObservations`（`:69-93`）：O(N) 监听器注册，
-成功后再做一次全量 `ImmutableList.copyOf`（`:83`，Guava 返回的本就是 `unmodifiableList`）。
-
-- **影响**：只用 `results()`/`valuesOrThrow()`/`report()` 的调用方白付；失败批次连堆栈一起被钉住。
-- **修复**：`completionView` 惰性化（`awaitBodyCompletion` 触发初始化）。
+生产同步出口现在等待不收集值的观测发布屏障；内部完整观测列表只有被请求时才构造。
+冻结仍逐项读取可用观测并结合落定归因，保留缺失项与共享清理预算。现行不变量见
+[同步出口契约](design/synchronous-scope-exit.md)；其他结果投影与统计优化仍在
+[P0027](design/proposal/P0027-result-projection-measurement.md) 测量范围内。
 
 ### P-P3 · 大 batch 的常驻内存
 

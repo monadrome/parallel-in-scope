@@ -63,9 +63,10 @@ List<Account> accounts = batch.valuesOrThrow();
 ImmediateResult<Account> first = batch.results().get(0);
 ```
 
-输入顺序固定；null 或空输入返回成功的空结果。调用期间不可结构性修改 List，其他集合在
-入口复制。函数保持 JDK Function；业务受检异常须在函数内处理，需要 Callable 的单任务
-用单成员组。
+输入顺序固定；null 或空输入返回成功的空结果。所有非空输入集合（包括 List）在准备任务前
+浅复制为不可变快照；复制期间不要无同步地修改非并发集合。null 输入元素会在任何任务执行前
+被拒绝，但 mapper 成功返回 null 仍然合法。映射使用 JDK `Function`，受检业务异常须在函数内
+处理；需要 `Callable` 的单任务使用单成员组。
 
 `.parallelism(n)` 的显式值必须为正，否则入口抛 IllegalArgumentException；缺省值为
 Integer.MAX_VALUE，表示不设额外上限——解析时被任务总数封顶，即整批一次性提交。需要

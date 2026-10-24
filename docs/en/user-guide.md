@@ -73,8 +73,10 @@ List<Account> accounts = batch.valuesOrThrow();
 ImmediateResult<Account> first = batch.results().get(0);
 ```
 
-Inputs are in input order; null or empty input produces an empty successful result. A List must not
-be structurally mutated during execution; other collections are snapshotted. Mapping uses JDK
+Inputs are kept in input order; null or empty input produces an empty successful result. Every
+nonempty input collection, including a List, is shallow-copied into an immutable snapshot before
+preparing tasks. Do not mutate a non-concurrent collection during that copy. Null input elements
+are rejected before any task runs; successful mapper results may still be null. Mapping uses JDK
 `Function`, so checked business exceptions must be handled inside the function. Single tasks
 requiring `Callable` use a single-member group.
 

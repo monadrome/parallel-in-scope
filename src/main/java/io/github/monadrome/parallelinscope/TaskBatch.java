@@ -3,6 +3,8 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.collect.Maps.toImmutableEnumMap;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -42,7 +44,11 @@ final class TaskBatch<T> implements AutoCloseable {
     private final BodyCompletionTracker bodyCompletion;
     private final @Nullable CancellationToken token;
     private final @Nullable Duration closeGrace;
-    private final ListenableFuture<List<TaskCompletion<T>>> completionView;
+    /** Publication barrier for synchronous exits, without an aggregated observation value. */
+    private final ListenableFuture<?> observationsReady;
+
+    /** Shared full-list view, initialized only for internal observation requests. */
+    private final Supplier<ListenableFuture<List<TaskCompletion<T>>>> completionView;
 
     private TaskBatch(
             ListenableFuture<?> submitCanceller,
@@ -55,7 +61,14 @@ final class TaskBatch<T> implements AutoCloseable {
         this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
         this.token = token;
         this.closeGrace = closeGrace;
-        this.completionView = aggregateObservations(this.results);
+        ImmutableList.Builder<ListenableFuture<TaskCompletion<T>>> observations =
+                ImmutableList.builderWithExpectedSize(this.results.size());
+        for (TaskFuture<T> element : this.results) {
+            observations.add(((Task<T>) element).observationView());
+        }
+        ImmutableList<ListenableFuture<TaskCompletion<T>>> inputs = observations.build();
+        this.observationsReady = Futures.whenAllSucceed(inputs).call(() -> null, MoreExecutors.directExecutor());
+        this.completionView = Suppliers.memoize(() -> aggregateObservations(inputs));
     }
 
     /**
@@ -65,14 +78,9 @@ final class TaskBatch<T> implements AutoCloseable {
      * never fail, so a failure here is an implementation defect and fails the sink loudly instead
      * of leaving it pending.
      */
-    private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(List<TaskFuture<T>> results) {
+    private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(
+            List<ListenableFuture<TaskCompletion<T>>> observations) {
         SettableFuture<List<TaskCompletion<T>>> sink = SettableFuture.create();
-        List<ListenableFuture<TaskCompletion<T>>> observations = new ArrayList<>(results.size());
-        for (TaskFuture<T> element : results) {
-            // Every element handed to this constructor is the library's own Task view; the
-            // constructor is package-private, so no foreign TaskFuture can reach this cast.
-            observations.add(((Task<T>) element).observationView());
-        }
         Futures.addCallback(
                 Futures.allAsList(observations),
                 new FutureCallback<List<TaskCompletion<T>>>() {
@@ -166,7 +174,7 @@ final class TaskBatch<T> implements AutoCloseable {
     /** Waits out the body-exit and element-observation barriers within the cleanup budget. */
     private void awaitBarriers(long budget, long start) {
         BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
-        BodyCompletionTracker.awaitSettledUninterruptibly(completionView, budget, start, "batch observation signal");
+        BodyCompletionTracker.awaitSettledUninterruptibly(observationsReady, budget, start, "batch observation signal");
     }
 
     /**
@@ -256,7 +264,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * @return the batch observation future
      */
     public ListenableFuture<List<TaskCompletion<T>>> completionFuture() {
-        return completionView;
+        return Verify.verifyNotNull(completionView.get());
     }
 
     /**
@@ -430,7 +438,8 @@ final class TaskBatch<T> implements AutoCloseable {
         // be: the publication barrier fires on the same signals this method just waited out, but a
         // future's get() waiters can wake before its listeners run. Wait out that window too, so a
         // true result guarantees completionFuture() already carries the final snapshots.
-        return BodyCompletionTracker.awaitSettled(completionView, budgetNanos, startNanos, "batch observation signal");
+        return BodyCompletionTracker.awaitSettled(
+                completionFuture(), budgetNanos, startNanos, "batch observation signal");
     }
 
     /**
