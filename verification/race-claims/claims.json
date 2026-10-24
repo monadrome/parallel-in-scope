@@ -13,16 +13,17 @@
         }
       ],
       "tests": "CancellationTokenTest,TaskGroupCombineGuardCancellationTest,TaskGroupConvergenceTest",
-      "expect": "failure"
+      "expect": "failure",
+      "note": "TaskGroupConvergenceTest.firstWriterNamesTheGroupUnderConcurrentMemberFailures asserts USER_FAILURE, directly exercising the attribution window."
     },
     {
       "id": "first-wins-cancellation",
       "protocol": "CancellationToken first-wins",
-      "claim": "A cancellation that wins first fixes the token state and cause; later transitions must not rewrite it. The bind race test uses two latches to release cancellation paths together.",
+      "claim": "A transition that loses the state CAS must not rewrite the terminal state or notify listeners; CancellationTokenTest.losingStateTransitionDoesNotNotifyListeners asserts the state stays CANCELLED and exactly one notification fires.",
       "method": "existing-test",
-      "tests": "CancellationTokenBindRaceTest",
+      "tests": "CancellationTokenTest#losingStateTransitionDoesNotNotifyListeners",
       "expect": "pass",
-      "note": "Latch-gated race test; a mutation for the state CAS is still desirable."
+      "note": "The bind race test uses one start latch for cancel vs bind, not two cancellation transitions; it does not prove first-wins. This test directly asserts the losing transition."
     },
     {
       "id": "group-barrier-increment-last",
@@ -41,46 +42,32 @@
         }
       ],
       "tests": "TaskGroupConvergenceTest",
-      "expect": "failure"
+      "expect": "failure",
+      "note": "Reduced suite TaskGroupConvergenceTest; convergenceSnapshotPublishesEveryMemberClassificationAndTimestamp asserts the snapshot. The earlier larger-suite timeout was not claim-specific."
     },
     {
       "id": "sliding-window-phantom-index",
       "protocol": "SlidingWindowSubmitter claim/handoff",
-      "claim": "The range check and getAndIncrement are separate; the cancellation getAndSet(size) can leave a phantom index. Removing the range guard must make the stress test observe an index past the end.",
-      "method": "mutation",
-      "file": "src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java",
-      "mutations": [
-        {
-          "find": "while (nextIndex.get() < size && freeSlots.get() > 0) {",
-          "replace": "while (freeSlots.get() > 0) {"
-        }
-      ],
-      "tests": "SlidingWindowClaimRaceTest",
-      "expect": "failure",
-      "note": "The test hammers 3000 rounds because the interleaving cannot be gated externally."
+      "claim": "The cancellation getAndSet(size) can land between the drain loop's range check and getAndIncrement, so the increment observes the phantom index size; handoff's index >= size guard is what prevents tasks.get(size).",
+      "method": "code-proof",
+      "proof": "The single drain holder reads nextIndex == size-1, so the loop condition passes. Cancellation wins settled and executes nextIndex.getAndSet(size). The holder's getAndIncrement() returns size and stores size+1. Without handoff's index >= size guard, tasks.get(size) is out of bounds. draining admits one claimant, normal claims stop at size, and only the winning cancellation performs getAndSet, so the phantom index is exactly size.",
+      "note": "The 3000-round stress test did not kill the range-check mutation because the handoff guard is the actual guard; the test is insensitive. A deterministic seam is still needed for dynamic proof."
     },
     {
       "id": "queue-count-before-head-next",
       "protocol": "DrainingBlockingQueue peek/poll",
-      "claim": "Reading count before head.next provides the happens-before edge to a concurrent enqueue; reversing the reads can produce a spurious null.",
-      "method": "needs-jcstress",
-      "tests": "",
-      "note": "JMM claim; a single-threaded or latch test does not exercise the reordering. Needs jcstress or a JMM-aware harness."
+      "claim": "Reading count before head.next provides the happens-before edge to a concurrent enqueue; reversing the reads can produce a spurious null on a non-empty queue.",
+      "method": "code-proof",
+      "proof": "Enqueue performs the plain linked-node write last = last.next = node before the volatile read-modify-write on count. A consumer that reads a positive count participates in the volatile write/read pair, so the node link and node initialization happen before its subsequent plain head.next read. Head advancement requires takeMonitor, which peek/poll hold, so a positive count cannot legitimately yield a null first node. Reversing the reads permits: consumer reads head.next == null, producer links the node and increments count, consumer reads the positive count but uses its earlier null.",
+      "note": "jcstress would be optional dynamic corroboration of a JMM proof, not a prerequisite."
     },
     {
       "id": "runtime-admission-vs-close",
       "protocol": "ParRuntime admission/close",
-      "claim": "Startup preparation, binds, and submission are one admission against close; removing the admission counter must let a close race the startup and be detected by the runtime tests.",
-      "method": "mutation",
-      "file": "src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
-      "mutations": [
-        {
-          "find": "    private void enterAdmission() {\n        while (true) {\n            if (closed.get()) throw new IllegalStateException(\"ParRuntime is closed\");\n            activeAdmissions.incrementAndGet();\n            if (!closed.get()) return;\n            if (activeAdmissions.decrementAndGet() == 0) {\n                shutdownServicesWhenAdmissionsComplete();\n            }\n        }\n    }\n",
-          "replace": "    private void enterAdmission() {\n        if (closed.get()) throw new IllegalStateException(\"ParRuntime is closed\");\n    }\n"
-        }
-      ],
-      "tests": "ParRuntimeTest,ParRuntimeGlobalSlotTest",
-      "expect": "failure"
+      "claim": "The entire startup (prepare, binds, submit) is one admission against close; a close racing startup cannot retire the deadline scheduler between the group bind and a tighter member bind.",
+      "method": "code-proof",
+      "proof": "Without the admission, startup can read closed == false, then close can set closed and shut down services while startup is still preparing, binding, or submitting. The real enterAdmission increments first and rechecks closed; a close after the recheck sees a positive admission count and cannot retire services until the matching exit.",
+      "note": "The earlier mutation removed the increment but left whileOpen's unconditional decrement, so it corrupted activeAdmissions and failed ordinary quiescence tests; that result was a false positive, not proof of the close/startup race."
     },
     {
       "id": "taskbatch-observation-publication",
@@ -111,7 +98,7 @@
       ],
       "tests": "TaskGroupBodyCompletionTest",
       "expect": "failure",
-      "note": "This claim is separate from the TaskBatch finishCombined path."
+      "note": "Real by code review: ScopedCallable publishes body exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitBodyCompletion, so it cannot exercise the window; needs a deterministic test."
     }
   ]
 }
