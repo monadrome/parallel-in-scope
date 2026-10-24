@@ -22,11 +22,14 @@ evidence.
 python3 scripts/check-race-claims.py
 python3 scripts/check-race-claims.py --id cancel-commit-before-cancel
 python3 scripts/check-race-claims.py --timeout 300
+python3 scripts/check-race-claims.py --fresh   # discard previous results
 ```
 
 The main worktree is never modified. Each mutation runs in a temporary
 `git worktree` at `HEAD`; results are written incrementally to
-`target/race-claims/results.json` (not tracked).
+`target/race-claims/results.json` (not tracked). A single-claim run merges its
+result by id instead of overwriting the rest of the matrix; use `--fresh` to
+start over.
 
 ## Result meanings
 

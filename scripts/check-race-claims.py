@@ -71,6 +71,7 @@ def classify_mutation(result) -> tuple[str, str]:
 
 
 def record(results: list[dict], entry: dict) -> None:
+    results[:] = [existing for existing in results if existing["id"] != entry["id"]]
     results.append(entry)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     (RESULTS_DIR / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
@@ -112,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--id", action="append", help="run only the named claim; repeatable")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="per-claim Maven timeout")
+    parser.add_argument("--fresh", action="store_true", help="discard previous results before running")
     args = parser.parse_args(argv)
 
     data = json.loads(CLAIMS.read_text(encoding="utf-8"))
@@ -120,7 +122,13 @@ def main(argv: list[str] | None = None) -> int:
         print("no matching claims", file=sys.stderr)
         return 1
 
+    results_path = RESULTS_DIR / "results.json"
     results: list[dict] = []
+    if not args.fresh and results_path.exists():
+        try:
+            results = json.loads(results_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            results = []
     for claim in claims:
         record(results, run_claim(claim, args.timeout))
 

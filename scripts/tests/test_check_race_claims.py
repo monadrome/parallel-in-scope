@@ -5,7 +5,9 @@ classification, and the registry shape. They never create a git worktree or run
 Maven; the expensive reverse-verification is the script's own run.
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -91,6 +93,22 @@ class ClassifyTest(unittest.TestCase):
     def test_timeout_is_proven_timeout(self):
         result = subprocess.TimeoutExpired(cmd="mvn", timeout=1)
         self.assertEqual(race.classify_mutation(result)[0], "PROVEN_TIMEOUT")
+
+
+class RecordTest(unittest.TestCase):
+    def test_record_merges_by_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            original = race.RESULTS_DIR
+            race.RESULTS_DIR = Path(temporary)
+            try:
+                results = [{"id": "a", "result": "PROVEN", "note": ""}]
+                with contextlib.redirect_stdout(io.StringIO()):
+                    race.record(results, {"id": "b", "result": "UNPROVEN", "note": ""})
+                    race.record(results, {"id": "a", "result": "UNPROVEN", "note": "updated"})
+                self.assertEqual(len(results), 2)
+                self.assertEqual(next(r for r in results if r["id"] == "a")["result"], "UNPROVEN")
+            finally:
+                race.RESULTS_DIR = original
 
 
 class RegistryTest(unittest.TestCase):
