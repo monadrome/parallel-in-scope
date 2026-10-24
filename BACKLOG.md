@@ -18,18 +18,21 @@
 **证据强度**：`实测` = 跑过程序拿到数字；`复核` = 经独立模型验证；`读码` = 静态追踪。
 修复前请按仓库惯例复核每条（含本文件中的引用行号）。
 
+**性能条目状态复核**（2026-10-31，`dev/v0.4.0` @ `2ccb9ab`）：P-P2、P-P7 已完成；P-P1、P-P3、
+P-P6 按当前源码更新了影响面与行号，均未重新实测。其余条目的行号仍以各自记录的基线为准。
+
 ## 总览
 
 | 区 | 编号 | 一句话 | 证据 | 代价 |
 |---|---|---|---|---|
 | 性能 | ~~P-P0~~ | ~~已取消的 deadline 永不从定时器队列移除~~ **已修复 `9f8867c`** | 实测 | — |
-| 性能 | P-P1 | `Par.submit` 单价路径成本是批量路径的 2.4× | 实测 | 中 |
+| 性能 | P-P1 | `Par.submit` 单价路径仍无快路径；旧 2.4×只是历史分配量，且当前仅测试调用 | 历史实测+读码 | 中 |
 | 性能 | ~~P-P2~~ | ~~batch 结果对象无条件预建观测聚合~~ **已修复（0.4）** | 读码 | — |
-| 性能 | P-P3 | 单个 task future 可达即钉住整批跟踪状态 | 读码 | 中低 |
+| 性能 | P-P3 | 内部 task future 可达时钉住整批跟踪状态（公开结果不可达） | 读码 | 中低 |
 | 性能 | P-P4 | `remove(Object)` 两趟遍历（分配半项已修复 `96fa94d`） | 读码 | 低 |
 | 性能 | P-P5 | 队列包 5 项零散开销（节点分配在锁内等） | 读码 | 低 |
-| 性能 | P-P6 | 热路径 6 项常数开销 | 读码 | 低 |
-| 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
+| 性能 | P-P6 | 热路径常数开销（6 项，部分只影响特定配置） | 读码 | 低 |
+| 性能 | ~~P-P7~~ | ~~每批次一个阻塞 submitter 线程，跑在无界 cached pool~~ **已修复（完成事件补窗）** | 读码 | — |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
 | API | ~~A-P1~~ | ~~`CancellationToken` 是不可达的公开类型~~ **已修复：包私有化（0.4）** | 复核 | — |
 | API | ~~A-P2~~ | ~~诊断断言无作用域时静默返回 `false`~~ **已关闭：随请求级观测一并删除（0.4）** | 复核 | — |
@@ -59,14 +62,20 @@
 
 ### P-P1 · `Par.submit` 单价路径没有快路径
 
-`CancellationToken.bind`（`CancellationToken.java:149/161/165`）对一次提交建**三个**聚合 future
-并调度一次定时器；`Par.map` 每批只建一次（摊薄），`Par.submit` 每任务建一次。
+`CancellationToken.bind`（`CancellationToken.java:228-245`）对一次绑定仍建两层
+`successfulAsList` 和一层 `allAsList`，正常有限 deadline 路径还读两次时钟
+（`CancellationToken.java:232,261`）。`Par.map` 按批摊薄，`Par.submit` 每任务建一次；
+但当前 `Par.submit` 已无主源码调用方（`Par.java:389`），只有包内测试使用，公开用户影响不再成立。
 
-- **实测**：`Par.submit` **4578 B/op、2727 ns/op**；`Par.map` 每元素 **1935 B/op**（2.4×）。
-  参照：裸 `direct.execute(noop)` 16 ns / 0 B。
-- **修复**：`futures.size() == 1` 时走快路径（`bind` 的返回值只用于保留，四个调用点都不读值），
-  但必须保持"外层聚合是唯一同时覆盖任务 future 与 submitCanceller 的可取消句柄"。
-- **风险**：中——落在取消传播核心路径，按仓库惯例需独立对抗性审查。
+- **历史实测**：旧探针记录 `Par.submit` 4578 B/op、2727 ns/op，`Par.map` 每元素 1935 B/op；
+  “2.4×”是分配量比值，不是延迟比值。该探针为非 JMH best-of-3，且比较大量独立单任务与单一批次，
+  不能作为当前收益证明。
+- **旧修复前提已失效**：`bind` 返回值现在交给 `runtime.retainUntilComplete`
+  （`Par.java:407-410,454-456`），不再是“调用点都不读值”。快路径若恢复，必须同时保留
+  “外层聚合是唯一覆盖任务 future 与 submitCanceller 的可取消句柄”和完成保留契约。
+- **状态**：机制仍在，未重新实测。先确认这个仅测试调用的内核入口是否仍值得性能投入；
+  若保留，再用当前版本比较单任务与单元素/小批次，并覆盖 deadline、fail-fast、pre-bind cancel
+  与 submitCanceller 级联。
 
 ### P-P2 · 无条件预建批次观测聚合——已修复（0.4）
 
@@ -77,12 +86,18 @@
 
 ### P-P3 · 大 batch 的常驻内存
 
-`TaskObservation.settledSnapshot`（`TaskObservation.java:45,55-69`）发布后不清空，
-`BodyCompletionTracker.slots` 也不释放；经 `Task → TaskObservation → supplier → TaskExecutionContext`
-链条，**任一已完成 task future 可达即钉住整批**跟踪状态。
+`TaskObservation.settledSnapshot` 是 final，发布后不清空（`TaskObservation.java:43-46,186-192`）；
+`BodyCompletionTracker.slots` 也是 final，`release()` 只完成 `bodyExit`，不清空列表
+（`BodyCompletionTracker.java:46,87-92`）。经
+`Task → TaskObservation.supplier → TaskExecutionContext → TaskBodyState → BodyCompletionTracker`
+链条，**任一已完成内部 task future 可达即钉住整批槽位**。
 
-- **修复**：在 `publish` 获胜路径置空 supplier（**`publishSkipped` 路径不能清**，否则后续 `signal()` NPE）；
-  `slots` 在 outstanding 归零时释放。
+- **影响面已收窄**：`TaskFuture` 是包私有类型，公开同步结果只暴露冻结的 `ImmediateResult` /
+  `TaskCompletion` 数据（`TaskFuture.java:7-15`），用户拿不到这个 task future。当前后果限于内核或
+  包内测试仍持有已完成 Task 的路径，尚未证明存在生产可达的长期持有者。
+- **状态**：机制仍在，未重新实测。下一步用 GC/WeakReference 或反射保留探针确认完成批次后是否有
+  生产路径保留内部 Task；若没有，关闭或降级本项。若确认有，才评估在发布获胜路径释放 supplier
+  与在 outstanding 归零时释放 slots，并保持 `publishSkipped` 的后续 `signal()` 行为。
 
 ### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费——分配半项**已修复 `96fa94d`**
 
@@ -105,19 +120,31 @@
 
 ### P-P6 · 热路径常数项（读码）
 
-`Checkpoints.java:537`（无 deadline 也读 `nanoTime`）、`CancellationToken.java:43-47`
-（`stateListeners` 永远分配）、`CancellationToken.java:150,166`（`bind` 读两次时钟）、
-`MultiTaskContext.java:50`（unitId 字符串拼接）、`TaskOptions.java:94,112`（每次提交 2 个 `Optional` + `UnitSpec`）、
-`Par.java:285` → `ExecutorRuntime.java:110-113`（每次提交重算 `rejectEnqueueEffective()`）。
+- 无 deadline 也读时钟：`Checkpoints.java:572-592` → `CancellationToken.deadlineExpired()`
+  （`CancellationToken.java:191-193`）无条件读 `ticker`；旧行号已失效。
+- `stateListeners` 永远分配：每个 token 创建 `CopyOnWriteArrayList`（`CancellationToken.java:52`）。
+- `bind` 读两次时钟：正常、有限且未过期 deadline 路径读两次（`CancellationToken.java:232,261`）；
+  无 deadline 不走第二次。
+- unitId 字符串成本：每 unit 一次 `String.valueOf(...)`，不再是旧文所指字符串拼接
+  （`MultiTaskContext.java:181-190`）。
+- options 载体：当前每次调用是 1 个 `Optional` 加 1 个 `UnitSpec`，不是 2 个 `Optional`
+  （`TaskOptions.java:86-89,101-104`）。
+- enqueue 能力检查：只有显式 `rejectEnqueue=true` 才调用
+  `ExecutorRuntime.enqueueRefusalEffective()`（`Par.java:487-489`；`ExecutorRuntime.java:98-100`），
+  默认提交路径没有这次队列查询；旧“每次提交重算”表述已失效。
 
-### P-P7 · 每批次一个阻塞 submitter 线程，跑在无界池上
+以上均未重新实测；建议随小批次/小组准入一起测量，避免逐项凭读码优化。
 
-`SlidingWindowSubmitter` 每批向 `submitterPool` 提交一个 `submitRemaining`（`:145`），该线程
-阻塞在 `blockingQueue.take()`（`:247`）等待窗口推进；池是无界 `Executors.newCachedThreadPool`
-（`ParRuntime.java:99`；`:98` 的 `timeoutActionPool` 同）。并发批次数大时线程规模与资源假设
-无任何文档。
+### P-P7 · 每批次一个阻塞 submitter 线程，跑在无界池上——**已修复（完成事件补窗）**
 
-- **修复**：提交器改用固定池或复用调度线程；至少把资源假设写进文档。
+`SlidingWindowSubmitter` 现由元素完成事件驱动的 `RefillDriver` 认领下一元素
+（`SlidingWindowSubmitter.java:105-141,247-369`），不再为每批保留等待补窗的
+`submitRemaining` 线程，也没有 `submitterPool`。框架等待补窗线程的成本不再随并发批次数增长。
+
+- **回归**：`SlidingWindowResourceBoundTest` 锁住“阻塞的有限窗口批次不驻留 submitter 线程”，
+  基线反证为 24 条等待线程、修复后为 0；契约见
+  [sliding-window-refill.md](design/sliding-window-refill.md)。
+- 本项只覆盖 submitter 池；`timeoutActionPool` 等其他运行时线程池不在此条范围内。
 
 ---
 
@@ -220,8 +247,9 @@ Guava 的 SEVERE 日志里。
 **同步化重构后的复核**（`d01bf4e` "make scope execution synchronous" + `fd5c310`，复核于 `8523f64`）：
 批次与组改为同步出口（`Par.map` 阻塞返回冻结的 `TaskBatchResult`；组用 `runAll()` 返回
 `TaskGroupResult`），**O-1 已被该重构取代**（下文的 `close()`/阻塞实测不再适用），O-6/O-7/O-8 的
-证据按下述更新，其余条目仍成立（个别行号已更新）。P/A 明细的行号仍以 `c9f4c19` 为基准；
-P-P1/P-P2/P-P3 在重构后复核仍存在。
+证据按下述更新，其余条目仍成立（个别行号已更新）。P/A 明细原先以 `c9f4c19` 为基准；
+P-P1/P-P3/P-P6 已于 2026-10-31 按 `2ccb9ab` 复核更新影响面，P-P2 已由 0.4 同步出口修复。
+其余条目行号仍可能漂移。
 
 | 编号 | 一句话 | 类别 | 证据 | 代价 |
 |---|---|---|---|---|
@@ -418,7 +446,8 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 1. ~~**用户使用速修（O 组）**~~ **已完成（2026-10-02）**：O-4（告警文案）、O-10（README 任务组示例）；
    O-9（`@since`）仍开放。O-1 已随同步化重构关闭，O-2 已修复（工作区）。
-2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
+2. **性能线**：P-P2、P-P7 已完成。剩余先测 P0027 的公开冻结结果读取，再做 P-P3 的内部保留审计；
+   P-P1、P-P6 在代表性实测前不进入实现。
 3. **公开面收敛（破坏性，合成一次变更）**：A-P1（`CancellationToken` 孤岛）与 A-P6（零调用公开成员），
    A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
    同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P2 已随请求级观测关闭，
