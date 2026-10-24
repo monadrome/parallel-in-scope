@@ -308,7 +308,8 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
 `mvn spotless:check` 通过）：
 
 - `@CheckReturnValue`：`BatchOptions`、`TaskOptions`、`GroupStart`、`GroupStep`、
-  `CombinedGroupStep` 类/接口级。
+  `CombinedGroupStep` 类/接口级。（2026-10-31 追加：`ParRuntime.group()`/
+  `groupInheriting()` 方法级，见下方记录。）
 - `@CanIgnoreReturnValue`：`GroupStart.closeGrace/cancelOn` 及 `GroupDraft.Start`
   的实现；四个 `orThrow()` 也允许独立用于失败检查，初版的五处内部抑制已全部移除。
 - `@Immutable`：`TaskOptions`、`TaskKey`、`ParId`；无 Immutable 诊断。
@@ -321,11 +322,13 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
   `WARN`（`pom.xml` 的 `-Xep:MustBeClosedChecker:WARN`）。
   `TaskBatchResultBodyCompletionTest` 的一处改为 try-with-resources；复审另修复
   `ParRuntimeTest` 在全局安装失败时未关闭额外 runtime 的真阳性。
-- `@VisibleForTesting`：`ExecutionPhaseHintFuture.callableReleased`、
-  `ScopedCallable.delegateReleased`、`TaskGroup.callableReleasedAt/callableReleased`、
+- `@VisibleForTesting`：`ScopedCallable.delegateReleased`、
+  `TaskGroup.callableReleasedAt/callableReleased`、
   `TaskGroup.RunBindings.taskSlotCleared/combineSlotCleared`、
   `ParRuntime.Builder.ticker/timeoutScheduler`、
   `ParRuntime.runtimes/runtimesByIdentity`。
+  （`ExecutionPhaseHintFuture.callableReleased` 曾在此清单，2026-10-31 移除——
+  `TaskGroup` 探针在生产类中调用它，见下方记录。）
 - 删除测试中 33 处 `// NullAway: deliberate null arguments` 重复注释。
 - `ExecutorWaitAdmissionTest.aTopLevelGroupRecordsNoWait` 不再忽略 `runAll()`，
   改为断言 `outcome() == SUCCESS`。
