@@ -16,6 +16,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.annotations.MustBeClosed;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -376,6 +377,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
+    @CheckReturnValue
     public GroupStart group(String groupName, Duration timeout) {
         return groupDraft(groupName, timeout);
     }
@@ -397,6 +399,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws NullPointerException if {@code groupName} is null
      * @throws IllegalArgumentException if the name is blank
      */
+    @CheckReturnValue
     public GroupStart groupInheriting(String groupName) {
         return groupDraftInheriting(groupName);
     }
