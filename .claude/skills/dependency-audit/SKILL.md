@@ -23,8 +23,9 @@ description: Triage the monthly dependency audit. Use when the user asks about o
 1. Read the latest report, in this order:
    - `gh issue list --label dependency-audit --state open --json number,body`
    - or `python3 scripts/check-dependency-updates.py --format json`
-2. Do not re-check items with `status: current`, `managed`, `not_used`, or
-   `unpinned`. They are already classified.
+2. Do not re-check items with `status: current`, `managed`, `accepted`,
+   `not_used`, or `unpinned`. They are already classified. `accepted` items are
+   recorded in `scripts/dependency-audit-exceptions.json`; do not re-open them.
 3. For each `status: needs_review`, `unknown`, or `outdated` item:
    - Find the release notes and the minimum Java version.
    - Check for removed or changed APIs, deprecations, and behavior changes that

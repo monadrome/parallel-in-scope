@@ -239,6 +239,54 @@ class PypiTest(unittest.TestCase):
         self.assertIn("unsupported", unsupported.reason)
 
 
+class ExceptionsTest(unittest.TestCase):
+    def test_apply_exceptions_matches_module(self):
+        items = [
+            updates.Item(
+                "maven-dependency",
+                "demo",
+                "org.junit.jupiter:junit-jupiter",
+                "5.14.4",
+                "6.1.3",
+                "major",
+                "needs_review",
+            ),
+            updates.Item(
+                "maven-dependency",
+                "root",
+                "org.junit.jupiter:junit-jupiter",
+                "6.1.3",
+                "6.1.3",
+                "none",
+                "current",
+            ),
+        ]
+        exceptions = [
+            {
+                "kind": "maven-dependency",
+                "component": "org.junit.jupiter:junit-jupiter",
+                "module": "demo",
+                "reason": "ADR 0011",
+            }
+        ]
+        updates.apply_exceptions(items, exceptions)
+        self.assertEqual(items[0].status, "accepted")
+        self.assertIn("ADR 0011", items[0].reason)
+        self.assertEqual(items[1].status, "current")
+
+    def test_load_exceptions_missing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            self.assertEqual(updates.load_exceptions(Path(temporary)), [])
+
+    def test_load_exceptions_invalid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            (root / "scripts" / "dependency-audit-exceptions.json").write_text("{bad", encoding="utf-8")
+            with self.assertRaises(updates.FatalAuditError):
+                updates.load_exceptions(root)
+
+
 class RenderTest(unittest.TestCase):
     def setUp(self):
         self.items = [
