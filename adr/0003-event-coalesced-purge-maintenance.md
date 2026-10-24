@@ -95,6 +95,7 @@ reclaim running tasks or govern permanently blocked workers.
 
 ## History
 
-Condensed on 2026-10-27; the previous full text is `git show 1eeaaf0:adr/0003-event-coalesced-purge-maintenance.md`.
+Condensed on 2026-10-27; the previous full text is
+[archive/0003-event-coalesced-purge-maintenance.md](archive/0003-event-coalesced-purge-maintenance.md).
 Removed: the threshold formula block and the lazy-expiry marker layout (kept as one-line
 rules above), and the `ParConfig` accessor and JUL level details.

@@ -24,7 +24,7 @@ principle 10); this file governs only the ADR format.
   edit that text in place so the older record no longer states the overturned
   rule: state the current rule in one line, name the successor ADR inline, and
   add it to `Partially superseded by`. Keep the rest of the record as decided;
-  the successor holds the reasoning, and git history holds the previous wording.
+  the successor holds the reasoning, and `archive/` holds the previous wording.
 
 ## Condensing Records
 
@@ -39,9 +39,9 @@ Records may be condensed so that outdated content does not pose as current:
 - Keep the terms the decision was made in; where a type was later renamed, add
   the current name once (`GlobalPar` (now `ParRuntime`)). Facts that changed
   after the decision go in a dated note, not into the original reasoning.
-- End a condensed record with a `History` section naming the commit whose tree
-  holds the previous full text (`git show <hash>:adr/<file>`) and listing what
-  was removed.
+- End a condensed record with a `History` section linking the file under
+  `archive/` that holds the previous full text and listing what was removed.
+  Never cite a commit hash or line numbers for retrieval.
 
 ## Required Content
 

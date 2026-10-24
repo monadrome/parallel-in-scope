@@ -26,5 +26,5 @@ TaskOutcome outcome = result.resultOf("member").outcome();
 
 验收必须以晚到或不执行 timer 的受控时钟分别验证真实胜出事件与仅时间经过，覆盖失败优先级、
 独立紧预算、继承预算、嵌套与未到期输入。不得以历史压力次数或评审共识代替新政策选择。
-历史输入为 PR #56 的 `04b46a9`、`4edf3ea`、`3e91d36`、`4a66581`；其原论证由 P0015 的 git
-历史取回。[批次落定契约](../batch-settle-attribution.md) 仍是当前约束。
+历史输入为 PR #56 的四轮修订（`04b46a9`、`4edf3ea`、`3e91d36`、`4a66581`）；其原论证
+未入库。[批次落定契约](../batch-settle-attribution.md) 仍是当前约束。

@@ -116,7 +116,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 1. **没有任何公开 API 返回或接受 `CancellationToken`。** `src/main` 中除自身外的引用全部
    是包私有：`Task`（:39,:60,:69,:78,:130）、`TaskBatch`（:51,:257）、`TaskGroup`（:137）、
    `TaskObservation`（:97,:208）、`MultiTaskContext`（包私有类）、`TokenOutcomes`（包私有类）、
-   `Checkpoints.java:525` 局部变量。用户**拿不到**库实际使用的任何一个 token 实例。
+   `Checkpoints.java` 局部变量。用户**拿不到**库实际使用的任何一个 token 实例。
 2. **v0.3 已经关闭了外部使用的前提**：token `final`、`bind(...)` 包私有、所有挂接点
    （`timeoutCancel`/`failFastCancel`/`addStateListener`）包私有。
 3. **`State` 的正确消费方式也是包私有的**（`shouldInterruptCurrentThread()`）；外部拿到
@@ -125,7 +125,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
    `group(name, timeout)`）与 `ParRuntime.close()` 承担；归因走 `TaskOutcome` 八值
    （`TaskGroupResult.outcome()` / `ImmediateResult.outcome()`）。`Checkpoints` 读的是内核
    安装的 token，与用户构造的 token 无任何关系。
-5. **demo 的引用全部在注释里**（`CancellationDemo.java:27` 等 5 处），无代码依赖；
+5. **demo 的引用全部在注释里**（`CancellationDemo.java` 等 5 处），无代码依赖；
    测试引用全在同包（包私有化后照常编译）。
 
 **改前用户能写出的"最好"代码：**
@@ -158,7 +158,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 - `CancellationToken`、`CancellationToken.State` 去掉 `public`；构造器、`create()` 与方法随之
   包私有化（同包测试不受影响）。
 - `PublicApiSurfaceTest` 期望清单减 2 条。
-- `Checkpoints.java:23` 类级 javadoc 的 `{@link CancellationToken}` 改为 `{@code}` 或文字
+- `Checkpoints.java` 类级 javadoc 的 `{@link CancellationToken}` 改为 `{@code}` 或文字
   （公开 API 的 javadoc 不得链接包私有类型）。
 - 文档措辞同步：
   - `docs/*/reference/nullability-annotations.md`：en:32 / zh:29,32 用 `CancellationToken`
@@ -200,7 +200,7 @@ task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随�
 | 项 | 保留理由 | 证据 |
 |---|---|---|
 | `Tuple2.of` | 用户为公开 SPI `CombineBody` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
-| `ImmediateResult.succeeded`/`failed` | user-guide en:193-197 已记载语义；内核 `TaskGroup.java:251,261` 在用 | user-guide |
+| `ImmediateResult.succeeded`/`failed` | user-guide（en）已记载语义；内核 `TaskGroup.java` 在用 | user-guide |
 | `ImmediateResult.asFuture()` | demo 最高频引用形式（约 42 处方法引用），Guava 组合的逃生口 | demo + user-guide en:477 |
 | `Checkpoints.checkRunnable`/`checkSupplier` | 与无参族语义不同（不恢复中断标志、抛带 cause 的 `CancellationException`），泛型翻译逃生口；**但零文档**——行动项是补 reference 文档，不是删除 | `CheckpointsTest`/`CheckpointsOutcomeTest` |
 | `Checkpoints` 阻塞适配器族、`rawCheckpoint`、`checkpoint(String, boolean)`、`sleep(long)` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |

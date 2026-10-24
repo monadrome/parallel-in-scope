@@ -113,7 +113,8 @@ listening adapter。同一个池被两个独立 `GlobalPar` 使用时，两个�
 
 ## History
 
-2026-10-27 蒸馏；此前全文见 `git show 1eeaaf0:adr/0005-globalpar-executor-binding.md`。删除：
+2026-10-27 蒸馏；此前全文见
+[archive/0005-globalpar-executor-binding.md](archive/0005-globalpar-executor-binding.md)。删除：
 `GlobalExecutionPolicy`/`BatchExecutionOptions`/`BatchExecutionContext`/`TaskExecutionContext`/
 `ExecutorRuntime` 的字段与 API 草图、`ThreadRelay` 传播项与 `TaskEdge` 字段、purge registry 与
 purge 策略、错误模型与观测字段清单、典型使用示例、现有概念处理表、W0–W6 实施任务拆解、验收标准、

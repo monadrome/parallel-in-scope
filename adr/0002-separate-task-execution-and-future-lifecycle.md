@@ -200,7 +200,7 @@ concurrency framework.
 ## History
 
 Condensed on 2026-10-27; the previous full text is
-`git show 1eeaaf0:adr/0002-separate-task-execution-and-future-lifecycle.md`. Removed: the
+[archive/0002-separate-task-execution-and-future-lifecycle.md](archive/0002-separate-task-execution-and-future-lifecycle.md). Removed: the
 capability tables of each wrapper, the `ListenableCompletionService` API, the placeholder,
 `submitCanceller`, and abandoned-placeholder rules, the `lateBind` wiring list, the `Par.bind`
 rules, the `Checkpoints` operation list, the `AsyncBatchResult` fields, the automatic purge

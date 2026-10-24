@@ -49,8 +49,8 @@
 
 机制细节、阈值、告警文案与契约条目已于 2026-10-30 落地到活契约：
 [API 与选项 §3.2.1](../design/task-group-api-and-options.md) 与
-[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准。提案原文按编号
-`P0025-workload-fit-diagnostics` 从 git 历史取回。
+[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准。提案原文见
+[archive/P0025-workload-fit-diagnostics.md](../design/archive/P0025-workload-fit-diagnostics.md)。
 
 ## Alternatives Considered
 

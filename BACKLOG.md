@@ -177,7 +177,8 @@ Guava 的 SEVERE 日志里。
 用户可以 `new CancellationToken()` 后 `cancel()`——编译通过、运行无副作用。
 
 - 附带：`State`（6 常量）与 `TaskOutcome`（8 常量）是两套部分重叠的词汇表。
-- 指南也在讲用户拿不到的对象：`user-guide.md:412`（已在 `1ba1937` 修）、`cooperative-cancellation.md:86`。
+- 指南也在讲用户拿不到的对象：`docs/en/user-guide.md`（已在 `1ba1937` 修）、
+  `docs/en/reference/cooperative-cancellation.md`。
 - `design/extension-and-wrapping.md` 的唯一扩展点是任务体本身，未把它列为扩展点 → 判定为内核泄漏。
 - **修复**：类型 + `State` 包私有化。破坏面：`ParRuntime.java:547` 的 javadoc 链接、
   `PublicApiSurfaceTest` 两行、同包测试不受影响。
@@ -354,7 +355,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ### O-13 · 纯超时批次的 `failedTaskResult()` 恒为空
 
-来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余（全文 `git show cacf590:design/analysis/kimi-review-0.3.0-snapshot.md`），2026-10-02 按当前 HEAD 复核仍成立。
+来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余（全文 [design/analysis/archive/kimi-review-0.3.0-snapshot.md](design/analysis/archive/kimi-review-0.3.0-snapshot.md)），2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
 但 `TaskBatchResult.failedTaskResult()`（原 `report().firstException()`）只取用户/提交失败，纯超时批次为空；
 `orThrow()` 此时抛首个非成功元素的取消异常。
@@ -420,11 +421,11 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ## 待决策
 
-1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不入库。** 4 个探针
-   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）曾随 `a3ac144` 短暂进入 `benchmarks/`，
-   按 `design/decision-log.md` 所载 caller-runs 拍板（benchmark 暂缓、源文件
-   未收入库；拍板全文 `git show db2ab2d:design/archive/caller-runs-support-after-inline-deletion.md`）移出工作树；复现性能数字时从 `a3ac144` 的历史取回
-   （`git show a3ac144:benchmarks/Bench.java` 等），`/tmp/pisbench/` 副本可弃。
+1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不作构建或发布产物维护。** 4 个探针
+   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）的源码归档在
+   [design/archive/benchmarks/](design/archive/benchmarks/)，仅供复现历史性能数字，不参与
+   Maven 构建，也不承诺维护。caller-runs 拍板全文见
+   [design/archive/caller-runs-support-after-inline-deletion.md](design/archive/caller-runs-support-after-inline-deletion.md)。
 2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
