@@ -19,22 +19,28 @@ import java.util.concurrent.TimeoutException;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** The lightweight observation barrier preserves publication, freezing, and optional-view semantics. */
 @Timeout(value = 15, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class TaskBatchObservationBarrierTest {
 
     /** A terminal task still waits within the cleanup budget for its final observation. */
-    @Test
-    void finishWaitsForObservationPublication() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void finishWaitsForObservationPublication(boolean combined) throws Exception {
         SettableFuture<@Nullable Void> publication = SettableFuture.create();
         TaskBatch<Integer> batch = batch(publication, Duration.ofSeconds(5), snapshot());
+        Task<Integer> terminal = (Task<Integer>) batch(Futures.immediateVoidFuture(), Duration.ZERO, snapshot())
+                .results()
+                .get(0);
         ExecutorService caller = Executors.newSingleThreadExecutor();
         CountDownLatch finishing = new CountDownLatch(1);
         try {
             Future<TaskBatchResult<Integer>> frozen = caller.submit(() -> {
                 finishing.countDown();
-                return batch.finish();
+                return combined ? batch.finishCombined(terminal).batchResult() : batch.finish();
             });
             assertThat(finishing.await(2, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> frozen.get(100, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
