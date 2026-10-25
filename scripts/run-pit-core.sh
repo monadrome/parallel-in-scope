@@ -168,6 +168,9 @@ run_batch() {
     printf 'command: %s\n' "$command_text"
   } > "$batch_dir/run-meta.txt"
 
+  # A failed compile or PIT startup must not archive the previous batch's report.
+  rm -f target/pit-reports/mutations.xml
+
   set +e
   "${command[@]}" > "$batch_dir/pit.log" 2>&1
   rc=$?

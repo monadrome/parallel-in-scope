@@ -87,7 +87,9 @@ artifacts without `--force`:
 Each `OUT/batch-<name>/` contains `mutations.xml`, `pit.log`, and `run-meta.txt`.
 The metadata records the commit, working-tree status, JDK, scope, mutators, exact
 command, start/end timestamps, exit status, and whether the XML was archived. The
-runner uses `mvn -o`, so dependencies must already be installed.
+runner removes `target/pit-reports/mutations.xml` before each batch, so a failed
+compile cannot archive an earlier run's report as current evidence. It uses
+`mvn -o`, so dependencies must already be installed.
 
 To reproduce the historical evidence, run the script against the final audit
 revision (`2b2e3ad0`) rather than a later branch tip. For example, in a separate
