@@ -355,7 +355,8 @@ later sessions:
   workspace or run directory in place as an audit trail.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
   the new test fail, then restore the fix.
-- For production behavior changes, tests that change mutation evidence, or
+- For executable production changes (including refactors), mutation-relevant
+  test/helper changes, toolchain or build/PIT configuration changes, or
   investigation of a PIT result, read [PIT verification](verification/pit.md)
   before selecting scope or reporting completion. It owns applicability,
   commands, scope expansion, freshness, dispositions, and acceptance criteria.
