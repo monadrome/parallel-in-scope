@@ -14,14 +14,17 @@ import java.util.concurrent.atomic.AtomicReference;
  * Bounded once-per-pair memory of the submission-time {@link TaskType} mismatches one {@link
  * ParRuntime} has reported.
  *
- * <p>A pair is a {@link Par} and a unit name. The direction needs no key of its own: an entry has
- * one declared type, so every mismatch of a pair points the same way. The memory is one immutable
- * set replaced by compare-and-set, so every admission is decided against a single state: a pair is
- * remembered exactly when its own insertion succeeds, the set never holds more than its capacity,
- * and it never evicts. Once the set is full, the first admission of a pair it does not hold is
- * reported as the overflow and every later one is silent.
+ * <p>A pair is a {@link Par} and a unit name. The memory never exceeds its capacity and never
+ * evicts. A pair is reported once; after capacity is reached, one overflow is reported and later
+ * new pairs are silent.
  */
 final class TaskTypeMismatches {
+    /*
+     * An entry has one declared type, so a pair needs no direction in its key. The immutable set is
+     * replaced by CAS: only the admission whose insertion wins reports the pair; a separate
+     * overflow marker similarly assigns one admission the overflow report.
+     */
+
     static final int CAPACITY = 1024;
 
     /** What the caller should report for one mismatched admission. */
@@ -30,7 +33,10 @@ final class TaskTypeMismatches {
         FIRST,
         /** Nothing to report: the pair was already reported, or the overflow was. */
         SILENT,
-        /** The memory is full and this admission is the first to find it so; report the overflow once. */
+        /**
+         * The memory is full and this admission is the first to find it so; report the overflow
+         * once.
+         */
         OVERFLOW
     }
 

@@ -21,23 +21,25 @@ import org.jspecify.annotations.Nullable;
  * {@link TaskCompletion} snapshot. Publication waits out the window in which the task future is
  * already terminal but the user body's {@code finally} has not run yet: an instrumented task
  * publishes only after its future has settled <em>and</em> its {@link TaskBodyState} slot reached
- * {@code EXITED} or {@code SKIPPED}, so the recorded end time is always final. Tasks determined to
- * never run (rejected or abandoned before submission) are published directly through {@link
- * #publishSkipped} because the prepared future they were prepared with never settles.
- *
- * <p>The two barrier signals arrive on arbitrary threads (the worker, a cancelling thread, or a
- * rejecting submitter); an atomic countdown publishes on whichever signal arrives last, and the
- * happens-before edges of the countdown make the other signal's writes — the final end time, the
- * terminal future state — visible to the publishing thread.
+ * {@code EXITED} or {@code SKIPPED}, so the recorded end time is always final. A submission-failure
+ * snapshot may be published before the task future settles, so a cancellation cascade cannot
+ * replace the recorded handoff failure with a cancellation.
  *
  * <p>User task failure, cancellation, and rejection all complete the observation future
  * <em>successfully</em> with the real outcome data; a publication failure is an implementation
- * defect and must never leave the sink pending. Callers receive a fixed read-only view whose
- * {@code cancel(...)} returns {@code false} and propagates nowhere.
+ * defect and must never leave the sink pending. Callers receive a fixed read-only view whose {@code
+ * cancel(...)} returns {@code false} and propagates nowhere.
  *
  * @param <T> the task result type
  */
 final class TaskObservation<T> {
+    /*
+     * The two barrier signals arrive on arbitrary threads (the worker, a cancelling thread, or a
+     * rejecting submitter); an atomic countdown publishes on whichever signal arrives last, and the
+     * happens-before edges of the countdown make the other signal's writes — the final end time,
+     * the terminal future state — visible to the publishing thread.
+     */
+
     private static final Logger LOGGER = Logger.getLogger(TaskObservation.class.getName());
 
     private final SettableFuture<TaskCompletion<T>> sink = SettableFuture.create();
@@ -113,10 +115,8 @@ final class TaskObservation<T> {
     }
 
     /**
-     * Publishes the never-started snapshot of a task determined to never run — rejected or
-     * abandoned before submission — whose prepared future never settles, so the barrier cannot
-     * fire. Start and end stay zero by construction. First writer wins: a bind that raced the
-     * abandonment keeps whichever snapshot published first.
+     * Publishes the final snapshot of a task prevented from starting. Start and end times are zero.
+     * First writer wins: a concurrent publication keeps whichever snapshot was published first.
      */
     void publishSkipped(TaskOutcome outcome, @Nullable Throwable failure) {
         Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
@@ -130,16 +130,18 @@ final class TaskObservation<T> {
     }
 
     /**
-     * Counts one barrier signal and publishes on the last. Both signals arrive as listeners on the
-     * settling thread, and the settle signal runs ahead of every framework listener on the same
-     * future — a batch element's settle-attribution pin, the token's fail-fast bind. Building the
-     * snapshot can only fail on a broken kernel invariant or an exhausted stack, but Guava's fan-out
-     * stops at the first {@code Error} a listener throws, so a failure escaping here would leave the
-     * listeners behind it unrun: the pin pending and the freeze waiting on it forever. The snapshot
-     * is therefore built inside the guard, and a failure ends this observation exceptionally — a
-     * loud defect for the reader — instead of escaping into the fan-out.
+     * Counts one barrier signal and publishes after every required publication signal arrives.
+     * Snapshot-construction failure completes the observation exceptionally and never escapes into
+     * the task's listener fan-out.
      */
     private void signal() {
+        /*
+         * The settle listener precedes the batch attribution pin and the token's fail-fast bind.
+         * Guava stops listener fan-out on Error, so a snapshot-construction failure escaping here
+         * could leave the attribution pin pending and freeze waiting forever. Build the snapshot
+         * inside the guard and end the observation exceptionally on failure.
+         */
+
         if (pendingSignals.decrementAndGet() == 0) {
             TaskCompletion<T> snapshot;
             try {
@@ -174,16 +176,18 @@ final class TaskObservation<T> {
     /**
      * Publishes the finalized snapshot without letting a caller's listener escape into the path
      * that runs this.
-     *
-     * <p>The sink is caller-reachable through {@link TaskFuture#completionFuture()}, and a listener
-     * registered with a direct executor runs inline here, on whichever thread completed the task.
-     * Guava's listener fan-out catches {@code RuntimeException} but not {@code Error}, and this
-     * method is itself a listener on the task future — registered before the framework's own
-     * completion listener — so an {@code Error} escaping a caller's listener would abort the rest of
-     * the fan-out and the task would never be counted by its group. The snapshot is committed before
-     * Guava runs any listener, so swallowing here cannot lose it.
      */
     private void publish(TaskCompletion<T> snapshot) {
+        /*
+         * The sink is caller-reachable through TaskFuture.completionFuture(), and a listener
+         * registered with a direct executor runs inline here, on whichever thread completed the
+         * task. Guava's listener fan-out catches RuntimeException but not Error, and this method is
+         * itself a listener on the task future — registered before the framework's own completion
+         * listener — so an Error escaping a caller's listener would abort the rest of the fan-out
+         * and the task would never be counted by its group. The snapshot is committed before Guava
+         * runs any listener, so swallowing here cannot lose it.
+         */
+
         try {
             sink.set(snapshot);
         } catch (Throwable failure) {

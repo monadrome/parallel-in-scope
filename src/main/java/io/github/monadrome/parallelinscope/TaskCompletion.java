@@ -14,9 +14,8 @@ import org.jspecify.annotations.Nullable;
  * TaskGroupResult#members()} and {@link TaskGroupResult#terminal()}, contain the actual value,
  * including null. Snapshots inside a {@link TaskGroupReport} do not embed member or combine values;
  * a group summary embeds its report instead. Outcomes agree with the enclosing execution's frozen
- * results. A never-started task has zero start/end times and
- * durations; the zero sentinel is recognized before any subtraction, because ticker readings may
- * legally be negative. Missing observations are represented explicitly by the enclosing result,
+ * results. A never-started task has zero start/end times and durations. Ticker readings may
+ * otherwise be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
  *
  * @since 0.3.0
@@ -79,9 +78,9 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Creates the internal final observation snapshot: the full per-task record with its
-     * real identity, timings, outcome, and — on success — result. The unit id is null when no unit
-     * backs the task, as for a derived fluent view.
+     * Creates the internal final observation snapshot: the full per-task record with its real
+     * identity, timings, outcome, and — on success — result. The unit id is null when no unit backs
+     * the task, as for a derived fluent view.
      */
     static <T> TaskCompletion<T> snapshot(
             String taskName,
@@ -163,11 +162,11 @@ public final class TaskCompletion<T> {
      * Returns the stable identity of the task unit that owned this task, or null when no unit backs
      * the record.
      *
-     * <p>A task that a unit admitted — a single task, a batch element, a group member, or a
-     * combine — always carries one, and every element of one batch or group shares it. It is null
-     * on the two records no unit produces: a group run's own summary, which carries {@link
-     * #groupId()} instead, and a derived fluent view, whose task name is a name and not an
-     * identity.
+     * <p>A task that a unit admitted — a single task, a batch element, a group member, or a combine
+     * — always carries one, and every element of one batch shares it. Each group member and
+     * terminal combine has its own unit id. It is null on the two records no unit produces: a group
+     * run's own summary, which carries {@link #groupId()} instead, and a derived fluent view, whose
+     * task name is a name and not an identity.
      */
     public @Nullable TaskId<TaskUnit> unitId() {
         return unitId;
@@ -177,8 +176,8 @@ public final class TaskCompletion<T> {
      * Returns the identity of the task-group run this record summarizes, or null on every record
      * that is not a group's own summary — see {@link TaskGroup#completionFuture()}.
      *
-     * <p>A group run is not a task unit: it has no body of its own and no {@link TaskNode}, so its
-     * identity is never returned by {@link #unitId()}.
+     * <p>A group run is not a task unit: it has no body of its own, so its identity is never
+     * returned by {@link #unitId()}.
      */
     public @Nullable TaskId<TaskGroupRun> groupId() {
         return groupId;
@@ -215,9 +214,10 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the value embedded in this record, which may be null even on success. Snapshots inside
-     * a group report do not embed member or combine values; a group summary embeds its report
-     * instead. Use {@link #successful()} or {@link #outcome()}, not null, to classify this record.
+     * Returns the value embedded in this record, which may be null even on success. Snapshots
+     * inside a group report do not embed member or combine values; a group summary embeds its
+     * report instead. Use {@link #successful()} or {@link #outcome()}, not null, to classify this
+     * record.
      */
     public @Nullable T result() {
         return result;
@@ -230,8 +230,8 @@ public final class TaskCompletion<T> {
      * TaskOutcome#USER_FAILURE} — including an {@link InterruptedException} or {@link
      * java.util.concurrent.CancellationException} the body raised itself — and, for
      * cancellation-attributed endings such as {@link TaskOutcome#TIMEOUT} or {@link
-     * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome.
-     * Read {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
+     * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome. Read
+     * {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
      * detail.
      */
     public @Nullable Throwable failure() {
@@ -239,7 +239,10 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Checks whether the task was classified as queued.
+     * Returns whether measured queue wait exceeded three milliseconds.
+     *
+     * <p>This timing heuristic does not prove executor queue membership. The threshold is a
+     * diagnostic calibration value and may change between releases.
      *
      * @return {@code true} if the task started and its measured queue wait exceeded the threshold;
      *     a task that never started — including one queued but never handed to a thread — reports
@@ -264,14 +267,14 @@ public final class TaskCompletion<T> {
         return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
     }
 
-    /**
-     * A never-started task records zero for both start and end. The zero sentinel — never the
-     * sign of the clock — decides started-ness, because ticker readings may legally be negative.
+    /*
+     * A never-started task records zero for both start and end. The zero sentinel — never the sign
+     * of the clock — decides started-ness, because ticker readings may legally be negative.
      *
-     * <p>The sentinel is the pair {@code (0, 0)}, so a genuinely started task whose two readings
-     * both happened to be zero is reported as never started. That requires the monotonic clock to
-     * read exactly zero at both the start and end samples, which is unambiguous within a single
-     * tick; the factory convention is that {@code (0, 0)} means "never started".
+     * The sentinel is the pair (0, 0), so a genuinely started task whose two readings both happened
+     * to be zero is reported as never started. That requires the monotonic clock to read exactly
+     * zero at both the start and end samples, which is unambiguous within a single tick; the
+     * factory convention is that (0, 0) means "never started".
      */
     private boolean neverStarted() {
         return startTimeNanos == 0L && endTimeNanos == 0L;

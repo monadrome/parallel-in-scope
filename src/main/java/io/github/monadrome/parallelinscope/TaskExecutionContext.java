@@ -22,8 +22,7 @@ final class TaskExecutionContext {
 
     /**
      * Creates a context carrying the task-body slot registered with the submission's shared
-     * completion tracker; {@code null} only for a task prepared outside any tracked submission,
-     * which production entry points no longer do.
+     * completion tracker; {@code null} denotes a task prepared outside a tracked submission.
      */
     TaskExecutionContext(
             MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {

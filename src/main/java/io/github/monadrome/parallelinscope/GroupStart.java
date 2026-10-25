@@ -10,12 +10,12 @@ import java.util.concurrent.Callable;
  * First stage of a one-shot task-group declaration, returned by {@link ParRuntime#group(String,
  * Duration)} and {@link ParRuntime#groupInheriting(String)}.
  *
- * <p>A group is declared and submitted in a single fluent chain: each {@link #par} states a member's
- * name, its {@link Par}, its declared result type, and <em>this run's</em> body. Nothing executes
- * while the chain is built — no cancellation token, future, deadline, timer, or TTL snapshot exists
- * yet, and no executor is called. {@link #runAll()} is the only admission and submission
- * boundary, and it may be called exactly once: the chain is consumed by the submission and cannot
- * be retried, extended, or reused.
+ * <p>A group is declared and submitted in a single fluent chain: each {@link #par} states a
+ * member's name, its {@link Par}, its declared result type, and <em>this run's</em> body. Building
+ * the chain neither executes work nor captures the execution context. Execution budgets and TTL
+ * context are resolved only when {@code runAll} admits the group. {@link #runAll()} is the only
+ * admission and submission boundary, and it may be called exactly once: the chain is consumed by
+ * the submission and cannot be retried, extended, or reused.
  *
  * <p>This stage carries the whole-group settings that must precede the first member: the group's
  * identity, {@link #closeGrace(Duration)}, and {@link #cancelOn(ListenableFuture, boolean)}.
@@ -24,10 +24,9 @@ import java.util.concurrent.Callable;
  *
  * <p>The draft is mutable and single-threaded: every method, including {@code runAll}, must be
  * called from the thread that created it. The frozen {@link TaskGroupResult} can be used across
- * threads. Holding an earlier stage's reference and continuing from it — after a
- * {@code par}, {@code combine}, or {@code runAll} has already advanced the chain — throws {@link
- * IllegalStateException}, because Java cannot express move semantics and a saved reference is not a
- * second draft.
+ * threads. Holding an earlier stage's reference and continuing from it — after a {@code par},
+ * {@code combine}, or {@code runAll} has already advanced the chain — throws {@link
+ * IllegalStateException}; a saved reference is not a second draft.
  *
  * <p>Implementations are created only by the library; the interface is public so the chain type can
  * be named, not so it can be implemented elsewhere.
@@ -39,8 +38,8 @@ public interface GroupStart {
 
     /**
      * Declares the first member using a reusable typed key. The key supplies the name and type;
-     * lookup must use this exact key object. Names remain unique across the entire group.
-     * No runtime type token is stored or checked.
+     * lookup must use this exact key object. Names remain unique across the entire group. No
+     * runtime type token is stored or checked.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
@@ -72,10 +71,9 @@ public interface GroupStart {
      * {@code interrupt} argument controls interruption of running bodies; it is never inferred from
      * the source's completion. The library does not complete or cancel the source.
      *
-     * <p>Callable only before the first member is declared. Registration happens at admission,
-     * immediately before binding and submission; an empty group returns successfully without
-     * registering. Interruption is cooperative and does not guarantee that arbitrary IO or user code
-     * stops.
+     * <p>Callable only before the first member is declared. The source takes effect at admission,
+     * before any body can start; an empty group returns successfully without registering.
+     * Interruption is cooperative and does not guarantee that arbitrary IO or user code stops.
      *
      * @return this stage, for chaining
      * @throws NullPointerException if {@code signal} is null

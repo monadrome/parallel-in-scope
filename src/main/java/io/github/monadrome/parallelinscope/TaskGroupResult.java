@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Accessors never wait. A terminal result can coexist with a body still unwinding after
  * cancellation; bodyCompletionConfirmed checks direct members and the combine, not nested children.
- * Nested calls must separately confirm exit before releasing resources their bodies share. Missing final
- * observations are omitted, never filled with provisional end times.
+ * Nested calls must separately confirm exit before releasing resources their bodies share. Missing
+ * final observations are omitted, never filled with provisional end times.
  *
  * @param <V> single member value or left-nested Tuple2 of member values
  * @param <R> terminal combine value, or Void when no combine was declared
@@ -98,11 +98,9 @@ public final class TaskGroupResult<V, R> {
     }
 
     /**
-     * The group's absolute deadline, the earlier of its own timeout and any enclosing deadline, on
-     * the clock of its cancellation-token tree — the {@code ParRuntime}'s clock for a root group,
-     * the parent's for a nested one. That clock is not necessarily {@link System#nanoTime()}, so
-     * compare this only with other deadlines of the same runtime. {@link Long#MAX_VALUE} means no
-     * deadline.
+     * The group's absolute deadline, the earlier of its own timeout and any enclosing deadline, in
+     * the execution's monotonic clock domain. Compare it only with deadlines from the same clock
+     * domain; it is not a wall-clock timestamp. {@link Long#MAX_VALUE} means no deadline.
      */
     public long deadlineNanos() {
         return report.deadlineNanos();
@@ -110,9 +108,10 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * How the group as a whole ended. A group with a recorded failure — of a member or of the
-     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code SUBMISSION_FAILURE})
-     * whatever order the tasks completed in; otherwise {@code SUCCESS} or a cancellation outcome
-     * ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}). See {@link TaskOutcome}.
+     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code
+     * SUBMISSION_FAILURE}) whatever order the tasks completed in; otherwise {@code SUCCESS} or a
+     * cancellation outcome ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}).
+     * See {@link TaskOutcome}.
      */
     public TaskOutcome outcome() {
         return report.outcome();
@@ -270,8 +269,8 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * Returns this result on group success; otherwise throws the recorded failure of a member or
-     * the combine — as-is when unchecked, wrapped in {@link CompletionException} when checked — or a
-     * {@link CancellationException} when no task recorded a failure. {@link
+     * the combine — as-is when unchecked, wrapped in {@link CompletionException} when checked — or
+     * a {@link CancellationException} when no task recorded a failure. {@link
      * TaskBatchResult#orThrow()} and {@link BatchCombinedResult#orThrow()} follow the same rule.
      *
      * @return this result

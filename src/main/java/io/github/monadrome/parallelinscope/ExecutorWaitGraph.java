@@ -34,16 +34,18 @@ import org.jspecify.annotations.Nullable;
  * admission records an edge from the executor of the waiting unit to the executor of each unit it
  * synchronously waits for, when both are registered here and the awaited one is starvation-prone.
  * Edges only accumulate, so the graph is bounded by the square of the registered executors.
- *
- * <p>All state is one immutable {@link State} behind an {@link AtomicReference}. A known wait costs
- * one volatile read and a table lookup. New waits of one admission are installed together by a
- * compare-and-set retry loop; the thread whose installation succeeds compares the cyclic components
- * of the state it installed with those of the state it replaced, so every newly formed component is
- * announced by exactly the installation that formed it. Announcements are handed to the runtime's
- * own executor: the admitting thread never calls a logging handler, which may block or re-enter.
- * See {@code design/task-graph.md}.
  */
 final class ExecutorWaitGraph {
+    /*
+     * All state is one immutable State behind an AtomicReference. A known wait costs one volatile
+     * read and a table lookup. New waits of one admission are installed together by a
+     * compare-and-set retry loop; the thread whose installation succeeds compares the cyclic
+     * components of the state it installed with those of the state it replaced, so every newly
+     * formed component is announced by exactly the installation that formed it. Announcements are
+     * handed to the runtime's own executor: the admitting thread never calls a logging handler,
+     * which may block or re-enter. See design/task-graph.md.
+     */
+
     private static final Logger LOGGER = Logger.getLogger(ExecutorWaitGraph.class.getName());
 
     private final ImmutableSetMultimap<ExecutorIdentity, ParId> aliases;
@@ -86,9 +88,9 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * Records that {@code waiter}'s body synchronously waits for both {@code firstAwaited} and {@code
-     * secondAwaited}: the two-target form of {@link #record(TaskNode, int, IntFunction)}, so both new
-     * waits become visible together.
+     * Records that {@code waiter}'s body synchronously waits for both {@code firstAwaited} and
+     * {@code secondAwaited}: the two-target form of {@link #record(TaskNode, int, IntFunction)}, so
+     * both new waits become visible together.
      */
     void record(@Nullable TaskNode waiter, TaskNode firstAwaited, TaskNode secondAwaited) {
         if (waiter == null) {
@@ -117,10 +119,10 @@ final class ExecutorWaitGraph {
     /**
      * Records one admission: {@code waiter}'s body synchronously waits for every unit read through
      * {@code awaitedAt} at indices {@code [0, awaitedCount)}. The accessor must be total over that
-     * range and return non-null units. A top-level admission, without a waiter, records nothing. The
-     * admission's new waits become visible together. A failure of the recording itself is reported
-     * asynchronously and never fails the admission; a failure while reading the units discards the
-     * whole admission.
+     * range and return non-null units. A top-level admission, without a waiter, records nothing.
+     * The admission's new waits become visible together. A failure of the recording itself is
+     * reported asynchronously and never fails the admission; a failure while reading the units
+     * discards the whole admission.
      */
     void record(@Nullable TaskNode waiter, int awaitedCount, IntFunction<TaskNode> awaitedAt) {
         if (waiter == null) {
@@ -154,8 +156,8 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * The executor of {@code target} when this admission records a new edge from {@code from} to it, or
-     * null when the target is ineligible for an edge or the edge is already known.
+     * The executor of {@code target} when this admission records a new edge from {@code from} to
+     * it, or null when the target is ineligible for an edge or the edge is already known.
      */
     private @Nullable ExecutorIdentity newWaitTarget(
             ExecutorIdentity from, TaskNode target, Table<ExecutorIdentity, ExecutorIdentity, Wait> known) {
@@ -237,9 +239,9 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * The shortest cycle through the first member, restricted to the component. A lone member is its
-     * own self-loop; a larger component skips the first member's self-loop so the cycle shows how the
-     * members wait on one another.
+     * The shortest cycle through the first member, restricted to the component. A lone member is
+     * its own self-loop; a larger component skips the first member's self-loop so the cycle shows
+     * how the members wait on one another.
      */
     private static List<ExecutorIdentity> cycleThrough(List<ExecutorIdentity> members, Graph<ExecutorIdentity> graph) {
         ExecutorIdentity start = members.get(0);
@@ -309,7 +311,10 @@ final class ExecutorWaitGraph {
             return EMPTY;
         }
 
-        /** This state plus every wait in {@code added} it lacks; this same instance when it lacks none. */
+        /**
+         * This state plus every wait in {@code added} it lacks; this same instance when it lacks
+         * none.
+         */
         State with(List<Wait> added, ExecutorWaitGraph owner) {
             ImmutableTable.Builder<ExecutorIdentity, ExecutorIdentity, Wait> builder = ImmutableTable.builder();
             builder.putAll(waits);
@@ -343,10 +348,10 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * The cyclic strongly connected components of {@code waits}, ordered by the registration order of
-     * their first member. Two executors share a component exactly when each reaches the other; a lone
-     * executor is cyclic only through a self-loop. Reachability is computed once per node, so the
-     * cost is polynomial in the registered executors.
+     * The cyclic strongly connected components of {@code waits}, ordered by the registration order
+     * of their first member. Two executors share a component exactly when each reaches the other; a
+     * lone executor is cyclic only through a self-loop. The implementation computes reachability
+     * once per node.
      */
     private ImmutableList<ExecutorWaitReport.Component> cyclicComponents(
             ImmutableTable<ExecutorIdentity, ExecutorIdentity, Wait> waits) {

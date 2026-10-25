@@ -18,14 +18,6 @@ import org.jspecify.annotations.Nullable;
  * The mutable declaration state behind one fluent group chain, shared by every stage object the
  * chain hands back.
  *
- * <p>Java has no move semantics, so a stage cannot be invalidated by handing off a value: the same
- * {@code GroupDraft} is reachable from every stage object, and each stage carries the sequence
- * number it was minted at. Any mutating or submitting call verifies that the draft is still at that
- * number and then advances it, which is what makes a saved earlier-stage reference, a second
- * submission, or a fork off an old stage fail with {@link IllegalStateException} instead of quietly
- * corrupting the declaration. Compile-time stage separation in the three public interfaces is the
- * ergonomic guard; this is the correctness guard.
- *
  * <p>Declarations are validated as they are made — before any run state exists — and the bodies
  * stay owned by this draft until {@link #submit} moves them into the preparation kernel, which is
  * also where they are released on every failure path.
@@ -33,6 +25,16 @@ import org.jspecify.annotations.Nullable;
  * <p>Not thread-safe by construction: it is usable only from its creating thread.
  */
 final class GroupDraft {
+    /*
+     * Java has no move semantics, so a stage cannot be invalidated by handing off a value: the same
+     * GroupDraft is reachable from every stage object, and each stage carries the sequence number
+     * it was minted at. Any mutating or submitting call verifies that the draft is still at that
+     * number and then advances it, which is what makes a saved earlier-stage reference, a second
+     * submission, or a fork off an old stage fail with IllegalStateException instead of quietly
+     * corrupting the declaration. Compile-time stage separation in the three public interfaces is
+     * the ergonomic guard; this is the correctness guard.
+     */
+
     private final ParRuntime owner;
     private final String name;
     private final @Nullable Duration timeout;

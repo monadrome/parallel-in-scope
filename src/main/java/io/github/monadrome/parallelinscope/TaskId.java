@@ -6,23 +6,21 @@ import java.util.Objects;
 /**
  * Immutable identity of one admitted work unit, typed by the kind of unit it names.
  *
- * <p>The type parameter {@code K} is a phantom tag: it carries no data and appears in no
- * signature, but it makes the identity spaces disjoint at compile time. A {@code
- * TaskId<TaskUnit>} names a task unit — a single task, a {@code Par.map} batch, a group member,
- * or a terminal combine — and a {@code TaskId<TaskGroupRun>} names one run of a task group.
- * Neither converts to the other, so a group id can no longer be filed among unit ids in a map
- * that was meant to hold units.
+ * <p>The type parameter {@code K} is a phantom tag: it carries no data and appears in no signature,
+ * but it makes the identity spaces disjoint at compile time. A {@code TaskId<TaskUnit>} names a
+ * task unit — a single task, a {@code Par.map} batch, a group member, or a terminal combine — and a
+ * {@code TaskId<TaskGroupRun>} names one run of a task group. Neither converts to the other, so
+ * maps typed for one kind reject ids of the other kind at compile time.
  *
  * <p>Equality is on the kind <em>and</em> the label, so {@code TaskId.unit("1")} and {@code
- * TaskId.group("1")} are never equal even though they share a label. Instances are therefore
- * usable as map keys and as {@link TaskNode} identity. Both parts are process-local and for
- * diagnostics only: an id must never be persisted, parsed, or used as a wire format, and {@link
- * #toString()} is a rendering rather than an exchange format.
+ * TaskId.group("1")} are never equal even though they share a label. Instances are therefore usable
+ * as map keys. Both parts are process-local and for diagnostics only: an id must never be
+ * persisted, parsed, or used as a wire format, and {@link #toString()} is a rendering rather than
+ * an exchange format.
  *
- * <p>The library mints ids from one sequence per kind. The factories build an id with a given
- * label, for example to compare against an id the library recorded; an id minted that way carries
- * no claim that any unit ever ran, and the factory is the single validation boundary — a label is
- * never null and never blank, so no consumer repeats that check.
+ * <p>The factories build an id with a given label, for example to compare against an id the library
+ * recorded; an id minted that way carries no claim that any unit ever ran, and a label is never
+ * null or blank.
  *
  * @param <K> the kind of unit this id names: {@link TaskUnit} or {@link TaskGroupRun}
  * @since 0.3.0
@@ -31,7 +29,10 @@ import java.util.Objects;
 @SuppressWarnings("UnusedTypeParameter")
 public final class TaskId<K> {
 
-    /** The identity spaces this library mints; part of the value so cross-kind ids never compare equal. */
+    /**
+     * The identity spaces this library mints; part of the value so cross-kind ids never compare
+     * equal.
+     */
     private enum Kind {
         TASK_UNIT("unit-"),
         TASK_GROUP_RUN("group-");

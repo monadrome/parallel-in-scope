@@ -7,30 +7,31 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Frozen, package-private structure of one group run, produced by {@code GroupDraft#freeze()} at the
- * {@code submitAll()} boundary.
+ * Frozen, package-private structure of one group run, produced by {@code GroupDraft#freeze()} at
+ * the {@code submitAll()} boundary.
  *
- * <p>It is not a public type any more: a group is declared and submitted in one fluent chain, so
- * there is nothing for a caller to reuse or hold. What remains is the shape the preparation kernel
- * needs — the group name, the forced choice between an explicit timeout and an inherited one, the
- * optional close grace and request-cancellation input, the plain member slots in declaration order,
- * and the optional terminal combine slot. Each slot carries its name, the {@link Par} resolved at declaration time, immutable
- * {@link TaskOptions}, and the {@link TaskKey} used for typed result lookup. No runtime type
- * information is retained.
- *
- * <p>Members and the combine arrive as two separate arguments rather than one list tagged by kind,
- * so "at most one combine" is a property of the structure instead of a rule this constructor has to
- * enforce. The declaration layer holds them separately already, and nothing reads them as a single
- * sequence: a tagged list would only be flattened on the way in and split apart again on arrival.
- *
- * <p>The owning runtime is not carried here: the kernel already receives it as an explicit
- * argument, and the draft that builds this structure is bound to that same runtime at creation, so
- * a stored copy could only ever agree with the argument.
+ * <p>The preparation kernel receives the group name, the forced choice between an explicit timeout
+ * and an inherited one, the optional close grace and request-cancellation input, the plain member
+ * slots in declaration order, and the optional terminal combine slot. Each slot carries its name,
+ * the {@link Par} resolved at declaration time, immutable {@link TaskOptions}, and the {@link
+ * TaskKey} used for typed result lookup. No runtime type information is retained.
  *
  * <p>The instance is created only after the declaration is complete and is never mutated, so the
  * kernel can read it without synchronization.
  */
 final class TaskGroupDefinition {
+    /*
+     * Members and the combine arrive as two separate arguments rather than one list tagged by kind,
+     * so "at most one combine" is a property of the structure instead of a rule this constructor
+     * has to enforce. The declaration layer holds them separately already, and nothing reads them
+     * as a single sequence: a tagged list would only be flattened on the way in and split apart
+     * again on arrival.
+     *
+     * The owning runtime is not carried here: the kernel already receives it as an explicit
+     * argument, and the draft that builds this structure is bound to that same runtime at creation,
+     * so a stored copy could only ever agree with the argument.
+     */
+
     private final String name;
     private final @Nullable Duration timeout;
     private final @Nullable Duration closeGrace;
@@ -91,8 +92,8 @@ final class TaskGroupDefinition {
     }
 
     /**
-     * One declared slot: key, the {@link Par} it runs on, and options. A slot
-     * carries no kind tag: it is a member or the combine by virtue of which argument it arrived in.
+     * One declared slot: key, the {@link Par} it runs on, and options. A slot carries no kind tag:
+     * it is a member or the combine by virtue of which argument it arrived in.
      */
     static final class Slot {
         final String name;

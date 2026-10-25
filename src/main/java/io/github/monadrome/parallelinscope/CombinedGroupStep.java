@@ -7,9 +7,8 @@ import com.google.errorprone.annotations.CheckReturnValue;
  *
  * <p>The combine is already declared, so this stage exposes exactly one operation: {@link
  * #runAll()}. Adding a member after the combine, declaring a second combine, or setting a close
- * grace does not compile — which is the point of splitting the chain into three interfaces rather
- * than growing one builder with runtime guards. A saved reference to an earlier stage that tries
- * any of those anyway is rejected by the stale-stage check.
+ * grace does not compile. Continuing through a saved reference to an earlier stage throws {@link
+ * IllegalStateException}.
  *
  * <p>The same one-shot, single-threaded contract as {@link GroupStart} applies.
  *
@@ -24,10 +23,10 @@ public interface CombinedGroupStep<V, R> {
      * Executes the group synchronously; the combine runs after every plain member succeeds.
      *
      * <p>Consumes the draft whether the submission succeeds or fails. A combine that fails, is
-     * rejected by its executor, is skipped because a member failed, or is cancelled is reported
-     * as terminal outcome data. Waiting ignores interruption and restores the interrupt flag;
-     * deadline and ancestor cancellation still apply. Cleanup is bounded by the declared grace
-     * or remaining deadline; check TaskGroupResult.bodyCompletionConfirmed for body exit.
+     * rejected by its executor, is skipped because a member failed, or is cancelled is reported as
+     * terminal outcome data. Waiting ignores interruption and restores the interrupt flag; deadline
+     * and ancestor cancellation still apply. Cleanup is bounded by the declared grace or remaining
+     * deadline; check TaskGroupResult.bodyCompletionConfirmed for body exit.
      *
      * @return the frozen group result
      * @throws IllegalStateException if this stage is stale, the draft was already submitted, or the

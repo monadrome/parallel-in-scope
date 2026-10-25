@@ -17,10 +17,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>{@code RUNNING} means the task claimed execution eligibility; it does not require the user
  * {@code Callable} to have been entered yet. The slot covers the gap between eligibility and body
- * exit. Cancellation, rejection, and window abandonment race the task entry through the same
- * atomic state, so every transition to {@code EXITED} or {@code SKIPPED} releases the shared slot
- * exactly once. A task marked {@code SKIPPED} must never enter the user body, even when an
- * executor invokes it later.
+ * exit. Cancellation, rejection, and window abandonment race the task entry through the same atomic
+ * state, so every transition to {@code EXITED} or {@code SKIPPED} releases the shared slot exactly
+ * once. A task marked {@code SKIPPED} must never enter the user body, even when an executor invokes
+ * it later.
  */
 final class TaskBodyState {
 
@@ -40,10 +40,10 @@ final class TaskBodyState {
     private final BodyCompletionTracker tracker;
     private final String name;
 
-    /**
-     * Terminal signal of this slot: set exactly once, by the winning transition to {@code EXITED}
-     * or {@code SKIPPED}, before the shared tracker is released. Observation futures key on it so
-     * a waiter that observes body completion through the tracker already finds this slot terminal.
+    /*
+     * Terminal signal of this slot: set exactly once, by the winning transition to EXITED or
+     * SKIPPED, before the shared tracker is released. Observation futures key on it so a waiter
+     * that observes body completion through the tracker already finds this slot terminal.
      */
     private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
 

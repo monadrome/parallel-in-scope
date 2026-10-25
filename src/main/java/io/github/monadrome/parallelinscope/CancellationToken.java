@@ -53,22 +53,21 @@ final class CancellationToken {
     private final @Nullable ParentLink parentLink;
     private volatile @Nullable RequestCancellationLink requestCancellationLink;
 
-    /**
+    /*
      * The monotonic clock of this token's deadline domain. A child always inherits its parent's
      * clock, so one token tree shares one clock domain; only a root token takes an explicit clock,
-     * and the clock-less constructors always land on the system clock. Internal tests substitute a manual
-     * clock for a root token to make deadline detection deterministic; deadlineNanos is always read
-     * against this clock, never mixed with another domain.
+     * and the clock-less constructors always land on the system clock. Internal tests substitute a
+     * manual clock for a root token to make deadline detection deterministic; deadlineNanos is
+     * always read against this clock, never mixed with another domain.
      */
     private final Ticker ticker;
 
-    /**
+    /*
      * The deadline scheduler paired with this token's clock domain, inherited by every child like
-     * the clock itself. Only a root token receives it (from the owning {@code ParRuntime}'s test
-     * seam); it is {@code null} for tokens created through the scheduler-less constructors, whose {@link
-     * #bind} callers then supply the scheduler explicitly. The pairing is what lets a nested unit
-     * fire its deadline on the ancestor's controlled time instead of scheduling a virtual delay on
-     * a real scheduler.
+     * the clock itself. Only a root token receives it (from the owning ParRuntime's test seam); it
+     * is null for tokens created through the scheduler-less constructors, whose bind callers then
+     * supply the scheduler explicitly. The pairing is what lets a nested unit fire its deadline on
+     * the ancestor's controlled time instead of scheduling a virtual delay on a real scheduler.
      */
     private final @Nullable ScheduledExecutorService timeoutScheduler;
 
@@ -196,12 +195,11 @@ final class CancellationToken {
      * Connects this token to submitted work and arms its deadline.
      *
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
-     * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
-     * when any future fails. Every cancelling transition cancels the futures and the submission
-     * canceller; cancelling an already-successful future is a no-op, so a late cancel never
-     * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
-     * synchronously and cancels the futures before this method returns, so no submitted task can
-     * still enter user code on an expired deadline.
+     * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST} when any future fails.
+     * Every cancelling transition cancels the futures and the submission canceller; cancelling an
+     * already-successful future is a no-op, so a late cancel never destroys a recorded result. An
+     * already-expired deadline commits {@code TIMEOUT} synchronously and cancels the futures before
+     * this method returns, so no submitted task can still enter user code on an expired deadline.
      *
      * @param <T> the task result type
      * @param futures the submitted task futures
@@ -240,8 +238,8 @@ final class CancellationToken {
             futureToken.setException(new TimeoutException());
             return allFutures;
         }
-        // The aggregate callback below is the only fail-fast source; the scheduled timer task is
-        // the only deadline source.
+        // This bind installs the aggregate fail-fast callback and deadline timer. Checkpoints
+        // also detect elapsed deadlines on the token's clock when timer delivery is late.
         ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
         // A token that is already terminal has no deadline left to enforce: no transition can ever
         // succeed again, and the cancellation it implies reaches the futures through the
@@ -332,8 +330,9 @@ final class CancellationToken {
 
     /**
      * Cancels bound work with the intent recorded by the winning token transition. A deadline or
-     * fail-fast transition keeps the default interrupting policy; an explicit cancel(false), whether
-     * direct or propagated, must reach the same futures without interrupting a running body.
+     * fail-fast transition keeps the default interrupting policy; an explicit cancel(false),
+     * whether direct or propagated, must reach the same futures without interrupting a running
+     * body.
      */
     private void cancelBoundWork(ListenableFuture<?> allFutures) {
         allFutures.cancel(verifyNotNull(decision.get()).interrupt);
@@ -482,9 +481,9 @@ final class CancellationToken {
      * before the associated cancellation actions run.
      *
      * <p>Intended for {@link TaskGroup}: a group listens on a member token so a member timeout
-     * escalates to the group before cascade cancellation runs. It is not a general-purpose hook.
-     * A listener registered after the token left {@code RUNNING} is never invoked. Listener
-     * failures are logged and swallowed; they must not break cancellation.
+     * escalates to the group before cascade cancellation runs. It is not a general-purpose hook. A
+     * listener registered after the token left {@code RUNNING} is never invoked. Listener failures
+     * are logged and swallowed; they must not break cancellation.
      */
     void addStateListener(Consumer<State> listener) {
         stateListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));

@@ -56,12 +56,13 @@ public final class ParRuntimeSnapshot {
     }
 
     /**
-     * Admitted runs whose aggregate body-exit signal has not completed yet. The unit is a run, not
-     * a body: each admitted batch, group, or single task contributes exactly one signal, so a batch
-     * with a hundred outstanding bodies reads as 1 until every one of them has exited (or has been
-     * determined never to enter). A cancelled task completes its future immediately but may still be
-     * running user code, so this can exceed zero while {@link #undrainedBatches()} is already zero —
-     * the distinction {@link ParRuntime#awaitQuiescence(java.time.Duration)} waits on.
+     * Admitted runs with at least one direct task body whose exit has not been confirmed. The unit
+     * is a run, not a body: each admitted batch, group, or single task contributes one count until
+     * every direct body has exited or has been prevented from starting. A batch with a hundred
+     * outstanding bodies therefore contributes 1. A cancelled task completes its future immediately
+     * but may still be running user code, so this can exceed zero while {@link #undrainedBatches()}
+     * is already zero — the distinction {@link ParRuntime#awaitQuiescence(java.time.Duration)}
+     * waits on.
      */
     public int unexitedBodySignals() {
         return unexitedBodySignals;

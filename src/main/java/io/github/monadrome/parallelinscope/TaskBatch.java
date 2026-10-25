@@ -72,14 +72,18 @@ final class TaskBatch<T> implements AutoCloseable {
     }
 
     /**
-     * Aggregates the element observation futures into the batch observation sink: once every
-     * element observation is published — which already waits out both future settle and body exit
-     * per element — the sink is set with the input-ordered immutable list. Element observations
-     * never fail, so a failure here is an implementation defect and fails the sink loudly instead
-     * of leaving it pending.
+     * Publishes the input-ordered observations after every element's final observation is
+     * available. A failed aggregate is an implementation defect and fails the sink rather than
+     * leaving it pending.
      */
     private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(
             List<ListenableFuture<TaskCompletion<T>>> observations) {
+        /*
+         * Each element observation waits for both future settlement and body exit. The aggregate
+         * therefore needs no additional body-exit check. The element observation futures only fail
+         * on a publication defect; ordinary task failure is carried as observation data.
+         */
+
         SettableFuture<List<TaskCompletion<T>>> sink = SettableFuture.create();
         Futures.addCallback(
                 Futures.allAsList(observations),
@@ -99,12 +103,12 @@ final class TaskBatch<T> implements AutoCloseable {
     }
 
     /**
-     * Provides the future running the sliding-window submission loop. Cancelling it stops further
-     * submissions and abandons every element not yet handed to the executor, so no future of this
-     * batch stays pending; cancelling an element's own view directly completes it as {@code
+     * Returns the sliding-window submission control and completion signal. Cancelling it stops
+     * further submissions and abandons every element not yet handed to the executor, so no future
+     * of this batch stays pending; cancelling an element's own view directly completes it as {@code
      * CANCELLED}.
      *
-     * @return the submission-loop future
+     * @return the submission control signal
      */
     public ListenableFuture<?> submitCanceller() {
         return submitCanceller;
@@ -244,22 +248,22 @@ final class TaskBatch<T> implements AutoCloseable {
      * final {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
      * outcome, failure, and on success the result.
      *
-     * <p>Each element snapshot is published only after its future is terminal <em>and</em> its
-     * task body has exited (or was determined to never run), so the recorded end times are always
-     * final; the aggregate completes only once every element snapshot is published. Elements that
-     * never started — rejected, cancelled, or abandoned by the sliding window — are included with
-     * zero start/end times and their real outcome. Once the batch scope has completed this future
-     * is guaranteed to be done: {@link #awaitBodyCompletion(Duration)} returning {@code true}
-     * implies the data is already available, with no extra wait. A {@link #close()} that exhausts
-     * its close grace while bodies ignore interruption may leave this future pending; it then
-     * completes as the remaining bodies exit.
+     * <p>Each element snapshot is published only after its future is terminal <em>and</em> its task
+     * body has exited (or was determined to never run), so the recorded end times are always final;
+     * the aggregate completes only once every element snapshot is published. Elements that never
+     * started — rejected, cancelled, or abandoned by the sliding window — are included with zero
+     * start/end times and their real outcome. Once the batch scope has completed this future is
+     * guaranteed to be done: {@link #awaitBodyCompletion(Duration)} returning {@code true} implies
+     * the data is already available, with no extra wait. A {@link #close()} that exhausts its close
+     * grace while bodies ignore interruption may leave this future pending; it then completes as
+     * the remaining bodies exit.
      *
      * <p>Element failure and cancellation complete this future successfully with the real outcome
-     * data; it never returns {@code null}, never requires polling, and ignores cancellation
-     * ({@code cancel(...)} returns {@code false}). This is the full-fidelity observation entry —
-     * timing, failures, and queue wait — while {@link #report()} stays the lightweight outcome
-     * summary. Register immediate reactions with {@code Futures.addCallback} on an executor of
-     * the caller's choice.
+     * data; it never returns {@code null}, never requires polling, and ignores cancellation ({@code
+     * cancel(...)} returns {@code false}). This is the full-fidelity observation entry — timing,
+     * failures, and queue wait — while {@link #report()} stays the lightweight outcome summary.
+     * Register immediate reactions with {@code Futures.addCallback} on an executor of the caller's
+     * choice.
      *
      * @return the batch observation future
      */
@@ -335,7 +339,7 @@ final class TaskBatch<T> implements AutoCloseable {
      *
      * @param <T> the element result type
      * @param bodyCompletion shared task-body completion signal of this submission
-     * @param submitCanceller the future running the remaining submissions
+     * @param submitCanceller the control and completion signal for remaining submissions
      * @param results the individual result futures
      * @param token the batch cancellation token used by {@link #close()}
      * @param closeGrace the close grace used by {@link #close()}
@@ -357,19 +361,19 @@ final class TaskBatch<T> implements AutoCloseable {
      * <p>This is the batch's structured-close entry, symmetric with {@link TaskGroup#close()}:
      * cancellation goes through the batch token, so every element and the submission loop are
      * cancelled with the usual attribution. The close grace is a cleanup budget configured on
-     * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout.
-     * When never configured, the wait budget is derived from the batch's remaining deadline at
-     * close time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with
-     * bodies still running, the outstanding task names are logged at WARN level. The executor is
-     * never shut down, and user code that ignores interruption may keep running after this method
+     * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout. When
+     * never configured, the wait budget is derived from the batch's remaining deadline at close
+     * time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with bodies
+     * still running, the outstanding task names are logged at WARN level. The executor is never
+     * shut down, and user code that ignores interruption may keep running after this method
      * returns.
      *
-     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
-     * is skipped with the interrupt flag preserved. Cancellation runs before the wait and settles
-     * every bound element future synchronously, so once this method returns, every future in
-     * {@link #results()} is terminal — even when a body is still unwinding. A normal return does
-     * not by itself make resources used by task bodies safe to release; confirm body exit with
-     * {@link #awaitBodyCompletion(Duration)} first.
+     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait is
+     * skipped with the interrupt flag preserved. Cancellation runs before the wait and settles
+     * every bound element future synchronously, so once this method returns, every future in {@link
+     * #results()} is terminal — even when a body is still unwinding. A normal return does not by
+     * itself make resources used by task bodies safe to release; confirm body exit with {@link
+     * #awaitBodyCompletion(Duration)} first.
      *
      * @throws IllegalStateException if called from within a task body of this batch, including a
      *     nested inline call on the same thread
@@ -392,21 +396,21 @@ final class TaskBatch<T> implements AutoCloseable {
     }
 
     /**
-     * Waits until every task body of this batch has exited and every element future has settled,
-     * or the budget elapses.
+     * Waits until every task body of this batch has exited and every element future has settled, or
+     * the budget elapses.
      *
      * <p>Body exit means the user function returned or threw and its {@code finally} completed. A
      * body publishes its exit before its future settles, so body exit alone does not imply a
      * terminal future; this method waits out that window as well. A {@code true} result therefore
-     * implies every future in {@link #results()} is terminal —
-     * {@link #report()} and {@link #reportString()} called after it read a terminal snapshot — and
-     * also covers tasks that will never be entered (cancelled, rejected, or abandoned before
-     * execution). It additionally waits out the observation publication barrier, so a {@code true}
-     * result also implies {@link #completionFuture()} is already done with the final snapshots.
-     * It establishes a happens-before edge from every task body's writes to this
-     * thread; once {@code true}, the result cannot be invalidated by a task starting late. {@code
-     * false} means the budget elapsed while at least one body had not exited or one future had not
-     * settled, which may include tasks that have not started yet.
+     * implies every future in {@link #results()} is terminal — {@link #report()} and {@link
+     * #reportString()} called after it read a terminal snapshot — and also covers tasks that will
+     * never be entered (cancelled, rejected, or abandoned before execution). It additionally waits
+     * out the observation publication barrier, so a {@code true} result also implies {@link
+     * #completionFuture()} is already done with the final snapshots. It establishes a
+     * happens-before edge from every task body's writes to this thread; once {@code true}, the
+     * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
+     * while at least one body had not exited or one future had not settled, which may include tasks
+     * that have not started yet.
      *
      * <p>This method never cancels tasks and does not require prior cancellation: cancel through
      * {@link #submitCanceller()} or the element futures first when shutdown is intended, then wait
