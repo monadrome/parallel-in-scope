@@ -111,6 +111,25 @@ class RecordTest(unittest.TestCase):
                 race.RESULTS_DIR = original
 
 
+class ExitCodeTest(unittest.TestCase):
+    def test_recorded_gaps_do_not_fail_the_run(self):
+        entries = [
+            {"id": "a", "result": "PROVEN"},
+            {"id": "b", "result": "UNPROVEN"},
+            {"id": "c", "result": "NEEDS_JCSTRESS"},
+            {"id": "d", "result": "PROVEN_BY_REASONING"},
+        ]
+        self.assertEqual(race.exit_code(entries), 0)
+
+    def test_broken_harness_fails_the_run(self):
+        for result in ("INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT"):
+            with self.subTest(result=result):
+                entries = [{"id": "ok", "result": "PROVEN"}, {"id": "bad", "result": result}]
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    self.assertEqual(race.exit_code(entries), 1)
+                self.assertIn("bad", stderr.getvalue())
+
+
 class RegistryTest(unittest.TestCase):
     def test_registry_shape(self):
         data = json.loads(REGISTRY.read_text(encoding="utf-8"))
