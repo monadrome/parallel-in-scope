@@ -103,6 +103,17 @@ class ImmediateResultTest {
     }
 
     @Test
+    void freezingARunningTaskIsRejected() {
+        CancellationToken token = new CancellationToken();
+        TaskFuture<Integer> pending =
+                Task.of("still-running", token, com.google.common.util.concurrent.SettableFuture.create());
+
+        assertThatThrownBy(() -> ImmediateResult.fromTask(pending, TaskOutcome.RUNNING))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("still-running");
+    }
+
+    @Test
     void cancellationShapedExceptionalCompletionKeepsCauseAfterTokenCommit() {
         for (Throwable cause : new Throwable[] {
             new CancellationException("checkpoint cancellation"), new InterruptedException("worker interrupted")

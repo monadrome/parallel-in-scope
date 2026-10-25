@@ -133,6 +133,27 @@ class ExecutorWaitAdmissionTest {
     }
 
     @Test
+    void aNestedUnstructuredSubmitOnTheSamePoolIsAnExecutorSelfLoop() throws Exception {
+        ParRuntime runtime = runtime("io", buffering());
+
+        TaskFuture<Integer> outer = runtime.par(ParId.of("io"))
+                .submit(
+                        "outer",
+                        () -> {
+                            TaskFuture<Integer> inner =
+                                    runtime.par(ParId.of("io")).submit("inner", () -> 7, TaskOptions.inheritTimeout());
+                            return inner.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                        },
+                        TaskOptions.timeout(TIMEOUT));
+
+        assertThat(outer.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)).isEqualTo(7);
+
+        List<ExecutorWaitReport.Component> cycles = runtime.executorWaitReport().cyclicComponents();
+        assertThat(cycles).hasSize(1);
+        assertThat(cycles.get(0).cycle()).containsExactlyElementsOf(ids("io"));
+    }
+
+    @Test
     void aNestedCombineOnTheCallersPoolIsASelfLoopButTheBatchFeedingItIsNot() {
         ParRuntime runtime = runtime("caller", buffering(), "batch", buffering());
 

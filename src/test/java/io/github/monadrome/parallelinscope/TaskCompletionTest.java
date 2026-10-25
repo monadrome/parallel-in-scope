@@ -37,6 +37,13 @@ class TaskCompletionTest {
     }
 
     @Test
+    void queueWaitExactlyAtTheThresholdIsNotEnqueued() {
+        // "Exceeded three milliseconds" is strict: a wait of exactly the threshold is not enqueued.
+        TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 0, 3_000_000, 4_000_000, "value");
+        assertThat(completion.enqueued()).isFalse();
+    }
+
+    @Test
     void successfulCompletionCanCarryNoFailure() {
         TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, "value");
         assertThat(completion.enqueued()).isFalse();
