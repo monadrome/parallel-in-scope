@@ -92,6 +92,16 @@ does not cancel these executions. `ParRuntime.awaitQuiescence` remains interrupt
 
 ## Design Decisions
 
+Optimize for project-wide quality: correctness, API coherence, maintainability,
+and the user experience across implementation, tests, and documentation. Before
+choosing a local solution, trace its effects through affected callers and shared
+mechanisms. Count complexity moved to other components or users as a cost;
+a smaller diff, simpler method, or passing targeted test alone does not establish
+an improvement. Prefer solutions that improve the whole affected path and explain
+material tradeoffs. Keep this assessment within the existing reading boundaries
+and the implementation within the authorized scope; report unrelated improvements
+separately.
+
 Optimize for structured concurrency and user safety and convenience. Prefer
 parameterizing existing mechanisms over adding concepts. For a new capability,
 API, or mechanism, use the evaluation checklist in `design/first-principles.md`
