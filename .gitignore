@@ -34,6 +34,9 @@ todo/
 # Local senate tooling state and its design draft
 .senate/
 
+# ZCode local harness state
+.zcode/
+
 # Playwright MCP scratch output
 .playwright-mcp/
 
