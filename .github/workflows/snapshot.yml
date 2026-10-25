@@ -4,9 +4,12 @@ name: Snapshot
 # last publication in UTC days, preserving the previous development line's policy.
 #
 # Three triggers share that one gate. `push` publishes a moved line immediately; the daily
-# `schedule` sweeps tips that arrived after the day's publish already ran (a second push on
-# an already-published UTC day) and retries a publish that failed; `workflow_dispatch` is the
-# manual fallback. A run that finds nothing newer than Central publishes nothing.
+# `schedule` republishes a tip whose publish never reached Central -- a failed deploy or a
+# lost run -- without waiting for the next push; `workflow_dispatch` is the manual fallback.
+# A run that finds nothing newer than Central publishes nothing. The UTC-day rate limit binds
+# every trigger alike: a tip committed on an already-published UTC day never satisfies the
+# gate on a later day either, so a same-day second push waits for a later-dated commit (whose
+# publish contains it) or for the `v0.4.0-SNAPSHOT` tag.
 #
 # GitHub fires `schedule` (and offers `workflow_dispatch` in the Actions UI) only from the
 # default branch's copy of this file; a `schedule` in a copy that exists only on a development
