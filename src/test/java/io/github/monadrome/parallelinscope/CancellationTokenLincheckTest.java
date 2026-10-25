@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.lincheck.Lincheck;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Lincheck exploration of the cancellation races that the repeated stress tests sample.
@@ -19,7 +20,9 @@ import org.junit.jupiter.api.Test;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-class CancellationTokenLincheckTest {
+@SuppressWarnings("FutureReturnValueIgnored")
+@Timeout(120)
+public class CancellationTokenLincheckTest {
 
     private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();
 
