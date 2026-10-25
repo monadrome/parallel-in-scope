@@ -112,6 +112,27 @@ Three contracts shape that first call:
   caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
+A fixed, heterogeneous set of named operations — fetch the user and the account, then build the
+profile — goes through a one-shot group instead of a batch. On the released `0.3.0` line the member
+type is a `Class` token:
+
+```java
+TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+        .group("profile", Duration.ofSeconds(3))
+        .par("user", io, User.class, () -> loadUser(userId))
+        .par("account", io, Account.class, () -> loadAccount(userId))
+        .combine("profile", io, Profile.class,
+                values -> Profile.of(values.first(), values.second()))
+        .runAll();
+Profile value = profile.terminalValueOrThrow(); // on 0.3.x this declares ExecutionException
+```
+
+`runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
+The first member failure cancels its siblings, and a member timeout cancels the group. The
+development line replaces the `Class` tokens with reusable typed keys and makes aggregate reads
+unchecked; see the
+[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/docs/en/migration-v0.4.md).
+
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
 

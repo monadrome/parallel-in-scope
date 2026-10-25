@@ -256,17 +256,41 @@ combine that returns null is a successful combine, so a body may be written as `
 
 ### Three or more members
 
-Each `par` after the first widens the assembled type by one left-nested `Tuple2`, so inside a
-three-member combine `values` is `Tuple2<Tuple2<A, B>, C>`. Read it with `first()`/`second()` and
-build the flat object there, while the shape is still typed:
+With three or more members, prefer `combineValues` with saved keys: the combine body reads each
+member through its key, and the nested shape never reaches your code.
+
+```java
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Order> orderKey = TaskKey.named("order");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combineValues(profileKey, httpPar, values -> new Profile(
+                values.valueOf(userKey),
+                values.valueOf(accountKey),
+                values.valueOf(orderKey)))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+The assembled member type still widens by one left-nested `Tuple2` per member — the result's `V` is
+`Tuple2<Tuple2<User, Account>, Order>` here — but with `combineValues` that shape stays inside the
+declaration. For tuple input, `combine(key, par, body)` receives the assembled `V` directly, so
+inside a three-member tuple combine `values` is `Tuple2<Tuple2<A, B>, C>`, read with
+`first()`/`second()`:
 
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
-        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
-        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
-        .par(TaskKey.<Order>named("order"), httpPar, () -> loadOrder(userId))
-        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> new Profile(
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combine(profileKey, httpPar, values -> new Profile(
                 values.first().first(),
                 values.first().second(),
                 values.second()))
@@ -274,10 +298,10 @@ TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
 Profile profile = result.terminalValueOrThrow();
 ```
 
-`GroupValues.valueOf(name)` reads the same slots by member name when positional access is not
-convenient. As members accumulate, have the combine emit the flattened object immediately rather
-than passing the nested `Tuple2` out: the nesting is a declaration artifact, and callers downstream
-should not have to rebuild the member order to read a value.
+`GroupValues.valueOf(name)` reads the same slots by member name when neither the key object nor
+positional access is convenient. As members accumulate, have the combine emit the flattened object
+immediately rather than passing the nested `Tuple2` out: the nesting is a declaration artifact, and
+callers downstream should not have to rebuild the member order to read a value.
 
 <a id="read-task-attribution-from-a-future"></a>
 
@@ -676,35 +700,60 @@ a spontaneous business cancellation exception.
 Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
 it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it neither
 crosses the pool boundary nor gets captured automatically. Hold the diagnostic fields in a TTL and
-bridge them into MDC inside the body:
+bridge them into MDC inside the body. Copy this application-owned helper once instead of re-deriving
+the save/restore blocks per call site:
 
 ```java
-private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
-        new TransmittableThreadLocal<>();
+import com.alibaba.ttl.TransmittableThreadLocal;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.slf4j.MDC;
 
-// Submitting thread: declare this call's diagnostic fields.
-Map<String, String> previousDiagnostic = DIAGNOSTIC.get();
-DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
-try {
-    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
-            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
-} finally {
-    if (previousDiagnostic == null) DIAGNOSTIC.remove();
-    else DIAGNOSTIC.set(previousDiagnostic);
-}
+/** Carries this call's diagnostic fields in a TTL and bridges them into MDC inside each body. */
+public final class MdcBridge {
+    private static final TransmittableThreadLocal<Map<String, String>> FIELDS =
+            new TransmittableThreadLocal<>();
 
-Account fetchAccount(String id) {
-    Map<String, String> fields = DIAGNOSTIC.get();
-    Map<String, String> previousMdc = MDC.getCopyOfContextMap();
-    try {
-        if (fields != null) fields.forEach(MDC::put);
-        return load(id);
-    } finally {
-        if (previousMdc == null) MDC.clear();
-        else MDC.setContextMap(previousMdc);
+    private MdcBridge() {}
+
+    /** Declares this call's fields around the submission; restores the previous fields after. */
+    public static <R> R withFields(Map<String, String> fields, Supplier<R> submission) {
+        Map<String, String> previous = FIELDS.get();
+        FIELDS.set(fields);
+        try {
+            return submission.get();
+        } finally {
+            if (previous == null) FIELDS.remove();
+            else FIELDS.set(previous);
+        }
+    }
+
+    /** Runs one body with the propagated fields bridged into MDC; restores MDC on exit. */
+    public static <R> R inBody(Supplier<R> body) {
+        Map<String, String> fields = FIELDS.get();
+        Map<String, String> previousMdc = MDC.getCopyOfContextMap();
+        try {
+            if (fields != null) fields.forEach(MDC::put);
+            return body.get();
+        } finally {
+            if (previousMdc == null) MDC.clear();
+            else MDC.setContextMap(previousMdc);
+        }
     }
 }
 ```
+
+Wrap the submission in `withFields` and each body in `inBody`:
+
+```java
+TaskBatchResult<Account> batch = MdcBridge.withFields(
+        Collections.singletonMap("traceId", traceId),
+        () -> httpPar.map(accountIds, id -> MdcBridge.inBody(() -> fetchAccount(id)),
+                BatchOptions.timeout("accounts", Duration.ofSeconds(3))));
+```
+
+When the fields already live in a TTL the application sets — in a filter, before this library is
+involved — the capture is automatic and only `inBody` is needed inside bodies.
 
 This covers library-managed work only. The library performs the TTL capture and restore around each
 task, so these bodies need no TTL agent; code on the same pool that submits directly, outside this

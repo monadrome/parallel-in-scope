@@ -219,16 +219,40 @@ combine，因此 body 可以直接写 `values -> null`。
 
 ### 三个及以上成员
 
-第一个之后的每次 `par` 都让聚合类型左嵌套一层 `Tuple2`，因此三成员组 combine 里的 `values`
-是 `Tuple2<Tuple2<A, B>, C>`。用 `first()`/`second()` 展开，并在类型仍然明确时就地构造扁平对象：
+三个及以上成员时，优先用保存的 key 配合 `combineValues`：combine 体通过 key 读取每个成员，
+嵌套形态不会进入你的代码。
+
+```java
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Order> orderKey = TaskKey.named("order");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combineValues(profileKey, httpPar, values -> new Profile(
+                values.valueOf(userKey),
+                values.valueOf(accountKey),
+                values.valueOf(orderKey)))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+聚合成员类型仍随成员数左嵌套 `Tuple2`——上例结果的 `V` 是
+`Tuple2<Tuple2<User, Account>, Order>`——但用 `combineValues` 时这一形态只存在于声明内部。
+若要直接拿聚合后的 `V`，用 `combine(key, par, body)`：三成员组的 tuple combine 里 `values`
+是 `Tuple2<Tuple2<A, B>, C>`，用 `first()`/`second()` 展开：
 
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
-        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
-        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
-        .par(TaskKey.<Order>named("order"), httpPar, () -> loadOrder(userId))
-        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> new Profile(
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combine(profileKey, httpPar, values -> new Profile(
                 values.first().first(),
                 values.first().second(),
                 values.second()))
@@ -236,8 +260,8 @@ TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
 Profile profile = result.terminalValueOrThrow();
 ```
 
-按位置访问不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，应让
-combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
+key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，
+应让 combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
 下游不应为了读一个值而重建成员顺序。
 
 <a id="task-attribution"></a>
@@ -580,35 +604,60 @@ Par.map 在准入前拒绝 null mapping function，即使输入为空或 null。
 
 库的上下文传播基于 Alibaba TransmittableThreadLocal：准备任务时捕获，worker 上恢复。MDC 是
 普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在 body 入口
-写入 MDC、在 finally 恢复原值：
+写入 MDC、在 finally 恢复原值。与其在每个调用点重写保存/恢复样板，不如把下面的应用侧助手
+复制一份：
 
 ```java
-private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
-        new TransmittableThreadLocal<>();
+import com.alibaba.ttl.TransmittableThreadLocal;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.slf4j.MDC;
 
-// 提交线程：声明本次调用的诊断字段
-Map<String, String> previousDiagnostic = DIAGNOSTIC.get();
-DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
-try {
-    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
-            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
-} finally {
-    if (previousDiagnostic == null) DIAGNOSTIC.remove();
-    else DIAGNOSTIC.set(previousDiagnostic);
-}
+/** 用 TTL 携带本次调用的诊断字段，并在每个 body 内桥接进 MDC。 */
+public final class MdcBridge {
+    private static final TransmittableThreadLocal<Map<String, String>> FIELDS =
+            new TransmittableThreadLocal<>();
 
-Account fetchAccount(String id) {
-    Map<String, String> fields = DIAGNOSTIC.get();
-    Map<String, String> previousMdc = MDC.getCopyOfContextMap();
-    try {
-        if (fields != null) fields.forEach(MDC::put);
-        return load(id);
-    } finally {
-        if (previousMdc == null) MDC.clear();
-        else MDC.setContextMap(previousMdc);
+    private MdcBridge() {}
+
+    /** 在提交外围声明本次调用的字段；结束后恢复原字段。 */
+    public static <R> R withFields(Map<String, String> fields, Supplier<R> submission) {
+        Map<String, String> previous = FIELDS.get();
+        FIELDS.set(fields);
+        try {
+            return submission.get();
+        } finally {
+            if (previous == null) FIELDS.remove();
+            else FIELDS.set(previous);
+        }
+    }
+
+    /** 在 MDC 已桥接的前提下运行一个 body；退出时恢复 MDC。 */
+    public static <R> R inBody(Supplier<R> body) {
+        Map<String, String> fields = FIELDS.get();
+        Map<String, String> previousMdc = MDC.getCopyOfContextMap();
+        try {
+            if (fields != null) fields.forEach(MDC::put);
+            return body.get();
+        } finally {
+            if (previousMdc == null) MDC.clear();
+            else MDC.setContextMap(previousMdc);
+        }
     }
 }
 ```
+
+提交用 `withFields` 包裹，body 用 `inBody` 包裹：
+
+```java
+TaskBatchResult<Account> batch = MdcBridge.withFields(
+        Collections.singletonMap("traceId", traceId),
+        () -> httpPar.map(accountIds, id -> MdcBridge.inBody(() -> fetchAccount(id)),
+                BatchOptions.timeout("accounts", Duration.ofSeconds(3))));
+```
+
+如果字段本来就存放在应用自己设置的 TTL 里（例如在本库介入之前的过滤器中），捕获是自动的，
+body 内只需要 `inBody`。
 
 这只覆盖经本库管理的任务：库在每次任务前后自行做 TTL 捕获与恢复，因此这些 body 无需 TTL agent；
 同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在

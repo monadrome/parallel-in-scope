@@ -1,6 +1,5 @@
 package demo.basic;
 
-import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
@@ -64,12 +63,8 @@ public class CancellationDemo {
                     },
                     options);
 
-            // Wait until every task has succeeded, failed, or been cancelled. Unlike allAsList,
-            // successfulAsList itself completes normally when individual tasks are cancelled.
-            Futures.successfulAsList(result.results().stream()
-                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                            .collect(java.util.stream.Collectors.toList()))
-                    .get();
+            // map 同步返回时所有元素已终态（成功、失败或被取消）：直接读冻结的分布，无需再等待
+            System.out.println("结果分布: " + result.outcomeCounts());
             long endTime = System.currentTimeMillis();
 
             // 3. 查看结果
