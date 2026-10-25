@@ -34,6 +34,10 @@ changes don't need Java tests — delete the rows that don't apply and say so. -
 | `mvn test` | |
 | `mvn spotless:apply` | |
 
+<!-- For applicable changes, follow verification/pit.md. Record the PIT command,
+production/test scope and rationale, raw status counts, report location, and
+dispositions with evidence. If PIT is skipped, give the applicability reason. -->
+
 ## Breaking changes
 
 <!--

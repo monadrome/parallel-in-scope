@@ -355,32 +355,11 @@ later sessions:
   workspace or run directory in place as an audit trail.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
   the new test fail, then restore the fix.
-- Run mutation coverage with an explicit goal: the `pitest` profile binds no
-  execution, so `mvn -Ppitest` alone fails with "No goals have been specified".
-  The offline-safe form, scoped to the touched class and its test, is:
-
-  ```bash
-  mvn -o -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage \
-    '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass' \
-    '-DtargetTests=io.github.monadrome.parallelinscope.TouchedTest'
-  ```
-
-  The defaults for `targetClasses`, `targetTests`, and `mutators` are project
-  properties (inline plugin config would shadow their user properties, making
-  the `-D` flags no-ops). The default `mutators` list omits `VOID_METHOD_CALLS`
-  to cut queue noise — but that also drops core interrupt / body-exited-skipped
-  / `tracker.release` call-removal mutations. Add this flag for a core-targeted
-  run (it replaces the default, so the nine mutators are repeated):
-
-  ```bash
-  # add to the command above for a core-targeted run:
-  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
-  ```
-
-  Classify every survivor before reporting: equivalent mutants are not coverage
-  gaps. PIT needs no permission and touches only `target/`. The PIT goal does
-  not recompile: after reverting or restoring sources mid-investigation, run
-  `mvn test-compile` first or it mutates stale bytecode in `target/classes`.
+- For production behavior changes, tests that change mutation evidence, or
+  investigation of a PIT result, read [PIT verification](verification/pit.md)
+  before selecting scope or reporting completion. It owns applicability,
+  commands, scope expansion, freshness, dispositions, and acceptance criteria.
+  PIT needs no permission and writes build outputs under `target/`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 9; consult them when
@@ -432,7 +411,8 @@ Ask before:
 - Deleting untracked files you did not create, or files outside the change.
 - Full release builds or `mvn deploy`.
 
-PIT authorization and scoping are defined under Adversarial Review.
+PIT authorization is above; execution and acceptance follow
+[PIT verification](verification/pit.md).
 
 Never commit secrets, `.env` files, GPG keys, or repository credentials.
 
