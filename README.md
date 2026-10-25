@@ -124,13 +124,13 @@ TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
         .combine("profile", io, Profile.class,
                 values -> Profile.of(values.first(), values.second()))
         .runAll();
-Profile value = profile.terminalValueOrThrow(); // on 0.3.x this declares ExecutionException
+Profile value = profile.terminalValueOrThrow();
 ```
 
 `runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
 The first member failure cancels its siblings, and a member timeout cancels the group. The
-development line replaces the `Class` tokens with reusable typed keys and makes aggregate reads
-unchecked; see the
+development line replaces the `Class` tokens with reusable typed keys — and makes batch aggregate
+reads unchecked there; group reads were already unchecked. See the
 [v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/docs/en/migration-v0.4.md).
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
