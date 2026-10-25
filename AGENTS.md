@@ -38,6 +38,7 @@ mvn test                              # all tests
 mvn spotless:apply                    # format Java sources
 mvn spotless:check                    # verify formatting without writing; CI runs this
 mvn clean verify                      # tests + package checks; not a release build
+mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not in default CI
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
 ```
 
@@ -458,6 +459,11 @@ Load documents when their subject affects the task:
 - `mkdocs/mkdocs.yml` - Site navigation, i18n locales, and the redirect map for
   previously published URLs. Update when adding, renaming, or moving a page
   under `docs/`.
+- `verification/lincheck.md` - Interleaving research for narrow cancellation
+  windows; read before adding or changing a `*LincheckTest`.
+- `verification/spotbugs.md` - Opt-in static audit scope, baseline, and why it
+  is not a default gate; read before running the `spotbugs` profile or editing
+  `verification/spotbugs-exclude.xml`.
 - `.github/ISSUE_TEMPLATE/` - The forms a capability, defect, or documentation
   issue must use; the design proposal form mirrors the `design/first-principles.md`
   evaluation.
