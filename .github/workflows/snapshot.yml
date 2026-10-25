@@ -3,21 +3,29 @@ name: Snapshot
 # Publish `0.4.0-SNAPSHOT` when the development line has moved past Central's
 # last publication in UTC days, preserving the previous development line's policy.
 #
-# Triggered by a push rather than by a schedule, because GitHub registers a workflow only from
-# the repository's default branch: a `schedule` trigger in a file that exists only on
-# a development branch never fires, and `workflow_dispatch` is not offered for it either. A `push`
-# trigger carries no such restriction -- the workflow file travels with the branch that was
-# pushed. `release.yml` does live on the default branch, so pushing the `v0.4.0-SNAPSHOT` tag
-# remains the way to publish by hand before the next push.
+# Three triggers share that one gate. `push` publishes a moved line immediately; the daily
+# `schedule` sweeps tips that arrived after the day's publish already ran (a second push on
+# an already-published UTC day) and retries a publish that failed; `workflow_dispatch` is the
+# manual fallback. A run that finds nothing newer than Central publishes nothing.
 #
-# A real daily schedule (one that also fires on days without a push) would need this file on
-# the default branch; making the development branch the default branch is the alternative.
+# GitHub fires `schedule` (and offers `workflow_dispatch` in the Actions UI) only from the
+# default branch's copy of this file; a `schedule` in a copy that exists only on a development
+# branch never fires. This branch's copy is the definition, and the default branch's copy is a
+# sync of it: syncing that copy is a maintainer action outside the development line, and until
+# it happens the schedule stays dormant. The job pins its checkout to this branch below, so
+# wherever a run starts from, it publishes this development line. Pushing the `v0.4.0-SNAPSHOT`
+# tag (handled by `release.yml`, already on the default branch) remains the way to publish by
+# hand that bypasses the date gate.
 on:
   push:
     branches: [dev/v0.4.0]
+  # 02:17 UTC daily. Off the top of the hour because GitHub delays scheduled workflows the
+  # most around popular cron minutes; the gate makes the exact minute uncritical.
+  schedule:
+    - cron: '17 2 * * *'
   # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
-  # publishes once. Kept because it is the only way to publish on a day the branch does not
-  # move without pushing the `v0.4.0-SNAPSHOT` tag by hand.
+  # publishes once -- for a same-day republication that skips the gate, push the
+  # `v0.4.0-SNAPSHOT` tag by hand.
   workflow_dispatch:
 
 permissions:
@@ -34,9 +42,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Pin the branch: scheduled and UI-dispatched runs execute the default branch's copy of
+      # this file, and the pin is what makes them build this development line instead of the
+      # default branch's tree. For push runs the pinned ref is the pushed branch itself.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: dev/v0.4.0
 
       # The release path's build JDK, for the same reason: the enforcer requires JDK 25 and
       # the artifact still targets Java 8 bytecode.

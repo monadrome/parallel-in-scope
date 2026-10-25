@@ -17,10 +17,14 @@ Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
   integration is a separate maintainer action.
 - The library, demo, and default verification consumer track `0.4.0-SNAPSHOT`.
   Keep stable installation examples on the latest published release, `0.3.0`.
-- Preserve the snapshot publishing policy: pushes to `dev/v0.4.0` and manual
-  Snapshot runs consult Central metadata and publish only when no snapshot
-  exists or the branch tip's UTC date is later than the last publication's
-  UTC date. Verify the library and demo before deploying. A matching
+- Preserve the snapshot publishing policy: pushes to `dev/v0.4.0`, the daily
+  scheduled Snapshot run, and manual Snapshot runs consult Central metadata and
+  publish only when no snapshot exists or the branch tip's UTC date is later
+  than the last publication's UTC date. Verify the library and demo before
+  deploying. The schedule lives in `.github/workflows/snapshot.yml`; GitHub
+  fires `schedule` only from the default branch's copy of that file, so opening
+  a development line or changing the workflow includes syncing that copy on
+  `main` -- a maintainer action outside the development line. A matching
   `v0.4.0-SNAPSHOT` tag remains the manual publication path that bypasses this
   date gate; snapshot tags never create a GitHub Release.
 
