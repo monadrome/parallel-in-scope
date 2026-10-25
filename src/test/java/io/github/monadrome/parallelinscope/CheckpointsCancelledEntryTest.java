@@ -33,6 +33,7 @@ class CheckpointsCancelledEntryTest {
     @Test
     void latchAndConditionAwaitsRejectACancelledScope() {
         CountDownLatch latch = new CountDownLatch(1);
+        releaseAfter(200L, latch::countDown);
         assertCancelledEntry(() -> Checkpoints.checkAwait(latch));
         assertCancelledEntry(() -> Checkpoints.checkAwait(latch, Duration.ofMillis(1)));
         assertCancelledEntry(() -> Checkpoints.checkAwait(latch, 1L, TimeUnit.MILLISECONDS));
@@ -51,19 +52,22 @@ class CheckpointsCancelledEntryTest {
 
     @Test
     void futureReadsRejectACancelledScope() {
-        Future<String> pending = Executors.newSingleThreadExecutor().submit(() -> "done");
+        java.util.concurrent.ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
+            Future<String> pending = executor.submit(() -> "done");
             assertCancelledEntry(() -> Checkpoints.checkGet(pending));
             assertCancelledEntry(() -> Checkpoints.checkGet(pending, Duration.ofMillis(1)));
             assertCancelledEntry(() -> Checkpoints.checkGet(pending, 1L, TimeUnit.MILLISECONDS));
         } finally {
-            pending.cancel(true);
+            executor.shutdownNow();
         }
     }
 
     @Test
     void queueOperationsRejectACancelledScope() {
-        assertCancelledEntry(() -> Checkpoints.checkTake(new java.util.concurrent.LinkedBlockingQueue<>()));
+        java.util.concurrent.BlockingQueue<String> queue = new java.util.concurrent.LinkedBlockingQueue<>();
+        releaseAfter(200L, () -> queue.offer("element"));
+        assertCancelledEntry(() -> Checkpoints.checkTake(queue));
         assertCancelledEntry(() -> Checkpoints.checkPut(new java.util.concurrent.LinkedBlockingQueue<>(), "element"));
     }
 
@@ -86,6 +90,7 @@ class CheckpointsCancelledEntryTest {
     @Test
     void terminationAwaitsRejectACancelledScope() {
         java.util.concurrent.ExecutorService executor = Executors.newSingleThreadExecutor();
+        releaseAfter(200L, executor::shutdown);
         try {
             assertCancelledEntry(() -> Checkpoints.checkAwaitTermination(executor));
             assertCancelledEntry(() -> Checkpoints.checkAwaitTermination(executor, Duration.ofMillis(1)));
@@ -129,5 +134,23 @@ class CheckpointsCancelledEntryTest {
     private static MultiTaskContext context() {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
+    }
+
+    /**
+     * Arranges the unbounded waits' fallback: if an entry check were missing and the adapter
+     * reached its operation, the operation still returns within {@code delayMillis}, so the test
+     * fails its assertion instead of hanging.
+     */
+    private static void releaseAfter(long delayMillis, Runnable release) {
+        Thread releaser = new Thread(() -> {
+            try {
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException ignored) {
+                // test-owned thread; nothing to release once interrupted
+            }
+            release.run();
+        });
+        releaser.setDaemon(true);
+        releaser.start();
     }
 }
