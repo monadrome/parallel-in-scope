@@ -264,6 +264,47 @@ key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成
 应让 combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
 下游不应为了读一个值而重建成员顺序。
 
+### 收养已在途的 future {#adopted-futures}
+
+已经在别处运行的工作——异步 HTTP/RPC 客户端、`ListeningExecutorService.submit`、`FluentFuture` 链、
+`ClosingFuture.finishToFuture()`——通过 `adopt(key, future)` 加入组。成员结果就是该 future 的结果，并与
+`par` 成员共用组 deadline、fail-fast、`cancelOn`、类型化读取与冻结结果。
+
+```java
+TaskKey<Response> profileKey = TaskKey.named("profile");
+TaskKey<Response> ordersKey = TaskKey.named("orders");
+TaskKey<Page> pageKey = TaskKey.named("page");
+
+TaskGroupResult<Tuple2<Response, Response>, Page> result = global
+        .group("page", Duration.ofSeconds(2))
+        .adopt(profileKey, client.get("/profile"), Response::close)
+        .adopt(ordersKey, client.get("/orders"), Response::close)
+        .combine(pageKey, cpuPar, both -> {
+            try (Response profile = both.first(); Response orders = both.second()) {
+                return render(profile, orders);
+            }
+        })
+        .runAll();
+```
+
+- 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
+  外层作用域——都以同一中断意图取消它；`runAll()` 在准入前抛出时取消全部被收养的 future。不要自己取消它：
+  那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
+- future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
+- 每个非 null 值恰好有一个所有者：combine 的 body 开始后归 combine，否则组成功时归调用方。声明了
+  `ResourceCloser` 时，其余每个值恰好关闭一次——组失败、超时或被取消时的值，以及组取消 future 之后才到达的值。
+  closer 在完成 future 或收敛组的线程上运行；保持简短，慢的释放交给自己的执行器。closer 失败只记日志，
+  不改变任何结果。
+- `bodyCompletionConfirmed()` 同时确认所有被收养的 future 已落定、所有丢弃值已关闭。忽略取消的 future 在落定前
+  出现在 `unfinishedBodies()` 中，它迟到的值仍会被关闭。
+- `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务体运行时，这次等待像 `par`
+  成员一样进入[执行器等待报告](#nested-observation)：在 `io` 池上收养由 `io` 池完成的 future 是自环。只在该
+  执行器确实完成这个 future 时声明生产者；不声明则不记录等待。「观测直接提交的工作」照常对生产者池采样，
+  因此排在等待者自己身后的 future 会同时表现为等待环与 `POTENTIAL_STARVATION`，组则在 deadline 处以
+  `TIMEOUT` 结束。
+
+收养成员不运行任何 body：不提交任务、不回放 TTL 上下文，任务类型诊断与负载匹配计时都不适用。
+
 <a id="task-attribution"></a>
 
 ## 即时结果 {#task-future-attribution}
@@ -470,7 +511,7 @@ assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 
 `cyclicComponents()` 列出每个有环强连通分量：`members()`、一个按等待顺序排列的具体 `cycle()`，以及 `toString()` 中每条等待首次观测到的一对任务单元。每个执行器以其全部注册 `ParId` 的集合表示——两个 id 指向同一个池就是同一个执行器，单凭名称永远构不成环。
 
-报告在运行时的整个生命周期内累积，因此是结构性风险信号，不是死锁证明：一个环可能由从未重叠的不同请求的等待组成——两个请求在两个有界池上互相饿死正是这种形状——而留有余量的池也可能永远不会饿死。报告为空不说明外部 future、直接提交给执行器的任务、锁、看不透或未注册的执行器以及其他运行时的情况。等待记在单元提交到的执行器上；`CallerRunsPolicy` 内联执行任务体时，被阻塞的线程可能属于另一个池。告警是尽力而为的——失败的日志 handler 可能让它丢失——报告则始终可读。需要对某段代码单独下结论时，让它跑在一个专用的 `ParRuntime` 上。
+报告在运行时的整个生命周期内累积，因此是结构性风险信号，不是死锁证明：一个环可能由从未重叠的不同请求的等待组成——两个请求在两个有界池上互相饿死正是这种形状——而留有余量的池也可能永远不会饿死。报告为空不说明未声明生产者 `Par` 的外部 future、直接提交给执行器的任务、锁、看不透或未注册的执行器以及其他运行时的情况。等待记在单元提交到的执行器上；`CallerRunsPolicy` 内联执行任务体时，被阻塞的线程可能属于另一个池。告警是尽力而为的——失败的日志 handler 可能让它丢失——报告则始终可读。需要对某段代码单独下结论时，让它跑在一个专用的 `ParRuntime` 上。
 
 ## 筛查负载匹配 {#workload-fit}
 
@@ -771,8 +812,8 @@ account.addListener(() -> {
 }, executor);
 ```
 
-因为 `map`/`runAll` 是同步的，互操作发生在结果侧：没有可组合的提交侧 future，只有已经冻结的
-`ImmediateResult`。
+因为 `map`/`runAll` 是同步的，结果以已经冻结的 `ImmediateResult` 返回，没有运行中的库 future 可组合。
+其他库产出的 future 以[收养成员](#adopted-futures)加入组。
 
 ### 与 Resilience4j、Sentinel、Spring 协作
 

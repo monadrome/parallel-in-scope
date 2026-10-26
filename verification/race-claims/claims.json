@@ -99,6 +99,42 @@
       "tests": "TaskGroupBodyCompletionTest",
       "expect": "failure",
       "note": "Real by code review: ScopedCallable publishes body exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitBodyCompletion, so it cannot exercise the window; needs a deterministic test."
+    },
+    {
+      "id": "adopted-end-time-before-mirror-settle",
+      "protocol": "TaskGroup adopted member",
+      "claim": "AdoptedSource.connect registers the source listener that marks the end time before setFuture registers the mirror's listener, so convergence, which the mirror's settle can trigger synchronously, snapshots a final end time.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
+      "mutations": [
+        {
+          "find": "        source.addListener(this::sourceSettled, directExecutor());\n        mirror.setFuture(source);",
+          "replace": "        mirror.setFuture(source);\n        source.addListener(this::sourceSettled, directExecutor());"
+        }
+      ],
+      "tests": "TaskGroupAdoptedFutureTest#theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember",
+      "expect": "failure",
+      "note": "An already-completed source settles the mirror inside setFuture, so the reversed order converges before the end time is written."
+    },
+    {
+      "id": "adopted-closers-after-completion",
+      "protocol": "TaskGroup adopted member",
+      "claim": "Discarded adopted values are closed only after TaskGroup.converge publishes completion, so a blocking ResourceCloser cannot hold runAll past its bounded cleanup wait.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "mutations": [
+        {
+          "find": "        if (!discard) {\n            settleAdopted(false);\n        }",
+          "replace": "        settleAdopted(discard);"
+        },
+        {
+          "find": "        if (discard) {\n            settleAdopted(true);\n        }\n",
+          "replace": ""
+        }
+      ],
+      "tests": "TaskGroupAdoptedFutureTest#aBlockingCloserCannotHoldRunAllPastItsCleanupBudget",
+      "expect": "failure",
+      "note": "The test runs runAll on a separate caller and bounds its return; closing before publication blocks the converging worker before completion is set."
     }
   ]
 }

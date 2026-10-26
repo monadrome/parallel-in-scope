@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
@@ -92,22 +94,40 @@ final class TaskGroupDefinition {
     }
 
     /**
-     * One declared slot: key, the {@link Par} it runs on, and options. A slot carries no kind tag:
-     * it is a member or the combine by virtue of which argument it arrived in.
+     * One declared slot: key, the {@link Par} it runs on, and options. A slot carries no
+     * member-or-combine tag: it is a member or the combine by virtue of which argument it arrived
+     * in. An adopted member's slot runs nothing; its optional {@code par} names the executor that
+     * completes the adopted source, and the source itself travels in the run's payloads.
      */
     static final class Slot {
         final String name;
-        final Par par;
+        final @Nullable Par par;
         final TaskOptions options;
         final TaskKey<?> key;
         final boolean valueView;
+        final boolean adopted;
 
         Slot(TaskKey<?> key, Par par, TaskOptions options, boolean valueView) {
+            this(key, par, options, valueView, false);
+        }
+
+        private Slot(TaskKey<?> key, @Nullable Par par, TaskOptions options, boolean valueView, boolean adopted) {
             this.key = key;
             this.valueView = valueView;
             this.name = key.name();
             this.par = par;
             this.options = options;
+            this.adopted = adopted;
+        }
+
+        /** The slot of an adopted member, attributed to {@code producer} when one is declared. */
+        static Slot adopted(TaskKey<?> key, @Nullable Par producer) {
+            return new Slot(key, producer, TaskOptions.inheritTimeout(), false, true);
+        }
+
+        /** The executor entry of a slot the library runs; adopted members never reach this. */
+        Par runPar() {
+            return verifyNotNull(par, "slot '%s' runs no body", name);
         }
     }
 }

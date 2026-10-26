@@ -159,7 +159,8 @@ class GroupDraftLifecycleTest {
     void payloadCarrierClearsEachSlotOnTakeAndEverythingOnDiscard() throws Exception {
         Callable<Object> member = () -> 1;
         CombineBody<Object, Object> combine = values -> "x";
-        TaskGroup.RunBindings payloads = new TaskGroup.RunBindings(new Callable<?>[] {member}, combine);
+        TaskGroup.RunBindings payloads =
+                new TaskGroup.RunBindings(new Callable<?>[] {member}, new AdoptedSource[1], combine);
 
         assertThat(payloads.taskSlotCleared(0)).isFalse();
         assertThat(payloads.combineSlotCleared()).isFalse();
@@ -172,7 +173,8 @@ class GroupDraftLifecycleTest {
         assertThat(taken.apply(null)).isEqualTo("x");
 
         // A never-consumed carrier is cleared wholesale, so a rejected submission retains nothing.
-        TaskGroup.RunBindings discarded = new TaskGroup.RunBindings(new Callable<?>[] {member}, combine);
+        TaskGroup.RunBindings discarded =
+                new TaskGroup.RunBindings(new Callable<?>[] {member}, new AdoptedSource[1], combine);
         discarded.discard();
         assertThat(discarded.taskSlotCleared(0)).isTrue();
         assertThat(discarded.combineSlotCleared()).isTrue();

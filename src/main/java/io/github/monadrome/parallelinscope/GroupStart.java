@@ -12,7 +12,9 @@ import java.util.concurrent.Callable;
  *
  * <p>A group is declared and submitted in a single fluent chain: each {@link #par} states a
  * member's name, its {@link Par}, its declared result type, and <em>this run's</em> body. Building
- * the chain neither executes work nor captures the execution context. Execution budgets and TTL
+ * the chain neither executes work nor captures the execution context. Each {@link #adopt} instead
+ * states a member whose result is a future already in flight, which the group owns from {@code
+ * runAll} on. Execution budgets and TTL
  * context are resolved only when {@code runAll} admits the group. {@link #runAll()} is the only
  * admission and submission boundary, and it may be called exactly once: the chain is consumed by
  * the submission and cannot be retried, extended, or reused.
@@ -49,6 +51,69 @@ public interface GroupStart {
 
     /** Declares the first keyed member with explicit task options. */
     <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+
+    /**
+     * Declares the first member as an adopted future: work already in flight whose result becomes
+     * this member's result. The key supplies the name and type exactly as for {@link #par}.
+     *
+     * <p>From {@code runAll()} on the group owns {@code source}. Whatever cancels the group's
+     * unfinished members — a failure, a deadline, {@link #cancelOn}, ancestor cancellation, or a
+     * directly cancelled member — cancels the source with the same interrupt intent. When {@code
+     * runAll()} throws before admitting the group, every adopted source is cancelled. Do not cancel
+     * or reuse the source yourself afterwards: cancelling it is a direct member cancellation, which
+     * cancels the whole group. Each future can be adopted once per group.
+     *
+     * <p>The member reads {@link TaskOutcome#SUCCESS} with the source's value and {@link
+     * TaskOutcome#USER_FAILURE} with its failure; cancellation is attributed through the group like
+     * any member's. The library runs no body for it: no executor submission, TTL replay, task-type
+     * diagnostic, or workload-fit timing applies. Its body-exit slot is released when the source
+     * settles, so {@link TaskGroupResult#bodyCompletionConfirmed()} also confirms that every adopted
+     * source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
+     * waiting and is reported among the unfinished bodies.
+     *
+     * <p>An unattributed source records no executor wait. Use {@link #adopt(TaskKey, Par,
+     * ListenableFuture)} when a registered executor completes the source.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @since 0.4.0
+     */
+    <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
+
+    /**
+     * Declares the first member as an adopted future whose undelivered values are released by
+     * {@code closer}. Each non-null value the source produces has one owner: the terminal combine
+     * once its body is entered, otherwise the caller when the group succeeds. Every other value —
+     * of a group that did not succeed, or one that arrived after the group cancelled the source —
+     * is passed to {@code closer} exactly once. See {@link ResourceCloser} for threading and failure
+     * handling, and {@link #adopt(TaskKey, ListenableFuture)} for ownership and attribution.
+     *
+     * @since 0.4.0
+     */
+    <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
+
+    /**
+     * Declares the first member as an adopted future completed by work on {@code producer}'s
+     * registered executor. The attribution feeds only the runtime's executor wait report: a group
+     * run from a task body waits for the producer's executor like it waits for a {@code par}
+     * member's. It never submits, wraps, or reroutes work. Declare a producer only when that
+     * executor completes the source; a wrong attribution records a wrong wait.
+     *
+     * @throws IllegalArgumentException additionally if {@code producer} belongs to another runtime
+     * @since 0.4.0
+     */
+    <T> GroupStep<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
+
+    /**
+     * Declares the first member as an adopted future attributed to {@code producer} whose
+     * undelivered values are released by {@code closer}; combines {@link #adopt(TaskKey, Par,
+     * ListenableFuture)} and {@link #adopt(TaskKey, ListenableFuture, ResourceCloser)}.
+     *
+     * @since 0.4.0
+     */
+    <T> GroupStep<T> adopt(
+            TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
 
     /**
      * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores

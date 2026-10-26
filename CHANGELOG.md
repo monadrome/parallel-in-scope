@@ -57,6 +57,15 @@
   non-interrupting `cancel(false)` intent, never finish the source, register only after successful
   preparation immediately before binding, and sever the execution link on terminal completion.
   Empty batches and groups do not register. `TaskOptions` intentionally has no member-level variant.
+- Adopt futures already in flight as group members with `GroupStart.adopt` / `GroupStep.adopt`.
+  The group owns each adopted `ListenableFuture` from `runAll()` on: fail-fast, deadlines,
+  `cancelOn`, and enclosing cancellation cancel it with the same interrupt intent, and a `runAll()`
+  that throws before admission cancels it. Each produced value has one owner — the combine once its
+  body starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
+  other value exactly once, including a value that arrives after cancellation. Closers run after the
+  group's completion is published, so a blocking closer cannot hold `runAll()` past its cleanup wait;
+  `bodyCompletionConfirmed()` also covers adopted futures and their closers. An optional producer
+  `Par` puts nested waits on adopted futures into `executorWaitReport()`.
 
 - Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted
   outside the structured task graph. `ThreadPoolStarvationReport` distinguishes clean observation,

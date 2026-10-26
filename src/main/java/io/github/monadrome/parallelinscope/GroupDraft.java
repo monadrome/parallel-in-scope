@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.time.Duration;
@@ -41,6 +42,7 @@ final class GroupDraft {
     private final Thread ownerThread = Thread.currentThread();
     private final List<MemberDecl> members = new ArrayList<>();
     private final Set<String> seenNames = new HashSet<>();
+    private final Set<ListenableFuture<?>> adoptedSources = Sets.newIdentityHashSet();
 
     private @Nullable CombineDecl combine;
     private @Nullable Duration closeGrace;
@@ -54,20 +56,33 @@ final class GroupDraft {
         this.timeout = timeout;
     }
 
-    /** One declared plain member; its body is cleared once the kernel takes it or on failure. */
+    /**
+     * One declared plain member: a body the library runs on {@code par}, or an adopted source whose
+     * optional {@code par} names the producer. The payload is cleared once the kernel takes it.
+     */
     private static final class MemberDecl {
-        final Par par;
+        final @Nullable Par par;
         final TaskOptions options;
         final TaskKey<?> key;
 
         @Nullable
         Callable<?> body;
 
+        @Nullable
+        AdoptedSource adopted;
+
         MemberDecl(TaskKey<?> key, Par par, TaskOptions options, Callable<?> body) {
             this.key = key;
             this.par = par;
             this.options = options;
             this.body = body;
+        }
+
+        MemberDecl(TaskKey<?> key, @Nullable Par producer, AdoptedSource adopted) {
+            this.key = key;
+            this.par = producer;
+            this.options = TaskOptions.inheritTimeout();
+            this.adopted = adopted;
         }
     }
 
@@ -108,6 +123,23 @@ final class GroupDraft {
         checkPar(par);
         seenNames.add(key.name());
         members.add(new MemberDecl(key, par, options, body));
+    }
+
+    void addAdopted(
+            TaskKey<?> key, @Nullable Par producer, ListenableFuture<?> source, @Nullable ResourceCloser<?> closer) {
+        checkNotNull(key, "key cannot be null");
+        checkNotNull(source, "source cannot be null");
+        checkNameAvailable(key.name());
+        if (producer != null) {
+            checkPar(producer);
+        }
+        checkArgument(
+                !adoptedSources.contains(source),
+                "the future adopted as '%s' is already adopted by this group; adopt each future once",
+                key.name());
+        seenNames.add(key.name());
+        adoptedSources.add(source);
+        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source, closer)));
     }
 
     void setCombine(TaskKey<?> key, Par par, TaskOptions options, CombineBody<?, ?> body, boolean valueView) {
@@ -173,7 +205,10 @@ final class GroupDraft {
     private TaskGroupDefinition freeze() {
         List<TaskGroupDefinition.Slot> memberSlots = new ArrayList<>();
         for (MemberDecl member : members) {
-            memberSlots.add(new TaskGroupDefinition.Slot(member.key, member.par, member.options, false));
+            memberSlots.add(
+                    member.adopted == null
+                            ? new TaskGroupDefinition.Slot(member.key, checkNotNull(member.par), member.options, false)
+                            : TaskGroupDefinition.Slot.adopted(member.key, member.par));
         }
         CombineDecl declaredCombine = combine;
         TaskGroupDefinition.Slot combineSlot = declaredCombine == null
@@ -190,17 +225,21 @@ final class GroupDraft {
      */
     private TaskGroup.RunBindings takePayloads() {
         Callable<?>[] taskBodies = new Callable<?>[members.size()];
+        AdoptedSource[] adopted = new AdoptedSource[members.size()];
         for (int index = 0; index < members.size(); index++) {
             MemberDecl member = members.get(index);
             taskBodies[index] = member.body;
+            adopted[index] = member.adopted;
             member.body = null;
+            member.adopted = null;
         }
+        adoptedSources.clear();
         CombineDecl combineDecl = combine;
         CombineBody<?, ?> combineBody = combineDecl == null ? null : combineDecl.body;
         if (combineDecl != null) {
             combineDecl.body = null;
         }
-        return new TaskGroup.RunBindings(taskBodies, combineBody);
+        return new TaskGroup.RunBindings(taskBodies, adopted, combineBody);
     }
 
     @SuppressWarnings("unchecked")
@@ -226,6 +265,43 @@ final class GroupDraft {
             draft.checkThread();
             draft.checkStage(0);
             draft.addMember(key, par, options, body);
+            return next();
+        }
+
+        @Override
+        public <T> Step<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+            return adopted(key, null, source, null);
+        }
+
+        @Override
+        public <T> Step<T> adopt(
+                TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
+            return adopted(key, null, source, checkNotNull(closer, "closer cannot be null"));
+        }
+
+        @Override
+        public <T> Step<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source, null);
+        }
+
+        @Override
+        public <T> Step<T> adopt(
+                TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
+            return adopted(
+                    key,
+                    checkNotNull(producer, "producer cannot be null"),
+                    source,
+                    checkNotNull(closer, "closer cannot be null"));
+        }
+
+        private <T> Step<T> adopted(
+                TaskKey<T> key,
+                @Nullable Par producer,
+                ListenableFuture<? extends T> source,
+                @Nullable ResourceCloser<? super T> closer) {
+            draft.checkThread();
+            draft.checkStage(0);
+            draft.addAdopted(key, producer, source, closer);
             return next();
         }
 
@@ -285,6 +361,43 @@ final class GroupDraft {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.addMember(key, par, options, body);
+            return next();
+        }
+
+        @Override
+        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+            return adopted(key, null, source, null);
+        }
+
+        @Override
+        public <T> Step<Tuple2<V, T>> adopt(
+                TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
+            return adopted(key, null, source, checkNotNull(closer, "closer cannot be null"));
+        }
+
+        @Override
+        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source, null);
+        }
+
+        @Override
+        public <T> Step<Tuple2<V, T>> adopt(
+                TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
+            return adopted(
+                    key,
+                    checkNotNull(producer, "producer cannot be null"),
+                    source,
+                    checkNotNull(closer, "closer cannot be null"));
+        }
+
+        private <T> Step<Tuple2<V, T>> adopted(
+                TaskKey<T> key,
+                @Nullable Par producer,
+                ListenableFuture<? extends T> source,
+                @Nullable ResourceCloser<? super T> closer) {
+            draft.checkThread();
+            draft.checkStage(expectedStage);
+            draft.addAdopted(key, producer, source, closer);
             return next();
         }
 
