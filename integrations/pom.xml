@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.monadrome</groupId>
+    <artifactId>parallel-in-scope-integrations</artifactId>
+    <version>0.4.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>parallel-in-scope-integrations</name>
+    <description>
+        Integration samples for parallel-in-scope with Resilience4j, Sentinel, and Spring.
+        A standalone consumer of the published library artifact, separate from the demo module.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Java 8 bytecode, matching the library baseline. The integration
+             versions below are the newest lines that still run on Java 8;
+             Resilience4j 2.x and Spring 6.x require Java 17. -->
+        <maven.compiler.release>8</maven.compiler.release>
+        <parallel-in-scope.version>0.4.0-SNAPSHOT</parallel-in-scope.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
+        <sentinel.version>1.8.10</sentinel.version>
+        <spring.version>5.3.39</spring.version>
+        <junit-jupiter.version>5.14.4</junit-jupiter.version>
+        <assertj.version>3.27.7</assertj.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.monadrome</groupId>
+            <artifactId>parallel-in-scope</artifactId>
+            <version>${parallel-in-scope.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-core</artifactId>
+            <version>${sentinel.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.16.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Keep Sentinel's own log files inside the build directory. -->
+                        <csp.sentinel.log.dir>${project.build.directory}/sentinel-logs</csp.sentinel.log.dir>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>3.10.4</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>2.97.0</version>
+                        </palantirJavaFormat>
+                    </java>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.4</version>
+                <configuration>
+                    <mainClass>integrations.app.QuoteApplication</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                    <systemProperties>
+                        <systemProperty>
+                            <key>csp.sentinel.log.dir</key>
+                            <value>${project.build.directory}/sentinel-logs</value>
+                        </systemProperty>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

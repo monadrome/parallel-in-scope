@@ -426,6 +426,10 @@ Never commit secrets, `.env` files, GPG keys, or repository credentials.
 
 Load documents when their subject affects the task:
 
+- `integrations/AGENTS.md` - The standalone Resilience4j, Sentinel, and Spring
+  sample project. Read before changing anything under `integrations/`; it is a
+  separate consumer project, outside `mvn test` and CI.
+
 - `design/issue-automation.md` - The optional issue runner: trust boundary,
   labels, gates, and what may merge unattended. Read before changing
   `scripts/issue_agent/`, the agent labels, or issue-triggered workflows.

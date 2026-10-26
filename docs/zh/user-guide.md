@@ -774,6 +774,18 @@ account.addListener(() -> {
 因为 `map`/`runAll` 是同步的，互操作发生在结果侧：没有可组合的提交侧 future，只有已经冻结的
 `ImmediateResult`。
 
+### 与 Resilience4j、Sentinel、Spring 协作
+
+独立的[集成样例](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/integrations/README.md)
+演示了这些库与批次、任务组的配合。以下三条规则适用于任何容错或流控库：
+
+- 在任务体内围绕一次下游调用获取许可。在调用方围绕 `map` 获取的熔断许可或 Sentinel 入口会把整个扇出算成一次调用。
+- 不要把取消计为下游故障。fail-fast、截止时间和 `cancelOn` 会中断任务体；记录这些失败的熔断器或降级规则会因为兄弟任务被取消而打开。
+- 时间和并发限制交给批次或任务组。时间限制器或线程池隔离会把调用移到作用域取消信号到不了的线程上。
+
+Resilience4j 1.7 的重试在退避被中断时会以未声明的 `InterruptedException` 抛出并清除中断标志；样例会恢复中断标志并报告取消。
+在 Spring 中注册物理 `ThreadPoolExecutor` Bean，并在 lifecycle 的 stop 阶段关闭运行时、等待静默，再销毁线程池 Bean。
+
 ## 运行规则
 
 - `ParRuntime` 应覆盖应用生命周期，并在应用关闭时关闭它。

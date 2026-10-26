@@ -875,6 +875,25 @@ account.addListener(() -> {
 Because `map` and `runAll` are synchronous, interop happens on the result side: there is no
 submission-side future to compose, only the already-frozen `ImmediateResult`.
 
+### Resilience4j, Sentinel, and Spring
+
+The standalone [integration samples](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/integrations/README.en.md)
+show these libraries with batches and groups. Three rules carry over to any resilience or
+flow-control library:
+
+- Acquire the permit inside the task body, around one downstream call. A circuit breaker or
+  Sentinel entry acquired around `map` on the caller counts the whole fan-out as one call.
+- Do not count cancellation as a downstream failure. Fail-fast, deadlines, and `cancelOn`
+  interrupt bodies; a breaker or degrade rule that records those failures opens because siblings
+  were cancelled.
+- Keep time and concurrency limits with the batch or group. A time limiter or thread-pool bulkhead
+  moves the call to a thread that the scope's cancellation does not reach.
+
+Resilience4j 1.7's retry rethrows an interrupted backoff as an undeclared `InterruptedException`
+and clears the interrupt flag; the samples restore the flag and report a cancellation. In Spring,
+register physical `ThreadPoolExecutor` beans and close the runtime and await quiescence in the
+lifecycle stop phase, before executor beans are destroyed.
+
 ## Operational rules
 
 - Keep a `ParRuntime` for the application lifetime and close it during application shutdown.
