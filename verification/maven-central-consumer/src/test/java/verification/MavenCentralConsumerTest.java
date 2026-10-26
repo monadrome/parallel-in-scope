@@ -5,6 +5,7 @@ import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GroupValues;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ResourceCloser;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.ImmediateResult;
@@ -28,7 +29,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +64,42 @@ class MavenCentralConsumerTest {
             assertEquals(Integer.valueOf(5), result.resultOf(total).valueOrThrow());
             assertThrows(IllegalArgumentException.class, () -> result.resultOf(TaskKey.named("user")));
             assertThrows(IllegalArgumentException.class, () -> result.valuesOrThrow().valueOf(total));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void adoptedFuturesJoinTheGroupScopeOnJava8() throws Exception {
+        TaskKey<String> ready = TaskKey.named("ready");
+        TaskKey<String> pending = TaskKey.named("pending");
+        TaskKey<String> failing = TaskKey.named("failing");
+        TaskKey<String> joined = TaskKey.named("joined");
+        AtomicInteger closed = new AtomicInteger();
+        ResourceCloser<String> closer = value -> closed.incrementAndGet();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<String, String>, String> success = runtime.group("adopted", Duration.ofSeconds(5))
+                    .adopt(ready, Futures.immediateFuture("a"), closer)
+                    .adopt(pending, par, Futures.immediateFuture("b"), closer)
+                    .combine(joined, par, values -> values.first() + values.second())
+                    .runAll();
+            assertEquals("ab", success.terminalValueOrThrow());
+            assertEquals(0, closed.get());
+
+            SettableFuture<String> never = SettableFuture.create();
+            TaskGroupResult<?, Void> failed = runtime.group("adopted-failure", Duration.ofSeconds(5))
+                    .adopt(ready, Futures.immediateFuture("a"), closer)
+                    .adopt(pending, never, closer)
+                    .par(failing, par, () -> {
+                        throw new IllegalStateException("boom");
+                    })
+                    .runAll();
+            assertEquals(TaskOutcome.USER_FAILURE, failed.outcome());
+            assertTrue(never.isCancelled());
+            assertEquals(1, closed.get());
+            assertTrue(failed.bodyCompletionConfirmed());
         } finally {
             executor.shutdownNow();
         }
