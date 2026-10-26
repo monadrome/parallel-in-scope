@@ -1019,9 +1019,11 @@ final class TaskGroup<V, R> implements AutoCloseable {
         }
         completion.set(result);
         /*
-         * Discarded values are closed only after the completion is published: a closer is user code
-         * that may block, and runAll's liveness rests on the deadline, never on a closer returning.
-         * The bounded cleanup wait still covers the closers through the adopted members' body slots.
+         * Discarded values are handed to their closers only after the completion is published.
+         * Closers normally run on the runtime's releases pool, but once its services have shut down
+         * a refused release runs inline on this thread, and runAll's liveness rests on the deadline,
+         * never on a closer returning. The bounded cleanup wait still covers the closers through the
+         * adopted members' body slots.
          */
         if (discard) {
             settleAdopted(true);
@@ -1307,7 +1309,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
          * #discard()} can still abandon it if admission fails after preparation took it.
          */
         AdoptedSource adoptedAt(int memberIndex) {
-            return Objects.requireNonNull(adoptedSources[memberIndex], "member has no adopted source");
+            return com.google.common.base.Verify.verifyNotNull(
+                    adoptedSources[memberIndex], "member %s has no adopted source", memberIndex);
         }
 
         /** Moves one member's callable out: the slot is cleared before the body is returned. */

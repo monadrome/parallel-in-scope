@@ -3,12 +3,14 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -29,12 +31,13 @@ class AdoptedSourceTest {
     void abandoningAPreparedSourceReleasesItsBodySlotOnceTheSourceSettles() {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         SettableFuture<String> source = SettableFuture.create();
-        AdoptedSource adopted = new AdoptedSource("adopted", source, null);
+        AdoptedSource adopted = new AdoptedSource("adopted", source, null, MoreExecutors.directExecutor());
         adopted.attach(prepared(tracker));
 
         new TaskGroup.RunBindings(new Callable<?>[1], new AdoptedSource[] {adopted}, null).discard();
 
         assertThat(source.isCancelled()).isTrue();
+        assertThat(adopted.mirror().isCancelled()).isTrue();
         assertThat(tracker.isDone()).isTrue();
     }
 
@@ -42,7 +45,7 @@ class AdoptedSourceTest {
     void abandoningAConnectedSourceLeavesItToTheGroup() {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         SettableFuture<String> source = SettableFuture.create();
-        AdoptedSource adopted = new AdoptedSource("adopted", source, null);
+        AdoptedSource adopted = new AdoptedSource("adopted", source, null, MoreExecutors.directExecutor());
         adopted.attach(prepared(tracker));
         adopted.connect();
 
@@ -58,8 +61,11 @@ class AdoptedSourceTest {
     void aDiscardedNullValueIsNeverPassedToTheCloser() {
         BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
         AtomicInteger closes = new AtomicInteger();
-        AdoptedSource adopted =
-                new AdoptedSource("adopted", Futures.immediateFuture(null), value -> closes.incrementAndGet());
+        AdoptedSource adopted = new AdoptedSource(
+                "adopted",
+                Futures.immediateFuture(null),
+                value -> closes.incrementAndGet(),
+                MoreExecutors.directExecutor());
         adopted.attach(prepared(tracker));
         adopted.connect();
 
@@ -90,9 +96,13 @@ class AdoptedSourceTest {
             for (Exception failure :
                     new Exception[] {new IllegalStateException("broken"), new InterruptedException("stop")}) {
                 BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-                AdoptedSource adopted = new AdoptedSource("adopted", Futures.immediateFuture("value"), value -> {
-                    throw failure;
-                });
+                AdoptedSource adopted = new AdoptedSource(
+                        "adopted",
+                        Futures.immediateFuture("value"),
+                        value -> {
+                            throw failure;
+                        },
+                        MoreExecutors.directExecutor());
                 adopted.attach(prepared(tracker));
                 adopted.connect();
 
@@ -111,5 +121,22 @@ class AdoptedSourceTest {
             assertThat(record.getMessage()).contains("'adopted'");
         }
         assertThat(records.get(1).getThrown()).isInstanceOf(InterruptedException.class);
+    }
+
+    @Test
+    void aReleaseTheExecutorRefusesRunsOnTheSettlingThread() {
+        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        AtomicInteger closes = new AtomicInteger();
+        AdoptedSource adopted = new AdoptedSource(
+                "adopted", Futures.immediateFuture("value"), value -> closes.incrementAndGet(), command -> {
+                    throw new RejectedExecutionException("services shut down");
+                });
+        adopted.attach(prepared(tracker));
+        adopted.connect();
+
+        adopted.decide(true);
+
+        assertThat(closes).hasValue(1);
+        assertThat(tracker.isDone()).isTrue();
     }
 }

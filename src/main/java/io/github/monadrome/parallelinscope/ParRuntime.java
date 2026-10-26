@@ -581,6 +581,16 @@ public final class ParRuntime implements AutoCloseable {
                 liveBodySignals.size());
     }
 
+    /**
+     * The runtime-owned executor that runs adopted members' closers, so a closer never runs on a
+     * {@code runAll()} caller or on the thread that delivers deadlines. It is the deadline action
+     * pool: it grows on demand, so a blocking closer occupies one of its threads and delays nothing
+     * else. It rejects work after the runtime's services shut down.
+     */
+    Executor releases() {
+        return timeoutActionPool;
+    }
+
     /** Runs one synchronous batch setup while this topology remains open. */
     <T> T whileOpen(Supplier<T> action) {
         Objects.requireNonNull(action, "action cannot be null");
