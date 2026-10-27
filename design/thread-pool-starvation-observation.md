@@ -1,9 +1,9 @@
 # Thread-Pool Starvation Observation Contract
 
 This contract covers the opt-in runtime signal for work submitted directly to a registered
-executor. It complements [task-graph.md](task-graph.md): task-graph detection proves a structural
-waits-for cycle from library admissions, while this observation covers unstructured submissions
-that never create task-graph nodes.
+executor. It complements [task-graph.md](task-graph.md): the runtime's executor wait graph records
+structural waits-for cycles from library admissions, while this observation covers unstructured
+submissions that never record a wait.
 
 ## User shape
 
@@ -56,7 +56,7 @@ for this unreleased API because the old name counted pairs rather than samples.
 ## Contract
 
 1. The observation MUST be opt-in. Creating a `ParRuntime` or using existing `Par`, `TaskGroup`,
-   and `TaskGraphObservationScope` APIs MUST NOT start sampling.
+   and `ParRuntime.executorWaitReport()` APIs MUST NOT start sampling.
 2. The observation MUST NOT wrap, submit, cancel, interrupt, reorder, or otherwise alter user
    tasks. The registered executors remain borrowed resources owned by the application.
 3. Each distinct physical executor visible through the registered runtime entry MUST be sampled at
@@ -108,8 +108,8 @@ explain who waits for whom across pools or runtimes.
 
 Submission ancestry is not a synchronous wait: projecting fire-and-forget submissions can invent
 cycles. Task dependencies can be acyclic while parents occupy all workers needed by queued children;
-the missing resource is executor capacity. The library's task graph is acyclic by construction,
-but its executor projection can identify this capacity-cycle risk for known synchronous waits.
+the missing resource is executor capacity. The library's executor wait graph identifies this
+capacity-cycle risk for known synchronous waits.
 Direct submissions do not supply those wait edges. Multiple acyclic wait chains sharing a finite pool do
 not alone prove starvation either: the awaited work may still acquire capacity and finish. An
 expandable pool can relieve its own worker shortage without relieving a bounded pool elsewhere in
@@ -132,7 +132,7 @@ a separate publication protocol and is outside this hardening change (F13).
 
 The observation does not add an executor decorator, future wrapper, or dependency-edge API. Those
 shapes would create a second execution pipeline and conflict with the extension boundary in
-[extension-and-wrapping.md](extension-and-wrapping.md). Existing task-graph reporting remains the
+[extension-and-wrapping.md](extension-and-wrapping.md). The executor wait report remains the
 source of structural cycle evidence.
 
 ## Independent review disposition

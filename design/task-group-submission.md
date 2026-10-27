@@ -134,7 +134,6 @@ mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批�
 | `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |
 | `CancellationToken` | outer→group→member 取消传播和中断 |
 | `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
-| `TaskGraphObservationScope` | 请求级观测归属 |
 
 ### 9.2 不得复用
 
