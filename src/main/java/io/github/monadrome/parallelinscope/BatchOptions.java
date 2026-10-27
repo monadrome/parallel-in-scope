@@ -151,7 +151,9 @@ public final class BatchOptions {
      * for direct task bodies and their final observations before returning.
      *
      * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
-     * waiting. When unset, the budget is derived from the remaining execution deadline. A terminal
+     * waiting. When unset, the budget is derived from the remaining execution deadline. A run that
+     * ends at its deadline has no remaining budget: unless a grace was set explicitly, its derived
+     * cleanup wait is zero and bodies still unwinding are not awaited. A terminal
      * cancellation result can coexist with a body still closing resources; inspect {@link
      * TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
      *

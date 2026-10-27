@@ -22,7 +22,8 @@ import org.jspecify.annotations.Nullable;
  * Frozen outcome, typed results, and available final observations of a synchronous group.
  *
  * <p>Accessors never wait. A terminal result can coexist with a body still unwinding after
- * cancellation; bodyCompletionConfirmed checks direct members and the combine, not nested children.
+ * cancellation; bodyCompletionConfirmed checks direct members, the combine, and adopted sources,
+ * not nested children.
  * Nested calls must separately confirm exit before releasing resources their bodies share. Missing
  * final observations are omitted, never filled with provisional end times.
  *
@@ -172,7 +173,9 @@ public final class TaskGroupResult<V, R> {
      * Whether every direct task body — each member's and the combine's — had exited, or was
      * atomically prevented from starting, when {@code runAll} returned. A cancelled member's result
      * can be terminal while its body is still unwinding, so check this before releasing a resource
-     * the bodies share. Bodies of nested calls made inside them are not covered.
+     * the bodies share. Bodies of nested calls made inside them are not covered. An adopted member
+     * occupies one exit slot connected as already run: confirmation also means every adopted source
+     * settled and, with a declared closer, every discarded value was closed.
      */
     public boolean bodyCompletionConfirmed() {
         return unfinishedBodies.isEmpty();
@@ -180,7 +183,9 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * The direct task bodies whose exit was not confirmed when {@code runAll} returned, counted by
-     * task name; empty exactly when {@link #bodyCompletionConfirmed()} is true.
+     * task name; empty exactly when {@link #bodyCompletionConfirmed()} is true. A source that
+     * ignores cancellation keeps its adopted member's slot waiting and is counted here under the
+     * member's declared name.
      */
     public Map<String, Integer> unfinishedBodies() {
         return unfinishedBodies;

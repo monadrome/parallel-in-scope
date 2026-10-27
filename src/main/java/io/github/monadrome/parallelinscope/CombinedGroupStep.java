@@ -29,8 +29,8 @@ public interface CombinedGroupStep<V, R> {
      * deadline; check TaskGroupResult.bodyCompletionConfirmed for body exit.
      *
      * @return the frozen group result
-     * @throws IllegalStateException if this stage is stale, the draft was already submitted, or the
-     *     draft is used from another thread
+     * @throws IllegalStateException if this stage is stale, the draft was already submitted, the
+     *     draft is used from another thread, or the owning ParRuntime has begun shutdown
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */

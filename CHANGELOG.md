@@ -60,7 +60,8 @@
 - Adopt futures already in flight as group members with `GroupStart.adopt` / `GroupStep.adopt`.
   The group owns each adopted `ListenableFuture` from `runAll()` on: fail-fast, deadlines,
   `cancelOn`, and enclosing cancellation cancel it with the same interrupt intent, and a `runAll()`
-  that throws before admission cancels it. Each produced value has one owner — the combine once its
+  that fails admission cancels it (a stale-stage or thread-confinement rejection leaves it
+  untouched). Each produced value has one owner — the combine once its
   body starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
   other value exactly once, including a value that arrives after cancellation. Closers run on a
   runtime-owned thread after the group's completion is published, not on the `runAll()` caller (a

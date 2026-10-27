@@ -16,8 +16,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Typed lookup uses the exact {@link TaskKey} supplied at declaration. Dynamic lookup by
  * zero-based declaration position ({@link #valueAt(int)}) or name ({@link #valueOf(String)})
- * returns {@code Object}. The order is the order the {@code par} calls were written, never the
- * order tasks completed in. Successful null values are allowed.
+ * returns {@code Object}. The order is the order members were declared ({@code par} and {@code
+ * adopt} calls), never the order tasks completed in. Successful null values are allowed.
  *
  * <p>The snapshot is shallowly immutable and never blocks: it contains only completed members'
  * successful values. User objects inside it are not copied or frozen.

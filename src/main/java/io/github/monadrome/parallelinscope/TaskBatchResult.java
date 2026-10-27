@@ -103,6 +103,8 @@ public final class TaskBatchResult<T> {
      * as a {@link CancellationException}.
      *
      * @return this result
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when no element recorded a failure
      * @since 0.4.0
      */
     @CanIgnoreReturnValue
