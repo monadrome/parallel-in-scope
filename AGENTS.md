@@ -187,8 +187,10 @@ explicit human confirmation before implementing it.
 - After verification, automatically commit and push the current branch,
   including documentation maintenance and in-flight proposals. Proposals are
   tracked under `design/proposal/`; their lifecycle is defined in
-  `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: harvest
-  their conclusions before deleting them, and do not commit the drafts.
+  `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: do not
+  commit them on your own initiative; commit one only when the user asks, under
+  `design/analysis/` per `design/AGENTS.md` principle 9. Harvest their
+  conclusions before deleting them either way.
 - Unattended issue-runner sessions (`scripts/issue-agent.py`) override the push
   rule above: the agent commits locally only, and the runner pushes an
   `auto/issue-*` branch, opens a pull request into the current `dev/vX.Y.Z`
@@ -296,18 +298,22 @@ Load documents when their subject affects the task:
   task-group, queue, extension behavior, or proposal maintenance changes. Load
   only documents whose summaries match the change. It routes live contracts and
   tracked in-flight proposals separately; proposals do not constrain current
-  implementation. Check `git status --short design/` for temporary analysis too.
+  implementation. Check `git status --short design/` for uncommitted analysis
+  too; analysis committed at the user's request under `design/analysis/` is
+  input, not contract.
   Current `design/` contracts take precedence over historical ADRs, except for
   boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
   boundary (its retired `design/` companion is recoverable from git history via
-  `design/decision-log.md`).
+  `design/decision-log.md`). Its principle 10 decides where decision rationale
+  lands: ADR, a contract's rejected-alternatives section, or the decision log.
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
   or other breaking changes from `0.1.x`.
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
-- `adr/` - Historical decision rationale; existing records are immutable.
+- `adr/` - Historical decision rationale; existing records are immutable. New
+  records only for decisions `design/AGENTS.md` principle 10 routes there.
 - `BACKLOG.md` - Known defects and deferred work, each with an evidence grade.
   It is pinned to the commit named at its top, so re-verify any line number it
   cites before acting on an entry.
