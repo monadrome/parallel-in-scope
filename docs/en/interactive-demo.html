@@ -161,6 +161,7 @@ svg{display:block;width:100%;height:auto}
 .gedge path{stroke:rgba(255,255,255,.28);stroke-width:1.2;fill:none;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .5s ease .1s}
 .gedge.on path{stroke-dashoffset:0}
 .gedge.cyc path{stroke:var(--orange);stroke-dasharray:4 3;stroke-dashoffset:0;transition:none}
+.gedge text{fill:#6b7280;font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .log{background:#0b0d10;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font:11px/1.9 var(--mono);color:#9ca3af;min-height:118px;max-height:170px;overflow:auto;margin-top:12px}
 .log .ok{color:#4ade80}.log .warn{color:var(--orange)}
 
@@ -367,13 +368,13 @@ httpPar.map(userIds, user -&gt; {
     </div>
   </section>
 
-  <!-- ============ 场景 4：执行器等待图与死锁检测 ============ -->
+  <!-- ============ 场景 4：运行时执行器等待图与死锁检测 ============ -->
   <section class="scenario" id="s4">
     <div class="sc-head">
       <span class="sc-num">04</span>
       <div>
-        <h2>嵌套批次的执行器等待图与死锁检测</h2>
-        <p>map 里再开 map 会在运行时的执行器等待图上留下等待边。运行时常开地收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁，哪怕两条边来自不同的请求。</p>
+        <h2>运行时执行器等待图与死锁检测</h2>
+        <p>map 的 body 里再开 map，会在运行时注册的<b>执行器</b>之间留下等待边：节点是执行器（同一池以多个 ParId 注册仍是一个节点），只有指向 starvation-prone 池的同步等待才成边；顶层调用没有等待者，不成边，也没有 root 哨兵。运行时常开收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁，哪怕两条边来自不同的请求。</p>
       </div>
     </div>
     <div class="sc-body">
@@ -389,25 +390,29 @@ httpPar.map(userIds, user -&gt; {
             <button class="btn" data-play="s4">重放</button>
           </div>
         </div>
-        <svg id="s4svg" viewBox="0 0 560 300" role="img" aria-label="任务依赖图"></svg>
+        <svg id="s4svg" viewBox="0 0 560 300" role="img" aria-label="运行时执行器等待图：http 同步等待 database，注入后 database 反向等待 http，形成等待环"></svg>
         <div class="log" id="s4log"></div>
         <div class="alert hidden" id="s4banner">
           <span>⚠</span>
-          <span><b>潜在死锁风险信号：</b>http 批次的 worker 正在等待 database 批次，而 database 又反向等待 http —— 两个池的 worker 互相占满时整批将永久挂起。ParRuntime 在每次嵌套准入时检查此类环。</span>
+          <span><b>潜在死锁风险信号：</b>http 池的线程同步等待 database 池上的工作，database 又反向等待 http —— 两个池的 worker 互相占满时，环上谁都跑不完。报告是"曾经观测到的等待结构"，不证明此刻已经死锁；WARNING 由安装新边、形成分量的那次安装交给运行时自有线程发出。</span>
         </div>
       </div>
       <div class="code">
         <div class="code-head"><i></i><i></i><i></i><span>DeadlockDetection.java</span></div>
-        <pre><code class="java">ParRuntime runtime = ParRuntime.global();
+        <pre><code class="java">BatchOptions handleOrders = BatchOptions.timeout("handleOrders", Duration.ofSeconds(5));
+BatchOptions syncOrders = BatchOptions.timeout("syncOrders", Duration.ofSeconds(2));
+ParRuntime runtime = ParRuntime.global();
 Par http = runtime.par(ParId.of("http"));
 Par database = runtime.par(ParId.of("database"));
 
+// 顶层调用没有等待者，不产生边
 http.map(requests, req -&gt; {
     User user = client.fetchUser(req.userId());
-    // 嵌套批次：运行时记录 http → database 的等待边
-    return database.map(user.orderIds(), db::fetchOrder, options);
-}, options);
+    // 嵌套准入：http 上的单元同步等待 database 上的批次 → 边 http → database
+    return database.map(user.orderIds(), db::fetchOrder, syncOrders);
+}, handleOrders);
 
+// 另一条请求里 database 的 body 再嵌套 http.map，就得到反向边 database → http
 // 形成环时运行时自动打 WARNING；也可以随时读取报告
 if (!runtime.executorWaitReport().cyclicComponents().isEmpty()) {
     LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");
@@ -562,19 +567,17 @@ function s3Play(){
   s3.raf=requestAnimationFrame(tick);
 }
 
-/* ================= 场景 4：执行器等待图与死锁检测 ================= */
+/* ================= 场景 4：运行时执行器等待图与死锁检测 ================= */
 const s4={timers:[],built:false,cycled:false};
 const S4N=[
-  {id:'root',x:280,y:34, w:180,label:'request · handleOrder',sub:'TaskGroup'},
-  {id:'h1', x:130,y:140,w:180,label:'http · fetchUser',     sub:'Par http'},
-  {id:'h2', x:430,y:140,w:180,label:'http · fetchRecommend',sub:'Par http'},
-  {id:'d1', x:60, y:250,w:170,label:'db · fetchOrders',     sub:'Par database'},
-  {id:'d2', x:215,y:250,w:170,label:'db · fetchCoupons',    sub:'Par database'},
-  {id:'d3', x:430,y:250,w:170,label:'db · fetchAds',        sub:'Par database'}
+  {id:'http',    x:150,y:150,w:200,label:'http',    sub:'ParId http · starvation-prone'},
+  {id:'database',x:410,y:150,w:200,label:'database',sub:'ParId database · starvation-prone'}
 ];
-const S4E=[['root','h1'],['root','h2'],['h1','d1'],['h1','d2'],['h2','d3']];
+const S4W={
+  forward:'handleOrders[unit-41] -> syncOrders[unit-42]',
+  reverse:'syncOrders[unit-57] -> refreshCoupons[unit-58]'
+};
 const SVGNS='http://www.w3.org/2000/svg';
-function s4NodeById(id){return S4N.find(n=>n.id===id)}
 function s4Mk(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e}
 function s4Node(n){
   const g=s4Mk('g',{class:'gnode',id:'n-'+n.id});
@@ -583,15 +586,19 @@ function s4Node(n){
   const s=s4Mk('text',{x:n.x,y:n.y+11,'text-anchor':'middle',class:'sub'});s.textContent=n.sub;g.appendChild(s);
   return g;
 }
-function s4Edge(a,b,id,cls){
-  const na=s4NodeById(a),nb=s4NodeById(b);
-  const g=s4Mk('g',{class:'gedge'+(cls?' '+cls:''),id:id});
-  g.appendChild(s4Mk('path',{d:'M'+na.x+' '+(na.y+18)+' L'+nb.x+' '+(nb.y-18),pathLength:1,'marker-end':'url(#s4arr)'}));
+function s4Label(x,y,text){
+  const t=s4Mk('text',{x:x,y:y,'text-anchor':'middle'});t.textContent=text;return t;
+}
+function s4ForwardEdge(){
+  const g=s4Mk('g',{class:'gedge',id:'e-http-database'});
+  g.appendChild(s4Mk('path',{d:'M150 132 C 210 58, 350 58, 410 132',pathLength:1,'marker-end':'url(#s4arr)'}));
+  g.appendChild(s4Label(280,68,'http 上的单元同步等待 database 的批次'));
   return g;
 }
-function s4CycleEdge(){
-  const g=s4Mk('g',{class:'gedge',id:'e-cycle'});
-  g.appendChild(s4Mk('path',{d:'M215 232 C 330 215, 330 170, 134 160',pathLength:1,'marker-end':'url(#s4arrO)'}));
+function s4ReverseEdge(){
+  const g=s4Mk('g',{class:'gedge',id:'e-database-http'});
+  g.appendChild(s4Mk('path',{d:'M410 168 C 350 242, 210 242, 150 168',pathLength:1,'marker-end':'url(#s4arrO)'}));
+  g.appendChild(s4Label(280,236,'database 上的单元反向同步等待 http'));
   return g;
 }
 function s4Init(){
@@ -602,7 +609,7 @@ function s4Init(){
   const m2=s4Mk('marker',{id:'s4arrO',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});
   m2.appendChild(s4Mk('path',{d:'M0,0 L10,5 L0,10 z',fill:'#f59e0b'}));
   defs.appendChild(m1);defs.appendChild(m2);svg.appendChild(defs);
-  S4E.forEach(([a,b])=>svg.appendChild(s4Edge(a,b,'e-'+a+'-'+b)));
+  svg.appendChild(s4ForwardEdge());
   S4N.forEach(n=>svg.appendChild(s4Node(n)));
 }
 function s4Stat(t){document.getElementById('s4stat').textContent=t}
@@ -623,30 +630,28 @@ function s4Reset(){
 function s4Play(){
   s4Reset();s4Stat('记录执行器等待…');
   const seq=[
-    [150, ()=>{s4Show('n-root');s4Log('[graph] + request · handleOrder  (TaskGroup)')}],
-    [550, ()=>{s4Show('n-h1');s4Log('[graph] + http · fetchUser  (Par http)')}],
-    [750, ()=>{s4Show('n-h2');s4Log('[graph] + http · fetchRecommend  (Par http)')}],
-    [1050,()=>{s4Show('e-root-h1');s4Show('e-root-h2');s4Log('[graph] edge  request → http  ×2')}],
-    [1450,()=>{s4Show('n-d1');s4Show('n-d2');s4Log('[graph] + db · fetchOrders / fetchCoupons  (Par database)')}],
-    [1750,()=>{s4Show('e-h1-d1');s4Show('e-h1-d2');s4Log('[graph] edge  http → database  ×2  (嵌套批次产生的等待边)')}],
-    [2050,()=>{s4Show('n-d3');s4Show('e-h2-d3');s4Log('[graph] edge  http → db · fetchAds')}],
-    [2500,()=>{s4Log('cyclicComponents() = [] · 无等待环 ✓','ok');s4Stat('等待图记录完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
+    [150, ()=>{s4Show('n-http');s4Log('[graph] + 节点 [http] · 注册执行器（ParId http）')}],
+    [500, ()=>{s4Show('n-database');s4Log('[graph] + 节点 [database] · 注册执行器（ParId database）')}],
+    [900, ()=>{s4Log('[graph] 顶层调用没有等待者 · 不产生边，也没有 root 哨兵')}],
+    [1300,()=>{s4Show('e-http-database');s4Log('[graph] + 边 [http] → [database] · '+S4W.forward)}],
+    [1800,()=>{s4Log('[graph] 第二个请求再次等待 [database] · 已知边只查表，不重算分量')}],
+    [2300,()=>{s4Log('cyclicComponents() = [] · 尚无环','ok');s4Stat('等待图记录完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
   ];
   seq.forEach(([t,f])=>s4.timers.push(setTimeout(f,t)));
 }
 function s4Cycle(){
   if(!s4.built||s4.cycled)return;
   s4.cycled=true;document.getElementById('s4cycle').disabled=true;
-  document.getElementById('s4svg').appendChild(s4CycleEdge());
+  document.getElementById('s4svg').appendChild(s4ReverseEdge());
   requestAnimationFrame(()=>{
-    const e=document.getElementById('e-cycle');
+    const e=document.getElementById('e-database-http');
     e.classList.add('on','cyc');
-    ['n-h1','n-d2'].forEach(id=>document.getElementById(id).classList.add('cyc'));
-    document.getElementById('e-h1-d2').classList.add('cyc');
+    ['n-http','n-database'].forEach(id=>document.getElementById(id).classList.add('cyc'));
+    document.getElementById('e-http-database').classList.add('cyc');
   });
-  s4Log('[graph] edge  db · fetchCoupons → http · fetchUser  ⚠ 反向依赖','warn');
-  s4Log('cyclicComponents() = [[http] -> [database] -> [http]]','warn');
-  s4Log('执行器等待环: http → database → http','warn');
+  s4Log('[graph] + 边 [database] → [http] · '+S4W.reverse+'  ⚠ 新边安装','warn');
+  s4Log('[graph] 只有安装新边的线程重算有环分量，已知边不回访','warn');
+  s4Log('cyclicComponents() = [http] -> [database] ('+S4W.forward+'), [database] -> [http] ('+S4W.reverse+')','warn');
   document.getElementById('s4banner').classList.remove('hidden');
   s4Stat('检测到环 · 潜在死锁风险信号');
 }

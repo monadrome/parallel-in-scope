@@ -51,6 +51,7 @@ final class CancellationToken {
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
     private final @Nullable ParentLink parentLink;
+    private volatile @Nullable RequestCancellationLink requestCancellationLink;
 
     /**
      * The monotonic clock of this token's deadline domain. A child always inherits its parent's
@@ -339,6 +340,41 @@ final class CancellationToken {
         allFutures.cancel(verifyNotNull(decision.get()).interrupt);
     }
 
+    RequestCancellationLink cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+        Objects.requireNonNull(signal, "signal cannot be null");
+        RequestCancellationLink link = new RequestCancellationLink(() -> cancel(interrupt));
+        requestCancellationLink = link;
+        if (state() != RUNNING) {
+            link.sever();
+        }
+        try {
+            signal.addListener(link::sourceCompleted, directExecutor());
+        } catch (RuntimeException | Error failure) {
+            link.sever();
+            throw failure;
+        }
+        return link;
+    }
+
+    static final class RequestCancellationLink {
+        private final AtomicReference<@Nullable Runnable> cancellationAction;
+
+        private RequestCancellationLink(Runnable cancellationAction) {
+            this.cancellationAction = new AtomicReference<>(cancellationAction);
+        }
+
+        private void sourceCompleted() {
+            @Nullable Runnable action = cancellationAction.get();
+            if (action != null) {
+                action.run();
+            }
+        }
+
+        void sever() {
+            cancellationAction.set(null);
+        }
+    }
+
     /** Immutable terminal decision; state and interrupt intent publish together. */
     private static final class Decision {
         private final State state;
@@ -469,6 +505,11 @@ final class CancellationToken {
         ParentLink link = parentLink;
         if (link != null) {
             link.sever();
+        }
+        RequestCancellationLink cancellation = requestCancellationLink;
+        if (cancellation != null) {
+            cancellation.sever();
+            requestCancellationLink = null;
         }
         notifyStateListeners(terminal);
         return true;

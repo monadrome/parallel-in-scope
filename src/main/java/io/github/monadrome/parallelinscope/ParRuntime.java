@@ -409,7 +409,7 @@ public final class ParRuntime implements AutoCloseable {
         // Batches already hold their admission through submission; groups now match them.
         return whileOpen(() -> {
             TaskGroup<?, ?> group = TaskGroup.prepare(this, definition, payloads);
-            group.start(this);
+            group.start(this, definition);
             group.submitPrepared();
             return group;
         });

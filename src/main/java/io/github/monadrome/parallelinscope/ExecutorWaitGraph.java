@@ -15,7 +15,6 @@ import com.google.common.graph.Graphs;
 import com.google.common.graph.ImmutableGraph;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,9 +71,47 @@ final class ExecutorWaitGraph {
 
     /** Records that {@code waiter}'s body synchronously waits for {@code awaited}. */
     void record(@Nullable TaskNode waiter, TaskNode awaited) {
-        if (waiter != null) {
-            record(waiter, Collections.singletonList(awaited));
+        if (waiter == null) {
+            return;
         }
+        ExecutorIdentity from = waiter.executor();
+        if (from == null || !aliases.containsKey(from)) {
+            return;
+        }
+        ExecutorIdentity to = newWaitTarget(from, awaited, current().waits);
+        if (to == null) {
+            return;
+        }
+        installOrAnnounce(ImmutableList.of(new Wait(from, to, waiter + " -> " + awaited)));
+    }
+
+    /**
+     * Records that {@code waiter}'s body synchronously waits for both {@code firstAwaited} and {@code
+     * secondAwaited}: the two-target form of {@link #record(TaskNode, List)}, so both new waits become
+     * visible together.
+     */
+    void record(@Nullable TaskNode waiter, TaskNode firstAwaited, TaskNode secondAwaited) {
+        if (waiter == null) {
+            return;
+        }
+        ExecutorIdentity from = waiter.executor();
+        if (from == null || !aliases.containsKey(from)) {
+            return;
+        }
+        Table<ExecutorIdentity, ExecutorIdentity, Wait> known = current().waits;
+        ExecutorIdentity first = newWaitTarget(from, firstAwaited, known);
+        ExecutorIdentity second = newWaitTarget(from, secondAwaited, known);
+        if (first == null && second == null) {
+            return;
+        }
+        ImmutableList.Builder<Wait> missing = ImmutableList.builder();
+        if (first != null) {
+            missing.add(new Wait(from, first, waiter + " -> " + firstAwaited));
+        }
+        if (second != null) {
+            missing.add(new Wait(from, second, waiter + " -> " + secondAwaited));
+        }
+        installOrAnnounce(missing.build());
     }
 
     /**
@@ -94,8 +131,8 @@ final class ExecutorWaitGraph {
         Table<ExecutorIdentity, ExecutorIdentity, Wait> known = current().waits;
         List<Wait> missing = null;
         for (TaskNode target : awaited) {
-            ExecutorIdentity to = target.executor();
-            if (to == null || !target.starvationProne() || !aliases.containsKey(to) || known.contains(from, to)) {
+            ExecutorIdentity to = newWaitTarget(from, target, known);
+            if (to == null) {
                 continue;
             }
             if (missing == null) {
@@ -103,9 +140,25 @@ final class ExecutorWaitGraph {
             }
             missing.add(new Wait(from, to, waiter + " -> " + target));
         }
-        if (missing == null) {
-            return;
+        if (missing != null) {
+            installOrAnnounce(missing);
         }
+    }
+
+    /**
+     * The executor of {@code target} when this admission records a new edge from {@code from} to it, or
+     * null when the target is ineligible for an edge or the edge is already known.
+     */
+    private @Nullable ExecutorIdentity newWaitTarget(
+            ExecutorIdentity from, TaskNode target, Table<ExecutorIdentity, ExecutorIdentity, Wait> known) {
+        ExecutorIdentity to = target.executor();
+        if (to == null || !target.starvationProne() || !aliases.containsKey(to) || known.contains(from, to)) {
+            return null;
+        }
+        return to;
+    }
+
+    private void installOrAnnounce(List<Wait> missing) {
         try {
             install(missing);
         } catch (RuntimeException failure) {

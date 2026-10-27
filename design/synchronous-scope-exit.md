@@ -72,6 +72,27 @@ return runtime.group("profile", Duration.ofSeconds(3))
 清理仍不承诺全部 body 退出，结果显式暴露此事实。单任务迁移到单成员组；不新增另一套 unary
 公开 API，不提供 async 变体。公开接口与签名破坏性变更无兼容 shim。
 
+请求取消的改前最佳代码只能在检查点轮询应用标志：
+
+```java
+par.map(ids, id -> {
+    if (requestCancelled.get()) throw new CancellationException();
+    return fetch(id);
+}, options);
+```
+
+改后由调用方持有的 `ListenableFuture` 接入整个作用域：
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+par.map(ids, this::fetch,
+        BatchOptions.timeout("fetch", timeout).cancelOn(disconnect, true));
+```
+
+消除的失败模式是检查点之间（尤其阻塞 IO 中）取消不可达；外层 future 的取消也不证明内部同步调用
+已经退出。新入口不恢复运行句柄或公开 token，也不把协作中断夸大为任意 IO 已停止。
+
 ## 3. 公开结果
 
 | API | 语义 |
@@ -138,8 +159,8 @@ map/runAll 不声明 InterruptedException；等待阶段用 Guava Uninterruptibl
 caller interrupt 不转成结果 Left、不触发 scope 取消，不跳过或重置清理预算。
 原 P2 阻塞方法规范对这两个执行入口明确例外；runtime.awaitQuiescence 仍传播中断。
 
-deadline、fail-fast、parent token、runner interruption、checkpoint 保持；所有入口仍
-bind-before-submit，prepared future 视图从创建即绑定，不恢复 placeholder/later-bind。
+deadline、fail-fast、parent token、显式 `cancelOn` 请求来源、runner interruption、checkpoint 保持；
+所有入口仍 bind-before-submit，prepared future 视图从创建即绑定，不恢复 placeholder/later-bind。
 运行在调用线程的 direct/CallerRuns body 继续按既有借用线程政策隔离入口标志；不声称
 inline body 期间新收到的外部中断一定保留。只读结果/adapter 不消费标志。
 
@@ -156,7 +177,10 @@ deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无
 关闭主异常/suppressed 按 Java 规则；取消先落定后的迟到 body/close 失败在共享 future
 执行内核记录原 Throwable（包含 suppressed），logger handler 失败不阻止清理。
 结果归因不因迟到异常被改写。外部 root 取消不再依赖运行句柄或 caller interrupt；
-显式 deadline、fail-fast 与祖先取消是保留的执行取消来源，runtime.close 接纳后排空而不取消。
+显式 deadline、fail-fast、祖先取消与 `cancelOn` 请求来源是四类执行取消来源，runtime.close
+接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或 body 退出确认；
+注册、切断、来源所有权与中断意图规则见 [取消传播契约](cancellation-propagation.md) §5.4。
+历史来源：`proposal:P0001`。
 
 ## 5. 第一性原理
 

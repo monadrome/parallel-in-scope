@@ -232,6 +232,94 @@ class ExecutorWaitGraphTest {
     }
 
     @Test
+    void aTwoTargetWaitWithNoRecordableTargetAddsNoEdge() {
+        ExecutorIdentity a = executor();
+        ExecutorIdentity foreign = executor();
+        ExecutorWaitGraph graph = graph(a, "a");
+        ExecutorWaitReport before = graph.report();
+
+        graph.record(unit("caller", a), unit("foreign-child", foreign), unit("not-starvation-prone", a, false));
+
+        assertThat(graph.report()).isSameAs(before);
+        assertThat(announcements).isEmpty();
+    }
+
+    @Test
+    void aTwoTargetWaitInstallsOnlyTheSecondTargetWhenTheFirstIsAlreadyKnown() {
+        ExecutorIdentity a = executor();
+        ExecutorIdentity b = executor();
+        ExecutorIdentity c = executor();
+        ExecutorWaitGraph graph = graph(a, "a", b, "b", c, "c");
+        graph.record(unit("known-waiter", a), unit("known-child", b));
+
+        graph.record(unit("two-target", a), unit("known-child-again", b), unit("new-child", c));
+        graph.record(unit("back-from-c", c), unit("to-a", a));
+
+        assertThat(graph.report().cyclicComponents()).hasSize(1);
+        ExecutorWaitReport.Component component =
+                graph.report().cyclicComponents().get(0);
+        assertThat(component.members()).containsExactlyElementsOf(ids("a", "c"));
+        assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "c"));
+        assertThat(component.toString()).contains("new-child[").contains("back-from-c[");
+        assertThat(announcements).hasSize(1);
+    }
+
+    @Test
+    void aTwoTargetWaitInstallsOnlyTheFirstTargetWhenTheSecondIsAlreadyKnown() {
+        ExecutorIdentity a = executor();
+        ExecutorIdentity b = executor();
+        ExecutorIdentity c = executor();
+        ExecutorWaitGraph graph = graph(a, "a", b, "b", c, "c");
+        graph.record(unit("known-waiter", a), unit("known-child", c));
+
+        graph.record(unit("two-target", a), unit("new-child", b), unit("known-child-again", c));
+        graph.record(unit("back-from-b", b), unit("to-a", a));
+
+        assertThat(graph.report().cyclicComponents()).hasSize(1);
+        ExecutorWaitReport.Component component =
+                graph.report().cyclicComponents().get(0);
+        assertThat(component.members()).containsExactlyElementsOf(ids("a", "b"));
+        assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "b"));
+        assertThat(component.toString()).contains("new-child[").contains("back-from-b[");
+        assertThat(announcements).hasSize(1);
+    }
+
+    @Test
+    void aTwoTargetWaitWithTwoNewTargetsInstallsBothEdges() {
+        ExecutorIdentity a = executor();
+        ExecutorIdentity b = executor();
+        ExecutorIdentity c = executor();
+        ExecutorWaitGraph graph = graph(a, "a", b, "b", c, "c");
+
+        graph.record(unit("two-target", a), unit("on-b", b), unit("on-c", c));
+        graph.record(unit("back-from-b", b), unit("to-a", a));
+        graph.record(unit("back-from-c", c), unit("to-a", a));
+
+        assertThat(graph.report().cyclicComponents()).hasSize(1);
+        ExecutorWaitReport.Component component =
+                graph.report().cyclicComponents().get(0);
+        assertThat(component.members()).containsExactlyElementsOf(ids("a", "b", "c"));
+        assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "b"));
+        assertThat(announcements).hasSize(2);
+    }
+
+    @Test
+    void aTwoTargetWaitOnTheSameExecutorTwiceKeepsTheFirstWitness() {
+        ExecutorIdentity a = executor();
+        ExecutorWaitGraph graph = graph(a, "a");
+
+        graph.record(unit("caller", a), unit("first-child", a), unit("second-child", a));
+
+        assertThat(graph.report().cyclicComponents()).hasSize(1);
+        ExecutorWaitReport.Component component =
+                graph.report().cyclicComponents().get(0);
+        assertThat(component.members()).containsExactlyElementsOf(ids("a"));
+        assertThat(component.cycle()).containsExactlyElementsOf(ids("a"));
+        assertThat(component.toString()).contains("first-child[").doesNotContain("second-child[");
+        assertThat(announcements).hasSize(1);
+    }
+
+    @Test
     void componentsThatMergeAreAnnouncedAgainAsTheMergedComponent() {
         ExecutorIdentity a = executor();
         ExecutorIdentity b = executor();
