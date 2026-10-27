@@ -17,10 +17,12 @@ package io.github.monadrome.parallelinscope;
  * {@code runAll()} returns. Likewise the member values of a group with a combine belong to the
  * combine.
  *
- * <p>The closer runs only after the group's outcome is decided, on a runtime-owned thread: never on
- * the thread calling {@code runAll()}, and never on the thread that delivers deadlines. Once the
- * runtime has shut down its services, a value that arrives later is closed on the thread that
- * settles its future. A closer may block, but it then holds one runtime thread; dispatch to an
+ * <p>The closer runs only after the group's outcome is decided, on a runtime-owned thread: not on
+ * the thread calling {@code runAll()}, and not on the thread that delivers deadlines. The one
+ * exception is a runtime that has shut down its services: the release then runs on the thread that
+ * hands it over — the thread that settles a late value, or the caller of a {@code runAll()} that
+ * fails because its runtime is closed — and that path makes no bounded-return promise. A closer
+ * may block, but it then holds one runtime thread; dispatch to an
  * executor of your own when releasing can wait long. {@code runAll()} waits for pending closers
  * only within its bounded cleanup wait: {@link TaskGroupResult#bodyCompletionConfirmed()} is {@code
  * true} only after every adopted future settled and every discarded value was closed. An exception

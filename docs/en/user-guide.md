@@ -336,8 +336,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 - Every non-null value has exactly one owner: the combine once its body starts, otherwise you, when the
   group succeeds. With a `ResourceCloser`, every other value is closed exactly once — the values of a
   group that failed, timed out, or was cancelled, and a value that arrives after the group cancelled
-  its future. The closer runs on a runtime-owned thread after the outcome is decided, never on the
-  thread calling `runAll()`; hand long releases to your own executor. A closer failure is logged and
+  its future. The closer runs on a runtime-owned thread after the outcome is decided, not on the
+  thread calling `runAll()`, unless the runtime has already shut down (see `ResourceCloser`); hand
+  long releases to your own executor. A closer failure is logged and
   changes nothing. The frozen result still shows a discarded member's value for diagnosis; it belongs
   to the closer, so do not use it after `runAll()` returns.
 - `bodyCompletionConfirmed()` also confirms that every adopted future settled and every discarded

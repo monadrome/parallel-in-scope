@@ -12,6 +12,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -476,12 +478,22 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aDeadlineDrivenDiscardRunsTheCloserOnAThreadThatDeliversNoDeadline() {
-        ParRuntime runtime = runtime(pool(1));
+    void aDeadlineDrivenDiscardRunsTheCloserOffTheThreadThatDeliversTheDeadline() throws Exception {
+        ExecutorService io = pool(1);
+        ScheduledExecutorService deliverer = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("deadline-deliverer-%d")
+                .build());
+        pools.add(deliverer);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("io"), io)
+                .timeoutScheduler(deliverer)
+                .build();
+        runtimes.add(runtime);
         AtomicReference<String> closerThread = new AtomicReference<>();
+        AtomicReference<String> convergingThread = new AtomicReference<>();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroupResult<?, Void> result = runtime.group("deadline", Duration.ofMillis(50))
+            TaskGroup<Tuple2<Resource, String>, Void> group = runtime.groupDraft("deadline", Duration.ofMillis(50))
                     .closeGrace(TIMEOUT)
                     .adopt(
                             FIRST,
@@ -491,9 +503,15 @@ class TaskGroupAdoptedFutureTest {
                         hold.await();
                         return "late";
                     })
-                    .runAll();
+                    .submitAll();
+            group.completionFuture()
+                    .addListener(
+                            () -> convergingThread.set(Thread.currentThread().getName()), directExecutor());
+            TaskGroupResult<Tuple2<Resource, String>, Void> result = group.finish();
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(convergingThread.get()).startsWith("deadline-deliverer-");
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closerThread.get() != null);
             assertThat(closerThread.get()).startsWith("ParRuntime-services-");
         } finally {
             hold.countDown();

@@ -63,8 +63,9 @@
   that throws before admission cancels it. Each produced value has one owner — the combine once its
   body starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
   other value exactly once, including a value that arrives after cancellation. Closers run on a
-  runtime-owned thread after the group's completion is published, never on the `runAll()` caller, so
-  a blocking closer cannot hold `runAll()` past its cleanup wait; `bodyCompletionConfirmed()` also
+  runtime-owned thread after the group's completion is published, not on the `runAll()` caller (a
+  runtime that has already shut down runs refused releases inline), so a blocking closer cannot hold
+  `runAll()` past its cleanup wait; `bodyCompletionConfirmed()` also
   covers adopted futures and their closers. An optional producer
   `Par` puts nested waits on adopted futures into `executorWaitReport()`.
 

@@ -585,7 +585,8 @@ public final class ParRuntime implements AutoCloseable {
      * The runtime-owned executor that runs adopted members' closers, so a closer never runs on a
      * {@code runAll()} caller or on the thread that delivers deadlines. It is the deadline action
      * pool: it grows on demand, so a blocking closer occupies one of its threads and delays nothing
-     * else. It rejects work after the runtime's services shut down.
+     * else. It rejects work after the runtime's services shut down, and a refused release then runs on
+     * the thread that hands it over.
      */
     Executor releases() {
         return timeoutActionPool;
