@@ -4,6 +4,8 @@
 - Date: 2026-07-26
 - Decision scope: Concurrency test architecture
 - Supersedes: None
+- Partially superseded by: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) (`TaskType` as a
+  declaration that never changes scheduling)
 
 > Note (2026-10-27): the mechanisms under test changed after this record while the decision
 > stands. Elements outside the initial window are no longer backed by placeholder Futures
@@ -30,8 +32,9 @@ For example:
   physically present in an executor queue.
 - A completion event may advance the submission window even when the completed
   task failed, while cancellation may stop that window.
-- `TaskType` describes scheduling policy, not whether a task actually performs
-  CPU-bound, IO-bound, mixed, or long-running work.
+- `TaskType` is a declaration about the work, not evidence of whether a task
+  actually performs CPU-bound, blocking, or long-running work, and it never
+  changes scheduling ([ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)).
 
 Tests organized only as isolated examples made these distinctions implicit.
 Adding more examples without a feature model would increase test count without
@@ -72,7 +75,7 @@ plane.
 
 | Layer | Models | Rule the layer fixes |
 |---|---|---|
-| L1 Workload behavior | immediate, failing, IO gate, bounded CPU, mixed, long cooperative, ignores interruption | workload behavior and `TaskType` are independent axes; naming a task `CPU_BOUND` is no evidence that its body is CPU-bound |
+| L1 Workload behavior | immediate, failing, IO gate, bounded CPU, mixed, long cooperative, ignores interruption | workload behavior and `TaskType` are independent axes; naming a task `COMPUTE` is no evidence that its body is CPU-bound |
 | L2 Executor topology | worker model, queue model, saturation, rejection, submitter | — |
 | L3 Admission phase | initial, queued, outside the window, later, rejected, inline, abandoned before admission | each value has a deterministic setup, never a timing guess |
 | L4 Task outcome | success, failure, cancelled before run, cancel requested while running, timeout, still running after cancel | — |
@@ -103,7 +106,7 @@ predicates rather than executing meaningless cases. Examples of the rule:
 Each local surface owns a small JUnit `@MethodSource` or `@TestFactory`
 generator. The suite SHALL NOT introduce a general-purpose concurrency test
 DSL unless concrete duplication makes it necessary. Generated names SHALL
-expose their axes (`surface=rejection;admission=LATER;taskType=CPU_BOUND`).
+expose their axes (`surface=rejection;admission=LATER;rejectEnqueue=true`).
 Case objects contain axis values and expected invariants only.
 
 ### Deterministic fixture rules

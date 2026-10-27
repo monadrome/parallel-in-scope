@@ -6,7 +6,8 @@
 - Supersedes: None
 - Partially superseded by: [execution future simplification](../design/execution-future-simplification.md)
   （线程池级 purge 策略）；[decision-log](../design/decision-log.md) 的 task-listener 与
-  deadlock-listener 删除行（全局 listener）
+  deadlock-listener 删除行（全局 listener）；[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
+  （`TaskType` 不再影响排队与拒绝）
 
 > 注记（2026-10-27）：`GlobalPar` 现名 `ParRuntime`（`fc75ffa`）；组装边界的字符串名称现为
 > 类型化的 `ParId`；单次调用输入现为 `BatchOptions`/`TaskOptions`。本文的 `GlobalExecutionPolicy`、
@@ -67,8 +68,9 @@
    同一节点（自环），而不是按名称误判为两个池。两个独立 `GlobalPar` 的观测不自动合并。
 9. **嵌套调用**：使用代码中显式引用的 `Par`，不自动继承父 `Par`；取消沿显式父 token 向下传播，
    跨线程池不断开，子批次不隐式取消父批次；子 deadline 不晚于父 deadline。
-10. **`TaskType` 不路由**：`TaskType` 描述任务行为，可影响排队与拒绝策略，但不隐式选择 `Par`。
-    确需动态路由时，应设计显式的应用层 resolver。
+10. **`TaskType` 不路由**：`TaskType` 是可选的诊断声明，不影响排队、拒绝或任何执行行为，也不隐式
+    选择 `Par`（[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)）。确需动态路由时，应设计显式的
+    应用层 resolver。
 11. **Java 8 与 Java 21**：公共 API 只依赖 `ExecutorService`；虚拟线程只是另一种 supplied
     executor；Java 8 主源码不直接链接 Java 21 API，相关能力只能通过可选扩展注入。
 
@@ -85,7 +87,7 @@
 - **保留旧配置对象作为兼容层并让新模型并存。** 拒绝：两套默认值、listener 和上下文来源会重新
   产生漂移。
 - **以 executor 名称作为任务图节点。** 拒绝：不同批次的同名任务会错误合并并制造假 cycle。
-- **按 `TaskType` 自动选池（`IO_BOUND -> httpPar`）。** 拒绝：数据库和 HTTP 都是 IO，却需要不同的
+- **按 `TaskType` 自动选池（`BLOCKING -> httpPar`）。** 拒绝：数据库和 HTTP 都是阻塞型，却需要不同的
   隔离池；执行资源由 `Par` 表达，任务行为由选项表达。
 - **反射解包第三方 decorator 以合并身份。** 拒绝：没有通用、可靠的底层资源协议；希望共享身份
   的应用应复用同一个 supplied executor 对象或同一个 `Par`。
