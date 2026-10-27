@@ -430,9 +430,8 @@ public final class Par {
                 bodyCompletion,
                 options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
-        // Bind before submitting: see ADR-0007. The submission canceller cannot come from
-        // submitAll, which has not run yet, so it is pre-built here and pointed at the real one
-        // afterward; setFuture propagates an early cancellation on to the submitting future.
+        // Bind before submitting; the temporary submission canceller is linked to the real one
+        // after submitAll so early cancellation still reaches the submission loop.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
         runtime.retainUntilComplete(completion);

@@ -794,8 +794,8 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try {
-            // Group completion observation is the caller's own Guava callback registration
-            // (decision §13.1/§19.8): the framework installs no listener and no current context.
+            // Group completion observation is the caller's own Guava callback registration; the
+            // framework installs no listener and no current context.
             TaskGroup<Integer, Void> group = global.groupDraft("callback", TIMEOUT)
                     .par(KEY_ONE_INTEGER, global.par(ParId.of("direct")), () -> 1)
                     .submitAll();

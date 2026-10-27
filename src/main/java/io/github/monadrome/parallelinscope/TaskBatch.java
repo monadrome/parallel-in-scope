@@ -78,7 +78,6 @@ final class TaskBatch<T> implements AutoCloseable {
                 new FutureCallback<List<TaskCompletion<T>>>() {
                     @Override
                     public void onSuccess(@Nullable List<TaskCompletion<T>> completions) {
-                        // allAsList of a fixed list never yields null.
                         sink.set(ImmutableList.copyOf(Verify.verifyNotNull(completions)));
                     }
 

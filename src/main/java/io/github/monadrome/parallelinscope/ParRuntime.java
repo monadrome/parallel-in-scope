@@ -200,6 +200,7 @@ public final class ParRuntime implements AutoCloseable {
         this.executorWaits = new ExecutorWaitGraph(aliases.build(), timeoutActionPool);
     }
 
+    /** Returns a mutable builder for a runtime topology. */
     public static Builder builder() {
         return new Builder();
     }
@@ -215,6 +216,7 @@ public final class ParRuntime implements AutoCloseable {
      * IllegalStateException} without occupying the slot, and an install that races {@code close()}
      * of the same instance undoes itself, so the slot never retains an instance that has shut down.
      *
+     * @throws NullPointerException if {@code runtime} is null
      * @throws IllegalStateException if another instance is currently installed, or if the given
      *     runtime is closed or closes while being installed
      */
@@ -233,12 +235,20 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
+    /** Returns the installed process-wide runtime.
+     *
+     * @throws IllegalStateException if no runtime has been installed
+     */
     public static ParRuntime global() {
         ParRuntime value = INSTALLED.get();
         if (value == null) throw new IllegalStateException("ParRuntime has not been installed");
         return value;
     }
 
+    /** Returns the configured default {@link Par}.
+     *
+     * @throws IllegalStateException if this runtime has no default entry
+     */
     public Par defaultPar() {
         if (defaultId == null) throw new IllegalStateException("ParRuntime has no default Par");
         return par(defaultId);
@@ -256,7 +266,10 @@ public final class ParRuntime implements AutoCloseable {
         return value;
     }
 
-    /** Returns the {@link Par} registered under the given id, or empty when none is. */
+    /** Returns the {@link Par} registered under the given id, or empty when none is.
+     *
+     * @throws NullPointerException if {@code id} is null
+     */
     public Optional<Par> find(ParId id) {
         return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
     }
@@ -702,6 +715,12 @@ public final class ParRuntime implements AutoCloseable {
          * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
          * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
          * two ids may intentionally use the same physical pool.
+         *
+         * @param id the logical entry id
+         * @param executor the executor used by the entry
+         * @return this builder
+         * @throws NullPointerException if {@code id} or {@code executor} is null
+         * @throws IllegalArgumentException if {@code id} is already registered
          */
         public Builder register(ParId id, ExecutorService executor) {
             Objects.requireNonNull(id, "id cannot be null");
@@ -711,6 +730,11 @@ public final class ParRuntime implements AutoCloseable {
             return this;
         }
 
+        /** Sets the default registered entry.
+         *
+         * @throws NullPointerException if {@code id} is null
+         * @throws IllegalStateException if a default entry was already configured
+         */
         public Builder defaultPar(ParId id) {
             Objects.requireNonNull(id, "id cannot be null");
             if (defaultId != null) throw new IllegalStateException("default Par already configured");
@@ -730,6 +754,10 @@ public final class ParRuntime implements AutoCloseable {
             return this;
         }
 
+        /** Builds an immutable runtime without taking ownership of registered executors.
+         *
+         * @throws IllegalArgumentException if the configured default id is not registered
+         */
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultId);
