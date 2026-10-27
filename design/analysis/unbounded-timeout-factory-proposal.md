@@ -1,7 +1,7 @@
 # 无 deadline 工厂（`unbounded()`）与清理预算不连续
 
 > 入库说明：2026-10-27 按维护者要求入库，属分析输入，不是现行契约，不约束实现；实现状态按 `5906cf3` 核对。
-> 实现状态：`unbounded()` 工厂推荐关闭，现状一致（未添加）；§5 的清理预算 D1 修法未实现：`MultiTaskContext.resolveDeadlineNanos` 的显式分支仍未钳制在哨兵之下。
+> 实现状态：`unbounded()` 工厂已由维护者否决（2026-10-27），结论与理由在 decision-log 与 idea-graveyard；§5 的清理预算 D1 修法未实现，由 BACKLOG O-3 承接：`MultiTaskContext.resolveDeadlineNanos` 的显式分支仍未钳制在哨兵之下。
 
 > 状态：**设计提案，待拍板**。本文覆盖最终清单 #8：是否补 `unbounded()` 工厂，以及
 > 「清理预算不连续」是否单独作为缺陷处理。基线：dev/v0.3.0 HEAD dd12641。
