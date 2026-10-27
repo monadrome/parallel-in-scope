@@ -205,8 +205,8 @@ CPU 时间 / 墙钟是**筛查信号，不是阻塞的充分判据**：GC、safe
 2. 阈值（比值 0.5、20 个任务体、1s）暂作内部常量并经实测校准，不承诺跨 GC、硬件和容器环境稳定；
    不设"过订阅"阈值，也不为此新增配置旋钮。
 3. `ThreadMXBean.getCurrentThreadCpuTime()` 在目标平台的单次开销需实测（拟 JMH，窗口内每任务体两次）。
-4. 推翻 `decision-log` 中「`TaskType.MIXED` 保留、明确不重开」：按 `design/AGENTS.md` 第 10 条，
-   落地时写后继 ADR 关闭此问题，decision-log 该行只留结论与 ADR 指针。
+4. ~~推翻 `decision-log` 中「`TaskType.MIXED` 保留、明确不重开」~~：已由
+   [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md) 关闭，decision-log 该行只留结论与 ADR 指针。
 
 已定（维护者 2026-10-27）：缺省为 `UNKNOWN`；两侧都可选；一步落地；保留 `TaskType` 名称；
 `register` 三参重载；`UNKNOWN` 可显式书写。
@@ -217,7 +217,8 @@ CPU 时间 / 墙钟是**筛查信号，不是阻塞的充分判据**：GC、safe
 `SmartBlockingQueue`、`ScopedCallable`、饥饿观测 scope 与报告；测试（提交时比对的四象限、去重上限与溢出计数、
 窗口外零测量、跨窗口样本排除、CPU 计时不可用、`LOW_CPU_UTILIZATION` 的 issue 与漂移两种正反例、共享池归因、
 `SmartBlockingQueue` 只认 `rejectEnqueue`）；活契约 `thread-pool-starvation-observation.md` 与
-`task-group-api-and-options.md`；用户指南、README、迁移指南双语；后继 ADR；CHANGELOG。并发敏感部分
+`task-group-api-and-options.md`；用户指南、README、迁移指南双语；CHANGELOG。决定本身已由 [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md)
+记录，落地时不再另写 ADR。并发敏感部分
 （`ScopedCallable` 计时与窗口开关的可见性）按根 AGENTS.md 走独立评审、反向验证与 PIT。
 
 ## 10. 评审处置（Kimi，2026-10-27，经 ACP，只读）
