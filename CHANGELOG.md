@@ -49,6 +49,15 @@
 
 ### Fixed
 
+- An explicit timeout too large for the clock range — `ChronoUnit.FOREVER`,
+  `Duration.ofSeconds(Long.MAX_VALUE)`, or any duration whose deadline overflows — no longer
+  resolves to the internal no-deadline sentinel. It resolves to the latest representable deadline,
+  so the deadline timer is armed and, without `closeGrace`, `map` and `runAll` wait for cancelled
+  bodies to exit within the remaining deadline, exactly as a 200-year timeout does; before, such a
+  scope returned after fail-fast without waiting and reported the bodies as unfinished. Any positive
+  timeout is still accepted. Callers who want cancel-without-waiting set `closeGrace(Duration.ZERO)`.
+  `Checkpoints.remaining()` in such a scope reads a large finite budget instead of
+  `Duration.ofNanos(Long.MAX_VALUE)`.
 - Make the never-started batch observation test wait for its blocking task to
   enter before cancellation, avoiding a scheduling race in release verification.
 

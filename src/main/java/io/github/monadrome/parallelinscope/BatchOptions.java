@@ -52,6 +52,10 @@ public final class BatchOptions {
     /**
      * Returns batch options with an explicit timeout for the whole batch.
      *
+     * <p>Any positive duration is accepted. One whose deadline does not fit the clock range
+     * resolves to the latest representable deadline: it still arms the deadline timer and still
+     * derives the default cleanup budget, never meaning "no deadline".
+     *
      * @throws NullPointerException if {@code timeout} is null
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */

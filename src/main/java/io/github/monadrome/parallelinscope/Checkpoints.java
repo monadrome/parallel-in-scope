@@ -97,8 +97,10 @@ public final class Checkpoints {
      *
      * <p>Outside any scoped task the result is empty. Inside one it holds the current task token's
      * resolved remaining deadline: always non-negative — an elapsed deadline reports {@link
-     * Duration#ZERO} — and exactly {@code Duration.ofNanos(Long.MAX_VALUE)} when the scope has no
-     * deadline, the same sentinel {@link CancellationToken#remaining()} documents. The value reads
+     * Duration#ZERO} — and saturated at {@code Duration.ofNanos(Long.MAX_VALUE)} when the remaining
+     * time does not fit in a {@code long}, the same ceiling {@link CancellationToken#remaining()}
+     * documents. Every public scope has a deadline, so an astronomical timeout reads as a large
+     * finite budget, not as "no deadline". The value reads
      * the running task's own token, so a nested task reports its own tighter budget, already capped
      * by every ancestor.
      *
