@@ -40,6 +40,7 @@
 | executor-transparency | `starvationProne()` 按提交去向判定、注册期「看不透」告警；`BlockingRisk` 分类后因无读者被删（CHANGELOG 0.3.0） |
 | inline-comment-audit-2026-10-09 | **行内注释门禁方向已否决**：不设「行内注释连续块超过 N 行即失败」的架构约束检查，不引入注释归属规则条目（C1–C4），也不做「指针必须可寻址 + 引用可解析」的门禁。否决理由：（1）**行长门禁可零成本绕过**——长文中间加一个空行即成两个合规块、原文逐行不变；改写成成员 javadoc 或挪进 `package-info` 更完全逃出 `//` 扫描，故「防止复发」不成立；（2）**规则条目不可机械校验**——「语句级还是设计级」「是否复述相邻代码」「指针目标是否真的讨论该主题」都没有判决程序，而唯一可校验的行长上限又与门禁阈值自相矛盾（5 行的块通过 6 行门禁却违反 4 行上限）；（3）**迁移方案与自身分类冲突**——多数长文属必须留在语句上的竞态/顺序理由（domain scheduler、member bind、收敛屏障、values 发布恢复），压成一行指针即删知识；（4）**收益未获证明**——行数仅降约 12%，两起已复现缺陷（一次重整行造成的断行残骸、一次指向类 javadoc 的失效指针）均为文本层，无运行时缺陷归因于它们。**采纳的边界**：只做具体修复——`Par` 的 bind-before-submit 长文压成 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 指针并保留 ADR 未覆盖的 submission canceller 桥接理由、两处失效指针改指可解析目标、删无可承载的纯复述、把调用者可见的 `TimeoutException` 归因契约上移到 `TaskOutcome` javadoc；测试树只清理已废除机制（placeholder / lateBind / 驻留 submitter 线程模型）的词汇与命名。**不要在评审、缺陷分诊或重构提案中重提注释门禁或注释行长检查。** |
 | queue-artifact-boundary-decision | queue 与 core 同产物发布。**边界已由 adr/0006 永久关闭**，不要在评审、缺陷分诊或重构提案中重提 |
+| adr-condensation-2026-10-27 | **改判「ADR 历史正文不可改写」**：过时的非决策内容（实现映射、类型与测试清单、实施计划、验收清单、示例、已由 `design/` 持有权威的契约式规则）可以删除；决定、理由、替代方案、后果与重开条件保持当时原意，不得改写成新决定或补事后理由；改名只加一次现名，决定之后变化的事实写进注记。理由：仓库内过时正文会被 agent 当现行规则执行，git 历史已保存全文，与 design/ 的「git 即归档」一致。规程见 [adr/AGENTS.md](../adr/AGENTS.md)，首轮蒸馏前全文在 `1eeaaf0` |
 | axiom-drift-decisions-2026-09-14 | axiom-drift 报告五条决策汇总，全部拍板或关闭；各条去向见上面对应行 |
 
 ## 未采纳草稿（定稿前从未入库，仅存档）
@@ -66,7 +67,7 @@
 | core-enhancement-options-2026-10-06 | E1–E5 与 E6 失败查询由 `380a1cb`、`24ef0b0`/`02f103b`、`568e2d0`、`12f338d`、`dd422a0` 承接；E6 具名 combine 进 P0009，E7 拆为 P0001/P0004；内部协议与资源判据进 P0006/P0010 |
 | core-design-opportunities-2026-10-08 | 请求取消修正进 P0001，其余可操作方向拆为 P0004–P0009；timeout action/准备资源限制进 P0010。已落地能力的重复盘点不保留第二份，测试计数与未编译草图不转换为已验证结论 |
 | documentation-audit-2026-10-08 | D1–D10 的示例、语义、产品边界、静态 HTML、文档验证与发布匹配进入 P0011；具体缺陷由 [修复记录](confirmed-proposal-defects.md) 承接，剩余维护在 [P0022](proposal/P0022-documentation-maintenance.md)。`6588e97` 仅修死链接和两参 map，不能推断其余已修。生命周期建议已落入 proposal-lifecycle 契约 |
-| doc-value-audit-2026-10-09 | 未决历史记录、BACKLOG、CHANGELOG、站点语义及孤儿 HTML 维护进 P0011；缩减判决不因后续审计意见自动替维护者拍板，反证进 P0002；分析稿收割规则已落地。ADR 历史正文不可改写，按后继 ADR 规程处理；不因引用类型已删否决整篇历史决策 |
+| doc-value-audit-2026-10-09 | 未决历史记录、BACKLOG、CHANGELOG、站点语义及孤儿 HTML 维护进 P0011；缩减判决不因后续审计意见自动替维护者拍板，反证进 P0002；分析稿收割规则已落地。ADR 的决定不可改写，按后继 ADR 规程处理（正文蒸馏规则后改，见上面 adr-condensation 行）；不因引用类型已删否决整篇历史决策 |
 | decision-brief-2026-10-09 | I1–I10/I13–I15 与文档/验证余项进 P0011，I12/I16/I17 的具体文字与断言裁定进 P0012；I11 生命周期已落地。M1 的未提交 Java 工作归原任务，不接管；M2 提案直接入库；M3 按实现/历史重验并显式处置，审计间不投票；M4 strict 构建是否通过须实跑单独报告 |
 | inline-comment-audit-2026-10-09 | 否决理由与采纳边界由上面的同名决策行持有，局部修复由 `8214f9c`/`7fc12b3` 与 `7bf46f6` 承接；日志重复文字与 placeholder 断言分歧进入 P0012，不声称门禁或行长方向仍开放 |
 | main-comment-javadoc-audit-2026-10-09 | P0012 的 remaining 责任文案与失效指针已修；时钟域重复、机器检查复述、公开查询 Javadoc 与日志重复文字由 [P0024](proposal/P0024-comment-and-javadoc-maintenance.md) 继续承接。密度与零调用不是删除并发知识或公开能力的证据 |

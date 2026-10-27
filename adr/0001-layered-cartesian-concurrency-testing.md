@@ -5,6 +5,15 @@
 - Decision scope: Concurrency test architecture
 - Supersedes: None
 
+> Note (2026-10-27): the mechanisms under test changed after this record while the decision
+> stands. Elements outside the initial window are no longer backed by placeholder Futures
+> ([ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)); the states the old
+> `PLACEHOLDER` axis modeled — outside the window while earlier work is gated, and abandoned
+> before admission — are still required. Automatic purge left the main line
+> ([ADR 0003](0003-event-coalesced-purge-maintenance.md)), and with it the purger layer and its
+> threshold surface. The library's caller-thread fallback option was removed, so inline
+> execution now comes only from a user's `CallerRunsPolicy`.
+
 ## Context
 
 The library coordinates task submission, executor admission, Future state,
@@ -48,12 +57,12 @@ assert only state that the fixture directly controls or observes.
 
 | Plane | Observable values | Does not prove |
 |---|---|---|
-| Admission | not submitted, initial submission, placeholder, later submission, rejected, direct fallback | worker execution |
+| Admission | not submitted, initial submission, outside the window, later submission, rejected, inline execution | worker execution |
 | Executor | queued identity, queue membership, worker claim, executing thread, terminal removal | Future or token state |
 | Future | pending, success, failure, cancelled before run, cancellation requested while running, terminal | task-body side effects |
 | Cancellation | trigger, token state, propagation direction, interrupt request, interrupt observation, checkpoint response | worker termination |
 | User code | not entered, entered, gated, side effect, exception, return, ignores interruption | queue cleanup |
-| Cleanup | completion publication, window advancement or stop, purge result, estimate retention or expiry | cancellation cause |
+| Cleanup | completion publication, window advancement or stop | cancellation cause |
 
 An assertion about one plane SHALL NOT be used as indirect proof of another.
 When a contract spans planes, the test SHALL collect separate evidence for each
@@ -61,198 +70,41 @@ plane.
 
 ### Feature layers
 
-#### L1. Workload behavior
-
-| Value | Controlled construction | Primary risk |
+| Layer | Models | Rule the layer fixes |
 |---|---|---|
-| `IMMEDIATE` | return immediately | work finishes before late binding |
-| `FAIL_IMMEDIATE` | throw immediately | fail-fast races cancellation wiring |
-| `IO_GATE` | signal entry, then wait on a latch | running interruption and timeout |
-| `CPU_BOUNDED` | bounded arithmetic or cooperative polling | scheduling and caller-runs behavior |
-| `MIXED` | bounded CPU stage followed by a gate | cancellation between workload phases |
-| `LONG_COOPERATIVE` | loop with interruption or checkpoint checks | propagation and prompt exit |
-| `LONG_IGNORES_INTERRUPT` | record interruption but wait for an independent release | cancelled Future while capacity remains occupied |
-
-Workload behavior and `TaskType` SHALL be independent axes. Naming a task
-`CPU_BOUND` is not sufficient evidence that its body is CPU-bound.
-
-#### L2. Executor topology
-
-- worker model: direct, single worker, fixed workers, or elastic workers;
-- queue model: synchronous, bounded smart queue, or unbounded queue;
-- saturation: empty, workers occupied, queue partially full, queue full, or
-  executor shut down;
-- rejection: propagate rejection or perform CPU direct fallback;
-- submitter: inline test executor, named single worker, framework submitter, or
-  interrupted/rejected submitter.
-
-#### L3. Admission phase
-
-> Vocabulary note: `PLACEHOLDER` and `ABANDONED_PLACEHOLDER` are legacy names.
-> The states they model are unchanged and still required — an element outside the
-> initial window while earlier work is gated, and an element cancelled or
-> abandoned before admission — but no placeholder future backs them any more; the
-> element's handle wraps its prepared future from creation on
-> ([ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)). The
-> sliding window itself is unchanged.
-
-| Value | Deterministic setup |
-|---|---|
-| `INITIAL_SUBMITTED` | index is below `min(taskCount, parallelism)` |
-| `INITIAL_QUEUED` | all workers are occupied before initial submission |
-| `PLACEHOLDER` | index is outside the initial window while earlier work is gated |
-| `LATER_SUBMITTED` | release exactly one completion event |
-| `LATER_QUEUED` | advance the window while a worker remains occupied |
-| `INITIAL_REJECTED` | reject during the caller's initial loop |
-| `LATER_REJECTED` | reject from the submitter after a completion event |
-| `DIRECT_FALLBACK` | combine rejection with `CPU_BOUND` |
-| `ABANDONED_PLACEHOLDER` | cancel a placeholder or submission loop before admission; direct placeholder cancellation is `CANCELLED`, submitter interruption records its cause |
-
-#### L4. Task outcome
-
-The modeled outcomes are success, failure, cancellation before run,
-cancellation requested while running, timeout, and non-terminal work after its
-Future is cancelled.
-
-#### L5. Cancellation trigger
-
-The modeled triggers are:
-
-- direct Future `cancel(false)` and `cancel(true)`;
-- manual token cancellation;
-- timeout;
-- fail-fast sibling failure;
-- parent cancellation before or after child binding;
-- submission-loop cancellation or interruption;
-- executor shutdown and rejection.
-
-Every case SHALL name the trigger and propagation direction. Child
-cancellation SHALL NOT be treated as evidence of parent cancellation.
-
-#### L6. Timeout boundary
-
-Timeout tests distinguish:
-
-- timeout before task-body entry;
-- timeout during interruptible running work;
-- timeout during non-cooperative running work;
-- timeout while later tasks remain placeholders;
-- timeout racing success or failure;
-- parent timeout before or after child binding;
-- invalid timeout configuration, which is an option-validation case rather
-  than a runtime timeout case.
-
-#### L7. Propagation topology
-
-The modeled directions are no propagation, parent to child, outer `Par` call
-to nested `Par` call, failure to sibling, batch to submitter, and direct Future
-only.
-
-#### L8. Queue condition race
-
-Queue-local tests combine:
-
-- operation: `put`, timed `offer`, `take`, or timed `poll`;
-- precondition: empty, full, capacity increase or decrease, removal, clear, or
-  drain;
-- release: counterpart operation, capacity change, interruption, or timeout;
-- ordering: waiter parked before release or release racing waiter registration.
-
-The invariants are no lost signal, no capacity overshoot, FIFO order, correct
-count, correct interruption contract, no mutation after a timed-out operation,
-and eventual waiter completion after a sufficient state change.
-
-Queue condition races SHALL be tested directly on
-`VariableLinkedBlockingQueue`. They SHALL NOT be multiplied through every
-`Par` scenario, because doing so would obscure the condition responsible for a
-failure.
-
-#### L9. Thread scheduling state
-
-Tests use these deterministic substitutes for scheduler state:
-
-- a captured runnable that the test has not invoked models a submitted task
-  that has not received a useful time slice;
-- an entry latch proves that the task body started;
-- an entry latch plus release latch proves that the body is parked at a
-  controlled gate;
-- an interrupt flag plus exit latch distinguishes interruption from worker
-  termination;
-- a cancelled Future plus an unreleased exit latch proves that work remains
-  active after cancellation.
-
-`Thread.State` MAY establish that a waiter reached a blocking precondition, but
-it SHALL NOT be the sole correctness oracle because JVM thread states are
-transient.
-
-#### L10. Purger and cleanup
-
-Purger tests combine enablement, queue pressure, cancellation estimate,
-estimate age, burst shape, physical queue contents, purge result, and runtime
-reconfiguration.
-
-Queue pressure and cancellation ratio boundary tests SHALL include values
-below, exactly at, and above their thresholds. The cancellation estimate is
-advisory and SHALL NOT be asserted as exact queue membership.
-
-### Local Cartesian surfaces
-
-The following surfaces use full products:
-
-1. Future lifecycle: `{before-run, running, terminal}` x
-   `{cancel(false), cancel(true)}`.
-2. Rejection: `{initial, later}` x `{CPU_BOUND, IO_BOUND}`.
-3. Sliding window: `{success, failure, cancelled}` x
-   `{live placeholder, pre-cancelled placeholder}`.
-4. Cancellation: `{timeout, manual interrupt}` x
-   `{pending, IO gate, CPU cooperative, mixed, ignores interruption}`.
-5. Parent propagation: `{before child bind, after child bind}` x
-   `{pending child, running child}`.
-6. Queue waiter: `{producer, consumer}` x
-   `{counterpart, interruption, timeout}`, plus capacity-creating queue
-   mutations for blocked producers.
-7. Purger thresholds: `{below, exact, above pressure}` x
-   `{below, exact, above cancellation ratio}` x `{disabled, enabled}`.
+| L1 Workload behavior | immediate, failing, IO gate, bounded CPU, mixed, long cooperative, ignores interruption | workload behavior and `TaskType` are independent axes; naming a task `CPU_BOUND` is no evidence that its body is CPU-bound |
+| L2 Executor topology | worker model, queue model, saturation, rejection, submitter | — |
+| L3 Admission phase | initial, queued, outside the window, later, rejected, inline, abandoned before admission | each value has a deterministic setup, never a timing guess |
+| L4 Task outcome | success, failure, cancelled before run, cancel requested while running, timeout, still running after cancel | — |
+| L5 Cancellation trigger | direct cancel, manual token cancel, timeout, fail-fast, parent cancel before or after child binding, shutdown and rejection | every case names its trigger and direction; child cancellation is never evidence of parent cancellation |
+| L6 Timeout boundary | before entry, during interruptible work, during non-cooperative work, racing completion, parent before or after child binding | invalid timeout configuration is an option-validation case, not a runtime timeout case |
+| L7 Propagation topology | none, parent to child, outer to nested call, failure to sibling, batch to admission, direct Future only | — |
+| L8 Queue condition race | operation × precondition × release × ordering | tested directly on `VariableLinkedBlockingQueue`, never multiplied through `Par` scenarios, so a failure names its condition; invariants are no lost signal, no capacity overshoot, FIFO, correct count, interruption contract, no mutation after a timed-out operation, eventual waiter completion |
+| L9 Thread scheduling state | an uninvoked captured runnable, entry latch, entry plus release latch, interrupt flag plus exit latch, cancelled Future plus unreleased exit latch | deterministic substitutes stand in for scheduler state; `Thread.State` MAY show a waiter reached a blocking precondition but SHALL NOT be the sole oracle, because JVM thread states are transient |
 
 ### Compatibility predicates
 
-Cross-layer generators SHALL enforce these constraints:
+Cross-layer generators SHALL exclude impossible combinations by named
+predicates rather than executing meaningless cases. Examples of the rule:
 
-1. A queued case requires occupied workers and a queue that accepts the
-   runnable.
-2. Placeholder and later-submission cases require more tasks than the initial
-   parallelism and a live submitter.
-3. Direct fallback requires rejection and `CPU_BOUND`.
-4. IO rejection requires an executor that actually rejects; IO workload alone
-   is insufficient.
-5. Cancellation-before-run requires cancellation to win the wrapper's `run()`
-   race; physical queue membership is observed independently.
-6. Interrupt assertions require an interrupting trigger and a body that has
-   reached an observable interruptible or cooperative point.
-7. Non-cooperative tasks require an independent test-only release path.
-8. Timeout cases require completed late binding unless the late-bind window is
-   the subject of the test.
-9. Parent propagation requires a real parent token or inherited context.
-10. Purge cases require the same Future object to be physically queued;
-    placeholders are excluded.
-11. OS scheduling outcomes that cannot be forced portably SHALL use controlled
-    executor-boundary substitutes.
+- a queued case requires occupied workers and a queue that accepts the runnable;
+- rejection cases require an executor that actually rejects, not merely an IO
+  workload;
+- cancellation-before-run requires cancellation to win the wrapper's `run()`
+  race, with physical queue membership observed independently;
+- interrupt assertions require an interrupting trigger and a body at an
+  observable interruptible or cooperative point;
+- non-cooperative tasks require an independent test-only release path;
+- OS scheduling outcomes that cannot be forced portably use controlled
+  executor-boundary substitutes.
 
 ### Case generation and identity
 
 Each local surface owns a small JUnit `@MethodSource` or `@TestFactory`
 generator. The suite SHALL NOT introduce a general-purpose concurrency test
-DSL unless concrete duplication makes it necessary.
-
-Generated names SHALL expose their axes, for example:
-
-```text
-surface=rejection;admission=LATER;taskType=CPU_BOUND
-```
-
-Case objects contain axis values and expected invariants only. Invalid
-combinations are excluded by named compatibility predicates rather than
-executed as meaningless tests.
+DSL unless concrete duplication makes it necessary. Generated names SHALL
+expose their axes (`surface=rejection;admission=LATER;taskType=CPU_BOUND`).
+Case objects contain axis values and expected invariants only.
 
 ### Deterministic fixture rules
 
@@ -277,13 +129,7 @@ When a new test exposes a production defect during diagnostic work:
 3. if the known defect would keep the suite red, the reproduction is disabled
    with a precise reason;
 4. the observed behavior, expected behavior, impact, and source evidence are
-   recorded in the deep test report.
-
-The report this record referred to lived at `todo/deep-concurrency-test-report.md` and was
-removed with the rest of the exploratory notes in `82e886a` (2026-08-27). It is recoverable from
-history with `git show 82e886a^:todo/deep-concurrency-test-report.md`; later deep-test material
-lives in `reports/`, which is out of the main line and archived on the `backup/scratch-materials`
-branch.
+   recorded in a test report outside this ADR.
 
 ## Alternatives Considered
 
@@ -339,8 +185,8 @@ stronger and faster tests.
 - Generators and fixtures require more up-front modeling than one-off tests.
 - Full products can grow quickly, so every new axis requires an applicability
   and runtime review.
-- Some negative asynchronous assertions, such as proving that a purge was not
-  scheduled, still require a bounded observation interval.
+- Some negative asynchronous assertions still require a bounded observation
+  interval.
 - JVM scheduling itself cannot be modeled exhaustively or forced portably.
 
 ### Neutral constraints
@@ -348,27 +194,10 @@ stronger and faster tests.
 - The decision changes test architecture, not public production APIs.
 - Existing JUnit and Java concurrency primitives are sufficient; this decision
   adds no dependency.
-- Test counts and current verification results are intentionally kept out of
-  this ADR because they change over time.
-
-## Implementation Mapping
-
-The accepted decision is currently represented by:
-
-- `ExecutionPhaseCartesianTest`
-- `ConcurrentLimitExecutorCartesianTest`
-- `SlidingWindowCartesianTest`
-- `CancellationTriggerCartesianTest`
-- `CancellationPropagationCartesianTest`
-- `VariableLinkedBlockingQueueCartesianTest`
-- `HeuristicPurgerCartesianTest`
-
-Current execution results, known defects, and environmental limits belong in
-the linked deep test report rather than in this decision record.
+- Test counts and verification results stay out of this ADR because they
+  change over time. The generators live in the `*CartesianTest` classes.
 
 ## Reconsider When
-
-Revisit this ADR when one of these conditions becomes true:
 
 - local generators duplicate enough behavior to justify a shared test utility;
 - the number of valid cases makes full local products too slow for normal CI;
@@ -376,5 +205,10 @@ Revisit this ADR when one of these conditions becomes true:
 - production lifecycle contracts change the observation planes or compatibility
   predicates.
 
-If the decision changes materially, add a new ADR and mark this record
-`Superseded` rather than rewriting its historical context.
+## History
+
+Condensed on 2026-10-27; the previous full text is
+`git show 1eeaaf0:adr/0001-layered-cartesian-concurrency-testing.md`. Removed: the per-value
+tables of each layer, the L10 purger layer and the list of local Cartesian surfaces, the
+placeholder, caller-thread fallback, and purge compatibility predicates, the deep test report
+path, and the implementation mapping to individual test classes.
