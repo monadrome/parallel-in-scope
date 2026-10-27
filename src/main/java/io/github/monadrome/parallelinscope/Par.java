@@ -18,7 +18,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
@@ -36,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Resolution of {@link BatchOptions} into a batch context
  *   <li>Scoped task preparation via {@code TaskSubmissions}
  *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
- *   <li>Parent-child {@link CancellationToken} chaining
+ *   <li>Parent-child cancellation chaining
  *   <li>Timeout and fail-fast cancellation, bound before any element is submitted
  * </ul>
  *
@@ -98,7 +97,9 @@ public final class Par {
      *
      * <p>This call waits for all results, ignoring interruptions while waiting and restoring the
      * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
-     * fail-fast, and ancestor cancellation still interrupt task runners. Cleanup waits within
+     * fail-fast, and ancestor cancellation still interrupt task runners. A source declared through
+     * {@link BatchOptions#cancelOn(ListenableFuture, boolean)} cancels on any completion with its
+     * explicit interrupt policy. Cleanup waits within
      * {@link BatchOptions#closeGrace(Duration)} (or the remaining deadline when unset); inspect
      * {@link TaskBatchResult#bodyCompletionConfirmed()} before releasing resources shared by direct
      * bodies; nested calls must confirm their own exit separately. Direct
@@ -186,22 +187,13 @@ public final class Par {
                     "mapAndCombine requires at least one element; use Par.map for an empty batch");
         }
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), elements.size())
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
-                .taskGraphObservationScope(observation)
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
-        return executeCombined(
-                elements,
-                item -> () -> function.apply(item),
-                unit,
-                observation,
-                options.closeGrace().orElse(null),
-                combinePar,
-                combineBody);
+        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
     }
 
     /**
@@ -212,61 +204,52 @@ public final class Par {
      * bound: deadline and cascade come from the batch token, exactly like a group member whose
      * deadline equals the group's.
      *
-     * <p>The graph fragment is written from who waits for whom, not from that structural pointer:
-     * the caller blocks until both the batch and the combine finish, so it forks both, and the batch
-     * only feeds the combine, so it joins it. A join never reaches the executor projection, so a
-     * combine on the batch's own pool is no self-loop, while a combine on the caller's own
-     * starvation-prone pool is the self-loop it really is.
+     * <p>The executor waits are recorded from who waits for whom, not from that structural pointer:
+     * the caller blocks until both the batch and the combine finish, so it waits on both, while the
+     * batch only feeds the combine and waits on nothing. A combine on the batch's own pool is
+     * therefore no self-loop, while a combine on the caller's own starvation-prone pool is the
+     * self-loop it really is.
      */
     private <T, R, C> BatchCombinedResult<R, C> executeCombined(
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable TaskGraphObservationScope observation,
-            @Nullable Duration closeGrace,
+            BatchOptions options,
             Par combinePar,
             CombineBody<List<@Nullable R>, C> combineBody) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
         // and the frozen body-completion diagnostics report on the whole run.
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size() + 1);
-        List<ExecutionPhaseHintFuture<R>> tasks = prepareUnderResolvedScope(
-                observation,
-                () -> IntStream.range(0, list.size())
-                        .mapToObj(index -> TaskSubmissions.prepare(
-                                new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
-                                callableMapper.apply(list.get(index))))
-                        .collect(toImmutableList()));
+        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
+                .mapToObj(index -> TaskSubmissions.prepare(
+                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                        callableMapper.apply(list.get(index))))
+                .collect(toImmutableList());
         MultiTaskContext terminalUnit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, unit.taskType(), false), 1)
                         .structuralParent(unit)
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
-                        .taskGraphObservationScope(observation)
                         .executor(combinePar.executorRuntime(), combinePar.id()));
         combinePar.warnIfEnqueueRefusalInert(terminalUnit);
-        if (observation != null) {
-            TaskNode caller = unit.structuralParentNode();
-            observation.record(TaskGraph.builder()
-                    .admit(caller, unit.node())
-                    .admit(caller, terminalUnit.node())
-                    .join(unit.node(), terminalUnit.node())
-                    .build());
-        }
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
         // The terminal body reads the settled element futures at run time; the success gate below
         // guarantees they all completed successfully before the combine is ever submitted. TTL
         // capture happens here, on the admission thread, inside prepare.
-        ExecutionPhaseHintFuture<C> terminalFuture = prepareUnderResolvedScope(
-                observation,
-                () -> TaskSubmissions.prepare(terminalContext, () -> combineBody.apply(settledValues(tasks))));
+        ExecutionPhaseHintFuture<C> terminalFuture =
+                TaskSubmissions.prepare(terminalContext, () -> combineBody.apply(settledValues(tasks)));
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
         Task<C> terminalView = Task.attributedOnSettle(unit.name(), unit.cancellationToken(), terminalFuture);
-        SlidingWindowSubmitter<R> submitter =
-                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
+        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
+                executorRuntime.submissionExecutor(),
+                unit,
+                bodyCompletion,
+                options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         // Bind before submitting, with the still-pending terminal in the bound set: the token's
@@ -275,7 +258,7 @@ public final class Par {
         List<ListenableFuture<?>> bound = new ArrayList<>(views.size() + 1);
         bound.addAll(views);
         bound.add(terminalView);
-        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), bound, submitCanceller);
+        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, bound, submitCanceller);
         // Armed before submitAll: an inline executor can complete every element inside the initial
         // window. Only an all-successful element aggregate triggers the combine; the callback's
         // failure path leaves the combine to the cascade.
@@ -308,14 +291,25 @@ public final class Par {
     }
 
     /**
-     * Binds element views and the differently-typed terminal view in one call. The bind's element
-     * type is an inference artifact — every entry is a {@code ListenableFuture<?>} — so the raw
-     * cast is confined here.
+     * Admits the declared cancellation source and binds every prepared view in one call. The bind's
+     * element type is an inference artifact — every entry is a {@code ListenableFuture<?>} — so the
+     * raw cast is confined here.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private ListenableFuture<?> bindAll(
-            CancellationToken token, List<? extends ListenableFuture<?>> futures, ListenableFuture<?> submitCanceller) {
-        return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
+            CancellationToken token,
+            BatchOptions options,
+            List<? extends ListenableFuture<?>> futures,
+            ListenableFuture<?> submitCanceller) {
+        CancellationToken.@Nullable RequestCancellationLink cancellation = options.admitCancellation(token);
+        try {
+            return token.bind((List) futures, submitCanceller, runtime.timeoutScheduler());
+        } catch (RuntimeException | Error failure) {
+            if (cancellation != null) {
+                cancellation.sever();
+            }
+            throw failure;
+        }
     }
 
     /** Reads every element's successful value in input order; the success gate settled them all. */
@@ -370,24 +364,17 @@ public final class Par {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
-                .taskGraphObservationScope(observation)
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
-        recordAdmission(observation, unit);
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, System.nanoTime(), bodyCompletion.register(unit));
-        // TaskSubmissions.prepare captures this thread's TTL bindings for replay on the worker, and
-        // the observation scope is one of them. Install the scope this unit actually joined -- which
-        // may be none -- so the worker does not inherit a binding the ownership rule rejected and
-        // hand it to whatever the body submits next.
-        ExecutionPhaseHintFuture<T> future =
-                prepareUnderResolvedScope(observation, () -> TaskSubmissions.prepare(taskContext, task));
+        ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(taskContext, task);
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
         // future, whose phase claim then never lets it enter user code.
@@ -415,46 +402,38 @@ public final class Par {
         // The deadline check above stays first so the documented @throws contract is unchanged.
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
         MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        TaskGraphObservationScope observation = TaskGraphObservationScope.resolveFor(parent, runtime);
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
-                .taskGraphObservationScope(observation)
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
-        return executeGlobal(
-                elements,
-                item -> () -> function.apply(item),
-                unit,
-                observation,
-                options.closeGrace().orElse(null));
+        return executeGlobal(elements, item -> () -> function.apply(item), unit, options);
     }
 
     private <T, R> TaskBatch<R> executeGlobal(
             Collection<T> elements,
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
-            @Nullable TaskGraphObservationScope observation,
-            @Nullable Duration closeGrace) {
+            BatchOptions options) {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
-        recordAdmission(observation, unit);
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
-        List<ExecutionPhaseHintFuture<R>> tasks = prepareUnderResolvedScope(
-                observation,
-                () -> IntStream.range(0, list.size())
-                        .mapToObj(index -> TaskSubmissions.prepare(
-                                new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
-                                callableMapper.apply(list.get(index))))
-                        .collect(toImmutableList()));
-        SlidingWindowSubmitter<R> submitter =
-                new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
+        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
+                .mapToObj(index -> TaskSubmissions.prepare(
+                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                        callableMapper.apply(list.get(index))))
+                .collect(toImmutableList());
+        SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
+                executorRuntime.submissionExecutor(),
+                unit,
+                bodyCompletion,
+                options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         // Bind before submitting; the temporary submission canceller is linked to the real one
         // after submitAll so early cancellation still reaches the submission loop.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
-        ListenableFuture<?> completion =
-                unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
+        ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
         runtime.retainUntilComplete(completion);
         runtime.trackBodies(bodyCompletion);
         TaskBatch<R> result = submitter.submitAll(tasks, views);
@@ -494,42 +473,6 @@ public final class Par {
                     + " Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make"
                     + " the option effective.");
         }
-    }
-
-    /**
-     * Runs one preparation with {@code observation} installed as this thread's scope, restoring the
-     * previous binding afterward.
-     *
-     * <p>Preparation is where the TTL snapshot replayed on the worker thread is taken, so the scope
-     * bound here is the one every task body of this unit will observe — and the one a nested
-     * submission inside that body will resolve against. Installing the resolved scope, including
-     * clearing it when the unit joined none, is what keeps a worker of one {@code ParRuntime} from
-     * carrying another's scope. {@code TaskGroup.prepare} does the same around its member loop.
-     */
-    private static <T> T prepareUnderResolvedScope(
-            @Nullable TaskGraphObservationScope observation, Supplier<T> preparation) {
-        TaskGraphObservationScope previous = TaskGraphObservationScope.current();
-        TaskGraphObservationScope.restore(observation);
-        try {
-            return preparation.get();
-        } finally {
-            TaskGraphObservationScope.restore(previous);
-        }
-    }
-
-    /**
-     * Records one admission's fragment — the caller forks the new unit — into the scope this unit
-     * resolved to, never into whatever scope the calling thread carries: a thread inside another
-     * ParRuntime's scope must not record this unit there. Nothing is built when the unit joined no
-     * scope, which is the common unobserved path.
-     */
-    private static void recordAdmission(@Nullable TaskGraphObservationScope observation, MultiTaskContext unit) {
-        if (observation == null) {
-            return;
-        }
-        observation.record(TaskGraph.builder()
-                .admit(unit.structuralParentNode(), unit.node())
-                .build());
     }
 
     private static <T> TaskBatch<T> emptyBatchResult() {

@@ -30,18 +30,18 @@ import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Cooperative cancellation token carrying a deadline for parallel work.
+ * Internal cooperative cancellation token carrying a deadline for one task unit.
  *
- * <p>A token may be linked to a parent so that cancellation propagates to child task groups, and a
- * child never outlives its parent: the effective deadline is the minimum of the requested deadline
- * and the parent's. Before task submission, the internal bind operation connects the token to
- * prepared futures and enforces that
- * deadline together with fail-fast cancellation.
+ * <p>The token is the execution kernel's cancellation and attribution state. It is deliberately
+ * package-private: no public member accepts or returns one, and the public attribution vocabulary
+ * is {@link TaskOutcome}. A token may be linked to a parent so that cancellation propagates to
+ * child task groups, and a child never outlives its parent: the effective deadline is the minimum
+ * of the requested deadline and the parent's. Before task submission, {@link #bind} connects the
+ * token to prepared futures and enforces that deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
-public final class CancellationToken {
+final class CancellationToken {
 
     private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
 
@@ -51,11 +51,12 @@ public final class CancellationToken {
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
     private final @Nullable ParentLink parentLink;
+    private volatile @Nullable RequestCancellationLink requestCancellationLink;
 
     /**
      * The monotonic clock of this token's deadline domain. A child always inherits its parent's
      * clock, so one token tree shares one clock domain; only a root token takes an explicit clock,
-     * and public construction always lands on the system clock. Internal tests substitute a manual
+     * and the clock-less constructors always land on the system clock. Internal tests substitute a manual
      * clock for a root token to make deadline detection deterministic; deadlineNanos is always read
      * against this clock, never mixed with another domain.
      */
@@ -64,7 +65,7 @@ public final class CancellationToken {
     /**
      * The deadline scheduler paired with this token's clock domain, inherited by every child like
      * the clock itself. Only a root token receives it (from the owning {@code ParRuntime}'s test
-     * seam); it is {@code null} for tokens created through the public constructors, whose {@link
+     * seam); it is {@code null} for tokens created through the scheduler-less constructors, whose {@link
      * #bind} callers then supply the scheduler explicitly. The pairing is what lets a nested unit
      * fire its deadline on the ancestor's controlled time instead of scheduling a virtual delay on
      * a real scheduler.
@@ -82,7 +83,7 @@ public final class CancellationToken {
      *
      * @param parent the parent token, or {@code null} for a root token
      */
-    public CancellationToken(@Nullable CancellationToken parent) {
+    CancellationToken(@Nullable CancellationToken parent) {
         this(parent, Long.MAX_VALUE);
     }
 
@@ -95,7 +96,7 @@ public final class CancellationToken {
      * @param parent the parent token, or {@code null} for a root token
      * @param deadlineNanos the requested deadline in {@link System#nanoTime()} units
      */
-    public CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
+    CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
         this(parent, deadlineNanos, Ticker.systemTicker());
     }
 
@@ -140,7 +141,7 @@ public final class CancellationToken {
     }
 
     /** Creates an unlinked root token with no deadline. */
-    public CancellationToken() {
+    CancellationToken() {
         this(null);
     }
 
@@ -149,7 +150,7 @@ public final class CancellationToken {
      *
      * @return a new cancellation token
      */
-    public static CancellationToken create() {
+    static CancellationToken create() {
         return new CancellationToken();
     }
 
@@ -157,7 +158,7 @@ public final class CancellationToken {
      * Returns the effective deadline in {@link System#nanoTime()} units; {@link Long#MAX_VALUE}
      * means no deadline.
      */
-    public long deadlineNanos() {
+    long deadlineNanos() {
         return deadlineNanos;
     }
 
@@ -171,7 +172,7 @@ public final class CancellationToken {
      *
      * @return the remaining duration, saturated at zero and at the no-deadline sentinel
      */
-    public Duration remaining() {
+    Duration remaining() {
         return Duration.ofNanos(Deadlines.remaining(deadlineNanos, ticker.read()));
     }
 
@@ -339,6 +340,41 @@ public final class CancellationToken {
         allFutures.cancel(verifyNotNull(decision.get()).interrupt);
     }
 
+    RequestCancellationLink cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+        Objects.requireNonNull(signal, "signal cannot be null");
+        RequestCancellationLink link = new RequestCancellationLink(() -> cancel(interrupt));
+        requestCancellationLink = link;
+        if (state() != RUNNING) {
+            link.sever();
+        }
+        try {
+            signal.addListener(link::sourceCompleted, directExecutor());
+        } catch (RuntimeException | Error failure) {
+            link.sever();
+            throw failure;
+        }
+        return link;
+    }
+
+    static final class RequestCancellationLink {
+        private final AtomicReference<@Nullable Runnable> cancellationAction;
+
+        private RequestCancellationLink(Runnable cancellationAction) {
+            this.cancellationAction = new AtomicReference<>(cancellationAction);
+        }
+
+        private void sourceCompleted() {
+            @Nullable Runnable action = cancellationAction.get();
+            if (action != null) {
+                action.run();
+            }
+        }
+
+        void sever() {
+            cancellationAction.set(null);
+        }
+    }
+
     /** Immutable terminal decision; state and interrupt intent publish together. */
     private static final class Decision {
         private final State state;
@@ -361,7 +397,7 @@ public final class CancellationToken {
      * {@link #cancel(boolean)} with {@code false} only when running tasks must be allowed to
      * complete without interruption.
      */
-    public void cancel() {
+    void cancel() {
         cancel(true);
     }
 
@@ -375,7 +411,7 @@ public final class CancellationToken {
      *
      * @param useInterrupt whether to interrupt running threads
      */
-    public void cancel(boolean useInterrupt) {
+    void cancel(boolean useInterrupt) {
         if (transitionTo(CANCELLED, useInterrupt)) {
             futureToken.cancel(useInterrupt);
         }
@@ -415,7 +451,7 @@ public final class CancellationToken {
      *
      * @return the current state
      */
-    public State state() {
+    State state() {
         // state only ever transitions between non-null enum constants
         return verifyNotNull(decision.get()).state;
     }
@@ -432,7 +468,7 @@ public final class CancellationToken {
      *
      * @return the originating terminal state, or the current state when nothing propagated
      */
-    public State originState() {
+    State originState() {
         CancellationToken token = this;
         State s = token.state();
         while (s == PROPAGATED_CANCELLED && token.parent != null) {
@@ -469,6 +505,11 @@ public final class CancellationToken {
         ParentLink link = parentLink;
         if (link != null) {
             link.sever();
+        }
+        RequestCancellationLink cancellation = requestCancellationLink;
+        if (cancellation != null) {
+            cancellation.sever();
+            requestCancellationLink = null;
         }
         notifyStateListeners(terminal);
         return true;
@@ -531,7 +572,7 @@ public final class CancellationToken {
     }
 
     /** Lifecycle state of a {@link CancellationToken}. */
-    public enum State {
+    enum State {
 
         /** The task is running. */
         RUNNING,

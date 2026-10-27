@@ -33,16 +33,16 @@ TaskExecutionContext ─ created ─ queued ─ run ─ completed/event ──�
 SubmissionScope                    └─ executor.execute(...) ─┘
 TaskExecutionContext.current()                 └─ user callable ─┘
 
-请求级观测（可选）
-TaskGraphObservationScope ─────────────────────────────────────────
+运行时级观测（常开）
+ExecutorWaitGraph ────────────────────────────────────────────────── ParRuntime 生命周期
 ```
 
 ### 4.2 TaskGroup
 
-声明草稿（`GroupDraft`）收集组结构与本次 payload：组名、timeout/closeGrace、成员与可选
-combine 的声明顺序、名称、已解析的 owner-bound `Par`、不可变 `TaskOptions` 和本次 `Callable`；
+声明草稿（`GroupDraft`）收集组结构与本次 payload：组名、timeout/closeGrace、请求来源与显式中断意图、
+成员与可选 combine 的声明顺序、名称、已解析的 owner-bound `Par`、不可变 `TaskOptions` 和本次 `Callable`；
 提交时结构部分冻结为包私有 `TaskGroupDefinition`（不含 body），body 转移为内部 `RunBindings`。
-草稿单次使用、绑定创建线程，owner 关闭后不能再提交。外层上下文、observation 和 deadline 归属
+草稿单次使用、绑定创建线程，owner 关闭后不能再提交。外层上下文和 deadline 归属
 在提交的准备阶段按提交线程解析。成员不新增公共 Context。
 
 `TaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
@@ -59,7 +59,6 @@ totalTasks / completedTasks（收敛屏障）
 group CancellationToken（内部，不作为公共控制入口）
 completion SettableFuture
 failedTaskName
-TaskGraphObservationScope snapshot（可空）
 ```
 
 其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation、成员被直接取消。单个成员被直接取消会级联取消整个 Group（见 [取消与归因 §8.2](task-group-cancellation.md#82-成员主动取消)）。Group 对象在成员完成回调或内部 completion future 仍引用它时继续存活；它不属于任何物理线程。
@@ -137,13 +136,11 @@ try {
 
 它的生命周期只覆盖一次提交调用，不覆盖排队或任务执行。必须保留栈式恢复，以支持拒绝后 inline 执行期间再次嵌套提交的情况。
 
-### 4.7 TaskGraphObservationScope
+### 4.7 执行器等待记录
 
-提交的准备阶段解析提交线程上同一个 `ParRuntime` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
-
-调用方必须让 observation 生命周期覆盖 Group 的所有成员执行。若 observation 已提前关闭，成员不得复活它，后续图记录可以安全忽略。
-
-实现可在创建 `TtlCallable` 快照时短暂 install/restore Group 捕获的 observation，或者为单任务提交 helper 提供显式 observation 参数；MUST NOT 新增 group TTL。
+全部成员与汇总准备成功后，组把「结构父单元同步等待每个成员与汇总」一次记录进所属 `ParRuntime` 的执行器
+等待图；准备失败不记录，membership 不是等待。记录不经过 TTL、不依赖提交线程上的任何作用域，MUST NOT 新增
+group TTL。规则见 [task-graph.md](task-graph.md)。
 
 ### 4.8 TTL 边界
 
@@ -153,7 +150,7 @@ try {
 
 现有 `MultiTaskContext.resolve()` 把三件事都从 `parent MultiTaskContext` 推导：
 
-1. TaskGraph/嵌套结构 parent；
+1. 嵌套结构 parent（也是执行器等待的等待者）；
 2. cancellation token parent；
 3. deadline ceiling。
 
@@ -170,7 +167,6 @@ static MultiTaskContext resolve(
         @Nullable CancellationToken cancellationParent,
         long deadlineCeilingNanos,
         long resolutionTimeNanos,
-        @Nullable TaskGraphObservationScope observation,
         @Nullable ExecutorIdentity executorIdentity,
         @Nullable String executorLabel);
 ```
@@ -206,7 +202,7 @@ member token parent        = group token
 member deadline            = min(requested member deadline, group deadline)
 ```
 
-Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。`outerBatch` 与每个 member、combine 之间记录真实的 `FORK` 边，每个 member 与 combine 之间记录 `JOIN` 边；members 之间不得产生边。若 Group 在请求线程创建，则没有 `FORK` 边。图模型见 [task-graph.md](task-graph.md)。
+Group 本身不是一个虚构 Batch，也不是执行器等待图里的节点。`outerBatch` 同步等待每个 member 与 combine，记为执行器等待；member 喂给 combine 是数据依赖，不是等待；members 之间没有关系。若 Group 在请求线程创建，则没有等待者、不记录。规则见 [task-graph.md](task-graph.md)。
 
 外层 token 的取消通过 token 构造期挂接的 parent 监听传播为 group token 的
 `PROPAGATED_CANCELLED`，不靠轮询。收敛归因读取 `originState()`（沿 parent 链找首个非传播

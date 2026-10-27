@@ -192,17 +192,17 @@ Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS`）：
+库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskOutcome`（以下列出取消相关的值）：
 
-| 状态 | Code | 含义 |
-|---|---|---|
-| `RUNNING` | 0 | 正常执行 |
-| `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
-| `TIMEOUT` | -2 | 批次超时 |
-| `CANCELLED` | -3 | 被显式 `cancel()` |
-| `PROPAGATED_CANCELLED` | -4 | 父任务取消，级联传播 |
+| `TaskOutcome` | 含义 |
+|---|---|
+| `FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
+| `TIMEOUT` | 批次或组的 deadline 到期 |
+| `GROUP_CANCELLED` | 所在批次或组被取消，包括父任务取消的级联传播 |
+| `MEMBER_CANCELLED` | 单个组成员自身被取消 |
 
-`shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
+token 本身是包私有的内核类型：用户既拿不到也不需要它，限时用 `BatchOptions.timeout` / `TaskOptions.timeout`，
+在任务体内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。
 
 > 好的并发框架不仅要告诉你"任务被取消了"，还要告诉你"为什么被取消"。
 
@@ -281,41 +281,24 @@ par.map("shared-pool", orders, order -> {
 
 这不是传统的锁死锁，线程 dump 里看不到 `BLOCKED` 状态。这是**线程池的死锁**——线程在 `Future.get()` 上等待，而不是在 `synchronized` 上等待。
 
-parallel-in-scope 的解决方案是 **请求级任务依赖图**。设计借鉴 Guava `common.graph`：节点是任务单元（一次 `Par.map()` 批次、一个组成员、一个汇总），只描述自己——名称、所在执行器、并行度、任务数；「谁等待谁」只由图的边表达。每次准入把它新建的单元与关系作为一个片段写入图：调用方同步等待它准入的单元（`FORK`），汇总消费成员或批次的结果（`JOIN`）：
-
-```java
-// 请求入口
-try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-    // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
-    // 例如上面的嵌套调用：外层批次的 body FORK 内层批次，两者都在 shared-pool 上
-} // 请求结束时 close() 自动检测
-```
-
-每个单元在每次调用时都是新节点，所以任务图本身按构造无环——"同名任务重入"不会在任务层成环。真正的风险在执行器层：请求结束时，把每条 `FORK` 投影成「等待方的池 → 被等待方的池」，只保留被等待方可能饿死的边，再在这张执行器 waits-for 图上找环。上面的例子投影成 `shared-pool → shared-pool` 自环，立即检出；`JOIN` 没有线程在等，不参与投影。
-
-一个池是否可能饿死，只看「每个 worker 都忙时新提交的去向」：
+parallel-in-scope 的解决方案是 **运行时级的执行器等待图**。每个 `ParRuntime` 常开地记录：一个任务体在 `Par.map()`、`mapAndCombine` 或组 `runAll()` 里同步等待它准入的单元时，就是「任务体所在的池 → 被等待单元所在的池」的一条等待。只记被等待方可能饿死的等待：
 
 - 零容量交接队列（如 `CachedThreadPool` 的 `SynchronousQueue`）→ 不会，入队被拒，池子只能开新线程或显式拒绝
 - 有缓冲能力的队列（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能**，子任务排在已阻塞的 worker 后面，`maximumPoolSize` 再大也没机会开新线程
 
-检测结果随请求作用域发布：关闭 `TaskGraphObservationScope` 时对冻结的图运行一次检测，报告经 `reportFuture()` 以 `TaskGraphReport` 交付：
+上面的例子记成 `shared-pool → shared-pool` 自环。图属于运行时而不是某个请求，所以「请求 1 在 A 上等 B、请求 2 在 B 上等 A」这种跨请求的环也能看到——单看每个请求都没有环，合起来负载一高就会互相饿死。等待第一次形成环时，运行时在自有线程上打一条 `WARNING`，任何时候都能读出报告：
 
 ```java
 ParRuntime global = ParRuntime.builder()
     .register(ParId.of("shared-pool"), pool)
-    .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
     .build();
-ListenableFuture<TaskGraphReport> reportFuture;
-try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
-    reportFuture = scope.reportFuture();
-    handleRequest();
-}
-TaskGraphReport report = Futures.getDone(reportFuture);
-if (report.executorSelfLoop()) {
-    log.warn("Potential deadlock: executor self-loop detected! {}",
-        report.executorEdges());
+handleRequest();
+for (ExecutorWaitReport.Component cycle : global.executorWaitReport().cyclicComponents()) {
+    log.warn("Potential deadlock: {}", cycle);
 }
 ```
+
+报告列出有环的强连通分量与一个具体的环，而不是枚举所有环；它是「曾经观测到的结构性风险」，不证明线程此刻已经死锁。
 
 > 死锁检测不应该是事后分析工具，应该是运行时守护。问题在发生的瞬间就被发现。
 
@@ -412,7 +395,7 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 
 潜龙勿用——但如果用了，就用对。
 
-如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `ParRuntimeDeadlockPolicy` 检测并保存作用域的 `reportFuture()`——一处配置加一个 future。至少，下次卡死的时候你能知道为什么。
+如果你的项目也有线程池死锁的困扰，在测试末尾断言一次 `runtime.executorWaitReport().cyclicComponents()` 为空——不需要任何配置。至少，下次卡死的时候你能知道为什么。
 
 ---
 

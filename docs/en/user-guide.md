@@ -410,6 +410,46 @@ No public running handle supports member cancellation or asynchronous submission
 business work into the same group. Application-owned asynchronous wrappers have their own lifetime
 and cancellation, which do not prove the inner synchronous call exited.
 
+### Cancel when a request completes {#request-cancellation}
+
+Use a caller-owned `ListenableFuture<?>` as a request-disconnect input. Completion in any way —
+success, failure, or cancellation — cancels the whole batch or group, including a `mapAndCombine`
+terminal. The explicit `interrupt` argument decides whether running bodies are interrupted; the
+library never infers it from how the source completed and never completes or cancels the source.
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+TaskBatchResult<Price> prices = par.map(
+        skus,
+        this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect, true));
+```
+
+Declare a group's input once on `GroupStart`, before its first member. `TaskOptions` deliberately has
+no member-level `cancelOn`: request cancellation belongs to the whole scope, not to an independent
+member policy.
+
+```java
+TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+        .cancelOn(disconnect, true)
+        .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
+        .runAll();
+```
+
+A source that wins the race produces `GROUP_CANCELLED`; ancestor cancellation, deadlines, and
+fail-fast retain first-wins attribution. `cancelOn(source, false)` remains non-interrupting even when
+a losing deadline or fail-fast callback runs later. Registration happens only after preparation
+succeeds, immediately before binding and submission, so an already-completed source prevents inline
+bodies from running. Empty batches and groups return immediate `SUCCESS` without registering;
+`mapAndCombine` still rejects empty input.
+
+Normal terminal completion deterministically severs the listener's link to the execution without
+finishing the source. Reusing one source across executions creates independent links; options retain
+the source itself and therefore have the request's lifetime. Synchronous return and bounded cleanup
+are unchanged. Interruption is cooperative: it does not prove that arbitrary HTTP/JDBC IO or user
+code has stopped, so keep finite IO timeouts and inspect body-completion results.
+
 ### Read nested results inside a body {#nested-reads}
 
 A nested `map` or `runAll` has already finished when it returns: its results are frozen data, so
@@ -441,37 +481,19 @@ a `Callable`, which can also throw checked exceptions.
 
 ## Observe nested work
 
-Task-graph observation is explicitly scoped to one `ParRuntime`. The scope owns graph cleanup and, when enabled, runs the potential-deadlock detection pass over the graph frozen at `close()` and publishes the result through `reportFuture()`. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
+Every `ParRuntime` records, always and without a scope, which of its registered executors synchronously wait for which. A task body that calls `map`, `mapAndCombine`, or `runAll` waits for every unit it admits; when the awaited unit runs on a starvation-prone pool, that is a wait from the body's pool to that pool. A combine only consumes its inputs, so it adds no wait of its own, and a top-level call has no waiting pool. When the recorded waits first form a cycle — a pool waiting on itself included — the runtime logs one JUL `WARNING` from a runtime-owned thread, never from the submitting one.
+
+Read the current state at any time, for example at the end of a test:
 
 ```java
-ParRuntime global = ParRuntime.builder()
-        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
-        .build();
-ListenableFuture<TaskGraphReport> reportFuture;
-try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-    // Calls made below this scope, including nested calls on other Pars in global,
-    // are recorded in the same graph.
-    reportFuture = observation.reportFuture();
-    service.handleRequest();
-}
-TaskGraphReport report = Futures.getDone(reportFuture);
-if (report.status() == TaskGraphReport.Status.ISSUE) {
-    log.warn("Potential deadlock: {}", report);
-}
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 ```
 
-The report future stays pending until the scope closes; every normally returning `close()` guarantees it is done, so it can be read synchronously with `Futures.getDone` or observed with `Futures.addCallback` — registering a callback after close never misses the result. `status()` distinguishes a disabled policy (`DISABLED`), a clean detection (`NO_ISSUE`), and a detected cycle or self-loop (`ISSUE`); a detection failure ends the future in failure instead of producing a report. The future is read-only: `cancel(...)` returns `false` and affects neither detection nor business tasks. An observation scope does not merge graphs from separate `ParRuntime` instances.
+`cyclicComponents()` lists each cyclic strongly connected component: its `members()`, one concrete `cycle()` in wait order, and in `toString()` the first pair of task units observed behind each wait. Each executor appears as the set of every `ParId` it is registered under — two ids naming one pool are one executor, and a name alone never makes a cycle.
 
-Publication precedes ISSUE logging. A direct report listener's Error may still escape close, but
-does not retract the report or skip the diagnostic attempt; a failing logging handler is isolated.
-If detection and publication both throw Error, the detection error remains primary and is the
-future's failure cause, with the distinct publication error suppressed.
-
-The graph records every unit an admission of this runtime creates — a batch, a group member, a combine — and who waits for whom: the caller of `map`, `mapAndCombine`, or `runAll` waits for every unit it admits, while a combine only consumes its inputs. Detection projects the waits onto executors: a body blocked on work queued to a starvation-prone pool is an edge between the two pools, and a cycle of such edges — a pool waiting on itself included — is reported as `ISSUE` with `executorCycle()` / `executorSelfLoop()`. The rendered `executorEdges()` and `taskEdges()` list only the waits on that cycle and the units behind them.
-
-Queries such as `TaskGraphObservationScope.hasExecutorCycle()` cover every admission recorded before the call, and the report published at `close()` takes its flags and rendered edges from one consistent snapshot of the request graph.
-
-Executor cycles and self-loops are detected on the registered executor objects themselves, never on `ParId` names: two `ParId`s naming one pool are the same node, and a name alone never makes a cycle. A top-level call has no parent executor, so it adds no executor edge; only work nested inside a task body can.
+The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs a body inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
 
 ## Observe direct executor work
 

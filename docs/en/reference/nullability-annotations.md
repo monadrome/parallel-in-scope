@@ -28,8 +28,8 @@ recommends, and is also transitively provided by Guava.
 ## When to use `@Nullable`
 
 Use it when a return value can be absent, when a public constructor explicitly accepts `null`, or
-when a parameter has an optional value. Public examples include a nullable parent
-`CancellationToken` and `TaskGroupResult.failedTaskName()`. Package-private runtime
+when a parameter has an optional value. Public examples include the nullable value accepted by
+`ImmediateResult.succeeded(T)` and `TaskGroupResult.failedTaskName()`. Package-private runtime
 types use the same rule for their implementation state.
 
 Do not add redundant annotations to non-null parameters covered by the package default or to

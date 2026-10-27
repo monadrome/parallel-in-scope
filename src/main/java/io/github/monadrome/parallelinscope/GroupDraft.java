@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,6 +41,8 @@ final class GroupDraft {
 
     private @Nullable CombineDecl combine;
     private @Nullable Duration closeGrace;
+    private @Nullable ListenableFuture<?> cancellationSignal;
+    private boolean cancellationInterrupt;
     private int stage;
 
     GroupDraft(ParRuntime owner, String name, @Nullable Duration timeout) {
@@ -86,6 +89,11 @@ final class GroupDraft {
 
     void setCloseGrace(Duration grace) {
         this.closeGrace = Validation.requireNonNegative(grace, "closeGrace");
+    }
+
+    void setCancellation(ListenableFuture<?> signal, boolean interrupt) {
+        this.cancellationSignal = checkNotNull(signal, "signal cannot be null");
+        this.cancellationInterrupt = interrupt;
     }
 
     void addMember(TaskKey<?> key, Par par, TaskOptions options, Callable<?> body) {
@@ -169,7 +177,8 @@ final class GroupDraft {
                 ? null
                 : new TaskGroupDefinition.Slot(
                         declaredCombine.key, declaredCombine.par, declaredCombine.options, declaredCombine.valueView);
-        return new TaskGroupDefinition(name, timeout, closeGrace, memberSlots, combineSlot);
+        return new TaskGroupDefinition(
+                name, timeout, closeGrace, cancellationSignal, cancellationInterrupt, memberSlots, combineSlot);
     }
 
     /**
@@ -222,6 +231,14 @@ final class GroupDraft {
             draft.checkThread();
             draft.checkStage(0);
             draft.setCloseGrace(grace);
+            return this;
+        }
+
+        @Override
+        public Start cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+            draft.checkThread();
+            draft.checkStage(0);
+            draft.setCancellation(signal, interrupt);
             return this;
         }
 

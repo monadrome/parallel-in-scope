@@ -456,51 +456,27 @@ class ParMapAndCombineTest {
     }
 
     /**
-     * A top-level combined batch records the batch and the combine as nodes joined by the data
-     * dependency between them. There is no caller, so nothing forks either unit, and a join never
-     * reaches the executor projection: the starvation-prone pools stay out of it.
+     * A top-level combined batch has no caller, so nothing waits for either unit and no executor wait
+     * is recorded, even on two starvation-prone pools.
      */
     @Test
-    void combineEdgeIsRecordedInTheObservationGraph() throws Exception {
+    void topLevelCombinedBatchRecordsNoExecutorWait() throws Exception {
         ExecutorService io = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         ExecutorService cpu = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
                 .register(ParId.of("io"), io)
                 .register(ParId.of("cpu"), cpu)
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try {
-            TaskGraphObservationScope scope = runtime.openTaskGraphObservation();
-            BatchCombinedResult<Integer, Integer> result;
-            try {
-                result = runtime.par(ParId.of("io"))
-                        .mapAndCombine(
-                                Arrays.asList(1, 2),
-                                value -> value,
-                                BatchOptions.timeout("batch", TIMEOUT),
-                                runtime.par(ParId.of("cpu")),
-                                values -> Objects.requireNonNull(values).size());
-                com.google.common.graph.ValueGraph<TaskNode, TaskGraph.Dependency> graph =
-                        scope.graph().asValueGraph();
-                assertThat(graph.nodes()).hasSize(2);
-                assertThat(graph.edges()).hasSize(1);
-                TaskNode batch = graph.nodes().iterator().next();
-                TaskNode combine = graph.successors(batch).iterator().next();
-                assertThat(batch.executorLabel()).isEqualTo("io");
-                assertThat(combine.executorLabel()).isEqualTo("cpu");
-                assertThat(graph.edgeValue(batch, combine)).contains(TaskGraph.Dependency.JOIN);
-                assertThat(ExecutorGraph.projectedFrom(scope.graph())
-                                .asValueGraph()
-                                .edges())
-                        .isEmpty();
-            } finally {
-                scope.close();
-            }
+            BatchCombinedResult<Integer, Integer> result = runtime.par(ParId.of("io"))
+                    .mapAndCombine(
+                            Arrays.asList(1, 2),
+                            value -> value,
+                            BatchOptions.timeout("batch", TIMEOUT),
+                            runtime.par(ParId.of("cpu")),
+                            values -> Objects.requireNonNull(values).size());
             assertThat(result.terminalValueOrThrow()).isEqualTo(2);
-            // A batch fanning out to a combine on another executor is ordinary forking, not a cycle.
-            TaskGraphReport report =
-                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
-            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+            assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
         } finally {
             io.shutdownNow();
             cpu.shutdownNow();
@@ -508,34 +484,34 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
-        // Regression: the deferred combine never parks a worker waiting on its own pool, so a
-        // same-pool combine must not read as an executor self-loop (ISSUE) on close.
+    void nestedCombineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
+        // The batch only feeds its combine and never waits for it, so a same-pool combine admitted
+        // from a body on another pool must not read as a self-loop on the batch's pool.
+        ExecutorService outer = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>());
         ExecutorService pool = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
+                .register(ParId.of("outer"), outer)
                 .register(ParId.of("worker"), pool)
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try {
-            TaskGraphObservationScope scope = runtime.openTaskGraphObservation();
-            BatchCombinedResult<Integer, Integer> result;
-            try {
-                result = runtime.par(ParId.of("worker"))
-                        .mapAndCombine(
-                                Arrays.asList(1, 2),
-                                value -> value,
-                                BatchOptions.timeout("batch", TIMEOUT),
-                                runtime.par(ParId.of("worker")),
-                                values -> Objects.requireNonNull(values).size());
-            } finally {
-                scope.close();
-            }
-            assertThat(result.terminalValueOrThrow()).isEqualTo(2);
-            TaskGraphReport report =
-                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
-            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
-            assertThat(report.executorSelfLoop()).isFalse();
+            List<Integer> totals = runtime.par(ParId.of("outer"))
+                    .map(
+                            Arrays.asList(1),
+                            ignored -> runtime.par(ParId.of("worker"))
+                                    .mapAndCombine(
+                                            Arrays.asList(1, 2),
+                                            value -> value,
+                                            BatchOptions.inheritTimeout("batch"),
+                                            runtime.par(ParId.of("worker")),
+                                            values -> Objects.requireNonNull(values)
+                                                    .size())
+                                    .terminalValueOrThrow(),
+                            BatchOptions.timeout("outer", TIMEOUT))
+                    .valuesOrThrow();
+            assertThat(totals).containsExactly(2);
+            assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
         } finally {
+            outer.shutdownNow();
             pool.shutdownNow();
         }
     }

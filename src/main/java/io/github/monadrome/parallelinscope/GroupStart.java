@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 
@@ -14,10 +15,10 @@ import java.util.concurrent.Callable;
  * boundary, and it may be called exactly once: the chain is consumed by the submission and cannot
  * be retried, extended, or reused.
  *
- * <p>This stage carries the whole-group settings that must precede the first member: {@link
- * #closeGrace(Duration)} and the group's identity. Declaring a member moves the chain to {@link
- * GroupStep}, which never exposes these settings again, so a late {@code closeGrace} does not
- * compile.
+ * <p>This stage carries the whole-group settings that must precede the first member: the group's
+ * identity, {@link #closeGrace(Duration)}, and {@link #cancelOn(ListenableFuture, boolean)}.
+ * Declaring a member moves the chain to {@link GroupStep}, which never exposes these settings
+ * again, so a late {@code closeGrace} or {@code cancelOn} does not compile.
  *
  * <p>The draft is mutable and single-threaded: every method, including {@code runAll}, must be
  * called from the thread that created it. The frozen {@link TaskGroupResult} can be used across
@@ -61,6 +62,22 @@ public interface GroupStart {
      * @throws IllegalStateException if a member is already declared, or this stage is stale
      */
     GroupStart closeGrace(Duration grace);
+
+    /**
+     * Declares a caller-owned source whose completion in any way cancels this group. The explicit
+     * {@code interrupt} argument controls interruption of running bodies; it is never inferred from
+     * the source's completion. The library does not complete or cancel the source.
+     *
+     * <p>Callable only before the first member is declared. Registration happens at admission,
+     * immediately before binding and submission; an empty group returns successfully without
+     * registering. Interruption is cooperative and does not guarantee that arbitrary IO or user code
+     * stops.
+     *
+     * @return this stage, for chaining
+     * @throws NullPointerException if {@code signal} is null
+     * @throws IllegalStateException if a member is already declared, or this stage is stale
+     */
+    GroupStart cancelOn(ListenableFuture<?> signal, boolean interrupt);
 
     /**
      * Executes an empty group: no members, no combine, immediately successful.

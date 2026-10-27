@@ -6,14 +6,13 @@ import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One task unit as a node of a {@link TaskGraph}: a single task, a {@code Par.map} batch, a group
+ * The resolved identity and facts of one task unit: a single task, a {@code Par.map} batch, a group
  * member, or a terminal combine.
  *
  * <p>A node describes only its own unit — identity, name, the executor it runs on, and its shape
- * — and holds no reference to a parent, a child, a graph, a token, a future, or a body. Which unit
- * waits for or consumes which is answered by the graph that holds the node, never by the node, so
- * the same instance can sit in any number of graphs at once: an admission fragment, the scope's
- * request graph, a nested scope's graph, and the evidence of an {@link ExecutorGraph}.
+ * — and holds no reference to a parent, a child, a token, a future, or a body. Who waits for whom is
+ * recorded by the runtime's {@link ExecutorWaitGraph} at admission, never by the node; a node only
+ * names the waiting and awaited units of a recorded wait.
  *
  * <p>Nodes are equal by unit id. Every other field is a fact fixed when the unit was resolved;
  * {@link MultiTaskContext} creates exactly one node per unit, so equal nodes also carry equal facts

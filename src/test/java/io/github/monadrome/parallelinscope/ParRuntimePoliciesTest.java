@@ -36,13 +36,6 @@ class ParRuntimePoliciesTest {
     }
 
     @Test
-    void deadlockPolicyBuilderExposesFluentSelfReturns() {
-        ParRuntimeDeadlockPolicy.Builder deadlock = ParRuntimeDeadlockPolicy.builder();
-        assertThat(deadlock.enabled(true)).isSameAs(deadlock);
-        assertThat(deadlock.build().enabled()).isTrue();
-    }
-
-    @Test
     void discardingRejectionPoliciesFailTheBuildNamingTheParAndThePolicy() {
         // DiscardPolicy and DiscardOldestPolicy accept a task and drop it: execute() neither runs it
         // nor throws, so the prepared future stays pending and every batch or group submitted to

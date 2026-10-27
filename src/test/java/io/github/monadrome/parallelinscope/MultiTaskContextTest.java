@@ -133,39 +133,21 @@ class MultiTaskContextTest {
     }
 
     @Test
-    void doesNotInheritTheParentObservationAndCreatesLinkedCancellationToken() {
-        ParRuntime global = ParRuntime.builder().build();
-        TaskGraphObservationScope observation = global.openTaskGraphObservation();
-        try {
-            MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("parent", Duration.ofSeconds(30))
-                                    .spec(),
-                            2)
-                    .taskGraphObservationScope(observation));
-            MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("child", Duration.ofSeconds(30))
-                                    .spec(),
-                            1)
-                    .structuralParent(parent));
+    void childLinksToTheParentAndCreatesItsOwnCancellationToken() {
+        MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("parent", Duration.ofSeconds(30)).spec(), 2));
+        MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("child", Duration.ofSeconds(30)).spec(), 1)
+                .structuralParent(parent));
 
-            assertThat(parent.name()).isEqualTo("parent");
-            assertThat(parent.taskCount()).isEqualTo(2);
-            assertThat(parent.structuralParent()).isNull();
-            assertThat(child.structuralParent()).isSameAs(parent);
-            // The observation scope is not a parent-inherited default. Ownership decides it, and only
-            // the caller knows which ParRuntime is admitting this unit, so an unstated scope stays
-            // unset rather than being taken from the parent -- a parent that may belong to another
-            // topology entirely. Every production caller states it from
-            // TaskGraphObservationScope.resolveFor.
-            assertThat(child.taskGraphObservationScope()).isNull();
-            assertThat(parent.taskGraphObservationScope()).isSameAs(observation);
-            assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
-            assertThat(child.node().executor()).isNull();
-            assertThat(child.node().executorLabel()).isNull();
-        } finally {
-            observation.close();
-            global.close();
-        }
+        assertThat(parent.name()).isEqualTo("parent");
+        assertThat(parent.taskCount()).isEqualTo(2);
+        assertThat(parent.structuralParent()).isNull();
+        assertThat(child.structuralParent()).isSameAs(parent);
+        assertThat(child.structuralParentNode()).isEqualTo(parent.node());
+        assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
+        assertThat(child.node().executor()).isNull();
+        assertThat(child.node().executorLabel()).isNull();
     }
 
     /** Minimal executor identity object; no tasks are submitted by this test. */

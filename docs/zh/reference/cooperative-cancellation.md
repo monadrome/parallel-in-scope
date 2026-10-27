@@ -5,7 +5,7 @@
 
 Java 的 `Thread.interrupt()` 只能中断**阻塞操作**（如 `Thread.sleep()`、`Object.wait()`、`BlockingQueue.take()` 等）。对于正在执行纯计算的 CPU 密集型代码，interrupt 信号不会产生任何效果——线程会一直运行直到计算结束。
 
-parallel-in-scope 采用**协作式取消**模型：框架负责发出取消信号（通过 `CancellationToken` 的状态变更），但**任务代码需要主动检查这个信号**。这个检查动作称为 **checkpoint**。
+parallel-in-scope 采用**协作式取消**模型：框架负责发出取消信号（通过库内部取消 token 的状态变更），但**任务代码需要主动检查这个信号**。这个检查动作称为 **checkpoint**。
 
 > 类比：协作式取消就像公路上的收费站——车辆（任务）在经过收费站（checkpoint）时才会被拦截。如果一段公路上没有收费站，车辆就会一路畅行不受控制。
 
