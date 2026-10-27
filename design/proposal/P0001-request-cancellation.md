@@ -12,7 +12,7 @@
 - 输入形状（2026-10-27 改写）：来源是用户持有的 `ListenableFuture<?>`，以任何方式完成即取消；
   中断策略由注册方显式声明（`cancelOn(signal, interrupt)`），MUST NOT 从来源的完成方式推断——future
   的终态读不出 `cancel(false)` 与 `cancel(true)` 的区别。归因复用 `GROUP_CANCELLED`。`CancellationToken`
-  已收为包私有（`proposal:P0025`），来源 MUST NOT 是 token。
+  已收为包私有（见 [cancellation-propagation.md](../cancellation-propagation.md) §5.3），来源 MUST NOT 是 token。
 - 被否决方向及理由：不先构造第二套 parent 树或 ambient RequestScope，它们增加归因与封口协议；
   不重新公开 token 作为来源：会暴露父链、deadline、bind 与归因状态机；不新增公开
   `CancellationSource`：与 future 是重复概念；不接收 `CompletionStage`：Guava future 不实现它，

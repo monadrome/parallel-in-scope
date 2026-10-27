@@ -20,7 +20,6 @@ class PublicApiSurfaceTest {
     private static final Set<String> EXPECTED_PUBLIC_TYPES = new TreeSet<>(Arrays.asList(
             BASE_PACKAGE + ".BatchCombinedResult",
             BASE_PACKAGE + ".BatchOptions",
-            BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".CombinedGroupStep",
             BASE_PACKAGE + ".CombineBody",
@@ -54,7 +53,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.
-            BASE_PACKAGE + ".CancellationToken$State",
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
             BASE_PACKAGE + ".TaskGraphReport$Status",

@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Resolution of {@link BatchOptions} into a batch context
  *   <li>Scoped task preparation via {@code TaskSubmissions}
  *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
- *   <li>Parent-child {@link CancellationToken} chaining
+ *   <li>Parent-child cancellation chaining
  *   <li>Timeout and fail-fast cancellation, bound before any element is submitted
  * </ul>
  *
