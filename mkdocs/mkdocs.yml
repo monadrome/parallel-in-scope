@@ -24,6 +24,7 @@ nav:
       - Design philosophy: design/philosophy.md
       - Idea Graveyard: design/idea-graveyard.md
   - Tests & Cases:
+      - Testing code that uses the library: testing/testing-your-code.md
       - TaskBatchResult test design: testing/task-batch-result-report-test-design.md
       - AI concurrency review case study: case-studies/ai-concurrency-review-false-positive.md
   - Issues: https://github.com/monadrome/parallel-in-scope/issues
@@ -162,6 +163,7 @@ plugins:
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:
+                - 测试使用本库的代码: testing/testing-your-code.md
                 - TaskBatchResult 测试设计: testing/task-batch-result-report-test-design.md
                 - AI 并发审查误报复盘: case-studies/ai-concurrency-review-false-positive.md
             - Issues: https://github.com/monadrome/parallel-in-scope/issues
