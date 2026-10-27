@@ -727,7 +727,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
-    void start(ParRuntime global) {
+    void start(ParRuntime global, TaskGroupDefinition definition) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();
             return;
@@ -739,22 +739,31 @@ final class TaskGroup<V, R> implements AutoCloseable {
         if (terminal != null) {
             terminal.future.addListener(() -> memberCompleted(terminal), directExecutor());
         }
-        // Group level: group deadline, unified fail-fast (any failure or member cancellation), and
-        // all-success detection, in one bind over the member futures. The terminal future joins the
-        // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
-        // combine, and the group token cannot observe SUCCESS before the combine completes.
-        groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
-        for (MemberState member : membersAndTerminal) {
-            CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
-            memberToken.addStateListener(state -> {
-                if (state == CancellationToken.State.TIMEOUT) {
-                    groupToken.timeoutCancel();
+        CancellationToken.@Nullable RequestCancellationLink cancellation = definition.admitCancellation(groupToken);
+        try {
+            // Group level: group deadline, unified fail-fast (any failure or member cancellation), and
+            // all-success detection, in one bind over the member futures. The terminal future joins the
+            // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
+            // combine, and the group token cannot observe SUCCESS before the combine completes.
+            groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
+            for (MemberState member : membersAndTerminal) {
+                CancellationToken memberToken =
+                        member.context.multiTaskContext().cancellationToken();
+                memberToken.addStateListener(state -> {
+                    if (state == CancellationToken.State.TIMEOUT) {
+                        groupToken.timeoutCancel();
+                    }
+                });
+                if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
+                    continue;
                 }
-            });
-            if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
-                continue;
+                memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
             }
-            memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
+        } catch (RuntimeException | Error failure) {
+            if (cancellation != null) {
+                cancellation.sever();
+            }
+            throw failure;
         }
     }
 

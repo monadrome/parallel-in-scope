@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import java.time.Duration;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -10,10 +11,10 @@ import org.jspecify.annotations.Nullable;
  * Immutable options of one {@link Par#map} batch: its name, its requested parallelism, and the
  * execution policy applied to every element.
  *
- * <p>A batch is a fan-out over homogeneous input, so it owns exactly two concepts a single task
- * does not have: the batch identity shared by all elements and the concurrency limit of the sliding
- * window. Per-element execution policy is the rest of this type — timeout, task type, and enqueue
- * rejection.
+ * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
+ * concurrency limit controls the sliding window. Timeout, task type, and enqueue rejection form the
+ * execution policy. {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned
+ * cancellation input for the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
@@ -28,6 +29,8 @@ public final class BatchOptions {
     private final TaskType taskType;
     private final boolean rejectEnqueue;
     private final @Nullable Duration closeGrace;
+    private final @Nullable ListenableFuture<?> cancellationSignal;
+    private final boolean cancellationInterrupt;
 
     private BatchOptions(
             String name,
@@ -35,18 +38,22 @@ public final class BatchOptions {
             @Nullable Duration timeout,
             TaskType taskType,
             boolean rejectEnqueue,
-            @Nullable Duration closeGrace) {
+            @Nullable Duration closeGrace,
+            @Nullable ListenableFuture<?> cancellationSignal,
+            boolean cancellationInterrupt) {
         this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
         this.closeGrace = closeGrace;
+        this.cancellationSignal = cancellationSignal;
+        this.cancellationInterrupt = cancellationInterrupt;
     }
 
     /** Returns batch options that inherit the enclosing scope's deadline. */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null, null, false);
     }
 
     /**
@@ -66,7 +73,9 @@ public final class BatchOptions {
                 Validation.requirePositive(timeout, "timeout"),
                 TaskType.IO_BOUND,
                 false,
-                null);
+                null,
+                null,
+                false);
     }
 
     /**
@@ -81,7 +90,9 @@ public final class BatchOptions {
                 timeout,
                 taskType,
                 rejectEnqueue,
-                closeGrace);
+                closeGrace,
+                cancellationSignal,
+                cancellationInterrupt);
     }
 
     /** Returns a copy of these options with the given task type. */
@@ -92,7 +103,9 @@ public final class BatchOptions {
                 timeout,
                 checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
-                closeGrace);
+                closeGrace,
+                cancellationSignal,
+                cancellationInterrupt);
     }
 
     /**
@@ -103,7 +116,15 @@ public final class BatchOptions {
      * flag is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
+        return new BatchOptions(
+                name,
+                parallelism,
+                timeout,
+                taskType,
+                rejectEnqueue,
+                closeGrace,
+                cancellationSignal,
+                cancellationInterrupt);
     }
 
     /**
@@ -125,7 +146,32 @@ public final class BatchOptions {
                 timeout,
                 taskType,
                 rejectEnqueue,
-                Validation.requireNonNegative(closeGrace, "closeGrace"));
+                Validation.requireNonNegative(closeGrace, "closeGrace"),
+                cancellationSignal,
+                cancellationInterrupt);
+    }
+
+    /**
+     * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or is
+     * cancelled. The source remains caller-owned: the library never completes or cancels it.
+     *
+     * <p>The explicit {@code interrupt} argument controls interruption of running bodies; it is not
+     * inferred from the source's completion. Interruption is cooperative and does not guarantee that
+     * arbitrary IO or user code stops. Registration happens at execution admission, immediately
+     * before binding and submission; an empty batch returns successfully without registering.
+     *
+     * @throws NullPointerException if {@code signal} is null
+     */
+    public BatchOptions cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+        return new BatchOptions(
+                name,
+                parallelism,
+                timeout,
+                taskType,
+                rejectEnqueue,
+                closeGrace,
+                checkNotNull(signal, "signal cannot be null"),
+                interrupt);
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -161,6 +207,13 @@ public final class BatchOptions {
      */
     public Optional<Duration> closeGrace() {
         return Optional.ofNullable(closeGrace);
+    }
+
+    CancellationToken.@Nullable RequestCancellationLink admitCancellation(CancellationToken token) {
+        if (cancellationSignal == null) {
+            return null;
+        }
+        return token.cancelOn(cancellationSignal, cancellationInterrupt);
     }
 
     /** Adapts these options to the kernel carrier of this batch. */

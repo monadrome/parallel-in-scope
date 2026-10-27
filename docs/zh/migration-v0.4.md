@@ -134,7 +134,38 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 - 在任务体内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
 - 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
 
-从外部取消一次正在运行的执行目前仍没有公开入口；显式取消输入是在途提案。
+公开面仍没有运行句柄或成员直消方法。请求级外部取消改用下面的显式输入，不重新公开 token。
+
+## 请求取消输入
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 与
+`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 是可选新增能力；未声明它们的
+代码保持原行为。`TaskOptions` 刻意没有 `cancelOn`，因为请求取消属于整个批次或组，而不是独立的
+成员政策。
+
+改前，外部请求取消只能在检查点轮询应用标志：
+
+```java
+par.map(skus, sku -> {
+    if (requestCancelled.get()) throw new CancellationException();
+    return fetchPrice(sku);
+}, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+改后，在断开时完成一个调用方持有的 future，并把它声明到作用域上：
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+par.map(skus, this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+```
+
+消除的失败模式是轮询检查点之间的空窗：取消现在能到达已经阻塞在可中断等待中的 body。来源成功、
+失败或取消都会触发取消，是否中断只看显式 `interrupt` 参数。来源仍由调用方所有；归因保持
+first-wins，来源先赢时为 `GROUP_CANCELLED`，`cancel(false)` 不会被落败的 deadline/fail-fast
+回调升级。注册与监听切断分别遵循准入和终态；空批次与空组不注册。这不表示任意 IO 已经停止，
+同步有界清理也不变。
 
 ## 执行器等待报告
 
