@@ -44,6 +44,14 @@ supplied ExecutorService；MUST 保留用户选择的提交对象与包装器行
 MUST 保留收敛时刻与 body 退出时刻的区别；先迁移内部 live 消费及 barrier 交错测试，
 不能将删除动态查询当成已经解决重复快照，也不能提前合并生命周期。
 
+2026-10-02 过度设计分析（F6–F8，全文 `git show cacf590:design/analysis/overdesign-analysis-code-only-2026-10-02.md`）
+在 `cacf590` 复核后仍成立的内部候选，同样只在能让协议集中时实施：`MultiTaskContext` 与其
+`CancellationToken` 各存一份恒等的 deadline，应只留 token 一份；`UnitSpec` + `Resolution` 的可选
+setter 实际只有 batch 与 group task 两种组合，可评估两个静态工厂；`DispatchingScheduledExecutorService`
+只为 `withTimeout` 存在且半数覆写抛 UOE，改为 token 自行调度会触及 Guava `TimeoutFuture` 完成顺序，
+须单独评审；`FutureInspector` 只剩 `Task.failure()` 一个调用方；两个入口各自解析当前观测 scope。
+`Par` 的半截转发器与 `TaskGraphData` 的转发层已删除，不再是候选。
+
 旧重落分支 `bec55e9`/`e11cf28` 的单次 terminal 分类也是候选，不是已经证实必须引入的
 carrier。已完成 future 的中断独立读取已按 [中断契约](../interruption-contract.md) 修复；
 若进一步统一冻结，MUST 保留当前 `attributedOnSettle` 的落定 outcome，不能覆盖
