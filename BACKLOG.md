@@ -321,7 +321,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ### O-13 · 纯超时批次的 `report().firstException()` 恒 null
 
-来源：`design/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
+来源：`design/analysis/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
 但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
 （`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:298` 把 null 钉为期望）。
