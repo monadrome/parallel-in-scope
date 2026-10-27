@@ -4,7 +4,10 @@
 
 These instructions apply to every Architecture Decision Record in `adr/`.
 An ADR records why an important decision was made, not general documentation,
-temporary analysis, or a progress log.
+temporary analysis, or a progress log. Which decisions belong in an ADR rather
+than a design contract's rejected-alternatives section or
+`design/decision-log.md` is defined in `design/AGENTS.md` (document maintenance
+principle 10); this file governs only the ADR format.
 
 ## File And Status Rules
 
