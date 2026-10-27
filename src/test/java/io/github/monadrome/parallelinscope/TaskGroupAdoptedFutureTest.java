@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -409,6 +410,49 @@ class TaskGroupAdoptedFutureTest {
         assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(snapshot.startTimeNanos()).isNotZero();
         assertThat(snapshot.endTimeNanos()).isNotZero();
+    }
+
+    @Test
+    void aRunAdmittedBeforeCloseStillDispatchesItsDiscardedValues() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        ConnectedFuture<Resource> failing = new ConnectedFuture<>();
+        AtomicReference<Thread> closerThread = new AtomicReference<>();
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        pools.add(caller);
+
+        Future<TaskGroupResult<Tuple2<Resource, Resource>, Void>> running =
+                caller.submit(() -> runtime.group("closing", TIMEOUT)
+                        .closeGrace(TIMEOUT)
+                        .adopt(
+                                FIRST,
+                                Futures.immediateFuture(new Resource("first")),
+                                resource -> closerThread.set(Thread.currentThread()))
+                        .adopt(SECOND, failing)
+                        .runAll());
+        assertThat(failing.connected.await(5, TimeUnit.SECONDS)).isTrue();
+        runtime.close();
+        failing.fail(new IOException("down"));
+
+        TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(closerThread.get()).isNotSameAs(Thread.currentThread());
+        assertThat(Objects.requireNonNull(closerThread.get()).getName()).startsWith("ParRuntime-services-");
+    }
+
+    /** A source that reports when the group connects to it. */
+    static final class ConnectedFuture<T> extends AbstractFuture<T> {
+        final CountDownLatch connected = new CountDownLatch(1);
+
+        @Override
+        public void addListener(Runnable listener, Executor executor) {
+            super.addListener(listener, executor);
+            connected.countDown();
+        }
+
+        boolean fail(Throwable failure) {
+            return setException(failure);
+        }
     }
 
     @Test

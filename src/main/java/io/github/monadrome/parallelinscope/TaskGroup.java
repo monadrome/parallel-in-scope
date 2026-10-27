@@ -138,6 +138,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
      */
     private final AtomicReference<ValueOwner> valueOwner;
 
+    /**
+     * Set once convergence has handed every discarded adopted value to its release. The runtime
+     * retains it with the member futures, so a {@code close()} cannot shut the releases pool down
+     * between the last member settling and that hand-off; retained only by groups that adopt.
+     */
+    private final SettableFuture<@Nullable Void> ownershipSettled = SettableFuture.create();
+
     /** The owner decision of {@link #valueOwner}; see {@code design/task-group-adopted-futures.md}. */
     enum ValueOwner {
         /** No owner yet: the combine has not entered and the group has not converged. */
@@ -701,6 +708,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
         if (terminal != null) {
             retained.add(terminal.future);
         }
+        if (definition.members().stream().anyMatch(slot -> slot.adopted)) {
+            retained.add(group.ownershipSettled);
+        }
         env.retainUntilComplete(retained);
         env.trackBodies(bodyCompletion);
         return group;
@@ -1017,16 +1027,20 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
             logValuesFailure(failure);
         }
-        completion.set(result);
-        /*
-         * Discarded values are handed to their closers only after the completion is published.
-         * Closers normally run on the runtime's releases pool, but once its services have shut down
-         * a refused release runs inline on this thread, and runAll's liveness rests on the deadline,
-         * never on a closer returning. The bounded cleanup wait still covers the closers through the
-         * adopted members' body slots.
-         */
-        if (discard) {
-            settleAdopted(true);
+        try {
+            completion.set(result);
+            /*
+             * Discarded values are handed to their closers only after the completion is published.
+             * The run's retention keeps the releases pool alive until ownershipSettled below, so
+             * the hand-off normally dispatches; a pool that cannot start a thread runs the release
+             * inline on this thread, and runAll's liveness rests on the deadline, never on a closer
+             * returning. The bounded cleanup wait covers the closers through the body slots.
+             */
+            if (discard) {
+                settleAdopted(true);
+            }
+        } finally {
+            BodyCompletionTracker.complete(ownershipSettled);
         }
     }
 

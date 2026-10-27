@@ -34,7 +34,8 @@ public interface GroupStep<V> {
 
     /**
      * Declares a member as an adopted future; see {@link GroupStart#adopt(TaskKey,
-     * ListenableFuture)} for ownership, cancellation, and attribution.
+     * ListenableFuture)} for ownership, cancellation, attribution, and the exceptions every {@code
+     * adopt} overload throws.
      *
      * @since 0.4.0
      */
