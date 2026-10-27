@@ -18,6 +18,7 @@ public final class ParRuntimeDeadlockPolicy {
         this.enabled = builder.enabled;
     }
 
+    /** Returns a builder with close-time detection disabled. */
     public static Builder builder() {
         return new Builder();
     }
@@ -34,11 +35,13 @@ public final class ParRuntimeDeadlockPolicy {
     public static final class Builder {
         private boolean enabled;
 
+        /** Sets whether closing an observation scope runs detection. */
         public Builder enabled(boolean enabled) {
             this.enabled = enabled;
             return this;
         }
 
+        /** Returns the immutable policy described by this builder. */
         public ParRuntimeDeadlockPolicy build() {
             return new ParRuntimeDeadlockPolicy(this);
         }
