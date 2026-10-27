@@ -367,20 +367,20 @@ httpPar.map(userIds, user -&gt; {
     </div>
   </section>
 
-  <!-- ============ 场景 4：任务图与死锁检测 ============ -->
+  <!-- ============ 场景 4：执行器等待图与死锁检测 ============ -->
   <section class="scenario" id="s4">
     <div class="sc-head">
       <span class="sc-num">04</span>
       <div>
-        <h2>嵌套批次的任务图与死锁检测</h2>
-        <p>map 里再开 map 会在任务图上留下等待边。观察 scope 持续收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁。</p>
+        <h2>嵌套批次的执行器等待图与死锁检测</h2>
+        <p>map 里再开 map 会在运行时的执行器等待图上留下等待边。运行时常开地收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁，哪怕两条边来自不同的请求。</p>
       </div>
     </div>
     <div class="sc-body">
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="ph-title">TaskGraphObservationScope · 任务依赖图</div>
+            <div class="ph-title">ParRuntime · 执行器等待图</div>
             <div class="ph-sub" id="s4stat">待运行</div>
           </div>
           <div class="btns">
@@ -393,7 +393,7 @@ httpPar.map(userIds, user -&gt; {
         <div class="log" id="s4log"></div>
         <div class="alert hidden" id="s4banner">
           <span>⚠</span>
-          <span><b>潜在死锁风险信号：</b>http 批次的 worker 正在等待 database 批次，而 database 又反向等待 http —— 两个池的 worker 互相占满时整批将永久挂起。TaskGraphObservationScope 在运行时持续检查此类环。</span>
+          <span><b>潜在死锁风险信号：</b>http 批次的 worker 正在等待 database 批次，而 database 又反向等待 http —— 两个池的 worker 互相占满时整批将永久挂起。ParRuntime 在每次嵌套准入时检查此类环。</span>
         </div>
       </div>
       <div class="code">
@@ -402,17 +402,15 @@ httpPar.map(userIds, user -&gt; {
 Par http = runtime.par(ParId.of("http"));
 Par database = runtime.par(ParId.of("database"));
 
-try (TaskGraphObservationScope graphs =
-        runtime.openTaskGraphObservation()) {
-    http.map(requests, req -&gt; {
-        User user = client.fetchUser(req.userId());
-        // 嵌套批次：图上产生 http → database 的等待边
-        return database.map(user.orderIds(), db::fetchOrder, options);
-    }, options);
+http.map(requests, req -&gt; {
+    User user = client.fetchUser(req.userId());
+    // 嵌套批次：运行时记录 http → database 的等待边
+    return database.map(user.orderIds(), db::fetchOrder, options);
+}, options);
 
-    if (TaskGraphObservationScope.hasExecutorCycle()) {
-        LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");
-    }
+// 形成环时运行时自动打 WARNING；也可以随时读取报告
+if (!runtime.executorWaitReport().cyclicComponents().isEmpty()) {
+    LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");
 }</code></pre>
       </div>
     </div>
@@ -564,7 +562,7 @@ function s3Play(){
   s3.raf=requestAnimationFrame(tick);
 }
 
-/* ================= 场景 4：任务图与死锁检测 ================= */
+/* ================= 场景 4：执行器等待图与死锁检测 ================= */
 const s4={timers:[],built:false,cycled:false};
 const S4N=[
   {id:'root',x:280,y:34, w:180,label:'request · handleOrder',sub:'TaskGroup'},
@@ -623,7 +621,7 @@ function s4Reset(){
   s4Stat('待运行');
 }
 function s4Play(){
-  s4Reset();s4Stat('构建任务图…');
+  s4Reset();s4Stat('记录执行器等待…');
   const seq=[
     [150, ()=>{s4Show('n-root');s4Log('[graph] + request · handleOrder  (TaskGroup)')}],
     [550, ()=>{s4Show('n-h1');s4Log('[graph] + http · fetchUser  (Par http)')}],
@@ -632,7 +630,7 @@ function s4Play(){
     [1450,()=>{s4Show('n-d1');s4Show('n-d2');s4Log('[graph] + db · fetchOrders / fetchCoupons  (Par database)')}],
     [1750,()=>{s4Show('e-h1-d1');s4Show('e-h1-d2');s4Log('[graph] edge  http → database  ×2  (嵌套批次产生的等待边)')}],
     [2050,()=>{s4Show('n-d3');s4Show('e-h2-d3');s4Log('[graph] edge  http → db · fetchAds')}],
-    [2500,()=>{s4Log('hasExecutorCycle() = false · 图结构健康 ✓','ok');s4Stat('任务图构建完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
+    [2500,()=>{s4Log('cyclicComponents() = [] · 无等待环 ✓','ok');s4Stat('等待图记录完成 · 无环');document.getElementById('s4cycle').disabled=false;s4.built=true}]
   ];
   seq.forEach(([t,f])=>s4.timers.push(setTimeout(f,t)));
 }
@@ -647,7 +645,7 @@ function s4Cycle(){
     document.getElementById('e-h1-d2').classList.add('cyc');
   });
   s4Log('[graph] edge  db · fetchCoupons → http · fetchUser  ⚠ 反向依赖','warn');
-  s4Log('hasExecutorCycle() = true','warn');
+  s4Log('cyclicComponents() = [[http] -> [database] -> [http]]','warn');
   s4Log('执行器等待环: http → database → http','warn');
   document.getElementById('s4banner').classList.remove('hidden');
   s4Stat('检测到环 · 潜在死锁风险信号');

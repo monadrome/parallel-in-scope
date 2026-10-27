@@ -233,7 +233,6 @@ class ScopePrimitivesTest {
         assertThat(global.closed()).isTrue();
         global.close(); // idempotent
         assertThat(global.closed()).isTrue();
-        assertThatThrownBy(global::openTaskGraphObservation).isInstanceOf(IllegalStateException.class);
     }
 
     @Test

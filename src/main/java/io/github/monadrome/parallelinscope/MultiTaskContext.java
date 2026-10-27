@@ -31,7 +31,6 @@ final class MultiTaskContext {
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
     private final @Nullable MultiTaskContext structuralParent;
-    private final @Nullable TaskGraphObservationScope taskGraphObservationScope;
     private final boolean rejectEnqueue;
 
     private MultiTaskContext(
@@ -39,13 +38,11 @@ final class MultiTaskContext {
             long deadlineNanos,
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
-            @Nullable TaskGraphObservationScope taskGraphObservationScope,
             boolean rejectEnqueue) {
         this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
-        this.taskGraphObservationScope = taskGraphObservationScope;
         this.rejectEnqueue = rejectEnqueue;
     }
 
@@ -53,8 +50,7 @@ final class MultiTaskContext {
      * Resolution parameters for one unit: everything {@link #resolve(Resolution)} needs beyond the
      * {@link UnitSpec}. Unset parent-dependent values default from the structural parent — the
      * cancellation parent to its token, the deadline ceiling to its deadline — so callers that nest
-     * under an enclosing scoped task set only the parent. The observation scope is deliberately not
-     * among them: ownership decides it, so the caller always states it.
+     * under an enclosing scoped task set only the parent.
      * Setters are order-independent: explicitly set values always win over inherited defaults.
      */
     static final class Resolution {
@@ -66,7 +62,6 @@ final class MultiTaskContext {
         private @Nullable Long resolutionTimeNanos;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
-        private @Nullable TaskGraphObservationScope taskGraphObservationScope;
         private @Nullable ExecutorRuntime executor;
         private @Nullable ParId executorId;
 
@@ -122,16 +117,6 @@ final class MultiTaskContext {
         }
 
         /**
-         * The scope this unit joins, as {@link TaskGraphObservationScope#resolveFor} decided it:
-         * null means it joins none. Not inherited from the structural parent — that parent may
-         * belong to another {@code ParRuntime} and carry a scope this unit must not join.
-         */
-        Resolution taskGraphObservationScope(@Nullable TaskGraphObservationScope scope) {
-            this.taskGraphObservationScope = scope;
-            return this;
-        }
-
-        /**
          * The executor the unit runs on and the id it is registered under: the unit's node takes the
          * executor's identity, the id as display label, and whether a body blocked on the unit can
          * starve it. Diagnostic and graph state only, never a submission target.
@@ -178,12 +163,6 @@ final class MultiTaskContext {
                 ? cancellationParent.ticker()
                 : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
         long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
-        // No parent fallback: the caller has already applied the ownership rule via
-        // TaskGraphObservationScope.resolveFor, and a null answer from it means "this unit joins no
-        // scope". Falling back to the parent's scope here would hand back the very scope that rule
-        // rejected -- and because resolveFor reads the parent's stored scope, a unit of another
-        // ParRuntime carrying its parent's scope would launder it into the next nesting level.
-        TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
         // A non-positive request has no fallback left: the sliding window would never submit and
         // the batch would wait forever, so the invariant both producers already keep fails loudly.
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
@@ -206,7 +185,6 @@ final class MultiTaskContext {
                 deadline,
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
-                observation,
                 spec.rejectEnqueue());
     }
 
@@ -287,11 +265,6 @@ final class MultiTaskContext {
     @Nullable
     MultiTaskContext structuralParent() {
         return structuralParent;
-    }
-
-    @Nullable
-    TaskGraphObservationScope taskGraphObservationScope() {
-        return taskGraphObservationScope;
     }
 
     TaskType taskType() {

@@ -149,3 +149,47 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 
 There is still no public handle for cancelling a running execution from outside; an explicit
 cancellation input is an open proposal.
+
+## Executor wait report
+
+Deadlock-risk detection moves from a request scope to the runtime. `TaskGraphObservationScope`,
+`TaskGraphReport`, `ParRuntimeDeadlockPolicy`, `ParRuntime.openTaskGraphObservation()`,
+`ParRuntime.deadlockPolicy()`, and `ParRuntime.Builder.deadlockPolicy(...)` are removed. The static
+`hasExecutorCycle()` / `hasExecutorSelfLoop()` queries that the 0.3 guide recommended are removed with
+them: they ignored the deadlock policy and read `false` once the scope had closed.
+
+Before:
+
+```java
+ParRuntime runtime = ParRuntime.builder()
+        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .register(ParId.of("io"), ioPool)
+        .build();
+ListenableFuture<TaskGraphReport> reportFuture;
+try (TaskGraphObservationScope scope = runtime.openTaskGraphObservation()) {
+    reportFuture = scope.reportFuture();
+    service.handleRequest();
+}
+if (Futures.getDone(reportFuture).status() == TaskGraphReport.Status.ISSUE) {
+    log.warn("potential deadlock: {}", Futures.getDone(reportFuture));
+}
+```
+
+After:
+
+```java
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicComponents()) {
+    log.warn("potential deadlock: {}", cycle);
+}
+```
+
+- Delete the scope and the policy: recording is always on and costs a lookup per nested call.
+- A cycle is also logged once as a JUL `WARNING` when it first forms; route or silence it through JUL.
+- `cyclicComponents()` replaces `status()`, `executorCycle()`, and `executorSelfLoop()`; a lone
+  executor whose `cycle()` has one entry is a self-loop. `toString()` replaces `executorEdges()` and
+  `taskEdges()`.
+- The report accumulates for the runtime's lifetime and combines waits from separate requests.
+  There is no per-request verdict: to judge one piece of code, run it against a dedicated
+  `ParRuntime`, as a test would.

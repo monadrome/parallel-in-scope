@@ -19,11 +19,8 @@ TaskCompletion 工厂支持纯数据消费者测试；`valuesResult` 与抛异�
 `5c1887a` 改变，N2 的旧名单必须重新核对；取消接入与 P0001 的形状也必须协调。
 每项仍需独立选择，不将本提案入库解释成缩减已批准。
 
-source-only-2026-10-04 的浅包装候选也保留供独立评估：
-当前 `ParRuntime.builder().deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())`
-可设想为 `ParRuntime.builder().deadlockDetection(true)`。单 boolean 包装确实较浅，但缩短
-装配并未证明消除具体用户错误；配置形状一致性、未来兼容空间与下游迁移成本需要同时权衡，
-不能只因类短就删除。没有随本机制实施该候选。
+source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策略开关随运行时级执行器等待图删除
+（见 [task-graph.md](../task-graph.md)）。
 
 > 本文系对 2026-09-27 同名草案的全面刷新。09-27 版盘点的是组 API 重构前的公开面
 > （`TaskGroup`/`TaskGroupDefinition`/`TaskListener` 时代），其类型清单与使用证据已整体脱节；
@@ -90,10 +87,7 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 | | `LeanCancellationException` | 2 | ✓ | ✓ |
 | | `CancellationToken` | 10 | 仅注释 | 仅措辞 |
 | | `CancellationToken.State` | 6 常量 | ✗ | 仅设计散文 |
-| 观测与策略 | `TaskGraphObservationScope` | 7 | ✓ | ✓ |
-| | `TaskGraphReport` | 9 | ✓ | ✓ |
-| | `TaskGraphReport.Status` | 3 常量 | ✓ | ✓ |
-| | `ParRuntimeDeadlockPolicy`（+`Builder`） | 2+3 | ✗ | ✓ |
+| 观测与策略 | `ExecutorWaitReport`（+`Component`，0.4 取代任务图 scope 与报告） | 1+3 | ✓ | ✓ |
 | | `ParRuntimePurgePolicy`（+`Builder`） | 4+5 | ✗ | ✓ |
 | 队列 | `SmartBlockingQueue` | 5 | ✗ | ✓ |
 | | `queue.VariableLinkedBlockingQueue` | 3 构造 + 20 | ✗ | 仅迁移文档 |
@@ -182,19 +176,10 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 `docs/{en,zh}/migration-v0.4.md`，理由与被否决方向见 decision-log 的
 task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随批次读取统一删除。
 
-### N2（弱候选，可选）：`TaskGraphObservationScope` 三个无文档静态查询
+### N2（已了结）：`TaskGraphObservationScope` 静态查询
 
-`hasSelfLoop()`/`hasExecutorCycle()`/`hasExecutorSelfLoop()` 文档零提及、demo 零，仅
-`TaskGraphBatchIdentityTest`/`TaskGraphPolarityTest` 在用；同一信息由 `reportFuture()` 发布的
-`TaskGraphReport` 四个 flag 承载（close 时的一致快照）。`hasTaskCycle()` 有 user-guide
-（en:328/zh:287）与 interactive-demo 的真实使用，**保留**。
-
-- **改前：** `if (TaskGraphObservationScope.hasExecutorCycle()) { … }`（隐式读当前安装的作用域）
-- **改后：** `scope.reportFuture()` → `report.executorCycle()`（显式快照，含 status 三态）
-- **被消除的失败模式：** 隐式全局查询与显式报告双轨并存；三个零文档方法的语义只能靠
-  IDE 补全猜测。
-- **保留对称性的代价声明：** 删三留一造成不对称（`hasTaskCycle` 独存），若评审认为对称性
-  价值更高，整组保留也是可接受的终局。本项不阻塞 P1/P2/N1。
+整个请求级 scope、`TaskGraphReport` 与 `ParRuntimeDeadlockPolicy` 已被运行时级执行器等待图取代
+（见 [task-graph.md](../task-graph.md)），本项不再有剩余候选。
 
 ### N3（弱候选，可选）：`TaskGroupResult.valuesResult()`
 
@@ -221,7 +206,7 @@ task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随�
 | `Checkpoints` 阻塞适配器族、`rawCheckpoint`、`checkpoint(String, boolean)`、`sleep(long)` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
 | `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`bodyCompletionConfirmed()`/`unfinishedBodies()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
-| `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`deadlockPolicy()`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
+| `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
 | `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |
 | `TaskType.MIXED` | 已拍板保留为意图声明；明确不重开 | [decision-log.md](../decision-log.md) 对应条目 |
 | `queue` 两个类保持 public | 产物边界已关闭 | [adr/0006](../../adr/0006-queues-ship-with-core.md) |
