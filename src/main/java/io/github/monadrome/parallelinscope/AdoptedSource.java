@@ -4,9 +4,10 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -23,8 +24,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Lifecycle: the declaration creates the instance; preparation attaches the member's execution
  * context, whose body slot stands for the source's outstanding work; then exactly one of {@link
  * #connect()} (the group admitted the member) or {@link #abandon()} (admission failed) claims the
- * source. A connected source settles the mirror; cancelling the mirror cancels the source with the
- * same interrupt intent. The body slot is released once the source has settled and — for a member
+ * source. A connected source settles the mirror through this class's own listener, which writes the
+ * end time first; cancelling the mirror cancels the source with the same interrupt intent. A
+ * listener of the source that throws while the group cancels it is logged and never interrupts the
+ * group's cancellation cascade or cleanup. The body slot is released once the source has settled and — for a member
  * that declares a closer — the group has decided who owns the value and, when nobody does, the
  * closer has returned.
  *
@@ -41,10 +44,15 @@ final class AdoptedSource {
     private final ListenableFuture<?> source;
     private final @Nullable ResourceCloser<Object> closer;
     private final Executor releases;
-    private final SettableFuture<Object> mirror = SettableFuture.create();
+    private final Mirror mirror = new Mirror();
 
     /** Set by the one winner between {@link #connect()} and {@link #abandon()}. */
     private final AtomicBoolean claimed = new AtomicBoolean();
+
+    /** Guards {@link #sourceSettled()}: its listener and a cancellation may both observe the settle. */
+    private final AtomicBoolean settled = new AtomicBoolean();
+
+    private volatile boolean connected;
 
     /*
      * Countdown over the release signals: the source settled, and — only when a closer is declared
@@ -78,17 +86,17 @@ final class AdoptedSource {
     }
 
     /**
-     * Connects the source to the mirror after the group and member tokens are bound. A mirror
-     * cancelled before this call cancels the source here, so no admitted source escapes ownership.
+     * Connects the source to the mirror after the group and member tokens are bound. A mirror the
+     * group cancelled earlier has already cancelled the source; the connection still registers the
+     * settle listener, so the body slot is released when the source finally settles.
      */
     void connect() {
         verify(claimed.compareAndSet(false, true), "adopted source '%s' was already claimed", name);
         TaskExecutionContext prepared = verifyNotNull(context, "adopted member '%s' was not prepared", name);
         verify(verifyNotNull(prepared.bodyState()).claimRunning(), "adopted member '%s' already left PENDING", name);
         prepared.markStarted(System.nanoTime());
-        /* Registered before setFuture's own listener, so the end time precedes the mirror's settle. */
+        connected = true;
         source.addListener(this::sourceSettled, directExecutor());
-        mirror.setFuture(source);
     }
 
     /**
@@ -117,14 +125,73 @@ final class AdoptedSource {
         if (body != null) {
             body.claimRunning();
         }
-        source.cancel(true);
+        cancelSource(true);
         mirror.cancel(false);
         source.addListener(() -> closeThenRelease(body), directExecutor());
     }
 
     private void sourceSettled() {
+        if (!settled.compareAndSet(false, true)) {
+            return;
+        }
         verifyNotNull(context).markEnded(System.nanoTime());
-        signal();
+        try {
+            signal();
+        } finally {
+            /* After the end time: a convergence this settle triggers snapshots the final end time. */
+            mirror.settleFrom(source);
+        }
+    }
+
+    /**
+     * Cancels the source on the group's behalf; a failing listener of the source is only logged. A
+     * listener that throws an {@link Error} stops Guava from running the source's later listeners,
+     * which can include this member's settle listener, so a connected source that is done by now is
+     * settled here instead.
+     */
+    private void cancelSource(boolean mayInterruptIfRunning) {
+        try {
+            source.cancel(mayInterruptIfRunning);
+        } catch (Throwable listenerFailure) {
+            try {
+                LOGGER.log(
+                        Level.WARNING,
+                        "a listener of adopted member '" + name + "' failed while the group cancelled it",
+                        listenerFailure);
+            } catch (Throwable ignored) {
+                // A user-installed log handler must not stop the group's cancellation cascade.
+            }
+        }
+        if (connected && source.isDone()) {
+            sourceSettled();
+        }
+    }
+
+    /**
+     * The member future the group sees: settled only from the source, and propagating its own
+     * cancellation, with the canceller's interrupt intent, to the source.
+     */
+    private final class Mirror extends AbstractFuture<Object> {
+        void settleFrom(ListenableFuture<?> settled) {
+            if (settled.isCancelled()) {
+                cancel(false);
+                return;
+            }
+            try {
+                set(Futures.getDone(settled));
+            } catch (ExecutionException failure) {
+                setException(MoreObjects.firstNonNull(failure.getCause(), failure));
+            } catch (CancellationException cancelled) {
+                cancel(false);
+            }
+        }
+
+        @Override
+        protected void afterDone() {
+            if (isCancelled()) {
+                cancelSource(wasInterrupted());
+            }
+        }
     }
 
     private void signal() {
