@@ -14,8 +14,10 @@
 
 `c4ddfc7` 的 BACKLOG 待决策条目与 PR #56 正文保留了原未跟踪稿
 `design/task-result-exhaustive-matching-proposal.md` 的两个独有方向：typestate 匹配链、
-单任务公开快照获取入口，并要求收敛到 ImmediateResult 词汇。原稿未找到，不能声称恢复了
-完整接口或已经批准的设计；以下保留目标与重验条件，不补造历史签名。
+单任务公开快照获取入口，并要求收敛到 ImmediateResult 词汇。原稿与其处置稿已于 2026-10-27 按
+维护者要求入库为 [design/analysis/task-result-exhaustive-matching-proposal.md](../analysis/task-result-exhaustive-matching-proposal.md)
+与 [design/analysis/task-result-exhaustive-matching-disposition-proposal.md](../analysis/task-result-exhaustive-matching-disposition-proposal.md)，
+二者都是分析输入而非已批准设计；以下保留目标与重验条件，不补造历史签名。
 
 原稿关联的 failure 中断敏感问题已按
 [中断契约](../interruption-contract.md) 窄修；公开 ImmediateResult.failure 已是
