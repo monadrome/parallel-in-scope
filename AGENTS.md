@@ -312,8 +312,9 @@ Load documents when their subject affects the task:
   or other breaking changes from `0.1.x`.
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
-- `adr/` - Historical decision rationale; existing records are immutable. New
-  records only for decisions `design/AGENTS.md` principle 10 routes there.
+- `adr/` - Historical decision rationale; decisions are never rewritten, and
+  records are condensed only per `adr/AGENTS.md`. New records only for
+  decisions `design/AGENTS.md` principle 10 routes there.
 - `BACKLOG.md` - Known defects and deferred work, each with an evidence grade.
   It is pinned to the commit named at its top, so re-verify any line number it
   cites before acting on an entry.

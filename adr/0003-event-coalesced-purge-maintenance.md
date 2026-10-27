@@ -1,18 +1,28 @@
 # ADR 0003: Event-Coalesced Purge Maintenance
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-07-26
 - Decision scope: Cancelled-task purge maintenance protocol
 - Supersedes: None
+- Superseded by: [Execution future simplification](../design/execution-future-simplification.md)
+
+> Note (2026-10-27): automatic purge was removed from the main line in 0.3.0
+> (`9784312`). The library no longer purges a user executor because a task was
+> cancelled; physical queue cleanup is the executor owner's job (`ThreadPoolExecutor.purge()`
+> at the application's own maintenance boundary). The removed failure surface was the
+> coordination this record designed — phase-notification ordering, observer capture and
+> release, the cancellation estimate, and maintenance-service shutdown. The implementation,
+> configuration, and tests are preserved on `dev/experimental` from baseline `3557bff`.
+> The record below is kept as the design to start from if automatic purge returns.
 
 ## Context
 
 Cancelled Futures can remain as references in a `ThreadPoolExecutor` work queue
 until the executor consumes them or `purge()` removes them. The library can
 observe a queue-relevant cancellation only when `ExecutionPhaseHintFuture`
-reports `CANCELLED_BEFORE_RUN`; cancellation exceptions, batch reports, and
-placeholder Futures do not prove queue membership. `purge()` must remain the
-cleanup operation, and it cannot stop a task that is already running.
+reports `CANCELLED_BEFORE_RUN`; cancellation exceptions, batch reports, and placeholder
+Futures do not prove queue membership. `purge()` must remain the cleanup
+operation, and it cannot stop a task that is already running.
 
 The cancellation callback is on a latency-sensitive path. It must not scan a
 queue for every cancellation, and concurrent cancellations must not erase one
@@ -26,61 +36,33 @@ executors whose queue is a `SmartBlockingQueue`. The callback is bound to the
 actual executor at task submission; no global Future-to-executor registry is
 used.
 
-Each executor owns an independent state machine:
+Each executor owns an independent `IDLE -> SUBMITTED -> RUNNING -> IDLE` state
+machine carrying a monotonic `issuedSequence` and a monotonic `settledThrough`
+high-water mark:
 
-```text
-IDLE -> SUBMITTED -> RUNNING -> IDLE
-```
+- A cancellation increments `issuedSequence` once. While maintenance is
+  `SUBMITTED` or `RUNNING`, the callback returns without reading the queue,
+  evaluating thresholds, logging, or submitting work; the increment alone keeps
+  the signal for the next round.
+- When idle, the callback qualifies maintenance only when both advisory ratios
+  over one snapshot hold: queue pressure `Q / K >= capacityPressureThreshold` and
+  cancelled ratio `min(G, Q) / K >= cancelledRatioThreshold` (`Q` queue size,
+  `K` capacity, `G` unsettled cancellation estimate).
+- The first qualifying signal CASes `IDLE` to `SUBMITTED` and schedules one task
+  after a fixed 50ms coalescing delay. The delay is fixed, not sliding, so
+  continuous cancellation cannot starve purge.
+- The task captures an `issuedSequence` boundary, rechecks enablement and both
+  thresholds, calls `ThreadPoolExecutor.purge()`, and advances `settledThrough`
+  only through the captured boundary, so signals issued during the scan remain.
+- After every attempt the state returns to `IDLE` and evaluates once; new
+  qualifying demand submits exactly one next task. A purge exception keeps the
+  demand unsettled and allows one delayed retry per sequence; a scheduling
+  rejection returns to `IDLE` without changing Future cancellation semantics.
+- The estimate expires lazily and never resets a shared counter to zero; a
+  disable/enable cycle starts a new generation so stale signals cannot qualify.
 
-The state carries a monotonic `issuedSequence` and a monotonic
-`settledThrough` high-water mark. A cancellation increments `issuedSequence`
-once. If the state is `SUBMITTED` or `RUNNING`, the callback then returns as a
-logical NOOP: it does not read the queue, evaluate thresholds, log, or submit
-another task. This preserves the signal for the maintenance-task handshake.
-
-When idle, the callback evaluates two advisory thresholds using the same
-snapshot:
-
-```text
-P = Q / K
-R = min(G, Q) / K
-```
-
-where `Q` is observed queue size, `K` is current queue capacity, and `G` is
-the unsettled cancellation estimate. Both conditions must hold:
-
-```text
-P >= capacityPressureThreshold
-R >= cancelledRatioThreshold
-```
-
-The first qualifying signal CASes `IDLE` to `SUBMITTED` and schedules one
-maintenance task after a fixed 50ms coalescing delay. The delay is fixed rather
-than sliding, so continuous cancellation cannot starve purge. The maintenance
-task changes `SUBMITTED` to `RUNNING`, captures an `issuedSequence` claim
-boundary, rechecks enablement and both thresholds, and calls
-`ThreadPoolExecutor.purge()` when they still qualify. On success it advances
-`settledThrough` only through the captured boundary. Signals issued during the
-scan therefore remain for a later round.
-
-After every maintenance attempt the state returns to `IDLE` and performs one
-handshake evaluation. If new demand qualifies, exactly one next task is
-submitted. A purge exception keeps the demand unsettled, logs a warning, and
-allows one delayed retry for the same unchanged sequence. A later cancellation
-advances the sequence and permits another bounded retry. A scheduling rejection
-returns the state to `IDLE` without changing Future cancellation semantics.
-
-Cancellation estimate expiry is lazy. An atomic marker containing reset
-generation, observed idle sequence, and timestamp lets a later idle callback
-settle only the marker's previously observed sequence after the expiry window;
-the implementation never resets a shared counter to zero. Disabling increments
-the reset generation and settles all currently visible sequences. Re-enabling
-starts a new generation, so signals from the disabled generation cannot qualify
-later maintenance.
-
-Automatic purge is disabled by default. `ParConfig` exposes atomic runtime
-getters/setters for enablement and both thresholds. Trace-level diagnostics use
-JUL `Level.FINEST`; callback fast paths do not log.
+Automatic purge is disabled by default, with atomic runtime settings for
+enablement and both thresholds. Callback fast paths do not log.
 
 ## Alternatives Considered
 
@@ -94,20 +76,25 @@ JUL `Level.FINEST`; callback fast paths do not log.
   cancellation occurs and still do not provide bounded response to bursts.
 - **Queue-private batch deletion:** rejected because the cleanup contract is to
   call `ThreadPoolExecutor.purge()`.
-- **BatchReport or Fat/Lean cancellation exception counts:** rejected because
-  they include cancellation causes and placeholders that never entered the
-  executor queue.
+- **Batch-report or cancellation-exception counts:** rejected because they
+  include cancellation causes and placeholders that never entered the executor
+  queue.
 
 ## Consequences
 
 The cancellation path is constant-time in the common case and active callbacks
 are isolated from queue contention. At most one purge task per executor is
-submitted at a time, and cancellation after the scan is not discarded. The
-two configurable thresholds let deployments choose more aggressive or more
-conservative cleanup without adding a third public strength parameter.
+submitted at a time, and cancellation after the scan is not discarded. Two
+thresholds let deployments tune cleanup without a third strength parameter.
 
 The estimate remains advisory and may over- or under-estimate queue garbage
-when workers dequeue tasks or producers change capacity concurrently. The
-underlying `ThreadPoolExecutor.purge()` and the queue iterator's deletion cost
-still determine maintenance latency. This design removes stale references; it
-does not reclaim running tasks or govern permanently blocked workers.
+when workers dequeue tasks or producers change capacity concurrently.
+`ThreadPoolExecutor.purge()` and the queue iterator's deletion cost still
+determine maintenance latency. The design removes stale references; it does not
+reclaim running tasks or govern permanently blocked workers.
+
+## History
+
+Condensed on 2026-10-27; the previous full text is `git show 1eeaaf0:adr/0003-event-coalesced-purge-maintenance.md`.
+Removed: the threshold formula block and the lazy-expiry marker layout (kept as one-line
+rules above), and the `ParConfig` accessor and JUL level details.

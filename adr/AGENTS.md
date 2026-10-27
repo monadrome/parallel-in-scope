@@ -15,8 +15,28 @@ principle 10); this file governs only the ADR format.
 - Use one record for one decision.
 - Include `Status`, `Date`, `Decision scope`, and `Supersedes` metadata.
 - Use these statuses: `Proposed`, `Accepted`, `Deprecated`, or `Superseded`.
-- Do not rewrite an accepted decision when the decision changes. Add a new ADR,
-  mark the old record `Superseded`, and link both records.
+  A record whose decision only partly changed stays `Accepted` and adds a
+  `Partially superseded by` line naming what changed and where it now lives.
+- Never rewrite a decision into its replacement. When a decision changes, add a
+  successor ADR, or name the live `design/` contract that replaced it; mark the
+  old record `Superseded` (or partially superseded) and link both directions.
+
+## Condensing Records
+
+Records may be condensed so that outdated content does not pose as current:
+
+- Delete content that carries no decision value: implementation mappings, type,
+  field, and test catalogs, work plans, acceptance checklists, usage examples,
+  and contract-style rules whose authority now lives in `design/`.
+- Keep the decision as it was made: `Context`, `Decision`, `Alternatives
+  Considered`, `Consequences`, and reconsideration criteria. Condensing MUST NOT
+  change what was decided or why, and MUST NOT add hindsight justification.
+- Keep the terms the decision was made in; where a type was later renamed, add
+  the current name once (`GlobalPar` (now `ParRuntime`)). Facts that changed
+  after the decision go in a dated note, not into the original reasoning.
+- End a condensed record with a `History` section naming the commit whose tree
+  holds the previous full text (`git show <hash>:adr/<file>`) and listing what
+  was removed.
 
 ## Required Content
 
