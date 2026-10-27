@@ -120,3 +120,32 @@ capacity, so one integer silently switched queue semantics while the constructor
 value. Write `new SmartBlockingQueue<>(capacity)` for a positive capacity and
 `new SynchronousQueue<>()` for a hand-off queue; choose between them explicitly when the capacity
 comes from configuration.
+
+## Internal cancellation token
+
+`CancellationToken` and `CancellationToken.State` are no longer public. No public method ever
+accepted or returned a token, so a token an application created was never connected to library
+work: its deadline never fired and `cancel()` stopped nothing.
+
+Before (compiles and runs, but neither the deadline nor `cancel()` reaches the batch):
+
+```java
+CancellationToken request = new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+onClientDisconnect(request::cancel);
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(5)));
+```
+
+After:
+
+```java
+par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSeconds(2)));
+```
+
+- Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or `ParRuntime.group(name, timeout)`.
+- End the remaining work early by throwing from a body; fail-fast cancels the siblings.
+- Inside a body, observe cancellation and the remaining budget with `Checkpoints.checkpoint()` and
+  `Checkpoints.remaining()`.
+- Read attribution from `TaskOutcome`; `CancellationToken.State` has no public replacement.
+
+There is still no public handle for cancelling a running execution from outside; an explicit
+cancellation input is an open proposal.

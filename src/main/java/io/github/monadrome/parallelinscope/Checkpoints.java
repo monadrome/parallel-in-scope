@@ -21,10 +21,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Cooperative cancellation checkpoints and interruption-aware blocking operations.
  *
- * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
- * operation. A cancelled token produces a {@link LeanCancellationException}, except that {@link
+ * <p>Every public method checks the current scoped task's cancellation state before starting its
+ * operation. A cancelled task produces a {@link LeanCancellationException}, except that {@link
  * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
- * trace when requested. A token whose deadline has expired is treated as cancelled even if the
+ * trace when requested. A task whose deadline has expired is treated as cancelled even if the
  * timer thread has not committed the timeout yet, so deadline enforcement never depends on
  * scheduling punctuality. {@link #checkpoint()} is the primary no-argument form for user code.
  *
@@ -95,14 +95,12 @@ public final class Checkpoints {
     /**
      * Returns the remaining budget of the current scoped task.
      *
-     * <p>Outside any scoped task the result is empty. Inside one it holds the current task token's
-     * resolved remaining deadline: always non-negative — an elapsed deadline reports {@link
-     * Duration#ZERO} — and saturated at {@code Duration.ofNanos(Long.MAX_VALUE)} when the remaining
-     * time does not fit in a {@code long}, the same ceiling {@link CancellationToken#remaining()}
-     * documents. Every public scope has a deadline, so an astronomical timeout reads as a large
-     * finite budget, not as "no deadline". The value reads
-     * the running task's own token, so a nested task reports its own tighter budget, already capped
-     * by every ancestor.
+     * <p>Outside any scoped task the result is empty. Inside one it holds the current task's resolved
+     * remaining deadline: always non-negative — an elapsed deadline reports {@link Duration#ZERO} —
+     * and exactly {@code Duration.ofNanos(Long.MAX_VALUE)} when the scope has no deadline. Every
+     * explicit timeout remains finite, even an astronomical one; only inheritance can carry the
+     * no-deadline sentinel. The value reads the running task's own budget, so a nested task reports
+     * its own tighter budget, already capped by every ancestor.
      *
      * <p>This is a read-only query: it does not throw for a cancelled token, does not consume or
      * alter the calling thread's interrupt status, and neither cancels nor mutates anything. A
