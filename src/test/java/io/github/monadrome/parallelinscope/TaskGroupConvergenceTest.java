@@ -61,8 +61,6 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch ready = new CountDownLatch(MEMBERS);
                 CountDownLatch fire = new CountDownLatch(1);
-                // The chain's type widens with every member, so the four declarations are written
-                // out rather than looped: MEMBERS is four.
                 TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "first-failure-" + round, TIMEOUT)
                         .par(TaskKey.<Integer>named("m0"), global.par(ParId.of("worker")), failingBody(0, ready, fire))
@@ -98,8 +96,6 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch started = new CountDownLatch(MEMBERS);
                 CountDownLatch release = new CountDownLatch(1);
-                // The chain's type widens with every member: MEMBERS is four, so all four are
-                // declared here.
                 TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "visibility-" + round, TIMEOUT)
                         .par(
