@@ -696,6 +696,90 @@ class TaskGroupAdoptedFutureTest {
         return null;
     }
 
+    @Test
+    void adoptDeclarationsShareNameUniquenessStageAndThreadConfinementWithPar() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        GroupStep<Resource> step = runtime.group("names", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        assertThatThrownBy(() -> step.adopt(FIRST, SettableFuture.<Resource>create()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate name 'first'");
+        GroupStep<Resource> ran = runtime.group("par-then-adopt", TIMEOUT).par(FIRST, io(runtime), () -> null);
+        assertThatThrownBy(() -> ran.adopt(FIRST, SettableFuture.<Resource>create()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate name 'first'");
+
+        GroupStart start = runtime.group("stale", TIMEOUT);
+        GroupStep<Resource> advanced = start.adopt(FIRST, SettableFuture.create());
+        assertThatThrownBy(() -> start.adopt(SECOND, SettableFuture.<Resource>create()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no longer current");
+        GroupStep<Tuple2<Resource, Resource>> next = advanced.adopt(SECOND, SettableFuture.create());
+        assertThat(next).isNotNull();
+        assertThatThrownBy(() -> advanced.adopt(TaskKey.<Resource>named("third"), SettableFuture.<Resource>create()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no longer current");
+
+        GroupStart confinedStart = runtime.group("confined-start", TIMEOUT);
+        GroupStep<Resource> confinedStep =
+                runtime.group("confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        AtomicReference<Throwable> fromStart = new AtomicReference<>();
+        AtomicReference<Throwable> fromStep = new AtomicReference<>();
+        Thread other = new Thread(() -> {
+            try {
+                GroupStep<?> unused = confinedStart.adopt(FIRST, SettableFuture.<Resource>create());
+            } catch (Throwable failure) {
+                fromStart.set(failure);
+            }
+            try {
+                GroupStep<?> unused = confinedStep.adopt(SECOND, SettableFuture.<Resource>create());
+            } catch (Throwable failure) {
+                fromStep.set(failure);
+            }
+        });
+        other.start();
+        other.join(TIMEOUT.toMillis());
+        assertThat(fromStart.get()).isInstanceOf(IllegalStateException.class).hasMessageContaining("thread");
+        assertThat(fromStep.get()).isInstanceOf(IllegalStateException.class).hasMessageContaining("thread");
+    }
+
+    @Test
+    void theAttributedOverloadWithACloserReleasesValuesOfAFailedGroupOnEitherStage() {
+        ParRuntime runtime = runtime(pool(2));
+        Resource first = new Resource("first");
+        Resource second = new Resource("second");
+
+        TaskGroupResult<Tuple2<Tuple2<Resource, Resource>, String>, Void> result = runtime.group("attributed", TIMEOUT)
+                .adopt(FIRST, io(runtime), Futures.immediateFuture(first), Resource::close)
+                .adopt(SECOND, io(runtime), Futures.immediateFuture(second), Resource::close)
+                .par(FAILING, io(runtime), () -> {
+                    throw new IOException("boom");
+                })
+                .runAll();
+
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.resultOf(FIRST).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        Awaitility.await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(first.closes).hasValue(1);
+            assertThat(second.closes).hasValue(1);
+        });
+    }
+
+    @Test
+    void anAdoptingGroupStopsHoldingTheRuntimeOnceOwnershipIsSettled() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        Resource first = new Resource("first");
+
+        TaskGroupResult<Resource, Void> result = runtime.group("settled", TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture(first), Resource::close)
+                .runAll();
+
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        runtime.close();
+        assertThat(runtime.awaitQuiescence(TIMEOUT)).isTrue();
+        assertThat(first.closes).hasValue(0);
+    }
+
     @SuppressWarnings("NullAway")
     private static ResourceCloser<Resource> nullCloser() {
         return null;
