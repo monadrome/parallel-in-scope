@@ -107,7 +107,7 @@ class DirectExecutorSafetyTest {
                 1,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(50),
+                new SmartBlockingQueue<>(50),
                 r -> new Thread(r, "outer-worker"),
                 new ThreadPoolExecutor.AbortPolicy());
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
@@ -240,7 +240,7 @@ class DirectExecutorSafetyTest {
         // ThreadPoolExecutor.runWorker already clears the flag before each task. Two sequential
         // batches on a single-threaded pool, the first of which dirties the flag.
         ThreadPoolExecutor pool = new ThreadPoolExecutor(
-                1, 1, 0, TimeUnit.SECONDS, SmartBlockingQueue.create(50), r -> new Thread(r, "solo-worker"));
+                1, 1, 0, TimeUnit.SECONDS, new SmartBlockingQueue<>(50), r -> new Thread(r, "solo-worker"));
         ParRuntime runtime = ParRuntime.builder().register(ParId.of("p"), pool).build();
         try {
             List<String> first = runtime.par(ParId.of("p"))

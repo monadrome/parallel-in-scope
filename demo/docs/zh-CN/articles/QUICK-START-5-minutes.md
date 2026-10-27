@@ -111,10 +111,9 @@ for (ImmediateResult<Integer> element : result.results()) {
     System.out.println(value);
 }
 
-// 方式三：结构化报告
-TaskBatchResult.BatchReport batchReport = result.report();
-Map<TaskOutcome, Integer> counts = batchReport.stateCounts(); // {SUCCESS=3}
-Throwable firstError = batchReport.firstException();          // null if all success
+// 方式三：结构化读取
+Map<TaskOutcome, Integer> counts = result.outcomeCounts();                  // {SUCCESS=3}
+Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // 全部成功时为空
 ```
 
 需要知道的一条契约：**批次默认快速失败**。任意元素失败会取消同批其余元素（包括尚未提交的元素），

@@ -53,3 +53,59 @@ key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔�
 状态并读取 `failureMessage()`。采样异常后报告仍正常完成；采样 `Error` 在 close
 发布报告后继续抛出。证据优先于失败，失败优先于不可见执行器。证据始终是捕获时的
 快照，池恢复后也不会清除。这个未发布 API 不保留 `stagnantSamples()` 兼容别名。
+
+## 批次聚合读取
+
+批次读取改用 `TaskGroupResult` 已有的规则。`TaskBatchResult.valuesOrThrow()` 与
+`BatchCombinedResult.terminalValueOrThrow()` 不再声明 `ExecutionException`，二者都先经过新增的
+`orThrow()`。选中的已记录失败（批次取输入顺序首个 `USER_FAILURE`/`SUBMISSION_FAILURE` 元素；
+带 combine 的批次先看元素、再看 combine）为 unchecked 时原样抛出，checked 时包装为
+`CompletionException`；纯取消仍抛 `CancellationException`。`ImmediateResult.valueOrThrow()` 是
+单任务读取，保持受检的 `ExecutionException`。
+
+改前：
+
+```java
+Report priceReport(Par io, Par cpu, List<String> skus) throws ExecutionException {
+    BatchCombinedResult<Price, Report> run = io.mapAndCombine(skus, this::fetchPrice, PRICES, cpu, this::summarize);
+    run.batchResult().valuesOrThrow();
+    return run.terminalValueOrThrow();
+}
+```
+
+改后：
+
+```java
+Report priceReport(Par io, Par cpu, List<String> skus) {
+    return io.mapAndCombine(skus, this::fetchPrice, PRICES, cpu, this::summarize).terminalValueOrThrow();
+}
+```
+
+消除的失败模式：元素失败时，`terminalValueOrThrow()` 过去只报 combine 的 `FAIL_FAST` 取消，
+调用方不先读元素，业务异常就不在异常链上。批次与组的读取还要写不同的 catch 块；批次 body 内
+嵌套读取批次结果，只为满足编译器就得写 try/catch。
+
+| 0.3 | 0.4 |
+|---|---|
+| `batch.report().stateCounts()` | `batch.outcomeCounts()`，与 `TaskGroupResult.outcomeCounts()` 同名 |
+| `batch.report().firstException()` | `batch.failedTaskResult().map(ImmediateResult::failure)`；没有元素记录失败时为空 |
+| `TaskBatchResult.BatchReport` | 删除；直接从结果读取计数与失败元素 |
+| 批次 `valuesOrThrow()` 或合并结果 `terminalValueOrThrow()` 外的 `catch (ExecutionException e)` | 直接 catch 业务异常；checked 的元素或 combine 失败以 `CompletionException` 到达 |
+| `run.terminalValueOrThrow()` 之前的 `run.batchResult().valuesOrThrow()` | 只写 `run.terminalValueOrThrow()`；先检查元素失败 |
+
+只包住这些调用的 `catch (ExecutionException e)` 会变成编译错误，由编译器找出。同一 try 块另有
+`ExecutionException` 来源（如 `ImmediateResult.valueOrThrow()`）时仍能编译，但原先被捕获的批次
+失败会外抛，需人工复查。重抛的失败是存储的原实例，异常栈是 worker 栈而非调用方栈。body 自抛的
+`CancellationException` 归 `USER_FAILURE`，现在原样抛出；要与框架取消区分，读 `outcome()`。
+`reportString()` 文本不变，格式只用于诊断，不是解析契约。
+
+## 删除的工厂方法
+
+删除 `TaskCompletion.succeeded(...)` 与 `TaskCompletion.failed(...)`：`TaskCompletion` 是库产出的
+观测记录，公开面上没有方法接收它。用它们做测试替身的代码，应改为测试自己基于 `Duration`、
+`TaskOutcome`、`Throwable` 的逻辑，或断言真实的 `completions()`/`members()`。
+`ImmediateResult.succeeded/failed` 保留。
+
+删除 `SmartBlockingQueue.create(int)`。它在容量非正时返回 `SynchronousQueue`，同一个整数悄悄切换
+队列语义，而构造器拒绝同一个值。正容量写 `new SmartBlockingQueue<>(capacity)`，交接队列写
+`new SynchronousQueue<>()`；容量来自配置时显式选择其一。

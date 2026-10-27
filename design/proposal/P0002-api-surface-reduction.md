@@ -84,7 +84,6 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 | | `Tuple2` | 6 | ✗ | ✓ |
 | | `ImmediateResult` | 6 | ✓（`asFuture` 高频） | ✓ |
 | | `TaskBatchResult` | 7 | ✓ | ✓ |
-| | `TaskBatchResult.BatchReport` | 3 | ✓ | ✓ |
 | | `TaskCompletion` | 16 | 访问器✓ | ✓ |
 | | `TaskOutcome` | 8 常量 | ✓ | ✓ |
 | 协作取消 | `Checkpoints` | 32（全静态） | ✓ | ✓ |
@@ -169,58 +168,19 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
   （公开 API 的 javadoc 不得链接包私有类型）。
 - 文档措辞同步：
   - `docs/*/reference/nullability-annotations.md`：en:32 / zh:29,32 用 `CancellationToken`
-    当 `@Nullable` 公开示例——收口后不再是公开 API，需换示例（`BatchReport.firstException()`
-    可保留）；
+    当 `@Nullable` 公开示例——收口后不再是公开 API，需换示例（现以 `TaskGroupResult.failedTaskName()`
+    为例）；
   - `docs/zh/reference/cooperative-cancellation.md`:8,:168-174 的概念性提及改述为"框架内部
     的取消令牌"（机制描述保留，类型名移除）；
   - `docs/*/migration-v0.3.md` 增加收口行；
   - `docs/zh/design/philosophy.md`、`idea-graveyard.md`、`case-studies/` 属设计散文与历史
     记录，保留不动；`migration-v0.2.md` 是历史对照表，不动。
 
-### P2：删除 `SmartBlockingQueue.create(int)`——证据基础反转后重写（原 C1）
+### P2 与 N1：已落地（2026-10-27）
 
-09-27 版的事实前提是"全仓零引用（含 src/main 内部）"。**该前提已不成立**：当前有 6 个测试
-文件使用，且 `SmartBlockingQueueTest.java:21-23` 把 `create(0)/create(-1) → SynchronousQueue`
-的静默换型行为**钉成了显式契约**；`TaskGroupCombine{NestedGuard,InlineGuard,GuardCancellation}Test`、
-`DirectExecutorSafetyTest`、`DefaultEnqueuePolicyTest` 用 `create(50)/create(100)` 建池。
-`src/main` 内部仍然零调用（库内只认 `instanceof SmartBlockingQueue`），demo 与文档零引用。
-
-因此本提案的性质从"删死代码"变为"删一个被测试钉住的有害便利"，论证不变、成本上升：
-
-- **改前用户能写出的最好代码：**
-  ```java
-  BlockingQueue<Runnable> queue = SmartBlockingQueue.create(64);
-  ```
-- **改后的同一段代码：**
-  ```java
-  BlockingQueue<Runnable> queue = new SmartBlockingQueue<>(64);
-  ```
-- **被消除的失败模式：** 两条等价构造路径迫使读者比较"该用哪个"。工厂的两处形状都比构造器
-  弱且更危险：返回类型擦成 `BlockingQueue`（拿不到 `setCapacity`）；`capacity <= 0` 时**静默
-  换成 `SynchronousQueue`**——容量为零、语义完全不同的队列，没有任何提示；构造器对非正容量
-  是显式抛 `IllegalArgumentException` 的。现有测试把静默换型钉成契约恰恰说明该行为会被依赖，
-  越晚删成本越高。
-- **迁移路径：** 机械替换为 `new SmartBlockingQueue<>(n)`（5 个测试文件直接受益：返回具体
-  类型，少一次强转）；`create(0)` 的调用方需显式选择 `SynchronousQueue`，这正是删掉它的理由。
-  `SmartBlockingQueueTest:21-23` 三条 create 断言随之删除。
-
-### N1：`TaskCompletion.succeeded`/`failed` 两个公开工厂包私有化
-
-原存在理由是"用户为 `TaskListener` 写单测时需要构造事件"（09-27 版 §五登记）。
-**`TaskListener` 已删除**（§二），理由蒸发。现状：src/main 零调用、demo 零、文档零提及；
-唯一消费者是 `TaskCompletionTest` 自己（同包，包私有化后不受影响）。用户现在从
-`TaskGroupResult.members()` / `TaskBatchResult.completions()` 获取真实快照，无需自行构造。
-
-- **改前：**
-  ```java
-  TaskCompletion<String> fake = TaskCompletion.succeeded("t", "unit-1", 0, 0, 5, 6, "v");
-  ```
-- **改后：** 不存在——对自己的消费逻辑做单测时，从真实运行获取快照，或对自己的代码留
-  seam，而不是伪造库的记账记录。
-- **被消除的失败模式：** 公开七/八参数工厂把内部记账字段（`unitId`、`taskIndex`、三个时间戳）
-  暴露为公众责任，且允许构造内核永远不会产生的字段组合；读快照的人无法区分"库产生的记录"
-  与"用户伪造的记录"。
-- **迁移路径：** 无文档/demo 使用；外部若有用例，改为从真实运行获取快照。
+`SmartBlockingQueue.create(int)` 与 `TaskCompletion.succeeded/failed` 已在 0.4 删除，迁移写入
+`docs/{en,zh}/migration-v0.4.md`，理由与被否决方向见 decision-log 的
+task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随批次读取统一删除。
 
 ### N2（弱候选，可选）：`TaskGraphObservationScope` 三个无文档静态查询
 
@@ -262,7 +222,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 | `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`bodyCompletionConfirmed()`/`unfinishedBodies()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`deadlockPolicy()`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
-| `TaskBatchResult.report()`/`reportString()` | demo 高频（`reportString` 约 17 处），batch 报告是演示与排障主路径 | demo |
+| `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |
 | `TaskType.MIXED` | 已拍板保留为意图声明；明确不重开 | [decision-log.md](../decision-log.md) 对应条目 |
 | `queue` 两个类保持 public | 产物边界已关闭 | [adr/0006](../../adr/0006-queues-ship-with-core.md) |
 | `ParId.value()` | 值类型唯一显式取值口 | — |
@@ -275,8 +235,8 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 | 提案 | 类型变化 | 元素变化 |
 |---|---|---|
 | P1 `CancellationToken` 收口 | 36 → 34（−1 顶层 −1 嵌套） | −19（10 方法 + 3 构造 + `create` + `State` 6 常量） |
-| N1 `TaskCompletion` 工厂 | 不变 | −2 |
-| P2 `SmartBlockingQueue.create` | 不变 | −1 |
+| ~~N1 `TaskCompletion` 工厂~~（已落地） | 不变 | −2 |
+| ~~P2 `SmartBlockingQueue.create`~~（已落地） | 不变 | −1 |
 | N2 图三静态（可选） | 不变 | −3 |
 | N3 `valuesResult`（可选） | 不变 | −1 |
 | **合计（全做）** | **34 类型（−6%）** | **约 −26 元素（−8%）** |

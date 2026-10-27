@@ -29,7 +29,7 @@ recommends, and is also transitively provided by Guava.
 
 Use it when a return value can be absent, when a public constructor explicitly accepts `null`, or
 when a parameter has an optional value. Public examples include a nullable parent
-`CancellationToken` and `TaskBatchResult.BatchReport.firstException()`. Package-private runtime
+`CancellationToken` and `TaskGroupResult.failedTaskName()`. Package-private runtime
 types use the same rule for their implementation state.
 
 Do not add redundant annotations to non-null parameters covered by the package default or to
@@ -42,7 +42,7 @@ non-null return values guaranteed by the implementation.
 ```java
 static @Nullable TaskExecutionContext current() { ... }
 
-public @Nullable Throwable firstException() { ... }
+public @Nullable String failedTaskName() { ... }
 ```
 
 This illustrates internal source style; `TaskExecutionContext` is not public API.

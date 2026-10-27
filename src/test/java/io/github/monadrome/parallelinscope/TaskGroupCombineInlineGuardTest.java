@@ -37,7 +37,7 @@ class TaskGroupCombineInlineGuardTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(100),
+                new SmartBlockingQueue<>(100),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }

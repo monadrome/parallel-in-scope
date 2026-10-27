@@ -120,8 +120,8 @@ final class TaskGroupReport {
     }
 
     /**
-     * Counts member outcomes — including the terminal combine when declared — symmetric with
-     * {@link TaskBatchResult.BatchReport#stateCounts()}.
+     * Counts member outcomes — including the terminal combine when declared — like {@link
+     * TaskBatchResult#outcomeCounts()}.
      *
      * @return the immutable outcome count map, empty for an empty group
      */

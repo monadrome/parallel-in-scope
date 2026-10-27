@@ -30,7 +30,7 @@ class DefaultEnqueuePolicyTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(capacity),
+                new SmartBlockingQueue<>(capacity),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }

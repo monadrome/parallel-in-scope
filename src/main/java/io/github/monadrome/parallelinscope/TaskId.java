@@ -18,10 +18,10 @@ import java.util.Objects;
  * diagnostics only: an id must never be persisted, parsed, or used as a wire format, and {@link
  * #toString()} is a rendering rather than an exchange format.
  *
- * <p>The library mints ids from one sequence per kind. The factories exist so callers can build
- * records of their own through {@link TaskCompletion#succeeded} and {@link TaskCompletion#failed};
- * an id minted that way carries no claim that any unit ever ran, and the factory is the single
- * validation boundary — a label is never null and never blank, so no consumer repeats that check.
+ * <p>The library mints ids from one sequence per kind. The factories build an id with a given
+ * label, for example to compare against an id the library recorded; an id minted that way carries
+ * no claim that any unit ever ran, and the factory is the single validation boundary — a label is
+ * never null and never blank, so no consumer repeats that check.
  *
  * @param <K> the kind of unit this id names: {@link TaskUnit} or {@link TaskGroupRun}
  * @since 0.3.0

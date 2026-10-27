@@ -18,7 +18,8 @@
   失败逃出 fan-out——Guava 的 fan-out 在第一个逃出的 `Error` 处停止，排在后面的钉子将永不运行。
 - body 自己抛出 `CancellationException` / `InterruptedException`、且落定时 token 未提交任何
   框架取消：元素 MUST 冻结为 `USER_FAILURE`，`failure()` 为原对象；`valuesOrThrow()` /
-  `terminalValueOrThrow()` 以它为 cause 抛 `ExecutionException`。该元素自身失败引发的
+  `terminalValueOrThrow()` 按 [聚合读取规则](synchronous-scope-exit.md) 原样抛出 `CancellationException`，
+  把 `InterruptedException` 包装为 `CompletionException`。该元素自身失败引发的
   fail-fast 级联 MUST NOT 事后改写它。落定时 token 已提交（检查点观察到级联、deadline
   backstop 已提交 `TIMEOUT`）则照旧经 token 归因。
 
@@ -30,8 +31,8 @@
 分类：
 
 - 单元素 body 自抛 CE：`USER_FAILURE` / `FAIL_FAST` 随机（实测约各半），`valuesOrThrow()`
-  随之在 `ExecutionException` 与 `CancellationException` 之间切换，`report().firstException()`
-  为 null。
+  随之在 `ExecutionException` 与 `CancellationException` 之间切换，当时的 `report().firstException()`
+  为 null（0.3 的批次读取口，0.4 已删除）。
 - 多元素全部自抛 CE：调用线程等完全部元素时级联早已提交，**确定性**全部 `FAIL_FAST`。
 - direct executor：元素在提交期间同步落定，级联必然先于冻结，确定性错归。
 - `mapAndCombine` 的终端汇总自抛 CE 同理。

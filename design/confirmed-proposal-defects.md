@@ -52,7 +52,7 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0016 | Fully implemented, distilled into task-graph; nonreturning listeners remain outside the liveness promise |
 | P0017 | Deferred: selection/support/public artifact claims need current external evidence or a policy choice |
 | P0018 | Publication summary fixed; artifact identity/cache/source/consumer verification continues in P0023; cache replacement has no current reproduced mismatch |
-| P0019 | Deferred: new exhaustive matching or unary convenience API; existing interruption defect fixed through P0014 |
+| P0019 | Landed as `ImmediateResult.fold`/`successful()` (contract in synchronous-scope-exit §3); the unary convenience API was rejected (decision-log); the interruption defect was fixed through P0014 |
 
 ## Review And Verification
 

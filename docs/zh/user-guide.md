@@ -71,8 +71,10 @@ Integer.MAX_VALUE，表示不设额外上限——解析时被任务总数封顶
 
 timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `inheritTimeout(name)`。
 继承要求处于库管理的任务内，deadline 不超过父级。首个失败取消未完成的兄弟，包括滑窗外
-尚未提交的元素。`valuesOrThrow()` 即时读取：按输入顺序首个已记录执行失败优先，
-以 ExecutionException 报告；纯取消抛 CancellationException。成功值允许 null。
+尚未提交的元素。`valuesOrThrow()` 即时读取，先经过 `orThrow()`：按输入顺序首个已记录执行
+失败优先，unchecked 原样抛、checked 包装为 CompletionException；纯取消抛 CancellationException。
+成功值允许 null。`outcomeCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
+与 `TaskGroupResult` 同名。
 
 TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；普通队列上
 rejectEnqueue 与 CPU_BOUND 都无效，每个 `Par` 输出一次诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
@@ -112,6 +114,9 @@ BatchCombinedResult<Price, Report> run = ioPar.mapAndCombine(
 Report report = run.terminalValueOrThrow();
 TaskBatchResult<Price> elements = run.batchResult();
 ```
+
+`terminalValueOrThrow()` 先检查元素：失败的价格以它自己的异常抛出，不会被报成 combine 的
+`FAIL_FAST` 取消；combine 自身失败按同一规则处理。
 
 汇总任务随批次一起准备（TTL 捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
 才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
@@ -186,7 +191,7 @@ ImmediateResult<User> user = result.resultOf(userKey);
 raw type 和 unchecked cast 造成的类型违规由调用方负责。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
-组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 保持原异常习惯：unchecked 原样抛、
+组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 遵循所有聚合结果共用的规则：unchecked 原样抛、
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
 使聚合成员值失败，但单独的成功成员结果仍可读。
 
@@ -230,6 +235,22 @@ failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括
 未记录成员/combine 失败的取消作为失败值，get 抛 ExecutionException，cause 是取消异常；
 组一旦记录了成员或 combine 失败，即使组 outcome 是取消形状，cause 仍为该存储失败。
 手动 `failed(outcome, failure)` 保留传入异常；outcome 是元数据，不转换异常类型。
+
+`fold` 按 outcome 穷尽消费结果：fail-fast 的兄弟不会被算作失败，漏写分支编译不过：
+
+```java
+Price price = batch.results().get(i).fold(
+        value -> value,
+        failure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, failure);
+            return Price.UNKNOWN;
+        },
+        (outcome, detail) -> Price.UNKNOWN);
+```
+
+`onValue` 接收可能为 null 的成功值；`onFailure` 处理 `USER_FAILURE` 与 `SUBMISSION_FAILURE`；
+`onCancelled` 接收其余 outcome 及其存储的异常，该异常不一定是 `CancellationException`。
+`successful()` 只判断是否为 `SUCCESS`。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
 scope 及其资源生命周期之外。
@@ -320,7 +341,7 @@ Batch.completions 是输入顺序的最终 TaskCompletion 列表；null 表示�
 Group.members 按名称包含可用最终快照，terminal 是可用 combine 快照或 null。
 快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
-report/reportString、组 outcomeCounts 仍统计所有终态成员。
+批次与组的 outcomeCounts/reportString 仍统计所有终态成员。
 
 `failure()` 承载的是细节而非结论。成功任务一定返回 null。其余 outcome 都带 throwable：
 `USER_FAILURE` 记录 body 自己抛出的异常——包括 body 主动抛出的 InterruptedException 或
@@ -337,30 +358,27 @@ CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常�
 ### 在 body 内读取嵌套结果 {#nested-reads}
 
 嵌套的 `map` 或 `runAll` 返回时已经结束：结果是冻结数据，读取从不阻塞，不需要
-`asFuture().get()`。唯一的摩擦是批次 body 是 JDK `Function`，抛不出 `valuesOrThrow()` 的受检
-`ExecutionException`。把执行失败包装成非受检异常，`CancellationException` 原样放行：
+`asFuture().get()`。批次与组的 `valuesOrThrow()` 都是非受检的，批次 body 内的嵌套读取不需要
+try/catch：
 
 ```java
 TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
-    List<Order> orders;
-    try {
-        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
-                .valuesOrThrow();
-    } catch (ExecutionException failed) {
-        throw new OrderLookupException(customer.id(), failed.getCause());
-    }
+    List<Order> orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+            .valuesOrThrow();
     return Report.of(customer, orders);
 }, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
 ```
 
-放行取消异常是归因正确的前提。外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），
-无论 body 之后抛什么，元素都按那次取消归因。外层已提交取消、而元素自己的 body 先结束时，取消
-异常经外层归因（`TIMEOUT`、`FAIL_FAST`），包装成业务异常则读作 `USER_FAILURE`。内层批次自己
-走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带该异常。
+内层失败原样到达外层元素，内层的 `CancellationException` 也原样穿过，这正是归因正确的前提。
+外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），无论 body 之后抛什么，元素都按那次
+取消归因。外层已提交取消、而元素自己的 body 先结束时，取消异常经外层归因（`TIMEOUT`、
+`FAIL_FAST`）。内层批次自己走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带
+该异常。只有调用方需要额外上下文时才把内层失败包装成业务异常；不要包装 `CancellationException`，
+否则它会读作 `USER_FAILURE`。
 
 想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
-`failure()` 携带它的异常。body 内的 `runAll` 完全不需要包装：`TaskGroupResult.valuesOrThrow()`
-本来就以非受检形式重抛，而组成员 body 是 `Callable`，可以抛受检异常。
+`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理三种形状。body 内的 `runAll` 遵循
+同一规则，而组成员 body 是 `Callable`，还可以抛受检异常。
 
 ## 观测嵌套工作 {#nested-observation}
 
