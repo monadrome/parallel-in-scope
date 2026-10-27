@@ -125,3 +125,17 @@ closer 失败不改变结果、阻塞 closer 不挡住 `runAll()`（含组在 `r
 `AdoptedSourceTest` 覆盖放弃已准备的 source（取消镜像、释放槽）、连接后放弃是空操作、null 值不交给 closer、
 closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落定线程。A5 的发布顺序与 A6 的结束时间顺序登记在
 `verification/race-claims/claims.json`。`verification/maven-central-consumer` 在 Java 8 运行时上覆盖收养成员。
+
+## 5. 独立评审与处置
+
+第一轮（`/multi-review`：kiro、codex、claude、ocr 四路均读到变更文件，评审范围为提案、实现与测试三个提交）：
+
+- **保留并修复**：kiro 复现 source 已完成时组在 `runAll()` 调用线程上同步收敛，内联 closer 阻塞即 `runAll()`
+  永不返回（P0）；claude 指出 deadline 驱动的丢弃在运行时内部线程上内联运行 closer，同一根因。修复为 A5 的
+  派发规则，两条回归测试在撤掉派发后失败。kiro 指出放弃 source 时镜像不落定，运行时对成员 future 的保留
+  永不结束；修复为放弃时取消镜像，回归测试在撤掉后失败。内部不变量改用 `Verify`、Javadoc 重排属规范项。
+- **降级为文档**（三方独立投票 1:2 不改实现）：被丢弃值在冻结结果中仍可见（kiro）——没有「已释放」的 outcome，
+  改写为 A4 的所有权与可见性区分；准入即取消的组报告成员时间为 0（codex、claude）——与连接前被取消的 `par`
+  成员一致，门控收敛会改变每个收养组的收敛协议，改写为 A6 的限定。
+- claude 关于「阻塞 closer 拖慢其它组 deadline」的推论被驳回：deadline 动作本就派发到按需扩容的动作池，
+  计时线程不运行用户代码；但内联运行用户代码这一事实随 A5 一并移除。
