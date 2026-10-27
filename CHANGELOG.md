@@ -29,6 +29,24 @@
   caller's responsibility. Literal-null one-argument
   `valueOf(null)` / `resultOf(null)` calls now require a `String` or `TaskKey` cast to disambiguate.
 
+- Batch aggregate reads follow the group rule. `TaskBatchResult.valuesOrThrow()` and
+  `BatchCombinedResult.terminalValueOrThrow()` no longer declare `ExecutionException`: they pass
+  through a new `orThrow()` on both types, which rethrows the selected recorded failure as-is when
+  unchecked and wraps it in `CompletionException` when checked. `terminalValueOrThrow()` now checks
+  element failures first, so an element's business exception is no longer reported as the combine's
+  `FAIL_FAST` cancellation. `TaskBatchResult.BatchReport` and `report()` are removed in favor of
+  `outcomeCounts()` and `failedTaskResult()`, matching `TaskGroupResult`. Nested batch reads inside a
+  batch body no longer need a try/catch.
+
+- Add `ImmediateResult.successful()` and `fold(onValue, onFailure, onCancelled)`, an exhaustive
+  consumer that branches on the outcome: execution failures (`USER_FAILURE`, `SUBMISSION_FAILURE`)
+  and the cancellation-shaped outcomes reach different functions, so fail-fast siblings are not
+  counted as failures.
+
+- Remove `TaskCompletion.succeeded/failed` (a completion is a library-produced observation that no
+  public method accepts) and `SmartBlockingQueue.create(int)` (it returned a `SynchronousQueue` for
+  non-positive capacity while the constructor rejects it). See the 0.4 migration guide.
+
 ### Fixed
 
 - Make the never-started batch observation test wait for its blocking task to

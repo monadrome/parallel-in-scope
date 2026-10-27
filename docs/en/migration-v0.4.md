@@ -58,3 +58,65 @@ complete normally after a sampling exception; a sampling `Error` is rethrown fro
 report publishes. Evidence takes priority over failure, which takes priority over unsupported
 executors. Evidence remains a capture-time snapshot even after the pool recovers. No alias for
 `stagnantSamples()` is retained in this unreleased API.
+
+## Batch aggregate reads
+
+Batch reads now follow the rule `TaskGroupResult` already used. `TaskBatchResult.valuesOrThrow()`
+and `BatchCombinedResult.terminalValueOrThrow()` no longer declare `ExecutionException`; both pass
+through a new `orThrow()`. The selected recorded failure — a batch's first `USER_FAILURE` or
+`SUBMISSION_FAILURE` element in input order; for a combined batch, its elements before its combine —
+is rethrown as-is when unchecked and wrapped in `CompletionException` when checked. Pure
+cancellation still throws `CancellationException`. `ImmediateResult.valueOrThrow()` is a
+single-task read and keeps its checked `ExecutionException`.
+
+Before:
+
+```java
+Report priceReport(Par io, Par cpu, List<String> skus) throws ExecutionException {
+    BatchCombinedResult<Price, Report> run = io.mapAndCombine(skus, this::fetchPrice, PRICES, cpu, this::summarize);
+    run.batchResult().valuesOrThrow();
+    return run.terminalValueOrThrow();
+}
+```
+
+After:
+
+```java
+Report priceReport(Par io, Par cpu, List<String> skus) {
+    return io.mapAndCombine(skus, this::fetchPrice, PRICES, cpu, this::summarize).terminalValueOrThrow();
+}
+```
+
+The failure mode removed: when an element failed, `terminalValueOrThrow()` used to report only the
+combine's `FAIL_FAST` cancellation, so the business exception never appeared in the chain unless the
+caller read the elements first. Batch and group reads also needed different catch blocks, and a
+nested batch read inside a batch body needed a try/catch only to satisfy the compiler.
+
+| 0.3 | 0.4 |
+|---|---|
+| `batch.report().stateCounts()` | `batch.outcomeCounts()`, the same name as `TaskGroupResult.outcomeCounts()` |
+| `batch.report().firstException()` | `batch.failedTaskResult().map(ImmediateResult::failure)`; empty when no element recorded a failure |
+| `TaskBatchResult.BatchReport` | removed; read the counts and the failed element from the result itself |
+| `catch (ExecutionException e)` around batch `valuesOrThrow()` or combined `terminalValueOrThrow()` | catch the business exception itself; a checked element or combine failure arrives as `CompletionException` |
+| `run.batchResult().valuesOrThrow()` before `run.terminalValueOrThrow()` | `run.terminalValueOrThrow()` alone; element failures are checked first |
+
+A `catch (ExecutionException e)` that only wraps these calls becomes a compile error, so the compiler
+finds it. A try block that also catches `ExecutionException` from another source, such as
+`ImmediateResult.valueOrThrow()`, still compiles, but a batch failure it used to catch now
+propagates: review such blocks by hand. A rethrown failure is the stored instance, so its stack shows
+the worker, not the caller. A body that throws its own `CancellationException` is a `USER_FAILURE`
+and is now rethrown as-is; read `outcome()` to tell it from framework cancellation. `reportString()`
+keeps its text; the format is diagnostic, not a parsing contract.
+
+## Removed factories
+
+`TaskCompletion.succeeded(...)` and `TaskCompletion.failed(...)` are removed: a `TaskCompletion` is
+an observation the library produces, and no public method accepts one. Code that used them as test
+doubles should test its own logic over the `Duration`, `TaskOutcome`, and `Throwable` it reads, or
+assert on real `completions()` / `members()`. `ImmediateResult.succeeded/failed` remain.
+
+`SmartBlockingQueue.create(int)` is removed. It returned a `SynchronousQueue` for a non-positive
+capacity, so one integer silently switched queue semantics while the constructor rejected the same
+value. Write `new SmartBlockingQueue<>(capacity)` for a positive capacity and
+`new SynchronousQueue<>()` for a hand-off queue; choose between them explicitly when the capacity
+comes from configuration.

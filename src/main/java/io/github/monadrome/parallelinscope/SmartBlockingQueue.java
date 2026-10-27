@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.util.concurrent.ForwardingBlockingQueue;
 import io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -81,20 +80,5 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
             return delegate.offer(o);
         }
         return delegate.offer(o);
-    }
-
-    /**
-     * Creates a blocking queue: returns {@link SynchronousQueue} for capacity {@code <= 0}, otherwise
-     * returns {@link SmartBlockingQueue}.
-     *
-     * @param <T> the queue element type
-     * @param capacity the requested queue capacity
-     * @return a synchronous or capacity-adjustable blocking queue
-     */
-    public static <T> BlockingQueue<T> create(int capacity) {
-        if (capacity <= 0) {
-            return new SynchronousQueue<>();
-        }
-        return new SmartBlockingQueue<>(capacity);
     }
 }

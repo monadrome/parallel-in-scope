@@ -143,7 +143,6 @@
 | [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 类型化 key 输入已落地；仅保留动态 schema 的字符串具名终端入口候选，明确运行期校验的代价 |
 | [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
 | [proposal/P0017-oss-adoption-path.md](proposal/P0017-oss-adoption-path.md) | stable/next 首用、原生 JDK 选型、人类贡献职责与公开入口维护；历史网络结论重新核验 |
-| [proposal/P0019-result-exhaustive-matching.md](proposal/P0019-result-exhaustive-matching.md) | ImmediateResult 穷尽匹配的 typestate 候选与同步单任务获取需求复核；不恢复公开运行句柄 |
 | [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | P0015 剩余的 RUNNING-clock 后备政策选择；不覆盖真实事件、first-wins 与当前落定归因 |
 | [proposal/P0021-executor-boundary-diagnostics.md](proposal/P0021-executor-boundary-diagnostics.md) | P0010 剩余的 shutdown CallerRuns、wrapper 身份与准备/timeout action 资源测量 |
 | [proposal/P0022-documentation-maintenance.md](proposal/P0022-documentation-maintenance.md) | P0011 剩余的历史/契约、站点示例、BACKLOG、ADR 与索引维护；具体配方已修 |

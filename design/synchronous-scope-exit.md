@@ -105,8 +105,15 @@ finish() 直接按冻结 outcome 构造，不走成员结果的归一化路径�
 才携带按 outcome 命名的 LeanCancellationException。因此 adapter 只承诺"存储的原对象作为
 ExecutionException.cause"，不承诺异常类型；取消形状不等于 CancellationException cause。
 
-Batch 聚合保留 ExecutionException 报执行失败、CancellationException 报纯取消；
-Group 聚合保留 unchecked 原样抛、checked 包装 CompletionException。结果函数不重跑 body。
+聚合读取（`TaskBatchResult`、`BatchCombinedResult`、`TaskGroupResult`）共用一条规则。`orThrow()` 是每种
+结果唯一的失败闸门，`valuesOrThrow()` 与 `terminalValueOrThrow()` 先经过它。选中的失败：批取输入顺序首个
+`USER_FAILURE`/`SUBMISSION_FAILURE` 元素；批+combine 先取元素、再取 combine 自身，因此元素失败不会被报成
+combine 的 FAIL_FAST 取消；组取已记录的失败成员或 combine。选中失败是 `RuntimeException`/`Error` 时原样抛出，
+checked 时包成 `CompletionException`（消息含作用域名与任务定位）；没有记录失败而 outcome 非 `SUCCESS` 时抛
+`CancellationException`。body 自抛的 `CancellationException` 归 `USER_FAILURE`，原样抛出后与框架取消同类型，
+区分要读 `outcome()`。单任务容器 `ImmediateResult.valueOrThrow()` 不是聚合读取，保持受检：作用域级 join
+非受检、单任务 Either 受检，与 JDK 25 `StructuredTaskScope.join()` 和 `Future.get()` 的分工一致。
+结果函数不重跑 body。
 类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。左嵌套 Tuple2、nullable 值与空组保持。
 
 asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isCancelled=false。
@@ -114,6 +121,16 @@ asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isC
 cause 为该存储失败（见上）。手动 failed(outcome, failure) 保留给定异常，outcome 标签不转换异常类型。
 两个 get 使用 Futures.getDone，立即读且保留中断标志；timed get 校验非 null TimeUnit，
 不做超时等待。listener 用消费者 executor，处于业务资源 scope 外。
+
+**穷尽消费**：`ImmediateResult.fold(onValue, onFailure, onCancelled)` 按 outcome 分支，throwable 只是
+载荷：`SUCCESS` 走 onValue（值可为 null），`USER_FAILURE`/`SUBMISSION_FAILURE` 走 onFailure，其余
+四种取消形状走 onCancelled 并带 outcome 与存储的 throwable。执行失败与取消的切分与聚合读取的
+失败选取同一口径。onCancelled 的 throwable MUST NOT 被承诺为 `CancellationException`：组级
+valuesResult 的例外与手动 `failed(outcome, failure)` 都保留原异常。`RUNNING` 与未归类的 outcome
+MUST 落到 `AssertionError`，不被 default 分支吸收：新增 `TaskOutcome` 值时遍历全部 outcome 的测试
+先变红，迫使显式归类。三参函数让漏分支编译失败；fold 与 `successful()` 只读冻结数据，不等待、
+不消费中断。被否决的平行快照类型、typestate 链与单任务获取入口见
+[decision-log.md](decision-log.md)。历史来源：`proposal:P0019`。
 
 ## 4. 中断与有界清理
 
@@ -413,3 +430,25 @@ target/kimi-synchronous-review-r5-prompt.md、target/kimi-synchronous-review-r5.
 - “original cause” 可能误指原 body 异常：不列为缺陷；指南此处指存储 Throwable，
   valueOrThrow/asFuture 以该对象为 ExecutionException.cause。取消包装的原 body 异常
   位于下一层 cause，K3 回归明确验证两层 identity，不改变公开 Either 工厂语义。
+
+### 7.2 批次聚合读取统一（2026-10-27，Codex 只读评审）
+
+范围：§3 聚合读取规则改为三种结果共用（批次读取非受检、`orThrow()`、`outcomeCounts()`/`failedTaskResult()`，
+删除 `BatchReport`），以及 `ImmediateResult.fold`/`successful()`。评审席位为 Codex（只读沙箱，不同 harness），
+简报与原文在 `.agents/reviews/batch-read-surface-review-*.md`。逐条复现后处置：
+
+| 发现 | 处置 | 修复效果 |
+|---|---|---|
+| `batch-settle-attribution.md` 仍要求 body 自抛取消以 cause 形式抛 `ExecutionException`（blocking） | 保留，已复现 | 改为指向本节规则：自抛 CE 原样抛、IE 包 `CompletionException`；同文历史段标注 `report()` 为 0.3 读取口 |
+| P0002 保留清单仍列 `report()` | 保留 | 改为只保留 `reportString()` |
+| demo 文章与测试注释仍教 `report()` | 保留 | 四篇文章与一处注释改为 `outcomeCounts()`/`failedTaskResult()` |
+| 新测试未钉住「输入顺序优先」与 combine 提交失败、空批次、全取消 | 保留 | 包内构造多种已记录失败的冻结结果钉住顺序（反向扫描、提交失败优先两种变异都会失败）；combine 拒绝路径断言 `terminalValueOrThrow()` 原样抛 `SubmissionException`；补空批次与全取消读取 |
+| fail-fast 计数测试未断言 `FAIL_FAST` | 保留 | 补 `outcomeCounts()` 断言，fail-fast 退化为超时时测试失败 |
+| deadline 测试未用 latch 证明 body 已开始 | 降级为不修 | 断言对象是冻结读取的形状；body 是否已开始都落 `TIMEOUT`，读取结果相同 |
+| zh 测试设计文档仍写「null 异常」 | 保留 | 改为空 `failedTaskResult()` 与 `failure()` 原对象 |
+
+反向验证：恢复 `BatchCombinedResult.orThrow()` 只读汇总后，元素失败回归测试读到
+`LeanCancellationException: task 'prices' ended with FAIL_FAST`，恢复修复后通过。
+PIT（`TaskBatchResult`、`BatchCombinedResult`、`ImmediateResult`，含 VOID/NON_VOID_METHOD_CALLS）：新增代码的
+剩余存活均为等价或不可达——`valuesOrThrow` 的容量提示、汇总非取消 cause 的消息分支（库产出的取消形状
+终态恒为 `CancellationException`）、`fold` 对不可能出现的 RUNNING 的断言消息；其余存活在本次未触及的方法上。

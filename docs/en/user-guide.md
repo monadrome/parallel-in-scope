@@ -82,9 +82,11 @@ matching downstream capacity to get a bounded sliding window.
 Timeout is explicit: choose `BatchOptions.timeout(name, positiveDuration)` or
 `inheritTimeout(name)`. Inheritance requires an enclosing library task; every deadline is capped by
 its parent's. The first failure cancels unfinished siblings, including elements outside the sliding
-window. `valuesOrThrow()` reads frozen data: the first recorded execution failure in input order
-throws `ExecutionException` before any cancellation is reported; pure cancellation throws
-`CancellationException`. Successful values may be null.
+window. `valuesOrThrow()` reads frozen data through `orThrow()`: the first recorded execution
+failure in input order is rethrown as-is when unchecked and wrapped in `CompletionException` when
+checked, before any cancellation is reported; pure cancellation throws `CancellationException`.
+Successful values may be null. `outcomeCounts()` counts the outcomes and `failedTaskResult()` returns
+the first failed element, the same names `TaskGroupResult` uses.
 
 `TaskType` and `rejectEnqueue` influence `SmartBlockingQueue` admission, not executor selection.
 A plain queue makes `rejectEnqueue` and `CPU_BOUND` inert and emits one diagnostic per `Par`. An executor handoff failure is
@@ -127,6 +129,9 @@ BatchCombinedResult<Price, Report> run = ioPar.mapAndCombine(
 Report report = run.terminalValueOrThrow();
 TaskBatchResult<Price> elements = run.batchResult();
 ```
+
+`terminalValueOrThrow()` checks the elements first, so a failed price is thrown as itself rather
+than as the combine's `FAIL_FAST` cancellation; the combine's own failure follows the same rule.
 
 The combine is prepared with the batch (TTL capture and deadline binding happen on the calling
 thread) but submitted to its own Par exactly once, only after all elements succeed. When any element
@@ -215,9 +220,9 @@ deadline, cancellation, TTL capture, executor checks, and success-gated terminal
 before the body. Existing name/type declarations and tuple reads remain supported.
 
 `terminalResult()` is null only when no combine was declared; a successful null combine has a
-present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` preserve group
-failure conventions: rethrow unchecked failures, wrap checked failures in CompletionException, and
-throw CancellationException for pure cancellation. A failed combine also fails aggregated member
+present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` follow the rule
+every aggregate result shares: rethrow unchecked failures, wrap checked failures in
+CompletionException, and throw CancellationException for pure cancellation. A failed combine also fails aggregated member
 values; individual successful member results remain readable.
 
 Inside the combine body, a single member that succeeded with null delivers null `values`; with two
@@ -259,6 +264,23 @@ should not have to rebuild the member order to read a value.
 including cancellation. Container reads never block or consume an interrupt.
 The `failed(outcome, failure)` factory preserves the supplied throwable for every permitted outcome;
 the outcome is metadata and does not convert the throwable's type.
+
+`fold` consumes a result exhaustively by its outcome, so fail-fast siblings are not counted as
+failures and a missing branch does not compile:
+
+```java
+Price price = batch.results().get(i).fold(
+        value -> value,
+        failure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, failure);
+            return Price.UNKNOWN;
+        },
+        (outcome, detail) -> Price.UNKNOWN);
+```
+
+`onValue` receives the possibly-null success value; `onFailure` handles `USER_FAILURE` and
+`SUBMISSION_FAILURE`; `onCancelled` receives every other outcome with its stored throwable, which
+is not always a `CancellationException`. `successful()` tests for `SUCCESS` alone.
 
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
 returns false, and `isCancelled()` is false. A cancellation that recorded no member/combine
@@ -369,8 +391,8 @@ entry means final publication was not confirmed. Group `members()` contains avai
 keyed by member name, and `terminal()` is the available combine observation or null.
 All observations contain identity, submit/start/end times, duration, outcome, failure, and actual
 successful values. Never-started tasks have zero start/end times. Missing observations stay missing
-in the frozen result; no pending business future is returned. `report()`/`reportString()` and group
-`outcomeCounts()` still include every terminal task, regardless of missing observations.
+in the frozen result; no pending business future is returned. Batch and group
+`outcomeCounts()`/`reportString()` still include every terminal task, regardless of missing observations.
 
 `failure()` carries the detail, not the verdict. A successful task always reports null. Every other
 outcome carries a throwable: the body-thrown exception for `USER_FAILURE` — including an
@@ -391,35 +413,31 @@ and cancellation, which do not prove the inner synchronous call exited.
 ### Read nested results inside a body {#nested-reads}
 
 A nested `map` or `runAll` has already finished when it returns: its results are frozen data, so
-reading them never blocks and needs no `asFuture().get()`. The only friction is that a batch body is
-a JDK `Function`, which cannot throw the checked `ExecutionException` of `valuesOrThrow()`. Wrap the
-execution failure in an unchecked exception and let a `CancellationException` through unchanged:
+reading them never blocks and needs no `asFuture().get()`. `valuesOrThrow()` is unchecked on both
+batches and groups, so a nested read inside a batch body needs no try/catch:
 
 ```java
 TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
-    List<Order> orders;
-    try {
-        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
-                .valuesOrThrow();
-    } catch (ExecutionException failed) {
-        throw new OrderLookupException(customer.id(), failed.getCause());
-    }
+    List<Order> orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+            .valuesOrThrow();
     return Report.of(customer, orders);
 }, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
 ```
 
-Letting the cancellation through is what keeps attribution right. When the outer scope cancels the
-element first — its deadline, fail-fast, or an ancestor — the element ends with that attribution
-whatever the body throws afterwards. When the outer scope has committed its cancellation but the
-element's own body ends first, a cancellation exception is attributed through the outer scope
-(`TIMEOUT`, `FAIL_FAST`), while a business exception wrapping it would read `USER_FAILURE`. A
-cancellation the inner batch reached on its own, with the outer scope still running, ends the outer
-element as `USER_FAILURE` carrying that exception.
+The inner failure reaches the outer element unchanged, and an inner `CancellationException` passes
+through as itself. That keeps attribution right. When the outer scope cancels the element first —
+its deadline, fail-fast, or an ancestor — the element ends with that attribution whatever the body
+throws afterwards. When the outer scope has committed its cancellation but the element's own body
+ends first, a cancellation exception is attributed through the outer scope (`TIMEOUT`,
+`FAIL_FAST`). A cancellation the inner batch reached on its own, with the outer scope still running,
+ends the outer element as `USER_FAILURE` carrying that exception. Wrap the inner failure in a
+business exception only when the caller needs the extra context; do not wrap a
+`CancellationException`, or it reads as `USER_FAILURE`.
 
 To keep partial results instead of failing the element, read `results()` element by element:
-`outcome()` classifies each one and `failure()` carries its throwable. A `runAll` inside a body needs
-no wrapping at all: `TaskGroupResult.valuesOrThrow()` already rethrows unchecked, and a group member
-body is a `Callable`, which can throw checked exceptions.
+`outcome()` classifies each one and `failure()` carries its throwable, or `fold` handles the three
+shapes in one expression. A `runAll` inside a body follows the same rule, and a group member body is
+a `Callable`, which can also throw checked exceptions.
 
 ## Observe nested work
 

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
-import java.util.concurrent.SynchronousQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,12 +14,9 @@ class SmartBlockingQueueTest {
     }
 
     @Test
-    void validatesCapacityAndCreatesExpectedQueueKinds() {
+    void rejectsNonPositiveCapacity() {
         assertThatThrownBy(() -> new SmartBlockingQueue<Integer>(0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new SmartBlockingQueue<Integer>(-1)).isInstanceOf(IllegalArgumentException.class);
-        assertThat(SmartBlockingQueue.<Integer>create(0)).isInstanceOf(SynchronousQueue.class);
-        assertThat(SmartBlockingQueue.<Integer>create(-1)).isInstanceOf(SynchronousQueue.class);
-        assertThat(SmartBlockingQueue.<Integer>create(2)).isInstanceOf(SmartBlockingQueue.class);
     }
 
     @Test
