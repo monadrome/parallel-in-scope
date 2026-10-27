@@ -13,12 +13,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Explicit request-level task-graph observation scope owned by one {@link ParRuntime}.
  *
- * <p>The scope is a request-level global object: it is held in a {@link TransmittableThreadLocal}
- * with identity copy semantics, so every worker thread within the request observes the same
- * instance and shares its {@link TaskGraphData}. Nested scopes stack on the opening thread, and
- * {@link #close()} is idempotent so it can be used with try-with-resources. Closing the scope runs
- * the deadlock detection pass over the recorded graph once and publishes the resulting {@link
- * TaskGraphReport} through {@link #reportFuture()}.
+ * <p>The scope is a request-level object shared by the worker threads of the request. Nested scopes
+ * stack on the opening thread, and {@link #close()} is idempotent so it can be used with
+ * try-with-resources. Closing the scope runs the deadlock detection pass over the recorded graph
+ * once and publishes the resulting {@link TaskGraphReport} through {@link #reportFuture()}.
  *
  * <p>A scope may be closed on any thread, not only the one that opened it. A closed scope becomes
  * transparent wherever its binding survived: reads skip it and observe the nearest still-open
@@ -201,6 +199,7 @@ public final class TaskGraphObservationScope implements AutoCloseable {
         return owner;
     }
 
+    /** Returns whether close has begun; the report may still be publishing. */
     public boolean closed() {
         return closed.get();
     }

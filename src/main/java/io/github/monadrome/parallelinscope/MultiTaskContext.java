@@ -178,14 +178,7 @@ final class MultiTaskContext {
                 ? cancellationParent.ticker()
                 : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
         long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
-        // No parent fallback: the caller has already applied the ownership rule via
-        // TaskGraphObservationScope.resolveFor, and a null answer from it means "this unit joins no
-        // scope". Falling back to the parent's scope here would hand back the very scope that rule
-        // rejected -- and because resolveFor reads the parent's stored scope, a unit of another
-        // ParRuntime carrying its parent's scope would launder it into the next nesting level.
         TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
-        // A non-positive request has no fallback left: the sliding window would never submit and
-        // the batch would wait forever, so the invariant both producers already keep fails loudly.
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);

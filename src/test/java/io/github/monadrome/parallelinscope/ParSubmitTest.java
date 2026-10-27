@@ -235,7 +235,6 @@ class ParSubmitTest {
         parLogger.addHandler(capture);
         try {
             Par par = global.par(ParId.of("plain"));
-            // The option is off for this call, so there is nothing to report yet.
             par.submit(
                             "silent",
                             () -> "a",

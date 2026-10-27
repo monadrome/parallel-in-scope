@@ -44,7 +44,12 @@ public final class BatchOptions {
         this.closeGrace = closeGrace;
     }
 
-    /** Returns batch options that inherit the enclosing scope's deadline. */
+    /** Returns batch options that inherit the enclosing scope's deadline.
+     *
+     * @param name the batch name
+     * @throws NullPointerException if {@code name} is null
+     * @throws IllegalArgumentException if {@code name} is blank
+     */
     public static BatchOptions inheritTimeout(String name) {
         return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null);
     }
@@ -56,8 +61,10 @@ public final class BatchOptions {
      * resolves to the latest representable deadline: it still arms the deadline timer and still
      * derives the default cleanup budget, never meaning "no deadline".
      *
-     * @throws NullPointerException if {@code timeout} is null
-     * @throws IllegalArgumentException if {@code timeout} is negative or zero
+     * @param name the batch name
+     * @param timeout the positive execution timeout
+     * @throws NullPointerException if {@code name} or {@code timeout} is null
+     * @throws IllegalArgumentException if {@code name} is blank, or if {@code timeout} is negative or zero
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
@@ -84,7 +91,10 @@ public final class BatchOptions {
                 closeGrace);
     }
 
-    /** Returns a copy of these options with the given task type. */
+    /** Returns a copy of these options with the given task type.
+     *
+     * @throws NullPointerException if {@code taskType} is null
+     */
     public BatchOptions taskType(TaskType taskType) {
         return new BatchOptions(
                 name,
@@ -147,10 +157,12 @@ public final class BatchOptions {
         return Optional.ofNullable(timeout);
     }
 
+    /** Returns the task type declared for every element. */
     public TaskType taskType() {
         return taskType;
     }
 
+    /** Returns whether enqueue refusal is requested; it has effect only with a {@link SmartBlockingQueue}. */
     public boolean rejectEnqueue() {
         return rejectEnqueue;
     }

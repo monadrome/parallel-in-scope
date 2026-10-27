@@ -27,10 +27,6 @@ import org.junit.jupiter.api.Test;
  * is usable only from its creating thread, every earlier stage goes stale once the chain advances or
  * is submitted, the payload carrier releases bodies deterministically, and independent chains never
  * cross-talk.
- *
- * <p>This replaces the former bindings contract. Two-phase binding is gone, so the assertions about
- * missing/duplicate/foreign/wrong-kind bindings have no subject; what survives is the ownership and
- * lifecycle discipline, proven with holder probes rather than GC timing.
  */
 class GroupDraftLifecycleTest {
     private static final TaskKey<String> KEY_ONE_STRING = TaskKey.named("one");

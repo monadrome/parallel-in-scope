@@ -41,8 +41,8 @@ inline-comment-audit 的采纳边界仍由 [decision-log](../decision-log.md) �
 
 改前改后用户都写 `Checkpoints.remaining()` 和当前的结果查询；文档修正使用户知道查询不
 取消执行、不消费 interrupt、成功 null 与不存在 terminal 不同。没有签名迁移。
-根 AGENTS 的注释原则现由 ADR 0009 定义：默认用命名表达，必要的局部不变量、顺序或竞态证明
-仍可保留；不借此引入机械扫描阈值。
+根 AGENTS 的注释原则现由 ADR 0009 定义：局部注释、调用者 Javadoc、测试说明和设计文档各自
+承担不同职责；默认用命名表达，必要的局部不变量、顺序或竞态证明仍可保留；不借此引入机械扫描阈值。
 队列移植标记与 JDK override 的维护遵守 queue/AGENTS，不扩成无差别全仓清扫。
 
 本提案承接 P0012 的剩余维护方向。Checkpoints 的应用责任说明及 reference-release 测试的

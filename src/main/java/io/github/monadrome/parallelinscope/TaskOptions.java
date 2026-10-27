@@ -55,7 +55,10 @@ public final class TaskOptions {
         return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false);
     }
 
-    /** Returns a copy of these options with the given task type. */
+    /** Returns a copy of these options with the given task type.
+     *
+     * @throws NullPointerException if {@code taskType} is null
+     */
     public TaskOptions taskType(TaskType taskType) {
         return new TaskOptions(this.timeout, checkNotNull(taskType, "taskType cannot be null"), rejectEnqueue);
     }
@@ -75,10 +78,12 @@ public final class TaskOptions {
         return Optional.ofNullable(timeout);
     }
 
+    /** Returns the task type declared for the task. */
     public TaskType taskType() {
         return taskType;
     }
 
+    /** Returns whether enqueue refusal is requested; it has effect only with a {@link SmartBlockingQueue}. */
     public boolean rejectEnqueue() {
         return rejectEnqueue;
     }

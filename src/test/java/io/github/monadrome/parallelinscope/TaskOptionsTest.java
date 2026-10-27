@@ -42,10 +42,6 @@ class TaskOptionsTest {
     void defaultsAreIoBoundEnqueueingAndFailOnRejection() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
-        // IO_BOUND and rejectEnqueue=false travel together: SmartBlockingQueue refuses an offer when
-        // the type is CPU_BOUND OR the flag is set, so either default alone would make such a queue
-        // refuse every task submitted with default options, leaving its capacity unused and sending
-        // every task to the rejection handler. Refusing to enqueue is therefore opt-in.
         assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(options.rejectEnqueue()).isFalse();
     }

@@ -35,15 +35,10 @@ class CheckpointsOutcomeTest {
     @Test
     void tryAcquireDurationOverloadReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(0);
-        holdNothingButAssertBusy();
         long start = System.nanoTime();
         assertThat(Checkpoints.checkTryAcquire(semaphore, Duration.ofMillis(30)))
                 .isFalse();
         assertThat(System.nanoTime() - start).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(5));
-    }
-
-    private static void holdNothingButAssertBusy() {
-        // A zero-permit semaphore is already exhausted; nothing further to arrange.
     }
 
     @Test

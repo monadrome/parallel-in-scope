@@ -440,8 +440,6 @@ public final class Par {
         List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
         recordAdmission(observation, unit);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
-        // Same reason as Par.submit: the elements' TTL capture must reflect the scope this batch
-        // joined, not whatever this thread happens to be carrying.
         List<ExecutionPhaseHintFuture<R>> tasks = prepareUnderResolvedScope(
                 observation,
                 () -> IntStream.range(0, list.size())
@@ -452,9 +450,8 @@ public final class Par {
         SlidingWindowSubmitter<R> submitter =
                 new SlidingWindowSubmitter<>(executorRuntime.submissionExecutor(), unit, bodyCompletion, closeGrace);
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
-        // Bind before submitting: see ADR-0007. The submission canceller cannot come from
-        // submitAll, which has not run yet, so it is pre-built here and pointed at the real one
-        // afterward; setFuture propagates an early cancellation on to the submitting future.
+        // Bind before submitting; the temporary submission canceller is linked to the real one
+        // after submitAll so early cancellation still reaches the submission loop.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion =
                 unit.cancellationToken().bind(views, submitCanceller, runtime.timeoutScheduler());
