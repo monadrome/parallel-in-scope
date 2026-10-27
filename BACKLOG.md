@@ -222,7 +222,7 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 |---|---|---|---|---|
 | ~~O-1~~ | ~~批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline~~ **已被同步化重构取代**（见下） | — | — | — |
 | ~~O-2~~ | ~~`parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明~~ **已修复（工作区，见下）** | — | — | — |
-| O-3 | 无法显式表达"无 deadline"；超大 `Duration` 静默饱和为哨兵 | API | 读码 | 低-中 |
+| O-3 | ~~`unbounded()` 工厂~~ **已否决（2026-10-27）**；残余：超大 `Duration` 饱和为哨兵，清理预算跳到 0 | 缺陷 | 实测 | 低 |
 | ~~O-4~~ | ~~注册虚拟线程 executor 的告警文案事实错误、处方错误~~ **已修复（工作区，未提交）** | — | — | — |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
 | O-6 | 动态批次 + 终端汇合无组合形态，deadline 语义差异未文档化 | 功能 | 读码 | 中-高 |
@@ -260,12 +260,21 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 "缺省＝整批一次性提交"；demo 文章反模式 #1 同步改写。"是否强制显式选择"随之定案：保持默认，
 默认值自解释 + 非正值拒绝，不强制显式。
 
-### O-3 · 无法表达"无 deadline"
+### O-3 · 超大 timeout 饱和为"无 deadline"哨兵 ——`unbounded()` 方向**已否决（2026-10-27）**
 
-顶层无外层作用域可继承时，用户只能编天文数字；超大 `Duration` 静默饱和为 `Long.MAX_VALUE`
-（`Deadlines.java:71-76`），与"无 deadline"哨兵同值（A-P7 第 3 项只记了溢出一半）。建议加显式工厂
-`unbounded()`（`BatchOptions`/`TaskOptions`；组对应 `groupUnbounded`）——是显式第三选择而非漏写，
-不违反"逼用户思考"；顺带在 resolved deadline 为哨兵时免调度定时器（P-P1 热路径顺风车）。
+原建议的显式 `unbounded()` 工厂已由维护者否决：用户写一个宽松的有限上界即可，代价只是每个
+作用域一个定时器；无 deadline 的同步作用域没有活性来源。理由见 `design/decision-log.md` 与
+[idea-graveyard](docs/zh/design/idea-graveyard.md)。「哨兵时免调度定时器」早已存在，不构成采纳理由。
+
+**残余缺陷（P3，开放）：** 显式 timeout 经饱和算术仍能到达哨兵——`ChronoUnit.FOREVER`、
+`Duration.ofSeconds(Long.MAX_VALUE)` 在 body 内读 `Checkpoints.remaining()` 恰为哨兵；哨兵不布防定时器，
+未设置 `closeGrace` 时清理预算为 0，fail-fast 后不等不配合中断的 body 退出就返回
+（`bodyCompletionConfirmed()=false` + WARN）。清理预算随 timeout 单调增大、越过饱和点跳成 0，分界随
+`nanoTime()` 原点漂移，公开文档写的是"用剩余执行 deadline"。这让"有限上界代替 unbounded"在天文数字
+写法下不成立。推荐修法 D1：`MultiTaskContext.resolveDeadlineNanos` 的显式分支把解析结果钳制在
+`Long.MAX_VALUE - 1`，公开入口永远到不了哨兵；继承分支与内部哨兵分支不变。原型实测、否决的
+D2–D5 修法与回归测试要求见 `design/analysis/unbounded-timeout-factory-proposal.md` §5。改动落在
+deadline 核心路径，按仓库惯例需独立对抗性审查。
 
 ### O-4 · 虚拟线程 executor 注册告警文案错误 ——**已修复（工作区，未提交）**
 
