@@ -1,0 +1,4 @@
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+# This line is a comment and must not be parsed.
+unpinned-package

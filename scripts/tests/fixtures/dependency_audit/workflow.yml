@@ -1,0 +1,13 @@
+name: Fixture
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+      - uses: github/codeql-action/init@v4
+      - uses: ./local-action
+      - uses: docker://alpine:3.20
+      - uses: actions/checkout@v4
