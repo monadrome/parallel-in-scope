@@ -129,6 +129,9 @@ explicit human confirmation before implementing it.
   (TYPE_USE position, compile scope). NullAway enforces the annotations at
   compile time via Error Prone; the build requires JDK 25 (LTS) while the
   bytecode target stays at release 8.
+- Do not annotate local variables with `@Nullable`; NullAway tracks local
+  nullness through control flow. `@Nullable` on nested type uses, such as a
+  collection's element type, remains valid.
 - Logging goes through JUL (`java.util.logging.Logger`).
 - Runtime checks follow Guava's conditional-failure taxonomy: caller violations
   use `Preconditions.checkArgument` for arguments, `checkState` for state, and

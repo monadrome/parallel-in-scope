@@ -202,14 +202,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         // Inline execution borrows a thread: isolate its flag and restore the entry state on exit.
         boolean interruptedOnEntry = Thread.interrupted();
-        @Nullable MultiTaskContext borrowedScope = SubmissionScope.current();
+        MultiTaskContext borrowedScope = SubmissionScope.current();
         if (borrowedScope != null) {
             // Nested submissions must not inherit the outer submission's enqueue policy.
             SubmissionScope.restore(null);
         }
         runner = Thread.currentThread();
         boolean skipped = !claimBody();
-        @Nullable Callable<V> body = callable;
+        Callable<V> body = callable;
         boolean cancelled = isCancelled();
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
         try {
