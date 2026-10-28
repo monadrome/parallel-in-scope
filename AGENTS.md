@@ -171,10 +171,10 @@ explicit human confirmation before implementing it.
 - For documentation-only changes, check the diff, referenced paths, and any
   commands against their source configuration; Java tests and formatting are
   unnecessary unless executable code or build behavior also changes.
-- Complete applicable verification and adversarial review before committing.
-  Fix failures caused by the change and rerun affected checks without pausing
-  for review of the first implementation. Report unrelated failures or blockers;
-  do not claim completion while required checks are blocked.
+- Complete applicable local verification before the initial commit. Fix failures
+  caused by the change and rerun affected checks without pausing for review of
+  the first implementation. Report unrelated failures or blockers; do not claim
+  completion while required checks are blocked.
 - Report each check separately and honestly: behavior tests, external consumer,
   independent review, and mutation coverage are distinct facts. Record a blocked
   check as blocked with its reason. A PIT run that started but timed out, or
@@ -212,18 +212,21 @@ explicit human confirmation before implementing it.
 
 ## Adversarial Review
 
-Before committing public API, documented-contract, or concurrency-sensitive
-changes, run an independent review with its own budget:
+After the initial commit of public API, documented-contract, or
+concurrency-sensitive changes, run an independent review with its own budget.
+Use the commit diff as the review baseline so review and fixes can continue in
+later sessions:
 
 - Use a different model or harness (`cmux codexyolo` runs Codex in this repo).
   The reviewer must not edit files. Name attack surfaces: interleavings,
   contract versus implementation, test quality, Java 8, and generics.
 - Diff each contract MUST/MUST NOT named by the change against the
-  implementation line by line; catching drift is a pre-commit review duty,
+  implementation line by line; catching drift is a post-commit review duty,
   not a periodic audit.
-- Later rounds target the previous round's fixes. First read settled findings
-  as the baseline, then look beyond them. Use a fresh seat when context is nearly
-  full or the reviewer starts agreeing with itself.
+- Address confirmed findings in verified follow-up commits. Later rounds review
+  those commit diffs, first reading settled findings as the baseline, then
+  looking beyond them. Use a fresh seat when context is nearly full or the
+  reviewer starts agreeing with itself.
 - Reproduce every finding against the working tree; retain, downgrade, or reject
   it explicitly. Record findings, dispositions (including rejections), and each
   fix's actual effect in the change's `design/` document. Leave the review
