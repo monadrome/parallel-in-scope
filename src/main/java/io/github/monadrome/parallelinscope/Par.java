@@ -178,22 +178,24 @@ public final class Par {
             throw new IllegalArgumentException(
                     "combinePar '" + combinePar.id() + "' belongs to a different ParRuntime");
         }
-        TaskExecutionContext currentTask = TaskExecutionContext.current();
-        if (!options.timeout().isPresent() && currentTask == null) {
-            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
-        }
+        MultiTaskContext parent =
+                MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
         if (elements == null || elements.isEmpty()) {
             throw new IllegalArgumentException(
                     "mapAndCombine requires at least one element; use Par.map for an empty batch");
         }
-        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), elements.size())
+        MultiTaskContext unit = admitUnit(options.spec(), elements.size(), parent);
+        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
+    }
+
+    private MultiTaskContext admitUnit(UnitSpec spec, int taskCount, @Nullable MultiTaskContext parent) {
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(spec, taskCount)
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
                 .executor(executorRuntime, id));
         warnIfEnqueueRefusalInert(unit);
-        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
+        return unit;
     }
 
     /**
@@ -359,17 +361,9 @@ public final class Par {
     }
 
     private <T> TaskFuture<T> submitWhileOpen(String taskName, Callable<T> task, TaskOptions options) {
-        TaskExecutionContext currentTask = TaskExecutionContext.current();
-        if (!options.timeout().isPresent() && currentTask == null) {
-            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
-        }
-        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(taskName), 1)
-                .structuralParent(parent)
-                .ticker(runtime.ticker())
-                .timeoutScheduler(runtime.timeoutScheduler())
-                .executor(executorRuntime, id));
-        warnIfEnqueueRefusalInert(unit);
+        MultiTaskContext parent =
+                MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
+        MultiTaskContext unit = admitUnit(options.spec(taskName), 1, parent);
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         TaskExecutionContext taskContext =
@@ -391,23 +385,15 @@ public final class Par {
             Function<? super T, ? extends @Nullable R> function,
             BatchOptions options) {
         int taskCount = elements == null ? 0 : elements.size();
-        TaskExecutionContext currentTask = TaskExecutionContext.current();
-        if (!options.timeout().isPresent() && currentTask == null) {
-            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
-        }
+        MultiTaskContext parent =
+                MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
         // An empty collection submits nothing, so it must not resolve a unit: resolving builds a
         // child token whose constructor registers a cancellation listener on the parent, and a
         // batch that never runs never completes that token -- so the listener node would stay
         // reachable from the parent for the parent's whole lifetime, one per call.
         // The deadline check above stays first so the documented @throws contract is unchanged.
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
-        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
-        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(options.spec(), taskCount)
-                .structuralParent(parent)
-                .ticker(runtime.ticker())
-                .timeoutScheduler(runtime.timeoutScheduler())
-                .executor(executorRuntime, id));
-        warnIfEnqueueRefusalInert(unit);
+        MultiTaskContext unit = admitUnit(options.spec(), taskCount, parent);
         return executeGlobal(elements, item -> () -> function.apply(item), unit, options);
     }
 
