@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope.queue;
 
 import com.google.common.util.concurrent.Monitor;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.lang.reflect.Array;
 import java.util.AbstractQueue;
 import java.util.ArrayList;
@@ -144,8 +145,10 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     private final AtomicInteger count = new AtomicInteger();
 
     /** Head and tail of the linked queue; head.item is always null. */
+    @GuardedBy("takeMonitor")
     private Node<E> head = new Node<>(null);
 
+    @GuardedBy("putMonitor")
     private Node<E> last = head;
 
     /**
@@ -794,6 +797,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * has normal {@link Collection#clear()} semantics and does not close production.
      */
     @Override
+    @SuppressWarnings("GuardedBy")
     public void clear() {
         fullyLock();
         try {
@@ -851,6 +855,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * mutation policy is checked before the count, so an empty drained queue keeps its {@code
      * mutations} behavior.
      */
+    @SuppressWarnings("GuardedBy")
     private @Nullable Node<E> findMatchingNode(Object target) {
         Node<E> cursor = null;
         Node<E>[] nodes = emptyNodeBatch();
@@ -893,6 +898,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Unlinks a snapshot node by identity if it is still part of the live queue. */
+    @SuppressWarnings("GuardedBy")
     private boolean unlinkIfPresent(Node<E> candidate) {
         boolean changed = false;
         fullyLock();
@@ -933,6 +939,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         return bulkRemove(filter, "removeIf");
     }
 
+    @SuppressWarnings("GuardedBy")
     private boolean bulkRemove(Predicate<? super E> filter, String operation) {
         boolean removed = false;
         Node<E> cursor = null;
@@ -1016,12 +1023,14 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Returns the node after {@code node}, following LBQ's self-link convention. */
+    @SuppressWarnings("GuardedBy")
     private @Nullable Node<E> successor(Node<E> node) {
         Node<E> next = node.next;
         return next == node ? head.next : next;
     }
 
     /** Finds a live node's predecessor, reusing an earlier ancestor when possible. */
+    @SuppressWarnings("GuardedBy")
     private Node<E> findPredecessor(Node<E> node, Node<E> ancestor) {
         Objects.requireNonNull(node, "node");
         Objects.requireNonNull(ancestor, "ancestor");
@@ -1111,6 +1120,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Removes and returns the first element; caller must hold the consumer monitor. */
+    @SuppressWarnings("GuardedBy")
     private E dequeue() {
         Node<E> oldHead = head;
         Node<E> first = Objects.requireNonNull(oldHead.next, "queue is empty");
@@ -1122,6 +1132,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     }
 
     /** Unlinks one known live node; caller must hold both monitors. Returns the removed item. */
+    @SuppressWarnings("GuardedBy")
     private E unlink(Node<E> trail, Node<E> node) {
         E item = Objects.requireNonNull(node.item);
         node.item = null;
@@ -1158,6 +1169,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
      * virtual poison signal.
      */
     @Override
+    @SuppressWarnings("GuardedBy")
     public Object[] toArray() {
         fullyLock();
         try {
@@ -1229,6 +1241,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         forEachFrom(action, null);
     }
 
+    @SuppressWarnings("GuardedBy")
     private void forEachFrom(Consumer<? super E> action, @Nullable Node<E> cursor) {
         Object[] elements = null;
         int length = 0;
@@ -1289,6 +1302,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
 
         @Override
+        @SuppressWarnings("GuardedBy")
         public @Nullable Spliterator<E> trySplit() {
             if (exhausted) {
                 return null;
@@ -1321,6 +1335,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
         }
 
         @Override
+        @SuppressWarnings("GuardedBy")
         public boolean tryAdvance(Consumer<? super E> action) {
             Objects.requireNonNull(action, "action");
             if (exhausted) {
@@ -1481,6 +1496,7 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
 
         /** Removes the last returned node by identity when it remains linked to the live queue. */
         @Override
+        @SuppressWarnings("GuardedBy")
         public void remove() {
             Node<E> node = lastReturned;
             if (node == null) {

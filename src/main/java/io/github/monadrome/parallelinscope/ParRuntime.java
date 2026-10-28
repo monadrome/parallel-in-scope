@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.alibaba.ttl.TtlUnwrap;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSetMultimap;
@@ -14,6 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.errorprone.annotations.MustBeClosed;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -299,11 +301,13 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
+    @VisibleForTesting
     Map<ParId, ExecutorRuntime> runtimes() {
         return runtimes;
     }
 
     /** Package-private identity index; runtime binding is not a public application API. */
+    @VisibleForTesting
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
     }
@@ -324,6 +328,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if {@code samplingInterval} is less than 10 milliseconds
      * @throws IllegalStateException if this runtime has begun shutdown
      */
+    @MustBeClosed
     public ThreadPoolStarvationObservationScope openThreadPoolStarvationObservation(Duration samplingInterval) {
         checkNotNull(samplingInterval, "sampling interval cannot be null");
         checkArgument(
@@ -746,12 +751,14 @@ public final class ParRuntime implements AutoCloseable {
         }
 
         /** Test seam: the root clock domain. Package-private; not a supported public SPI. */
+        @VisibleForTesting
         Builder ticker(Ticker ticker) {
             this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
             return this;
         }
 
         /** Test seam: the deadline scheduler. Package-private; not a supported public SPI. */
+        @VisibleForTesting
         Builder timeoutScheduler(ScheduledExecutorService scheduler) {
             this.timeoutScheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
             return this;
@@ -764,6 +771,7 @@ public final class ParRuntime implements AutoCloseable {
          *     registered thread pool, including one behind a recognized TTL wrapper, uses {@link
          *     ThreadPoolExecutor.DiscardPolicy} or {@link ThreadPoolExecutor.DiscardOldestPolicy}
          */
+        @MustBeClosed
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultId);

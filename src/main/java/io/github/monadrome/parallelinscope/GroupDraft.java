@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -227,6 +228,7 @@ final class GroupDraft {
         }
 
         @Override
+        @CanIgnoreReturnValue
         public Start closeGrace(Duration grace) {
             draft.checkThread();
             draft.checkStage(0);
@@ -235,6 +237,7 @@ final class GroupDraft {
         }
 
         @Override
+        @CanIgnoreReturnValue
         public Start cancelOn(ListenableFuture<?> signal, boolean interrupt) {
             draft.checkThread();
             draft.checkStage(0);

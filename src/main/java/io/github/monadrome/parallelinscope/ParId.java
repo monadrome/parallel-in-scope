@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
+
 /**
  * Identity of one {@link Par} entry registered on a {@link ParRuntime}.
  *
@@ -23,6 +25,7 @@ package io.github.monadrome.parallelinscope;
  *
  * @since 0.3.0
  */
+@Immutable
 public final class ParId {
     private final String value;
 

@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.time.Duration;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -22,6 +23,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.3.0
  */
+@CheckReturnValue
 public final class BatchOptions {
     private final String name;
     private final int parallelism;

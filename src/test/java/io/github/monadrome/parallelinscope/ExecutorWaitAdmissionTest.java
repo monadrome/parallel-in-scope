@@ -191,10 +191,11 @@ class ExecutorWaitAdmissionTest {
         ParRuntime runtime = runtime("io", buffering());
         TaskKey<Integer> only = TaskKey.named("only");
 
-        runtime.group("top", TIMEOUT)
+        TaskGroupResult<Integer, Void> result = runtime.group("top", TIMEOUT)
                 .par(only, runtime.par(ParId.of("io")), () -> 1)
                 .runAll();
 
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
     }
 

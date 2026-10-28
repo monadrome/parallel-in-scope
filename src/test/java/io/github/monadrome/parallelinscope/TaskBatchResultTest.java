@@ -110,7 +110,6 @@ public class TaskBatchResultTest {
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     public void batchReport_rejectsNullStateCounts() {

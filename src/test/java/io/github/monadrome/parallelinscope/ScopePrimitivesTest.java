@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
  */
 class ScopePrimitivesTest {
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void executorIdentityBindsToTheExactSuppliedObject() {
@@ -53,7 +52,6 @@ class ScopePrimitivesTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void parIdsAreValidatedByTheValueTypeAndNeverNormalized() {
@@ -115,7 +113,6 @@ class ScopePrimitivesTest {
                 MultiTaskContext.resolution(options.spec(), taskCount).structuralParent(parent));
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void resolveNormalizesParallelismAgainstTaskCount() {
@@ -132,7 +129,6 @@ class ScopePrimitivesTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void resolveAppliesExplicitTimeoutAndOverflowGuard() {
@@ -149,7 +145,6 @@ class ScopePrimitivesTest {
         assertThat(overflow.deadlineNanos()).isEqualTo(Deadlines.LATEST_FINITE_DEADLINE);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void childDeadlineNeverExceedsParentDeadline() {
@@ -160,14 +155,12 @@ class ScopePrimitivesTest {
         assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void resolveRejectsNullOptions() {
         assertThatThrownBy(() -> MultiTaskContext.resolution(null, 1)).isInstanceOf(NullPointerException.class);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
@@ -187,7 +180,6 @@ class ScopePrimitivesTest {
         assertThat(context.cancellationToken()).isNotNull();
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void scopedCallableRejectsNullConstructionArguments() {

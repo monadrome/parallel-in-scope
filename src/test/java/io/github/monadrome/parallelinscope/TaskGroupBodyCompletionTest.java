@@ -362,7 +362,6 @@ class TaskGroupBodyCompletionTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void awaitBodyCompletionValidatesArgumentsAndHonorsInterruption() throws Exception {

@@ -274,7 +274,6 @@ class TaskBatchResultBodyCompletionTest {
         assertThat(tracker.awaitBodyCompletion(Duration.ZERO)).isTrue();
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void cancelAfterEligibilityClaimButBeforeBodyEntryReleasesSlotViaFallback() throws Exception {
@@ -728,7 +727,6 @@ class TaskBatchResultBodyCompletionTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void awaitValidatesArgumentsBeforeCheckingCompletion() throws Exception {
@@ -753,10 +751,9 @@ class TaskBatchResultBodyCompletionTest {
     @Test
     void successfulAwaitEstablishesVisibilityOfBodyWrites() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), executor).build();
         int[] writes = new int[2];
-        try {
+        try (ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build()) {
             TaskBatch<Integer> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList(0, 1),
@@ -769,7 +766,6 @@ class TaskBatchResultBodyCompletionTest {
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
             assertThat(writes).containsExactly(1, 2);
         } finally {
-            global.close();
             executor.shutdownNow();
         }
     }

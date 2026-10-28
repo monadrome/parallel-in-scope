@@ -476,7 +476,6 @@ class VariableLinkedBlockingQueueTest {
         assertFalse(queue.offer("b"));
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void offer_null_rejected() {
@@ -614,7 +613,6 @@ class VariableLinkedBlockingQueueTest {
         assertTrue(queue.offer("c"));
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void drainTo_selfOrNull_rejected() {

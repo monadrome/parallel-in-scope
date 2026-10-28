@@ -139,7 +139,7 @@
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true -Xep:MustBeClosedChecker:WARN</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>

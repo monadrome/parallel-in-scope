@@ -278,7 +278,6 @@ class ParRuntimeTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {

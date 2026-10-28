@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Verify.verifyNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractFuture;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -79,6 +80,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     /** Test probe for body-reference release. */
+    @VisibleForTesting
     boolean callableReleased() {
         return callable == null;
     }

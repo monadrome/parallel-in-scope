@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -472,6 +473,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      *
      * @throws IndexOutOfBoundsException if {@code index} is out of range
      */
+    @VisibleForTesting
     boolean callableReleasedAt(int index) {
         return memberAt(index).future.callableReleased();
     }
@@ -483,6 +485,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * @throws NullPointerException if {@code name} is null
      * @throws IllegalArgumentException if no member or combine was declared with that name
      */
+    @VisibleForTesting
     boolean callableReleased(String name) {
         Objects.requireNonNull(name, "name cannot be null");
         MemberState member = memberStates.get(name);
@@ -1174,11 +1177,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
         }
 
         /** Package-private probe for ownership tests. */
+        @VisibleForTesting
         boolean taskSlotCleared(int memberIndex) {
             return taskBodies[memberIndex] == null;
         }
 
         /** Package-private probe for ownership tests. */
+        @VisibleForTesting
         boolean combineSlotCleared() {
             return combineBody == null;
         }

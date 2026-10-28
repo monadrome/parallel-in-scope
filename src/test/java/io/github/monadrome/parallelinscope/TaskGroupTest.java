@@ -823,7 +823,6 @@ class TaskGroupTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void declarationValidatesItsMembersAndEachSubmitIsAFreshRun() throws Exception {
@@ -905,7 +904,6 @@ class TaskGroupTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void futureRejectsAnUnknownMemberName() throws Exception {

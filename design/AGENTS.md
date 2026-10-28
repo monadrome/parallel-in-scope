@@ -148,4 +148,4 @@
 | [proposal/P0024-comment-and-javadoc-maintenance.md](proposal/P0024-comment-and-javadoc-maintenance.md) | P0012 剩余的访问器 Javadoc、重复注释与测试断言维护；责任说明及失效指针已修 |
 | [proposal/P0025-workload-fit-diagnostics.md](proposal/P0025-workload-fit-diagnostics.md) | `TaskType` 改为任务与线程池共用的可选诊断声明（缺省 `UNKNOWN`，不影响执行）：提交时声明比对 + 观测窗口内低 CPU 筛查，发现阻塞任务进计算池；决定见 adr/0008 |
 | [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |
-| [proposal/P0028-annotation-and-comment-layers.md](proposal/P0028-annotation-and-comment-layers.md) | 注解层与块注释层：机器可判定的契约进注解，跨方法协议用 10–30 行块注释，保留语句级证明；先试点 CheckReturnValue / GuardedBy |
+| [proposal/P0028-annotation-and-comment-layers.md](proposal/P0028-annotation-and-comment-layers.md) | 注解层与块注释层共识稿：类/接口级 CheckReturnValue、队列 head/last 单锁 GuardedBy、MustBeClosed/Immutable，补 10–30 行协议块注释；保留 75 条语句级证明 |

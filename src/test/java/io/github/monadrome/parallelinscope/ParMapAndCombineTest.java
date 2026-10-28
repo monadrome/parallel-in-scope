@@ -347,13 +347,11 @@ class ParMapAndCombineTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     private static java.util.function.Function<Integer, Integer> nullFunction() {
         return null;
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     private static CombineBody<List<@Nullable Integer>, Integer> nullBody() {
         return null;
