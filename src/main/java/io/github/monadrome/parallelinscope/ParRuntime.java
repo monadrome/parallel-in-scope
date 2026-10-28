@@ -300,13 +300,13 @@ public final class ParRuntime implements AutoCloseable {
         return pars;
     }
 
-    /** Package-private diagnostic topology for scope tests and internal maintenance. */
+    /** Package-private diagnostic topology for scope tests. */
     @VisibleForTesting
     Map<ParId, ExecutorRuntime> runtimes() {
         return runtimes;
     }
 
-    /** Package-private identity index; runtime binding is not a public application API. */
+    /** Package-private identity index for scope tests. */
     @VisibleForTesting
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;

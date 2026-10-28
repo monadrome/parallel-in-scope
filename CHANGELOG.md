@@ -94,6 +94,12 @@
 
 ### Build
 
+- Add Error Prone contract annotations to the API: immutable option withers and one-shot group
+  stages require their return values, while `orThrow()` remains valid as a standalone failure check.
+  `ParRuntime.Builder.build()` and starvation-observation scopes carry `@MustBeClosed`; downstream
+  Error Prone users should close these resources with try-with-resources. Add lock ownership,
+  immutability, and test-visibility annotations without changing runtime behavior. See the v0.4
+  migration guide.
 - Start the `0.4.0-SNAPSHOT` development line on `dev/v0.4.0`, preserving the
   previous snapshot publication gate and library/demo verification steps.
 

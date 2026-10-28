@@ -41,6 +41,17 @@ key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔�
 取消、deadline、TTL、终端成功门控和有界清理保持原语义。移除的 API 不提供兼容 shim，
 消费方须使用 0.4 重新编译。
 
+## 静态契约注解
+
+API 新增 Error Prone 注解，不改变运行行为。必须使用 `BatchOptions` 和 `TaskOptions`
+各个 wither 返回的副本，以及组 `par`、`combine`、`combineValues` 返回的下一阶段；同时须使用
+`runAll` 返回的冻结结果。独立的 `result.orThrow();` 仍是完整用法，因为方法自身就会抛出失败。
+
+`ParRuntime.Builder.build()` 和 `openThreadPoolStarvationObservation()` 返回的资源须用
+try-with-resources 关闭。下游 Error Prone 构建会报告违反 `@CheckReturnValue` 和
+`@MustBeClosed` 契约的调用。`orThrow()` 使用 `@CanIgnoreReturnValue`；本库自身的
+`MustBeClosedChecker` 在测试迁移期间保持 WARN，但这不削弱发布给调用方的资源所有权契约。
+
 ## 饥饿观测快照
 
 使用早期 0.4 开发 API 的调用方将 `evidence.stagnantSamples()` 改为

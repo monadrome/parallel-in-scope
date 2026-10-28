@@ -3,7 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.errorprone.annotations.CheckReturnValue;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -105,7 +105,7 @@ final class TaskGroupReport {
      * @throws RuntimeException the recorded failure, when a member or the combine failed
      * @throws Error the recorded failure, when a member or the combine threw an error
      */
-    @CheckReturnValue
+    @CanIgnoreReturnValue
     TaskGroupReport orThrow() {
         if (outcome == TaskOutcome.SUCCESS) {
             return this;
