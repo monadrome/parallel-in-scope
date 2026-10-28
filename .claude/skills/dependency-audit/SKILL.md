@@ -25,11 +25,14 @@ description: Triage the monthly dependency audit. Use when the user asks about o
    - or `python3 scripts/check-dependency-updates.py --format json`
 2. Do not re-check items with `status: current`, `managed`, `not_used`, or
    `unpinned`. They are already classified.
-3. For each `status: needs_review` or `status: unknown` item:
+3. For each `status: needs_review`, `unknown`, or `outdated` item:
    - Find the release notes and the minimum Java version.
    - Check for removed or changed APIs, deprecations, and behavior changes that
      affect this repository.
    - Record the source URL and a one-line conclusion.
+   - Do not put a patch or minor in "Safe to upgrade now" until its release
+     notes and minimum Java version have been checked; a minor release can
+     raise the Java baseline.
 4. Render the triage table in the output format below. Keep the script's
    `current`, `latest`, and `delta` values; add an `assessment` column.
 5. Group upgrade proposals by patch, minor, and major. Major upgrades require a
@@ -50,7 +53,8 @@ description: Triage the monthly dependency audit. Use when the user asks about o
 
 End with three short sections:
 
-- **Safe to upgrade now**: patch/minor with no relevant breaking changes.
+- **Safe to upgrade now**: patch/minor whose release notes and minimum Java
+  version have been checked and show no relevant breaking changes.
 - **Needs a decision**: major upgrades, minimum-Java changes, or behavior changes.
 - **Unknown**: anything the script or the lookup could not resolve.
 

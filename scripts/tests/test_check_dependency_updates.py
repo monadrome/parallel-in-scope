@@ -67,11 +67,13 @@ class VersionTest(unittest.TestCase):
         self.assertFalse(updates.is_stable("35.0.0-jre-SNAPSHOT"))
         self.assertFalse(updates.is_stable("1.0.0-RC1"))
         self.assertFalse(updates.is_stable("1.0.0-alpha1"))
+        self.assertFalse(updates.is_stable("1.1.0.CR1"))
 
     def test_version_key(self):
         self.assertEqual(updates.version_key("33.6.0-jre"), (33, 6, 0))
         self.assertEqual(updates.version_key("v7.0.1"), (7, 0, 1))
-        self.assertEqual(updates.version_key("1"), (1, 0, 0))
+        self.assertEqual(updates.version_key("1"), (1,))
+        self.assertEqual(updates.version_key("1.2.3.4"), (1, 2, 3, 4))
 
     def test_classify_delta(self):
         self.assertEqual(updates.classify_delta("33.6.0-jre", "33.7.2-jre"), "minor")
@@ -80,6 +82,12 @@ class VersionTest(unittest.TestCase):
         self.assertEqual(updates.classify_delta("1.0.0", "1.0.0"), "none")
         self.assertEqual(updates.classify_delta("2.0.0", "1.0.0"), "unknown")
         self.assertEqual(updates.classify_delta("v6", "v7.0.1"), "major")
+        self.assertEqual(updates.classify_delta("1.2.3.4", "1.2.3.5"), "patch")
+        self.assertEqual(updates.classify_delta("1.2.3", "1.2.3.0"), "qualifier")
+
+    def test_select_latest_tag_requires_stable(self):
+        self.assertEqual(updates.select_latest_tag(["v1.0.0-RC1", "v0.9.0"]), "v0.9.0")
+        self.assertIsNone(updates.select_latest_tag(["v1.0.0-RC1"]))
 
     def test_action_delta(self):
         self.assertEqual(updates.action_delta("v6", "v7.0.1"), ("major", "needs_review"))
@@ -103,11 +111,20 @@ class PomTest(unittest.TestCase):
         surefire = next(entry for entry in entries if entry["artifact"] == "maven-surefire-plugin")
         self.assertEqual(surefire["group"], "org.apache.maven.plugins")
 
+    def test_parse_management(self):
+        management, imports = updates.parse_management(FIXTURES / "pom.xml")
+        self.assertEqual(management[("dependency", "org.example", "managed")], "1.2.3")
+        self.assertEqual(imports, [("org.example", "fixture-bom", "9.9.9")])
+
     def test_latest_stable_prefers_same_suffix(self):
         metadata = (FIXTURES / "maven-metadata.xml").read_bytes()
         self.assertEqual(updates.latest_stable(metadata, "33.0.0-jre"), "34.0.0-jre")
         self.assertEqual(updates.latest_stable(metadata, "33.0.0-android"), "34.0.0-android")
         self.assertIn(updates.latest_stable(metadata, "33.0.0"), {"34.0.0-jre", "34.0.0-android"})
+
+    def test_latest_stable_does_not_cross_suffix(self):
+        metadata = b"<metadata><versioning><versions><version>34.0.0-android</version></versions></versioning></metadata>"
+        self.assertIsNone(updates.latest_stable(metadata, "33.0.0-jre"))
 
     def test_latest_stable_returns_none_without_release(self):
         metadata = b"<metadata><versioning><versions><version>1.0.0-SNAPSHOT</version></versions></versioning></metadata>"
@@ -146,7 +163,25 @@ class CollectionTest(unittest.TestCase):
         guava = next(item for item in items if item.component == "com.google.guava:guava")
         self.assertEqual(guava.current, "33.0.0-jre")
         managed = next(item for item in items if item.component == "org.example:managed")
-        self.assertEqual(managed.status, "managed")
+        self.assertEqual(managed.current, "1.2.3")
+        self.assertEqual(managed.status, "unknown")
+        self.assertIn("dependencyManagement", managed.reason)
+
+    def test_collect_maven_unversioned_without_management_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_root(Path(temporary))
+            (root / "pom.xml").write_text(
+                '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+                "<modelVersion>4.0.0</modelVersion><groupId>example</groupId>"
+                "<artifactId>root</artifactId><version>1.0.0</version>"
+                "<dependencies><dependency><groupId>org.example</groupId>"
+                "<artifactId>orphan</artifactId></dependency></dependencies></project>",
+                encoding="utf-8",
+            )
+            items = updates.collect_maven(root, timeout=1, offline=True)
+        orphan = next(item for item in items if item.component == "org.example:orphan")
+        self.assertEqual(orphan.status, "unknown")
+        self.assertIn("unversioned", orphan.reason)
 
     def test_fetch_failure_marks_unknown(self):
         with mock.patch.object(updates, "fetch", side_effect=RuntimeError("boom")):
@@ -183,6 +218,27 @@ class TokenTest(unittest.TestCase):
                 self.assertIsNone(updates.github_token())
 
 
+class PypiTest(unittest.TestCase):
+    def test_missing_requirements_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            items = updates.collect_pypi(Path(temporary), timeout=1, offline=True)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].status, "unknown")
+        self.assertIn("missing", items[0].reason)
+
+    def test_unsupported_line_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "mkdocs").mkdir()
+            (root / "mkdocs" / "requirements.txt").write_text(
+                "mkdocs==1.6.1\nunpinned-package\n", encoding="utf-8"
+            )
+            items = updates.collect_pypi(root, timeout=1, offline=True)
+        unsupported = next(item for item in items if item.component == "unpinned-package")
+        self.assertEqual(unsupported.status, "unknown")
+        self.assertIn("unsupported", unsupported.reason)
+
+
 class RenderTest(unittest.TestCase):
     def setUp(self):
         self.items = [
@@ -212,6 +268,13 @@ class RenderTest(unittest.TestCase):
             "generated_at": "2026-10-28T03:00:00Z",
             "date": "2026-10-28",
         }
+
+    def test_markdown_cell_sanitizes(self):
+        cell = updates.markdown_cell("evil\n@user|`x")
+        self.assertNotIn("\n", cell)
+        self.assertIn("@\u200buser", cell)
+        self.assertIn("\\|", cell)
+        self.assertIn("\\`", cell)
 
     def test_markdown_sections(self):
         rendered = updates.render_markdown(self.items, self.meta)

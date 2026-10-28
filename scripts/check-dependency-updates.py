@@ -39,7 +39,7 @@ POM_FILES = (
 )
 LATEST_LTS = 25
 PRERELEASE_RE = re.compile(
-    r"(?i)(?:^|[-.])(snapshot|alpha|beta|rc|m|ea|preview|dev)\d*(?:[-.]|$)"
+    r"(?i)(?:^|[-.])(snapshot|alpha|beta|rc|cr|m|ea|preview|dev)\d*(?:[-.]|$)"
 )
 USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)")
 REQUIREMENT_RE = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*==\s*([^\s;#]+)")
@@ -93,12 +93,11 @@ def is_stable(version: str) -> bool:
     return bool(version) and not PRERELEASE_RE.search(version)
 
 
-def version_key(version: str) -> tuple[int, int, int]:
+def version_key(version: str) -> tuple[int, ...]:
     match = re.match(r"^[^\d]*(\d+(?:\.\d+)*)", version)
     if not match:
-        return (0, 0, 0)
-    parts = [int(part) for part in match.group(1).split(".")[:3]]
-    return tuple(parts + [0] * (3 - len(parts)))
+        return (0,)
+    return tuple(int(part) for part in match.group(1).split("."))
 
 
 def version_suffix(version: str) -> str:
@@ -113,13 +112,18 @@ def classify_delta(current: str, latest: str) -> str:
         return "none"
     current_key = version_key(current)
     latest_key = version_key(latest)
+    width = max(len(current_key), len(latest_key))
+    current_key += (0,) * (width - len(current_key))
+    latest_key += (0,) * (width - len(latest_key))
     if latest_key > current_key:
-        if latest_key[0] != current_key[0]:
-            return "major"
-        if latest_key[1] != current_key[1]:
-            return "minor"
-        if latest_key[2] != current_key[2]:
-            return "patch"
+        for index in range(width):
+            if latest_key[index] != current_key[index]:
+                if index == 0:
+                    return "major"
+                if index == 1:
+                    return "minor"
+                return "patch"
+    if latest_key == current_key:
         return "qualifier"
     return "unknown"
 
@@ -154,10 +158,24 @@ def parse_pom(path: Path, inherited: dict[str, str] | None = None) -> tuple[list
         for key in list(properties):
             properties[key] = resolve(properties[key], properties) or ""
 
+    parents = {child: parent for parent in root.iter() for child in parent}
+
+    def inside(element: ET.Element, names: set[str]) -> bool:
+        current = parents.get(element)
+        while current is not None:
+            if local_name(current.tag) in names:
+                return True
+            current = parents.get(current)
+        return False
+
     entries: list[dict[str, str | None]] = []
     for element in root.iter():
         kind = local_name(element.tag)
         if kind not in ("dependency", "plugin"):
+            continue
+        if inside(element, {"dependencyManagement", "pluginManagement"}):
+            continue
+        if kind == "dependency" and inside(element, {"plugin"}):
             continue
         group = artifact = version = None
         for child in element:
@@ -186,6 +204,82 @@ def parse_pom(path: Path, inherited: dict[str, str] | None = None) -> tuple[list
     return entries, properties
 
 
+def management_from_root(
+    root: ET.Element, inherited_properties: dict[str, str] | None = None
+) -> tuple[dict[tuple[str, str, str], str], list[tuple[str, str, str]]]:
+    properties = dict(inherited_properties or {})
+    for element in root.iter():
+        if local_name(element.tag) != "properties":
+            continue
+        for property_element in element:
+            properties[local_name(property_element.tag)] = (property_element.text or "").strip()
+    for _ in range(5):
+        for key in list(properties):
+            properties[key] = resolve(properties[key], properties) or ""
+
+    management: dict[tuple[str, str, str], str] = {}
+    imports: list[tuple[str, str, str]] = []
+    for section_name, kind, container_name in (
+        ("dependencyManagement", "dependency", "dependencies"),
+        ("pluginManagement", "plugin", "plugins"),
+    ):
+        for section in root.iter():
+            if local_name(section.tag) != section_name:
+                continue
+            for container in section:
+                if local_name(container.tag) != container_name:
+                    continue
+                for entry in container:
+                    if local_name(entry.tag) != kind:
+                        continue
+                    group = artifact = version = entry_type = scope = None
+                    for child in entry:
+                        child_name = local_name(child.tag)
+                        text = (child.text or "").strip()
+                        if child_name == "groupId":
+                            group = text
+                        elif child_name == "artifactId":
+                            artifact = text
+                        elif child_name == "version":
+                            version = text
+                        elif child_name == "type":
+                            entry_type = text
+                        elif child_name == "scope":
+                            scope = text
+                    if not artifact:
+                        continue
+                    if kind == "plugin" and not group:
+                        group = "org.apache.maven.plugins"
+                    if not group:
+                        continue
+                    resolved = resolve(version, properties) if version else None
+                    if kind == "dependency" and entry_type == "pom" and scope == "import" and resolved:
+                        imports.append((group, artifact, resolved))
+                    elif resolved:
+                        management[(kind, group, artifact)] = resolved
+    return management, imports
+
+
+def parse_management(
+    path: Path, inherited: dict[str, str] | None = None
+) -> tuple[dict[tuple[str, str, str], str], list[tuple[str, str, str]]]:
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError) as exc:
+        raise FatalAuditError(f"cannot parse {path}: {exc}") from exc
+    return management_from_root(root, inherited)
+
+
+def parse_management_bytes(
+    data: bytes, inherited: dict[str, str] | None = None
+) -> tuple[dict[tuple[str, str, str], str], list[tuple[str, str, str]]]:
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError as exc:
+        raise FatalAuditError(f"cannot parse BOM: {exc}") from exc
+    return management_from_root(root, inherited)
+
+
 def latest_stable(metadata: bytes, current: str) -> str | None:
     root = ET.fromstring(metadata)
     versions = [
@@ -199,8 +293,9 @@ def latest_stable(metadata: bytes, current: str) -> str | None:
     suffix = version_suffix(current)
     if suffix:
         same_suffix = [version for version in stable if version_suffix(version) == suffix]
-        if same_suffix:
-            stable = same_suffix
+        if not same_suffix:
+            return None
+        stable = same_suffix
     return max(stable, key=version_key)
 
 
@@ -242,16 +337,46 @@ def check_maven(
     return Item(kind, module, component, current, latest, delta, status_for_delta(delta), source=source)
 
 
+def load_bom_management(
+    imports: list[tuple[str, str, str]],
+    cache: dict[tuple[str, str, str], dict[tuple[str, str, str], str]],
+    timeout: float,
+    offline: bool,
+) -> None:
+    for group, artifact, version in imports:
+        key = (group, artifact, version)
+        if key in cache:
+            continue
+        if offline:
+            cache[key] = {}
+            continue
+        url = (
+            f"{MAVEN_CENTRAL}/{group.replace('.', '/')}/{artifact}/{version}/"
+            f"{artifact}-{version}.pom"
+        )
+        try:
+            management, _ = parse_management_bytes(fetch(url, timeout))
+            cache[key] = management
+        except Exception:  # noqa: BLE001 - unresolved entries become unknown
+            cache[key] = {}
+
+
 def collect_maven(root: Path, timeout: float, offline: bool) -> list[Item]:
     root_pom = root / "pom.xml"
     _, root_properties = parse_pom(root_pom)
+    root_management, root_imports = parse_management(root_pom, root_properties)
+    bom_cache: dict[tuple[str, str, str], dict[tuple[str, str, str], str]] = {}
     items: list[Item] = []
     seen: set[tuple[str, str, str, str]] = set()
     for module, relative in POM_FILES:
         path = root / relative
         if not path.exists():
             raise FatalAuditError(f"missing POM: {path}")
-        entries, _ = parse_pom(path, inherited=root_properties)
+        entries, properties = parse_pom(path, inherited=root_properties)
+        module_management, module_imports = parse_management(path, properties)
+        management = {**root_management, **module_management}
+        imports = list(dict.fromkeys(root_imports + module_imports))
+        load_bom_management(imports, bom_cache, timeout, offline)
         # One entry per (kind, group, artifact) per module; a versioned declaration
         # wins over an unversioned pluginManagement placeholder.
         by_coordinate: dict[tuple[str, str, str], dict[str, str | None]] = {}
@@ -263,31 +388,42 @@ def collect_maven(root: Path, timeout: float, offline: bool) -> list[Item]:
         for entry in by_coordinate.values():
             group = str(entry["group"])
             artifact = str(entry["artifact"])
+            element = str(entry["element"])
             version = entry["version"]
             if (group, artifact) == PROJECT_COORD:
                 continue
-            key = (module, str(entry["element"]), group, artifact)
+            key = (module, element, group, artifact)
             if key in seen:
                 continue
             seen.add(key)
-            kind = "maven-plugin" if entry["element"] == "plugin" else "maven-dependency"
+            kind = "maven-plugin" if element == "plugin" else "maven-dependency"
             component = f"{group}:{artifact}"
-            if not version:
-                items.append(
-                    Item(kind, module, component, "", "", "unknown", "managed", "version is managed by the parent or a BOM")
-                )
-                continue
-            if "${" in version:
-                items.append(
-                    Item(kind, module, component, version, "", "unknown", "managed", "unresolved property")
-                )
-                continue
+            resolution_reason = ""
+            if not version or "${" in version:
+                managed = management.get((element, group, artifact))
+                if not managed:
+                    for bom_entries in bom_cache.values():
+                        managed = bom_entries.get((element, group, artifact))
+                        if managed:
+                            break
+                if managed and "${" not in managed:
+                    version = managed
+                    resolution_reason = "version from dependencyManagement/pluginManagement or a BOM"
+                else:
+                    reason = (
+                        "unversioned and not found in dependencyManagement/pluginManagement or a BOM"
+                        if not version
+                        else f"unresolved property {version} and no management entry"
+                    )
+                    items.append(Item(kind, module, component, version or "", "", "unknown", "unknown", reason))
+                    continue
             if "SNAPSHOT" in version.upper():
-                items.append(
-                    Item(kind, module, component, version, "", "none", "managed", "snapshot version")
-                )
+                items.append(Item(kind, module, component, version, "", "none", "managed", "snapshot version"))
                 continue
-            items.append(check_maven(kind, module, group, artifact, version, timeout, offline))
+            item = check_maven(kind, module, group, artifact, version, timeout, offline)
+            if resolution_reason:
+                item.reason = "; ".join(filter(None, [resolution_reason, item.reason]))
+            items.append(item)
     return items
 
 
@@ -344,6 +480,11 @@ def collect_actions(root: Path, timeout: float, offline: bool, token: str | None
     return items
 
 
+def select_latest_tag(tags: list[str]) -> str | None:
+    stable = [tag for tag in tags if is_stable(tag)]
+    return max(stable, key=version_key) if stable else None
+
+
 def latest_action(repo: str, timeout: float, token: str | None) -> str | None:
     headers = {"Accept": "application/vnd.github+json"}
     if token:
@@ -352,8 +493,8 @@ def latest_action(repo: str, timeout: float, token: str | None) -> str | None:
         data = json.loads(fetch(f"{GITHUB_API}/repos/{repo}/releases/latest", timeout, headers))
         tag = data.get("tag_name") or data.get("name")
         # Some repositories publish non-action releases (codeql-action publishes
-        # codeql-bundle-vX.Y.Z). Only a leading version tag identifies the action.
-        if tag and re.match(r"^v?\d", str(tag)):
+        # codeql-bundle-vX.Y.Z). Only a stable, leading-version tag identifies the action.
+        if tag and re.match(r"^v?\d", str(tag)) and is_stable(str(tag)):
             return str(tag)
     except urllib.error.HTTPError as exc:
         if exc.code != 404:
@@ -362,10 +503,7 @@ def latest_action(repo: str, timeout: float, token: str | None) -> str | None:
         pass
     data = json.loads(fetch(f"{GITHUB_API}/repos/{repo}/tags?per_page=100", timeout, headers))
     tags = [str(tag["name"]) for tag in data if tag.get("name")]
-    stable = [tag for tag in tags if is_stable(tag)]
-    if stable:
-        return max(stable, key=version_key)
-    return tags[0] if tags else None
+    return select_latest_tag(tags)
 
 
 def action_delta(current: str, latest: str) -> tuple[str, str]:
@@ -382,11 +520,20 @@ def action_delta(current: str, latest: str) -> tuple[str, str]:
     return delta, status_for_delta(delta)
 
 
+def requirement_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            lines.append(line)
+    return lines
+
+
 def parse_requirements(text: str) -> list[tuple[str, str]]:
-    """Return (name, version) pairs from a pinned requirements file."""
+    """Return (name, version) pairs from exact name==version requirement lines."""
     found: list[tuple[str, str]] = []
-    for line in text.splitlines():
-        match = REQUIREMENT_RE.match(line)
+    for line in requirement_lines(text):
+        match = REQUIREMENT_RE.fullmatch(line)
         if match:
             found.append((match.group(1), match.group(2)))
     return found
@@ -395,9 +542,36 @@ def parse_requirements(text: str) -> list[tuple[str, str]]:
 def collect_pypi(root: Path, timeout: float, offline: bool) -> list[Item]:
     requirements = root / "mkdocs" / "requirements.txt"
     if not requirements.exists():
-        return []
+        return [
+            Item(
+                "pypi",
+                "mkdocs",
+                "requirements.txt",
+                "",
+                "",
+                "unknown",
+                "unknown",
+                "mkdocs/requirements.txt is missing",
+            )
+        ]
     items: list[Item] = []
-    for name, current in parse_requirements(requirements.read_text(encoding="utf-8")):
+    for line in requirement_lines(requirements.read_text(encoding="utf-8")):
+        match = REQUIREMENT_RE.fullmatch(line)
+        if not match:
+            items.append(
+                Item(
+                    "pypi",
+                    "mkdocs",
+                    line,
+                    "",
+                    "",
+                    "unknown",
+                    "unknown",
+                    "unsupported requirement line; pin it with name==version",
+                )
+            )
+            continue
+        name, current = match.group(1), match.group(2)
         source = f"{PYPI_API}/{name}/json"
         if offline:
             items.append(Item("pypi", "mkdocs", name, current, "", "unknown", "unknown", "offline mode", source))
@@ -539,6 +713,12 @@ def github_token() -> str | None:
         return None
 
 
+def markdown_cell(value: str) -> str:
+    text = value.replace("\r", " ").replace("\n", " ")
+    text = text.replace("|", "\\|").replace("`", "\\`")
+    return re.sub(r"@(?=[A-Za-z0-9_-])", "@\u200b", text)
+
+
 def render_markdown(items: list[Item], meta: dict[str, str]) -> str:
     sections = (
         ("maven-dependency", "Maven dependencies"),
@@ -575,7 +755,7 @@ def render_markdown(items: list[Item], meta: dict[str, str]) -> str:
             lines.append(
                 "| "
                 + " | ".join(
-                    value.replace("|", "\\|")
+                    markdown_cell(value)
                     for value in (
                         item.module,
                         item.component,
@@ -595,7 +775,10 @@ def render_markdown(items: list[Item], meta: dict[str, str]) -> str:
         lines.append("None.")
     else:
         for item in sorted(unknown, key=lambda entry: (entry.kind, entry.component)):
-            lines.append(f"- `{item.component}` ({item.module}): {item.reason}")
+            lines.append(
+                f"- `{markdown_cell(item.component)}` ({markdown_cell(item.module)}): "
+                f"{markdown_cell(item.reason)}"
+            )
     lines.append("")
     return "\n".join(lines)
 
