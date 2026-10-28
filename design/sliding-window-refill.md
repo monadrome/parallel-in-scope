@@ -1,7 +1,7 @@
 # 滑窗补窗契约（事件驱动）
 
 约束 `SlidingWindowSubmitter`：把一批已 prepared 的元素按窗口宽度送进业务 executor。本文件是
-当前机制的权威描述；[interruption-contract.md](interruption-contract.md) §7.3 保留的是旧提交线程
+当前机制的权威描述；[interruption-contract.md](interruption-contract.md)「历史教训」一节保留的是旧提交线程
 缺陷的历史记录，机制细节以本文为准。
 
 ## 机制

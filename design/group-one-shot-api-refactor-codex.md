@@ -148,7 +148,7 @@ key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 
 - PIT 幸存者要逐条分类：等价变异体（例如边界条件改向、但 `List.get` 自己会抛）不是
   缺口；把等价变异体当缺口报，比漏报更损耗读者信任。
 - 手写 stub 可能让被测机制空转甚至挂住（见
-  [interruption-contract.md](interruption-contract.md) §7）；关键路径用真实实现。
+  [interruption-contract.md](interruption-contract.md)「历史教训」一节）；关键路径用真实实现。
 
 ### 类型化 key 的评审与验证
 

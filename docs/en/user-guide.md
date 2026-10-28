@@ -403,6 +403,27 @@ bounded cleanup, and restores the flag on exit. Interrupting the waiting caller 
 the execution. Deadline, fail-fast, ancestor token propagation, worker interruption, and
 `Checkpoints.checkpoint()` remain effective. `ParRuntime.awaitQuiescence` remains interruptible.
 
+The library keeps the caller's interrupt flag but does not interpret it, because a flag does not
+say who set it or why. Handling it is the caller's responsibility:
+
+- After `map` or `runAll` returns, the flag is still set. Apply your own thread policy, for example
+  stop further work when `Thread.currentThread().isInterrupted()` is true.
+- A thread that is already interrupted runs the execution normally. If that interrupt means
+  "stop", check the flag before you start the execution.
+- To let an outside event stop the work early, connect it to a [request
+  cancellation](#request-cancellation) source. Interrupting the caller alone lets the work run to
+  completion, fail-fast, or the deadline.
+
+```java
+SettableFuture<Void> stop = SettableFuture.create();
+outerFuture.addListener(() -> {
+    if (outerFuture.isCancelled()) {
+        stop.set(null);
+    }
+}, MoreExecutors.directExecutor());
+par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop, true));
+```
+
 Cancellation interrupt delivery is coordinated with runner exit: a task cannot return its thread
 to the executor while its cancellation interrupt is still in flight. A later task reusing that
 thread therefore cannot receive the previous task's delayed cancellation interrupt. Body completion

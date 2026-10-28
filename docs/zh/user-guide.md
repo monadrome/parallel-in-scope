@@ -350,6 +350,24 @@ map/runAll 的结果等待与有界清理不响应中断退出，结束恢复标
 deadline、fail-fast、祖先 token、worker 中断、Checkpoints 保持有效。
 ParRuntime.awaitQuiescence 仍传播 InterruptedException。
 
+库保管调用线程的中断标志，但不解释它：标志不记录是谁、为什么设置的。处理它是调用方的责任：
+
+- `map`/`runAll` 返回后标志仍在，按你自己的线程政策处理，例如
+  `Thread.currentThread().isInterrupted()` 为 true 时停止后续工作。
+- 已带中断标志的线程照常执行；如果这个中断表示"停止"，请在开始执行之前自行检查。
+- 要让外部事件提前结束工作，把它接入[请求取消](#request-cancellation)来源。只中断调用线程，
+  工作会继续到完成、fail-fast 或 deadline。
+
+```java
+SettableFuture<Void> stop = SettableFuture.create();
+outerFuture.addListener(() -> {
+    if (outerFuture.isCancelled()) {
+        stop.set(null);
+    }
+}, MoreExecutors.directExecutor());
+par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop, true));
+```
+
 取消中断投递与 runner 退出相互协调：取消中断尚在投递时，任务不会把线程交还 executor，
 因此复用同一线程的后继任务不会收到前一任务的迟到取消中断。仅确认 body 已结束，
 不表示线程交接已经完成。
