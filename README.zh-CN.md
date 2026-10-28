@@ -138,6 +138,7 @@ Profile value = profile.terminalValueOrThrow();
 | [0.4 开发中文文档](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/docs/zh) | `0.4.0-SNAPSHOT` 开发线指南 |
 | [English documentation](https://monadrome.github.io/parallel-in-scope/) | 英文稳定版入口 |
 | [示例项目](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/demo) | 可运行示例与文章目录 |
+| [集成示例](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/integrations) | 0.4 开发线：Resilience4j、Sentinel、Spring 独立示例 |
 
 ## 兼容性与构建
 

@@ -7,7 +7,8 @@
 It also coordinates a fixed heterogeneous set of named operations through one-shot groups. A group is
 declared and submitted as one one-shot fluent chain —
 `runtime.group(name, timeout).par(...).runAll()` — in which each member states its typed key, `Par`,
-and this run's body at once; it is not a dynamically growing batch.
+and this run's body at once (an already-in-flight future joins instead through `adopt`); it is not a
+dynamically growing batch.
 
 ## Build the execution topology
 
@@ -329,7 +330,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 
 - From `runAll()` on, the group owns each adopted future. Whatever cancels the group's unfinished
   members — a failure, the deadline, `cancelOn`, an enclosing scope — cancels the future with the
-  same interrupt intent; a `runAll()` that throws before admission cancels every adopted future.
+  same interrupt intent; a `runAll()` that fails admission cancels every adopted future (a
+  stale-stage or wrong-thread rejection leaves them untouched).
   Do not cancel it yourself: that is a direct member cancellation, which cancels the group. Adopt each
   future once per group.
 - A successful future reads `SUCCESS`; a failed one reads `USER_FAILURE` with its own cause.
@@ -410,7 +412,9 @@ not promise to preserve a new external interrupt received during inline body exe
 or uncooperative user code/executor handoff can exceed the execution deadline in wall-clock time.
 
 After every result settles, cleanup waits within `closeGrace`, or the remaining execution deadline
-when unset. Zero grace does not wait. Interruption does not reset or skip that budget. Executors
+when unset. Zero grace does not wait. A run that ends at its deadline has no remaining budget, so
+its derived wait is zero unless `closeGrace` was set — declare an explicit grace to await body exit
+after timeouts. Interruption does not reset or skip that budget. Executors
 are never shut down by an execution. Java cannot force an arbitrary body or resource close to stop.
 
 `bodyCompletionConfirmed()` confirms only direct batch elements or group members plus combine:

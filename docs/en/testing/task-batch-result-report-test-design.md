@@ -1,5 +1,11 @@
 # TaskBatchResult Report Testing Design
 
+> This page is a condensed English overview. The full Chinese design under
+> `docs/zh/testing/task-batch-result-report-test-design.md` (published at
+> `/zh/testing/task-batch-result-report-test-design/`) carries the capability matrix, the
+> integration-test invariants, the test-case inventory, and the full maintenance notes, and is the
+> authoritative version.
+
 ## Goals
 
 The batch result's counting reads must describe completed, failed, cancelled, and timed-out work without depending on a lucky thread schedule. Tests should verify observable state and the public contract, not implementation timing.

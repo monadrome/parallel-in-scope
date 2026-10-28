@@ -1,5 +1,10 @@
 # A False Positive in an AI Concurrency Review
 
+> This page is a condensed English case study. The full Chinese original under
+> `docs/zh/case-studies/ai-concurrency-review-false-positive.md` (published at
+> `/zh/case-studies/ai-concurrency-review-false-positive/`) carries the historical-API caveat, the
+> complete code and reproduction output, and the assertion table, and is the authoritative version.
+
 ## Background
 
 An AI review flagged the cancellation and future aggregation code as unsafe. The warning sounded plausible because the code combines `catchingAsync`, `withTimeout`, `allAsList`, and explicit cancellation. The issue was not a compiler error; it was a misunderstanding of Guava future state semantics.

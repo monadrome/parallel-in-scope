@@ -102,6 +102,22 @@ This example degrades recoverable I/O failures only; cancellation exceptions esc
 not restore the flag for an ordinary `InterruptedException`: a Function must restore and translate
 that exception with its original cause, as above. A group member's Callable can throw it directly.
 
+## Replace `Thread.sleep()` with `Checkpoints.sleep()`
+
+Inside a `Par` task body, always use `Checkpoints.sleep()` instead of `Thread.sleep()`:
+
+```java
+// not recommended
+Thread.sleep(1000);  // you must handle InterruptedException yourself
+
+// recommended
+Checkpoints.sleep(1000);  // converts the interruption for you
+```
+
+`Checkpoints.sleep()` uniformly converts `InterruptedException` into `LeanCancellationException`,
+so interruption-driven and cooperative cancellation surface as the same exception type, and a normal
+cancellation does not collect a useless stack trace.
+
 ## Cancellation sources
 
 | Source | Token state | Meaning |
@@ -109,11 +125,37 @@ that exception with its original cause, as above. A group member's Callable can 
 | Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
+| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; whether running bodies are interrupted is decided by the explicit `interrupt` argument |
 
-All sources use the same internal token state check. Nested `Par.map` calls inherit a parent token,
+All sources use the same internal token state check. The external input is declared on the batch's
+`BatchOptions` or on `GroupStart` (before the first member); task bodies never poll an application
+flag. See [Cancel when a request completes](../user-guide.md#request-cancellation).
+Nested `Par.map` calls inherit a parent token,
 so cancellation reaches child tasks at their next checkpoint or interruptible blocking operation.
 Task bodies can also throw cancellation exceptions. `ImmediateResult.outcome()` exposes the frozen
 task attribution; see [Immediate results](../user-guide.md#task-future-attribution).
 Interrupting the caller waiting in `map` or `runAll` does not cancel execution; those waits restore
 the interrupt flag on exit. Results expose no execution-owned token or running future;
 `asFuture().cancel(...)` always returns false.
+
+## Nested scope cancellation propagation
+
+When a `Par.map()` call runs inside another `Par.map()`, the framework propagates cancellation
+automatically through the `CancellationToken` parent–child chain:
+
+```text
+Outer Par.map(["A", "B", "C"])
+  ├── A → inner Par.map([1, 2, 3])    ← owns a child CancellationToken
+  ├── B → throws an exception          ← triggers the outer fail-fast
+  └── C → inner Par.map([4, 5, 6])    ← owns a child CancellationToken
+```
+
+When B fails:
+
+1. The outer token becomes `FAIL_FAST`.
+2. The child tokens of A and C become `PROPAGATED_CANCELLED` through the parent–child chain.
+3. The inner tasks of A and C respond at their next checkpoint or interruptible blocking
+   operation; ordinary I/O still depends on the client.
+
+You do not orchestrate this propagation yourself — provided the inner tasks carry enough
+checkpoints.
