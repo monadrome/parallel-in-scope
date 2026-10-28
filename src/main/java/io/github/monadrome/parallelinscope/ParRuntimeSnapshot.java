@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
+
 /**
  * A diagnostic sample of a {@link ParRuntime}'s shutdown/drain state, produced by {@link
  * ParRuntime#snapshot()}.
@@ -11,6 +13,7 @@ package io.github.monadrome.parallelinscope;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @since 0.3.0
  */
+@Immutable
 public final class ParRuntimeSnapshot {
 
     private final boolean closed;

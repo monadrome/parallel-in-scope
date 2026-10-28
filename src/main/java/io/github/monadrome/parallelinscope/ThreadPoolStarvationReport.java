@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
+import com.google.errorprone.annotations.Immutable;
 import java.time.Duration;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -17,6 +18,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.4.0
  */
+@Immutable
 public final class ThreadPoolStarvationReport {
 
     /** Outcome of the observation. */
@@ -38,6 +40,7 @@ public final class ThreadPoolStarvationReport {
      * A snapshot captured when one executor met the potential-starvation condition. It remains in
      * the report after recovery and does not describe the pool's state at close.
      */
+    @Immutable
     public static final class Evidence {
         private final String executor;
         private final int poolSize;

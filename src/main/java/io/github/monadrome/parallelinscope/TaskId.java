@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
 import java.util.Objects;
 
 /**
@@ -26,6 +27,8 @@ import java.util.Objects;
  * @param <K> the kind of unit this id names: {@link TaskUnit} or {@link TaskGroupRun}
  * @since 0.3.0
  */
+@Immutable
+@SuppressWarnings("UnusedTypeParameter")
 public final class TaskId<K> {
 
     /** The identity spaces this library mints; part of the value so cross-kind ids never compare equal. */

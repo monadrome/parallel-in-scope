@@ -18,6 +18,7 @@ import com.google.errorprone.annotations.Immutable;
  * @since 0.4.0
  */
 @Immutable
+@SuppressWarnings("UnusedTypeParameter")
 public final class TaskKey<T> {
     private final String name;
 
