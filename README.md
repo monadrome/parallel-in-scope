@@ -122,6 +122,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
 | [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
 | [English documentation](docs/en/index.md) | User guide, API contracts, design notes, and case studies |
+| [v0.4 migration guide](docs/en/migration-v0.4.md) | Breaking changes on the `0.4.0-SNAPSHOT` development line |
 | [v0.3 migration guide](docs/en/migration-v0.3.md) | Breaking changes from the `0.2.x` task-group API |
 | [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
 | [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |

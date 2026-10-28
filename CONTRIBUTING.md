@@ -44,7 +44,7 @@ The issue forms live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/):
 |---|---|
 | **Bug report** | Something behaves differently from what the documentation promises |
 | **Design proposal** | A new capability, or a change to existing behavior or API |
-| **Documentation issue** | A page, javadoc, or example that is wrong, missing, or misleading |
+| **Documentation issue** | A page, Javadoc, or example that is wrong, missing, or misleading |
 
 Blank issues are also enabled for anything that does not fit a form. The
 new-issue page links the [user guide](docs/en/user-guide.md), the

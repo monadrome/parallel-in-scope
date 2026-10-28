@@ -78,8 +78,8 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
 
     /**
      * Stops sampling, performs the final sample, and publishes the report. Repeated or concurrent
-     * calls wait for the same publication; sampling failures are rethrown and recorded in the report
-     * future.
+     * calls wait for the same publication. Sampling failures are recorded in the report; a sampling
+     * {@link Error} is rethrown only after report publication has been attempted.
      */
     @SuppressWarnings("ReferenceEquality")
     @Override

@@ -132,7 +132,7 @@ public final class TaskCompletion<T> {
      * identity fills {@link #groupId()} while {@link #unitId()} stays null — a group run is not a
      * task unit — the index is zero, submit/start/end are the group-level times, and the result is
      * the {@link TaskGroupReport} itself. The summary describes no additional task body, so it is
-     * not counted among the members or in the TaskGraph.
+     * not counted among the members or as a task unit.
      */
     static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
         return new TaskCompletion<>(
@@ -212,7 +212,9 @@ public final class TaskCompletion<T> {
     }
 
     /**
-     * Returns the successful task's value, including null; null also represents a failed task.
+     * Returns the value embedded in this record, which may be null even on success. Snapshots inside
+     * a group report do not embed member or combine values; a group summary embeds its report
+     * instead. Use {@link #successful()} or {@link #outcome()}, not null, to classify this record.
      */
     public @Nullable T result() {
         return result;

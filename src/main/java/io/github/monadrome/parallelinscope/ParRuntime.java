@@ -15,7 +15,6 @@ import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Duration;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -51,10 +49,9 @@ import org.jspecify.annotations.Nullable;
  * deadline timer, starvation observation scheduler, and the threads that run timeout actions;
  * registered executors are borrowed and are never shut down by this object.
  *
- * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
- * calls. Batches admitted before closing retain their submission, timeout, and cancellation
- * processing while the framework-owned services drain; {@code close()} itself does not wait for
- * those batches to finish.
+ * <p>{@link #close()} immediately rejects new batch and group executions and observation scopes.
+ * Runs admitted before closing retain their submission, timeout, and cancellation processing while the framework-owned
+ * services drain; {@code close()} itself does not wait for those runs to finish.
  *
  * @since 0.3.0
  */
@@ -431,7 +428,7 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Returns whether shutdown has begun.
      *
-     * <p>A {@code true} result means new batch submissions and observation scopes are rejected.
+     * <p>A {@code true} result means new executions and observation scopes are rejected.
      */
     public boolean closed() {
         return closed.get();
@@ -441,11 +438,10 @@ public final class ParRuntime implements AutoCloseable {
      * Rejects new work and begins releasing framework-owned resources.
      *
      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
-     * a {@link Par#map(Collection, Function, BatchOptions)} call already setting up a batch, so that
-     * call either completes setup and returns its result or is rejected before any task is
-     * submitted. Services drain batches admitted before shutdown; open starvation observations
-     * retain the diagnostic services until their scopes close. This method does not wait for task
-     * bodies or observation reports to finish.
+     * executions already being set up, so each either completes setup and returns its result or is
+     * rejected before any task is submitted. Services drain runs admitted before shutdown; open
+     * starvation observations retain the diagnostic services until their scopes close. This method
+     * does not wait for task bodies or observation reports to finish.
      */
     @Override
     public void close() {
@@ -461,8 +457,8 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Waits until this topology is closed and fully drained: no admission is setting up a batch,
-     * no admitted batch retains incomplete futures, every admitted task body has exited, no open
+     * Waits until this topology is closed and fully drained: no admission is setting up an execution,
+     * no admitted run retains incomplete futures, every admitted task body has exited, no open
      * starvation observation retains the diagnostic services, and the framework-owned services
      * have shut down. Call {@link #close()} first; without it this method simply waits out the
      * timeout.
@@ -505,8 +501,8 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the in-flight work this topology still tracks: admissions setting up a batch,
-     * undrained batches, and open starvation observations. Open observations retain framework
+     * Returns the in-flight work this topology still tracks: admissions setting up an execution,
+     * undrained runs, and open starvation observations. Open observations retain framework
      * services and therefore participate in {@link #awaitQuiescence(Duration)}.
      */
     public int inFlight() {
@@ -703,6 +699,13 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
+    /**
+     * Mutable composition-root builder for an immutable {@link ParRuntime}. Register every logical
+     * entry and optionally its default before calling {@link #build()}; registered executors remain
+     * owned by the application.
+     *
+     * @since 0.3.0
+     */
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
         private @Nullable ParId defaultId;
@@ -754,9 +757,12 @@ public final class ParRuntime implements AutoCloseable {
             return this;
         }
 
-        /** Builds an immutable runtime without taking ownership of registered executors.
+        /**
+         * Builds an immutable runtime without taking ownership of registered executors.
          *
-         * @throws IllegalArgumentException if the configured default id is not registered
+         * @throws IllegalArgumentException if the configured default id is not registered, or a
+         *     directly registered thread pool uses {@link ThreadPoolExecutor.DiscardPolicy} or
+         *     {@link ThreadPoolExecutor.DiscardOldestPolicy}
          */
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {

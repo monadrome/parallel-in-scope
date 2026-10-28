@@ -9,8 +9,8 @@ import org.jspecify.annotations.Nullable;
  * Smart blocking queue that dynamically adjusts enqueue behavior based on task type.
  *
  * <p>For {@link TaskType#CPU_BOUND} tasks or when {@code rejectEnqueue} is set, {@link
- * #offer(Object)} returns {@code false} instead of queueing the task. This prevents CPU-bound
- * tasks from queuing up and causing latency.
+ * #offer(Object)} returns {@code false} instead of queueing the task. The pool can then grow a
+ * worker or invoke its rejection handler rather than buffer the task behind existing work.
  *
  * <p>Note what that means for the pool as a whole: a refused {@code offer} does not by itself run
  * anything on the caller. {@code ThreadPoolExecutor.execute} first tries to start a new worker, and
@@ -36,6 +36,7 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      * Creates a queue with the supplied positive capacity.
      *
      * @param capacity the initial queue capacity
+     * @throws IllegalArgumentException if {@code capacity} is not positive
      */
     public SmartBlockingQueue(int capacity) {
         if (capacity <= 0) {
@@ -53,6 +54,7 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      * Dynamically adjusts queue capacity.
      *
      * @param capacity the new positive capacity
+     * @throws IllegalArgumentException if {@code capacity} is not positive
      */
     public void setCapacity(int capacity) {
         delegate.setCapacity(capacity);

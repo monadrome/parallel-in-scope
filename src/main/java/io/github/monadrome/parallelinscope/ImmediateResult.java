@@ -44,6 +44,9 @@ public final class ImmediateResult<T> {
      *
      * <p>The outcome is attribution metadata and does not convert the supplied throwable. Reads,
      * including through {@link #asFuture()}, preserve it as the ExecutionException cause.
+     *
+     * @throws NullPointerException if {@code outcome} or {@code failure} is null
+     * @throws IllegalArgumentException if {@code outcome} is {@code SUCCESS} or {@code RUNNING}
      */
     public static <T> ImmediateResult<T> failed(TaskOutcome outcome, Throwable failure) {
         checkNotNull(outcome, "outcome cannot be null");
@@ -115,7 +118,12 @@ public final class ImmediateResult<T> {
         }
     }
 
-    /** Reads the value immediately, or wraps the stored failure without changing its identity. */
+    /**
+     * Reads the value immediately, or wraps the stored failure without changing its identity.
+     *
+     * @return the successful value, possibly null
+     * @throws ExecutionException with the stored failure as its cause for every non-success outcome
+     */
     public @Nullable T valueOrThrow() throws ExecutionException {
         if (failure != null) {
             throw new ExecutionException(failure);

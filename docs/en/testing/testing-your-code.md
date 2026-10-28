@@ -25,7 +25,7 @@ final class PriceService {
         this.options = options;
     }
 
-    String price(String sku) {
+    String price(String sku) throws ExecutionException {
         ImmediateResult<String> result =
                 par.map(Collections.singletonList(sku), client::fetch, options).results().get(0);
         return result.outcome() == TaskOutcome.SUCCESS ? result.valueOrThrow() : UNKNOWN;
@@ -33,7 +33,7 @@ final class PriceService {
 }
 
 @Test
-void fallsBackWhenTheClientHangs() {
+void fallsBackWhenTheClientHangs() throws ExecutionException {
     PriceClient hanging = sku -> {
         Checkpoints.checkAwait(new CountDownLatch(1));
         throw new AssertionError("released");
@@ -44,8 +44,6 @@ void fallsBackWhenTheClientHangs() {
     assertEquals(PriceService.UNKNOWN, service.price("sku-1"));
 }
 ```
-
-(`valueOrThrow()` declares `ExecutionException`; handle it as your code base does.)
 
 The rules that keep this deterministic:
 

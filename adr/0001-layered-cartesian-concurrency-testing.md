@@ -13,8 +13,8 @@
 > `PLACEHOLDER` axis modeled — outside the window while earlier work is gated, and abandoned
 > before admission — are still required. Automatic purge left the main line
 > ([ADR 0003](0003-event-coalesced-purge-maintenance.md)), and with it the purger layer and its
-> threshold surface. The library's caller-thread fallback option was removed, so inline
-> execution now comes only from a user's `CallerRunsPolicy`.
+> threshold surface. The library's caller-thread fallback option was removed; inline execution
+> now comes from the user's executor, such as a `CallerRunsPolicy` or a direct executor service.
 
 ## Context
 

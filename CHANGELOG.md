@@ -160,7 +160,7 @@
   while removing general phase callbacks and their ordering monitors. Running cancellation remains
   queryable during delayed or throwing interrupt delivery; body-exit and runner safety remain intact.
 
-- Add `ImmediateResult<T>`: terminal value-or-throwable data, successful null supported, all Left reads wrap the stored cause in ExecutionException. `asFuture()` returns an already completed, non-cancellable ListenableFuture; cancellation is failure data (`isCancelled=false`). Both get overloads preserve interruption, and listeners use the consumer's executor outside business resource lifetime.
+- Add `ImmediateResult<T>`: terminal value-or-throwable data, successful null supported, all value reads wrap the stored cause in ExecutionException. `asFuture()` returns an already completed, non-cancellable ListenableFuture; cancellation is failure data (`isCancelled=false`). Both get overloads preserve interruption, and listeners use the consumer's executor outside business resource lifetime.
 
 - Add `TaskGraphObservationScope.reportFuture()` and the top-level immutable `TaskGraphReport`: each observation scope publishes its close-time detection result exactly once — a report carrying the executor cycle and self-loop flags, the rendered task/executor edges of the cycle, and a `Status` of `DISABLED`, `NO_ISSUE`, or `ISSUE` — backed by an internal `SettableFuture` and exposed as a read-only view whose `cancel(...)` returns `false`. Reports are library-created only, and any normally returning `close()` publishes before it returns.
 
@@ -275,9 +275,6 @@
 
 - Add `TaskGroupDefinition.Builder.task(key, parName, callable)` for members that run under the group deadline: it is exactly the four-argument form with `TaskOptions.inheritTimeout()`, so a member that needs no tighter budget, different task type, or different enqueue policy declares no options. The forced deadline choice remains at the group level, and a member that inherits the group deadline still cannot outlive it. The terminal combine gets the same treatment through `buildWithCombiner(key, parName, function)`.
 - Add the public `TaskFuture<T>` contract and its package-private-constructed `Task<T>` implementation: every delivered task execution future reports its `taskName()`, `outcome()`, `deadlineNanos()`, `remaining()`, and `failure()`. The view is additive over `ListenableFuture`, so Guava combinators and code that never checks the interface are unaffected; `FluentFuture.from(task)` remains the route to fluent chaining.
-
-### Features
-
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
 - Add the public `ActionGate` API for count- and duration-based action gating.

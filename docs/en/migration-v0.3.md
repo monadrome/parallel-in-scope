@@ -74,7 +74,7 @@ Successful null values remain valid; null terminalResult means no combine was de
 The group outcome and per-member results preserve authoritative convergence attribution.
 Batch aggregate reads keep ExecutionException for recorded execution failure and CancellationException
 for pure cancellation; group aggregate reads rethrow unchecked failures and wrap checked failures in
-CompletionException. Single ImmediateResult Left reads uniformly throw ExecutionException with the
+CompletionException. Single ImmediateResult value reads uniformly throw ExecutionException with the
 stored cause, including cancellation.
 
 `asFuture()` is done and cannot be cancelled, and `isCancelled()` is always false. It returns
@@ -87,7 +87,7 @@ get overloads preserve interruption; their static Future signatures still declar
 exceptions. Consumer listeners are outside the business scope/resource lifetime.
 
 `BatchOptions` parallelism no longer uses a `-1` sentinel for "unbounded": the default is
-`Integer.MAX_VALUE` (resolution still caps it by the task count, so default behaviour is unchanged),
+`Integer.MAX_VALUE` (resolution still caps it by the task count, so default behavior is unchanged),
 and `parallelism(int)` rejects zero or negative with `IllegalArgumentException` instead of silently
 resolving them to one worker per task.
 
