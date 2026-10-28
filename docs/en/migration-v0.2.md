@@ -148,7 +148,9 @@ token itself: construct it with `new CancellationToken(parent, deadlineNanos)` (
 deadline is the minimum of the requested one and the parent's) and use `deadlineNanos()` /
 `remaining()` to read it. Batches and task groups compute and pass the deadline at construction;
 self-service callers of `bind` should do the same. A deadline that has already expired when
-`bind` runs simply schedules the timeout for immediate execution. `State.NO_OP` was deleted.
+`bind` runs commits `TIMEOUT` synchronously: the bound futures and the submission canceller are
+cancelled before `bind` returns, no deadline timer is armed, and no task can enter user code
+afterwards. `State.NO_OP` was deleted.
 `addCompletionListener` has no public replacement; state-transition listeners are now execution-kernel
 machinery.
 

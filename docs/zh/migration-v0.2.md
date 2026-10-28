@@ -129,7 +129,8 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `CancellationToken.bind(futures, submitCanceller, timer)`。timeout 参数移入 token 本身：以
 `new CancellationToken(parent, deadlineNanos)` 构造（生效 deadline 是请求值与父 token 的较小者），
 用 `deadlineNanos()` / `remaining()` 读取。批次与任务组在构造时计算并传入 deadline；直接使用
-`bind` 的调用方也应如此。`bind` 运行时已过期的 deadline 只是立即调度超时执行。`State.NO_OP` 已删除。
+`bind` 的调用方也应如此。`bind` 运行时已过期的 deadline 会同步提交 `TIMEOUT`：绑定的 future 与
+提交取消器在 `bind` 返回前被取消，不装载 deadline 定时器，此后任务无法进入用户代码。`State.NO_OP` 已删除。
 `addCompletionListener` 没有公开替代；状态迁移监听器现在是执行内核的内部机制。
 
 任务组语义随之变化：取消单个成员（其 future 或其 token）现在级联到整组，与批次 fail-fast

@@ -85,7 +85,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 
 - A6 每个收养成员在组的 body-exit 跟踪中占一个槽，连接时视为已运行：source 落定后，且（声明了 closer 时）
   所有权已决定、丢弃值的 closer 已返回，才释放。`bodyCompletionConfirmed()` 为 true 即所有 source 已落定、
-  所有丢弃值已关闭；忽略取消的 source 在清理预算耗尽时出现在 `unfinishedBodies()` 中；`awaitQuiescence`
+  每个丢弃值的 closer 已运行完毕（closer 失败只记日志，不改变确认结果，确认不保证值已被释放）；
+  忽略取消的 source 在清理预算耗尽时出现在 `unfinishedBodies()` 中；`awaitQuiescence`
   同样等待这些槽。成员观测的开始时间是连接时刻，结束时间是 source 落定时刻，并在镜像落定之前写入，
   使经由 source 收敛的组报告读到最终结束时间。准入即被取消的组在连接之前就已收敛，组报告中该成员的时间为 0，
   与连接前被取消的 `par` 成员一致；冻结结果中的成员观测在 source 落定后发布真实时间。准入失败时放弃的 source

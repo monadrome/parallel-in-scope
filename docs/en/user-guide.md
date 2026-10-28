@@ -344,7 +344,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
   changes nothing. The frozen result still shows a discarded member's value for diagnosis; it belongs
   to the closer, so do not use it after `runAll()` returns.
 - `bodyCompletionConfirmed()` also confirms that every adopted future settled and every discarded
-  value was closed. A future that ignores cancellation is listed in `unfinishedBodies()` until it
+  value's closer finished running; a closer failure is logged and does not change that
+  confirmation, so a confirmed value is not guaranteed to have been released. A future that ignores
+  cancellation is listed in `unfinishedBodies()` until it
   settles; its late value is still closed.
 - `adopt(key, producerPar, future)` names the registered executor that completes the future. When a
   task body runs the group, that wait enters the [executor wait report](#observe-nested-work) like a `par`
