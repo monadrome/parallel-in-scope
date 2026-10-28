@@ -5,7 +5,9 @@
 **parallel-in-scope** is a structured-concurrency toolkit for Java 8+ built on
 Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
 
-- Java release 8 for the library, release 11 for tests; JUnit 5 via Surefire.
+- Java release 8 for the library, release 11 for tests; JUnit 6 via Surefire on the
+  build JDK 25 (the library bytecode stays release 8; the demo and the verification
+  consumer stay on JUnit 5 for their Java 8 runtime).
 - Dependency and plugin versions live in `pom.xml`.
 
 ## Current Development Line

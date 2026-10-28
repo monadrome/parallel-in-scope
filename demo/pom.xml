@@ -33,7 +33,7 @@
             <version>${parallel-in-scope.version}</version>
         </dependency>
 
-        <!-- Test: JUnit 5 -->
+        <!-- Test: JUnit 5. The demo keeps a Java 8 test runtime baseline. -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
