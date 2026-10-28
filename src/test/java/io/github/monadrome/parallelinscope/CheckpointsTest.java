@@ -38,14 +38,14 @@ class CheckpointsTest {
 
         MultiTaskContext leanContext = context("task");
         assertThatThrownBy(() -> runInTask(leanContext, () -> {
-                    leanContext.cancellationToken().cancel(false);
+                    leanContext.cancellationToken().cancel();
                     Checkpoints.checkpoint("task", true);
                 }))
                 .isInstanceOf(LeanCancellationException.class);
 
         MultiTaskContext fatContext = context("task");
         assertThatThrownBy(() -> runInTask(fatContext, () -> {
-                    fatContext.cancellationToken().cancel(false);
+                    fatContext.cancellationToken().cancel();
                     Checkpoints.checkpoint("task", false);
                 }))
                 .isInstanceOf(CancellationException.class)
@@ -61,7 +61,7 @@ class CheckpointsTest {
 
         MultiTaskContext cancelled = context("task");
         assertThatThrownBy(() -> runInTask(cancelled, () -> {
-                    cancelled.cancellationToken().cancel(false);
+                    cancelled.cancellationToken().cancel();
                     Checkpoints.checkpoint();
                 }))
                 .isInstanceOf(LeanCancellationException.class);

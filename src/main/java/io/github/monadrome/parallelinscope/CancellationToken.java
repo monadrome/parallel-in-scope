@@ -46,7 +46,7 @@ final class CancellationToken {
     private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
 
     private final SettableFuture<Object> futureToken = SettableFuture.create();
-    private final AtomicReference<Decision> decision = new AtomicReference<>(Decision.running());
+    private final AtomicReference<State> state = new AtomicReference<>(RUNNING);
     private final @Nullable CancellationToken parent;
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
@@ -76,9 +76,8 @@ final class CancellationToken {
      *
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
      * cancelled, timed out, or fail-fast-cancelled, this token transitions to {@code
-     * PROPAGATED_CANCELLED} and cancels its linked future with the parent's interrupt intent — an
-     * explicit {@code cancel(false)} propagates without interrupting, while deadline and fail-fast
-     * transitions always interrupt. No additional wiring in {@link #bind} or the caller is needed.
+     * PROPAGATED_CANCELLED} and cancels its linked future, interrupting running work like every
+     * other cancellation. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
      */
@@ -329,18 +328,16 @@ final class CancellationToken {
     }
 
     /**
-     * Cancels bound work with the intent recorded by the winning token transition. A deadline or
-     * fail-fast transition keeps the default interrupting policy; an explicit cancel(false),
-     * whether direct or propagated, must reach the same futures without interrupting a running
-     * body.
+     * Cancels bound work, interrupting running bodies. Every cancellation source interrupts: a
+     * deadline, fail-fast, an explicit or request cancellation, and ancestor propagation alike.
      */
     private void cancelBoundWork(ListenableFuture<?> allFutures) {
-        allFutures.cancel(verifyNotNull(decision.get()).interrupt);
+        allFutures.cancel(true);
     }
 
-    RequestCancellationLink cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+    RequestCancellationLink cancelOn(ListenableFuture<?> signal) {
         Objects.requireNonNull(signal, "signal cannot be null");
-        RequestCancellationLink link = new RequestCancellationLink(() -> cancel(interrupt));
+        RequestCancellationLink link = new RequestCancellationLink(this::cancel);
         requestCancellationLink = link;
         if (state() != RUNNING) {
             link.sever();
@@ -373,45 +370,16 @@ final class CancellationToken {
         }
     }
 
-    /** Immutable terminal decision; state and interrupt intent publish together. */
-    private static final class Decision {
-        private final State state;
-        private final boolean interrupt;
-
-        private Decision(State state, boolean interrupt) {
-            this.state = state;
-            this.interrupt = interrupt;
-        }
-
-        static Decision running() {
-            return new Decision(RUNNING, true);
-        }
-    }
-
     /**
      * Cancels this token and its linked work, interrupting running threads.
      *
-     * <p>This is the common case; it is equivalent to {@link #cancel(boolean) cancel(true)}. Use
-     * {@link #cancel(boolean)} with {@code false} only when running tasks must be allowed to
-     * complete without interruption.
+     * <p>There is no non-interrupting variant: like a deadline or fail-fast, an explicit
+     * cancellation interrupts running bodies, and the cancellation propagates down the token tree
+     * with interruption.
      */
     void cancel() {
-        cancel(true);
-    }
-
-    /**
-     * Cancels this token and its linked work.
-     *
-     * <p>The interrupt policy is part of the cancellation and propagates down the token tree:
-     * {@code cancel(false)} on a token cancels its linked work and every descendant's linked work
-     * without interrupting running threads, while deadline expiry and fail-fast cancellation always
-     * interrupt.
-     *
-     * @param useInterrupt whether to interrupt running threads
-     */
-    void cancel(boolean useInterrupt) {
-        if (transitionTo(CANCELLED, useInterrupt)) {
-            futureToken.cancel(useInterrupt);
+        if (transitionTo(CANCELLED)) {
+            futureToken.cancel(true);
         }
     }
 
@@ -451,7 +419,7 @@ final class CancellationToken {
      */
     State state() {
         // state only ever transitions between non-null enum constants
-        return verifyNotNull(decision.get()).state;
+        return verifyNotNull(state.get());
     }
 
     /**
@@ -491,13 +459,7 @@ final class CancellationToken {
 
     /** Commits a terminal transition from {@code RUNNING}, notifying state listeners when it wins. */
     private boolean transitionTo(State terminal) {
-        return transitionTo(terminal, true);
-    }
-
-    /** Publishes a terminal state and its interrupt intent as one immutable decision. */
-    private boolean transitionTo(State terminal, boolean interrupt) {
-        Decision current = verifyNotNull(decision.get());
-        if (current.state != RUNNING || !decision.compareAndSet(current, new Decision(terminal, interrupt))) {
+        if (!state.compareAndSet(RUNNING, terminal)) {
             return false;
         }
         ParentLink link = parentLink;
@@ -554,12 +516,8 @@ final class CancellationToken {
             if (linked == null || !parent.state().shouldInterruptCurrentThread()) {
                 return;
             }
-            // Carry the parent's interrupt intent through the link: an explicit cancel(false)
-            // keeps its no-interrupt policy for the whole subtree, while the framework's own
-            // transitions (TIMEOUT, FAIL_FAST) keep the default true.
-            boolean interrupt = verifyNotNull(parent.decision.get()).interrupt;
-            if (linked.transitionTo(PROPAGATED_CANCELLED, interrupt)) {
-                linked.futureToken.cancel(interrupt);
+            if (linked.transitionTo(PROPAGATED_CANCELLED)) {
+                linked.futureToken.cancel(true);
             }
         }
 

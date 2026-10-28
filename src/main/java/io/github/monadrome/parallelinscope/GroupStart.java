@@ -63,7 +63,7 @@ public interface GroupStart {
      *
      * <p>From {@code runAll()} on the group owns {@code source}. Whatever cancels the group's
      * unfinished members — a failure, a deadline, {@link #cancelOn}, ancestor cancellation, or a
-     * directly cancelled member — cancels the source with the same interrupt intent. When {@code
+     * directly cancelled member — cancels the source with {@code cancel(true)}. When {@code
      * runAll()} fails admission, every adopted source is cancelled; a stale-stage or
      * thread-confinement violation throws before the draft is consumed and leaves the sources
      * untouched. Do not cancel
@@ -151,9 +151,9 @@ public interface GroupStart {
     GroupStart closeGrace(Duration grace);
 
     /**
-     * Declares a caller-owned source whose completion in any way cancels this group. The explicit
-     * {@code interrupt} argument controls interruption of running bodies; it is never inferred from
-     * the source's completion. The library does not complete or cancel the source.
+     * Declares a caller-owned source whose completion in any way cancels this group. Like a deadline
+     * or fail-fast, the cancellation interrupts running bodies; there is no non-interrupting variant.
+     * The library does not complete or cancel the source.
      *
      * <p>Callable only before the first member is declared. The source takes effect at admission,
      * before any body can start; an empty group returns successfully without registering.
@@ -164,7 +164,7 @@ public interface GroupStart {
      * @throws IllegalStateException if a member is already declared, or this stage is stale
      */
     @CanIgnoreReturnValue
-    GroupStart cancelOn(ListenableFuture<?> signal, boolean interrupt);
+    GroupStart cancelOn(ListenableFuture<?> signal);
 
     /**
      * Executes an empty group: no members, no combine, immediately successful on an open runtime.

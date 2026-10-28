@@ -50,16 +50,17 @@
   are cumulative; a body whose entry and unit are both undeclared or blocking is never timed, and
   direct executor work is never measured.
 
-- Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
-  and `GroupStart.cancelOn(ListenableFuture<?>, boolean)`. Any completion of the caller-owned source
-  cancels the whole batch or group, including `mapAndCombine`; the explicit argument alone controls
-  interruption. Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins) and
-  non-interrupting `cancel(false)` intent, never finish the source, register only after successful
-  preparation immediately before binding, and sever the execution link on terminal completion.
+- Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>)` and
+  `GroupStart.cancelOn(ListenableFuture<?>)`. Any completion of the caller-owned source cancels the
+  whole batch or group, including `mapAndCombine`, and interrupts running bodies like a deadline or
+  fail-fast does: every framework cancellation interrupts, and there is no non-interrupting variant.
+  Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins), never finish the source,
+  register only after successful preparation immediately before binding, and sever the execution
+  link on terminal completion.
   Empty batches and groups do not register. `TaskOptions` intentionally has no member-level variant.
 - Adopt futures already in flight as group members with `GroupStart.adopt` / `GroupStep.adopt`.
   The group owns each adopted `ListenableFuture` from `runAll()` on: fail-fast, deadlines,
-  `cancelOn`, and enclosing cancellation cancel it with the same interrupt intent, and a `runAll()`
+  `cancelOn`, and enclosing cancellation cancel it with `cancel(true)`, and a `runAll()`
   that fails admission cancels it (a stale-stage or thread-confinement rejection leaves it
   untouched). Each produced value has one owner — the combine once its
   body starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every

@@ -40,7 +40,7 @@ runtime.group("leases", Duration.ofSeconds(2))
         .valuesOrThrow();
 ```
 
-检查与库发布之间仍有取消窗口；`cancelOn(signal, false)` 与执行器 `cancel(false)` 不中断 body，检查看不到取消；
+检查与库发布之间仍有取消窗口；执行器 `cancel(false)` 不中断 body，检查看不到取消；
 `valuesOrThrow()` 抛出时成功的兄弟租约留在冻结结果里无人归还。
 
 ## 2. 改后

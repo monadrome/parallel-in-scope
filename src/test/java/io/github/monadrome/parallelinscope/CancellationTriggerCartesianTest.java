@@ -17,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Named;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -61,7 +60,7 @@ public class CancellationTriggerCartesianTest {
             fixture.awaitEntry();
             ListenableFuture<?> aggregate = token.bind(Collections.singletonList(fixture.future), submitter, timer);
             if (trigger == Trigger.MANUAL_INTERRUPT) {
-                token.cancel(true);
+                token.cancel();
             }
 
             CancellationToken.State expected =
@@ -83,34 +82,6 @@ public class CancellationTriggerCartesianTest {
                 } else {
                     assertThat(fixture.exited.getCount()).isOne();
                 }
-            }
-        } finally {
-            fixture.close();
-            timer.shutdownNow();
-        }
-    }
-
-    /** Specifies that manual non-interrupting cancellation must not interrupt entered work. */
-    @Test
-    public void manualNonInterruptingCancellationDoesNotInterruptRunningWork() throws Exception {
-        ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
-        WorkFixture fixture = WorkFixture.create(Workload.RUNNING_IGNORES_INTERRUPT);
-        CancellationToken token = CancellationToken.create();
-
-        try {
-            fixture.awaitEntry();
-            ListenableFuture<?> aggregate =
-                    token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
-            token.cancel(false);
-
-            awaitState(token, CancellationToken.State.CANCELLED);
-            awaitCancelled(fixture.future);
-            assertThat(fixture.interrupted)
-                    .as("cancel(false) must preserve the non-interrupting contract")
-                    .isFalse();
-            await().until(aggregate::isDone);
-            if (!aggregate.isCancelled()) {
-                Futures.getUnchecked(aggregate);
             }
         } finally {
             fixture.close();

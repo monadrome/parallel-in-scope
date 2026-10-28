@@ -329,8 +329,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 ```
 
 - From `runAll()` on, the group owns each adopted future. Whatever cancels the group's unfinished
-  members — a failure, the deadline, `cancelOn`, an enclosing scope — cancels the future with the
-  same interrupt intent; a `runAll()` that fails admission cancels every adopted future (a
+  members — a failure, the deadline, `cancelOn`, an enclosing scope — cancels the future with
+  `cancel(true)`; a `runAll()` that fails admission cancels every adopted future (a
   stale-stage or wrong-thread rejection leaves them untouched).
   Do not cancel it yourself: that is a direct member cancellation, which cancels the group. Adopt each
   future once per group.
@@ -421,7 +421,7 @@ outerFuture.addListener(() -> {
         stop.set(null);
     }
 }, MoreExecutors.directExecutor());
-par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop, true));
+par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop));
 ```
 
 Cancellation interrupt delivery is coordinated with runner exit: a task cannot return its thread
@@ -542,8 +542,8 @@ and cancellation, which do not prove the inner synchronous call exited.
 
 Use a caller-owned `ListenableFuture<?>` as a request-disconnect input. Completion in any way —
 success, failure, or cancellation — cancels the whole batch or group, including a `mapAndCombine`
-terminal. The explicit `interrupt` argument decides whether running bodies are interrupted; the
-library never infers it from how the source completed and never completes or cancels the source.
+terminal, and interrupts running bodies exactly as a deadline or fail-fast does; there is no
+non-interrupting variant. The library never completes or cancels the source.
 
 ```java
 SettableFuture<Void> disconnect = SettableFuture.create();
@@ -551,7 +551,7 @@ onClientDisconnect(() -> disconnect.set(null));
 TaskBatchResult<Price> prices = par.map(
         skus,
         this::fetchPrice,
-        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect, true));
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect));
 ```
 
 Declare a group's input once on `GroupStart`, before its first member. `TaskOptions` deliberately has
@@ -560,14 +560,13 @@ member policy.
 
 ```java
 TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
-        .cancelOn(disconnect, true)
+        .cancelOn(disconnect)
         .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
         .runAll();
 ```
 
 A source that wins the race produces `GROUP_CANCELLED`; ancestor cancellation, deadlines, and
-fail-fast retain first-wins attribution. `cancelOn(source, false)` remains non-interrupting even when
-a losing deadline or fail-fast callback runs later. Registration happens only after preparation
+fail-fast retain first-wins attribution. Registration happens only after preparation
 succeeds, immediately before binding and submission, so an already-completed source prevents inline
 bodies from running. Empty batches and groups return immediate `SUCCESS` without registering;
 `mapAndCombine` still rejects empty input.

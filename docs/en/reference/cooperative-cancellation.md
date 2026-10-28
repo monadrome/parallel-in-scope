@@ -125,7 +125,7 @@ cancellation does not collect a useless stack trace.
 | Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
-| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; whether running bodies are interrupted is decided by the explicit `interrupt` argument |
+| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; running bodies are interrupted, as for every other cancellation source |
 
 All sources use the same internal token state check. The external input is declared on the batch's
 `BatchOptions` or on `GroupStart` (before the first member); task bodies never poll an application

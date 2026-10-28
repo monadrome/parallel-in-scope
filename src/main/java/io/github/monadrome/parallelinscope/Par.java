@@ -215,7 +215,7 @@ public final class Par {
         try {
             return ImmutableList.copyOf(elements);
         } catch (RuntimeException | Error failure) {
-            unit.cancellationToken().cancel(false);
+            unit.cancellationToken().cancel();
             throw failure;
         }
     }

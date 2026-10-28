@@ -120,7 +120,7 @@ class TaskGroupTest {
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         MultiTaskContext context = Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext();
-                        context.cancellationToken().cancel(false);
+                        context.cancellationToken().cancel();
                         assertThatThrownBy(() -> Checkpoints.checkpoint("load-user", true))
                                 .isInstanceOf(IllegalStateException.class);
                         assertThatThrownBy(() -> Checkpoints.checkpoint("user", true))
@@ -1315,7 +1315,7 @@ class TaskGroupTest {
                             },
                             BatchOptions.timeout("outer", TIMEOUT));
             assertThat(groupBuilt.await(2, TimeUnit.SECONDS)).isTrue();
-            Objects.requireNonNull(outerToken.get()).cancel(true);
+            Objects.requireNonNull(outerToken.get()).cancel();
             TaskGroup<Integer, Void> group = Objects.requireNonNull(publishedGroup.get());
 
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -1405,7 +1405,7 @@ class TaskGroupTest {
                         Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
                                 .cancellationToken()
-                                .cancel(false);
+                                .cancel();
                         Checkpoints.checkpoint();
                         return "unreached";
                     })

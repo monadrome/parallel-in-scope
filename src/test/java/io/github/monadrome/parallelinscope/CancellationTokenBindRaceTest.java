@@ -45,7 +45,7 @@ class CancellationTokenBindRaceTest {
     @Test
     void cancelBeforeBind_stillCancelsTasks() {
         CancellationToken token = CancellationToken.create();
-        token.cancel(false);
+        token.cancel();
 
         SettableFuture<String> task = SettableFuture.create();
         List<ListenableFuture<String>> futures = Collections.singletonList(task);
@@ -99,7 +99,7 @@ class CancellationTokenBindRaceTest {
 
             Thread canceller = new Thread(() -> {
                 await(start);
-                token.cancel(true);
+                token.cancel();
             });
             Thread binder = new Thread(() -> {
                 await(start);

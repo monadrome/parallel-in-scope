@@ -250,7 +250,7 @@ class TaskGroupAdoptedFutureTest {
         RecordingFuture<Resource> pending = new RecordingFuture<>();
 
         TaskGroupResult<?, Void> result = runtime.group("cancelled", TIMEOUT)
-                .cancelOn(Futures.immediateFuture("request done"), true)
+                .cancelOn(Futures.immediateFuture("request done"))
                 .adopt(FIRST, pending)
                 .runAll();
 

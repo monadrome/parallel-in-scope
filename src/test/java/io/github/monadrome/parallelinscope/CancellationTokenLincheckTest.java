@@ -40,7 +40,7 @@ public class CancellationTokenLincheckTest {
             AtomicInteger notifications = new AtomicInteger();
             token.addStateListener(state -> notifications.incrementAndGet());
 
-            Thread canceller = new Thread(() -> token.cancel(false));
+            Thread canceller = new Thread(() -> token.cancel());
             Thread binder = new Thread(() -> token.bind(ImmutableList.of(task), submission, TIMER));
             canceller.start();
             binder.start();
@@ -64,7 +64,7 @@ public class CancellationTokenLincheckTest {
             AtomicInteger notifications = new AtomicInteger();
             child.addStateListener(state -> notifications.incrementAndGet());
 
-            Thread canceller = new Thread(() -> parent.cancel(false));
+            Thread canceller = new Thread(() -> parent.cancel());
             Thread binder = new Thread(() -> child.bind(ImmutableList.of(task), submission, TIMER));
             canceller.start();
             binder.start();

@@ -124,7 +124,7 @@ class CheckpointsCancelledEntryTest {
 
     private static void runInCancelledTask(MultiTaskContext context, AdapterEntry entry) throws Exception {
         new ScopedCallable<Void>(new TaskExecutionContext(context, 0, System.nanoTime()), () -> {
-                    context.cancellationToken().cancel(false);
+                    context.cancellationToken().cancel();
                     entry.run();
                     return null;
                 })

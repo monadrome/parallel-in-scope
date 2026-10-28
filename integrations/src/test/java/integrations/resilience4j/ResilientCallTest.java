@@ -153,7 +153,7 @@ class ResilientCallTest {
                         },
                         open -> "fallback"),
                 BatchOptions.timeout("quiet-cancel", Duration.ofSeconds(5))
-                        .cancelOn(requestDone, false)
+                        .cancelOn(requestDone)
                         .closeGrace(Duration.ofSeconds(2)));
 
         assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);

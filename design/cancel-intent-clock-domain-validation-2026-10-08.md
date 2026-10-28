@@ -1,5 +1,9 @@
 # 取消意图原子发布与时钟域配对：评审与验证记录
 
+> 2026-11-04 注：第 1 项的中断意图已随 `cancelOn` 去掉 `interrupt` 参数一并移除，token 终态只剩 state，
+> 框架取消一律中断（现行规则见 [取消传播契约](cancellation-propagation.md) §5.1）。下文关于意图发布、
+> 传播与「不得升级」的评审和验证记录只描述当时的实现；时钟域配对部分仍然有效。
+
 实现变更：c629f5b 之后的 12 个任务提交（timeout 来源分类、cancel(false) 传播、观测关闭发布、
 rawCheckpoint、remaining()、内部 deadline 时钟、mapAndCombine、runtime snapshot、
 failedTaskResult、观测排序、deferred graph 边），加上本轮工作树改动：

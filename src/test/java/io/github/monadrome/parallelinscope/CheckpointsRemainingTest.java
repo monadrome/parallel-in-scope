@@ -101,7 +101,7 @@ class CheckpointsRemainingTest {
         TaskExecutionContext previous =
                 TaskExecutionContext.install(new TaskExecutionContext(context, 0, System.nanoTime()));
         try {
-            context.cancellationToken().cancel(false);
+            context.cancellationToken().cancel();
             observed.set(Checkpoints.remaining());
         } finally {
             TaskExecutionContext.restore(previous);

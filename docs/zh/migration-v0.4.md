@@ -188,8 +188,8 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 
 ## 请求取消输入
 
-`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 与
-`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` 是可选新增能力；未声明它们的
+`BatchOptions.cancelOn(ListenableFuture<?> signal)` 与
+`GroupStart.cancelOn(ListenableFuture<?> signal)` 是可选新增能力；未声明它们的
 代码保持原行为。`TaskOptions` 刻意没有 `cancelOn`，因为请求取消属于整个批次或组，而不是独立的
 成员政策。
 
@@ -208,13 +208,13 @@ par.map(skus, sku -> {
 SettableFuture<Void> disconnect = SettableFuture.create();
 onClientDisconnect(() -> disconnect.set(null));
 par.map(skus, this::fetchPrice,
-        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect));
 ```
 
 消除的失败模式是轮询检查点之间的空窗：取消现在能到达已经阻塞在可中断等待中的 body。来源成功、
-失败或取消都会触发取消，是否中断只看显式 `interrupt` 参数。来源仍由调用方所有；归因保持
-first-wins，来源先赢时为 `GROUP_CANCELLED`，`cancel(false)` 不会被落败的 deadline/fail-fast
-回调升级。注册与监听切断分别遵循准入和终态；空批次与空组不注册。这不表示任意 IO 已经停止，
+失败或取消都会触发取消，并像 deadline、fail-fast 一样中断正在运行的 body；没有不中断的变体，因为
+承受不了中断的 body 照样会被自己的 deadline 中断。来源仍由调用方所有；归因保持 first-wins，来源先赢时
+为 `GROUP_CANCELLED`。注册与监听切断分别遵循准入和终态；空批次与空组不注册。这不表示任意 IO 已经停止，
 同步有界清理也不变。
 
 ## 执行器等待报告
