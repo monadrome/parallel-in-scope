@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -223,7 +222,8 @@ class ExecutorWaitGraphTest {
         ExecutorIdentity c = executor();
         ExecutorWaitGraph graph = graph(a, "a", b, "b", c, "c");
 
-        graph.record(unit("group-caller", a), Arrays.asList(unit("member-b", b), unit("member-c", c)));
+        List<TaskNode> awaited = Arrays.asList(unit("member-b", b), unit("member-c", c));
+        graph.record(unit("group-caller", a), awaited.size(), awaited::get);
         graph.record(unit("back-from-b", b), unit("to-a", a));
         graph.record(unit("back-from-c", c), unit("to-a", a));
 
@@ -358,7 +358,7 @@ class ExecutorWaitGraphTest {
             for (ExecutorIdentity to : pools) {
                 awaited.add(unit("child", to));
             }
-            graph.record(unit("caller", from), awaited);
+            graph.record(unit("caller", from), awaited.size(), awaited::get);
         }
 
         assertThat(graph.report().cyclicComponents()).hasSize(1);
@@ -464,7 +464,7 @@ class ExecutorWaitGraphTest {
                 } catch (Exception failure) {
                     throw new AssertionError(failure);
                 }
-                graph.record(unit("outer", a), Collections.singletonList(unit("inner", a)));
+                graph.record(unit("outer", a), 1, ignored -> unit("inner", a));
             });
             started.add(thread);
             thread.start();
@@ -477,5 +477,22 @@ class ExecutorWaitGraphTest {
         assertThat(announcements).hasSize(1);
         assertThat(ImmutableList.copyOf(graph.report().cyclicComponents().get(0).cycle()))
                 .containsExactly(ImmutableSet.of(ParId.of("a")));
+    }
+
+    @Test
+    void aFailureWhileReadingOneAdmissionDoesNotEscapeRecording() {
+        ExecutorIdentity a = executor();
+        ExecutorWaitGraph graph = graph(a, "a");
+        ExecutorWaitReport before = graph.report();
+
+        graph.record(unit("caller", a), 2, index -> {
+            if (index == 0) {
+                return unit("self", a);
+            }
+            throw new IllegalStateException("broken source");
+        });
+
+        assertThat(graph.report()).isSameAs(before);
+        assertThat(announcements).hasSize(1);
     }
 }

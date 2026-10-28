@@ -528,8 +528,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * propagates so the caller can discard the untaken payloads; no user code runs on this path.
      *
      * <p>The runtime's executor waits-for graph receives the caller's waits on every member and the
-     * terminal ({@link #awaitedUnits}) together, only after every task prepared, so a failed
-     * preparation records nothing.
+     * terminal together, only after every task prepared, so a failed preparation records nothing.
      */
     static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
@@ -574,6 +573,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         Map<String, MemberState> states = new LinkedHashMap<>();
         MemberState terminal = null;
         int memberIndex = 0;
+        TaskGroup<Object, Object> group;
         try {
             for (TaskGroupDefinition.Slot slot : definition.members()) {
                 Par par = slot.par;
@@ -634,8 +634,18 @@ final class TaskGroup<V, R> implements AutoCloseable {
                         future,
                         par.executorRuntime().submissionExecutor());
             }
+            group = new TaskGroup<>(
+                    definition.name(),
+                    start,
+                    groupDeadline,
+                    groupToken,
+                    states,
+                    terminal,
+                    bodyCompletion,
+                    definition.closeGrace());
             if (structuralParent != null) {
-                env.executorWaits().record(structuralParent.node(), awaitedUnits(states, terminal));
+                env.executorWaits()
+                        .record(structuralParent.node(), group.membersAndTerminal.size(), group::awaitedUnitAt);
             }
         } catch (Throwable failure) {
             for (MemberState state : states.values()) {
@@ -646,15 +656,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
             throw failure;
         }
-        TaskGroup<Object, Object> group = new TaskGroup<>(
-                definition.name(),
-                start,
-                groupDeadline,
-                groupToken,
-                states,
-                terminal,
-                bodyCompletion,
-                definition.closeGrace());
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
         if (terminal != null) {
             retained.add(terminal.future);
@@ -1091,19 +1092,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 member.context.endTimeNanos());
     }
 
-    /**
-     * Every unit the caller of {@code runAll()} synchronously waits for: each member and the terminal
-     * combine. Member-to-combine input is data flow, not a wait, so it adds nothing.
-     */
-    private static List<TaskNode> awaitedUnits(Map<String, MemberState> members, @Nullable MemberState terminal) {
-        List<TaskNode> awaited = new ArrayList<>(members.size() + 1);
-        for (MemberState member : members.values()) {
-            awaited.add(member.node());
-        }
-        if (terminal != null) {
-            awaited.add(terminal.node());
-        }
-        return awaited;
+    /** Returns a member or terminal awaited by the caller; member-to-combine data flow adds no edge. */
+    private TaskNode awaitedUnitAt(int index) {
+        return membersAndTerminal.get(index).node();
     }
 
     /** Internal per-run state of one frozen member or of the terminal combine. */
