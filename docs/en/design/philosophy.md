@@ -1,5 +1,7 @@
 # Subtractive Design: `parallel-in-scope` Design Review
 
+> This page is a condensed English overview. The long-form Chinese design review under `docs/zh/design/philosophy.md` (published at `/zh/design/philosophy/`) carries the full reasoning and is the authoritative version for design tradeoffs.
+
 ## Introduction
 
 The library targets three recurring Java 8 problems: cancellation that cannot reach CPU-bound work, context lost across thread pools, and deadlocks caused by nested work submitted to a bounded pool. Its design is intentionally narrow: batch execution with explicit cancellation and diagnostics, rather than a general asynchronous workflow framework.

@@ -1,16 +1,11 @@
 ---
 title: "并发库的减法哲学：parallel-in-scope 设计复盘"
 date: 2026-06-27
-url: ""
-views: 0
-likes: 0
-collects: 0
-source: "原创"
 ---
 
 # 并发库的减法哲学：parallel-in-scope 设计复盘
 
-> 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)和 [v0.2 迁移指南](../migration-v0.2.md) 为准。
+> 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)为准；从历史 API 迁移见 [v0.4](../migration-v0.4.md)、[v0.3](../migration-v0.3.md)、[v0.2](../migration-v0.2.md) 迁移指南。
 
 
 > 本文随仓库按 [Apache License 2.0](https://github.com/monadrome/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
@@ -172,7 +167,7 @@ deadline 是这条同步执行路径的取消来源。公开同步出口不改�
 
 **传统做法的问题：** `Thread.interrupt()` 只设置一个 boolean 标志。你只知道"我被取消了"，不知道是哪个子任务失败触发的 fail-fast、还是整批超时、还是父任务级联传播。而且在高频循环中，你需要不断检查 `Thread.interrupted()`——这个检查本身不花钱，但如果你要在检查到中断时抛异常来中断执行流，`new InterruptedException()` 的 `fillInStackTrace()` 就是另一回事了。
 
-`fillInStackTrace()` 是 JVM 里最贵的操作之一——它要收集整个调用栈的栈帧，大约占异常创建总耗时的 90%+，一次调用约 1-5 微秒（取决于栈深度）。如果检查点每秒被调用 100 万次，那就是每秒 1-5 秒的 CPU 时间花在填栈上——这个开销是致命的。
+`fillInStackTrace()` 是 JVM 里较贵的操作之一——它要收集整个调用栈的栈帧，开销随栈深度增长，往往构成异常创建成本的大头，单次调用在微秒量级（取决于栈深度）。如果检查点每秒被调用 100 万次，每秒就有数秒的 CPU 时间花在填栈上——这个开销是致命的。
 
 parallel-in-scope 在高频路径提供轻量取消异常，并在诊断场景使用 JDK 标准异常：
 
@@ -396,7 +391,3 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 潜龙勿用——但如果用了，就用对。
 
 如果你的项目也有线程池死锁的困扰，在测试末尾断言一次 `runtime.executorWaitReport().cyclicComponents()` 为空——不需要任何配置。至少，下次卡死的时候你能知道为什么。
-
----
-
-*如果这篇文章对你有帮助，欢迎关注我，持续分享高质量技术干货。*
