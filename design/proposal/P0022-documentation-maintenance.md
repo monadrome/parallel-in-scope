@@ -97,3 +97,12 @@ rechecked the first-round fixes against source and tests.
 - Rejected as scope: Chinese parity changes and the concurrently appearing P0028 proposal/route are
   outside this English-only task and are not part of its diff. A low-value idea-graveyard paraphrase
   was reverted rather than creating unnecessary locale drift.
+
+A subsequent Codex review of `ea9cddc` found no Standards issues and retained two Spec findings:
+
+- Retained: `ParRuntime.Builder.build()` described only directly registered pools, although the
+  guard also rejects recognized TTL-wrapped discarding pools. Its Javadoc now includes that case.
+- Retained: the `TaskCompletion` class summary still said every successful observation contained
+  its actual value. It now distinguishes value-bearing public execution observations from value-less
+  snapshots inside a group report and the report-bearing group summary. Codex confirmed both fixes
+  and its follow-up clarification was applied to the public `TaskGroupResult` observation wording.

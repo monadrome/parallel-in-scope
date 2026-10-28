@@ -10,8 +10,11 @@ import org.jspecify.annotations.Nullable;
  * start. Synchronous batches expose available observations through TaskBatchResult.completions;
  * groups expose them through TaskGroupResult.members and terminal.
  *
- * <p>Successful observations contain the actual value, including null. Outcomes agree with the
- * enclosing execution's frozen results. A never-started task has zero start/end times and
+ * <p>Successful unary and batch observations, and successful observations published through {@link
+ * TaskGroupResult#members()} and {@link TaskGroupResult#terminal()}, contain the actual value,
+ * including null. Snapshots inside a {@link TaskGroupReport} do not embed member or combine values;
+ * a group summary embeds its report instead. Outcomes agree with the enclosing execution's frozen
+ * results. A never-started task has zero start/end times and
  * durations; the zero sentinel is recognized before any subtraction, because ticker readings may
  * legally be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
