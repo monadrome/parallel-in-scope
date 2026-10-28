@@ -525,6 +525,20 @@ def git_value(root: Path, *args: str) -> str:
         return ""
 
 
+def github_token() -> str | None:
+    """Prefer CI-provided tokens; fall back to the local gh CLI for manual runs."""
+    for name in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(name)
+        if value:
+            return value
+    try:
+        return subprocess.run(
+            ["gh", "auth", "token"], check=True, capture_output=True, text=True
+        ).stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
 def render_markdown(items: list[Item], meta: dict[str, str]) -> str:
     sections = (
         ("maven-dependency", "Maven dependencies"),
@@ -630,7 +644,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
     ref = args.ref or git_value(root, "rev-parse", "--abbrev-ref", "HEAD") or "unknown"
     commit = git_value(root, "rev-parse", "--short", "HEAD")
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    token = github_token()
     try:
         items = audit(root, args.timeout, args.offline, token)
     except FatalAuditError as exc:
