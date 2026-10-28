@@ -176,7 +176,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 | 外部取消来源 `cancelOn` | `CANCELLED` | 调用方持有的 `ListenableFuture` 以成功、失败或取消任一方式完成时，取消整个批次或组；归因 first-wins，来源先赢记 `GROUP_CANCELLED`，是否中断正在运行的任务体由显式 `interrupt` 参数决定 |
 
 所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
-外部取消输入声明在批次或组的 options 上，任务体内无需轮询应用标志，
+外部取消输入声明在批次的 `BatchOptions` 或组的 `GroupStart` 上（组须在首个成员前声明），任务体内无需轮询应用标志，
 详见[请求完成时取消执行](../user-guide.md#request-cancellation)。
 任务体也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
 见[即时结果](../user-guide.md#task-future-attribution)。
