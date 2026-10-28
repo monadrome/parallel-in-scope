@@ -40,7 +40,7 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0004 | Deferred: new shared-budget API and clock-domain choice |
 | P0005 | Deferred: subtree confirmation is a new capability; current direct-body boundary is explicitly contracted |
 | P0006 | Deferred: protocol/live-surface refactors lack a measured failure; its interruption concern is covered by P0014 |
-| P0007 | Deferred: additional allocation is visible but no current performance regression is measured |
+| P0007 | Batch failure selection uses one scan before collecting successful values; the fused single-pass alternative regressed medium batches and failed reads in local measurements. Remaining statistics, projection, and lookup measurements continue in P0027 |
 | P0008 | Deferred: new diagnostic identity/lifetime capability |
 | P0009 | Deferred: new named terminal input API without a demonstrated failing use case |
 | P0010 | Null mapper fixed; shutdown quick failure, wrapper identity, and resource measurements continue in P0021 |

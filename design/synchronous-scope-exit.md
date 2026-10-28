@@ -137,6 +137,13 @@ checked 时包成 `CompletionException`（消息含作用域名与任务定位�
 结果函数不重跑 body。
 类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。左嵌套 Tuple2、nullable 值与空组保持。
 
+批次失败检查在一次扫描中记住首个取消项，遇到首个已记录执行失败时立即抛出，只有整遍扫描
+未发现执行失败才抛取消。成功值在失败闸门通过后另行收集。排除边检查边收集的单遍方案：
+它会在后续元素失败或取消时先分配并丢弃整个值列表，且本地测量未显示中等批量的稳定收益。
+减少失败检查的重复扫描即可缩短大列表读取，同时保持失败读取不投机分配值列表；不加缓存或索引。
+历史来源：`proposal:P0007`；统计、值投影与查询的测量候选在
+[P0027](proposal/P0027-result-projection-measurement.md)。
+
 asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isCancelled=false。
 库执行产生的取消是 failed future：无已记录失败时 cause 为归一化取消异常；组聚合已有记录失败时
 cause 为该存储失败（见上）。手动 failed(outcome, failure) 保留给定异常，outcome 标签不转换异常类型。
@@ -480,3 +487,31 @@ target/kimi-synchronous-review-r5-prompt.md、target/kimi-synchronous-review-r5.
 PIT（`TaskBatchResult`、`BatchCombinedResult`、`ImmediateResult`，含 VOID/NON_VOID_METHOD_CALLS）：新增代码的
 剩余存活均为等价或不可达——`valuesOrThrow` 的容量提示、汇总非取消 cause 的消息分支（库产出的取消形状
 终态恒为 `CancellationException`）、`fold` 对不可能出现的 RUNNING 的断言消息；其余存活在本次未触及的方法上。
+
+### 7.3 批次失败检查扫描优化（2026-10-27）
+
+用户代码仍为 `batch.valuesOrThrow()`，公开签名与 §3 失败闸门规则均未改变。
+以 `10e7b45` 为基线的本地合成微基准只测冻结结果读取：JDK 25、固定 128 MB heap、每项
+300 ms 预热与 500 ms 测量、3 个独立 JVM fork 取中位数。最终方案的 128/4096 项成功读取
+分别约快 18%/21%，4096 项中位失败约快 30%、首项取消约快 19%；首项失败基本持平。
+8 项成功约慢 14%（44→50 ns/op），每次分配量差异很小。这不是 JMH 或端到端性能结论，
+只支持减少大列表遍历，不支持所有规模都会提速的承诺。
+
+排除的单遍边检查边收集方案：128 项成功约慢 70%，4096 项中位失败约从 1494 ns/op、
+72 bytes/op 变为 8401 ns/op、16496 bytes/op。故保留失败闸门后的独立值收集，不引入
+投机分配或缓存。探针与原始结果留在本地 `target/batch-read-benchmark/`。
+
+Kimi ACP（K3.1 Pro）独立只读评审未发现问题；主代理逐项对照确认输入顺序的失败优先、
+取消 identity、原 cause、成功 null、中断与空批次契约。评审明确测量结论只适用于已测形状，
+按此保留限制，没有把评审视为运行测试。workspace `workspace:1000020004` 保留，
+会话 `session_6a3f910b-382f-4a39-9f38-13a4b4ead286`，简报和原文在本地
+`/tmp/cmux-handoff/kimi-batch-read-change-review.md` 与同名目录。
+
+行为测试：全量 97 类、1070 项通过，失败/错误/跳过均为 0；格式与文档链接/路由检查通过。
+新增断言验证成功项之后的首取消、后续执行失败优先、原 cause/消息和中断标志。行为保持型优化
+不要求旧实现违反这些契约；反证时临时让后续取消覆盖首取消，新断言失败，恢复后通过。
+限定 `TaskBatchResult` 的 PIT（含 `VOID_METHOD_CALLS`）生成 28 个变异，全部 KILLED，
+无存活、无未覆盖；不把该范围外的测试或 mutation coverage 计入。外部消费者未在本次单独运行。
+P0007 的原 `report()` 分配前提早已过时；其剩余候选按生命周期迁到 P0027，未宣称已测量或实现。
+最后的文档专审（Kimi ACP 会话 `session_e2c3457a-729f-4c10-89fa-eaad46b57c5b`）只检查
+提案拆分、路由与验证措辞，未发现问题；仍保留在同一 workspace，未重复审阅 Java 或运行测试。
