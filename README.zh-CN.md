@@ -14,6 +14,16 @@
 
 面向 Java 8+ 的结构化并发工具包，提供协作式取消、快速失败、上下文传播、滑动窗口调度和线程池死锁与饥饿诊断。
 
+## 环境要求
+
+| 用途 | 要求 |
+|---|---|
+| 运行 | Java 8 或更高版本 |
+| 构建 | JDK 25 LTS（编译期由 Error Prone/NullAway 强制检查） |
+| 构建工具 | Maven 3.9.x |
+
+发布构件仍是 Java 8 字节码。JDK 21 会被 enforcer 拒绝，运行 Maven 前请切换到 JDK 25。
+
 ## 快速开始
 
 从 Maven Central 添加依赖：
@@ -26,51 +36,52 @@
 </dependency>
 ```
 
-在应用启动阶段构建一次执行拓扑，每个逻辑入口绑定它必须使用的执行器；应用关闭时同时关闭运行
-时与你自己的执行器：
+下面是一个最小完整程序：一个执行器、一个批次和一个显式超时：
 
 ```java
-ExecutorService ioPool = Executors.newFixedThreadPool(8);
-ExecutorService httpPool = Executors.newFixedThreadPool(4);
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-ParRuntime runtime = ParRuntime.builder()
-        .register(ParId.of("io"), ioPool)
-        .register(ParId.of("http"), httpPool)
-        .build();
+public final class QuickStart {
 
-Par ioPar = runtime.par(ParId.of("io"));
-Par httpPar = runtime.par(ParId.of("http"));
-
-try {
-    BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
-            .parallelism(4)
-            .taskType(TaskType.IO_BOUND);
-
-    TaskBatchResult<User> result = ioPar.map(userIds, userService::findById, options);
-
-    for (ImmediateResult<User> item : result.results()) {
-        System.out.println(item.outcome());
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("io"), pool)
+                .defaultPar(ParId.of("io"))
+                .build();
+        try {
+            Par io = runtime.defaultPar();
+            List<Integer> numbers = Arrays.asList(1, 2, 3, 4);
+            TaskBatchResult<Integer> squares = io.map(
+                    numbers,
+                    n -> n * n,
+                    BatchOptions.timeout("squares", Duration.ofSeconds(5)).parallelism(2));
+            System.out.println("SUCCESS:" + squares.valuesOrThrow());
+        } catch (ExecutionException failure) {
+            System.out.println("FAILED:" + failure.getCause());
+        } finally {
+            runtime.close();
+            pool.shutdownNow();
+        }
     }
-
-    TaskGroupResult<Tuple2<User, Account>, Profile> group = runtime
-            .group("profile", Duration.ofSeconds(3))
-            .par("user", ioPar, User.class, () -> loadUser(userId))
-            .par("account", httpPar, Account.class, () -> loadAccount(userId))
-            .combine("profile", httpPar, Profile.class,
-                    values -> buildProfile(values.first(), values.second()))
-            .runAll();
-    Profile profile = group.terminalValueOrThrow();
-} finally {
-    runtime.close();
-    try {
-        runtime.awaitQuiescence(Duration.ofSeconds(30));
-    } catch (InterruptedException interrupted) {
-        Thread.currentThread().interrupt();
-    }
-    ioPool.shutdownNow();
-    httpPool.shutdownNow();
 }
 ```
+
+预期输出为 `SUCCESS:[1, 4, 9, 16]`。`map` 是同步调用，会阻塞调用线程；调用线程被中断不会取消批次。
+超时必须显式选择 `timeout(...)` 或 `inheritTimeout(...)`。批次快速失败：首个失败会取消其余元素，包括尚未提交的元素。
+
+`Par.map` 接收 `Function`，受检异常必须包一层，例如使用 `java.io.UncheckedIOException`。在 `0.3.x` 中，
+`valuesOrThrow()` 抛受检的 `ExecutionException`；`0.4.0-SNAPSHOT` 改为非受检失败。
 
 第一次调用前，有三条契约值得知道：
 
@@ -83,22 +94,6 @@ try {
 - **parallelism 默认不设额外上限。** `BatchOptions` 缺省即 `Integer.MAX_VALUE`，解析时被任务总数
   封顶——不写 `.parallelism(...)` 等于整批一次性提交。需要有界窗口就显式设置；0 或负数在入口
   被拒绝。
-
-同一段示例还声明了一个**任务组**：一组固定的具名任务，每个任务带着自己的 `Par`、声明类型与
-body，最后由一个终端 `combine` 聚合。`runAll()` 只执行一次并返回冻结结果，用
-`terminalValueOrThrow()` 读取终端值。
-
-`ParRuntime.close()` 只释放框架自建的 timer 与 submitter 服务，不会关闭你注册的执行器——因此
-示例在 `finally` 里自行关闭两个线程池。
-
-跨线程上下文传播基于 Alibaba `TransmittableThreadLocal`（TTL）：任务准备时捕获 TTL 的值，在
-worker 线程上恢复——普通 `ThreadLocal` 不会跨线程池边界：
-
-```java
-TransmittableThreadLocal<String> traceId = new TransmittableThreadLocal<>();
-traceId.set("req-42");
-// par.map(...) 的 mapper 在线程池线程上读得到 "req-42"
-```
 
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。
@@ -119,12 +114,11 @@ traceId.set("req-42");
 |---|---|
 | [在线文档](https://monadrome.github.io/parallel-in-scope/) | 已发布版本的使用指南 |
 | [交互式演示](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | 单文件动画演示四条核心语义 |
-| [中文文档](docs/zh/index.md) | 完整中文文档集 |
-| [v0.3 迁移指南](docs/zh/migration-v0.3.md) | 相对 `0.2.x` 任务组 API 的破坏性变更 |
-| [v0.2 迁移指南](docs/zh/migration-v0.2.md) | 相对 `0.1.x` API 的破坏性变更 |
-| [完整使用指南](docs/zh/user-guide.md) | 配置、API 用法、执行流程与高级特性 |
-| [English documentation](docs/en/index.md) | 英文文档入口 |
-| [示例项目](demo/README.md) | 可运行示例与文章目录 |
+| [稳定版中文文档](https://monadrome.github.io/parallel-in-scope/zh/) | `0.3.0` 发布线指南 |
+| [v0.3 文档源码](https://github.com/monadrome/parallel-in-scope/tree/v0.3.0/docs/zh) | 稳定版冻结源码 |
+| [0.4 开发中文文档](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/docs/zh) | `0.4.0-SNAPSHOT` 开发线指南 |
+| [English documentation](https://monadrome.github.io/parallel-in-scope/) | 英文稳定版入口 |
+| [示例项目](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/demo) | 可运行示例与文章目录 |
 
 ## 兼容性与构建
 

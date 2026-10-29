@@ -11,6 +11,7 @@ copyright: © parallel-in-scope — Apache License 2.0
 
 nav:
   - Documentation: index.md
+  - 5-minute quickstart: quickstart.md
   - Full user guide: user-guide.md
   - Interactive demo (Chinese UI): https://monadrome.github.io/parallel-in-scope/interactive-demo.html
   - Migration:
@@ -150,6 +151,7 @@ plugins:
                   name: 切换到亮色模式
           nav:
             - 文档首页: index.md
+            - 5 分钟快速上手: quickstart.md
             - 完整使用指南: user-guide.md
             - 交互式演示: https://monadrome.github.io/parallel-in-scope/interactive-demo.html
             - 迁移指南:

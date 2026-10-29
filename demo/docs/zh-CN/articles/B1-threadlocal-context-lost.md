@@ -42,6 +42,7 @@ for (int i = 0; i < 3; i++) {
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("biz-pool"), pool)
+        .defaultPar(ParId.of("biz-pool"))
         .build();
 Par par = config.defaultPar();
 

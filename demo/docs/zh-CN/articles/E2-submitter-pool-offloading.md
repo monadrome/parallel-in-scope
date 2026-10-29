@@ -34,13 +34,11 @@ pool.submit(() -> {
 
 ## 解决方法
 
-`parallel-in-scope` 使用专用的 `SubmitterPool` 来运行提交循环。这是一个全局单例的守护线程池，线程命名为 `Par-Submitter-*`，采用 `CachedThreadPool` 模型按需创建。
-
-提交循环在 `SubmitterPool` 上运行，只负责"等待完成 → 提交下一个"的调度逻辑，不执行任何业务代码。业务线程池的线程始终只执行实际的业务任务，不会被调度开销占用。
+当前实现通过完成事件驱动滑动窗口补充提交，不公开或依赖名为 `SubmitterPool` 的全局服务。提交循环的生命周期由本次批次管理，并在取消或超时时停止补窗。
 
 这种分离带来两个关键好处：
-- **避免死锁**：即使业务线程池大小等于并发度，也不会因为提交循环占用线程而导致死锁
-- **最大化吞吐**：业务线程池的所有线程都用于执行任务，有效并行度等于线程池大小
+- **减少队列压力**：未轮到的元素不会提前进入业务线程池队列
+- **及时停止补窗**：批次失败或超时后，未提交元素不会再进入执行器
 
 ## 代码
 
@@ -50,12 +48,13 @@ pool.submit(() -> {
 ExecutorService pool = Executors.newFixedThreadPool(1);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
 BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000)).parallelism(1);
 
-// Par.map() 不会死锁——提交循环运行在 Par-Submitter 线程上
+// Par.map() 由完成事件驱动后续提交
 List<Integer> input = Arrays.asList(1, 2, 3);
 TaskBatchResult<Integer> result = par.map( input, x -> {
     Thread.sleep(100);

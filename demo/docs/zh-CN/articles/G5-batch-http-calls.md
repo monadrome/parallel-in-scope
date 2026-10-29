@@ -44,6 +44,7 @@ try {
 ```java
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("http-pool"), pool)
+        .defaultPar(ParId.of("http-pool"))
         .build();
 Par par = config.defaultPar();
 

@@ -73,6 +73,7 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 // parallel-in-scope：并发控制 + 超时取消 + fail-fast + 上下文传播
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 

@@ -56,6 +56,7 @@ for (String item : emptyList) {
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 

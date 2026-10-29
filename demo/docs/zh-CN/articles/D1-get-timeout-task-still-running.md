@@ -50,6 +50,7 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 ExecutorService pool = Executors.newFixedThreadPool(2);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 

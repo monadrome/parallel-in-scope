@@ -1,11 +1,15 @@
 # parallel-in-scope 文档
 
+> 此目录跟随 `0.4.0-SNAPSHOT` 开发线。稳定版 `0.3.0` 请使用
+> [线上稳定文档](https://monadrome.github.io/parallel-in-scope/zh/)。
+
 这里汇总使用指南、API 参考、设计文档和示例。
 
 ## 使用指南
 
 | 文档 | 内容 |
 |---|---|
+| [5 分钟快速上手](quickstart.md) | 在新 Maven 项目中完成首次批量调用 |
 | [完整使用指南](user-guide.md) | 配置、公共 API、执行语义和进阶能力 |
 | [v0.4 迁移指南](migration-v0.4.md) | 从 `0.3.x` 迁移：类型化 `TaskKey`、聚合结果读取与运行时诊断 |
 | [v0.3 迁移指南](migration-v0.3.md) | 从 `0.2.x` 迁移：任务组一次性链式 API 与运行期契约变化 |

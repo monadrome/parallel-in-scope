@@ -33,12 +33,12 @@ for (int i = 0; i < 20; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `BatchOptions` 的 `taskType(TaskType.CPU_BOUND)` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
+`parallel-in-scope` 提供了 `BatchOptions` 的 `taskType(TaskType.CPU_BOUND)` 来标记 CPU 密集任务。这个选项只有在线程池使用 `SmartBlockingQueue` 时才会影响入队：队列可能拒绝该任务，随后由线程池自己的 `RejectedExecutionHandler` 决定如何处理。普通线程池不会因为这个选项自动选择 `CallerRunsPolicy`，库也不会替你改变调度策略。
 
 这意味着 CPU 任务总是尽可能快地得到执行：
-- 线程池有空闲线程？立即在池线程上执行
-- 线程池已满？立即在提交线程上执行（CallerRunsPolicy）
-- 绝不会在队列中干等
+- 使用 `SmartBlockingQueue` 时可避免 CPU 任务无限堆积
+- 使用其他队列时，`CPU_BOUND` 只会触发一次配置警告
+- 被拒任务的处理完全由 executor 的拒绝策略决定
 
 ## 代码
 
@@ -47,6 +47,7 @@ for (int i = 0; i < 20; i++) {
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("cpu-pool"), pool)
+        .defaultPar(ParId.of("cpu-pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -66,10 +67,10 @@ System.out.println(result.reportString());
 
 | 维度 | 原生 FixedThreadPool | Par.map() + taskType(CPU_BOUND) |
 |------|---------------------|----------------------|
-| CPU 任务排队 | 必须排队等待 | 零队列延迟 |
-| 最后一个任务延迟 | O(n) 排队时间 | O(1) 立即执行 |
-| 线程利用率 | 队列中的任务不消耗 CPU | 所有线程持续计算 |
-| 适用场景 | IO 任务合适 | CPU 任务专用 |
+| CPU 任务排队 | 按队列和拒绝策略决定 | `SmartBlockingQueue` 可拒绝入队 |
+| 被拒任务处理 | 由 executor 的 `RejectedExecutionHandler` 决定 | 不由 `TaskType` 自动决定 |
+| 调度策略 | 由 executor 配置 | `TaskType` 不选 executor、不改调度 |
+| 适用场景 | 适合对照测试 | 需要显式配置队列与拒绝策略 |
 
 ---
 
