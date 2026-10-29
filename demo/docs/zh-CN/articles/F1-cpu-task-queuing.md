@@ -1,4 +1,4 @@
-# F1. CPU 密集任务兜底成功执行
+# F1. CPU 密集任务避免排队
 
 ## 问题
 
@@ -51,7 +51,7 @@ ParRuntime config = ParRuntime.builder()
         .build();
 Par par = config.defaultPar();
 
-// taskType(CPU_BOUND) 标记 CPU 密集任务，触发 CallerRunsPolicy
+// taskType(CPU_BOUND) 标记 CPU 密集任务；是否 inline 由 executor 的拒绝策略决定
 BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.CPU_BOUND);
 
 List<Data> items = loadDataset();
@@ -74,4 +74,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)
+> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)

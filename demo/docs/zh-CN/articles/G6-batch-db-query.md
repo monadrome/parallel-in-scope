@@ -90,4 +90,4 @@ System.out.println("查询完成: " + allUsers.size() + " 条");
 
 ---
 
-> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)
+> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)

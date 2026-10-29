@@ -79,4 +79,4 @@ CPU 任务与 IO 任务的取消能力对比：
 
 ---
 
-> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)
+> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)

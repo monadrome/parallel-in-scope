@@ -80,4 +80,4 @@ assert r3.results().size() == 3;  // true
 
 ---
 
-> 📁 完整测试代码：[H1_NullEmptyInputTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/H1_NullEmptyInputTest.java)
+> 📁 完整测试代码：[H1_NullEmptyInputTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/H1_NullEmptyInputTest.java)

@@ -3,7 +3,7 @@
 The library has no injectable clock, and it will not get one: a public time source could only
 virtualize half of the time involved, and a misconfigured one in production would remove the one
 liveness guarantee a synchronous `map` or `runAll` has. The rationale is in the
-[decision log](https://github.com/monadrome/parallel-in-scope/blob/main/design/decision-log.md).
+[decision log](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/design/decision-log.md).
 Timeout paths are still deterministic to test; this page shows how.
 
 ## Inject the timeout, not the clock

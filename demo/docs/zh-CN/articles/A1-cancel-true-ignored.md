@@ -30,7 +30,7 @@ futures.forEach(f -> f.cancel(true));
 
 配合 `BatchOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
 - `parallelism(3)` 限制最大并行数为 3，采用滑动窗口调度避免线程池过载
-- `taskType(TaskType.IO_BOUND)` 标记为 IO 密集型任务，影响调度策略
+- `taskType(TaskType.IO_BOUND)` 声明为 IO 密集型任务；只有 `SmartBlockingQueue` 会据此决定入队，其他队列不改变行为
 - `timeout(500)` 设置本次批量调用的 500ms 超时，超时后取消未完成任务
 
 ## 代码
@@ -61,4 +61,4 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
+> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
