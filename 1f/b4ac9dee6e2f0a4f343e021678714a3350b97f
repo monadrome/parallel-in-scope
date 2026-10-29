@@ -1,0 +1,98 @@
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  s_bd7e817aee800e::t_7519f6cfad27ca 29,111-112
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  s_bd7e817aee800e::t_e957d38667f358 75
+docs/en/testing/testing-your-code.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 6
+docs/zh/migration-v0.2.md
+  s_bd7e817aee800e::t_dbe081ff0efe6b 179
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  s_bd7e817aee800e::t_e957d38667f358 69
+docs/en/user-guide.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 3,587
+AGENTS.md
+  s_bd7e817aee800e::t_38c12323c0189a 192-193,196
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  s_bd7e817aee800e::t_e957d38667f358 74
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_bd7e817aee800e::t_e957d38667f358 117
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  s_bd7e817aee800e::t_e957d38667f358 90
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  s_bd7e817aee800e::t_e957d38667f358 74
+docs/zh/index.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 17-19
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  s_bd7e817aee800e::t_e957d38667f358 82
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  s_bd7e817aee800e::t_e957d38667f358 99
+docs/zh/testing/testing-your-code.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 5,26,34
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_bd7e817aee800e::t_e957d38667f358 147
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  s_bd7e817aee800e::t_e957d38667f358 76
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  s_bd7e817aee800e::t_e957d38667f358 87
+docs/zh/user-guide.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 26,510
+docs/zh/visuals/parallel-in-scope-architecture.html
+  s_bd7e817aee800e::t_7519f6cfad27ca 26
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  s_bd7e817aee800e::t_e957d38667f358 69
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_bd7e817aee800e::t_e957d38667f358 137
+  s_bd7e817aee800e::t_7519f6cfad27ca 128
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 33
+  s_bd7e817aee800e::t_e957d38667f358 64
+demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  s_bd7e817aee800e::t_e957d38667f358 95
+docs/en/index.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 17-18
+docs/en/migration-v0.2.md
+  s_bd7e817aee800e::t_dbe081ff0efe6b 246
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  s_bd7e817aee800e::t_e957d38667f358 90
+demo/docs/zh-CN/articles/G1-completion-future-monitoring.md
+  s_bd7e817aee800e::t_e957d38667f358 84
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  s_bd7e817aee800e::t_e957d38667f358 70
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  s_bd7e817aee800e::t_e957d38667f358 71
+docs/zh/design/philosophy.md
+  s_bd7e817aee800e::t_7519f6cfad27ca 214,234,250
+  s_bd7e817aee800e::t_4872b089a5696b 373
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  s_bd7e817aee800e::t_e957d38667f358 67
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  s_bd7e817aee800e::t_e957d38667f358 83
+design/analysis/ssot-audit-2026-10-29.md
+  s_bd7e817aee800e::t_5f266d02b8e3d5 63
+  s_bd7e817aee800e::t_f45c91a208f47d 64-66
+  s_bd7e817aee800e::t_db0b864c7691ca 62
+  s_bd7e817aee800e::t_38c12323c0189a 16,39,45,67
+  s_bd7e817aee800e::t_51299c265819d2 1-15,17-38,40-44,46-61,68
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  s_bd7e817aee800e::t_e957d38667f358 93
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  s_bd7e817aee800e::t_5dd68901827b91 1
+  s_bd7e817aee800e::t_7519f6cfad27ca 54
+  s_bd7e817aee800e::t_e957d38667f358 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1fb4ac9dee6e2f0a4f343e021678714a3350b97f",
+  "prompts": {},
+  "sessions": {
+    "s_bd7e817aee800e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1877c-8b8b-7a80-bbd3-6b329d562fac",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
