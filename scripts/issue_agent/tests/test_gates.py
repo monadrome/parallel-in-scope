@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import tempfile
@@ -109,8 +110,14 @@ class ReverseVerifyScopeTest(unittest.TestCase):
         self.assertEqual(skip.status, "skip")
 
 
+def mutations_xml(*statuses):
+    rows = "".join(f"<mutation status='{status}'><mutatedClass>a.B</mutatedClass><mutatedMethod>m</mutatedMethod>"
+                   f"<lineNumber>{line}</lineNumber><mutator>X</mutator></mutation>" for line, status in enumerate(statuses, 1))
+    return f"<mutations>{rows}</mutations>"
+
+
 class PitReportTest(unittest.TestCase):
-    def test_counts_killed_and_lists_survivors(self):
+    def test_keeps_every_raw_status_and_lists_survivors(self):
         xml = """<mutations>
           <mutation detected='true' status='KILLED'><mutatedClass>a.B</mutatedClass><mutatedMethod>m</mutatedMethod><lineNumber>3</lineNumber><mutator>X</mutator><description>negated</description></mutation>
           <mutation detected='false' status='SURVIVED'><mutatedClass>a.B</mutatedClass><mutatedMethod>n</mutatedMethod><lineNumber>9</lineNumber><mutator>Y</mutator><description>removed call</description></mutation>
@@ -120,8 +127,39 @@ class PitReportTest(unittest.TestCase):
             handle.write(xml)
         summary = gates.parse_pit(Path(handle.name))
         Path(handle.name).unlink()
-        self.assertEqual(summary["killed"], 1)
+        self.assertEqual(summary["statuses"], {"KILLED": 1, "SURVIVED": 1, "NO_COVERAGE": 1})
         self.assertEqual(summary["survivors"], ["SURVIVED a.B#n:9 removed call", "NO_COVERAGE a.C#o:1 Z"])
+        self.assertEqual(gates.pit_tally(summary), "1 KILLED, 1 NO_COVERAGE, 1 SURVIVED")
+
+
+class PitGateTest(unittest.TestCase):
+    def gate_for(self, xml):
+        with tempfile.TemporaryDirectory() as tmp:
+            clone = Path(tmp)
+            source = clone / "src/main/java/a/B.java"
+            source.parent.mkdir(parents=True)
+            source.write_text("class B {}\n")
+            report = clone / gates.PIT_REPORT
+            report.parent.mkdir(parents=True)
+            report.write_text(xml)
+            edited = source.stat().st_mtime
+            os.utime(report, (edited + 5, edited + 5))
+            return gates.pit_gate(clone, [("M", "src/main/java/a/B.java")])
+
+    def test_mutations_without_a_test_verdict_need_a_maintainer(self):
+        gate, summary = self.gate_for(mutations_xml("KILLED", "TIMED_OUT", "MEMORY_ERROR", "RUN_ERROR"))
+        self.assertEqual(gate.status, "inconclusive")
+        self.assertEqual(summary["statuses"], {"KILLED": 1, "TIMED_OUT": 1, "MEMORY_ERROR": 1, "RUN_ERROR": 1})
+        self.assertIn("1 mutations have no test verdict", gate.detail)
+        self.assertIn("1 RUN_ERROR", gate.detail)
+
+    def test_a_report_that_evaluates_nothing_needs_a_maintainer(self):
+        self.assertEqual(self.gate_for(mutations_xml())[0].status, "inconclusive")
+        self.assertEqual(self.gate_for(mutations_xml("NON_VIABLE"))[0].status, "inconclusive")
+
+    def test_a_fully_judged_report_passes_with_its_raw_counts(self):
+        gate, _ = self.gate_for(mutations_xml("KILLED", "TIMED_OUT", "SURVIVED", "NON_VIABLE"))
+        self.assertEqual((gate.status, gate.detail), ("pass", "1 KILLED, 1 NON_VIABLE, 1 SURVIVED, 1 TIMED_OUT"))
 
 
 class ConfigTest(unittest.TestCase):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import dataclasses
 import os
 import re
@@ -20,6 +21,9 @@ TEST_FAILURE_RE = re.compile(r"Tests run: \d+, Failures: (?:[1-9]\d*, Errors: \d
 JAVAC_RE = re.compile(r"Compiling \d+ source files? .*target[/\\]classes")
 BUILD_INPUTS = ("src/", "demo/", "verification/", ".mvn/", "pom.xml")
 PIT_REPORT = Path("target/pit-reports/mutations.xml")
+PIT_SURVIVORS = frozenset({"SURVIVED", "NO_COVERAGE"})
+PIT_VERDICTS = frozenset({"KILLED", "TIMED_OUT", "MEMORY_ERROR"}) | PIT_SURVIVORS
+PIT_UNLOADABLE = frozenset({"NON_VIABLE"})
 REPO_CHECKS = ("scripts/check-english-docs.py", "scripts/check-local-links.py", "scripts/check-design-routes.py")
 TERMINAL_GATES = frozenset({"diff-policy", "secret-scan"})
 
@@ -147,19 +151,29 @@ def pit_gate(clone: Path, entries: Sequence[Tuple[str, str]]) -> Tuple[Gate, dic
     if report.stat().st_mtime < newest_edit:
         return Gate("pit", "fail", "the PIT report predates the last main-source edit; re-run PIT"), {}
     summary = parse_pit(report)
-    return Gate("pit", "pass", f"{summary['killed']} killed, {len(summary['survivors'])} surviving"), summary
+    statuses, tally = summary["statuses"], pit_tally(summary)
+    unjudged = sum(count for status, count in statuses.items() if status not in PIT_VERDICTS | PIT_UNLOADABLE)
+    if unjudged:
+        return Gate("pit", "inconclusive", f"{unjudged} mutations have no test verdict ({tally}); a maintainer judges the coverage"), summary
+    if not any(statuses.get(status) for status in PIT_VERDICTS):
+        return Gate("pit", "inconclusive", f"the PIT report evaluates no mutation ({tally})"), summary
+    return Gate("pit", "pass", tally), summary
 
 
 def parse_pit(report: Path) -> dict:
-    killed, survivors = 0, []
+    statuses, survivors = collections.Counter(), []
     for mutation in ElementTree.parse(report).getroot().iter("mutation"):
-        status = mutation.get("status", "")
-        if status in ("KILLED", "TIMED_OUT", "MEMORY_ERROR"):
-            killed += 1
-        elif status in ("SURVIVED", "NO_COVERAGE"):
+        status = mutation.get("status") or "UNKNOWN"
+        statuses[status] += 1
+        if status in PIT_SURVIVORS:
             where = f"{mutation.findtext('mutatedClass')}#{mutation.findtext('mutatedMethod')}:{mutation.findtext('lineNumber')}"
             survivors.append(f"{status} {where} {mutation.findtext('description') or mutation.findtext('mutator')}")
-    return {"killed": killed, "survivors": survivors}
+    return {"statuses": dict(statuses), "survivors": survivors}
+
+
+def pit_tally(summary: dict) -> str:
+    statuses = summary.get("statuses") or {}
+    return ", ".join(f"{count} {status}" for status, count in sorted(statuses.items())) or "no mutations"
 
 
 def run_all(
