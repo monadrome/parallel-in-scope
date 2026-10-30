@@ -166,9 +166,12 @@ class InertEnqueueRefusalWarningTest {
                             BatchOptions.timeout("flag", TIMEOUT).rejectEnqueue(true));
 
             assertThat(result.valuesOrThrow()).containsExactly(1, 2);
-            await().atMost(Duration.ofSeconds(10))
-                    .untilAsserted(() -> assertThat(records).hasSize(1));
-            assertThat(publishers).isNotEmpty().doesNotContain(Thread.currentThread());
+            Thread admitting = Thread.currentThread();
+            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                assertThat(records).hasSize(1);
+                assertThat(publishers).isNotEmpty();
+            });
+            assertThat(publishers).doesNotContain(admitting);
         } finally {
             parLogger.removeHandler(failing);
         }

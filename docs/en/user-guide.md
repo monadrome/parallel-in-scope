@@ -131,7 +131,8 @@ It feeds two diagnostics:
 - **Submission-time comparison.** When an entry and a unit both declare a type and they differ, the
   library logs it once per entry and unit name: `WARNING` for a `BLOCKING` unit on a `COMPUTE` entry,
   `INFO` for the reverse. The message only says that the declarations disagree, and it is logged from
-  a runtime-owned thread, so a log handler that throws or blocks never affects the submission. The runtime remembers
+  a runtime-owned thread, so a log handler that throws or blocks never affects the submission; messages
+  are delivered independently and may appear out of submission order. The runtime remembers
   at most 1024 such pairs; after that it logs one summary and counts further mismatches in
   `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`. Use fixed unit names, not names built per call.
 - **Low-CPU screening.** An open starvation observation compares each library-admitted body's thread

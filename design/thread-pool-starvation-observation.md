@@ -330,6 +330,18 @@ working tree with a regression test that failed on the reviewed commit before th
 | Codex, contract 1 note: a body registered before the seal still reads its clocks after close | Rejected as a finding: this is the documented start-eligibility semantics, and the sealed total ignores the late commit | None. |
 | Kimi F1 suggestion: catch handler failures at the log call | Not adopted as proposed: catching alone still lets a blocking or re-entrant handler hold admission | Off-thread delivery, matching the executor wait graph. |
 
+A second round reviewed fix commit `6903ff1b` in fresh sessions of both reviewers, with the table
+above as the baseline. Both accepted the round-one dispositions overall.
+
+| Finding | Disposition | Effect of the fix |
+|---|---|---|
+| Codex R2 F1 (P2): at the capacity boundary a duplicate saw a pair whose insertion was about to be rolled back and returned silent, so an admission of a pair that was never remembered went uncounted, and the set briefly held 1025 pairs; the class Javadoc disclosed this, the contract and the snapshot accessor did not | Retained; it also refutes the round-one classification of the `<` to `<=` survivor as equivalent | The memory is one immutable set replaced by compare-and-set, so every admission is decided against one state: a pair is remembered exactly when its insertion succeeds and the set never exceeds the capacity. `twoNewPairsRacingForTheLastSlotCountEveryAdmissionOfTheLoser` races two pairs for the last slot over 20,000 rounds with a package-private capacity seam and requires both admissions of the losing pair to be counted. |
+| Codex R2 F2 (P3): the two off-thread log tests awaited the capture handler but asserted on the failing handler, which runs after it | Retained as a test-ordering flake | Both now await the records and the publishing thread in one condition. |
+| Codex R2 F3 (P2): a failure creating the delivery thread — reproduced with a `SecurityManager` on JDK 8 and a throwing `InheritableThreadLocal.childValue` on JDK 25 — runs on the admitting thread and escaped, because only `RejectedExecutionException` was caught | Retained: contract violation through the shared helper, also reachable from executor-wait cycle warnings | `Announcements.deliver` drops any `RuntimeException` from `execute`. `AnnouncementsTest` and `anAnnouncementExecutorThatCannotStartADeliveryNeverChangesTheOutcome` cover it. |
+| Kimi R2 F1 (P3): the `unlabeledPars()` Javadoc still said "ran measured bodies" | Retained | Javadoc now says "registered a body, counted or excluded"; `anUndeclaredEntryWhoseOnlyBodyLostItsReadingIsStillListedAsUnlabeled` pins it. |
+| Kimi R2 F2 (P3): independent delivery can publish the overflow summary before the 1024th individual warning, while the summary said the mismatches "have been logged" | Retained for the wording; strict ordering rejected because the contract only makes logs best effort and ordering would need a serial delivery queue | The summary says the memory "is full at 1024 Par and unit-name pairs", and the contract and both guides say messages may appear out of admission order. |
+| Kimi R2 residual note: a duplicate racing a rollback may read silent | Superseded by the Codex R2 F1 fix, which removes the race | None. |
+
 ## Workload-fit mutation verification
 
 - Reverse verification on the reviewed commit: reverting each fix alone made its tests fail — TaskType
@@ -361,7 +373,12 @@ working tree with a regression test that failed on the reviewed commit before th
   without coverage; `Par`'s admission diagnostics 13 of 13 and `ScopedCallable.callTimed` 3 of 3
   killed. The new survivors were in `TaskTypeMismatches.record`: a `null` return on the duplicate
   branch, killed after the race test asserted that no outcome is null (12 mutants, 11 killed in that
-  rerun), and `stored.get() < CAPACITY` changed to `<=`, equivalent at steady state because the
-  mutant's extra insertion at capacity is rolled back into the same suppressed outcome. The remaining
+  rerun), and `stored.get() < CAPACITY` changed to `<=`. That survivor was first classified as
+  equivalent; the second review showed it re-exposes pending keys under concurrency, so it was a
+  concurrency test gap, and the compare-and-set rewrite removed the comparison. The remaining
   survivors and uncovered branches are those classified above; `Key.equals` returning true for a
   non-`Key` argument is unreachable because the map compares only keys.
+- Second-round fixes: restoring the insert-then-rollback memory (with the capacity seam kept) fails
+  `twoNewPairsRacingForTheLastSlotCountEveryAdmissionOfTheLoser`, and narrowing the delivery catch
+  back to `RejectedExecutionException` fails `AnnouncementsTest` and the cannot-start-delivery test.
+  PIT on the rewritten `TaskTypeMismatches` and `Announcements` killed 14 of 14 mutants.
