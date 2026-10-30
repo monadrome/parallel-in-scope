@@ -1,4 +1,7 @@
-# 取消意图原子发布与时钟域配对：评审与验证记录
+# 取消意图原子发布与时钟域配对：评审与验证记录（快照 2026-10-08）
+
+> 非契约。从活契约目录移出的评审与验证流水，正文与当时一致，不随现行契约更新；其中关于中断意图
+> （`Decision`）的部分描述已移除的实现，现行规则见 [取消传播契约](../cancellation-propagation.md) §5.1。
 
 实现变更：c629f5b 之后的 12 个任务提交（timeout 来源分类、cancel(false) 传播、观测关闭发布、
 rawCheckpoint、remaining()、内部 deadline 时钟、mapAndCombine、runtime snapshot、
