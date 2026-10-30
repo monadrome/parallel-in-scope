@@ -355,6 +355,8 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 - 窗口内每个任务体两次 `ThreadMXBean.getCurrentThreadCpuTime()` 的单次开销没有 JMH 实测：仓库没有
   JMH 依赖，引入需维护者同意。开销只发生在显式打开的观测窗口内，窗口外每个任务体只多一次 volatile 读。
 - `COMPUTE` 条目上的 `BLOCKING` 单元按提案记 `WARNING`；它是否过响需要使用反馈。
+- 提交时比对的去重表改为不可变集合加 compare-and-set 后，每个新出现的不一致对复制至多 1024 项、竞争
+  失败会重建；这条冷路径的分配与 CPU 成本同样没有基准测试。
 
 ### O-17 · 负载匹配窗口按单元名无上限累计（2026-10-30）
 

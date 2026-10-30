@@ -342,6 +342,15 @@ above as the baseline. Both accepted the round-one dispositions overall.
 | Kimi R2 F2 (P3): independent delivery can publish the overflow summary before the 1024th individual warning, while the summary said the mismatches "have been logged" | Retained for the wording; strict ordering rejected because the contract only makes logs best effort and ordering would need a serial delivery queue | The summary says the memory "is full at 1024 Par and unit-name pairs", and the contract and both guides say messages may appear out of admission order. |
 | Kimi R2 residual note: a duplicate racing a rollback may read silent | Superseded by the Codex R2 F1 fix, which removes the race | None. |
 
+A third round reviewed `2e39c029` in the same two sessions. Kimi reported no finding. Codex reported
+one P3: the `suppressedTaskTypeMismatches()` Javadoc promised the count stays zero with fixed unit
+names, but 1025 entries sharing one fixed name also overflow the per-runtime memory. Retained; the
+Javadoc now ties zero to at most 1024 distinct mismatched pairs. Both reviewers accepted the earlier
+dispositions and independently reproduced the reverse checks of the second-round fixes. Both named
+the unbenchmarked cold-path cost of the copy-on-write memory, at most 1024 entries copied per new
+pair, as a remaining risk rather than a defect; it is tracked with the other unmeasured costs in
+BACKLOG O-16.
+
 ## Workload-fit mutation verification
 
 - Reverse verification on the reviewed commit: reverting each fix alone made its tests fail — TaskType
