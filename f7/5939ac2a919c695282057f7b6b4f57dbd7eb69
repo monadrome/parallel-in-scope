@@ -1,0 +1,75 @@
+docs/en/migration-v0.4.md
+  s_335edcc8596330::t_e8b92fc5084dcf 175-177
+CHANGELOG.md
+  s_335edcc8596330::t_e8b92fc5084dcf 41-50
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_36a9082712430d::t_09c238b6931b84 50,59-60
+src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java
+  s_36a9082712430d::t_09c238b6931b84 30,110-112,115
+src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java
+  s_335edcc8596330::t_2121ad1b4614c7 21-22
+src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java
+  s_335edcc8596330::t_08b09517802913 16-17,39-40,43,56,63-74,76-77,79,82
+src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java
+  s_36a9082712430d::t_09c238b6931b84 282,305-306
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  s_335edcc8596330::t_e8b92fc5084dcf 42,74
+docs/en/user-guide.md
+  s_335edcc8596330::t_0100c4f8248866 136-140,521-570,601-604
+src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java
+  s_335edcc8596330::t_ead6ba2dda670a 5,7,9-10,16-17,24-27,29,33-34,45-59,62-68,71-72,81,84-85,87,89-94,96-110,114,117-119,121-124,131,134-140,144-145,147,149-160,164,167,169-172,176,179,181-182,186-188,190-191,193-195,199,202-210,214,217-219,221-222,226,229-231,233-236,240,242,244-248,250-256,260,263-271,274-275,288,290,293-304,308,318,320,323-324,328,330-331,334-336,340,342,344-352,357,361,367,369-376,380-382,385,387,389-390,394-398,402,405-412,416-419,421-422,424-426,430-431,433-435,437-438,440-482,486-487,492-497,499-500
+src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java
+  s_335edcc8596330::t_2121ad1b4614c7 16-18,20
+src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  s_335edcc8596330::t_2121ad1b4614c7 18,87-88
+design/task-group-api-and-options.md
+  s_335edcc8596330::t_e8b92fc5084dcf 197-198,203,216-218
+design/analysis/ssot-audit-2026-10-29.md
+  s_36a9082712430d::t_d1a24a0b7f548a 41
+docs/zh/user-guide.md
+  s_335edcc8596330::t_0100c4f8248866 117-118,450-490,517-519
+BACKLOG.md
+  s_335edcc8596330::t_e8b92fc5084dcf 242,354-357,362,364-365
+adr/0010-always-on-workload-fit-screening.md
+  s_335edcc8596330::t_d4fbc90d47116f 1-76
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_335edcc8596330::t_2121ad1b4614c7 57,93-97,511
+src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_335edcc8596330::t_2121ad1b4614c7 21,80,120,327-328,333-334,519-536,538-542,559,572,684-686,797,799
+src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java
+  s_335edcc8596330::t_04b8b0cc1eb6f8 1-35,39-248
+docs/zh/migration-v0.4.md
+  s_335edcc8596330::t_e8b92fc5084dcf 158-159
+src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java
+  s_335edcc8596330::t_8f3706c1b912d0 5-6,10,13-14,18-19,21-25,27-30,33-34,36,38,41-42,46,49,53,56,63,65-68,72-76,81,83-84,86,89,93-97,99,101-102,105-115,117-121,125-128,131-154,158-172,175-196,199-212,215-216,219-221,225-228,230,235-241,244-253,257-263,266-283,289-295,298-309
+src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java
+  s_335edcc8596330::t_c25ede4faae47f 8,10,18,34-37,49,52,54-55,60,62-68,72-76,78,81,83,86-95,97
+src/main/java/io/github/monadrome/parallelinscope/TaskType.java
+  s_335edcc8596330::t_2121ad1b4614c7 19-21
+design/workload-fit-screening.md
+  s_335edcc8596330::t_7ad9d66cf7d668 1-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f75939ac2a919c695282057f7b6b4f57dbd7eb69",
+  "prompts": {},
+  "sessions": {
+    "s_335edcc8596330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a11c36-fcec-4b32-9f40-767029457748",
+        "model": "unknown"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_36a9082712430d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a186a8-d0c6-7812-931c-c68482af8995",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
