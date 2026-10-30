@@ -262,10 +262,10 @@ later sessions:
   use a fresh-context agent on another model in a clone without a remote. The
   reviewer must not edit files. Name attack surfaces: interleavings, contract
   versus implementation, test quality, Java 8, and generics.
-- A review counts only when its output shows the reviewer read the diff, by
-  citing changed files or lines. A timeout, a failed run, or a reviewer that
-  cannot read the files is no review: rerun it once, then record the review as
-  blocked, never as clean.
+- A review counts only when its output or transcript shows the reviewer read
+  the changed files. A timeout, a failed run, or a reviewer that cannot read
+  the files is no review: rerun it once, then record the review as blocked,
+  never as clean.
 - Diff each contract MUST/MUST NOT named by the change against the
   implementation line by line; catching drift is a post-commit review duty,
   not a periodic audit.
