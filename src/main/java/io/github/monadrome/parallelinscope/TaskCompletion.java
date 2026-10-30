@@ -203,7 +203,11 @@ public final class TaskCompletion<T> {
         return endTimeNanos;
     }
 
-    /** Returns how this task ended; never {@link TaskOutcome#RUNNING} in a delivered record. */
+    /**
+     * Returns how this task ended; never {@link TaskOutcome#RUNNING} in a delivered record. A record
+     * read from a batch or group result carries the same outcome as the task's frozen {@link
+     * ImmediateResult}: there is one attribution per task.
+     */
     public TaskOutcome outcome() {
         return outcome;
     }

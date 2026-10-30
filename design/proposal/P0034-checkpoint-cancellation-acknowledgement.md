@@ -18,7 +18,7 @@
     `InterruptedException` / `CancellationException` 继续按现行规则记录。
   - 公开面收敛：移除 `checkRunnable`、`checkSupplier`（把用户异常类型映射为取消，违背按 token 归因）、
     `checkpoint(String, boolean)`（名字校验只制造出错机会）、`sleep(long)`（与 `checkSleep` 重复）。
-- 被否决方向：按异常类型过滤取消形状的迟到异常（同步出口契约 §7 的 R4 已证明会隐藏独立的 close 失败）；
+- 被否决方向：按异常类型过滤取消形状的迟到异常（[同步出口契约](../synchronous-scope-exit.md) §4 已禁止：会隐藏独立的 close 失败）；
   新增 `TaskOutcome` 表示"body 读到取消"（把同一个取消事实按竞态拆成两个名字，见 §4）。
 
 ## 1. 失败模式与改前最佳代码
@@ -85,4 +85,4 @@ Checkpoints.checkSupplier(() -> client.call(), SocketTimeoutException.class);
 - 反向验证：去掉来源判定或改为按类型判定时，上述对应用例分别变红。
 
 对照来源：`Checkpoints`、`ExecutionPhaseHintFuture.run()`、`TokenOutcomes`；
-[同步出口契约](../synchronous-scope-exit.md) §4、§7；[中断契约](../interruption-contract.md)。接口草图未编译、未实现。
+[同步出口契约](../synchronous-scope-exit.md) §4；[中断契约](../interruption-contract.md)。接口草图未编译、未实现。

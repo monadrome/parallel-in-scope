@@ -36,7 +36,7 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 
 - 历史规则曾要求「实际 executor 调用在 admission 外进行」，以防止 executor 行为延长
   admission。该规则被一个已复现的竞态否决（见
-  [cancel-intent-clock-domain-validation-2026-10-08.md](cancel-intent-clock-domain-validation-2026-10-08.md)
+  [取消意图与时钟域评审记录](history/cancel-intent-clock-domain-validation.md)
   第七轮）：start 在 admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
   runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
   admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。

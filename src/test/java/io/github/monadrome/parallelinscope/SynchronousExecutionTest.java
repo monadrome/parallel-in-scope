@@ -328,6 +328,47 @@ class SynchronousExecutionTest {
         assertThat(preserved).isTrue();
     }
 
+    @Test
+    void finalObservationsCarryTheSameAttributionAsTheFrozenResults() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        TaskGroupResult<?, ?> group = runtime.group("single-view", TIMEOUT)
+                .par(TaskKey.<Integer>named("waiting"), par, () -> {
+                    entered.countDown();
+                    new CountDownLatch(1).await();
+                    return 1;
+                })
+                .par(TaskKey.<Integer>named("failing"), par, () -> {
+                    entered.await();
+                    throw new IllegalStateException("boom");
+                })
+                .runAll();
+
+        assertThat(group.resultOf("waiting").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(group.members()).containsOnlyKeys("waiting", "failing");
+        group.members()
+                .forEach((name, observed) -> assertThat(observed.outcome())
+                        .as("the observation of '%s' must not keep a second attribution", name)
+                        .isEqualTo(group.resultOf(name).outcome()));
+
+        CountDownLatch elementEntered = new CountDownLatch(1);
+        TaskBatchResult<Integer> batch = par.map(
+                Arrays.asList(1, 2),
+                i -> {
+                    if (i == 1) {
+                        elementEntered.countDown();
+                        Checkpoints.checkAwait(new CountDownLatch(1));
+                        return i;
+                    }
+                    Checkpoints.checkAwait(elementEntered);
+                    throw new IllegalStateException("boom");
+                },
+                BatchOptions.timeout("single-view", TIMEOUT));
+        for (int i = 0; i < batch.results().size(); i++) {
+            assertThat(Verify.verifyNotNull(batch.completions().get(i)).outcome())
+                    .isEqualTo(batch.results().get(i).outcome());
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void cancelledBodiesGetCleanupGraceEvenWithInterruptedCaller(boolean group) throws Exception {

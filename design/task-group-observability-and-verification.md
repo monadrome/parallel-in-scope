@@ -18,7 +18,7 @@
 - submit/start/end timing；
 - queue wait 分类（`enqueued()` 由等待时长派生）；
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
-- 完成时刻直接观测的 `outcome()`（`SUCCESS`/`USER_FAILURE` 或从 token 读出的取消态）；组收敛后的快照可能携带更丰富的事后归因（如 `FAIL_FAST`），权威归因仍是 `TaskGroupResult.members()`。
+- `outcome()`：与 `resultOf(name).outcome()` 相同的冻结归因，每个成员只有一个结论（[取消契约](task-group-cancellation.md) §8.4.1）。
 
 快照在成员 future 终态**且**任务体进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 outcome 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
 
