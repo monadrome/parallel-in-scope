@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readFile as readTextFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { runLoggedProcess } from '../src/adapters/process.js';
 import {
   addFix,
   createBaseRepo,
@@ -17,6 +19,41 @@ import {
 } from './helpers.js';
 
 const SHORT_TIMEOUTS = ['--timeout', '60', '--review-timeout', '2', '--adjudication-timeout', '5', '--cleanup-timeout', '5', '--kill-grace', '1'];
+
+test('timeout keeps the grace kill armed after the leader exits', async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'lrb-process-timeout-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const childPidFile = path.join(dir, 'child.pid');
+  const childReadyFile = path.join(dir, 'child.ready');
+  const childSource = [
+    "const fs = require('node:fs');",
+    "process.on('SIGTERM', () => {});",
+    "process.on('SIGHUP', () => {});",
+    'fs.writeFileSync(process.argv[1], "ready");',
+    'setInterval(() => {}, 1000);',
+  ].join('');
+  const parentSource = [
+    "const { spawn } = require('node:child_process');",
+    "const fs = require('node:fs');",
+    `const child = spawn(process.execPath, ['-e', ${JSON.stringify(childSource)}, ${JSON.stringify(childReadyFile)}], {stdio: 'ignore'});`,
+    'fs.writeFileSync(process.argv[1], String(child.pid));',
+    "process.on('SIGTERM', () => process.exit(0));",
+    'setInterval(() => {}, 1000);',
+  ].join('');
+  const result = await runLoggedProcess({
+    command: process.execPath,
+    args: ['-e', parentSource, childPidFile],
+    cwd: dir,
+    stdoutPath: path.join(dir, 'stdout.log'),
+    stderrPath: path.join(dir, 'stderr.log'),
+    timeoutMs: 800,
+    graceMs: 100,
+  });
+  assert.equal(await readTextFile(childReadyFile, 'utf8'), 'ready');
+  const childPid = Number(await readTextFile(childPidFile, 'utf8'));
+  assert.equal(result.status, 'timed_out');
+  assert.equal(isProcessAlive(childPid), false);
+});
 
 test('hard timeout kills the whole process group and records a timeout instead of an empty review', async (t) => {
   const base = await createBaseRepo(t);
