@@ -180,6 +180,17 @@ explicit human confirmation before implementing it.
 - A request for analysis authorizes the analysis, not applying its proposals.
 - Start new work from the freshly fetched development line named under Current
   Development Line, not from a stale local branch or `main`.
+- Another agent may share this checkout. Before the first edit and before each
+  commit, look for its signs: modified or untracked files you did not create,
+  local commits ahead of the fetched development line that are not yours, or a
+  branch or HEAD that moved under you. When you find any, move your work to a
+  worktree of your own instead of working around it:
+  `git worktree add -b <topic> .worktrees/<topic> origin/dev/vX.Y.Z`. Carry over
+  only your own changes, as a patch of your paths, then return those paths in
+  the shared checkout to their committed state. Verify, commit, and deliver to
+  the development line from the worktree. Do not commit, stash, reset, rebase,
+  or switch branches in the shared checkout, and never push the other agent's
+  commits. After delivery, remove the worktree and delete its branch.
 - Retry a failure only after addressing its cause, or once when it is a known
   transient; report a failure that repeats unchanged. When an environment
   denies an action this file prescribes, leave the exact command in the report
