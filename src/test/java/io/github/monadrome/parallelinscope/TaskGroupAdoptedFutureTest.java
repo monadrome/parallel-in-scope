@@ -95,7 +95,7 @@ class TaskGroupAdoptedFutureTest {
         }
     }
 
-    /** A source that records the interrupt intent of the cancellation it received. */
+    /** A source that records whether the cancellation it received interrupted it. */
     static final class RecordingFuture<T> extends AbstractFuture<T> {
         volatile boolean interrupted;
 

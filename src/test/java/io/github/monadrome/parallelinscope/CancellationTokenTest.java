@@ -512,9 +512,13 @@ public class CancellationTokenTest {
         Runnable timerAction = timer.dispatched.get();
         assertThat(timerAction).isNotNull();
         // The timer thread already dispatched the timeout action when the explicit cancel wins: the
-        // action runs inside the winner's listener window, loses first-wins, and is the first
-        // canceller to reach the submission handle.
-        token.addStateListener(state -> timerAction.run());
+        // action runs inside the winner's listener window and loses first-wins. Completing the work
+        // first settles the futureToken bridge, so the winner's own futureToken cancel is a no-op
+        // and the losing timer action is the only canceller that can reach the submission handle.
+        token.addStateListener(state -> {
+            work.set("done");
+            timerAction.run();
+        });
 
         token.cancel();
 
