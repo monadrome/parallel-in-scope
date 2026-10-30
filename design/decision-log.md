@@ -104,6 +104,7 @@
 | 历史 Javadoc 审计的零文档结论 | `34a0027` 已在 P0012 入库之前补 TaskGroupResult 访问器文档；清掉迁移误带的过时待办，不能假称这项实现源自 P0012。ParRuntime/Builder 等实际余项仍留 [P0024](proposal/P0024-comment-and-javadoc-maintenance.md) |
 | 四代源码/契约审计、HKJ 异步比较、通知/purge 简化 | 已落地的 runner 交接、事件补窗、终态跳过、Monitor 排空、时钟域、预算查询、批次汇总、快照与失败 helper 不重新立项。剩余请求取消、共享预算、子树确认、内部协议/分配/诊断与具名输入分别由 P0001/P0004–P0010 承接。HKJ 的 Future settled 与 body-exit 对比是边界佐证，不恢复 CF/async/重试管道 |
 | 文档 SSOT/归档与技能会话 | 实现共演与文档漂移分开；不以修改次数否决活契约，既有生命周期与 P0011 处理残余扇出。全局 readable-docs/write-for-human/cmux-handoff 等工具设计、TypeScript 讲解、其他项目调研、smoke/pull/清屏是输入或独立工具工作，不成为本库提案；不执行历史会话里的分支/工作树删除指令 |
+| ssot-audit-2026-10-29（问题 2，MkDocs 编辑入口） | **已决：编辑入口跟随发布分支，`edit_uri` 保持 `edit/main/docs/`，不重开。** 发布站点只从 `main` 构建（`gh-pages.yml` 的自动触发仅 `main` 推送，另有手动 dispatch），已发布站点的编辑入口指向 `main` 现状即正确；开发线本地预览构建的“编辑此页”打开 `main` 的文件，是接受的开发者便利性限制。**分支专用取值否决**：dev→main 的发布合流是手工 PR（v0.3.0 为 #59/#60），没有翻转自动化——v0.3.0 无此问题只是因为当时正文里的源码链接本来就写成 `main`；漏翻会让公开站点的编辑按钮把外部读者的编辑 PR 引到开发线，为开发者便利换公开产品风险，方向相反。**部署时改写否决**：需改 `.github/workflows/`（Permissions 要求先确认），且已发布站点的取值藏在 workflow 里、与提交内配置形成两个事实源。延伸发现（0.4 正文 `blob/dev/v0.4.0/` 链接的发布时翻转取舍）在 [BACKLOG](../BACKLOG.md) O-18 |
 
 独立只读复查保留并修复两项收割遗漏：穷尽匹配方向缺少落点，O-13/O-14 的具体问题被
 宽泛的 BACKLOG 维护项遮住。对照历史来源与当前结果实现后，分别承接到 P0019 和 P0011，
