@@ -276,12 +276,12 @@ class WorkloadFitScreeningTest {
     }
 
     /**
-     * An error from the timing's closing clock reading, standing in for a VM error, propagates like
-     * any error from the body but still lets the worker restore its task context, so the next task on
-     * that thread does not inherit the failed one.
+     * Screening only reports: an error from the timing's closing clock reading, standing in for a VM
+     * error, drops the sample, leaves the body's result alone, and still lets the worker restore its
+     * task context, so the next task on that thread does not inherit the finished one.
      */
     @Test
-    void anErrorFromTheTimingStillRestoresTheWorkersTaskContext() throws Exception {
+    void anErrorFromTheClosingReadNeverChangesTheResultOrSkipsCleanup() throws Exception {
         ExecutorService worker = Executors.newFixedThreadPool(1);
         try {
             runtime = ParRuntime.builder()
@@ -304,7 +304,8 @@ class WorkloadFitScreeningTest {
                 clock.failWith(null);
             }
 
-            assertThat(result.results().get(0).outcome()).isNotEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.valuesOrThrow()).containsExactly(1);
             assertThat(measurement(CPU).bodies()).isZero();
             assertThat(worker.submit(() -> TaskExecutionContext.current() == null)
                             .get(10, TimeUnit.SECONDS))
@@ -312,6 +313,44 @@ class WorkloadFitScreeningTest {
         } finally {
             worker.shutdownNow();
         }
+    }
+
+    @Test
+    void anErrorFromTheClosingReadKeepsTheBodysOwnFailure() {
+        runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
+        IllegalStateException own = new IllegalStateException("the body's own failure");
+        TaskBatchResult<Integer> result;
+        try {
+            result = runtime.par(CPU)
+                    .map(
+                            inputs(1),
+                            value -> {
+                                clock.failWith(new AssertionError("clock failure standing in for a VM error"));
+                                throw own;
+                            },
+                            options("failing"));
+        } finally {
+            clock.failWith(null);
+        }
+
+        assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.results().get(0).failure()).isSameAs(own);
+        assertThat(measurement(CPU).bodies()).isZero();
+    }
+
+    @Test
+    void anErrorFromTheOpeningReadStillRunsTheBody() {
+        runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
+        clock.failWith(new AssertionError("clock failure standing in for a VM error"));
+        TaskBatchResult<Integer> result;
+        try {
+            result = runtime.par(CPU).map(inputs(2), value -> value + 1, options("opening"));
+        } finally {
+            clock.failWith(null);
+        }
+
+        assertThat(result.valuesOrThrow()).containsExactly(2, 2);
+        assertThat(measurement(CPU).bodies()).isZero();
     }
 
     @Test

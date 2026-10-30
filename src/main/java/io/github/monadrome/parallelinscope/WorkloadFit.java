@@ -39,21 +39,26 @@ final class WorkloadFit {
 
     /**
      * Starts timing one body of {@code unit}, or returns null when the body is not screened or its
-     * CPU time cannot be read; an unreadable reading is counted on the entry.
+     * CPU time cannot be read; an unreadable reading is counted on the entry. Screening only reports,
+     * so any failure here, an {@link Error} included, skips the timing and lets the body run.
      */
     static @Nullable Timing start(MultiTaskContext unit) {
         Par par = unit.par();
         if (par == null || (par.taskType() != TaskType.COMPUTE && unit.taskType() != TaskType.COMPUTE)) {
             return null;
         }
-        WorkloadClock clock = par.runtime().workloadClock();
-        long wallStart = clock.wallNanos();
-        long cpuStart = clock.currentThreadCpuNanos();
-        if (cpuStart < 0) {
-            par.workload().unmeasured(par);
+        try {
+            WorkloadClock clock = par.runtime().workloadClock();
+            long wallStart = clock.wallNanos();
+            long cpuStart = clock.currentThreadCpuNanos();
+            if (cpuStart < 0) {
+                par.workload().unmeasured(par);
+                return null;
+            }
+            return new Timing(par, unit.name(), unit.taskType(), clock, wallStart, cpuStart);
+        } catch (Throwable screeningFailure) {
             return null;
         }
-        return new Timing(par, unit.name(), unit.taskType(), clock, wallStart, cpuStart);
     }
 
     static boolean lowCpu(long cpuNanos, long executionNanos) {
@@ -78,15 +83,22 @@ final class WorkloadFit {
             this.cpuStart = cpuStart;
         }
 
-        /** Reads both clocks and commits the sample to the entry. */
+        /**
+         * Reads both clocks and commits the sample to the entry. Screening only reports, so any
+         * failure here, an {@link Error} included, drops the sample and leaves the body's result alone.
+         */
         void stop() {
-            long cpuEnd = clock.currentThreadCpuNanos();
-            long wallEnd = clock.wallNanos();
-            if (cpuEnd < 0) {
-                par.workload().unmeasured(par);
+            try {
+                long cpuEnd = clock.currentThreadCpuNanos();
+                long wallEnd = clock.wallNanos();
+                if (cpuEnd < 0) {
+                    par.workload().unmeasured(par);
+                    return;
+                }
+                par.workload().commit(par, unit, unitType, cpuEnd - cpuStart, wallEnd - wallStart);
+            } catch (Throwable screeningFailure) {
                 return;
             }
-            par.workload().commit(par, unit, unitType, cpuEnd - cpuStart, wallEnd - wallStart);
         }
     }
 

@@ -85,7 +85,7 @@ final class ScopedCallable<V> implements Callable<V> {
 
     /**
      * Runs the body inside its workload-fit timing, if it is screened. The timing ends before {@link
-     * #call()}'s cleanup begins, and an error from it still leaves that cleanup to run.
+     * #call()}'s cleanup begins and never throws, so the caller sees the body's own result or exception.
      */
     private V callTimed(Callable<V> body) throws Exception {
         WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());

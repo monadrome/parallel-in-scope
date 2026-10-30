@@ -47,8 +47,8 @@
   blocking work in a compute pool, including work whose author did not know it blocks. Judging the
   entry rather than each unit catches blocking spread over many small units. Units are attributed up
   to 256 per entry, and a unit declared `COMPUTE` is judged for suspected declaration drift. Counts
-  are cumulative; undeclared and blocking work is never timed, and direct executor work is never
-  measured.
+  are cumulative; a body whose entry and unit are both undeclared or blocking is never timed, and
+  direct executor work is never measured.
 
 - Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
   and `GroupStart.cancelOn(ListenableFuture<?>, boolean)`. Any completion of the caller-owned source

@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,5 +42,24 @@ class AnnouncementsTest {
                 runs::incrementAndGet);
 
         assertThat(runs).hasValue(0);
+    }
+
+    /**
+     * Creating the delivery thread can fail with an {@link OutOfMemoryError} on the admitting thread,
+     * and a handler can fail with an {@link Error}; neither reaches the caller. Each delivery runs
+     * inside {@code assertThatCode}, so an error that escapes fails this test instead of the test JVM.
+     */
+    @Test
+    void anErrorStartingOrRunningADeliveryIsDropped() {
+        assertThatCode(() -> Announcements.deliver(
+                        command -> {
+                            throw new OutOfMemoryError("unable to create native thread");
+                        },
+                        () -> {}))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> Announcements.deliver(Runnable::run, () -> {
+                    throw new AssertionError("handler error");
+                }))
+                .doesNotThrowAnyException();
     }
 }
