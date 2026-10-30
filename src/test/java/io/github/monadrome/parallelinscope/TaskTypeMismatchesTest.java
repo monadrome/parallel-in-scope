@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -68,6 +69,46 @@ class TaskTypeMismatchesTest {
         assertThat(first).isEqualTo(TaskTypeMismatches.CAPACITY);
         assertThat(overflow).isEqualTo(1);
         assertThat(mismatches.suppressed()).isEqualTo((long) threads * perThread - TaskTypeMismatches.CAPACITY);
+    }
+
+    /**
+     * Racing first sightings of one pair must store it once and claim one slot: after 1024 such
+     * races the memory holds exactly 1024 pairs, and only the next new pair overflows.
+     */
+    @Test
+    void racingFirstSightingsOfOnePairClaimOneSlot() throws Exception {
+        TaskTypeMismatches mismatches = new TaskTypeMismatches();
+        int threads = 4;
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<List<TaskTypeMismatches.Outcome>>> futures = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                futures.add(pool.submit(() -> {
+                    List<TaskTypeMismatches.Outcome> mine = new ArrayList<>();
+                    for (int round = 0; round < TaskTypeMismatches.CAPACITY; round++) {
+                        barrier.await(10, TimeUnit.SECONDS);
+                        mine.add(mismatches.record(PAR, "unit-" + round));
+                    }
+                    return mine;
+                }));
+            }
+            List<TaskTypeMismatches.Outcome> outcomes = new ArrayList<>();
+            for (Future<List<TaskTypeMismatches.Outcome>> future : futures) {
+                outcomes.addAll(future.get(60, TimeUnit.SECONDS));
+            }
+
+            assertThat(outcomes).doesNotContainNull().hasSize(threads * TaskTypeMismatches.CAPACITY);
+            assertThat(outcomes)
+                    .filteredOn(outcome -> outcome == TaskTypeMismatches.Outcome.FIRST)
+                    .hasSize(TaskTypeMismatches.CAPACITY);
+            assertThat(outcomes).doesNotContain(TaskTypeMismatches.Outcome.OVERFLOW);
+            assertThat(mismatches.suppressed()).isZero();
+            assertThat(mismatches.record(PAR, "one-more")).isEqualTo(TaskTypeMismatches.Outcome.OVERFLOW);
+            assertThat(mismatches.suppressed()).isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     private static List<TaskTypeMismatches.Outcome> recordConcurrently(

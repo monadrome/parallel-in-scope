@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -20,6 +21,42 @@ import org.junit.jupiter.api.Test;
  * as anything but a fact.
  */
 class WorkloadFitSystemClockTest {
+
+    @Test
+    void theSystemClockReadsTheCallingThreadsCpuTime() {
+        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+        assumeTrue(threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled());
+        WorkloadClock clock = SystemWorkloadClock.INSTANCE;
+        long before = clock.currentThreadCpuNanos();
+        long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+        long spins = 0;
+        while (System.nanoTime() < until) {
+            spins++;
+        }
+
+        assertThat(spins).isPositive();
+        assertThat(clock.cpuTimeAvailable()).isTrue();
+        assertThat(before).isNotNegative();
+        assertThat(clock.currentThreadCpuNanos()).isGreaterThan(before);
+    }
+
+    /**
+     * With thread CPU timing switched off the clock reports it unavailable and reads a negative
+     * value instead of a plausible zero. The test restores the JVM setting it changed.
+     */
+    @Test
+    void theSystemClockReportsDisabledCpuTimingAsUnavailable() {
+        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+        assumeTrue(threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled());
+        WorkloadClock clock = SystemWorkloadClock.INSTANCE;
+        threads.setThreadCpuTimeEnabled(false);
+        try {
+            assertThat(clock.cpuTimeAvailable()).isFalse();
+            assertThat(clock.currentThreadCpuNanos()).isNegative();
+        } finally {
+            threads.setThreadCpuTimeEnabled(true);
+        }
+    }
 
     @Test
     void sleepingBodiesOnAComputeEntryAreReportedOnTheRealClocks() throws Exception {

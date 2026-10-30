@@ -15,9 +15,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>A pair is a {@link Par} and a unit name. The direction needs no key of its own: an entry has
  * one declared type, so every mismatch of a pair points the same way. The memory holds at most
  * {@link #CAPACITY} pairs and never evicts, so a reported pair stays quiet for the runtime's
- * lifetime. Once the capacity is used, a new pair is counted instead of remembered: the first such
- * mismatch is reported as the overflow, and every later one only increments {@link #suppressed()}.
- * The table never claims to recognize a pair it could not store.
+ * lifetime. A pair claims a slot only after its insertion succeeds, so racing first sightings of
+ * one pair claim one slot. Once the memory is full, a new pair is counted instead of remembered:
+ * every such admission increments {@link #suppressed()}, and the first of them is reported as the
+ * overflow. A duplicate racing with a pair whose insertion is being rolled back at the capacity
+ * boundary may read as silent instead of suppressed.
  */
 final class TaskTypeMismatches {
     static final int CAPACITY = 1024;
@@ -28,12 +30,12 @@ final class TaskTypeMismatches {
         FIRST,
         /** Nothing to report: the pair was already reported, or the overflow was. */
         SILENT,
-        /** The capacity was used up by this admission; report the overflow once. */
+        /** The memory is full and this admission is the first to find it so; report the overflow once. */
         OVERFLOW
     }
 
     private final Set<Map.Entry<ParId, String>> reported = ConcurrentHashMap.newKeySet();
-    private final AtomicInteger freeSlots = new AtomicInteger(CAPACITY);
+    private final AtomicInteger stored = new AtomicInteger();
     private final AtomicBoolean overflowReported = new AtomicBoolean();
     private final AtomicLong suppressed = new AtomicLong();
 
@@ -43,8 +45,15 @@ final class TaskTypeMismatches {
         if (reported.contains(pair)) {
             return Outcome.SILENT;
         }
-        if (claimSlot()) {
-            return reported.add(pair) ? Outcome.FIRST : Outcome.SILENT;
+        if (stored.get() < CAPACITY) {
+            if (!reported.add(pair)) {
+                return Outcome.SILENT;
+            }
+            if (stored.incrementAndGet() <= CAPACITY) {
+                return Outcome.FIRST;
+            }
+            reported.remove(pair);
+            stored.decrementAndGet();
         }
         suppressed.incrementAndGet();
         return overflowReported.compareAndSet(false, true) ? Outcome.OVERFLOW : Outcome.SILENT;
@@ -53,9 +62,5 @@ final class TaskTypeMismatches {
     /** Mismatched admissions not reported individually because the memory was full. */
     long suppressed() {
         return suppressed.get();
-    }
-
-    private boolean claimSlot() {
-        return freeSlots.getAndUpdate(free -> free == 0 ? 0 : free - 1) > 0;
     }
 }

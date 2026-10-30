@@ -196,7 +196,9 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 - 去重 MUST 以 `ParRuntime` 为作用域并有上限：最多记住 1024 对，从不淘汰。记满后，新对的不一致
   首次只记一条汇总告警，此后每次只累加计数，计数经 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`
   暴露；溢出之后 MUST NOT 声称仍能发现所有新单元。
-- 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。
+- 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。日志
+  MUST 在 runtime 自有线程上投递，准入线程 MUST NOT 调用日志 handler：handler 抛异常或阻塞都不能
+  影响准入，投递失败只丢失该条日志。惰性拒绝告警同样遵守这一条。
   运行时侧的低 CPU 筛查见 [线程池饥饿观测契约](thread-pool-starvation-observation.md) 的
   Workload-fit screening 一节。
 
@@ -211,7 +213,8 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 - 按池结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警：核数大小的池用于限制下游并发是
   合理用法，推断出的告警会很吵。
 
-决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)。历史来源：
+独立评审处置与变异验证记录见 [线程池饥饿观测契约](thread-pool-starvation-observation.md) 的
+Workload-fit review disposition 一节。决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)。历史来源：
 `proposal:P0025`（`P0025-workload-fit-diagnostics`；同号的 `P0025-internal-cancellation-token`
 是另一份已落地提案）。
 

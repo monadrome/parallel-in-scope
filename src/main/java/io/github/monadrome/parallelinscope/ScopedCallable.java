@@ -53,17 +53,12 @@ final class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        WorkloadFit.Timing timing = null;
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
-            timing = WorkloadFit.start(taskContext.multiTaskContext());
             // the delegate is released only after call() returns (releaseDelegate in finally)
-            return Objects.requireNonNull(delegate).call();
+            return callTimed(Objects.requireNonNull(delegate));
         } finally {
-            if (timing != null) {
-                timing.stop();
-            }
             // delegate.call() has returned, so the user body's finally has exited: release the
             // one-way holder before publishing body exit, and a waiter that observes EXITED never
             // sees this wrapper still referencing the user closure.
@@ -84,6 +79,21 @@ final class ScopedCallable<V> implements Callable<V> {
             // A non-null previous task still restores the enclosing task.
             if (previousTask != null) {
                 TaskExecutionContext.restore(previousTask);
+            }
+        }
+    }
+
+    /**
+     * Runs the body inside its workload-fit timing. The timing ends before {@link #call()}'s
+     * cleanup begins, and an error from it still leaves that cleanup to run.
+     */
+    private V callTimed(Callable<V> body) throws Exception {
+        WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());
+        try {
+            return body.call();
+        } finally {
+            if (timing != null) {
+                timing.stop();
             }
         }
     }

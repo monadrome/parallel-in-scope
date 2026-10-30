@@ -82,7 +82,7 @@ executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException
 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
 `rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SmartBlockingQueue` 读取它；换成其他任何队列
-它都是惰性的，经某个 `Par` 的首次此类提交会打一条告警。它默认是 false。把 SmartBlockingQueue
+它都是惰性的，经某个 `Par` 的首次此类提交会在 runtime 自有线程上打一条告警。它默认是 false。把 SmartBlockingQueue
 装到物理池上，并按批次显式选择：
 
 ```java
@@ -112,7 +112,8 @@ offer 被拒绝时，池子要么开新线程、要么走拒绝处理器，而�
 声明从不改变准入、入队、拒绝、取消、deadline 或 outcome，只供两项诊断使用：
 
 - **提交时比对。** 条目和单元都声明了类型且不一致时，按条目与单元名记录一次：`COMPUTE` 条目上的
-  `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。日志只说明两侧声明不一致。运行时最多记住 1024 对，
+  `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。日志只说明两侧声明不一致，并在 runtime 自有线程上
+  记录，抛异常或阻塞的日志 handler 不会影响提交。运行时最多记住 1024 对，
   之后只打一条汇总，并把后续不一致计入 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`。
   单元名请用固定业务名，不要按调用拼接。
 - **低 CPU 筛查。** 打开的线程池饥饿观测会比较每个库准入任务体的线程 CPU 时间与执行时间，见
@@ -516,15 +517,16 @@ log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
 
 `workloadMeasurements()` 按 `Par`、单元名与单元类型各给一条，包含计入的 `bodies()`、`cpuTime()`、
 `executionTime()`（运行时间，不含排队）、`cpuToExecutionRatio()` 和 `lowCpuBodies()`。只有在作用域
-打开期间开始并结束的任务体才计入；关闭时仍在运行的计入 `excludedBodies()`。共享同一个池的条目和
+打开期间开始并结束的任务体才计入；关闭时仍在运行或时钟读取失败的计入 `excludedBodies()`。共享同一个池的条目和
 其他 runtime 分开测量，直接 `execute` 提交的工作从不测量。
 
 样本足够（目前为 20 个任务体或 1 秒执行时间）且 CPU 时间低于执行时间一半的测量值，在其条目声明为
 `COMPUTE` 时是 `issue()`，状态因此为 `LOW_CPU_UTILIZATION`，除非同时捕获到饥饿证据；在其单元声明为
-`COMPUTE` 时是 `suspectedDeclarationDrift()`，单独的漂移不改变状态。两侧都是 `UNKNOWN` 时只给原始
-测量值；`unlabeledPars()` 列出贡献了任务体却未声明类型的条目，避免把干净的报告误当成全覆盖。线程
-CPU 时间不受支持、未开启或读取失败时，`cpuTimeAvailable()` 为 false，状态最多是
-`INSUFFICIENT_VISIBILITY`；库不会自行开启 CPU 计时。
+`COMPUTE` 时是 `suspectedDeclarationDrift()`，单独的漂移不改变状态。两侧都没有声明 `COMPUTE` 时只给
+原始测量值；`unlabeledPars()` 列出贡献了任务体却未声明类型的条目，避免把干净的报告误当成全覆盖。线程
+CPU 时间不受支持、未开启或读取失败时，`cpuTimeAvailable()` 为 false，状态绝不是 `NO_ISSUE`：没有
+更高优先级的饥饿证据、时钟可读期间样本得出的低 CPU 问题或采样失败时，状态为
+`INSUFFICIENT_VISIBILITY`。库不会自行开启 CPU 计时。
 
 作用域外每个任务体只多一次 volatile 读；作用域内多两次线程 CPU 读取和两次墙钟读取。
 
@@ -534,6 +536,8 @@ CPU 时间不受支持、未开启或读取失败时，`cpuTimeAvailable()` 为 
   比值。等待嵌套批次的任务体在等待期间占住自己的线程，这不说明嵌套批次所在的池选错了。阈值是内部
   校准值，不是稳定契约。
 - 计算任务进了阻塞池，只有两侧都声明时才能由提交时比对发现。
+- 作用域关闭前，每个条目、单元名与单元类型各保留一份累计值。按调用拼接的单元名会让长生命周期的
+  作用域无界增长；单元名请用固定业务名。
 - 计数器按池统计，库内任务和直接 `execute` 任务同等计入；库内长 CPU/慢 I/O 任务也可能误报。
 - `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
   runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。

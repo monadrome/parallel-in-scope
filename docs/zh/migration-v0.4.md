@@ -157,7 +157,8 @@ par.map(records, this::score,
 - 可以用 `register(id, pool, TaskType.COMPUTE)` 或 `BLOCKING` 声明每个池的用途。单元声明与条目声明
   不一致时，按条目与单元名记录一次；打开的线程池饥饿观测会报告 `COMPUTE` 条目上的低 CPU 占用。
 - `ThreadPoolStarvationReport.Status` 新增 `LOW_CPU_UTILIZATION`，`anyIssue()` 对它为 true。
-  `NO_ISSUE` 现在还要求线程 CPU 时间可读；不可读时状态为 `INSUFFICIENT_VISIBILITY`。
+  `NO_ISSUE` 现在还要求线程 CPU 时间可读；不可读且没有更高优先级的信号时，状态为
+  `INSUFFICIENT_VISIBILITY`。
 
 ## 内部取消 token
 

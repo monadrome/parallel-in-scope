@@ -36,7 +36,8 @@ import org.jspecify.annotations.Nullable;
  * <p>While open, the scope also screens library-admitted task bodies for workload fit: each body's
  * thread CPU time is compared with its execution time and reported per entry and unit name in
  * {@link ThreadPoolStarvationReport#workloadMeasurements()}. Only a body that starts and finishes
- * while the scope is open counts; one still running at close is reported as excluded. Outside every
+ * while the scope is open counts; one still running at close, or whose clock reading failed, is
+ * reported as excluded. Outside every
  * open scope a body pays one volatile read; inside one it pays two CPU-clock and two wall-clock
  * reads. Direct executor work is still never wrapped or measured.
  *

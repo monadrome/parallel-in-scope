@@ -442,7 +442,8 @@ public final class Par {
 
     /**
      * Logs what a unit's admission through this entry can say about the unit's options; never
-     * changes whether or how the unit is admitted, queued, or completed.
+     * changes whether or how the unit is admitted, queued, or completed. Messages are delivered on a
+     * runtime-owned thread, so a logging handler that throws or blocks never reaches the caller.
      */
     void diagnoseAdmission(MultiTaskContext unit) {
         warnIfEnqueueRefusalInert(unit);
@@ -469,12 +470,13 @@ public final class Par {
             return;
         }
         if (enqueueRefusalWarningIssued.compareAndSet(false, true)) {
-            LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
+            String message = "Par '" + id + "' requested rejectEnqueue, but its executor "
                     + executorRuntime.introspectableExecutor().getClass().getName()
                     + " does not use a SmartBlockingQueue, so enqueue refusal is inert there:"
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
-                    + " whose work queue is a SmartBlockingQueue to make the option effective.");
+                    + " whose work queue is a SmartBlockingQueue to make the option effective.";
+            runtime.announce(() -> LOGGER.warning(message));
         }
     }
 
@@ -492,16 +494,17 @@ public final class Par {
         }
         TaskTypeMismatches.Outcome outcome = runtime.taskTypeMismatches().record(id, unit.name());
         if (outcome == TaskTypeMismatches.Outcome.FIRST) {
-            LOGGER.log(
-                    taskType == TaskType.COMPUTE ? Level.WARNING : Level.INFO,
-                    "Par '" + id + "' is registered for TaskType." + taskType + ", but unit '" + unit.name()
-                            + "' declares TaskType." + unitType + ". The declarations disagree; check that the"
-                            + " unit is submitted through the intended Par. Logged once per Par and unit name.");
+            Level level = taskType == TaskType.COMPUTE ? Level.WARNING : Level.INFO;
+            String message = "Par '" + id + "' is registered for TaskType." + taskType + ", but unit '" + unit.name()
+                    + "' declares TaskType." + unitType + ". The declarations disagree; check that the"
+                    + " unit is submitted through the intended Par. Logged once per Par and unit name.";
+            runtime.announce(() -> LOGGER.log(level, message));
         } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
-            LOGGER.warning("TaskType mismatches have been logged for " + TaskTypeMismatches.CAPACITY
+            String message = "TaskType mismatches have been logged for " + TaskTypeMismatches.CAPACITY
                     + " Par and unit-name pairs; further mismatches, starting with unit '" + unit.name()
                     + "' on Par '" + id + "', are counted in ParRuntimeSnapshot.suppressedTaskTypeMismatches()"
-                    + " instead of logged. Use fixed unit names rather than names built per call.");
+                    + " instead of logged. Use fixed unit names rather than names built per call.";
+            runtime.announce(() -> LOGGER.warning(message));
         }
     }
 

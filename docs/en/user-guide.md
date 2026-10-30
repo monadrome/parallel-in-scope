@@ -98,7 +98,7 @@ still throw from the entry.
 
 `rejectEnqueue` is the only option that changes queue admission, and only `SmartBlockingQueue`
 reads it; on any other queue it is inert and the first such submission through a `Par` logs one
-warning. It defaults to `false`. Install the queue on the physical pool and opt in per batch:
+warning from a runtime-owned thread. It defaults to `false`. Install the queue on the physical pool and opt in per batch:
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
@@ -130,7 +130,8 @@ It feeds two diagnostics:
 
 - **Submission-time comparison.** When an entry and a unit both declare a type and they differ, the
   library logs it once per entry and unit name: `WARNING` for a `BLOCKING` unit on a `COMPUTE` entry,
-  `INFO` for the reverse. The message only says that the declarations disagree. The runtime remembers
+  `INFO` for the reverse. The message only says that the declarations disagree, and it is logged from
+  a runtime-owned thread, so a log handler that throws or blocks never affects the submission. The runtime remembers
   at most 1024 such pairs; after that it logs one summary and counts further mismatches in
   `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`. Use fixed unit names, not names built per call.
 - **Low-CPU screening.** An open starvation observation compares each library-admitted body's thread
@@ -595,18 +596,19 @@ log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
 `workloadMeasurements()` holds one entry per `Par`, unit name, and unit type, with counted
 `bodies()`, `cpuTime()`, `executionTime()` (time running, not queued), `cpuToExecutionRatio()`, and
 `lowCpuBodies()`. Only a body that starts and finishes while the scope is open counts; one still
-running at close appears in `excludedBodies()`. Entries sharing one pool and other runtimes are
+running at close, or whose clock reading failed, appears in `excludedBodies()`. Entries sharing one pool and other runtimes are
 measured apart, and work submitted directly with `execute` is never measured.
 
 A measurement with enough samples — currently 20 bodies or one second of execution time — and CPU
 time below half its execution time is an `issue()` when its entry is declared `COMPUTE`. That makes
 the status `LOW_CPU_UTILIZATION` unless starvation evidence was also captured. It is
 `suspectedDeclarationDrift()` when its unit is declared `COMPUTE`; drift alone never changes the
-status. `UNKNOWN` on both sides yields raw measurements only, and `unlabeledPars()` lists the
-entries that contributed bodies without a declaration, so a clean report is not mistaken for full
-coverage. When thread CPU time is unsupported, disabled, or unreadable, `cpuTimeAvailable()` is
-false and the status is at best `INSUFFICIENT_VISIBILITY`; the library never enables CPU timing
-itself.
+status. A measurement where neither side is declared `COMPUTE` is a raw measurement only, and
+`unlabeledPars()` lists the entries that contributed bodies without a declaration, so a clean report
+is not mistaken for full coverage. When thread CPU time is unsupported, disabled, or unreadable,
+`cpuTimeAvailable()` is false and the status is never `NO_ISSUE`: it is `INSUFFICIENT_VISIBILITY`
+unless starvation evidence, a low-CPU issue from samples taken while the clocks were readable, or a
+sampling failure ranks higher. The library never enables CPU timing itself.
 
 Outside an open scope a body pays one volatile read. Inside one it pays two thread-CPU and two
 wall-clock reads.
@@ -619,6 +621,8 @@ wall-clock reads.
   internal calibration values, not a stable contract.
 - Compute work in a blocking pool is found only by the submission-time comparison, when both sides
   are declared.
+- A scope keeps one total per entry, unit name, and unit type until it closes. Unit names built per
+  call make a long-lived scope grow without bound; use fixed unit names.
 - The counters are pool-wide: library tasks and direct `execute` tasks count equally, so a long CPU
   or slow I/O library task can produce `POTENTIAL_STARVATION`.
 - `NO_ISSUE` does not rule out deadlock. Empty queues with all workers blocked, `SynchronousQueue`

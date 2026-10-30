@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link WorkloadClock} whose wall and CPU readings advance only when the calling thread spends
@@ -13,6 +14,7 @@ final class ScriptedWorkloadClock implements WorkloadClock {
     private final AtomicInteger cpuReads = new AtomicInteger();
     private volatile boolean available = true;
     private volatile boolean readable = true;
+    private volatile @Nullable Error failure;
 
     /** Advances the calling thread's clocks as a body that ran for {@code execution} using {@code cpu}. */
     void spend(Duration execution, Duration cpu) {
@@ -29,6 +31,11 @@ final class ScriptedWorkloadClock implements WorkloadClock {
     /** Whether CPU readings from now on succeed; a failed reading returns a negative value. */
     void readable(boolean readable) {
         this.readable = readable;
+    }
+
+    /** Makes the next CPU readings throw {@code failure}, standing in for a VM error; null stops it. */
+    void failWith(@Nullable Error failure) {
+        this.failure = failure;
     }
 
     int wallReads() {
@@ -48,6 +55,10 @@ final class ScriptedWorkloadClock implements WorkloadClock {
     @Override
     public long currentThreadCpuNanos() {
         cpuReads.incrementAndGet();
+        Error error = failure;
+        if (error != null) {
+            throw error;
+        }
         return readable ? elapsed.get()[1] : -1L;
     }
 

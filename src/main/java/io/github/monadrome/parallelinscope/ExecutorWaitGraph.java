@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntFunction;
 import java.util.logging.Level;
@@ -212,17 +211,7 @@ final class ExecutorWaitGraph {
     }
 
     private void announce(Runnable message) {
-        try {
-            announcements.execute(() -> {
-                try {
-                    message.run();
-                } catch (RuntimeException handlerFailure) {
-                    return;
-                }
-            });
-        } catch (RejectedExecutionException servicesShutDown) {
-            return;
-        }
+        Announcements.deliver(announcements, message);
     }
 
     private ExecutorWaitReport.Component component(

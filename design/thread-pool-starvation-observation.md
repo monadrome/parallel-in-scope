@@ -160,23 +160,27 @@ The declarations it is screened against are in
    NOT be documented as stable across GC, hardware, or container environments. A low measurement
    with enough samples is an `issue()` when the entry is declared `COMPUTE`, whatever the unit
    declares, and `suspectedDeclarationDrift()` when the unit is declared `COMPUTE`; both can hold.
-   Drift alone MUST NOT change the status. An entry or unit declared `UNKNOWN` contributes raw
-   measurements only, and `unlabeledPars()` MUST name every entry declared `UNKNOWN` that
-   contributed a measured body.
+   Drift alone MUST NOT change the status. Each side's `COMPUTE` declaration enables only its own
+   verdict, so a measurement where neither side is declared `COMPUTE` is a raw measurement only.
+   `unlabeledPars()` MUST name every entry declared `UNKNOWN` that registered a body in the window.
 5. Workload evidence MUST read as a screening lead: low CPU use may come from waiting on I/O, a lock,
    or nested work, or from runtime pauses or CPU throttling. It MUST NOT claim proven blocking or
    misuse. A body that waits synchronously for a nested batch holds its own thread while it waits;
    the report MUST NOT conclude that the nested batch's pool was chosen wrongly. Same-pool nested
    waits remain the executor wait graph's responsibility.
 6. When thread CPU time is unsupported, disabled when the window opens, or unreadable during it,
-   `cpuTimeAvailable()` MUST be false and the report MUST NOT be `NO_ISSUE`. The library MUST NOT
-   call `setThreadCpuTimeEnabled`. A failed reading drops that body's sample.
+   `cpuTimeAvailable()` MUST be false and the report MUST NOT be `NO_ISSUE`; contract 6's priority
+   still lets starvation evidence, a low-CPU issue from earlier samples, or a sampling failure rank
+   above `INSUFFICIENT_VISIBILITY`. The library MUST NOT call `setThreadCpuTimeEnabled`. A failed
+   reading drops that body's sample, which then counts in `excludedBodies()`.
 7. Workload diagnostics MUST only report. They MUST NOT fail or replace the result of a task, batch,
    or group.
 
 Inside a window each body costs two thread-CPU and two wall-clock reads plus one atomic update of
 its unit total at start and at end, per open window. The overhead of the CPU-clock read was not
-measured with a benchmark; it is confined to the opt-in window.
+measured with a benchmark; it is confined to the opt-in window. A window keeps one total per
+`(Par, unit name, unit TaskType)` until it closes and has no cap, so unit names built per call grow
+a long-lived window without bound (BACKLOG O-17).
 
 ## Limits and rejected alternatives
 
@@ -304,3 +308,60 @@ seal gives the same linearization without blocking a body. Historical source: `p
   and executor/sample predicates completed 38 mutants, all killed, with no uncovered, surviving,
   timed-out, or run-error outcomes. This closes the four predicate gaps in the earlier focused
   result, not the unrelated runtime coverage gaps from the broad run.
+
+## Workload-fit review disposition
+
+Commit `d71af957` (`feat!: make tasktype a workload-fit diagnostic`) was reviewed read-only by Kimi
+(K3.1 Pro) and Codex (GPT-6.1-Sol, xhigh), each in its own remote-less clone, against the contract
+items listed in the commit message. The implementer reproduced every retained finding against the
+working tree with a regression test that failed on the reviewed commit before the fix.
+
+| Finding | Disposition | Effect of the fix |
+|---|---|---|
+| Kimi F1 / Codex F1: a JUL handler that throws turns the submission-time mismatch warning into an admission failure; the body never runs (the 0.3 inert `rejectEnqueue` warning had the same path) | Retained, P0: contract violation, reproduced with public API only | Both warnings are delivered by `Announcements` on the runtime-owned executor that already delivers executor-wait cycle warnings, so the admitting thread never calls a handler; a failing or rejected delivery drops the message. `aFailingLogHandlerNeverRunsOnTheAdmittingThreadOrChangesTheOutcome` and `aFailingLogHandlerNeverChangesTheOutcomeOfAnInertRefusal` assert the outcome and the publishing thread. |
+| Kimi F2 (P0) / Codex F2 (P2): racing first sightings of one pair each claim a slot, so the memory overflows before 1024 pairs and the summary overstates the count | Retained, downgraded to P2: no task outcome changes, but the bounded-memory contract is wrong | A pair claims a slot only after its insertion succeeds, and an insertion over capacity is rolled back; overflow now implies exactly 1024 stored pairs. `racingFirstSightingsOfOnePairClaimOneSlot` races four threads per pair for 1024 rounds. |
+| Codex F3 (P2): no deterministic test pins "a sealed total never changes"; removing the commit guard passed the focused tests | Retained as a test gap; the implementation was correct | `aCommitAfterTheSealNeverChangesTheSealedTotal` commits after the seal and reseals. |
+| Codex F4 (P3): guides and Javadoc said unreadable CPU time leaves "at best `INSUFFICIENT_VISIBILITY`" / "no verdict is possible", contradicting contract 6's priority | Retained | Javadoc, both guides, both migration guides, the changelog, and screening rule 6 state "never `NO_ISSUE`; `INSUFFICIENT_VISIBILITY` unless a higher-priority signal was captured". |
+| Codex F5 (P3): "an entry or unit declared `UNKNOWN` contributes raw measurements only" contradicts the per-side verdict rule | Retained | Rule 4 and the report Javadoc say each side's `COMPUTE` enables only its own verdict; a measurement with neither side `COMPUTE` is raw only. |
+| Kimi F3 (P3): `excludedBodies()` omitted bodies whose clock reading failed | Retained; also found in self-review | Javadoc, scope Javadoc, both guides, and rule 6 name both cases. |
+| Self-review: `timing.stop()` ran first in `ScopedCallable.call()`'s cleanup, so a VM error from it skipped releasing the body and restoring the task context, leaving the worker thread with a finished task's context | Retained, P2 | Timing wraps only the body call in `callTimed`; `anErrorFromTheTimingStillRestoresTheWorkersTaskContext` checks the next task on the same worker. |
+| Self-review: a window keeps one total per `(Par, unit name, unit type)` with no cap | Deferred to BACKLOG O-17 | Documented in the cost paragraph and both guides; a cap needs a new public accessor and a status rule, which is a maintainer decision. |
+| Self-review: the three-argument `register` lacked `@since 0.4.0` | Retained, P3 | Added. |
+| Codex, contract 1 note: a body registered before the seal still reads its clocks after close | Rejected as a finding: this is the documented start-eligibility semantics, and the sealed total ignores the late commit | None. |
+| Kimi F1 suggestion: catch handler failures at the log call | Not adopted as proposed: catching alone still lets a blocking or re-entrant handler hold admission | Off-thread delivery, matching the executor wait graph. |
+
+## Workload-fit mutation verification
+
+- Reverse verification on the reviewed commit: reverting each fix alone made its tests fail — TaskType
+  refusal in `SmartBlockingQueue`, combine type inheritance, nested type inheritance, the body timing
+  hook, the admission mismatch call, and the lost-CPU flag.
+- PIT on `d71af957` (core mutators plus `VOID_METHOD_CALLS`), scoped to `WorkloadFit`,
+  `TaskTypeMismatches`, `SystemWorkloadClock`, `ThreadPoolStarvationReport`, and
+  `SmartBlockingQueue`: 157 mutants, 143 killed, 9 survived, 5 without coverage. A run over `Par`'s
+  admission diagnostics killed 13 of 13.
+- Survivors classified as test gaps and closed by new tests: the negated window filter in
+  `WorkloadFit.without` (closing one window removed the others), `Key.equals` made always-true
+  (needs colliding hashes; `unitsWhoseNamesShareAHashCodeAreMeasuredApart`), and the
+  `SystemWorkloadClock` disabled-timing results (`theSystemClockReportsDisabledCpuTimingAsUnavailable`,
+  `theSystemClockReadsTheCallingThreadsCpuTime`).
+- Survivors classified as race-only: removing the window-level `sealed.set(true)` and forcing
+  `Cell.start()` to succeed differ only when a body registers concurrently with the seal; the
+  published report is unchanged and no deterministic hook exists between registration and the seal.
+- Equivalent: `lowCpu`'s `executionNanos > 0` boundary (monotonic clocks make the delta non-negative),
+  `Key.hashCode` returning 0 (correctness rests on `equals`), and the `SmartBlockingQueue`
+  constructor boundary (the delegate rejects the same capacity).
+- Uncovered: the `SystemWorkloadClock` branches for a missing `java.management` module or a throwing
+  bean, which a test cannot reach without replacing the platform bean.
+- Reverse verification of the review fixes: reverting the off-thread delivery, the slot-after-insert
+  rule, or the sealed-commit guard made its new test fail. The first version of the timing-error
+  test passed against the reviewed `ScopedCallable` because its injected error hit the opening clock
+  read, before any timing existed; the test now fails the closing read and fails against the
+  reviewed commit.
+- PIT after the fixes, same scope plus `Announcements`: 158 mutants, 146 killed, 7 survived, 5
+  without coverage; `Par`'s admission diagnostics 13 of 13 and `ScopedCallable.callTimed` 3 of 3
+  killed. The new survivors were in `TaskTypeMismatches.record`: a `null` return on the duplicate
+  branch, killed after the race test asserted that no outcome is null (12 mutants, 11 killed in that
+  rerun), and `stored.get() < CAPACITY` changed to `<=`, equivalent at steady state because the
+  mutant's extra insertion at capacity is rolled back into the same suppressed outcome. The remaining
+  survivors and uncovered branches are those classified above; `Key.equals` returning true for a
+  non-`Key` argument is unreachable because the map compares only keys.

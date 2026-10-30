@@ -330,6 +330,49 @@ class WorkloadFitScreeningTest {
         }
     }
 
+    /**
+     * An error from the timing's closing clock reading, standing in for a VM error, propagates like
+     * any error from the body but still lets the worker restore its task context, so the next task on
+     * that thread does not inherit the failed one.
+     */
+    @Test
+    void anErrorFromTheTimingStillRestoresTheWorkersTaskContext() throws Exception {
+        ExecutorService worker = Executors.newFixedThreadPool(1);
+        try {
+            runtime = ParRuntime.builder()
+                    .register(CPU, worker)
+                    .workloadClock(clock)
+                    .build();
+            ListenableFuture<ThreadPoolStarvationReport> report;
+            TaskBatchResult<Integer> result;
+            try (ThreadPoolStarvationObservationScope scope =
+                    runtime.openThreadPoolStarvationObservation(LONG_INTERVAL)) {
+                report = scope.reportFuture();
+                try {
+                    result = runtime.par(CPU)
+                            .map(
+                                    inputs(1),
+                                    value -> {
+                                        clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
+                                        clock.failWith(new AssertionError("clock failure standing in for a VM error"));
+                                        return value;
+                                    },
+                                    options("failing"));
+                } finally {
+                    clock.failWith(null);
+                }
+            }
+
+            assertThat(result.results().get(0).outcome()).isNotEqualTo(TaskOutcome.SUCCESS);
+            assertThat(done(report).workloadMeasurements()).hasSize(1);
+            assertThat(worker.submit(() -> TaskExecutionContext.current() == null)
+                            .get(10, TimeUnit.SECONDS))
+                    .isTrue();
+        } finally {
+            worker.shutdownNow();
+        }
+    }
+
     @Test
     void aLowCpuIssueOutranksLostCpuTime() throws Exception {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
@@ -456,7 +499,7 @@ class WorkloadFitScreeningTest {
     }
 
     @Test
-    void overlappingScopesEachCountTheBody() throws Exception {
+    void overlappingScopesEachCountTheBodyAndClosingOneLeavesTheOtherOpen() throws Exception {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
         ListenableFuture<ThreadPoolStarvationReport> outer;
         ListenableFuture<ThreadPoolStarvationReport> inner;
@@ -468,11 +511,27 @@ class WorkloadFitScreeningTest {
                 inner = innerScope.reportFuture();
                 runtime.par(CPU).map(inputs(20), spending(10, 1), options("work"));
             }
+            runtime.par(CPU).map(inputs(20), spending(10, 1), options("work"));
         }
 
-        assertThat(only(done(outer)).bodies()).isEqualTo(20);
+        assertThat(only(done(outer)).bodies()).isEqualTo(40);
         assertThat(only(done(inner)).bodies()).isEqualTo(20);
-        assertThat(clock.wallReads()).isEqualTo(40);
+        assertThat(clock.wallReads()).isEqualTo(80);
+    }
+
+    @Test
+    void unitsWhoseNamesShareAHashCodeAreMeasuredApart() throws Exception {
+        runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
+        assertThat("Aa".hashCode()).isEqualTo("BB".hashCode());
+
+        ThreadPoolStarvationReport report = observe(() -> {
+            runtime.par(CPU).map(inputs(3), spending(10, 1), options("Aa"));
+            runtime.par(CPU).map(inputs(2), spending(10, 1), options("BB"));
+        });
+
+        assertThat(report.workloadMeasurements())
+                .extracting(WorkloadMeasurement::unit, WorkloadMeasurement::bodies)
+                .containsExactly(tuple("Aa", 3L), tuple("BB", 2L));
     }
 
     @Test
