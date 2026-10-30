@@ -279,7 +279,7 @@ class TaskTypeMismatchWarningTest {
     }
 
     @Test
-    void theMemoryOverflowsOnceThenOnlyCountsNewPairs() {
+    void theMemoryOverflowsOnceThenStopsLoggingNewPairs() {
         Par cpu = runtime.par(ParId.of("cpu"));
         for (int i = 0; i < TaskTypeMismatches.CAPACITY; i++) {
             cpu.map(
@@ -288,7 +288,6 @@ class TaskTypeMismatchWarningTest {
                     BatchOptions.timeout("unit-" + i, TIMEOUT).taskType(TaskType.BLOCKING));
         }
         assertThat(records).hasSize(TaskTypeMismatches.CAPACITY);
-        assertThat(runtime.snapshot().suppressedTaskTypeMismatches()).isZero();
 
         BatchOptions overflow = BatchOptions.timeout("unit-overflow", TIMEOUT).taskType(TaskType.BLOCKING);
         cpu.map(Collections.singletonList(1), x -> x, overflow);
@@ -303,8 +302,7 @@ class TaskTypeMismatchWarningTest {
         assertThat(summary.getLevel()).isEqualTo(Level.WARNING);
         assertThat(summary.getMessage())
                 .contains("is full at 1024 Par and unit-name pairs", "unit 'unit-overflow' on Par 'cpu'")
-                .contains("ParRuntimeSnapshot.suppressedTaskTypeMismatches()");
-        assertThat(runtime.snapshot().suppressedTaskTypeMismatches()).isEqualTo(2);
-        assertThat(runtime.snapshot().toString()).contains("suppressedTaskTypeMismatches=2");
+                .contains("are not logged")
+                .doesNotContain("suppressedTaskTypeMismatches");
     }
 }

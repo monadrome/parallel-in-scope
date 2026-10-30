@@ -30,19 +30,6 @@ enum SystemWorkloadClock implements WorkloadClock {
         }
     }
 
-    @Override
-    public boolean cpuTimeAvailable() {
-        ThreadMXBean threads = Threads.BEAN;
-        if (threads == null) {
-            return false;
-        }
-        try {
-            return threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled();
-        } catch (RuntimeException unavailable) {
-            return false;
-        }
-    }
-
     private static final class Threads {
         static final @Nullable ThreadMXBean BEAN = load();
 

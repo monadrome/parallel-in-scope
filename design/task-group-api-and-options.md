@@ -194,14 +194,13 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
   一种声明。`COMPUTE` 入口配 `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。任一侧为 `UNKNOWN`
   MUST NOT 告警。告警 MUST 只表述"声明不一致"，MUST NOT 表述为已经发生饿死、过订阅或误用。
 - 去重 MUST 以 `ParRuntime` 为作用域并有上限：最多记住 1024 对，从不淘汰。记满后，新对的不一致
-  首次只记一条汇总告警，此后每次只累加计数，计数经 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`
-  暴露；溢出之后 MUST NOT 声称仍能发现所有新单元。
+  只在首次记一条汇总告警，此后不再记录；溢出之后 MUST NOT 声称仍能发现所有新单元。不设被压下告警的
+  计数：溢出只在单元名按调用拼接时出现，汇总告警已让它可见（ADR 0010）。
 - 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。日志
   MUST 在 runtime 自有线程上投递，准入线程 MUST NOT 调用日志 handler：handler 抛异常或阻塞、投递执行器
   拒绝或无法为投递创建线程，都不能影响准入，只丢失该条日志。各条日志独立投递，可能不按准入顺序出现。
   惰性拒绝告警同样遵守这一条。
-  运行时侧的低 CPU 筛查见 [线程池饥饿观测契约](thread-pool-starvation-observation.md) 的
-  Workload-fit screening 一节。
+  运行时侧的低 CPU 筛查见 [负载匹配筛查契约](workload-fit-screening.md)。
 
 被排除的替代方案：
 
@@ -214,8 +213,9 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 - 按池结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警：核数大小的池用于限制下游并发是
   合理用法，推断出的告警会很吵。
 
-独立评审处置与变异验证记录见 [线程池饥饿观测契约](thread-pool-starvation-observation.md) 的
-Workload-fit review disposition 一节。决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)。历史来源：
+独立评审处置与变异验证记录见 [负载匹配筛查契约](workload-fit-screening.md) 的 Review history 一节。
+决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) 与
+[ADR 0010](../adr/0010-always-on-workload-fit-screening.md)。历史来源：
 `proposal:P0025`（`P0025-workload-fit-diagnostics`；同号的 `P0025-internal-cancellation-token`
 是另一份已落地提案）。
 

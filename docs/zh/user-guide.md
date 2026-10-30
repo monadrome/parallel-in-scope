@@ -114,9 +114,8 @@ offer 被拒绝时，池子要么开新线程、要么走拒绝处理器，而�
 - **提交时比对。** 条目和单元都声明了类型且不一致时，按条目与单元名记录一次：`COMPUTE` 条目上的
   `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。日志只说明两侧声明不一致，并在 runtime 自有线程上
   记录，抛异常或阻塞的日志 handler 不会影响提交；各条日志独立投递，可能不按提交顺序出现。运行时最多记住 1024 对，
-  之后只打一条汇总，并把后续不一致计入 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`。
-  单元名请用固定业务名，不要按调用拼接。
-- **低 CPU 筛查。** 打开的线程池饥饿观测会比较每个库准入任务体的线程 CPU 时间与执行时间，见
+  之后只打一条汇总，新对的不一致不再记录。单元名请用固定业务名，不要按调用拼接。
+- **低 CPU 筛查。** runtime 始终比较经 `COMPUTE` 条目或单元准入的任务体的线程 CPU 时间与执行时间，见
   [筛查负载匹配](#workload-fit)。它能发现作者自己都不知道会阻塞的任务，这是单靠声明做不到的。
 
 ### 批次终端汇总 {#batch-combine}
@@ -448,6 +447,47 @@ assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 
 报告在运行时的整个生命周期内累积，因此是结构性风险信号，不是死锁证明：一个环可能由从未重叠的不同请求的等待组成——两个请求在两个有界池上互相饿死正是这种形状——而留有余量的池也可能永远不会饿死。报告为空不说明外部 future、直接提交给执行器的任务、锁、看不透或未注册的执行器以及其他运行时的情况。等待记在单元提交到的执行器上；`CallerRunsPolicy` 内联执行任务体时，被阻塞的线程可能属于另一个池。告警是尽力而为的——失败的日志 handler 可能让它丢失——报告则始终可读。需要对某段代码单独下结论时，让它跑在一个专用的 `ParRuntime` 上。
 
+## 筛查负载匹配 {#workload-fit}
+
+在计算池里阻塞的任务体（藏着的 JDBC、同步日志、后来加的一次 RPC）会占住为数不多的线程，却几乎不用
+CPU。声明池的用途，runtime 就会一直筛查，不需要打开任何作用域：
+
+```java
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .build();
+
+WorkloadFitReport report = global.workloadFitReport();
+for (WorkloadFitReport.ParMeasurement par : report.pars()) {
+    if (par.issue()) {
+        log.warn("Low CPU use on a compute pool: {}", par);
+    }
+    for (WorkloadFitReport.UnitMeasurement unit : par.units()) {
+        log.info("{} on {}: CPU/execution {}", unit.unit(), par.par(), unit.cpuToExecutionRatio());
+    }
+}
+```
+
+runtime 只给条目或单元声明为 `COMPUTE` 的任务体计时，比较每个任务体的线程 CPU 时间与执行时间
+（运行时间，不含排队）。它按条目汇总，每 10 秒执行时间判定一次：第一个 CPU 时间不到执行时间一半的
+周期会让 `issue()` 在 runtime 生命周期内保持为 true，并在 runtime 自有线程上记一条 `WARNING`。按整个
+条目判定，分散在许多小单元里的阻塞也能被发现；按周期判定，长时间健康之后的退化不会被之前的历史稀释。
+`units()` 把累计值归到每个条目至多 256 个单元名下；更多单元的任务体只计入 `unattributedBodies()`。
+声明为 `COMPUTE` 的单元按同样的方式判定 `suspectedDeclarationDrift()`，记一条 `INFO`；漂移从不设置
+`issue()`。
+
+计数是累计值，只增不减，两次报告相减就是这段时间的测量值。未声明与 `BLOCKING` 的工作从不计时，
+没有开销；直接 `execute` 提交的工作从不测量；不在 `pars()` 里的条目没有被筛查。线程 CPU 时间不受支持、
+未开启或读取失败时，被筛查的任务体计入 `unmeasuredBodies()`，并有一条 `WARNING` 说明；库不会自行开启
+CPU 计时。每个被筛查的任务体多两次线程 CPU 读取和两次墙钟读取，以及单元与条目累计值的一次原子更新。
+
+### 限制 {#workload-fit-limits}
+
+- 低 CPU 占用是筛查线索，不是阻塞的证明：GC、safepoint、CPU 配额限流和可运行线程多于核数会压低
+  比值，自旋等待会抬高比值。周期长度与阈值是内部校准值，不是稳定契约。
+- 等待嵌套批次的任务体在等待期间占住自己的线程，这不说明嵌套批次所在的池选错了。
+- 计算任务进了阻塞池，只有两侧都声明时才能由提交时比对发现。
+
 ## 观测直接提交的工作
 
 任务图观测只覆盖通过本库准入的工作。直接提交到注册 executor 的任务没有依赖边；应用同时
@@ -474,10 +514,9 @@ if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
 采样使用独立 daemon scheduler，最小间隔为 10 毫秒。只有相隔至少一个 interval 的样本对同时看到
 当前 worker 全部忙、队列有积压且完成数没有前进时，才报告 `POTENTIAL_STARVATION`。证据是窗口内
 捕获的粘性快照，`stagnantIntervals()` 表示满足间隔门槛的停滞样本对；恢复不会清除它。
-采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；证据与[负载匹配](#workload-fit)的
-`LOW_CPU_UTILIZATION` 依次优先于它。`NO_ISSUE` 表示所有注册 executor 都可观测、线程 CPU 时间可读、
-采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在 `unsupportedExecutors()` 中，且在
-没有证据、负载匹配问题或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
+采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；有证据时证据优先。`NO_ISSUE` 表示
+所有注册 executor 都可观测、采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在
+`unsupportedExecutors()` 中，且在没有证据或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
 预计需要诊断积压时，作用域至少保持两个采样间隔。
 报告的 `samplingInterval()` 是请求间隔，`samples()` 是实际完成的采样次数。证据计数取自捕获时刻；
 判断 close 时刻的状态需重新采样。
@@ -490,54 +529,8 @@ try-with-resources 仍会关闭窗口。提交后立即关闭不能诊断持续�
 它不是健康断言。采样 `Error` 在报告发布后重抛；如需在错误处理路径读取报告，应在关闭前保留
 future，并在错误处理逻辑中检查已发布的报告。
 
-### 筛查负载匹配 {#workload-fit}
-
-同一个作用域也会筛查经本 runtime 准入的任务体。在计算池里阻塞的任务体（藏着的 JDBC、同步日志、
-后来加的一次 RPC）会占住为数不多的线程，却几乎不用 CPU。声明池的用途，并在关闭后读取测量值：
-
-```java
-ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
-        .build();
-
-ListenableFuture<ThreadPoolStarvationReport> reportFuture;
-try (ThreadPoolStarvationObservationScope observation =
-        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
-    reportFuture = observation.reportFuture();
-    runLoadTest();
-}
-ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
-for (ThreadPoolStarvationReport.WorkloadMeasurement measurement : report.workloadMeasurements()) {
-    if (measurement.issue() || measurement.suspectedDeclarationDrift()) {
-        log.warn("Low CPU use, the body may be waiting: {}", measurement);
-    }
-}
-log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
-```
-
-`workloadMeasurements()` 按 `Par`、单元名与单元类型各给一条，包含计入的 `bodies()`、`cpuTime()`、
-`executionTime()`（运行时间，不含排队）、`cpuToExecutionRatio()` 和 `lowCpuBodies()`。只有在作用域
-打开期间开始并结束的任务体才计入；关闭时仍在运行或时钟读取失败的计入 `excludedBodies()`。共享同一个池的条目和
-其他 runtime 分开测量，直接 `execute` 提交的工作从不测量。
-
-样本足够（目前为 20 个任务体或 1 秒执行时间）且 CPU 时间低于执行时间一半的测量值，在其条目声明为
-`COMPUTE` 时是 `issue()`，状态因此为 `LOW_CPU_UTILIZATION`，除非同时捕获到饥饿证据；在其单元声明为
-`COMPUTE` 时是 `suspectedDeclarationDrift()`，单独的漂移不改变状态。两侧都没有声明 `COMPUTE` 时只给
-原始测量值；`unlabeledPars()` 列出贡献了任务体却未声明类型的条目，避免把干净的报告误当成全覆盖。线程
-CPU 时间不受支持、未开启或读取失败时，`cpuTimeAvailable()` 为 false，状态绝不是 `NO_ISSUE`：没有
-更高优先级的饥饿证据、时钟可读期间样本得出的低 CPU 问题或采样失败时，状态为
-`INSUFFICIENT_VISIBILITY`。库不会自行开启 CPU 计时。
-
-作用域外每个任务体只多一次 volatile 读；作用域内多两次线程 CPU 读取和两次墙钟读取。
-
 ### 限制
 
-- 低 CPU 占用是筛查线索，不是阻塞的证明：GC、safepoint、CPU 配额限流会压低比值，自旋等待会抬高
-  比值。等待嵌套批次的任务体在等待期间占住自己的线程，这不说明嵌套批次所在的池选错了。阈值是内部
-  校准值，不是稳定契约。
-- 计算任务进了阻塞池，只有两侧都声明时才能由提交时比对发现。
-- 作用域关闭前，每个条目、单元名与单元类型各保留一份累计值。按调用拼接的单元名会让长生命周期的
-  作用域无界增长；单元名请用固定业务名。
 - 计数器按池统计，库内任务和直接 `execute` 任务同等计入；库内长 CPU/慢 I/O 任务也可能误报。
 - `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
   runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。

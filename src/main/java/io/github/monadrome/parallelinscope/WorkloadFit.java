@@ -1,333 +1,312 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verifyNotNull;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Runtime-owned workload-fit screening: the thread CPU time and execution time of library-admitted
- * task bodies, recorded only while a {@link ThreadPoolStarvationObservationScope} holds a window
- * open.
+ * Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task
+ * bodies whose entry or unit is declared {@link TaskType#COMPUTE}.
  *
- * <p>A body registers in every window open when it starts, reads both clocks after registering and
- * before committing, and counts in a window only when its registration and its commit both precede
- * that window's seal. Registration, commit, and seal are each one atomic update of a per-unit
- * immutable total, so a published measurement is one consistent state: a body registered but not
- * committed at the seal is an excluded body, and a body registering after the seal is not counted at
- * all. Outside every window a body performs one volatile read.
+ * <p>Each entry owns one {@link Entry}: an aggregate total and up to {@link #UNIT_CAPACITY} unit
+ * totals keyed by unit name and unit type. Every total is one immutable value replaced by
+ * compare-and-set, so a report reads each total in one consistent state and exactly one commit sees
+ * the transition that sets a verdict. A body whose entry and unit are both undeclared or blocking
+ * reads no clock and touches no total.
  *
- * <p>The verdict thresholds are internal calibration values, not a stable contract: enough samples
- * means {@link #MINIMUM_BODIES} committed bodies or {@link #MINIMUM_EXECUTION_NANOS} of execution
- * time, and low use means CPU time below half the execution time.
+ * <p>Verdicts are judged per epoch of {@link #EPOCH_EXECUTION_NANOS} of execution time, so a
+ * regression after a long healthy period is not diluted by it. The aggregate of an entry declared
+ * {@code COMPUTE} sets the entry's issue; a unit declared {@code COMPUTE} sets its own drift. Both are
+ * sticky and announced once. The thresholds are internal calibration values, not a stable contract.
  */
 final class WorkloadFit {
-    static final int MINIMUM_BODIES = 20;
-    static final long MINIMUM_EXECUTION_NANOS = 1_000_000_000L;
+    static final long EPOCH_EXECUTION_NANOS = 10_000_000_000L;
+    static final int UNIT_CAPACITY = 256;
 
-    private final WorkloadClock clock;
-    private final AtomicReference<ImmutableList<Window>> openWindows = new AtomicReference<>(ImmutableList.of());
+    private static final Logger LOGGER = Logger.getLogger(WorkloadFit.class.getName());
 
-    WorkloadFit(WorkloadClock clock) {
-        this.clock = checkNotNull(clock, "clock cannot be null");
-    }
-
-    /** Opens a window; bodies starting after this returns are recorded in it. */
-    Window open() {
-        Window window = new Window(clock.cpuTimeAvailable());
-        openWindows.updateAndGet(windows ->
-                ImmutableList.<Window>builder().addAll(windows).add(window).build());
-        return window;
-    }
-
-    /** Seals the window and stops offering it to new bodies; returns its immutable result. */
-    Result close(Window window) {
-        try {
-            return window.seal();
-        } finally {
-            openWindows.updateAndGet(windows -> without(windows, window));
-        }
-    }
+    private WorkloadFit() {}
 
     /**
-     * Starts timing one body of {@code unit}, or returns null when no window is open, the unit was
-     * resolved without an entry, or no open window accepted the body.
+     * Starts timing one body of {@code unit}, or returns null when the body is not screened or its
+     * CPU time cannot be read; an unreadable reading is counted on the entry.
      */
     static @Nullable Timing start(MultiTaskContext unit) {
         Par par = unit.par();
-        return par == null ? null : par.runtime().workloadFit().startTiming(par, unit);
-    }
-
-    private @Nullable Timing startTiming(Par par, MultiTaskContext unit) {
-        ImmutableList<Window> windows = verifyNotNull(openWindows.get());
-        if (windows.isEmpty()) {
+        if (par == null || (par.taskType() != TaskType.COMPUTE && unit.taskType() != TaskType.COMPUTE)) {
             return null;
         }
-        Key key = new Key(par, unit.name(), unit.taskType());
-        List<Cell> cells = new ArrayList<>(windows.size());
-        for (Window window : windows) {
-            Cell cell = window.register(key);
-            if (cell != null) {
-                cells.add(cell);
-            }
-        }
-        if (cells.isEmpty()) {
-            return null;
-        }
+        WorkloadClock clock = par.runtime().workloadClock();
         long wallStart = clock.wallNanos();
         long cpuStart = clock.currentThreadCpuNanos();
         if (cpuStart < 0) {
-            for (Cell cell : cells) {
-                cell.window.cpuTimeLost();
-            }
+            par.workload().unmeasured(par);
             return null;
         }
-        return new Timing(this, cells, wallStart, cpuStart);
+        return new Timing(par, unit.name(), unit.taskType(), clock, wallStart, cpuStart);
     }
 
     static boolean lowCpu(long cpuNanos, long executionNanos) {
         return executionNanos > 0 && cpuNanos < executionNanos - cpuNanos;
     }
 
-    private static ImmutableList<Window> without(ImmutableList<Window> windows, Window removed) {
-        ImmutableList.Builder<Window> remaining = ImmutableList.builder();
-        for (Window window : windows) {
-            if (window != removed) {
-                remaining.add(window);
-            }
-        }
-        return remaining.build();
-    }
-
-    /** One body's clock readings and the cells it registered in. */
+    /** One body's opening clock readings. */
     static final class Timing {
-        private final WorkloadFit owner;
-        private final List<Cell> cells;
+        private final Par par;
+        private final String unit;
+        private final TaskType unitType;
+        private final WorkloadClock clock;
         private final long wallStart;
         private final long cpuStart;
 
-        private Timing(WorkloadFit owner, List<Cell> cells, long wallStart, long cpuStart) {
-            this.owner = owner;
-            this.cells = cells;
+        private Timing(Par par, String unit, TaskType unitType, WorkloadClock clock, long wallStart, long cpuStart) {
+            this.par = par;
+            this.unit = unit;
+            this.unitType = unitType;
+            this.clock = clock;
             this.wallStart = wallStart;
             this.cpuStart = cpuStart;
         }
 
-        /** Reads both clocks and commits the sample to every window that is still open. */
+        /** Reads both clocks and commits the sample to the entry. */
         void stop() {
-            long cpuEnd = owner.clock.currentThreadCpuNanos();
-            long wallEnd = owner.clock.wallNanos();
+            long cpuEnd = clock.currentThreadCpuNanos();
+            long wallEnd = clock.wallNanos();
             if (cpuEnd < 0) {
-                for (Cell cell : cells) {
-                    cell.window.cpuTimeLost();
-                }
+                par.workload().unmeasured(par);
                 return;
             }
-            long cpuNanos = cpuEnd - cpuStart;
-            long executionNanos = wallEnd - wallStart;
-            for (Cell cell : cells) {
-                cell.commit(cpuNanos, executionNanos);
-            }
+            par.workload().commit(par, unit, unitType, cpuEnd - cpuStart, wallEnd - wallStart);
         }
     }
 
-    /** One observation scope's measurements. */
-    static final class Window {
-        private final boolean cpuTimeAvailable;
-        private final AtomicBoolean sealed = new AtomicBoolean();
-        private final AtomicBoolean cpuTimeLost = new AtomicBoolean();
-        private final Map<Key, Cell> cells = new ConcurrentHashMap<>();
+    /** One entry's totals: the aggregate that judges the entry, and its attributed units. */
+    static final class Entry {
+        private final AtomicReference<Totals> aggregate = new AtomicReference<>(Totals.EMPTY);
+        private final AtomicReference<ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>>> units =
+                new AtomicReference<>(ImmutableMap.of());
 
-        private Window(boolean cpuTimeAvailable) {
-            this.cpuTimeAvailable = cpuTimeAvailable;
-        }
-
-        private @Nullable Cell register(Key key) {
-            if (!cpuTimeAvailable || sealed.get()) {
+        /** The entry's measurement, or null when the entry is not declared COMPUTE and never ran a screened body. */
+        WorkloadFitReport.@Nullable ParMeasurement measurement(Par par) {
+            Totals totals = verifyNotNull(aggregate.get());
+            if (par.taskType() != TaskType.COMPUTE && totals.bodies == 0 && totals.unmeasuredBodies == 0) {
                 return null;
             }
-            Cell cell = cells.get(key);
-            if (cell == null) {
-                cell = cells.computeIfAbsent(key, ignored -> new Cell(this));
+            ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>> current = verifyNotNull(units.get());
+            List<WorkloadFitReport.UnitMeasurement> unitMeasurements = new ArrayList<>(current.size());
+            for (Map.Entry<Map.Entry<String, TaskType>, AtomicReference<Totals>> unit : current.entrySet()) {
+                Totals unitTotals = verifyNotNull(unit.getValue().get());
+                unitMeasurements.add(new WorkloadFitReport.UnitMeasurement(
+                        unit.getKey().getKey(),
+                        unit.getKey().getValue(),
+                        unitTotals.bodies,
+                        unitTotals.cpuNanos,
+                        unitTotals.executionNanos,
+                        unitTotals.flagged));
             }
-            return cell.start() ? cell : null;
-        }
-
-        private void cpuTimeLost() {
-            cpuTimeLost.set(true);
-        }
-
-        private Result seal() {
-            sealed.set(true);
-            List<ThreadPoolStarvationReport.WorkloadMeasurement> measurements = new ArrayList<>();
-            TreeSet<String> unlabeled = new TreeSet<>();
-            for (Map.Entry<Key, Cell> entry : cells.entrySet()) {
-                Key key = entry.getKey();
-                Totals totals = entry.getValue().seal();
-                if (totals.started == 0) {
-                    continue;
-                }
-                measurements.add(measurement(key, totals));
-                if (key.par.taskType() == TaskType.UNKNOWN) {
-                    unlabeled.add(key.par.id().value());
-                }
-            }
-            measurements.sort(Comparator.comparing((ThreadPoolStarvationReport.WorkloadMeasurement measurement) ->
-                            measurement.par().value())
-                    .thenComparing(ThreadPoolStarvationReport.WorkloadMeasurement::unit)
-                    .thenComparing(ThreadPoolStarvationReport.WorkloadMeasurement::unitTaskType));
-            List<ParId> unlabeledPars = new ArrayList<>(unlabeled.size());
-            for (String id : unlabeled) {
-                unlabeledPars.add(ParId.of(id));
-            }
-            return new Result(cpuTimeAvailable && !cpuTimeLost.get(), measurements, unlabeledPars);
-        }
-
-        private static ThreadPoolStarvationReport.WorkloadMeasurement measurement(Key key, Totals totals) {
-            boolean enoughSamples = totals.bodies >= MINIMUM_BODIES || totals.executionNanos >= MINIMUM_EXECUTION_NANOS;
-            boolean screened = enoughSamples && lowCpu(totals.cpuNanos, totals.executionNanos);
-            return new ThreadPoolStarvationReport.WorkloadMeasurement(
-                    key.par.id(),
-                    key.unit,
-                    key.par.taskType(),
-                    key.unitType,
+            unitMeasurements.sort(Comparator.comparing(WorkloadFitReport.UnitMeasurement::unit)
+                    .thenComparing(WorkloadFitReport.UnitMeasurement::taskType));
+            return new WorkloadFitReport.ParMeasurement(
+                    par.id(),
+                    par.taskType(),
                     totals.bodies,
-                    totals.started - totals.bodies,
                     totals.cpuNanos,
                     totals.executionNanos,
-                    totals.lowCpuBodies,
-                    screened && key.par.taskType() == TaskType.COMPUTE,
-                    screened && key.unitType == TaskType.COMPUTE);
-        }
-    }
-
-    /** A sealed window's report fields. */
-    static final class Result {
-        private final boolean cpuTimeAvailable;
-        private final ImmutableList<ThreadPoolStarvationReport.WorkloadMeasurement> measurements;
-        private final ImmutableList<ParId> unlabeledPars;
-
-        private Result(
-                boolean cpuTimeAvailable,
-                List<ThreadPoolStarvationReport.WorkloadMeasurement> measurements,
-                List<ParId> unlabeledPars) {
-            this.cpuTimeAvailable = cpuTimeAvailable;
-            this.measurements = ImmutableList.copyOf(measurements);
-            this.unlabeledPars = ImmutableList.copyOf(unlabeledPars);
+                    totals.unattributedBodies,
+                    totals.unmeasuredBodies,
+                    totals.flagged,
+                    unitMeasurements);
         }
 
-        boolean cpuTimeAvailable() {
-            return cpuTimeAvailable;
-        }
-
-        ImmutableList<ThreadPoolStarvationReport.WorkloadMeasurement> measurements() {
-            return measurements;
-        }
-
-        ImmutableList<ParId> unlabeledPars() {
-            return unlabeledPars;
-        }
-    }
-
-    /** The submission side a measurement is attributed to: the entry, the unit name, and the unit's type. */
-    private static final class Key {
-        private final Par par;
-        private final String unit;
-        private final TaskType unitType;
-
-        private Key(Par par, String unit, TaskType unitType) {
-            this.par = par;
-            this.unit = unit;
-            this.unitType = unitType;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof Key)) {
-                return false;
+        private void commit(Par par, String unit, TaskType unitType, long cpuNanos, long executionNanos) {
+            AtomicReference<Totals> unitTotals = unitTotals(unit, unitType);
+            if (unitTotals != null) {
+                Totals drift = add(unitTotals, unitType == TaskType.COMPUTE, cpuNanos, executionNanos, false);
+                if (drift != null) {
+                    announce(
+                            par,
+                            Level.INFO,
+                            "Unit '" + unit + "' on Par '" + par.id()
+                                    + "' declares TaskType.COMPUTE, but its task bodies used CPU for " + share(drift)
+                                    + "; the declaration may no longer match the body. Logged once per Par and unit name.");
+                }
             }
-            Key that = (Key) other;
-            return par == that.par && unit.equals(that.unit) && unitType == that.unitType;
+            Totals issue =
+                    add(aggregate, par.taskType() == TaskType.COMPUTE, cpuNanos, executionNanos, unitTotals == null);
+            if (issue != null) {
+                announce(
+                        par,
+                        Level.WARNING,
+                        "Par '" + par.id() + "' is registered for TaskType.COMPUTE, but its"
+                                + " task bodies used CPU for " + share(issue)
+                                + ". They may be waiting on I/O, a lock, or"
+                                + " nested work, or the pool may be paused, throttled, or have more runnable threads than"
+                                + " cores. ParRuntime.workloadFitReport() attributes the time to units. Logged once per Par.");
+            }
         }
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(par.id(), unit, unitType);
+        private void unmeasured(Par par) {
+            for (; ; ) {
+                Totals current = verifyNotNull(aggregate.get());
+                if (aggregate.compareAndSet(current, current.withUnmeasured())) {
+                    if (current.unmeasuredBodies == 0) {
+                        announce(
+                                par,
+                                Level.WARNING,
+                                "Par '" + par.id() + "' cannot screen workload fit: thread CPU"
+                                        + " time is unsupported, disabled, or unreadable on this JVM, so its task bodies"
+                                        + " are counted as unmeasured. Logged once per Par.");
+                    }
+                    return;
+                }
+            }
+        }
+
+        private @Nullable AtomicReference<Totals> unitTotals(String unit, TaskType unitType) {
+            Map.Entry<String, TaskType> key = Maps.immutableEntry(unit, unitType);
+            for (; ; ) {
+                ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>> current = verifyNotNull(units.get());
+                AtomicReference<Totals> totals = current.get(key);
+                if (totals != null) {
+                    return totals;
+                }
+                if (current.size() >= UNIT_CAPACITY) {
+                    return null;
+                }
+                AtomicReference<Totals> created = new AtomicReference<>(Totals.EMPTY);
+                ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>> next =
+                        ImmutableMap.<Map.Entry<String, TaskType>, AtomicReference<Totals>>builderWithExpectedSize(
+                                        current.size() + 1)
+                                .putAll(current)
+                                .put(key, created)
+                                .build();
+                if (units.compareAndSet(current, next)) {
+                    return created;
+                }
+            }
+        }
+
+        /** Adds one sample; returns the new totals when this sample set the verdict, otherwise null. */
+        private static @Nullable Totals add(
+                AtomicReference<Totals> totals,
+                boolean judged,
+                long cpuNanos,
+                long executionNanos,
+                boolean unattributed) {
+            for (; ; ) {
+                Totals current = verifyNotNull(totals.get());
+                Totals next = current.withSample(judged, cpuNanos, executionNanos, unattributed);
+                if (totals.compareAndSet(current, next)) {
+                    return !current.flagged && next.flagged ? next : null;
+                }
+            }
+        }
+
+        private static void announce(Par par, Level level, String message) {
+            par.runtime().announce(() -> LOGGER.log(level, message));
+        }
+
+        private static String share(Totals flagged) {
+            return Math.round(100.0 * flagged.flaggedCpuNanos / flagged.flaggedExecutionNanos) + "% of "
+                    + String.format(Locale.ROOT, "%.1f", flagged.flaggedExecutionNanos / 1e9) + "s of execution";
         }
     }
 
-    /** One unit's totals in one window. */
-    private static final class Cell {
-        private final Window window;
-        private final AtomicReference<Totals> totals = new AtomicReference<>(Totals.EMPTY);
-
-        private Cell(Window window) {
-            this.window = window;
-        }
-
-        private boolean start() {
-            return !totals.updateAndGet(Totals::withStart).sealed;
-        }
-
-        private void commit(long cpuNanos, long executionNanos) {
-            totals.updateAndGet(current -> current.withCommit(cpuNanos, executionNanos));
-        }
-
-        private Totals seal() {
-            return totals.updateAndGet(Totals::withSeal);
-        }
-    }
-
-    /** Immutable totals; a sealed value never changes again. */
+    /**
+     * Immutable totals. A judged total accumulates the current epoch and, the first time an epoch ends
+     * with low CPU use, keeps that epoch as the evidence for its sticky verdict.
+     */
     private static final class Totals {
-        static final Totals EMPTY = new Totals(0, 0, 0, 0, 0, false);
+        static final Totals EMPTY = new Totals(0, 0, 0, 0, 0, 0, 0, false, 0, 0);
 
-        private final long started;
         private final long bodies;
         private final long cpuNanos;
         private final long executionNanos;
-        private final long lowCpuBodies;
-        private final boolean sealed;
+        private final long unattributedBodies;
+        private final long unmeasuredBodies;
+        private final long epochCpuNanos;
+        private final long epochExecutionNanos;
+        private final boolean flagged;
+        private final long flaggedCpuNanos;
+        private final long flaggedExecutionNanos;
 
         private Totals(
-                long started, long bodies, long cpuNanos, long executionNanos, long lowCpuBodies, boolean sealed) {
-            this.started = started;
+                long bodies,
+                long cpuNanos,
+                long executionNanos,
+                long unattributedBodies,
+                long unmeasuredBodies,
+                long epochCpuNanos,
+                long epochExecutionNanos,
+                boolean flagged,
+                long flaggedCpuNanos,
+                long flaggedExecutionNanos) {
             this.bodies = bodies;
             this.cpuNanos = cpuNanos;
             this.executionNanos = executionNanos;
-            this.lowCpuBodies = lowCpuBodies;
-            this.sealed = sealed;
+            this.unattributedBodies = unattributedBodies;
+            this.unmeasuredBodies = unmeasuredBodies;
+            this.epochCpuNanos = epochCpuNanos;
+            this.epochExecutionNanos = epochExecutionNanos;
+            this.flagged = flagged;
+            this.flaggedCpuNanos = flaggedCpuNanos;
+            this.flaggedExecutionNanos = flaggedExecutionNanos;
         }
 
-        private Totals withStart() {
-            return sealed ? this : new Totals(started + 1, bodies, cpuNanos, executionNanos, lowCpuBodies, false);
-        }
-
-        private Totals withCommit(long cpu, long execution) {
-            if (sealed) {
-                return this;
+        private Totals withSample(boolean judged, long cpu, long execution, boolean unattributed) {
+            long epochCpu = epochCpuNanos;
+            long epochExecution = epochExecutionNanos;
+            boolean nowFlagged = flagged;
+            long evidenceCpu = flaggedCpuNanos;
+            long evidenceExecution = flaggedExecutionNanos;
+            if (judged && !flagged) {
+                epochCpu += cpu;
+                epochExecution += execution;
+                if (epochExecution >= EPOCH_EXECUTION_NANOS) {
+                    if (lowCpu(epochCpu, epochExecution)) {
+                        nowFlagged = true;
+                        evidenceCpu = epochCpu;
+                        evidenceExecution = epochExecution;
+                    }
+                    epochCpu = 0;
+                    epochExecution = 0;
+                }
             }
             return new Totals(
-                    started,
                     bodies + 1,
                     cpuNanos + cpu,
                     executionNanos + execution,
-                    lowCpuBodies + (lowCpu(cpu, execution) ? 1 : 0),
-                    false);
+                    unattributedBodies + (unattributed ? 1 : 0),
+                    unmeasuredBodies,
+                    epochCpu,
+                    epochExecution,
+                    nowFlagged,
+                    evidenceCpu,
+                    evidenceExecution);
         }
 
-        private Totals withSeal() {
-            return sealed ? this : new Totals(started, bodies, cpuNanos, executionNanos, lowCpuBodies, true);
+        private Totals withUnmeasured() {
+            return new Totals(
+                    bodies,
+                    cpuNanos,
+                    executionNanos,
+                    unattributedBodies,
+                    unmeasuredBodies + 1,
+                    epochCpuNanos,
+                    epochExecutionNanos,
+                    flagged,
+                    flaggedCpuNanos,
+                    flaggedExecutionNanos);
         }
     }
 }

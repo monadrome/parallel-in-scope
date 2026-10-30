@@ -12,12 +12,10 @@ interface WorkloadClock {
     /** A monotonic wall-clock reading in nanoseconds. */
     long wallNanos();
 
-    /** The CPU time the calling thread has consumed in nanoseconds, or a negative value when unreadable. */
-    long currentThreadCpuNanos();
-
     /**
-     * Whether the calling thread's CPU time can be read now. Screening only reads this setting; the
-     * library never calls {@link ThreadMXBean#setThreadCpuTimeEnabled(boolean)}.
+     * The CPU time the calling thread has consumed in nanoseconds, or a negative value when it is
+     * unsupported, disabled, or unreadable. Screening only reads this; the library never calls {@link
+     * ThreadMXBean#setThreadCpuTimeEnabled(boolean)}.
      */
-    boolean cpuTimeAvailable();
+    long currentThreadCpuNanos();
 }

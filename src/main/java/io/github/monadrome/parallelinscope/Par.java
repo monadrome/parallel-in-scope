@@ -54,6 +54,7 @@ public final class Par {
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
     private final TaskType taskType;
+    private final WorkloadFit.Entry workload = new WorkloadFit.Entry();
 
     /** One-shot latch for the inert enqueue-refusal diagnostic; see {@link #warnIfEnqueueRefusalInert}. */
     private final AtomicBoolean enqueueRefusalWarningIssued = new AtomicBoolean();
@@ -87,6 +88,11 @@ public final class Par {
      */
     public TaskType taskType() {
         return taskType;
+    }
+
+    /** This entry's workload-fit totals; see {@link WorkloadFit}. */
+    WorkloadFit.Entry workload() {
+        return workload;
     }
 
     /**
@@ -502,8 +508,7 @@ public final class Par {
         } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
             String message = "The runtime's memory of TaskType mismatches is full at " + TaskTypeMismatches.CAPACITY
                     + " Par and unit-name pairs; mismatches of further pairs, starting with unit '" + unit.name()
-                    + "' on Par '" + id + "', are counted in ParRuntimeSnapshot.suppressedTaskTypeMismatches()"
-                    + " instead of logged. Use fixed unit names rather than names built per call.";
+                    + "' on Par '" + id + "', are not logged. Use fixed unit names rather than names built per call.";
             runtime.announce(() -> LOGGER.warning(message));
         }
     }

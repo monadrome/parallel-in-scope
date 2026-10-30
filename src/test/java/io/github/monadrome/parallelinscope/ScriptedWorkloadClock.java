@@ -12,7 +12,6 @@ final class ScriptedWorkloadClock implements WorkloadClock {
     private final ThreadLocal<long[]> elapsed = ThreadLocal.withInitial(() -> new long[2]);
     private final AtomicInteger wallReads = new AtomicInteger();
     private final AtomicInteger cpuReads = new AtomicInteger();
-    private volatile boolean available = true;
     private volatile boolean readable = true;
     private volatile @Nullable Error failure;
 
@@ -21,11 +20,6 @@ final class ScriptedWorkloadClock implements WorkloadClock {
         long[] clocks = elapsed.get();
         clocks[0] += execution.toNanos();
         clocks[1] += cpu.toNanos();
-    }
-
-    /** Whether windows opened from now on can read thread CPU time. */
-    void available(boolean available) {
-        this.available = available;
     }
 
     /** Whether CPU readings from now on succeed; a failed reading returns a negative value. */
@@ -60,10 +54,5 @@ final class ScriptedWorkloadClock implements WorkloadClock {
             throw error;
         }
         return readable ? elapsed.get()[1] : -1L;
-    }
-
-    @Override
-    public boolean cpuTimeAvailable() {
-        return available;
     }
 }

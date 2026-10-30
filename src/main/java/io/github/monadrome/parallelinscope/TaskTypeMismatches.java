@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -19,8 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * one declared type, so every mismatch of a pair points the same way. The memory is one immutable
  * set replaced by compare-and-set, so every admission is decided against a single state: a pair is
  * remembered exactly when its own insertion succeeds, the set never holds more than its capacity,
- * and it never evicts. Once the set is full, every admission of a pair it does not hold increments
- * {@link #suppressed()}, and the first of them is reported as the overflow.
+ * and it never evicts. Once the set is full, the first admission of a pair it does not hold is
+ * reported as the overflow and every later one is silent.
  */
 final class TaskTypeMismatches {
     static final int CAPACITY = 1024;
@@ -39,7 +38,6 @@ final class TaskTypeMismatches {
     private final AtomicReference<ImmutableSet<Map.Entry<ParId, String>>> reported =
             new AtomicReference<>(ImmutableSet.of());
     private final AtomicBoolean overflowReported = new AtomicBoolean();
-    private final AtomicLong suppressed = new AtomicLong();
 
     TaskTypeMismatches() {
         this(CAPACITY);
@@ -61,7 +59,6 @@ final class TaskTypeMismatches {
                 return Outcome.SILENT;
             }
             if (current.size() >= capacity) {
-                suppressed.incrementAndGet();
                 return overflowReported.compareAndSet(false, true) ? Outcome.OVERFLOW : Outcome.SILENT;
             }
             ImmutableSet<Map.Entry<ParId, String>> next =
@@ -73,10 +70,5 @@ final class TaskTypeMismatches {
                 return Outcome.FIRST;
             }
         }
-    }
-
-    /** Mismatched admissions not reported individually because the memory was full. */
-    long suppressed() {
-        return suppressed.get();
     }
 }

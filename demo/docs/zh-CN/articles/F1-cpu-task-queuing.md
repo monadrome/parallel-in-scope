@@ -39,7 +39,7 @@ for (int i = 0; i < 20; i++) {
 
 这样做的效果：
 - 线程池队列只保留很少的任务，未开始的任务在提交窗口里等待
-- 如果某个声明为计算型的任务实际在阻塞，打开的线程池饥饿观测会报告 `LOW_CPU_UTILIZATION`
+- 如果某个声明为计算型的任务实际在阻塞，runtime 会记一条 `WARNING`，测量值见 `ParRuntime.workloadFitReport()`
 - 需要让 `SmartBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
 
 ## 代码
@@ -71,7 +71,7 @@ System.out.println(result.reportString());
 |------|---------------------|----------------------|
 | 队列深度 | 所有任务一次性入队 | 最多 `parallelism` 个任务在途 |
 | 入队与拒绝 | 由队列和拒绝策略决定 | 同样由 executor 决定，`TaskType` 不参与 |
-| 计算池里的阻塞任务 | 没有信号 | 饥饿观测报告 `LOW_CPU_UTILIZATION` |
+| 计算池里的阻塞任务 | 没有信号 | runtime 记 `WARNING`，`workloadFitReport()` 给出测量值 |
 | 调度策略 | 由 executor 配置 | `TaskType` 不选 executor、不改调度 |
 
 ---

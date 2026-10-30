@@ -3,20 +3,19 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.monadrome.parallelinscope.ThreadPoolStarvationReport.WorkloadMeasurement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
-/** The window protocol behind workload-fit screening, exercised below the observation scope. */
+/** The totals protocol behind workload-fit screening, exercised below the public report. */
 class WorkloadFitTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
@@ -32,113 +31,70 @@ class WorkloadFitTest {
     @Test
     void aUnitResolvedWithoutAnEntryIsNeverTimed() {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                BatchOptions.timeout("loose", TIMEOUT).spec(), 1));
+                BatchOptions.timeout("loose", TIMEOUT)
+                        .taskType(TaskType.COMPUTE)
+                        .spec(),
+                1));
 
         assertThat(WorkloadFit.start(unit)).isNull();
     }
 
     /**
-     * A body registered before the seal and committing after it leaves the sealed total unchanged:
-     * sealing again reports the same excluded body, not a counted one.
+     * Concurrent bodies commit to one entry and race to create each of its units. Every total and the
+     * unit map are replaced by compare-and-set, so the published totals match the committed bodies
+     * exactly, no body is lost to a unit created by a losing thread, and exactly one commit sees the
+     * verdict transition and announces it, although many epochs close.
      */
     @Test
-    void aCommitAfterTheSealNeverChangesTheSealedTotal() {
+    void concurrentBodiesCommitExactTotalsAndAnnounceTheVerdictOnce() throws Exception {
         ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        try (ParRuntime runtime = ParRuntime.builder()
-                .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
-                .workloadClock(clock)
-                .build()) {
-            MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("work", TIMEOUT).spec(), 1)
-                    .executor(runtime.par(ParId.of("cpu"))));
-            WorkloadFit fit = runtime.workloadFit();
-            WorkloadFit.Window window = fit.open();
-            WorkloadFit.Timing timing = WorkloadFit.start(unit);
-            assertThat(timing).isNotNull();
-
-            WorkloadMeasurement first = fit.close(window).measurements().get(0);
-            clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
-            timing.stop();
-            WorkloadMeasurement resealed = fit.close(window).measurements().get(0);
-
-            assertThat(first.bodies()).isZero();
-            assertThat(first.excludedBodies()).isEqualTo(1);
-            assertThat(resealed.bodies()).isZero();
-            assertThat(resealed.excludedBodies()).isEqualTo(1);
-            assertThat(resealed.executionTime()).isEqualTo(Duration.ZERO);
-        } finally {
-            direct.shutdownNow();
-        }
-    }
-
-    /**
-     * Concurrent bodies race the seal. Every published measurement must be one state of the unit:
-     * execution and CPU time match exactly the counted bodies, every body that registered is either
-     * counted or excluded, at most one body per thread is excluded, and sealing again returns the
-     * same totals although late bodies keep committing.
-     */
-    @Test
-    void concurrentBodiesAndTheSealPublishOneConsistentState() throws Exception {
-        ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
-        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        List<Runnable> announcements = Collections.synchronizedList(new ArrayList<>());
         int threads = 8;
+        int unitCount = 50;
+        int perThread = 1000;
         ExecutorService workers = Executors.newFixedThreadPool(threads);
         try (ParRuntime runtime = ParRuntime.builder()
                 .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
                 .workloadClock(clock)
+                .announcements(announcements::add)
                 .build()) {
-            MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("work", TIMEOUT).spec(), 1)
-                    .executor(runtime.par(ParId.of("cpu"))));
-            WorkloadFit fit = runtime.workloadFit();
-            WorkloadFit.Window window = fit.open();
-            AtomicBoolean running = new AtomicBoolean(true);
-            AtomicLong timed = new AtomicLong();
-            CountDownLatch warmed = new CountDownLatch(threads);
+            List<MultiTaskContext> units = new ArrayList<>(unitCount);
+            for (int u = 0; u < unitCount; u++) {
+                units.add(MultiTaskContext.resolve(MultiTaskContext.resolution(
+                                BatchOptions.timeout("unit-" + u, TIMEOUT).spec(), 1)
+                        .executor(runtime.par(ParId.of("cpu")))));
+            }
+            CountDownLatch start = new CountDownLatch(1);
             List<Future<?>> futures = new ArrayList<>();
             for (int t = 0; t < threads; t++) {
                 futures.add(workers.submit(() -> {
-                    boolean counted = false;
-                    while (running.get()) {
-                        WorkloadFit.Timing timing = WorkloadFit.start(unit);
-                        if (timing != null) {
-                            timed.incrementAndGet();
-                            clock.spend(Duration.ofNanos(10), Duration.ofNanos(1));
-                            timing.stop();
-                        }
-                        if (!counted) {
-                            counted = true;
-                            warmed.countDown();
-                        }
+                    start.await();
+                    for (int i = 0; i < perThread; i++) {
+                        WorkloadFit.Timing timing = WorkloadFit.start(units.get(i % unitCount));
+                        clock.spend(Duration.ofMillis(100), Duration.ofMillis(10));
+                        Objects.requireNonNull(timing).stop();
                     }
+                    return null;
                 }));
             }
-            assertThat(warmed.await(10, TimeUnit.SECONDS)).isTrue();
-
-            WorkloadFit.Result result = fit.close(window);
-            WorkloadFit.Result again = fit.close(window);
-            running.set(false);
+            start.countDown();
             for (Future<?> future : futures) {
-                future.get(10, TimeUnit.SECONDS);
+                future.get(60, TimeUnit.SECONDS);
             }
 
-            assertThat(result.cpuTimeAvailable()).isTrue();
-            assertThat(result.measurements()).hasSize(1);
-            WorkloadMeasurement measurement = result.measurements().get(0);
-            long bodies = measurement.bodies();
-            assertThat(bodies).isPositive();
-            assertThat(measurement.executionTime()).isEqualTo(Duration.ofNanos(10 * bodies));
-            assertThat(measurement.cpuTime()).isEqualTo(Duration.ofNanos(bodies));
-            assertThat(measurement.lowCpuBodies()).isEqualTo(bodies);
-            assertThat(measurement.excludedBodies()).isBetween(0L, (long) threads);
-            assertThat(bodies + measurement.excludedBodies()).isEqualTo(timed.get());
+            WorkloadFitReport.ParMeasurement measurement =
+                    runtime.workloadFitReport().pars().get(0);
+            long bodies = (long) threads * perThread;
+            assertThat(measurement.bodies()).isEqualTo(bodies);
+            assertThat(measurement.executionTime()).isEqualTo(Duration.ofMillis(100 * bodies));
+            assertThat(measurement.cpuTime()).isEqualTo(Duration.ofMillis(10 * bodies));
+            assertThat(measurement.unattributedBodies()).isZero();
+            assertThat(measurement.units())
+                    .hasSize(unitCount)
+                    .allSatisfy(unit -> assertThat(unit.bodies()).isEqualTo(bodies / unitCount));
             assertThat(measurement.issue()).isTrue();
-            WorkloadMeasurement resealed = again.measurements().get(0);
-            assertThat(resealed.bodies()).isEqualTo(bodies);
-            assertThat(resealed.excludedBodies()).isEqualTo(measurement.excludedBodies());
-            assertThat(resealed.executionTime()).isEqualTo(measurement.executionTime());
-            assertThat(WorkloadFit.start(unit)).isNull();
+            assertThat(announcements).hasSize(1);
         } finally {
             workers.shutdownNow();
             direct.shutdownNow();

@@ -172,10 +172,9 @@ par.map(records, this::score,
   pool's queue and rejection policy give the combine the handling you need.
 - Optionally declare each pool's purpose with `register(id, pool, TaskType.COMPUTE)` or `BLOCKING`.
   A unit whose declared type disagrees with its entry's is logged once per entry and unit name, and
-  an open starvation observation reports low CPU use on `COMPUTE` entries.
-- `ThreadPoolStarvationReport.Status` gains `LOW_CPU_UTILIZATION`, and `anyIssue()` is true for it.
-  `NO_ISSUE` now also requires readable thread CPU time; without it the status is
-  `INSUFFICIENT_VISIBILITY` unless a higher-priority signal was captured.
+  the runtime screens `COMPUTE` entries for low CPU use all the time: it logs one `WARNING` per entry
+  and reports the measurements in `ParRuntime.workloadFitReport()`. `ThreadPoolStarvationReport` is
+  unchanged.
 
 ## Internal cancellation token
 

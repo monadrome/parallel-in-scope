@@ -91,6 +91,7 @@
 |---|---|
 | [task-graph.md](task-graph.md) | **执行器等待图契约**：运行时所有、常开、只增不减的执行器 waits-for 图；只有同步等待成边、两端须为本运行时注册的执行器、一次准入的边原子安装、热路径只读、CAS 安装；报告有环强连通分量与一个具体环、准入线程不打日志、「曾经观测到的结构性风险」语义；被排除的替代方案（请求级 scope、静态查询与策略开关、枚举全部简单环、按时间老化、遇环拒绝） |
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
+| [workload-fit-screening.md](workload-fit-screening.md) | **负载匹配筛查契约**：runtime 级常开，只给条目或单元声明为 `COMPUTE` 的库准入任务体计时；按条目、每 10 秒执行时间一个周期判定，粘滞 issue 与一次 `WARNING`；单元只归因（每条目至多 256）与判漂移；累计计数经 `workloadFitReport()` 读取；不包装或改变用户任务，与饥饿观测不共享状态（ADR 0010） |
 
 ### 取消与队列
 
