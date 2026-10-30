@@ -1,0 +1,9 @@
+BACKLOG.md
+  ai_agent 355-357,360
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "00f6fbc3b23743de1d946ab61f43bd70478821c6",
+  "prompts": {}
+}
