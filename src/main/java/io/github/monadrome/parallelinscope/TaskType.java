@@ -1,38 +1,37 @@
 package io.github.monadrome.parallelinscope;
 
 /**
- * Task type classification. Currently drives only the enqueue decision of {@link
- * SmartBlockingQueue}.
+ * Optional workload declaration shared by task units and registered {@link Par} entries.
  *
- * <p>The type describes the work, not what to do when the work cannot be scheduled: it does not
- * affect what happens when an executor rejects a task, which is the pool's own {@link
- * java.util.concurrent.RejectedExecutionHandler} and applies to every task type. The only behavior
- * a type selects today is whether {@code SmartBlockingQueue} refuses to enqueue the task — a
- * {@link #CPU_BOUND} task is refused even when {@code rejectEnqueue} is false, the other values
- * are enqueued unless {@code rejectEnqueue} is true. With any other queue, the type never changes
- * what the library does.
+ * <p>On a unit ({@link BatchOptions#taskType(TaskType)} or {@link TaskOptions#taskType(TaskType)})
+ * the type describes what the body does. On a registration ({@link
+ * ParRuntime.Builder#register(ParId, java.util.concurrent.ExecutorService, TaskType)}) it describes
+ * the work the entry is meant to carry. Both default to {@link #UNKNOWN}, and a nested unit never
+ * inherits its parent's type.
  *
- * <p>The default on {@link TaskOptions}/{@link BatchOptions} is {@link #IO_BOUND}, paired with
- * {@code rejectEnqueue=false}. That pairing is deliberate: because {@code offer} refuses on
- * {@code CPU_BOUND} <em>or</em> {@code rejectEnqueue}, a {@code CPU_BOUND} default would make a
- * {@code SmartBlockingQueue} refuse every task submitted with default options, so its configured
- * capacity would never be used and every task would reach the rejection handler. Declaring
- * {@link #CPU_BOUND} explicitly is how a caller asks for that refusal.
+ * <p>The type is diagnostic only. It never changes admission, enqueueing, rejection, cancellation,
+ * deadlines, attribution, or a task's outcome; enqueue refusal is requested only through {@code
+ * rejectEnqueue}. Two consumers read it:
+ *
+ * <ul>
+ *   <li>Submission compares a unit's type with its entry's type. When both are declared and
+ *       differ, the library logs the mismatch once per entry and unit name.
+ *   <li>An open {@link ThreadPoolStarvationObservationScope} compares the thread CPU time of
+ *       library-admitted bodies with their execution time and reports low CPU use where either side
+ *       declares {@link #COMPUTE}.
+ * </ul>
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @since 0.3.0
  */
 public enum TaskType {
-    /** Network, RPC, database operations. Enqueued unless {@code rejectEnqueue} is true. */
-    IO_BOUND,
-    /** Computation, validation, transformation, filtering. Refused enqueue. */
-    CPU_BOUND,
+    /** Mostly consumes CPU and should not hold its thread while waiting. */
+    COMPUTE,
     /**
-     * Hybrid: e.g., cache check first, then IO on miss.
-     *
-     * <p>Currently indistinguishable from {@link #IO_BOUND}: both are enqueued unless {@code
-     * rejectEnqueue} is true, and neither affects the rejection path. Retained as a declaration of
-     * intent for mixed workloads; it is not a scheduling instruction.
+     * Blocks its thread at some point: I/O, locks, sleeping, joining, or waiting for other tasks,
+     * including nested batches.
      */
-    MIXED
+    BLOCKING,
+    /** Not declared. The default; never takes part in a mismatch or a low-CPU verdict. */
+    UNKNOWN
 }

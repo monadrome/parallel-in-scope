@@ -18,6 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
@@ -52,18 +53,20 @@ public final class Par {
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
+    private final TaskType taskType;
 
     /** One-shot latch for the inert enqueue-refusal diagnostic; see {@link #warnIfEnqueueRefusalInert}. */
     private final AtomicBoolean enqueueRefusalWarningIssued = new AtomicBoolean();
 
-    private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
+    private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
         this.executorRuntime = Objects.requireNonNull(executorRuntime, "executorRuntime cannot be null");
         this.id = Objects.requireNonNull(id, "id cannot be null");
+        this.taskType = Objects.requireNonNull(taskType, "taskType cannot be null");
     }
 
-    static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
-        return new Par(runtime, id, executorRuntime);
+    static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
+        return new Par(runtime, id, executorRuntime, taskType);
     }
 
     /** Returns the owning immutable ParRuntime. */
@@ -74,6 +77,16 @@ public final class Par {
     /** Returns the logical id this entry is registered under. */
     public ParId id() {
         return id;
+    }
+
+    /**
+     * Returns the work this entry was registered to carry; {@link TaskType#UNKNOWN} when the
+     * registration declared none. The declaration is diagnostic only; see {@link TaskType}.
+     *
+     * @since 0.4.0
+     */
+    public TaskType taskType() {
+        return taskType;
     }
 
     /**
@@ -193,8 +206,8 @@ public final class Par {
                 .structuralParent(parent)
                 .ticker(runtime.ticker())
                 .timeoutScheduler(runtime.timeoutScheduler())
-                .executor(executorRuntime, id));
-        warnIfEnqueueRefusalInert(unit);
+                .executor(this));
+        diagnoseAdmission(unit);
         return unit;
     }
 
@@ -204,7 +217,8 @@ public final class Par {
      * early and the cascade always reaches it) and joins the same body tracker, but gets its own
      * unit — the batch unit's structural child, for cancellation and deadline. Its token is never
      * bound: deadline and cascade come from the batch token, exactly like a group member whose
-     * deadline equals the group's.
+     * deadline equals the group's. Like any nested unit it declares no task type of its own and
+     * requests no enqueue refusal, so it has nothing to diagnose at admission.
      *
      * <p>The executor waits are recorded from who waits for whom, not from that structural pointer:
      * the caller blocks until both the batch and the combine finish, so it waits on both, while the
@@ -229,12 +243,11 @@ public final class Par {
                         callableMapper.apply(list.get(index))))
                 .collect(toImmutableList());
         MultiTaskContext terminalUnit = MultiTaskContext.resolve(
-                MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, unit.taskType(), false), 1)
+                MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, TaskType.UNKNOWN, false), 1)
                         .structuralParent(unit)
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
-                        .executor(combinePar.executorRuntime(), combinePar.id()));
-        combinePar.warnIfEnqueueRefusalInert(terminalUnit);
+                        .executor(combinePar));
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
@@ -428,36 +441,67 @@ public final class Par {
     }
 
     /**
+     * Logs what a unit's admission through this entry can say about the unit's options; never
+     * changes whether or how the unit is admitted, queued, or completed.
+     */
+    void diagnoseAdmission(MultiTaskContext unit) {
+        warnIfEnqueueRefusalInert(unit);
+        reportTaskTypeMismatch(unit);
+    }
+
+    /**
      * Reports once per Par that a requested enqueue refusal cannot take effect here.
      *
-     * <p>A unit asks for its tasks to be refused enqueue in two ways: {@code rejectEnqueue}, or
-     * {@link TaskType#CPU_BOUND}. Only {@link SmartBlockingQueue#offer} reads either, so on any
-     * other queue both are inert: nothing tells the caller that the protection they opted into is
-     * not running. The two share one latch because they are one capability with one fix. The
-     * diagnostic belongs on the submission path rather than at registration because options are per
-     * task and per batch: registration cannot know whether the option will ever be used. It stays a
-     * warning: throwing would fail every caller that legitimately runs on a plain pool.
+     * <p>Only {@link SmartBlockingQueue#offer} reads {@code rejectEnqueue}, so on any other queue
+     * the option is inert: nothing tells the caller that the protection they opted into is not
+     * running. The diagnostic belongs on the submission path rather than at registration because
+     * options are per task and per batch: registration cannot know whether the option will ever be
+     * used. It stays a warning: throwing would fail every caller that legitimately runs on a plain
+     * pool.
      *
      * <p>The message claims only what the library knows. It cannot say what the executor will do
      * with an element that cannot start immediately — an inline executor runs it, a bounded queue
      * with an abort policy rejects it, a buffering queue holds it — so it reports the inert option
      * and the fix, not the executor's behavior.
      */
-    void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
-        boolean cpuBound = unit.taskType() == TaskType.CPU_BOUND;
-        if (!(unit.rejectEnqueue() || cpuBound) || executorRuntime.enqueueRefusalEffective()) {
+    private void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
+        if (!unit.rejectEnqueue() || executorRuntime.enqueueRefusalEffective()) {
             return;
         }
         if (enqueueRefusalWarningIssued.compareAndSet(false, true)) {
-            LOGGER.warning("Par '" + id + "' requested "
-                    + (unit.rejectEnqueue() ? "rejectEnqueue" : "TaskType.CPU_BOUND")
-                    + ", but its executor "
+            LOGGER.warning("Par '" + id + "' requested rejectEnqueue, but its executor "
                     + executorRuntime.introspectableExecutor().getClass().getName()
-                    + " does not use a SmartBlockingQueue, so enqueue refusal is inert there for both"
-                    + " rejectEnqueue and TaskType.CPU_BOUND: what happens to an element that cannot"
-                    + " start at once is left to the executor's own queue and rejection policy."
-                    + " Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make"
-                    + " the option effective.");
+                    + " does not use a SmartBlockingQueue, so enqueue refusal is inert there:"
+                    + " what happens to an element that cannot start at once is left to the"
+                    + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
+                    + " whose work queue is a SmartBlockingQueue to make the option effective.");
+        }
+    }
+
+    /**
+     * Reports, once per this entry and unit name, a unit whose declared {@link TaskType} disagrees
+     * with the entry's. {@link TaskType#UNKNOWN} on either side never disagrees. A blocking unit on
+     * an entry declared for computation is a {@code WARNING}, since it can hold one of few threads
+     * while it waits; the reverse is {@code INFO}. Either message states only that the declarations
+     * disagree, never that starvation, oversubscription, or misuse happened.
+     */
+    private void reportTaskTypeMismatch(MultiTaskContext unit) {
+        TaskType unitType = unit.taskType();
+        if (taskType == TaskType.UNKNOWN || unitType == TaskType.UNKNOWN || unitType == taskType) {
+            return;
+        }
+        TaskTypeMismatches.Outcome outcome = runtime.taskTypeMismatches().record(id, unit.name());
+        if (outcome == TaskTypeMismatches.Outcome.FIRST) {
+            LOGGER.log(
+                    taskType == TaskType.COMPUTE ? Level.WARNING : Level.INFO,
+                    "Par '" + id + "' is registered for TaskType." + taskType + ", but unit '" + unit.name()
+                            + "' declares TaskType." + unitType + ". The declarations disagree; check that the"
+                            + " unit is submitted through the intended Par. Logged once per Par and unit name.");
+        } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
+            LOGGER.warning("TaskType mismatches have been logged for " + TaskTypeMismatches.CAPACITY
+                    + " Par and unit-name pairs; further mismatches, starting with unit '" + unit.name()
+                    + "' on Par '" + id + "', are counted in ParRuntimeSnapshot.suppressedTaskTypeMismatches()"
+                    + " instead of logged. Use fixed unit names rather than names built per call.");
         }
     }
 

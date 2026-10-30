@@ -39,28 +39,28 @@ class TaskOptionsTest {
     }
 
     @Test
-    void defaultsAreIoBoundEnqueueingAndFailOnRejection() {
+    void defaultsAreUndeclaredAndEnqueueing() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
-        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(options.rejectEnqueue()).isFalse();
     }
 
     @Test
     void withersReturnNewInstancesWithoutMutatingTheOriginal() {
-        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.CPU_BOUND);
+        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.COMPUTE);
 
-        TaskOptions derived = base.rejectEnqueue(true).taskType(TaskType.IO_BOUND);
+        TaskOptions derived = base.rejectEnqueue(true).taskType(TaskType.BLOCKING);
 
-        assertThat(base.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(base.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(base.rejectEnqueue()).isFalse();
-        assertThat(derived.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(derived.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.timeout()).contains(Duration.ofSeconds(1));
 
         TaskOptions inherited = TaskOptions.inheritTimeout();
-        assertThat(inherited.taskType(TaskType.CPU_BOUND).taskType()).isEqualTo(TaskType.CPU_BOUND);
-        assertThat(inherited.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(inherited.taskType(TaskType.COMPUTE).taskType()).isEqualTo(TaskType.COMPUTE);
+        assertThat(inherited.taskType()).isEqualTo(TaskType.UNKNOWN);
     }
 
     @SuppressWarnings("NullAway")
@@ -75,14 +75,14 @@ class TaskOptionsTest {
     @Test
     void specCarriesTheKeyNameAndNoFanOut() {
         UnitSpec spec = TaskOptions.timeout(Duration.ofSeconds(3))
-                .taskType(TaskType.IO_BOUND)
+                .taskType(TaskType.BLOCKING)
                 .rejectEnqueue(false)
                 .spec("get-user");
 
         assertThat(spec.name()).isEqualTo("get-user");
         assertThat(spec.requestedParallelism()).isEqualTo(1);
         assertThat(spec.timeout()).isEqualTo(Duration.ofSeconds(3));
-        assertThat(spec.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(spec.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(spec.rejectEnqueue()).isFalse();
     }
 

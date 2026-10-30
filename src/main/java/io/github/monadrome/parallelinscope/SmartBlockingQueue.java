@@ -6,23 +6,25 @@ import java.util.concurrent.BlockingQueue;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Smart blocking queue that dynamically adjusts enqueue behavior based on task type.
+ * Bounded blocking queue that lets a submitting unit refuse enqueueing.
  *
- * <p>For {@link TaskType#CPU_BOUND} tasks or when {@code rejectEnqueue} is set, {@link
- * #offer(Object)} returns {@code false} instead of queueing the task. The pool can then grow a
- * worker or invoke its rejection handler rather than buffer the task behind existing work.
+ * <p>When the submitting unit sets {@code rejectEnqueue}, {@link #offer(Object)} returns {@code
+ * false} instead of queueing the task. The pool can then grow a worker or invoke its rejection
+ * handler rather than buffer the task behind existing work. Its {@link TaskType} never takes part:
+ * the type is a diagnostic declaration, so a unit declared {@link TaskType#COMPUTE} is queued like
+ * any other unless it also sets {@code rejectEnqueue}.
  *
  * <p>Note what that means for the pool as a whole: a refused {@code offer} does not by itself run
  * anything on the caller. {@code ThreadPoolExecutor.execute} first tries to start a new worker, and
  * only invokes the rejection handler when the pool is already at its maximum size. So the refusal
- * converts queueing into thread growth first, and into rejection handling only under genuine
- * saturation. With a {@code CallerRunsPolicy} pool, that last case executes the task body on
- * whichever thread called {@code execute} — for a batch refill, the thread completing the element
- * whose slot the refill claims.
+ * converts queueing into thread growth first, and into rejection handling once the pool has created
+ * its maximum number of workers, whether or not they are busy: idle workers only take queued tasks.
+ * With a {@code CallerRunsPolicy} pool, that last case executes the task body on whichever thread
+ * called {@code execute} — for a batch refill, the thread completing the element whose slot the
+ * refill claims.
  *
- * <p>Because the refusal triggers on {@code CPU_BOUND} <em>or</em> {@code rejectEnqueue}, both of
- * which must therefore be opt-in for the capacity to mean anything, the defaults on {@link
- * TaskOptions}/{@link BatchOptions} are {@link TaskType#IO_BOUND} and {@code rejectEnqueue=false}.
+ * <p>Refusal is opt-in, so the capacity means something: the default on {@link TaskOptions}/{@link
+ * BatchOptions} is {@code rejectEnqueue=false}.
  *
  * @param <E> the type of elements held in this queue
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -70,17 +72,14 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
     }
 
     /**
-     * Refuses the element when the submitting unit is {@link TaskType#CPU_BOUND} or sets {@code
-     * rejectEnqueue}; otherwise offers it to the bounded queue, which still refuses it when full.
+     * Refuses the element when the submitting unit sets {@code rejectEnqueue}; otherwise offers it
+     * to the bounded queue, which still refuses it when full.
      */
     @Override
     public boolean offer(@Nullable E o) {
         if (o == null) throw new NullPointerException();
         MultiTaskContext unit = SubmissionScope.current();
-        if (unit != null) {
-            if (unit.taskType() == TaskType.CPU_BOUND || unit.rejectEnqueue()) return false;
-            return delegate.offer(o);
-        }
+        if (unit != null && unit.rejectEnqueue()) return false;
         return delegate.offer(o);
     }
 }

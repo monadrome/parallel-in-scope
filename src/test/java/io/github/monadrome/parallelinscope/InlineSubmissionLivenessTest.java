@@ -71,7 +71,7 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-liveness", DEADLINE)
                                             .parallelism(6)
-                                            .taskType(TaskType.CPU_BOUND));
+                                            .taskType(TaskType.COMPUTE));
                     returned.set(true);
                     flagLeaked.set(Thread.currentThread().isInterrupted());
                     assertThat(batch.report().stateCounts()).containsOnlyKeys(TaskOutcome.TIMEOUT);
@@ -128,7 +128,7 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-verdict", DEADLINE)
                                             .parallelism(3)
-                                            .taskType(TaskType.CPU_BOUND));
+                                            .taskType(TaskType.COMPUTE));
                     // The first thing any real caller does after map() returns. A leaked flag makes
                     // this throw, so the caller learns nothing about why the batch ended.
                     try {
@@ -228,7 +228,7 @@ class InlineSubmissionLivenessTest {
                             },
                             BatchOptions.timeout("pooled-control", Duration.ofSeconds(10))
                                     .parallelism(1)
-                                    .taskType(TaskType.IO_BOUND));
+                                    .taskType(TaskType.BLOCKING));
 
             assertThat(batch.valuesOrThrow()).containsExactly(false, false);
         } finally {
@@ -271,7 +271,7 @@ class InlineSubmissionLivenessTest {
                             },
                             BatchOptions.timeout("completing-thread", Duration.ofSeconds(15))
                                     .parallelism(1)
-                                    .taskType(TaskType.CPU_BOUND));
+                                    .taskType(TaskType.COMPUTE));
 
             assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(15))).isTrue();
             assertThat(executed.get())

@@ -250,7 +250,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.IO_BOUND),
+                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
                             () -> 1)
                     .submitAll();
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -282,7 +282,7 @@ class TaskGroupTest {
                     .par(
                             KEY_INLINE_THREAD,
                             global.par(ParId.of("direct")),
-                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND),
+                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.COMPUTE),
                             Thread::currentThread)
                     .submitAll();
 
@@ -310,7 +310,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND),
+                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.COMPUTE),
                             () -> {
                                 bodyRan.set(true);
                                 return 1;
@@ -765,7 +765,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.IO_BOUND),
+                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
                             () -> 1)
                     .par(TaskKey.<Integer>named("later"), global.par(ParId.of("normal")), calls::incrementAndGet)
                     .submitAll()
@@ -977,16 +977,10 @@ class TaskGroupTest {
         // the declared options any more, so the defaults are pinned at their source; the runtime
         // consequence of the inherited timeout is asserted by
         // memberWithInheritedTimeoutResolvesToTheGroupDeadline.
-        //
-        // The task type and the enqueue policy are pinned together on purpose: SmartBlockingQueue
-        // refuses an offer when the type is CPU_BOUND OR rejectEnqueue is set, so either default
-        // alone would make such a queue refuse every task submitted with default options — its
-        // configured capacity would go unused and every task would reach the rejection handler.
-        // Asking for that refusal is an explicit choice, so both defaults are the permissive value.
         TaskOptions options = TaskOptions.inheritTimeout();
 
         assertThat(options.timeout()).isEmpty();
-        assertThat(options.taskType()).isEqualTo(TaskType.IO_BOUND);
+        assertThat(options.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(options.rejectEnqueue()).isFalse();
     }
 

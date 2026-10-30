@@ -45,8 +45,10 @@
      该比值只是筛查线索，不是阻塞的证明。
 5. 诊断只记录日志或进入报告，MUST NOT 让任务失败。
 
-机制细节、阈值、告警文案与契约条目在
-[P0025](../design/proposal/P0025-workload-fit-diagnostics.md)；落地后以活契约为准。
+机制细节、阈值、告警文案与契约条目已于 2026-10-30 落地到活契约：
+[API 与选项 §3.2.1](../design/task-group-api-and-options.md) 与
+[线程池饥饿观测契约](../design/thread-pool-starvation-observation.md)，以活契约为准。提案原文按编号
+`P0025-workload-fit-diagnostics` 从 git 历史取回。
 
 ## Alternatives Considered
 

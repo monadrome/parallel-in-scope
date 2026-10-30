@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Context setup (TaskExecutionContext)
  *   <li>Cooperative cancellation checkpoint
  *   <li>Timing metrics published through the task's observation future
+ *   <li>Workload-fit timing of the body while a starvation observation is open
  *   <li>Cleanup on completion
  * </ul>
  *
@@ -52,12 +53,17 @@ final class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
+        WorkloadFit.Timing timing = null;
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
+            timing = WorkloadFit.start(taskContext.multiTaskContext());
             // the delegate is released only after call() returns (releaseDelegate in finally)
             return Objects.requireNonNull(delegate).call();
         } finally {
+            if (timing != null) {
+                timing.stop();
+            }
             // delegate.call() has returned, so the user body's finally has exited: release the
             // one-way holder before publishing body exit, and a waiter that observes EXITED never
             // sees this wrapper still referencing the user closure.

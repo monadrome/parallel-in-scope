@@ -76,8 +76,8 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源与中断意图 | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
-| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源与中断意图 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
+| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SmartBlockingQueue` 入队拒绝 |
 
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
 > `RejectedExecutionHandler`）；本节其余字段划分不受影响。
@@ -172,6 +172,48 @@ taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取成员
 requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求来源不进入 `UnitSpec`，而在
 准入时单独接入执行 token。签名与三 parent 解耦语义见
 [生命周期与状态机 §5](task-group-lifecycle.md)。
+
+#### 3.2.1 `TaskType`：可选诊断声明
+
+`TaskType` 是任务与线程池两侧共用的可选负载声明，取值 `COMPUTE`（主要消耗 CPU，不应在等待中占住
+线程）、`BLOCKING`（任何阶段会阻塞线程：IO、锁、sleep、join、等待其他任务或嵌套批次）、
+`UNKNOWN`（未声明）。单元侧由 `BatchOptions.taskType` / `TaskOptions.taskType` 声明任务体本身；
+入口侧由 `ParRuntime.Builder.register(ParId, ExecutorService, TaskType)` 声明该入口预期承载的
+任务类型，两参重载等价于 `UNKNOWN`，读取用 `Par.taskType()`。共享同一物理池的多个入口各自保留
+声明。
+
+- `TaskType` MUST NOT 改变准入、入队、拒绝、取消、deadline、归因或任务 outcome。拒绝入队只由
+  `rejectEnqueue` 表达：`SmartBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
+  `rejectEnqueue`。
+- 两侧缺省 MUST 为 `UNKNOWN`；`UNKNOWN` 可显式书写，表示刻意不声明。嵌套单元 MUST NOT 继承父单元
+  的类型：任务体里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明
+  解析，未声明即 `UNKNOWN`。类型描述任务体本身，继承等于替用户编造声明；终端 combine 同样不请求
+  拒绝入队。
+- **提交时比对。** 每个单元在准入处（批次、单任务、组成员、组 combine）比对入口与单元的声明：
+  两侧都非 `UNKNOWN` 且不同时，按 `(Par, 单元名)` 记录一次；方向不需要单独的键，因为一个入口只有
+  一种声明。`COMPUTE` 入口配 `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。任一侧为 `UNKNOWN`
+  MUST NOT 告警。告警 MUST 只表述"声明不一致"，MUST NOT 表述为已经发生饿死、过订阅或误用。
+- 去重 MUST 以 `ParRuntime` 为作用域并有上限：最多记住 1024 对，从不淘汰。记满后，新对的不一致
+  首次只记一条汇总告警，此后每次只累加计数，计数经 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`
+  暴露；溢出之后 MUST NOT 声称仍能发现所有新单元。
+- 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。
+  运行时侧的低 CPU 筛查见 [线程池饥饿观测契约](thread-pool-starvation-observation.md) 的
+  Workload-fit screening 一节。
+
+被排除的替代方案：
+
+- 保留 `CPU_BOUND` 驱动入队拒绝：诊断标签兼任行为开关，标错一次同时错掉文档和执行语义，用户因此
+  不敢随手声明；用户需要拒绝入队时显式写 `rejectEnqueue(true)`。
+- 保留 `MIXED`：与 `BLOCKING` 在任何检查里等价。
+- 沿用 `CPU_BOUND`/`IO_BOUND` 名称、只改语义：依赖旧拒绝行为的代码会静默改变行为；改名让它编译
+  失败，迁移时必须看一眼。
+- 两侧声明必填：缺省不危险，只是少一项诊断；必填只换来随手乱填。
+- 按池结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警：核数大小的池用于限制下游并发是
+  合理用法，推断出的告警会很吵。
+
+决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)。历史来源：
+`proposal:P0025`（`P0025-workload-fit-diagnostics`；同号的 `P0025-internal-cancellation-token`
+是另一份已落地提案）。
 
 ### 3.3 结果类型
 

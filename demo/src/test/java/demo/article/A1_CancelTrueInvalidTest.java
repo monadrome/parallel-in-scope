@@ -86,7 +86,7 @@ public class A1_CancelTrueInvalidTest {
         // 解决方案：Par.map() 配合超时自动取消
         BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
                 .parallelism(3)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();

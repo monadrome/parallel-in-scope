@@ -72,7 +72,7 @@ public class BatchBestPracticesTest {
 
         BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
                 .parallelism(5)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
@@ -134,7 +134,7 @@ public class BatchBestPracticesTest {
 
         BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
                 .parallelism(parallelism)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         long start = System.currentTimeMillis();
 
@@ -196,7 +196,7 @@ public class BatchBestPracticesTest {
 
         BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
                 .parallelism(3)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

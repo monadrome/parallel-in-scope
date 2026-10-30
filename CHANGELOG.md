@@ -24,8 +24,31 @@
   `cancel()` stopped nothing. Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or
   `ParRuntime.group(name, timeout)`; read attribution from `TaskOutcome`; observe cancellation and
   the remaining budget inside a body with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
+- Make `TaskType` an optional diagnostic declaration that never changes execution. Replace
+  `IO_BOUND`, `CPU_BOUND`, and `MIXED` with `COMPUTE`, `BLOCKING`, and `UNKNOWN`; the default on
+  `BatchOptions` and `TaskOptions` is `UNKNOWN`. A `CPU_BOUND` unit used to make a
+  `SmartBlockingQueue` refuse it, so a label added to describe the work changed where it ran;
+  `SmartBlockingQueue.offer` now refuses only on `rejectEnqueue`. Write
+  `taskType(TaskType.COMPUTE).rejectEnqueue(true)` where the refusal was intended. The terminal
+  combine of `mapAndCombine` no longer inherits the batch's type, and the inert-refusal warning now
+  names only `rejectEnqueue`. See the 0.4 migration guide.
 
 ### Features
+
+- Declare the work an entry carries with `ParRuntime.Builder.register(ParId, ExecutorService,
+  TaskType)` and read it with `Par.taskType()`. At admission, a unit whose declared type disagrees
+  with its entry's is logged once per entry and unit name, as `WARNING` for a `BLOCKING` unit on a
+  `COMPUTE` entry and `INFO` for the reverse. The runtime remembers at most 1024 pairs and then
+  counts further mismatches in the new `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`.
+- Screen workload fit inside a starvation observation. While a scope is open, each library-admitted
+  body records its thread CPU time and execution time per entry and unit name in
+  `ThreadPoolStarvationReport.workloadMeasurements()`. Low CPU use on a `COMPUTE` entry is the new
+  `LOW_CPU_UTILIZATION` status, a screening lead for blocking work in a compute pool, including work
+  whose author did not know it blocks; low CPU use on a unit declared `COMPUTE` is flagged as
+  suspected declaration drift. `unlabeledPars()` names undeclared entries that ran bodies, and
+  unreadable thread CPU time yields `INSUFFICIENT_VISIBILITY` with `cpuTimeAvailable()` false, never
+  `NO_ISSUE`. Outside an open scope a body pays one volatile read; direct executor work is never
+  measured.
 
 - Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>, boolean)`
   and `GroupStart.cancelOn(ListenableFuture<?>, boolean)`. Any completion of the caller-owned source

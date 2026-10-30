@@ -33,12 +33,14 @@ for (int i = 0; i < 20; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `BatchOptions` 的 `taskType(TaskType.CPU_BOUND)` 来标记 CPU 密集任务。这个选项只有在线程池使用 `SmartBlockingQueue` 时才会影响入队：队列可能拒绝该任务，随后由线程池自己的 `RejectedExecutionHandler` 决定如何处理。普通线程池不会因为这个选项自动选择 `CallerRunsPolicy`，库也不会替你改变调度策略。
+`Par.map()` 用滑动窗口控制提交量：同时在途的任务最多为 `parallelism` 个，其余任务在提交窗口里等待，
+不进入线程池队列。`taskType(TaskType.COMPUTE)` 声明这是一批 CPU 密集任务，注册时的
+`TaskType.COMPUTE` 声明这个池用于计算；两者都只用于诊断，不改变入队、拒绝或调度。
 
-这意味着 CPU 任务总是尽可能快地得到执行：
-- 使用 `SmartBlockingQueue` 时可避免 CPU 任务无限堆积
-- 使用其他队列时，`CPU_BOUND` 只会触发一次配置警告
-- 被拒任务的处理完全由 executor 的拒绝策略决定
+这样做的效果：
+- 线程池队列只保留很少的任务，未开始的任务在提交窗口里等待
+- 如果某个声明为计算型的任务实际在阻塞，打开的线程池饥饿观测会报告 `LOW_CPU_UTILIZATION`
+- 需要让 `SmartBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
 
 ## 代码
 
@@ -46,13 +48,13 @@ for (int i = 0; i < 20; i++) {
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
-        .register(ParId.of("cpu-pool"), pool)
+        .register(ParId.of("cpu-pool"), pool, TaskType.COMPUTE)
         .defaultPar(ParId.of("cpu-pool"))
         .build();
 Par par = config.defaultPar();
 
-// taskType(CPU_BOUND) 标记 CPU 密集任务；是否 inline 由 executor 的拒绝策略决定
-BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.CPU_BOUND);
+// 滑动窗口限制在途任务数；taskType 只是诊断声明
+BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.COMPUTE);
 
 List<Data> items = loadDataset();
 TaskBatchResult<Result> result = par.map( items, item -> {
@@ -65,12 +67,12 @@ System.out.println(result.reportString());
 
 对比两种方式：
 
-| 维度 | 原生 FixedThreadPool | Par.map() + taskType(CPU_BOUND) |
+| 维度 | 原生 FixedThreadPool | Par.map() + 滑动窗口 |
 |------|---------------------|----------------------|
-| CPU 任务排队 | 按队列和拒绝策略决定 | `SmartBlockingQueue` 可拒绝入队 |
-| 被拒任务处理 | 由 executor 的 `RejectedExecutionHandler` 决定 | 不由 `TaskType` 自动决定 |
+| 队列深度 | 所有任务一次性入队 | 最多 `parallelism` 个任务在途 |
+| 入队与拒绝 | 由队列和拒绝策略决定 | 同样由 executor 决定，`TaskType` 不参与 |
+| 计算池里的阻塞任务 | 没有信号 | 饥饿观测报告 `LOW_CPU_UTILIZATION` |
 | 调度策略 | 由 executor 配置 | `TaskType` 不选 executor、不改调度 |
-| 适用场景 | 适合对照测试 | 需要显式配置队列与拒绝策略 |
 
 ---
 

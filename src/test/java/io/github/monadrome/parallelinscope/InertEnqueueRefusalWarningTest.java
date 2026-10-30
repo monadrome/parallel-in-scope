@@ -20,10 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code rejectEnqueue} and {@link TaskType#CPU_BOUND} are the two ways a unit asks to be refused
- * enqueue, and only {@link SmartBlockingQueue} reads either. On any other queue both are inert, so
- * both must reach the same once-per-Par warning: before, a {@code CPU_BOUND} batch on a plain pool
- * was silently buffered while the inert {@code rejectEnqueue} was reported.
+ * Only {@link SmartBlockingQueue} reads {@code rejectEnqueue}, so on any other queue a requested
+ * refusal is inert and reaches a once-per-Par warning. A {@link TaskType} declaration never requests
+ * refusal, so it never reaches this warning, on any queue.
  */
 @SuppressWarnings("NullAway.Init")
 class InertEnqueueRefusalWarningTest {
@@ -69,22 +68,20 @@ class InertEnqueueRefusalWarningTest {
     }
 
     @Test
-    void aCpuBoundBatchOnAPlainQueueIsReportedLikeAnInertRejectEnqueue() {
+    void aComputeBatchOnAPlainQueueRequestsNoRefusalAndIsNotReported() {
         Par par = runtime.par(ParId.of("plain"));
-
         par.map(Collections.singletonList(1), x -> x, BatchOptions.timeout("default", TIMEOUT));
-        assertThat(records).isEmpty();
-
         par.map(
                 Collections.singletonList(1),
                 x -> x,
-                BatchOptions.timeout("cpu", TIMEOUT).taskType(TaskType.CPU_BOUND));
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
-        assertThat(records.get(0).getMessage())
-                .startsWith("Par 'plain' requested TaskType.CPU_BOUND, but its executor")
-                .contains("inert", "SmartBlockingQueue");
+                BatchOptions.timeout("compute", TIMEOUT).taskType(TaskType.COMPUTE));
 
+        assertThat(records).isEmpty();
+    }
+
+    @Test
+    void anInertRejectEnqueueIsReportedOncePerPar() {
+        Par par = runtime.par(ParId.of("plain"));
         par.map(
                 Collections.singletonList(1),
                 x -> x,
@@ -92,65 +89,54 @@ class InertEnqueueRefusalWarningTest {
         par.map(
                 Collections.singletonList(1),
                 x -> x,
-                BatchOptions.timeout("cpu-again", TIMEOUT).taskType(TaskType.CPU_BOUND));
+                BatchOptions.timeout("flag-again", TIMEOUT).rejectEnqueue(true));
+
         assertThat(records).hasSize(1);
+        assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
+        assertThat(records.get(0).getMessage())
+                .startsWith("Par 'plain' requested rejectEnqueue, but its executor")
+                .contains("inert", "SmartBlockingQueue")
+                .doesNotContain("TaskType");
     }
 
+    /**
+     * The terminal combine of {@code mapAndCombine} declares no refusal of its own, so an inert
+     * {@code rejectEnqueue} is reported for the batch's Par only, whichever pool runs the combine.
+     */
     @Test
-    void theWarningNamesRejectEnqueueWhenTheUnitRequestedIt() {
+    void aRefusingBatchOnAPlainQueueCombinedOntoASmartQueueWarnsForTheBatchPar() {
         runtime.par(ParId.of("plain"))
-                .map(
-                        Collections.singletonList(1),
+                .mapAndCombine(
+                        Arrays.asList(1, 2),
                         x -> x,
-                        BatchOptions.timeout("flag", TIMEOUT).rejectEnqueue(true));
+                        BatchOptions.timeout("flag-combine", TIMEOUT).rejectEnqueue(true),
+                        runtime.par(ParId.of("smart")),
+                        values -> 0);
 
         assertThat(records).hasSize(1);
         assertThat(records.get(0).getMessage()).startsWith("Par 'plain' requested rejectEnqueue, but its executor");
     }
 
-    /**
-     * The combine of {@code mapAndCombine} inherits the batch's task type and runs on the combine
-     * Par's executor, so a {@code CPU_BOUND} batch on a SmartBlockingQueue pool combined onto a plain
-     * pool carries a {@code CPU_BOUND} task into a queue that cannot refuse it: the warning is the
-     * combine Par's.
-     */
     @Test
-    void aCpuBoundCombineOnAPlainQueueIsReportedForTheCombinePar() {
+    void aComputeBatchCombinedOntoAPlainQueueIsNotReported() {
         runtime.par(ParId.of("smart"))
                 .mapAndCombine(
                         Arrays.asList(1, 2),
                         x -> x,
-                        BatchOptions.timeout("cpu-combine", TIMEOUT).taskType(TaskType.CPU_BOUND),
+                        BatchOptions.timeout("compute-combine", TIMEOUT).taskType(TaskType.COMPUTE),
                         runtime.par(ParId.of("plain")),
                         values -> 0);
 
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getMessage())
-                .startsWith("Par 'plain' requested TaskType.CPU_BOUND, but its executor");
+        assertThat(records).isEmpty();
     }
 
     @Test
-    void aCpuBoundBatchOnAPlainQueueCombinedOntoASmartQueueWarnsForTheBatchPar() {
-        runtime.par(ParId.of("plain"))
-                .mapAndCombine(
-                        Arrays.asList(1, 2),
-                        x -> x,
-                        BatchOptions.timeout("cpu-combine", TIMEOUT).taskType(TaskType.CPU_BOUND),
-                        runtime.par(ParId.of("smart")),
-                        values -> 0);
-
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getMessage())
-                .startsWith("Par 'plain' requested TaskType.CPU_BOUND, but its executor");
-    }
-
-    @Test
-    void aCpuBoundBatchOnASmartQueueIsNotReported() {
+    void aRefusingBatchOnASmartQueueIsNotReported() {
         runtime.par(ParId.of("smart"))
                 .map(
                         Collections.singletonList(1),
                         x -> x,
-                        BatchOptions.timeout("cpu", TIMEOUT).taskType(TaskType.CPU_BOUND));
+                        BatchOptions.timeout("flag", TIMEOUT).rejectEnqueue(true));
 
         assertThat(records).isEmpty();
     }

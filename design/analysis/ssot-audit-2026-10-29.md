@@ -24,7 +24,7 @@
 | 来源 | 当前声明 |
 |---|---|
 | [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md)（Accepted） | 删除 `IO_BOUND`、`CPU_BOUND`、`MIXED`，改为 `COMPUTE`、`BLOCKING`、`UNKNOWN`；`TaskType` 只做任务/线程池负载诊断，不改变入队或拒绝行为 |
-| [P0025](../proposal/P0025-workload-fit-diagnostics.md) | 同一套尚未落地的 API、诊断报告、观测窗口和迁移方案 |
+| `P0025-workload-fit-diagnostics`（已落地删除，见下方注记） | 同一套尚未落地的 API、诊断报告、观测窗口和迁移方案 |
 | [TaskType.java](../../src/main/java/io/github/monadrome/parallelinscope/TaskType.java) | 仍定义 `IO_BOUND`、`CPU_BOUND`、`MIXED`；默认值仍是 `IO_BOUND` |
 | [SmartBlockingQueue.java](../../src/main/java/io/github/monadrome/parallelinscope/SmartBlockingQueue.java) | `CPU_BOUND` 或 `rejectEnqueue` 会使 `offer` 返回 `false` |
 | [CHANGELOG.md](../../CHANGELOG.md) 与当前用户指南 | 明确记录并说明上述旧语义仍是当前 v0.4 开发线行为 |
@@ -36,6 +36,11 @@
 
 在维护者选定路径前，本审计保留源码、测试和现行用户文档的旧语义，没有擅自把提案内容写成当前 API。
 
+> 2026-10-30 注记：维护者选择路径 1。`TaskType` 已按 ADR 0008 实现，活契约为
+> [task-group-api-and-options.md](../task-group-api-and-options.md) §3.2.1 与
+> [thread-pool-starvation-observation.md](../thread-pool-starvation-observation.md)，提案已删除。
+> 上表各行记录的是审计当时的状态。
+
 ### 2. MkDocs 编辑入口绑定 `main`
 
 当前 [mkdocs.yml](../../mkdocs/mkdocs.yml) 的 `edit_uri` 是 `edit/main/docs/`，而开发线文档正文和源码链接跟随 `dev/v0.4.0`；GitHub Pages 又只在 `main` 推送时发布。这样在开发线本地构建页面时，“编辑此页”会打开稳定线 `main` 的文件，而把它改为开发分支又会让已发布站点的编辑入口指向开发线。
@@ -45,6 +50,8 @@
 ### 3. F1 demo 没有覆盖 `SmartBlockingQueue` 的实际行为
 
 F1 文章现在已经说明 `TaskType` 的作用边界，但配套测试使用 `Executors.newFixedThreadPool(...)` 的普通队列，只验证滑动窗口的提交上限，并没有验证 `SmartBlockingQueue` 对 `CPU_BOUND` 的拒绝入队路径。它不是当前契约错误，却会让读者以为 demo 已覆盖文章标题所说的队列策略。若希望 demo 同时证明该行为，应增加一个明确配置 `SmartBlockingQueue` 和拒绝处理器的独立测试；这属于测试范围选择，不应把普通队列上的结果误写成 `TaskType` 的效果。
+
+> 2026-10-30 注记：`CPU_BOUND` 拒绝入队路径已随 ADR 0008 删除；F1 改为说明滑动窗口与诊断声明，拒绝入队只由 `rejectEnqueue(true)` 表达。
 
 ## 已核对且不构成问题的项目
 

@@ -10,16 +10,14 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
- * Locks the consequence of the default task type and enqueue policy on the pool shape this library
+ * Locks the consequence of the default options, and of a task type, on the pool shape this library
  * recommends: a {@link SmartBlockingQueue} paired with a {@code CallerRunsPolicy}.
  *
- * <p>{@code SmartBlockingQueue.offer} refuses when the unit's type is {@code CPU_BOUND} <em>or</em>
- * its {@code rejectEnqueue} flag is set. Both conditions were once the default, so a queue built
- * with any capacity refused every task submitted with default options: the capacity went unused, the
- * pool grew to its maximum, and every further task ran on whichever thread called {@code execute} —
- * a parallel library running its work serially on the caller. These tests pin the defaults by their
- * observable effect rather than their value, so a future change to either default that reintroduces
- * that behavior fails here and not only in the options unit tests.
+ * <p>{@code SmartBlockingQueue.offer} refuses only when the unit sets {@code rejectEnqueue}. A
+ * refused offer leaves the capacity unused, grows the pool to its maximum, and runs every further
+ * task on whichever thread called {@code execute} — a parallel library running its work serially on
+ * the caller. These tests pin that by observable effect rather than by option value: default options
+ * and a {@link TaskType} declaration alone must enqueue, and only {@code rejectEnqueue} may refuse.
  */
 class DefaultEnqueuePolicyTest {
 
@@ -67,10 +65,16 @@ class DefaultEnqueuePolicyTest {
         }
     }
 
+    /**
+     * A task type is a diagnostic declaration: declaring {@link TaskType#COMPUTE} must not refuse
+     * the queue, so every body still runs on a pool worker.
+     */
     @Test
-    void requestingCpuBoundStillRefusesTheQueueSoTheOptInIsIntact() throws Exception {
-        ThreadPoolExecutor pool = recommendedPool("cpu-worker", 100);
-        ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build();
+    void declaringComputeAloneStillEnqueuesOntoASmartQueue() throws Exception {
+        ThreadPoolExecutor pool = recommendedPool("compute-worker", 100);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("w"), pool, TaskType.COMPUTE)
+                .build();
         List<Integer> inputs = new ArrayList<>();
         for (int i = 0; i < 12; i++) {
             inputs.add(i);
@@ -81,27 +85,26 @@ class DefaultEnqueuePolicyTest {
                     .submitBatch(
                             inputs,
                             i -> Thread.currentThread().getName(),
-                            BatchOptions.timeout("b", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND))
+                            BatchOptions.timeout("b", Duration.ofSeconds(30)).taskType(TaskType.COMPUTE))
                     .valuesOrThrow();
-
-            // The control group: asking for CPU_BOUND must still reach the rejection handler, which
-            // with CallerRunsPolicy means the submitting thread runs the overflow. Otherwise the new
-            // defaults would have silently removed the capability rather than stopped imposing it.
-            //
-            // The assertion is "something ran off the pool", not "the test thread ran it": a batch
-            // submits its first window from the calling thread and refills from a library submitter
-            // thread, so which of the two absorbs a given overflow element is not this test's claim.
-            assertThat(threads).isNotEmpty();
-            assertThat(threads).anyMatch(name -> !name.equals("cpu-worker"));
-            assertThat(callerThread).isNotEqualTo("cpu-worker");
+            assertThat(threads).doesNotContain(callerThread);
+            assertThat(threads).allMatch(name -> name.equals("compute-worker"));
         } finally {
             runtime.close();
             pool.shutdownNow();
         }
     }
 
+    /**
+     * The control group: the flag is the opt-in, so it must reach the rejection handler, which with
+     * {@code CallerRunsPolicy} means a thread off the pool runs the overflow. Otherwise the defaults
+     * would have silently removed the capability rather than stopped imposing it. The assertion is
+     * "something ran off the pool", not "the test thread ran it": a batch submits its first window
+     * from the calling thread and refills from a library submitter thread, so which of the two
+     * absorbs a given overflow element is not this test's claim.
+     */
     @Test
-    void requestingRejectEnqueueAloneAlsoStillRefusesTheQueue() throws Exception {
+    void requestingRejectEnqueueStillRefusesTheQueue() throws Exception {
         ThreadPoolExecutor pool = recommendedPool("flag-worker", 100);
         ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build();
         List<Integer> inputs = new ArrayList<>();
@@ -117,9 +120,6 @@ class DefaultEnqueuePolicyTest {
                             BatchOptions.timeout("b", Duration.ofSeconds(30)).rejectEnqueue(true))
                     .valuesOrThrow();
 
-            // The other half of the control group: the flag is an independent opt-in, so it must
-            // reach the handler on its own without the task type being changed too. Same reasoning as
-            // above for why this asserts "off the pool" rather than naming a specific thread.
             assertThat(threads).isNotEmpty();
             assertThat(threads).anyMatch(name -> !name.equals("flag-worker"));
             assertThat(callerThread).isNotEqualTo("flag-worker");

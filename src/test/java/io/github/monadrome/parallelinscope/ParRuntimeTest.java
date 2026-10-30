@@ -268,7 +268,7 @@ class ParRuntimeTest {
                                 global.close();
                                 return value + 1;
                             },
-                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
+                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.COMPUTE));
 
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(global.closed()).isTrue();
@@ -289,6 +289,31 @@ class ParRuntimeTest {
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("null"), null))
                     .isInstanceOf(NullPointerException.class);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    void registrationDeclaresAnOptionalTaskTypePerEntry() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("plain"), executor)
+                .register(ParId.of("cpu"), executor, TaskType.COMPUTE)
+                .register(ParId.of("io"), executor, TaskType.BLOCKING)
+                .build()) {
+            assertThat(runtime.par(ParId.of("plain")).taskType()).isEqualTo(TaskType.UNKNOWN);
+            assertThat(runtime.par(ParId.of("cpu")).taskType()).isEqualTo(TaskType.COMPUTE);
+            assertThat(runtime.par(ParId.of("io")).taskType()).isEqualTo(TaskType.BLOCKING);
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("cpu"), executor, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("taskType cannot be null");
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("cpu"), executor, TaskType.COMPUTE)
+                            .register(ParId.of("cpu"), executor))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("duplicate Par id 'cpu'");
         } finally {
             executor.shutdownNow();
         }

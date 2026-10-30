@@ -55,6 +55,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$WorkloadMeasurement",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));

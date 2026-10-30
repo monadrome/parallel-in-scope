@@ -158,7 +158,7 @@ class ParSubmitTest {
                                     Checkpoints.checkpoint();
                                 }
                             },
-                            TaskOptions.timeout(Duration.ofMillis(50)).taskType(TaskType.IO_BOUND));
+                            TaskOptions.timeout(Duration.ofMillis(50)).taskType(TaskType.BLOCKING));
 
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);

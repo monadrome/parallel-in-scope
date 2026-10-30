@@ -23,6 +23,8 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
+注册时还可以声明该条目预期承载的工作：`register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)`。声明可选，只用于诊断，见[声明任务类型](#task-type)。
+
 id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定和构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空、饥饿观测关闭后释放内部 timer、timeout-action 和采样服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
@@ -76,30 +78,45 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 成功值允许 null。`outcomeCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
 与 `TaskGroupResult` 同名。
 
-TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；普通队列上
-rejectEnqueue 与 CPU_BOUND 都无效，每个 `Par` 输出一次诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
-SubmissionException 保留原 cause，包括 Error。参数校验和关闭后的准入错误仍从入口抛出。
+executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException 保留原 cause，包括
+Error。参数校验和关闭后的准入错误仍从入口抛出。
 
-TaskType 默认 IO_BOUND，rejectEnqueue 默认 false。把 SmartBlockingQueue 装到物理池上，并按批次声明策略：
+`rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SmartBlockingQueue` 读取它；换成其他任何队列
+它都是惰性的，经某个 `Par` 的首次此类提交会打一条告警。它默认是 false。把 SmartBlockingQueue
+装到物理池上，并按批次显式选择：
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
         4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool)
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
         .build();
 
 TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
         records, this::score,
-        BatchOptions.timeout("score", Duration.ofSeconds(5))
-                .taskType(TaskType.CPU_BOUND)
-                .rejectEnqueue(true));
+        BatchOptions.timeout("score", Duration.ofSeconds(5)).rejectEnqueue(true));
 ```
 
-CPU_BOUND 任务会让 offer 返回 false（单独如此，或与 rejectEnqueue(true) 一起），因此池子要么
-开新线程、要么走拒绝处理器，而不会把 CPU 任务排在 IO 任务后面；rejectEnqueue(true) 与它是冗余的，
-只用于表明意图。换成其他任何队列，TaskType 都不改变库的行为，rejectEnqueue 则是惰性的。
+offer 被拒绝时，池子要么开新线程、要么走拒绝处理器，而不是把任务缓冲起来。空闲 worker 只从
+队列取任务，所以固定大小的池建满 worker 之后，每个被拒绝的任务都会走拒绝处理器，即使有 worker
+空闲。
+
+### 声明任务类型 {#task-type}
+
+`TaskType` 是两侧都可选的负载声明：条目在注册时声明预期承载的工作，批次或任务用
+`BatchOptions.taskType` / `TaskOptions.taskType` 声明任务体本身。取值为 `COMPUTE`、`BLOCKING`
+（任何等待：I/O、锁、sleep、join、等待嵌套工作）和缺省值 `UNKNOWN`。嵌套批次与
+`mapAndCombine` 的终端 combine 不继承父单元的类型。
+
+声明从不改变准入、入队、拒绝、取消、deadline 或 outcome，只供两项诊断使用：
+
+- **提交时比对。** 条目和单元都声明了类型且不一致时，按条目与单元名记录一次：`COMPUTE` 条目上的
+  `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。日志只说明两侧声明不一致。运行时最多记住 1024 对，
+  之后只打一条汇总，并把后续不一致计入 `ParRuntimeSnapshot.suppressedTaskTypeMismatches()`。
+  单元名请用固定业务名，不要按调用拼接。
+- **低 CPU 筛查。** 打开的线程池饥饿观测会比较每个库准入任务体的线程 CPU 时间与执行时间，见
+  [筛查负载匹配](#workload-fit)。它能发现作者自己都不知道会阻塞的任务，这是单靠声明做不到的。
 
 ### 批次终端汇总 {#batch-combine}
 
@@ -456,9 +473,10 @@ if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
 采样使用独立 daemon scheduler，最小间隔为 10 毫秒。只有相隔至少一个 interval 的样本对同时看到
 当前 worker 全部忙、队列有积压且完成数没有前进时，才报告 `POTENTIAL_STARVATION`。证据是窗口内
 捕获的粘性快照，`stagnantIntervals()` 表示满足间隔门槛的停滞样本对；恢复不会清除它。
-采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；有证据时证据优先。`NO_ISSUE` 表示
-所有注册 executor 都可观测、采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在
-`unsupportedExecutors()` 中，且在没有证据或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
+采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；证据与[负载匹配](#workload-fit)的
+`LOW_CPU_UTILIZATION` 依次优先于它。`NO_ISSUE` 表示所有注册 executor 都可观测、线程 CPU 时间可读、
+采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在 `unsupportedExecutors()` 中，且在
+没有证据、负载匹配问题或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
 预计需要诊断积压时，作用域至少保持两个采样间隔。
 报告的 `samplingInterval()` 是请求间隔，`samples()` 是实际完成的采样次数。证据计数取自捕获时刻；
 判断 close 时刻的状态需重新采样。
@@ -471,8 +489,51 @@ try-with-resources 仍会关闭窗口。提交后立即关闭不能诊断持续�
 它不是健康断言。采样 `Error` 在报告发布后重抛；如需在错误处理路径读取报告，应在关闭前保留
 future，并在错误处理逻辑中检查已发布的报告。
 
+### 筛查负载匹配 {#workload-fit}
+
+同一个作用域也会筛查经本 runtime 准入的任务体。在计算池里阻塞的任务体（藏着的 JDBC、同步日志、
+后来加的一次 RPC）会占住为数不多的线程，却几乎不用 CPU。声明池的用途，并在关闭后读取测量值：
+
+```java
+ParRuntime global = ParRuntime.builder()
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .build();
+
+ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+try (ThreadPoolStarvationObservationScope observation =
+        global.openThreadPoolStarvationObservation(Duration.ofSeconds(1))) {
+    reportFuture = observation.reportFuture();
+    runLoadTest();
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+for (ThreadPoolStarvationReport.WorkloadMeasurement measurement : report.workloadMeasurements()) {
+    if (measurement.issue() || measurement.suspectedDeclarationDrift()) {
+        log.warn("Low CPU use, the body may be waiting: {}", measurement);
+    }
+}
+log.info("Entries without a declared TaskType: {}", report.unlabeledPars());
+```
+
+`workloadMeasurements()` 按 `Par`、单元名与单元类型各给一条，包含计入的 `bodies()`、`cpuTime()`、
+`executionTime()`（运行时间，不含排队）、`cpuToExecutionRatio()` 和 `lowCpuBodies()`。只有在作用域
+打开期间开始并结束的任务体才计入；关闭时仍在运行的计入 `excludedBodies()`。共享同一个池的条目和
+其他 runtime 分开测量，直接 `execute` 提交的工作从不测量。
+
+样本足够（目前为 20 个任务体或 1 秒执行时间）且 CPU 时间低于执行时间一半的测量值，在其条目声明为
+`COMPUTE` 时是 `issue()`，状态因此为 `LOW_CPU_UTILIZATION`，除非同时捕获到饥饿证据；在其单元声明为
+`COMPUTE` 时是 `suspectedDeclarationDrift()`，单独的漂移不改变状态。两侧都是 `UNKNOWN` 时只给原始
+测量值；`unlabeledPars()` 列出贡献了任务体却未声明类型的条目，避免把干净的报告误当成全覆盖。线程
+CPU 时间不受支持、未开启或读取失败时，`cpuTimeAvailable()` 为 false，状态最多是
+`INSUFFICIENT_VISIBILITY`；库不会自行开启 CPU 计时。
+
+作用域外每个任务体只多一次 volatile 读；作用域内多两次线程 CPU 读取和两次墙钟读取。
+
 ### 限制
 
+- 低 CPU 占用是筛查线索，不是阻塞的证明：GC、safepoint、CPU 配额限流会压低比值，自旋等待会抬高
+  比值。等待嵌套批次的任务体在等待期间占住自己的线程，这不说明嵌套批次所在的池选错了。阈值是内部
+  校准值，不是稳定契约。
+- 计算任务进了阻塞池，只有两侧都声明时才能由提交时比对发现。
 - 计数器按池统计，库内任务和直接 `execute` 任务同等计入；库内长 CPU/慢 I/O 任务也可能误报。
 - `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
   runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。

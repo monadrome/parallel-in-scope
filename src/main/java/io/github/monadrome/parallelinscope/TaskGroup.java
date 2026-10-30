@@ -582,8 +582,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .cancellationParent(groupToken)
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
-                                .executor(par.executorRuntime(), par.id()));
-                par.warnIfEnqueueRefusalInert(unit);
+                                .executor(par));
+                par.diagnoseAdmission(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 Callable<Object> body = payloads.takeCallable(memberIndex++);
@@ -617,8 +617,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .cancellationParent(groupToken)
                                 .deadlineCeilingNanos(groupDeadline)
                                 .resolutionTimeNanos(deadlineNow)
-                                .executor(par.executorRuntime(), par.id()));
-                par.warnIfEnqueueRefusalInert(unit);
+                                .executor(par));
+                par.diagnoseAdmission(unit);
                 TaskExecutionContext taskContext =
                         new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
                 CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());

@@ -55,7 +55,7 @@ ParRuntime config = ParRuntime.builder()
 Par par = config.defaultPar();
 
 // 设置选项：2 并发，500ms 超时
-BatchOptions opts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
+BatchOptions opts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.BLOCKING);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2");

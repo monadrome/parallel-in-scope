@@ -102,7 +102,7 @@ public class A3_LeanVsFatExceptionTest {
         // 解决方案：Par.map() 配合短超时，内部使用轻量级异常处理取消
         BatchOptions opts = BatchOptions.timeout("lean-cancel-demo", java.time.Duration.ofMillis(200))
                 .parallelism(4)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         // 提交 100 个任务，大部分会在 200ms 后被取消
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());

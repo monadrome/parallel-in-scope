@@ -12,8 +12,9 @@ import org.jspecify.annotations.Nullable;
  * Immutable execution policy for exactly one task — a task-group
  * member, or a terminal combine.
  *
- * <p>This type carries only what one task execution reads: its deadline policy, its task type, and
- * its enqueue-rejection policy. A task's name comes from its {@link GroupStart#par} or
+ * <p>This type carries only what one task execution reads: its deadline policy and its
+ * enqueue-rejection policy, plus an optional diagnostic {@link TaskType} declaration that never
+ * changes execution. A task's name comes from its {@link GroupStart#par} or
  * {@link GroupStep#combine} declaration. A single task has no parallelism to limit. A batch declares
  * {@link BatchOptions}; group-level configuration is declared by {@link ParRuntime#group} and the
  * whole-scope methods on {@link GroupStart}.
@@ -28,7 +29,7 @@ import org.jspecify.annotations.Nullable;
 @CheckReturnValue
 @Immutable
 public final class TaskOptions {
-    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.IO_BOUND, false);
+    private static final TaskOptions INHERITED = new TaskOptions(null, TaskType.UNKNOWN, false);
 
     private final @Nullable Duration timeout;
     private final TaskType taskType;
@@ -56,10 +57,15 @@ public final class TaskOptions {
      * @throws IllegalArgumentException if {@code timeout} is negative or zero
      */
     public static TaskOptions timeout(Duration timeout) {
-        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.IO_BOUND, false);
+        return new TaskOptions(Validation.requirePositive(timeout, "timeout"), TaskType.UNKNOWN, false);
     }
 
-    /** Returns a copy of these options with the given task type.
+    /**
+     * Returns a copy of these options with the given diagnostic task type.
+     *
+     * <p>The declaration describes this task's own body and is not inherited by work it submits.
+     * It never changes admission, enqueueing, rejection, or the task's outcome; see {@link
+     * TaskType}.
      *
      * @throws NullPointerException if {@code taskType} is null
      */
@@ -82,7 +88,7 @@ public final class TaskOptions {
         return Optional.ofNullable(timeout);
     }
 
-    /** Returns the task type declared for the task. */
+    /** Returns the diagnostic task type declared for the task; {@link TaskType#UNKNOWN} by default. */
     public TaskType taskType() {
         return taskType;
     }

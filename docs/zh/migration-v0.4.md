@@ -121,6 +121,44 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 队列语义，而构造器拒绝同一个值。正容量写 `new SmartBlockingQueue<>(capacity)`，交接队列写
 `new SynchronousQueue<>()`；容量来自配置时显式选择其一。
 
+## 任务类型
+
+`TaskType` 改为可选的诊断声明。删除 `IO_BOUND`、`CPU_BOUND`、`MIXED`，改为 `COMPUTE`、`BLOCKING`、
+`UNKNOWN`，类型不再改变入队准入。常量刻意改名而不是保留，让依赖旧拒绝行为的代码编译失败，而不是
+静默改成入队。
+
+改前（`CPU_BOUND` 让 `SmartBlockingQueue` 拒绝每个元素；换成其他队列则完全没有作用）：
+
+```java
+par.map(records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5)).taskType(TaskType.CPU_BOUND));
+```
+
+改后：
+
+```java
+par.map(records, this::score,
+        BatchOptions.timeout("score", Duration.ofSeconds(5))
+                .taskType(TaskType.COMPUTE)
+                .rejectEnqueue(true));
+```
+
+| 0.3 | 0.4 |
+|---|---|
+| `taskType(TaskType.CPU_BOUND)`，依赖 `SmartBlockingQueue` 拒绝入队 | `taskType(TaskType.COMPUTE).rejectEnqueue(true)` |
+| `taskType(TaskType.CPU_BOUND)`，仅作说明 | `taskType(TaskType.COMPUTE)` |
+| `taskType(TaskType.IO_BOUND)` | `taskType(TaskType.BLOCKING)`，或删掉这次调用 |
+| `taskType(TaskType.MIXED)` | `taskType(TaskType.BLOCKING)` |
+| 不调用 `taskType`（缺省 `IO_BOUND`） | 不调用（缺省 `UNKNOWN`）；行为不变 |
+
+- `mapAndCombine` 的终端 combine 不再继承批次的类型。0.3 中 `CPU_BOUND` 批次也会让
+  `SmartBlockingQueue` 拒绝它的 combine。批次的 `rejectEnqueue(true)` 只作用于元素，所以 combine
+  现在像普通任务一样入队；需要别的处置时，选用其队列与拒绝策略符合要求的 combine `Par`。
+- 可以用 `register(id, pool, TaskType.COMPUTE)` 或 `BLOCKING` 声明每个池的用途。单元声明与条目声明
+  不一致时，按条目与单元名记录一次；打开的线程池饥饿观测会报告 `COMPUTE` 条目上的低 CPU 占用。
+- `ThreadPoolStarvationReport.Status` 新增 `LOW_CPU_UTILIZATION`，`anyIssue()` 对它为 true。
+  `NO_ISSUE` 现在还要求线程 CPU 时间可读；不可读时状态为 `INSUFFICIENT_VISIBILITY`。
+
 ## 内部取消 token
 
 `CancellationToken` 与 `CancellationToken.State` 不再公开。从来没有任何公开方法接收或返回 token，

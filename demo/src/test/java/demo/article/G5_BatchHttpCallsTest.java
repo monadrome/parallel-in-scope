@@ -143,7 +143,7 @@ public class G5_BatchHttpCallsTest {
 
         BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(5000))
                 .parallelism(4)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

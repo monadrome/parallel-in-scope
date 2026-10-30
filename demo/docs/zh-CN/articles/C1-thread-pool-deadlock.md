@@ -48,7 +48,7 @@ ParRuntime config = ParRuntime.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(2).taskType(TaskType.IO_BOUND);
+BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(2).taskType(TaskType.BLOCKING);
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
 TaskBatchResult<String> result = par.map( items, item -> {

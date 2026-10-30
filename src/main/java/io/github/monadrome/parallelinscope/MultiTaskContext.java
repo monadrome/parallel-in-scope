@@ -32,18 +32,21 @@ final class MultiTaskContext {
     private final CancellationToken cancellationToken;
     private final @Nullable MultiTaskContext structuralParent;
     private final boolean rejectEnqueue;
+    private final @Nullable Par par;
 
     private MultiTaskContext(
             TaskNode node,
             long deadlineNanos,
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
-            boolean rejectEnqueue) {
+            boolean rejectEnqueue,
+            @Nullable Par par) {
         this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
         this.rejectEnqueue = rejectEnqueue;
+        this.par = par;
     }
 
     /**
@@ -62,8 +65,7 @@ final class MultiTaskContext {
         private @Nullable Long resolutionTimeNanos;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
-        private @Nullable ExecutorRuntime executor;
-        private @Nullable ParId executorId;
+        private @Nullable Par par;
 
         private Resolution(UnitSpec spec, int taskCount) {
             this.spec = Objects.requireNonNull(spec, "spec cannot be null");
@@ -117,13 +119,13 @@ final class MultiTaskContext {
         }
 
         /**
-         * The executor the unit runs on and the id it is registered under: the unit's node takes the
-         * executor's identity, the id as display label, and whether a body blocked on the unit can
-         * starve it. Diagnostic and graph state only, never a submission target.
+         * The entry the unit is submitted through: the unit's node takes its executor's identity,
+         * its id as display label, and whether a body blocked on the unit can starve it, and the
+         * unit's bodies report workload measurements under it. Diagnostic and graph state only,
+         * never a submission target.
          */
-        Resolution executor(ExecutorRuntime runtime, ParId id) {
-            this.executor = checkNotNull(runtime, "runtime cannot be null");
-            this.executorId = checkNotNull(id, "id cannot be null");
+        Resolution executor(Par par) {
+            this.par = checkNotNull(par, "par cannot be null");
             return this;
         }
     }
@@ -174,13 +176,13 @@ final class MultiTaskContext {
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
-        ExecutorRuntime executor = resolution.executor;
-        ParId executorId = resolution.executorId;
+        Par par = resolution.par;
+        ExecutorRuntime executor = par == null ? null : par.executorRuntime();
         TaskNode node = new TaskNode(
                 TaskId.unit(String.valueOf(UNIT_SEQUENCE.incrementAndGet())),
                 spec.name(),
                 executor == null ? null : executor.identity(),
-                executorId == null ? null : executorId.value(),
+                par == null ? null : par.id().value(),
                 executor != null && executor.starvationProne(),
                 spec.taskType(),
                 effective,
@@ -191,7 +193,8 @@ final class MultiTaskContext {
                 deadline,
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
-                spec.rejectEnqueue());
+                spec.rejectEnqueue(),
+                par);
     }
 
     /**
@@ -273,11 +276,18 @@ final class MultiTaskContext {
         return structuralParent;
     }
 
+    /** The unit's own diagnostic task type; a nested unit never inherits its parent's. */
     TaskType taskType() {
         return node.taskType();
     }
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
+    }
+
+    /** The entry the unit was submitted through, or null for a unit resolved without one. */
+    @Nullable
+    Par par() {
+        return par;
     }
 }
