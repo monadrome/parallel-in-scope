@@ -1,0 +1,24 @@
+BACKLOG.md
+  s_335edcc8596330::t_c08cb229d0d9a4 243,368-380
+design/analysis/ssot-audit-2026-10-29.md
+  s_335edcc8596330::t_c08cb229d0d9a4 50-52,54
+  s_335edcc8596330::t_981ee1971f9223 53
+design/decision-log.md
+  s_335edcc8596330::t_c08cb229d0d9a4 107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0325d540cba17e1e5e43a4c194b872e4cfa08289",
+  "prompts": {},
+  "sessions": {
+    "s_335edcc8596330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a11c36-fcec-4b32-9f40-767029457748",
+        "model": "glm-5.3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
