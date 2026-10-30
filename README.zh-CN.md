@@ -24,7 +24,7 @@
 
 发布构件仍是 Java 8 字节码。JDK 21 会被 enforcer 拒绝，运行 Maven 前请切换到 JDK 25。
 
-## 快速开始
+## 最小示例
 
 从 Maven Central 添加依赖：
 

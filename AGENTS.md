@@ -208,6 +208,25 @@ explicit human confirmation before implementing it.
   rationale explicit so future maintainers can distinguish intentional API
   evolution from accidental breakage.
 
+## Documentation Audiences
+
+Documentation has two top-level audiences; keep their entry points and responsibilities distinct:
+
+- **User-facing documentation** explains supported usage and observable behavior: `README*.md`,
+  `docs/`, `demo/`, `integrations/`, migration guides, and public contributor instructions.
+  `docs/{en,zh}/quickstart.md` is the canonical development-line quickstart. The README provides
+  a minimal stable-release example; demo articles provide detailed examples rather than a second
+  quickstart.
+- **Agent-facing documentation** guides implementation and maintenance: `AGENTS.md`, `design/`,
+  `adr/`, and verification instructions. `design/` owns current contracts, proposals, and review
+  history; `adr/` owns durable decisions and their rationale. Users must not need these internal
+  documents to use the public API.
+
+Group related contracts, ADRs, and history by subject in their existing routes where useful. Link
+related documents by subject without duplicating implementation rationale. Subject grouping is a
+navigation aid, not a third documentation category or a replacement for the
+lifecycle rules in `design/AGENTS.md` and `adr/AGENTS.md`.
+
 ## Documentation References
 
 Documentation must stay readable and correct without the Git object database:

@@ -6,7 +6,7 @@
 
 ## 推荐起点
 
-- [5 分钟快速上手](articles/QUICK-START-5-minutes.md)
+- [批量调用入门示例（详细）](articles/QUICK-START-5-minutes.md)
 - [批量调用最佳实践](articles/BATCH-best-practices.md)
 
 ## 取消与超时
