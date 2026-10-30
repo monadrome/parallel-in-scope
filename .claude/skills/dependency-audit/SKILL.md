@@ -37,8 +37,10 @@ description: Triage the monthly dependency audit. Use when the user asks about o
    `current`, `latest`, and `delta` values; add an `assessment` column.
 5. Group upgrade proposals by patch, minor, and major. Major upgrades require a
    user decision before any edit.
-6. Do not edit `pom.xml`, workflows, or `mkdocs/requirements.txt`, and do not open
-   a PR, without explicit user approval.
+6. Apply "Safe to upgrade now" items in the audited POMs without asking, as the
+   root `AGENTS.md` Permissions section allows, and deliver them like any other
+   change. Majors, minimum-Java changes, new dependencies, workflows, and
+   `mkdocs/requirements.txt` still need explicit user approval.
 7. If a lookup fails twice, mark the item `unknown`. Never guess a version.
 
 ## Output format
@@ -64,4 +66,5 @@ End with three short sections:
 - Do not change the build JDK 25 or the runtime JDK 8.
 - Do not upgrade a major dependency just because it is newer; check the Java 8
   contract and the CI `java8-runtime` job.
-- The audit reports; it does not authorize a change.
+- The audit reports; the root `AGENTS.md` Permissions section decides which
+  upgrades proceed without asking.
