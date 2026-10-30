@@ -129,11 +129,11 @@ class ResilientCallTest {
     }
 
     @Test
-    void cancellationWithoutInterruptStopsTheNextAttempt() {
+    void requestCancellationStopsTheNextAttempt() {
         CircuitBreaker breaker = CircuitBreaker.of(
-                "quiet-cancel", ResilientCall.circuitBreakerConfig().build());
+                "request-cancel", ResilientCall.circuitBreakerConfig().build());
         Retry retry = Retry.of(
-                "quiet-cancel",
+                "request-cancel",
                 ResilientCall.retryConfig()
                         .maxAttempts(3)
                         .waitDuration(Duration.ofMillis(200))
@@ -152,7 +152,7 @@ class ResilientCallTest {
                             throw new IllegalStateException("downstream unavailable");
                         },
                         open -> "fallback"),
-                BatchOptions.timeout("quiet-cancel", Duration.ofSeconds(5))
+                BatchOptions.timeout("request-cancel", Duration.ofSeconds(5))
                         .cancelOn(requestDone)
                         .closeGrace(Duration.ofSeconds(2)));
 

@@ -478,6 +478,52 @@ public class CancellationTokenTest {
     }
 
     @Test
+    public void reentrantFailureInsideTheWinnersListenerWindowStillCascadesWithInterrupt() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<String> trigger = SettableFuture.create();
+        InterruptRecordingFuture victim = new InterruptRecordingFuture();
+        InterruptRecordingFuture submission = new InterruptRecordingFuture();
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(trigger, victim), submission, TIMER);
+        // The business failure fires inside the CANCELLED listener window, before the winner's own
+        // cascade runs: the losing fail-fast callback must still cascade unconditionally.
+        token.addStateListener(state -> {
+            if (state == CancellationToken.State.CANCELLED) {
+                trigger.setException(new RuntimeException("listener failure"));
+            }
+        });
+
+        token.cancel();
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(victim.cancelInterrupt).hasValue(true);
+        assertThat(submission.cancelInterrupt).hasValue(true);
+        assertAggregateDone(aggregate);
+    }
+
+    @Test
+    public void alreadyDispatchedTimerLoserStillCascadesWithInterrupt() {
+        ManualClock clock = new ManualClock();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker());
+        SettableFuture<String> work = SettableFuture.create();
+        InterruptRecordingFuture submission = new InterruptRecordingFuture();
+        AlreadyDispatchedTimer timer = new AlreadyDispatchedTimer();
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), submission, timer);
+        Runnable timerAction = timer.dispatched.get();
+        assertThat(timerAction).isNotNull();
+        // The timer thread already dispatched the timeout action when the explicit cancel wins: the
+        // action runs inside the winner's listener window, loses first-wins, and is the first
+        // canceller to reach the submission handle.
+        token.addStateListener(state -> timerAction.run());
+
+        token.cancel();
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(submission.cancelInterrupt).hasValue(true);
+        assertAggregateDone(aggregate);
+    }
+
+    @Test
     public void requestSourceWinsExpiredBindAndInterrupts() {
         CancellationToken token = new CancellationToken(null, System.nanoTime() - 1L);
         SettableFuture<Void> source = SettableFuture.create();
