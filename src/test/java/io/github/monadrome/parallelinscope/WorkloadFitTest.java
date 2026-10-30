@@ -1,6 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -27,6 +30,38 @@ class WorkloadFitTest {
         assertThat(WorkloadFit.lowCpu(0, 1)).isTrue();
         assertThat(WorkloadFit.lowCpu(0, 0)).isFalse();
         assertThat(WorkloadFit.lowCpu(Long.MAX_VALUE / 2, Long.MAX_VALUE)).isTrue();
+    }
+
+    /**
+     * Bookkeeping can fail after both clock readings succeed; the commit is guarded like the readings,
+     * so the failure drops the sample instead of leaving {@code stop()}, which runs in the body's
+     * {@code finally}.
+     */
+    @Test
+    void aFailureCommittingTheSampleNeverLeavesTheTiming() {
+        ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
+                .workloadClock(clock)
+                .announcements(command -> {})
+                .build()) {
+            Par failing = spy(runtime.par(ParId.of("cpu")));
+            doThrow(new AssertionError("bookkeeping failure standing in for a VM error"))
+                    .when(failing)
+                    .workload();
+            MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                            BatchOptions.timeout("unit", TIMEOUT).spec(), 1)
+                    .executor(failing));
+
+            WorkloadFit.Timing timing = Objects.requireNonNull(WorkloadFit.start(unit));
+            clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
+
+            assertThatCode(timing::stop).doesNotThrowAnyException();
+            assertThat(runtime.workloadFitReport().pars().get(0).bodies()).isZero();
+        } finally {
+            direct.shutdownNow();
+        }
     }
 
     @Test
