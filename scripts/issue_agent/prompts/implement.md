@@ -26,7 +26,7 @@ $plan
 
 ## Toolchain
 
-JDK $java_version is on `PATH` and `JAVA_HOME`. Maven works offline (`mvn -o`) against the local repository. Run targeted tests while iterating, `mvn -o spotless:apply`, and finish with a green `mvn -o test`. For a bug, write the regression test first and see it fail before the fix. When main sources change, run PIT on the touched classes with the command in AGENTS.md (core runs restore `VOID_METHOD_CALLS`) and classify every survivor.
+JDK $java_version is on `PATH` and `JAVA_HOME`. Maven works offline (`mvn -o`) against the local repository. Run targeted tests while iterating, `mvn -o spotless:apply`, and finish with a green `mvn -o test`. For a bug, write the regression test first and see it fail before the fix. Follow `verification/pit.md` for PIT applicability, production/test scope, commands, freshness, and evidence-backed dispositions; the runner's report gate does not establish scope or test adequacy.
 
 ## Report
 
