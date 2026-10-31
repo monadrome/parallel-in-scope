@@ -68,3 +68,9 @@ proof. Do not add a comment because several reviewers believe the race is real.
 The registry is the review record: when a comment is added or moved, add or
 update its claim and run the harness. A claim whose code site changed but whose
 mutation no longer matches is `INVALID_MUTATION`, not silently accepted.
+
+CI runs the whole registry and uploads `target/race-claims/` as evidence. The
+step fails only on `INVALID_MUTATION`, `ERROR`, `BROKEN`, and `TIMEOUT`, which
+mean the harness did not measure anything; `UNPROVEN` and `NEEDS_JCSTRESS` are
+printed and uploaded as recorded gaps so a known gap does not block unrelated
+changes.

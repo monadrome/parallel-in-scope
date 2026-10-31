@@ -38,6 +38,11 @@ RESULTS_DIR = ROOT / "target" / "race-claims"
 DEFAULT_TIMEOUT = 300
 MAX_LOG_BYTES = 200_000
 
+# Results that mean the harness itself failed, as opposed to a recorded test
+# gap. `UNPROVEN` and `NEEDS_JCSTRESS` describe missing evidence and are
+# reported without failing; these four mean the run did not measure anything.
+BROKEN_RESULTS = frozenset({"INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT"})
+
 
 def run(command: list[str], cwd: Path, timeout: int = DEFAULT_TIMEOUT):
     return subprocess.run(command, cwd=cwd, text=True, capture_output=True, timeout=timeout)
@@ -218,14 +223,24 @@ def main(argv: list[str] | None = None) -> int:
             results = json.loads(results_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             results = []
+    ran: list[dict] = []
     for claim in claims:
         entry = run_claim(claim, args.timeout)
         entry.update(provenance)
         record(results, entry)
+        ran.append(entry)
 
     print("\nSummary")
     for entry in results:
         print(f"  {entry['result']:20s} {entry['id']}")
+    return exit_code(ran)
+
+
+def exit_code(entries: list[dict]) -> int:
+    broken = [entry["id"] for entry in entries if entry["result"] in BROKEN_RESULTS]
+    if broken:
+        print(f"harness broken for: {', '.join(broken)}", file=sys.stderr)
+        return 1
     return 0
 
 
