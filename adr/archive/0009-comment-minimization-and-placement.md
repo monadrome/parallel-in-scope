@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-27
 - Decision scope: Retention and placement of explanatory comments in source, Javadoc, tests, and design documents
-- Supersedes: [decision-log](../design/decision-log.md), `inline-comment-audit-2026-10-09`, only its rejection of qualitative comment principles; rejection of numeric thresholds and mechanical gates remains in force
+- Supersedes: [decision-log](../../design/decision-log.md), `inline-comment-audit-2026-10-09`, only its rejection of qualitative comment principles; rejection of numeric thresholds and mechanical gates remains in force
 
 ## Context
 
