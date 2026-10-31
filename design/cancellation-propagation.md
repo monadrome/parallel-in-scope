@@ -196,7 +196,7 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
 教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
 token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
 公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
-deadline、bind 与归因状态机）。历史来源：`git show 8aa8528^:design/proposal/P0025-internal-cancellation-token.md`。
+deadline、bind 与归因状态机）。历史来源：[P0025-internal-cancellation-token.md](archive/P0025-internal-cancellation-token.md)。
 
 ## 5.4 显式请求取消输入
 

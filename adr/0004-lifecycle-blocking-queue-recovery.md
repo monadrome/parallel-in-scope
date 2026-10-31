@@ -48,6 +48,6 @@ distinguish recovery transfer (`drainTo`) from closed consumer operations (`take
 ## History
 
 Condensed on 2026-10-27; the previous full text is
-`git show 1eeaaf0:adr/0004-lifecycle-blocking-queue-recovery.md`. Removed: the appended
+[archive/0004-lifecycle-blocking-queue-recovery.md](archive/0004-lifecycle-blocking-queue-recovery.md). Removed: the appended
 `LifecycleQueueV2` contract (requirement sources, constructor rules, lifecycle and iterator
 contract, sequenced reverse view, acceptance checks), which described the removed implementation.

@@ -162,7 +162,7 @@ io.github.monadrome.parallelinscope/
 
 `ParName` 已更名为 `ParId` 保留（见
 [decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
-增补裁定 §19.6、§19.10，全文见 git 历史 `db2ab2d`）。
+增补裁定 §19.6、§19.10，全文见 [archive/group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md)）。
 
 `ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 与 `TaskGroup` 在完成
 owner、policy、runtime identity 和 executor 的解析后直接调用同包内核；任务准备与

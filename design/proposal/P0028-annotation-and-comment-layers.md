@@ -82,32 +82,32 @@ E（JDK 移植标记）2、A（纯复述）0。逐条清单与 HTML 对照见本
 
 - `BatchOptions` 全部工厂和 wither：`inheritTimeout`、`timeout`、`parallelism`、
   `taskType`、`rejectEnqueue`、`closeGrace`、`cancelOn`——全部返回新副本
-  （`BatchOptions.java:60,76,93,109,128,152,175`）。
-- `TaskOptions` 的工厂和 wither（`TaskOptions.java:40,54,62,72`）。
+  （`BatchOptions.java`）。
+- `TaskOptions` 的工厂和 wither（`TaskOptions.java`）。
 - one-shot 链的 `par`、`combine`、`combineValues`、`runAll`：前三种返回下一阶段，
-  忽略后声明链无法继续；`runAll` 返回冻结结果（`GroupStart.java:46`、
-  `GroupStep.java:27,33,44`、`CombinedGroupStep.java:35`）。
+  忽略后声明链无法继续；`runAll` 返回冻结结果（`GroupStart.java`、
+  `GroupStep.java`、`CombinedGroupStep.java`）。
 **`@CanIgnoreReturnValue`：**
 
-- 所有 `orThrow()`（`TaskBatchResult.java:107`、`TaskGroupResult.java:280`、
-  `TaskGroupReport.java:107`）：返回 `this` 仅用于链式调用；忽略返回值不会跳过方法本身的
+- 所有 `orThrow()`（`TaskBatchResult.java`、`TaskGroupResult.java`、
+  `TaskGroupReport.java`）：返回 `this` 仅用于链式调用；忽略返回值不会跳过方法本身的
   失败抛出，因此独立 `result.orThrow();` 也是完整用法。
 - `GroupStart.closeGrace`、`GroupStart.cancelOn`：直接修改共享 draft 并返回同一
-  阶段（`GroupDraft.java:230,238`）。
+  阶段（`GroupDraft.java`）。
 - 若扩大到其他可变 fluent API：`ParRuntime.Builder.register/defaultPar`
-  （`ParRuntime.java:728,741`）、`MultiTaskContext.Resolution` 的 setter
-  （`MultiTaskContext.java:74-127`）。
+  （`ParRuntime.java`）、`MultiTaskContext.Resolution` 的 setter
+  （`MultiTaskContext.java`）。
 - `awaitQuiescence` / `awaitBodyCompletion` 的布尔结果可以有意忽略，忽略后等待
-  行为仍然完成（`ParRuntime.java:479`、`TaskGroup.java:450`）；是否豁免取决于
+  行为仍然完成（`ParRuntime.java`、`TaskGroup.java`）；是否豁免取决于
   是否希望鼓励调用者检查超时。
 
 **不应豁免：**
 
 - one-shot `par/combine` 不是普通可变 builder 的 `return this`。
 - `ExecutorWaitGraph.State.with` 可能返回新状态，也可能返回原状态
-  （`ExecutorWaitGraph.java:323-352`）。
+  （`ExecutorWaitGraph.java`）。
 - `CancellationToken.cancelOn` 返回可 `sever()` 的链接，生产路径需要保留它做
-  失败回滚（`CancellationToken.java:342-355`、`TaskGroup.java:738-761`）。
+  失败回滚（`CancellationToken.java`、`TaskGroup.java`）。
 
 **不做：** 一开始就给整个根包加 `@CheckReturnValue`。包级默认值会覆盖所有当前和
 未来的包私有方法，且根包注解不覆盖 `queue` 子包；Kimi 的人工下界显示
@@ -137,7 +137,7 @@ test/demo/verification 至少命中 26 / 1 / 0 个现有调用（见 §风险）
 
 `ParRuntime` 拒绝标注：`servicesShutdown` 是 `AtomicBoolean`，
 `liveBodySignals` 是并发集合，它们有意在监视器外读写；`quiescenceMonitor` 只
-负责触发 guard 重估（`ParRuntime.java:71-85,559-570,603-617`）。强加
+负责触发 guard 重估（`ParRuntime.java`）。强加
 `@GuardedBy("quiescenceMonitor")` 会在 `:84,532,564,607-615` 产生正确协议上的
 误报。
 
@@ -192,8 +192,8 @@ compile classpath；`@VisibleForTesting` 来自 Guava 自身。无需新增依�
 - executor wait graph / 线程池饥饿观测
 - batch / group 结果冻结与归因（如与上述条目重叠则合并）
 
-参照 Guava 的 `Monitor.java:253-281`（丢失信号）、`TimeoutFuture.java:55-77`
-（字段可见性）、`AggregateFuture.java:150-165`（等待全部输入）——都是 10–30 行，
+参照 Guava 的 `Monitor.java`（丢失信号）、`TimeoutFuture.java`
+（字段可见性）、`AggregateFuture.java`（等待全部输入）——都是 10–30 行，
 不是 CHM 的 230 行总览。
 
 ### 3. 局部注释
@@ -205,18 +205,18 @@ compile classpath；`@VisibleForTesting` 来自 Guava 自身。无需新增依�
 微型论文。
 
 Kimi 的独立复核结论：**111 条行内注释中没有可安全替代项**。能替代的是少量声明级
-Javadoc，例如 `ExecutionPhaseHintFuture.java:81`、`ScopedCallable.java:92`、
-`TaskGroup.java:470,480,1176,1181`、`ParRuntime.java:748,754` 的
-`@VisibleForTesting`，以及 `DrainingBlockingQueue.java:1113` 的方法级
+Javadoc，例如 `ExecutionPhaseHintFuture.java`、`ScopedCallable.java`、
+`TaskGroup.java`、`ParRuntime.java` 的
+`@VisibleForTesting`，以及 `DrainingBlockingQueue.java` 的方法级
 `@GuardedBy("takeMonitor")`（需先处理检查器对辅助方法的限制）。
 
 最明确“注解接不住”的反例：
 
-- `Par.java:373-374`：deadline 必须在提交前绑定，否则 inline 执行可能失去活性
+- `Par.java`：deadline 必须在提交前绑定，否则 inline 执行可能失去活性
   保证。
-- `TaskGroup.java:866-875`：barrier 增量必须最后且位于 `finally`，涉及跨线程
+- `TaskGroup.java`：barrier 增量必须最后且位于 `finally`，涉及跨线程
   可见性和异常路径。
-- `CancellationToken.java:131-135`：holder 必须先于 listener 注册安装，否则
+- `CancellationToken.java`：holder 必须先于 listener 注册安装，否则
   同步 terminal callback 会留下无法 sever 的链接。
 
 ## 用户代码与边界
@@ -271,9 +271,9 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
 
 - **包级返回值检查的噪音下界**：Kimi 未运行编译（只读），人工下界为
   test/demo/verification 至少命中 26 / 1 / 0。测试命中包括
-  `ExecutorWaitAdmissionTest.java:65,96,194-196`、
-  `InertEnqueueRefusalWarningTest.java:75-153`、`RequestCancellationTest.java:118`、
-  `ParRuntimeTest.java:341`；demo 命中 `G4_NamedExecutorPoolTest.java:176`。该
+  `ExecutorWaitAdmissionTest.java`、
+  `InertEnqueueRefusalWarningTest.java`、`RequestCancellationTest.java`、
+  `ParRuntimeTest.java`；demo 命中 `G4_NamedExecutorPoolTest.java`。该
   下界已扣除计划豁免的 mutable fluent 调用，但未穷尽多行 void lambda；
   verification 的 0 表示“未确认”，不是“没有调用”。落地前必须用真实编译替换。
 - **`@GuardedBy` 的最大风险**：把 `fullyLock()` 误报改成大范围

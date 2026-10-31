@@ -58,7 +58,7 @@ Q4c 无 scope                 | 4 个查询全 false
 ### 1.3 这是保留下来的，不是遗漏
 
 删除 `DeadlockDetectionListener` 的终稿（落地 `7e2ceae`，全文
-`git show db2ab2d:design/archive/deadlock-listener-removal-proposal-codex.md`）§3.1 明写
+[deadlock-listener-removal-proposal-codex.md](../archive/deadlock-listener-removal-proposal-codex.md)）§3.1 明写
 「disabled 不阻止图记录和现有静态查询」、§6 写「现有 Scope 静态 `hasTaskCycle()` 等方法保留
 不变」，测试 `TaskGraphReportFutureTest.disabledPolicyPublishesDisabledReportAndKeepsStaticQueries`
 （`:72`）把它钉成契约。那份提案回答的是「要不要三态报告」，没有回答「三态报告存在之后，两态

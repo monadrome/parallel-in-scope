@@ -44,8 +44,9 @@ supplied ExecutorService；MUST 保留用户选择的提交对象与包装器行
 MUST 保留收敛时刻与 body 退出时刻的区别；先迁移内部 live 消费及 barrier 交错测试，
 不能将删除动态查询当成已经解决重复快照，也不能提前合并生命周期。
 
-2026-10-02 过度设计分析（F6–F8，全文 `git show cacf590:design/analysis/overdesign-analysis-code-only-2026-10-02.md`）
-在 `cacf590` 复核后仍成立的内部候选，同样只在能让协议集中时实施：`MultiTaskContext` 与其
+2026-10-02 过度设计分析（F6–F8，全文
+[overdesign-analysis-code-only-2026-10-02.md](../analysis/archive/overdesign-analysis-code-only-2026-10-02.md)）
+在 2026-10-02 复核后仍成立的内部候选，同样只在能让协议集中时实施：`MultiTaskContext` 与其
 `CancellationToken` 各存一份恒等的 deadline，应只留 token 一份；`UnitSpec` + `Resolution` 的可选
 setter 实际只有 batch 与 group task 两种组合，可评估两个静态工厂；`DispatchingScheduledExecutorService`
 只为 `withTimeout` 存在且半数覆写抛 UOE，改为 token 自行调度会触及 Guava `TimeoutFuture` 完成顺序，

@@ -99,14 +99,15 @@ they are separate reports with separate rules.
 
 ## Review history
 
-The first implementation, `d71af957`, screened inside the starvation observation window. Kimi and
-Codex reviewed it and its two fix commits read-only in three rounds; the disposition tables and
-mutation records are in `git show e702947c:design/thread-pool-starvation-observation.md`, sections
-"Workload-fit review disposition" and "Workload-fit mutation verification".
+The first implementation screened inside the starvation observation window. Kimi and Codex
+reviewed it and its two fix commits read-only in three rounds; the disposition tables and
+mutation records are in
+[history/thread-pool-starvation-observation-review-records-2026-10-30.md](history/thread-pool-starvation-observation-review-records-2026-10-30.md).
 
 Kimi and Codex reviewed the always-on implementation read-only in two rounds; round 2 confirmed no
 new blocking finding. The disposition tables, reverse checks, and mutation records are in
-`git show 0c268f32:design/workload-fit-screening.md`, section "Review history". The findings that
+[history/workload-fit-screening-review-records-2026-10-30.md](history/workload-fit-screening-review-records-2026-10-30.md).
+The findings that
 changed behavior live in contract item 8 and under Limits. A test interleaving a timing failure with
 cancellation was rejected: the timing never inspects the body's exception, so a cancelled body takes
 the path the body-failure test already pins.

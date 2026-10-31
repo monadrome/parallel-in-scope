@@ -34,8 +34,8 @@ inline-comment-audit 的采纳边界仍由 [decision-log](../decision-log.md) �
 5. 核对旧 detectRisk 指针与 Rule/Priority
    编号孤儿。主源码 TaskGraph 已改形状，TaskEdge 旧枚举不作为新名单使用。
 6. TaskFutureTest 的 placeholder= 负断言存在不同解释：测试审计与决策简报认为 emitter 随
-   `8de2122` 删除后恒真，inline 审计称其防回归。先按 git 历史、实际 emitter 与相邻行为
-   断言独立裁定；MUST NOT 用审计自述的“有意”代替证据。本次未删该断言。
+   `8de2122` 删除后恒真，inline 审计称其防回归。先按实际 emitter 与相邻行为断言独立裁定；
+   MUST NOT 用审计自述的“有意”代替证据。本次未删该断言。
 
 ## 用户代码与边界
 
