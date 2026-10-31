@@ -181,7 +181,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
   恢复标志，再读当前 token 并应用同一 deadline backstop：已提交才带标记；未提交时 MUST 保持
   无标记的 `LeanCancellationException`（cause 为原中断），归因仍为 `USER_FAILURE`。
 - 标记只用于迟到失败日志（[同步出口契约](synchronous-scope-exit.md) §4），MUST NOT 参与归因；
-  归因只读 token。不新增 `TaskOutcome`：确认在落定前还是落定后到达取决于与级联的竞态，
+  归因结论只来自 token；异常类型只决定这次失败是否交给 token 归因（[取消与归因](task-group-cancellation.md) §8.4.1）。不新增 `TaskOutcome`：确认在落定前还是落定后到达取决于与级联的竞态，
   新名字会把同一次取消拆成两种结果；body 退出事实已由 `bodyCompletionConfirmed()` 表达。
 - 公开面不提供把用户异常类型映射为取消的入口（已移除 `checkRunnable` / `checkSupplier`：
   token 未提交时结果仍是 `USER_FAILURE`，方法名承诺的取消不成立），也不提供按名字校验的
@@ -285,6 +285,11 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 | 9 | 库的可中断阻塞方法被中断 | 抛 `InterruptedException`，不转成布尔返回值；不含已声明不可中断的同步出口 |
 | 10 | 已 quiescent 的 runtime 上调 `awaitQuiescence(Duration.ZERO)`，调用线程已置标志 | 抛 `InterruptedException` 且标志已清，不得返回 `true` |
 | 11 | 调用线程进入 `map` / `runAll` 时已带标志，且等待期间再被中断（§2.2） | 执行不被取消、正常返回结果，清理预算不被跳过，返回时标志仍在 |
+| 12 | 检查点在 future 已因取消落定后退出，读到的是已提交的 token | 迟到日志为 `FINE`，无 `WARNING`；结果保持取消归因 |
+| 13 | 同上，但确认上附加了 suppressed 的 `close()` 失败 | 记 `WARNING` 并保留原确认与 suppressed 异常 |
+| 14 | token 未提交时，阻塞适配器被中断 | 异常无库来源标记，结果为 `USER_FAILURE`，迟到日志行为不变 |
+| 15 | 内核投递取消中断后，JDK 阻塞调用抛出无 suppressed 的 `InterruptedException` | 迟到日志为 `FINE`；同线程的下一个 future 不收到该中断（§2.4） |
+| 16 | 独立的 `close()` 抛出 `InterruptedException` 或 `CancellationException`（R4） | 仍记 `WARNING`；按异常类型过滤的实现会失败 |
 
 ## 5. 背景：中断的反直觉性质
 
