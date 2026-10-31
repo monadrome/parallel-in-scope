@@ -93,8 +93,8 @@ public class A1_CancelTrueInvalidTest {
         TaskBatchResult<Integer> result = par.map(
                 input,
                 x -> {
-                    // 使用 Checkpoints.sleep() 响应取消信号
-                    Checkpoints.sleep(5000);
+                    // 使用 Checkpoints.checkSleep() 响应取消信号
+                    Checkpoints.checkSleep(5000, TimeUnit.MILLISECONDS);
                     return x;
                 },
                 opts);

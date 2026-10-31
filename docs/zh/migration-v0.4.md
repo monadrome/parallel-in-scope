@@ -267,3 +267,38 @@ for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicCom
 null 输入元素现在会在任何 mapper 或 combine body 执行前抛出 `NullPointerException`，不再
 由未检查的调用传入 mapper。调用前移除或替换 null 元素。`map` 对 null 集合仍返回空批次；
 `mapAndCombine` 仍拒绝 null 或空集合。mapper 成功返回 null 的语义不变。
+
+## 检查点入口与迟到失败日志
+
+`Checkpoints` 移除了四个方法：它们要么把用户异常类型映射成取消（违背按 token 归因），要么与保留的方法重复。
+
+| 移除 | 替代 |
+|---|---|
+| `checkRunnable(action, type)`、`checkSupplier(supplier, type)` | 把异常当作业务失败处理，或在需要停止的位置调用 `Checkpoints.checkpoint()` |
+| `checkpoint(String, boolean)` | `Checkpoints.checkpoint()` |
+| `sleep(long)` | `Checkpoints.checkSleep(long, TimeUnit.MILLISECONDS)` |
+
+改前：
+
+```java
+String body = Checkpoints.checkSupplier(() -> client.call(), SocketTimeoutException.class);
+Checkpoints.checkpoint("crawl", true);
+Checkpoints.sleep(200);
+```
+
+改后：
+
+```java
+String body = client.call();   // 超时是业务失败：USER_FAILURE
+Checkpoints.checkpoint();
+Checkpoints.checkSleep(200, TimeUnit.MILLISECONDS);
+```
+
+`checkSupplier` 把 `SocketTimeoutException` 转成 `CancellationException`，但没有已提交的取消时结果仍是
+`USER_FAILURE`，方法名承诺的「取消」不成立。`checkpoint(String, boolean)` 的名字校验只会因写错名字而失败。
+
+迟到失败日志有变化：取消已落定任务后，body 经读到该取消的 `Checkpoints` 调用退出，或经本次运行中被内核
+取消中断唤醒的 JDK 阻塞调用退出时，`task '<name>' failed after cancellation` 记录为 `FINE`，不再是
+`WARNING`。其他迟到失败（包括带 suppressed `close()` 失败的）仍是 `WARNING`。靠统计这类告警来计数取消的
+监控会看到数量下降；改读 `outcomeCounts()` 或 `TaskOutcome`。见
+[取消之后的日志](reference/cooperative-cancellation.md#logging-after-cancellation)。

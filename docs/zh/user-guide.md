@@ -402,6 +402,9 @@ TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2
 父 body 可先退出，子 body 仍运行。确认失败则由应用继续持有并安排后续清理；
 runtime 关闭且 awaitQuiescence 成功后，全部已接纳 body 才确认退出。关闭失败保持 Java
 主异常/suppressed 规则；取消先落定后才抛出的异常按任务身份记录日志，不改写取消结果。
+body 只是确认取消（经读到取消的 `Checkpoints` 调用退出，或经被内核取消中断唤醒的 JDK 阻塞调用退出）时
+记 `FINE`；其他迟到失败（包括带 suppressed close 失败的）记 `WARNING`。见
+[取消之后的日志](reference/cooperative-cancellation.md#logging-after-cancellation)。
 库不自动发现或关闭捕获/返回对象，也不管理用户额外启动的线程或外部异步操作。
 
 ### 应用停机

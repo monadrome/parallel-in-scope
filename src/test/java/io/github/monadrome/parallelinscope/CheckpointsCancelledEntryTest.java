@@ -15,7 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Cancelled-entry contract of the blocking-operation adapters: every adapter checks the current
  * scoped task's cancellation state before starting its operation, so a cancelled scope throws
- * {@link LeanCancellationException} without touching the operation's target.
+ * the library-marked {@link CheckpointCancellation} acknowledgement without touching the
+ * operation's target.
  *
  * <p>The primary checkpoint forms are covered by {@code CheckpointsTest}; this class covers the
  * adapters, whose entry checks are the same documented contract.
@@ -23,9 +24,8 @@ import org.junit.jupiter.api.Test;
 class CheckpointsCancelledEntryTest {
 
     @Test
-    void rawCheckpointSleepAndCheckSleepRejectACancelledScope() {
+    void rawCheckpointAndCheckSleepRejectACancelledScope() {
         assertCancelledEntry(Checkpoints::rawCheckpoint);
-        assertCancelledEntry(() -> Checkpoints.sleep(1L));
         assertCancelledEntry(() -> Checkpoints.checkSleep(Duration.ofMillis(1)));
         assertCancelledEntry(() -> Checkpoints.checkSleep(1L, TimeUnit.MILLISECONDS));
     }
@@ -101,9 +101,7 @@ class CheckpointsCancelledEntryTest {
     }
 
     @Test
-    void runnableSupplierAndPropagationRejectACancelledScope() {
-        assertCancelledEntry(() -> Checkpoints.checkRunnable(() -> {}, IllegalStateException.class));
-        assertCancelledEntry(() -> Checkpoints.checkSupplier(() -> "value", IllegalStateException.class));
+    void propagationRejectsACancelledScope() {
         assertCancelledEntry(() -> Checkpoints.propagateCancellation(new IllegalStateException("boom")));
     }
 
@@ -114,12 +112,16 @@ class CheckpointsCancelledEntryTest {
 
     /**
      * Runs {@code entry} inside a scoped task whose token is cancelled first, and asserts the
-     * adapter rejects the call before performing the operation: the thrown exception is the lean
-     * cancellation the class documents, not an outcome of the blocked operation itself.
+     * adapter rejects the call before performing the operation: the thrown exception is the
+     * library's cancellation acknowledgement for the committed token, not an outcome of the
+     * blocked operation itself.
      */
     private static void assertCancelledEntry(AdapterEntry entry) {
         MultiTaskContext context = context();
-        assertThatThrownBy(() -> runInCancelledTask(context, entry)).isInstanceOf(LeanCancellationException.class);
+        assertThatThrownBy(() -> runInCancelledTask(context, entry))
+                .isInstanceOf(LeanCancellationException.class)
+                .isInstanceOf(CheckpointCancellation.class)
+                .hasNoCause();
     }
 
     private static void runInCancelledTask(MultiTaskContext context, AdapterEntry entry) throws Exception {

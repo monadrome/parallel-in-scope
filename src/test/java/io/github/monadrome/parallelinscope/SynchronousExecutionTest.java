@@ -696,10 +696,12 @@ class SynchronousExecutionTest {
         CountDownLatch diagnosed = new CountDownLatch(1);
         Exception closeFailure = new Exception("late close failure");
         AtomicReference<Throwable> logged = new AtomicReference<>();
+        AtomicReference<java.util.logging.Level> level = new AtomicReference<>();
         java.util.logging.Handler handler = new java.util.logging.Handler() {
             @Override
             public void publish(java.util.logging.LogRecord record) {
                 if (record.getMessage().contains("'resource' failed after cancellation")) {
+                    level.set(record.getLevel());
                     logged.set(record.getThrown());
                     diagnosed.countDown();
                     throw new AssertionError("broken handler");
@@ -730,6 +732,7 @@ class SynchronousExecutionTest {
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(Verify.verifyNotNull(logged.get())).isInstanceOf(InterruptedException.class);
             assertThat(Verify.verifyNotNull(logged.get()).getSuppressed()).containsExactly(closeFailure);
+            assertThat(level.get()).isEqualTo(java.util.logging.Level.WARNING);
             assertThat(result.bodyCompletionConfirmed()).isTrue();
         } finally {
             logger.removeHandler(handler);
@@ -745,10 +748,12 @@ class SynchronousExecutionTest {
                 ? new InterruptedException("resource close did not finish")
                 : new java.util.concurrent.CancellationException("resource close did not finish");
         AtomicReference<Throwable> logged = new AtomicReference<>();
+        AtomicReference<java.util.logging.Level> level = new AtomicReference<>();
         java.util.logging.Handler handler = new java.util.logging.Handler() {
             @Override
             public void publish(java.util.logging.LogRecord record) {
                 if (record.getMessage().contains("'resource' failed after cancellation")) {
+                    level.set(record.getLevel());
                     logged.set(record.getThrown());
                     diagnosed.countDown();
                 }
@@ -784,6 +789,7 @@ class SynchronousExecutionTest {
             assertThat(result.bodyCompletionConfirmed()).isTrue();
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(logged.get()).isSameAs(closeFailure);
+            assertThat(level.get()).isEqualTo(java.util.logging.Level.WARNING);
         } finally {
             logger.removeHandler(handler);
         }

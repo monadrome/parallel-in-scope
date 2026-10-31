@@ -42,14 +42,13 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 }, options);
 ```
 
-Prefer the no-argument `Checkpoints.checkpoint()`: it checks the current scope unconditionally and cannot go stale across a rename. The named `checkpoint(taskName, lean)` still validates the current task's name and throws `IllegalStateException` on a mismatch (a typo, a stale name, or a call outside any scoped task) instead of silently skipping the safety check; its `lean=false` form throws the standard `CancellationException` with a stack trace for diagnostics.
+Use the no-argument `Checkpoints.checkpoint()`: it checks the current scope unconditionally, needs no task name, and cannot go stale across a rename.
 
-The three checkpoint forms differ in what they do **outside** any scoped task:
+The two checkpoint forms differ in what they do **outside** any scoped task:
 
 | Checkpoint | Outside a scoped task | When cancelled |
 |---|---|---|
 | `Checkpoints.checkpoint()` | Silent no-op | Throws `LeanCancellationException` |
-| `Checkpoints.checkpoint(taskName, lean)` | Throws `IllegalStateException` | `lean=true`: `LeanCancellationException`; `lean=false`: `CancellationException` with a stack trace |
 | `Checkpoints.rawCheckpoint()` | Works — no scope required; also honors the thread's interrupt flag | Throws `LeanCancellationException` |
 
 `rawCheckpoint()` translates an observed interrupt but does not consume it: the interrupt flag stays set for the thread owner, matching the blocking adapters in the same class.
@@ -59,7 +58,6 @@ Two utilities round out the API:
 | Method | Purpose |
 |---|---|
 | `Checkpoints.remaining()` | Read the current scoped task's remaining budget (`Optional<Duration>`); empty outside a scoped task, `Duration.ZERO` once the deadline has elapsed, and exactly `Duration.ofNanos(Long.MAX_VALUE)` when the scope has no deadline. Read-only: it never throws, never cancels, and does not touch the interrupt flag. |
-| `Checkpoints.sleep(millis)` | Sleep while converting interruption into a cancellation exception |
 | `Checkpoints.propagateCancellation(ex)` | Re-throw cancellation exceptions from a catch block |
 
 `remaining()` lets a task body hand its real budget to a downstream call instead of a separately configured timeout:
@@ -102,21 +100,44 @@ This example degrades recoverable I/O failures only; cancellation exceptions esc
 not restore the flag for an ordinary `InterruptedException`: a Function must restore and translate
 that exception with its original cause, as above. A group member's Callable can throw it directly.
 
-## Replace `Thread.sleep()` with `Checkpoints.sleep()`
+## Replace `Thread.sleep()` with `Checkpoints.checkSleep()`
 
-Inside a `Par` task body, always use `Checkpoints.sleep()` instead of `Thread.sleep()`:
+Inside a `Par` task body, use `Checkpoints.checkSleep()` instead of `Thread.sleep()`:
 
 ```java
 // not recommended
 Thread.sleep(1000);  // you must handle InterruptedException yourself
 
 // recommended
-Checkpoints.sleep(1000);  // converts the interruption for you
+Checkpoints.checkSleep(1000, TimeUnit.MILLISECONDS);  // converts the interruption for you
+Checkpoints.checkSleep(Duration.ofSeconds(1));        // same, with a Duration
 ```
 
-`Checkpoints.sleep()` uniformly converts `InterruptedException` into `LeanCancellationException`,
+`Checkpoints.checkSleep()` uniformly converts `InterruptedException` into `LeanCancellationException`,
 so interruption-driven and cooperative cancellation surface as the same exception type, and a normal
 cancellation does not collect a useless stack trace.
+
+## Logging after cancellation
+
+When cancellation has already settled a task, a body that then exits by throwing has no result
+left to carry; the engine logs it from the `ExecutionPhaseHintFuture` logger as
+`task '<name>' failed after cancellation`, with the original exception. The level depends on where
+the exception came from, never on its type:
+
+| Late exception, no suppressed exceptions | Level |
+|---|---|
+| Thrown by a `Checkpoints` call that read the committed cancellation | `FINE` |
+| A raw `InterruptedException` from a JDK blocking call that the engine's cancellation interrupt woke on this run | `FINE` |
+| Anything else: your own `CancellationException` or `LeanCancellationException`, a wrapped one, an `InterruptedException` the engine did not cause, or any business failure | `WARNING` |
+
+Any late exception carrying a suppressed exception, typically a failing `close()` in
+try-with-resources, stays a `WARNING` with the suppressed failure attached. The log level never
+changes the result: read cancellation counts from `outcomeCounts()` or `TaskOutcome`, not from
+the number of warnings.
+
+A `Checkpoints` blocking adapter interrupted while the scope is not cancelled throws the same
+`LeanCancellationException` type with the `InterruptedException` as cause, and the task's outcome is
+`USER_FAILURE`: an interrupt alone does not say who sent it.
 
 ## Cancellation sources
 

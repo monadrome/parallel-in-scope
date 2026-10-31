@@ -5,7 +5,7 @@
 
 > 本文定义 parallel-in-scope 的**扩展边界**：用户如何在不破坏结构化并发语义的前提下，给任务体加上自己的横切能力（MDC、追踪、指标、重试），以及哪些对象归库、哪些归用户。
 > 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
-> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务体本身（§10 含暂缓理由与重开条件）。** TTL 包装器检测与 L8 守卫已落地（2026-09-25，见 §6 落地记录）。
+> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务体本身（§10 含暂缓理由与重开条件）。** TTL 包装器检测与 L8 守卫已落地（见 §6 落地记录）。
 
 ## 0. 一句话结论
 
@@ -244,7 +244,7 @@ global.group("retry", Duration.ofSeconds(5))
         .typedValues();
 ```
 
-## 6. TTL 包装器检测（已落地 2026-09-25，见下方落地记录）
+## 6. TTL 包装器检测（已落地，见下方落地记录）
 
 草案快照（告警位置与文案以落地记录为准）：
 
@@ -266,7 +266,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 - Guava 的 `WrappingExecutorService` 是包私有且无公开解包入口，因此**只修 TTL 一侧**；
 - **身份不跟着解包**：`ExecutorIdentity` 仍按注册对象（见其 javadoc 的理由），否则同一物理池以两个对象注册会被合并，改变执行器图语义。
 
-> **落地记录（2026-09-25，提交 `fa5f303`）**：新增
+> **落地记录（提交 `fa5f303`）**：新增
 > `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`，
 > blocking-risk 分类、饥饿判定、`rejectEnqueue` 生效判定、purge 绑定、注册期「看不透」告警
 > 全部改读解包对象；身份仍按注册对象。实测根模块 644/644、demo 54/54 全绿，新增 3 条回归测试。
@@ -347,7 +347,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 | 方案 | 否决理由 |
 |---|---|
-| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（2026-09-26 拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
+| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（维护者拍板）**。语义上无新能力：任务体本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务体的提交路径 |
 | executor 包装 SPI | JDK 的 `ExecutorService` 已是扩展点；再加一层只会让身份、内省与上下文范围问题更隐蔽（P9–P11） |
 | future 级包装 | 破坏 phase/取消/身份（P7）；future 级能力应进库扩展 |
 | 关闭/替换上下文包装的开关 | 直接破 I1（P14） |
@@ -357,7 +357,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 
 ## 11. 落地状态
 
-1. ~~TTL 包装器检测~~——已落地（2026-09-25，见 §6 落地记录）；
+1. ~~TTL 包装器检测~~——已落地（见 §6 落地记录）；
 2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md`——文档定稿（零 SPI 方向）；CHANGELOG 已记上述检测与 L8 两条修复；
 3. 用户文档（中英）：自助包装守则与范例（§5）、观测快照指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
 

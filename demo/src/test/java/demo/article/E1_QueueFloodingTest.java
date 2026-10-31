@@ -111,7 +111,7 @@ class E1_QueueFloodingTest {
                         int cur = concurrency.incrementAndGet();
                         maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
                         try {
-                            Checkpoints.sleep(10);
+                            Checkpoints.checkSleep(10, TimeUnit.MILLISECONDS);
                         } finally {
                             concurrency.decrementAndGet();
                         }
