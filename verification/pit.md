@@ -1,8 +1,9 @@
 # PIT verification
 
 This is the execution and acceptance policy for mutation verification. Read it
-when changing production behavior, changing tests that supply mutation evidence,
-or investigating PIT results. Build configuration remains in [pom.xml](../pom.xml);
+for executable production changes (including refactors), mutation-relevant test
+or helper changes, toolchain or build/PIT configuration changes, and investigation
+of PIT results. Build configuration remains in [pom.xml](../pom.xml);
 review and delivery rules remain in [AGENTS.md](../AGENTS.md#adversarial-review).
 
 ## Decide applicability and scope

@@ -97,8 +97,10 @@ mvn spotless:apply                     # format Java sources before committing
 For a code change, finish with a green `mvn test`. Documentation-only changes
 do not need Java tests — see
 [AGENTS.md — Verification And Completion](AGENTS.md#verification-and-completion).
-For production behavior or mutation-relevant test changes, follow
-[PIT verification](verification/pit.md) for scope, commands, and result dispositions.
+For executable production changes (including refactors), mutation-relevant test
+or helper changes, and toolchain or build/PIT configuration changes, follow
+[PIT verification](verification/pit.md) for applicability, scope, commands, and
+result dispositions.
 
 ## Commits and pull requests
 
