@@ -17,14 +17,14 @@ import org.junit.jupiter.api.Test;
 /**
  * An interrupt inside the observation-publication barrier is an interrupt, not an elapsed budget.
  *
- * <p>{@code TaskGroup.awaitBodyCompletion} and {@code TaskBatch.awaitBodyCompletion} run three
- * waits under one budget: the body-exit signal, then each future's settlement, then the observation
+ * <p>{@code TaskGroup.awaitExecutionExit} and {@code TaskBatch.awaitExecutionExit} run three
+ * waits under one budget: the execution-exit signal, then each future's settlement, then the observation
  * publication. Both declare {@code throws InterruptedException} and both define {@code false} as
  * "the budget elapsed". Those two statements together mean the later phases may not answer an
  * interrupt with {@code false} — a caller that reads {@code false} as "not done yet, wait longer"
  * would otherwise spin on a thread that has been asked to stop.
  */
-class BodyCompletionBarrierInterruptTest {
+class ExecutionExitBarrierInterruptTest {
 
     @Test
     void anInterruptDuringTheBarrierWaitThrowsRatherThanReportingAnElapsedBudget() {
@@ -34,7 +34,7 @@ class BodyCompletionBarrierInterruptTest {
         Thread.currentThread().interrupt();
         try {
             assertThatThrownBy(() ->
-                            BodyCompletionTracker.awaitSettled(neverSettles, generousBudget, System.nanoTime(), null))
+                            ExecutionExitTracker.awaitSettled(neverSettles, generousBudget, System.nanoTime(), null))
                     .as("an interrupt must not be reported as a budget that elapsed")
                     .isInstanceOf(InterruptedException.class);
         } finally {
@@ -49,7 +49,7 @@ class BodyCompletionBarrierInterruptTest {
         SettableFuture<String> neverSettles = SettableFuture.create();
 
         // A budget that is already spent: the wait has nothing left, which is the real false case.
-        assertThat(BodyCompletionTracker.awaitSettled(neverSettles, 0L, System.nanoTime(), null))
+        assertThat(ExecutionExitTracker.awaitSettled(neverSettles, 0L, System.nanoTime(), null))
                 .isFalse();
         assertThat(Thread.currentThread().isInterrupted()).isFalse();
     }
@@ -59,7 +59,7 @@ class BodyCompletionBarrierInterruptTest {
         SettableFuture<String> settled = SettableFuture.create();
         settled.set("done");
 
-        assertThat(BodyCompletionTracker.awaitSettled(settled, 0L, System.nanoTime(), null))
+        assertThat(ExecutionExitTracker.awaitSettled(settled, 0L, System.nanoTime(), null))
                 .isTrue();
     }
 
@@ -70,7 +70,7 @@ class BodyCompletionBarrierInterruptTest {
         SettableFuture<String> failsDuringTheWait = SettableFuture.create();
         failLater(failsDuringTheWait);
 
-        assertThatThrownBy(() -> BodyCompletionTracker.awaitSettled(
+        assertThatThrownBy(() -> ExecutionExitTracker.awaitSettled(
                         failsDuringTheWait, TimeUnit.SECONDS.toNanos(5), System.nanoTime(), "test observation signal"))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("test observation signal cannot fail");
@@ -82,7 +82,7 @@ class BodyCompletionBarrierInterruptTest {
         failLater(failsDuringTheWait);
 
         // An element future settling exceptionally is an outcome the report describes, not a defect.
-        assertThat(BodyCompletionTracker.awaitSettled(
+        assertThat(ExecutionExitTracker.awaitSettled(
                         failsDuringTheWait, TimeUnit.SECONDS.toNanos(5), System.nanoTime(), null))
                 .isTrue();
     }
@@ -95,7 +95,7 @@ class BodyCompletionBarrierInterruptTest {
         // Deliberate: the wait's question is "is this terminal", and a terminal future answers it
         // without a get(). The cannotFail label guards the waiting path, not a post-hoc audit of an
         // outcome that already landed.
-        assertThat(BodyCompletionTracker.awaitSettled(alreadyFailed, 0L, System.nanoTime(), "test observation signal"))
+        assertThat(ExecutionExitTracker.awaitSettled(alreadyFailed, 0L, System.nanoTime(), "test observation signal"))
                 .isTrue();
     }
 
@@ -116,7 +116,7 @@ class BodyCompletionBarrierInterruptTest {
 
     @Test
     void thePublicBatchAwaitAlsoThrowsRatherThanReportingAnElapsedBudget() throws Exception {
-        // An empty body tracker makes phase one pass at once, so the wait reaches the element-future
+        // An empty execution tracker makes phase one pass at once, so the wait reaches the element-future
         // phase -- which is where the interrupt has to stay an interrupt. Going through the public
         // method matters: pinning only the tracker helper would let a caller re-wrap these calls in
         // the very catch that caused the original defect.
@@ -130,7 +130,7 @@ class BodyCompletionBarrierInterruptTest {
         Thread waiter = new Thread(() -> {
             entered.countDown();
             try {
-                returnedFalse.set(!batch.awaitBodyCompletion(Duration.ofSeconds(30)));
+                returnedFalse.set(!batch.awaitExecutionExit(Duration.ofSeconds(30)));
             } catch (Throwable t) {
                 thrown.set(t);
             }
@@ -168,7 +168,7 @@ class BodyCompletionBarrierInterruptTest {
             Thread waiter = new Thread(() -> {
                 entered.countDown();
                 try {
-                    group.awaitBodyCompletion(Duration.ofSeconds(30));
+                    group.awaitExecutionExit(Duration.ofSeconds(30));
                 } catch (Throwable t) {
                     thrown.set(t);
                 }
@@ -183,7 +183,7 @@ class BodyCompletionBarrierInterruptTest {
             release.countDown();
 
             assertThat(thrown.get())
-                    .as("an interrupt while awaiting group bodies must surface as InterruptedException")
+                    .as("an interrupt while awaiting group executions must surface as InterruptedException")
                     .isInstanceOf(InterruptedException.class);
         } finally {
             pool.shutdownNow();

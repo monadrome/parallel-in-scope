@@ -10,10 +10,10 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 
 /**
- * Tells a downstream failure apart from the library cancelling the body that observed it.
+ * Tells a downstream failure apart from the library cancelling the execution that observed it.
  *
- * <p>Fail-fast, a batch or group deadline, and request cancellation interrupt running bodies. The
- * body then fails with a cancellation-shaped exception that says nothing about the health of the
+ * <p>Fail-fast, a batch or group deadline, and request cancellation interrupt running executions. The
+ * execution then fails with a cancellation-shaped exception that says nothing about the health of the
  * downstream it was calling. Resilience and flow-control libraries must not count such a failure:
  * a circuit breaker would open because siblings were cancelled, a retry would spend the deadline
  * that just expired, and Sentinel's exception statistics would trip a degrade rule.
@@ -58,7 +58,7 @@ public final class Cancellations {
      * <p>Outside a task run by this library the answer is false. The query does not touch the
      * interrupt flag.
      *
-     * @return true when the enclosing batch or group has cancelled this body
+     * @return true when the enclosing batch or group has cancelled this execution
      */
     public static boolean scopeCancelled() {
         try {

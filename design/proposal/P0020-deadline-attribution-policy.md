@@ -20,7 +20,7 @@ TaskGroupResult<Integer, Void> result = runtime.group("load", timeout)
 TaskOutcome outcome = result.resultOf("member").outcome();
 ```
 
-今日同一代码在 token 未提交框架取消时保留 USER_FAILURE，即使 body 恰在预算之后自抛 CE。
+今日同一代码在 token 未提交框架取消时保留 USER_FAILURE，即使执行恰在预算之后自抛 CE。
 候选改后同一代码或许读为 TIMEOUT，但需先证明这是错误模式并选择外部直消、自抛 CE/IE
 与业务 TimeoutException 的边界。若改变监控归因，需要写明迁移路径；目前没有获批规则。
 

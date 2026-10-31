@@ -123,8 +123,8 @@ final class MultiTaskContext {
 
         /**
          * The entry the unit is submitted through: the unit's node takes its executor's identity,
-         * its id as display label, and whether a body blocked on the unit can starve it, and the
-         * unit's bodies report workload measurements under it. Diagnostic and graph state only,
+         * its id as display label, and whether an execution blocked on the unit can starve it, and the
+         * unit's executions report workload measurements under it. Diagnostic and graph state only,
          * never a submission target.
          */
         Resolution executor(Par par) {
@@ -210,7 +210,7 @@ final class MultiTaskContext {
          * as already expired. Where that sum saturates, the deadline is clamped to
          * Deadlines.LATEST_FINITE_DEADLINE: a declared timeout keeps arming its timer and deriving
          * its cleanup budget from the remaining deadline instead of turning into the sentinel,
-         * which arms no timer and waits for no body exit. A clock reading already at that latest
+         * which arms no timer and waits for no execution exit. A clock reading already at that latest
          * deadline leaves the clamped deadline expired; no real nanoTime() gets there.
          */
 

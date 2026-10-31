@@ -89,7 +89,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
          * A batch shares one token across its elements, and an element's own failure commits that
          * token's FAIL_FAST through the bind's aggregate listener on the same delegate. Reading the
          * token later — when the batch freezes — would let that commit reattribute the element that
-         * caused it: a body that raised its own java.util.concurrent.CancellationException or
+         * caused it: an execution that raised its own java.util.concurrent.CancellationException or
          * InterruptedException reads TaskOutcome.USER_FAILURE while the token is still running and
          * TaskOutcome.FAIL_FAST once its own failure committed the cascade. The pin fixes the read
          * to completion time, the moment a group member is classified in TaskGroup.memberCompleted.

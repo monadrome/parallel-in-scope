@@ -61,16 +61,16 @@ class ExecutionPhaseHintFutureInlineTest {
 
     @Test
     void thePhaseHintReachesTerminalAfterAFailureThatLosesToCancellation() throws Exception {
-        CountDownLatch bodyStarted = new CountDownLatch(1);
+        CountDownLatch executionStarted = new CountDownLatch(1);
         CountDownLatch cancelled = new CountDownLatch(1);
         ExecutionPhaseHintFuture<String> losing = ExecutionPhaseHintFuture.create(() -> {
-            bodyStarted.countDown();
+            executionStarted.countDown();
             cancelled.await(5, TimeUnit.SECONDS);
             throw new IllegalStateException("too late");
         });
         Thread runner = new Thread(losing::run);
         runner.start();
-        assertThat(bodyStarted.await(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(executionStarted.await(2, TimeUnit.SECONDS)).isTrue();
         losing.cancel(true);
         cancelled.countDown();
         runner.join(5000L);

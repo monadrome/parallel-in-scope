@@ -73,7 +73,7 @@ final class ExecutorRuntime {
     }
 
     /**
-     * Whether a task body on this executor can be starved of a thread while it blocks on a child
+     * Whether a task execution on this executor can be starved of a thread while it blocks on a child
      * task's result.
      *
      * <p>{@code false} for executors whose queue cannot be read: no fact, no claim.
@@ -117,7 +117,7 @@ final class ExecutorRuntime {
          * never runs a task inline, while a foreign executor that always does answers false. What
          * the type does establish is an implication callers can rely on — a TPE dispatches to a
          * worker or throws, so the only path by which a submitted task reaches the caller's own
-         * stack is its java.util.concurrent.RejectedExecutionHandler. For such a pool, "the body
+         * stack is its java.util.concurrent.RejectedExecutionHandler. For such a pool, "the execution
          * ran on the submitting thread" and "a rejection handler ran it" are therefore the same
          * fact.
          *
@@ -125,7 +125,7 @@ final class ExecutorRuntime {
          * for anything else. An executor that always runs inline — MoreExecutors.directExecutor()
          * and friends — is expressing its whole contract rather than a symptom of load, and it was
          * chosen explicitly by whoever registered it; acting on that signal would break a
-         * documented allowance (see CombineBody) on the strength of an observation that carries no
+         * documented allowance (see Combiner) on the strength of an observation that carries no
          * information.
          */
 

@@ -61,7 +61,7 @@ class ResilientCallTest {
         assertThat(batch.outcomeCounts())
                 .containsEntry(TaskOutcome.USER_FAILURE, 1)
                 .containsEntry(TaskOutcome.FAIL_FAST, 3);
-        assertThat(batch.bodyCompletionConfirmed()).isTrue();
+        assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
         assertThat(breaker.getMetrics().getNumberOfBufferedCalls()).isEqualTo(1);
         assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
@@ -123,7 +123,7 @@ class ResilientCallTest {
 
         assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
         assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(batch.bodyCompletionConfirmed()).isTrue();
+        assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(attempts).hasValue(1);
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
     }
@@ -157,7 +157,7 @@ class ResilientCallTest {
                         .closeGrace(Duration.ofSeconds(2)));
 
         assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-        assertThat(batch.bodyCompletionConfirmed()).isTrue();
+        assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(attempts).hasValue(1);
     }
 

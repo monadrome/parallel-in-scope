@@ -121,7 +121,7 @@ class QuoteServiceTest {
     }
 
     @Test
-    void closingTheContextWaitsForBodiesBeforeThePoolsShutDown() throws Exception {
+    void closingTheContextWaitsForExecutionsBeforeThePoolsShutDown() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         AtomicReference<Boolean> poolShutDownAtExit = new AtomicReference<>();
         AtomicReference<ThreadPoolExecutor> downstreamPool = new AtomicReference<>();

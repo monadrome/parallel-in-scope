@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
  * Terminal computation of one group run, executed at most once after every plain member has
  * succeeded.
  *
- * <p>The body receives the group's assembled member values: the single member's value for a
+ * <p>The combiner receives the group's assembled member values: the single member's value for a
  * one-member group, or left-nested {@link Tuple2} values for larger groups. Successful member
  * values may be null. {@link GroupStep#combineValues} instead supplies a {@link GroupValues} view
  * for typed key lookup. The input exposes values, not task handles for cancellation or
@@ -18,11 +18,11 @@ import org.jspecify.annotations.Nullable;
  * TaskOutcome#SUBMISSION_FAILURE}. For a recognized {@link
  * java.util.concurrent.ThreadPoolExecutor}, execution on the submitting thread during the handoff,
  * including a saturated {@code CallerRunsPolicy} fallback, is also rejected without entering the
- * body. Such a pool remains usable when it dispatches normally. Direct executors retain their
+ * execution. Such a pool remains usable when it dispatches normally. Direct executors retain their
  * inline behavior. Custom executors and handlers may reroute work, so registration does not
- * guarantee ownership of the physical thread that executes the body.
+ * guarantee ownership of the physical thread that executes the combiner.
  *
- * <p>The body may capture this run's request and must compute from the member values and those
+ * <p>The execution may capture this run's request and must compute from the member values and those
  * captures. The framework schedules it after the last successful member; the caller need not
  * orchestrate it. The synchronous {@code runAll} waits for its terminal result and attempts bounded
  * cleanup before returning.
@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  * @since 0.3.0
  */
 @FunctionalInterface
-public interface CombineBody<V, R> {
+public interface Combiner<V, R> {
 
     /**
      * Computes the terminal value from the successful member values.

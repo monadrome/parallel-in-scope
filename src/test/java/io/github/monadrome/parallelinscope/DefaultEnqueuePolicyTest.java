@@ -50,7 +50,7 @@ class DefaultEnqueuePolicyTest {
                             BatchOptions.timeout("b", Duration.ofSeconds(30)))
                     .valuesOrThrow();
 
-            // Every body ran on a pool worker. With the old defaults the queue refused all 12, the
+            // Every execution ran on a pool worker. With the old defaults the queue refused all 12, the
             // pool saturated at its two threads, and the remaining ten ran on the caller.
             //
             // The thread names are the whole assertion. getCompletedTaskCount() is not used: a worker
@@ -67,7 +67,7 @@ class DefaultEnqueuePolicyTest {
 
     /**
      * A task type is a diagnostic declaration: declaring {@link TaskType#COMPUTE} must not refuse
-     * the queue, so every body still runs on a pool worker.
+     * the queue, so every execution still runs on a pool worker.
      */
     @Test
     void declaringComputeAloneStillEnqueuesOntoASmartQueue() throws Exception {

@@ -130,7 +130,7 @@ class ScopedTaskContractTest {
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void aDirectExecutorRunsTheBodyOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
+    void aDirectExecutorRunsTheExecutionOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = global(direct);
         try {

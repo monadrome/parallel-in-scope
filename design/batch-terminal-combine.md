@@ -1,6 +1,6 @@
 # 批次终端汇总（Par.mapAndCombine）契约
 
-`Par.mapAndCombine(elements, function, options, combinePar, combineBody)`：有限同构批次携带
+`Par.mapAndCombine(elements, function, options, combinePar, combiner)`：有限同构批次携带
 **一个**终端汇总任务。Batch 与 Group 的边界不变——批次侧不是角色枚举化的超集，组契约见
 [task-group-terminal-combine.md](task-group-terminal-combine.md)。本文只约束批次汇总的机制不变量。
 
@@ -13,7 +13,7 @@
 - MUST：汇总恰好在全部元素成功后提交一次（一次性门闩 + future 终态检查 + phase claim 三层），
   只在那一刻提交到 combinePar；任一元素失败、取消或 deadline 先到时，汇总不运行且终态为
   取消（沿用批次归因），提交被拒为 SUBMISSION_FAILURE。
-- MUST：汇总体是 `CombineBody<List<@Nullable E>, C>`，按输入顺序接收元素成功值；成功的
+- MUST：汇总体是 `Combiner<List<@Nullable E>, C>`，按输入顺序接收元素成功值；成功的
   null 元素以 null 条目出现，元素级可空必须写在签名上（JSpecify 感知的使用者据此做空值
   检查）；checked 异常记 USER_FAILURE 并保留原 cause。
 - MUST：汇总有自己的 MultiTaskContext（批次 unit 的结构子节点、取消子 token）。执行器等待按「谁等待谁」
@@ -22,8 +22,8 @@
   会被误报为 executor 自环。caller 对汇总的等待 MUST 记录：调用方同步等待汇总，汇总回到调用方自己的饥饿型
   池就是真实的 executor 自环。MUST NOT 伪造 group 成员关系或任意 DAG。汇总子 token 不做独立 bind——deadline 与级联由批次 token 承担，
   与 deadline 相等的组成员跳过 bind 的规则同源。
-- MUST：滑窗上界、closeGrace 有界清理与 body-exit 追踪覆盖元素与汇总（tracker 槽位 N+1）；
-  冻结结果同时保留元素 `TaskBatchResult`、汇总 `ImmediateResult`、汇总终态观测与未完成 body
+- MUST：滑窗上界、closeGrace 有界清理与执行-exit 追踪覆盖元素与汇总（tracker 槽位 N+1）；
+  冻结结果同时保留元素 `TaskBatchResult`、汇总 `ImmediateResult`、汇总终态观测与未完成执行
   诊断。
 - MUST NOT：空输入（null 或空集合）不允许——零元素没有可汇总的 fan-out，与空组带 combine
   一致地拒绝；空批次用 `Par.map`。

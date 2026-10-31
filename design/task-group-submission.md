@@ -41,8 +41,8 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
   runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
   admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。
 - 代价与不变量：close() 从不等待 admission（只在 admission 与批次都排空后才关闭服务），
-  因此 CallerRunsPolicy 内联 body 在 admission 内运行不会引入死锁——awaitQuiescence 本来就
-  等待 body 退出；服务关闭只是与既有的排空等待对齐。
+  因此 CallerRunsPolicy 内联执行在 admission 内运行不会引入死锁——awaitQuiescence 本来就
+  等待执行退出；服务关闭只是与既有的排空等待对齐。
 
 本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：声明期没有任何运行状态或执行，提交时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
@@ -63,7 +63,7 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 
 声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
 旧 step、重复提交）抛 `IllegalStateException`；声明参数错误（名称为 null/空白/重复、`Par`
-为 null 或不属于 owner、body/options/key 为 null）
+为 null 或不属于 owner、执行/options/key 为 null）
 按 JDK 惯例抛 `NullPointerException`/`IllegalArgumentException`。
 
 不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。
@@ -74,7 +74,7 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 fail-fast/timeout/cancel 终结的成员尝试一次目标 executor 提交。由于 direct executor 可以
 inline 执行，执行期间部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的执行，并且不得执行任何用户 callable。
 
 ### 7.3 Prepared single-task submission
 
@@ -129,7 +129,7 @@ mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批�
 | `ParRuntime.timeoutScheduler()` | Group/member deadline |
 | `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
 | `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk |
-| `ScopedCallable` | current task、checkpoint、计时、body exit 发布、恢复 |
+| `ScopedCallable` | current task、checkpoint、计时、执行 exit 发布、恢复 |
 | `TaskExecutionContext` | 单成员任务执行身份与 timing |
 | `SubmissionScope` | 一次 executor submission 的队列策略 |
 | `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |

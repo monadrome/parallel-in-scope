@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * Immutable snapshot of the executor waits-for structure a {@link ParRuntime} has observed.
  *
- * <p>An executor waits for another when a task body running on the first synchronously waits — in
+ * <p>An executor waits for another when a task execution running on the first synchronously waits — in
  * {@code Par.map}, {@code Par.mapAndCombine}, or a task group's {@code runAll()} — for work on the
  * second, and the second is starvation-prone: it parks a submission in its queue behind busy
  * workers instead of growing or rejecting. A cycle of such waits, an executor waiting on itself
@@ -24,7 +24,7 @@ import java.util.Set;
  * happened at the same time, and a pool with headroom may never actually starve; an empty report
  * says nothing about waits the library cannot see — external futures not adopted with a producer,
  * direct executor submissions, locks, unregistered or opaque executors, or other runtimes. A wait is
- * attributed to the executor its unit was submitted to; when a body runs inline on a borrowed
+ * attributed to the executor its unit was submitted to; when an execution runs inline on a borrowed
  * thread, the blocked thread may belong to another pool.
  *
  * <p>Reports are created only by the library; read the current one with {@link

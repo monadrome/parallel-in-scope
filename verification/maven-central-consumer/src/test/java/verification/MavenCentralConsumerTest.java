@@ -99,7 +99,7 @@ class MavenCentralConsumerTest {
             assertEquals(TaskOutcome.USER_FAILURE, failed.outcome());
             assertTrue(never.isCancelled());
             assertEquals(1, closed.get());
-            assertTrue(failed.bodyCompletionConfirmed());
+            assertTrue(failed.executionExitConfirmed());
         } finally {
             executor.shutdownNow();
         }
@@ -137,9 +137,9 @@ class MavenCentralConsumerTest {
     }
 
     /**
-     * Always-on workload-fit screening times every body admitted through an entry declared
+     * Always-on workload-fit screening times every execution admitted through an entry declared
      * {@code COMPUTE} with thread CPU time. Screening drops its own failures, so a CPU-time path that
-     * breaks on the Java 8 runtime shows up only here, as unmeasured or missing bodies.
+     * breaks on the Java 8 runtime shows up only here, as unmeasured or missing executions.
      */
     @Test
     void computeEntryIsScreenedWithThreadCpuTimeOnJava8() throws Exception {
@@ -163,10 +163,10 @@ class MavenCentralConsumerTest {
             WorkloadFitReport.ParMeasurement measurement = report.pars().get(0);
             assertEquals(compute, measurement.par());
             assertEquals(TaskType.COMPUTE, measurement.taskType());
-            assertEquals(4L, measurement.bodies());
-            assertEquals(0L, measurement.unmeasuredBodies());
+            assertEquals(4L, measurement.executions());
+            assertEquals(0L, measurement.unmeasuredExecutions());
             assertEquals(1, measurement.units().size());
-            assertEquals(4L, measurement.units().get(0).bodies());
+            assertEquals(4L, measurement.units().get(0).executions());
             assertFalse(measurement.issue());
             assertFalse(report.anyIssue());
         } finally {
@@ -176,7 +176,7 @@ class MavenCentralConsumerTest {
 
     /**
      * Exercises the deepest generic inference the public API asks of a consumer: a three-member
-     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose body
+     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose execution
      * destructures that nest inside a lambda, and typed lookups. This runs under a real JDK 8
      * compiler in CI, which is where the nesting is most likely to break.
      */
@@ -284,7 +284,7 @@ class MavenCentralConsumerTest {
             assertEquals(Integer.valueOf(12), combined.terminalValueOrThrow());
             assertEquals(TaskOutcome.SUCCESS, combined.terminalResult().outcome());
             assertEquals(3, combined.batchResult().results().size());
-            assertTrue(combined.bodyCompletionConfirmed());
+            assertTrue(combined.executionExitConfirmed());
 
             // A failed element leaves the terminal cancelled without running the combine.
             BatchOptions failing = BatchOptions.timeout("combine-fail-fast", Duration.ofSeconds(5));
@@ -317,7 +317,7 @@ class MavenCentralConsumerTest {
         try {
             Par par = runtime.par(CONSUMER);
             // A successful null element value arrives as a null entry: the combine input is
-            // CombineBody<List<@Nullable E>, C>, so the body null-checks each entry.
+            // Combiner<List<@Nullable E>, C>, so the execution null-checks each entry.
             io.github.monadrome.parallelinscope.BatchCombinedResult<String, Integer> combined =
                     par.mapAndCombine(
                             Arrays.asList("a", "b", "c"),
@@ -426,9 +426,9 @@ class MavenCentralConsumerTest {
                                         .taskType(TaskType.BLOCKING));
                         innerResult.set(nested);
                         innerReturned.countDown();
-                        // Stay in the body until the test releases it, swallowing the interrupt the
+                        // Stay in the execution until the test releases it, swallowing the interrupt the
                         // deadline delivers: the outer element must end cancelled by the deadline,
-                        // not by the body racing it with an exception of its own.
+                        // not by the execution racing it with an exception of its own.
                         awaitUninterruptibly(releaseOuter);
                         return outerValue;
                     },

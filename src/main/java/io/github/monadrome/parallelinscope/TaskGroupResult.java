@@ -21,10 +21,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Frozen outcome, typed results, and available final observations of a synchronous group.
  *
- * <p>Accessors never wait. A terminal result can coexist with a body still unwinding after
- * cancellation; bodyCompletionConfirmed checks direct members, the combine, and adopted sources,
+ * <p>Accessors never wait. A terminal result can coexist with an execution still unwinding after
+ * cancellation; executionExitConfirmed checks direct members, the combine, and adopted sources,
  * not nested children.
- * Nested calls must separately confirm exit before releasing resources their bodies share. Missing
+ * Nested calls must separately confirm exit before releasing resources their executions share. Missing
  * final observations are omitted, never filled with provisional end times.
  *
  * @param <V> single member value or left-nested Tuple2 of member values
@@ -41,7 +41,7 @@ public final class TaskGroupResult<V, R> {
     private final ImmediateResult<GroupValues<V>> values;
     private final @Nullable ImmediateResult<R> terminalResult;
     private final @Nullable TaskCompletion<?> terminal;
-    private final Map<String, Integer> unfinishedBodies;
+    private final Map<String, Integer> unexitedExecutions;
 
     TaskGroupResult(
             TaskGroupReport report,
@@ -52,7 +52,7 @@ public final class TaskGroupResult<V, R> {
             ImmediateResult<GroupValues<V>> values,
             @Nullable ImmediateResult<R> terminalResult,
             @Nullable TaskCompletion<?> terminal,
-            Map<String, Integer> unfinishedBodies) {
+            Map<String, Integer> unexitedExecutions) {
         this.report = report;
         this.names = names;
 
@@ -62,7 +62,7 @@ public final class TaskGroupResult<V, R> {
         this.values = values;
         this.terminalResult = terminalResult;
         this.terminal = terminal;
-        this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
+        this.unexitedExecutions = ImmutableMap.copyOf(unexitedExecutions);
     }
 
     /**
@@ -91,8 +91,8 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * The {@link System#nanoTime()} reading taken when the group converged on its outcome: every
-     * member and the combine had a terminal result. Result convergence is independent of task-body
-     * exit; see {@link #bodyCompletionConfirmed()}.
+     * member and the combine had a terminal result. Result convergence is independent of task execution
+     * exit; see {@link #executionExitConfirmed()}.
      */
     public long endTimeNanos() {
         return report.endTimeNanos();
@@ -170,27 +170,27 @@ public final class TaskGroupResult<V, R> {
     }
 
     /**
-     * Whether every direct task body — each member's and the combine's — had exited, or was
+     * Whether every direct task execution — each member's and the combine's — had exited, or was
      * atomically prevented from starting, when {@code runAll} returned. A cancelled member's result
-     * can be terminal while its body is still unwinding, so check this before releasing a resource
-     * the bodies share. Bodies of nested calls made inside them are not covered. An adopted member
+     * can be terminal while its execution is still unwinding, so check this before releasing a resource
+     * the executions share. Executions of nested calls made inside them are not covered. An adopted member
      * occupies one exit slot connected as already run: confirmation also means every adopted source
      * settled and, with a declared closer, each discarded value's closer finished running — a
      * closer failure is logged and does not change confirmation, so a confirmed value is not
      * guaranteed to have been released.
      */
-    public boolean bodyCompletionConfirmed() {
-        return unfinishedBodies.isEmpty();
+    public boolean executionExitConfirmed() {
+        return unexitedExecutions.isEmpty();
     }
 
     /**
-     * The direct task bodies whose exit was not confirmed when {@code runAll} returned, counted by
-     * task name; empty exactly when {@link #bodyCompletionConfirmed()} is true. A source that
+     * The direct task executions whose exit was not confirmed when {@code runAll} returned, counted by
+     * task name; empty exactly when {@link #executionExitConfirmed()} is true. A source that
      * ignores cancellation keeps its adopted member's slot waiting and is counted here under the
      * member's declared name.
      */
-    public Map<String, Integer> unfinishedBodies() {
-        return unfinishedBodies;
+    public Map<String, Integer> unexitedExecutions() {
+        return unexitedExecutions;
     }
 
     /** All member values on group success; failure includes failure of the declared combine. */

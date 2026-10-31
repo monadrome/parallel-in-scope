@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Locks the inline guard's behavior when work nests: a combine body that opens another group or
+ * Locks the inline guard's behavior when work nests: a combiner that opens another group or
  * batch, and a combine whose own {@code Par} is the one the nested work runs on.
  *
  * <p>The guard compares the executing thread against the thread still inside {@code
@@ -37,9 +37,9 @@ class TaskGroupCombineNestedGuardTest {
     }
 
     @Test
-    void aCombineBodyMayRunANestedBatchOnItsOwnPar() throws Exception {
+    void aCombinerMayRunANestedBatchOnItsOwnPar() throws Exception {
         // The outer combine runs on a combine-worker and submits a batch to the very same Par from
-        // inside its body. The outer combine's handoff window closed long before, so nothing about
+        // inside its execution. The outer combine's handoff window closed long before, so nothing about
         // the outer submission may leak into the judgement of the inner one — and the inner elements
         // carry no guard at all, since the guard is only ever set on a combine.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
@@ -89,7 +89,7 @@ class TaskGroupCombineNestedGuardTest {
     @Test
     void aNestedGroupsCombineIsJudgedByItsOwnHandoffNotTheOuterOne() throws Exception {
         // Two combines, one inside the other, on two different Pars. The inner group is declared and
-        // submitted from inside the outer combine's body, so the inner combine's submitting thread is
+        // submitted from inside the outer combine's execution, so the inner combine's submitting thread is
         // the outer combine's worker. Both must succeed: neither combine ran inside its own handoff.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
         ThreadPoolExecutor outerCombinePool = saturatingPool("outer-combine");

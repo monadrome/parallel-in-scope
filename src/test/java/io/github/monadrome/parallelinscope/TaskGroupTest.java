@@ -257,7 +257,7 @@ class TaskGroupTest {
             assertThat(result.failedTaskName()).isEqualTo("rejected");
             assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
                     .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            // The rejected body never ran and its holder was released with the rejection.
+            // The rejected execution never ran and its holder was released with the rejection.
             assertThat(group.callableReleased("rejected")).isTrue();
         } finally {
             global.close();
@@ -298,11 +298,11 @@ class TaskGroupTest {
      * The default for every member type: a rejected member fails without entering user code.
      */
     @Test
-    void rejectedCpuMemberFailsWithoutRunningItsBodyByDefault() throws Exception {
+    void rejectedCpuMemberFailsWithoutRunningItsExecutionByDefault() throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("reject"), rejecting).build();
-        AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
+        AtomicReference<Boolean> executionRan = new AtomicReference<>(false);
         try {
             TaskGroupReport result = global.groupDraft("rejected-member", TIMEOUT)
                     .par(
@@ -310,7 +310,7 @@ class TaskGroupTest {
                             global.par(ParId.of("reject")),
                             TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.COMPUTE),
                             () -> {
-                                bodyRan.set(true);
+                                executionRan.set(true);
                                 return 1;
                             })
                     .submitAll()
@@ -320,7 +320,7 @@ class TaskGroupTest {
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
                     .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(bodyRan.get()).isFalse();
+            assertThat(executionRan.get()).isFalse();
         } finally {
             global.close();
             rejecting.shutdownNow();

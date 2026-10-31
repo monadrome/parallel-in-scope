@@ -170,7 +170,7 @@ public class CancellationPropagationCartesianTest {
             return new ChildFixture(raw, entered, release, interrupted, future);
         }
 
-        /** Waits until running child work enters its body. */
+        /** Waits until running child work enters its execution. */
         private void awaitEntry() throws InterruptedException {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
         }

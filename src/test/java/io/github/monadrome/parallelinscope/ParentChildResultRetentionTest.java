@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
  * Reference-retention contract between a running parent scope and its completed child scopes: the
  * parent's cancellation listener must not keep child business results alive.
  *
- * <p>A parent body that loops over child scopes, consuming and discarding each page of results,
+ * <p>A parent execution that loops over child scopes, consuming and discarding each page of results,
  * used to retain every historical child result through the parent token's listener list until the
  * parent token itself finished. Retention must instead track the currently active child scopes,
  * not the history of successful ones.
@@ -94,7 +94,7 @@ class ParentChildResultRetentionTest {
 
     /**
      * The severable link must stay live while the child scope is running: cancelling the parent
-     * token from outside still propagates into a child scope whose body has not finished.
+     * token from outside still propagates into a child scope whose execution has not finished.
      */
     @Test
     void parentCancelWhileChildScopeRunsStillPropagates() throws Exception {

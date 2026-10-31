@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
  * cause.
  *
  * <p><b>Cancellation acknowledgement.</b> An exception thrown after this class reads the current
- * token as committed, including the deadline backstop above, is the body's acknowledgement of that
+ * token as committed, including the deadline backstop above, is the execution's acknowledgement of that
  * cancellation. The task's outcome is attributed from the token, never from the exception. When
  * the task's future has already settled as cancelled, the execution engine records an
  * acknowledgement that carries no suppressed exceptions at {@link java.util.logging.Level#FINE}

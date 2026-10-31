@@ -25,9 +25,7 @@
 | 运行中如何响应取消与中断 | 任务代码（task code） | 库只发出协作请求，不能强制停止任意代码（§5.1） |
 | 线程中断标志的政策 | 线程所有者，及其通过接口契约委托的执行边界 | 普通库方法不能代替调用方决定中断含义（P2） |
 
-**任务代码（task code）** 指用户交给 `Par` / `TaskGroup` 执行的代码。它的一次执行在内核与公开
-API 中称为 body（如 `bodyCompletionConfirmed()`、`awaitBodyCompletion`）：任务代码是职责归属，
-body 是可观测的执行事实。
+**任务代码（task code）** 指用户交给 `Par` / `TaskGroup` 执行的代码，是取消与中断响应的职责归属。**执行（execution）** 是任务代码的一次运行，`executionExitConfirmed()`、`awaitExecutionExit` 等 API 确认的是执行退出。**Task** 是调用方可见的 future 句柄。三者不能互相代替；执行退出不暗示成功、失败、取消、句柄落定、资源释放或嵌套执行已退出（`proposal:P0035`）。
 
 ### 1.3 四条原则
 
@@ -38,7 +36,7 @@ body 是可观测的执行事实。
 
 **P2. 策略归有明确职责的所有者。** 线程所有者及其通过接口契约委托的执行边界决定如何响应；
 权限不单由“谁调用了线程构造器”决定。执行器可以管理自己 worker 的任务切换和停机策略，
-任务体可以响应取消，普通库方法则不能代替调用方决定中断含义。库的可中断阻塞方法传播
+任务代码可以响应取消，普通库方法则不能代替调用方决定中断含义。库的可中断阻塞方法传播
 `InterruptedException`，不能静默转成布尔答案；不可中断接口必须明确声明其政策及恢复时点。
 
 **P3. 清标志需要契约依据。** 清除只能用于明确的信号传递或消费职责：按阻塞接口约定转交
@@ -55,8 +53,8 @@ body 是可观测的执行事实。
 ### 2.1 取消是语义，中断是机制
 
 `Thread.interrupt()` 是协作请求，不是命令（§5.1）。本库的取消语义由 `CancellationToken`
-承载：取消来源先提交 token 状态，再取消绑定的 future；中断只是让阻塞中的任务体尽快观察到
-取消的手段之一。任务已取消、future 已终态、中断已投递和任务体已退出是四个不同事实，不能
+承载：取消来源先提交 token 状态，再取消绑定的 future；中断只是让阻塞中的任务代码尽快观察到
+取消的手段之一。任务已取消、future 已终态、中断已投递和执行已退出是四个不同事实，不能
 互相替代。归因在收敛时读 token，不从中断标志或异常类型反推来源。
 
 ### 2.2 调用方中断不是取消信号
@@ -64,7 +62,7 @@ body 是可观测的执行事实。
 同步执行入口 `Par.map` / group `runAll` 的执行契约见
 [同步出口契约](synchronous-scope-exit.md) §4：等待结果与有界清理时不响应中断退出，等待结束
 恢复标志；调用线程的中断——无论进入时已带标志还是等待期间收到——不取消执行、不转成结果
-Left、不跳过或重置清理预算。deadline、fail-fast、祖先取消、`cancelOn` 请求来源及任务体
+Left、不跳过或重置清理预算。deadline、fail-fast、祖先取消、`cancelOn` 请求来源及任务代码
 规范保持有效。已完成结果和 `ImmediateResult.asFuture()` 的读取不消费标志。
 `ParRuntime.awaitQuiescence` 仍传播 `InterruptedException`。
 
@@ -87,7 +85,7 @@ Left、不跳过或重置清理预算。deadline、fail-fast、祖先取消、`c
   两套入口。
 - **线程政策归所有者（P2）。** 同步入口在调用方线程上执行，不拥有该线程；把所有者的信号翻译
   成库自己的取消语义，等于替所有者决定中断含义。
-- **同步入口不声明受检异常。** `map` 在 lambda 和嵌套 body 中调用；声明
+- **同步入口不声明受检异常。** `map` 在 lambda 和嵌套执行中调用；声明
   `InterruptedException` 会迫使每个调用点处理一个本库不打算解释的信号。
 
 代价（已接受）：中断调用线程不能提前结束执行；与 JDK 25 `StructuredTaskScope` 不同——后者的
@@ -104,18 +102,18 @@ direct executor、`CallerRunsPolicy` 和自定义拒绝处理器可能借用调�
 任务取消就会与线程所有者的外部中断共享同一标志。单个标志无法同时满足三个目标：
 
 1. 保留 inline 执行，让任务使用这条借来的线程；
-2. 用线程中断解救 inline body 的阻塞，并隔离它留下的任务取消标志；
+2. 用线程中断解救 inline 执行的阻塞，并隔离它留下的任务取消标志；
 3. 完整保留同一期间新投递给线程所有者的外部中断。
 
 本库当前选择按 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)
-隔离任务边界：`ExecutionPhaseHintFuture.run()` 进入时保存并清除标志，任务体退出及中断
+隔离任务边界：`ExecutionPhaseHintFuture.run()` 进入时保存并清除标志，执行退出及中断
 投递握手结束后恢复入口的布尔状态；它覆盖调用方、补窗完成线程和拒绝处理器借用的线程，
 也作用于池化路径。入口为 false 时，退出会清除期间留下的标志，包括新外部中断。
 入口为 true 时，退出会重新置位。用户可见限制见 [使用指南](../docs/en/user-guide.md#interruption-and-cleanup)。
 
 **恢复入口状态不等于保存中断。** 它不同于 §3.3 的“观察过中断就重新置位”，不能把前者
 作为一般库函数的默认模式，也不能把中断当作普通 ThreadLocal 上下文栈式还原。池化路径也
-不能假定此操作是 no-op：执行器在 `beforeExecute` 设置的入口中断会暂时被隐藏，body 看不到。
+不能假定此操作是 no-op：执行器在 `beforeExecute` 设置的入口中断会暂时被隐藏，执行看不到。
 
 这是既有执行政策的边界说明，不改变 ADR 的选择或承诺解决信号归因。若要改变入口清除、
 外部中断保留或 inline 支持范围，需要单独确定执行政策并用后继 ADR 记录；只把清除改成
@@ -138,13 +136,13 @@ direct executor、`CallerRunsPolicy` 和自定义拒绝处理器可能借用调�
   §4），MUST NOT 参与结果或归因。`proposal:P0034`
 
 实现与验证依据见 [runner 中断投递修复](runner-interrupt-delivery.md)。此握手只等待投递结束，
-不等待用户任务体响应取消；任务体结束观测也不等同于线程已完成交接。
+不等待用户任务代码响应取消；任务代码结束观测也不等同于线程已完成交接。
 
 投递失败与接收方响应中断要分开：线程 A 调用 `B.interrupt()` 抛出 `SecurityException`，
 异常发生在 A；它不是 B 的阻塞操作抛出 `InterruptedException`，不能通过给 A 恢复标志
 伪造一个中断。Java 8 的访问检查或自定义线程可以产生这种投递异常。
 
-投递、握手结束、future 完成通知与 body 退出是独立职责。仅在 `finally` 释放投递标记，
+投递、握手结束、future 完成通知与执行退出是独立职责。仅在 `finally` 释放投递标记，
 不能证明 future 的监听器、归因和运行时记账继续执行；失败路径也要核对这些后续步骤。
 OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是完成通知独立于
 投递成败的参考。§3.3 的不可中断等待不能弥补已丢失的完成通知。
@@ -153,7 +151,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
 
 中断处理取决于所在角色及接口契约，不能只按是否出现 `catch` 或 `finally` 判断。
 
-### 3.1 任务体（用户代码，`Callable` 内部）
+### 3.1 任务代码（用户代码，`Callable` 内部）
 
 | 情形 | 做法 |
 |---|---|
@@ -162,7 +160,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
 | 捕获后必须先完成明确的等待或必要清理 | 记录中断；完成或异常退出前恢复，共享原有时间预算（§3.3） |
 | 普通中间层没有继续执行的职责 | 传播或恢复后退出；不能只记日志并继续普通业务操作 |
 
-任务体抛出 `InterruptedException` 是被支持的。任务监督边界把原异常记录到 future，属于执行
+任务代码抛出 `InterruptedException` 是被支持的。任务监督边界把原异常记录到 future，属于执行
 失败的报告，不要求对所有任务异常机械地恢复 worker 标志。取消归因仍以已提交的 token 状态为
 依据：有框架取消时按 token 归因；没有框架取消时，自抛 `InterruptedException` 或
 `CancellationException` 保留 `USER_FAILURE`。异常类型只帮助识别取消形状，不证明来源；见
@@ -182,7 +180,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
   无标记的 `LeanCancellationException`（cause 为原中断），归因仍为 `USER_FAILURE`。
 - 标记只用于迟到失败日志（[同步出口契约](synchronous-scope-exit.md) §4），MUST NOT 参与归因；
   归因结论只来自 token；异常类型只决定这次失败是否交给 token 归因（[取消与归因](task-group-cancellation.md) §8.4.1）。不新增 `TaskOutcome`：确认在落定前还是落定后到达取决于与级联的竞态，
-  新名字会把同一次取消拆成两种结果；body 退出事实已由 `bodyCompletionConfirmed()` 表达。
+  新名字会把同一次取消拆成两种结果；执行退出事实已由 `executionExitConfirmed()` 表达。
 - 公开面不提供把用户异常类型映射为取消的入口（已移除 `checkRunnable` / `checkSupplier`：
   token 未提交时结果仍是 `USER_FAILURE`，方法名承诺的取消不成立），也不提供按名字校验的
   `checkpoint(String, boolean)` 与重复的 `sleep(long)`。
@@ -275,12 +273,12 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 | 1 | 带中断标志读 `TaskFuture.outcome()` | 结论不变、不抛、返回时标志仍在 |
 | 2 | 带中断标志读 `TaskFuture.failure()`（失败任务） | 返回真实 cause、不抛、标志仍在 |
 | 3 | 带中断标志读裸 `Future` 的 `FutureInspector.outcome` | 成功仍读成 `SUCCESS`，不是 `USER_FAILURE` |
-| 4 | direct executor / `CallerRunsPolicy`（任务体 inline 于提交线程）+ 任务体恢复标志 | 提交线程在 `map` 返回后标志为 false |
+| 4 | direct executor / `CallerRunsPolicy`（任务代码 inline 于提交线程）+ 任务代码恢复标志 | 提交线程在 `map` 返回后标志为 false |
 | 4b | 同上，12 元素批次 | **12 个全部执行**，无 `SUBMISSION_FAILURE`（§6 丢任务教训的回归锁） |
 | 4c | 同上，随后调 `reportString()` | 正常返回，不抛（§6 复合缺陷的回归锁） |
-| 5 | 非 inline 路径 + 任务体恢复标志 | 提交线程标志始终为 false（对照锁：防止修复把两条路径改成另一种不一致） |
-| 6 | 任务体抛 `InterruptedException` | 已有框架取消时按 token 归因；无框架取消时为 `USER_FAILURE` |
-| 7 | `awaitBodyCompletion` 在已置标志的线程上调用 | 抛 `InterruptedException` 且标志已清 |
+| 5 | 非 inline 路径 + 任务代码恢复标志 | 提交线程标志始终为 false（对照锁：防止修复把两条路径改成另一种不一致） |
+| 6 | 任务代码抛 `InterruptedException` | 已有框架取消时按 token 归因；无框架取消时为 `USER_FAILURE` |
+| 7 | `awaitExecutionExit` 在已置标志的线程上调用 | 抛 `InterruptedException` 且标志已清 |
 | 8 | `Checkpoints.rawCheckpoint()` 在已置标志的线程上调用 | 抛 `LeanCancellationException` 且标志保持设置（非信号唯一消费者，与阻塞适配器一致） |
 | 9 | 库的可中断阻塞方法被中断 | 抛 `InterruptedException`，不转成布尔返回值；不含已声明不可中断的同步出口 |
 | 10 | 已 quiescent 的 runtime 上调 `awaitQuiescence(Duration.ZERO)`，调用线程已置标志 | 抛 `InterruptedException` 且标志已清，不得返回 `true` |
@@ -295,7 +293,7 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 
 中断约定如果散落在各机制文档里，同一个问题会在不同地方得到不同处理。历史教训（§6）：
 inline 路径上一次中断卫生缺失曾让 12 个元素的批次只执行 3 个、其余 9 个被静默放弃，
-而触发条件仅仅是"任务体做了教科书正确的中断处理"。根本原因是**中断是 Java 并发里最容易
+而触发条件仅仅是"任务代码做了教科书正确的中断处理"。根本原因是**中断是 Java 并发里最容易
 写错的原语**：它有下面三个反直觉性质，JDK 自己也在这上面栽过跟头。
 
 ### 5.1 中断是请求，不是命令
@@ -397,7 +395,7 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 1. **用 `get()` 读已完成 future（违反 P4）**：带中断标志的调用线程会把成功读成
    `USER_FAILURE`、让只读公开 API（`Task.failure()`）抛异常。修复：一律
    `Futures.getDone`（§5.3 的规范由此而来）。
-2. **inline 路径中断卫生缺失（违反 §2.3）**：任务体按 P1 恢复的标志泄漏给被借用线程；
+2. **inline 路径中断卫生缺失（违反 §2.3）**：任务代码按 P1 恢复的标志泄漏给被借用线程；
    借到库自己的 submitter 线程时，提交循环的 `take()` 立即中断，剩余任务全部静默放弃
    （12 个只跑 3 个），并与缺陷 1 复合成"只读公开 API 因一个无关的线程标志而崩溃"。
    根因：一条同步路径借用了不属于它的线程，借用前后没有做隔离。修复与取舍见 §2.3

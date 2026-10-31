@@ -26,16 +26,16 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
- * Acceptance tests for {@link TaskGroup#close()} and {@link TaskGroup#awaitBodyCompletion(Duration)}:
- * cancel plus bounded wait on task-body exit, driven by the shared body-completion signal.
+ * Acceptance tests for {@link TaskGroup#close()} and {@link TaskGroup#awaitExecutionExit(Duration)}:
+ * cancel plus bounded wait on task-execution exit, driven by the shared execution exit signal.
  */
-class TaskGroupBodyCompletionTest {
+class TaskGroupExecutionExitTest {
     private static final TaskKey<String> KEY_OUTER_STRING = TaskKey.named("outer");
     private static final TaskKey<Integer> KEY_QUICK_INTEGER = TaskKey.named("quick");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    /** Awaits the latch, ignoring interrupts, so cancellation cannot force the body out early. */
+    /** Awaits the latch, ignoring interrupts, so cancellation cannot force the execution out early. */
     private static void awaitIgnoringInterrupt(CountDownLatch latch) {
         boolean interrupted = false;
         for (; ; ) {
@@ -52,7 +52,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void closeCancelsAndWaitsForBodyExitWithinRemainingBudget() throws Exception {
+    void closeCancelsAndWaitsForExecutionExitWithinRemainingBudget() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -75,16 +75,16 @@ class TaskGroupBodyCompletionTest {
             });
             closing.start();
 
-            // The cancel lands and the future converges while the body is still parked: close must
-            // keep waiting for the body to exit rather than returning with the future.
+            // The cancel lands and the future converges while the execution is still parked: close must
+            // keep waiting for the execution to exit rather than returning with the future.
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
             release.countDown();
             assertThat(closeReturned.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             closing.join(2000);
         } finally {
             release.countDown();
@@ -100,7 +100,7 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CountDownLatch bodyExited = new CountDownLatch(1);
+        CountDownLatch executionExited = new CountDownLatch(1);
         try {
             // No closeGrace configured: the wait budget is the remaining deadline at close time.
             TaskGroup<Integer, Void> group = global.groupDraft("derived", Duration.ofMillis(300))
@@ -113,7 +113,7 @@ class TaskGroupBodyCompletionTest {
                                 try {
                                     awaitIgnoringInterrupt(release);
                                 } finally {
-                                    bodyExited.countDown();
+                                    executionExited.countDown();
                                 }
                                 return 1;
                             })
@@ -121,17 +121,17 @@ class TaskGroupBodyCompletionTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // The deadline lapses before close: the derived budget is exhausted, so close returns
-            // right after cancelling, with the body still parked.
+            // right after cancelling, with the execution still parked.
             Thread.sleep(400);
             long closeStart = System.nanoTime();
             group.close();
             long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
             assertThat(closeElapsedMillis).isLessThan(1000);
-            assertThat(bodyExited.getCount()).isEqualTo(1);
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+            assertThat(executionExited.getCount()).isEqualTo(1);
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
             release.countDown();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
             release.countDown();
             global.close();
@@ -140,7 +140,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void closeWithAstronomicGraceWaitsForTheBodyToExit() throws Exception {
+    void closeWithAstronomicGraceWaitsForTheExecutionToExit() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -149,7 +149,7 @@ class TaskGroupBodyCompletionTest {
         CountDownLatch closeReturned = new CountDownLatch(1);
         try {
             // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); close() must saturate the
-            // grace and keep waiting for the body to exit instead of failing or skipping the wait.
+            // grace and keep waiting for the execution to exit instead of failing or skipping the wait.
             TaskGroup<Integer, Void> group = global.groupDraft("astronomic-grace", TIMEOUT)
                     .closeGrace(Duration.ofSeconds(Long.MAX_VALUE))
                     .par(TaskKey.<Integer>named("ignoring"), global.par(ParId.of("worker")), () -> {
@@ -166,13 +166,13 @@ class TaskGroupBodyCompletionTest {
             });
             closing.start();
 
-            // The saturated budget means close keeps waiting while the body is parked.
+            // The saturated budget means close keeps waiting while the execution is parked.
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
             release.countDown();
             assertThat(closeReturned.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             closing.join(2000);
         } finally {
             release.countDown();
@@ -188,7 +188,7 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CountDownLatch bodyExited = new CountDownLatch(1);
+        CountDownLatch executionExited = new CountDownLatch(1);
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("exhausted", Duration.ofMillis(300))
                     .closeGrace(Duration.ofMillis(400))
@@ -201,7 +201,7 @@ class TaskGroupBodyCompletionTest {
                                 try {
                                     awaitIgnoringInterrupt(release);
                                 } finally {
-                                    bodyExited.countDown();
+                                    executionExited.countDown();
                                 }
                                 return 1;
                             })
@@ -215,14 +215,14 @@ class TaskGroupBodyCompletionTest {
             group.close();
             long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
             assertThat(closeElapsedMillis).isGreaterThanOrEqualTo(300);
-            // close returned when the grace elapsed, while the interrupt-ignoring body is still
+            // close returned when the grace elapsed, while the interrupt-ignoring execution is still
             // inside user code.
-            assertThat(bodyExited.getCount()).isEqualTo(1);
-            // An explicit bounded wait reports the still-running body, then succeeds after exit.
-            assertThat(group.awaitBodyCompletion(Duration.ofMillis(100))).isFalse();
+            assertThat(executionExited.getCount()).isEqualTo(1);
+            // An explicit bounded wait reports the still-running execution, then succeeds after exit.
+            assertThat(group.awaitExecutionExit(Duration.ofMillis(100))).isFalse();
 
             release.countDown();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
             release.countDown();
             global.close();
@@ -237,7 +237,7 @@ class TaskGroupBodyCompletionTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CountDownLatch bodyExited = new CountDownLatch(1);
+        CountDownLatch executionExited = new CountDownLatch(1);
         try {
             TaskGroup<Integer, Void> group = global.groupDraft("zero-grace", TIMEOUT)
                     .closeGrace(Duration.ZERO)
@@ -246,7 +246,7 @@ class TaskGroupBodyCompletionTest {
                         try {
                             awaitIgnoringInterrupt(release);
                         } finally {
-                            bodyExited.countDown();
+                            executionExited.countDown();
                         }
                         return 1;
                     })
@@ -256,16 +256,16 @@ class TaskGroupBodyCompletionTest {
             long closeStart = System.nanoTime();
             group.close();
             long closeElapsedMillis = (System.nanoTime() - closeStart) / 1_000_000;
-            // No wait at all: cancellation took effect, the body is still parked, and close
+            // No wait at all: cancellation took effect, the execution is still parked, and close
             // returned far below any grace.
             assertThat(closeElapsedMillis).isLessThan(1000);
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
-            assertThat(bodyExited.getCount()).isEqualTo(1);
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+            assertThat(executionExited.getCount()).isEqualTo(1);
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
             release.countDown();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
             release.countDown();
             global.close();
@@ -308,7 +308,7 @@ class TaskGroupBodyCompletionTest {
 
             group.close();
 
-            // The grace elapsed with the body still running: the leak is visible data, naming the
+            // The grace elapsed with the execution still running: the leak is visible data, naming the
             // group and the outstanding member.
             assertThat(records).anySatisfy(record -> {
                 assertThat(record.getLevel()).isEqualTo(Level.WARNING);
@@ -316,7 +316,7 @@ class TaskGroupBodyCompletionTest {
             });
 
             release.countDown();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
             groupLogger.removeHandler(capture);
             release.countDown();
@@ -354,7 +354,7 @@ class TaskGroupBodyCompletionTest {
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
 
             release.countDown();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
             release.countDown();
             global.close();
@@ -364,7 +364,7 @@ class TaskGroupBodyCompletionTest {
 
     @SuppressWarnings("NullAway")
     @Test
-    void awaitBodyCompletionValidatesArgumentsAndHonorsInterruption() throws Exception {
+    void awaitExecutionExitValidatesArgumentsAndHonorsInterruption() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -380,16 +380,16 @@ class TaskGroupBodyCompletionTest {
                     .submitAll();
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            assertThatThrownBy(() -> group.awaitBodyCompletion(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> group.awaitBodyCompletion(Duration.ofMillis(-1)))
+            assertThatThrownBy(() -> group.awaitExecutionExit(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> group.awaitExecutionExit(Duration.ofMillis(-1)))
                     .isInstanceOf(IllegalArgumentException.class);
-            // A zero budget performs a single check against the still-running body.
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isFalse();
+            // A zero budget performs a single check against the still-running execution.
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
             // An oversized duration saturates instead of overflowing and still waits.
             AtomicReference<Boolean> saturated = new AtomicReference<>();
             Thread waiting = new Thread(() -> {
                 try {
-                    saturated.set(group.awaitBodyCompletion(Duration.ofSeconds(Long.MAX_VALUE)));
+                    saturated.set(group.awaitExecutionExit(Duration.ofSeconds(Long.MAX_VALUE)));
                 } catch (InterruptedException interrupted) {
                     saturated.set(null);
                 }
@@ -398,14 +398,14 @@ class TaskGroupBodyCompletionTest {
 
             // Entry interrupt: the flag is cleared per Java convention and reported.
             Thread.currentThread().interrupt();
-            assertThatThrownBy(() -> group.awaitBodyCompletion(Duration.ofSeconds(1)))
+            assertThatThrownBy(() -> group.awaitExecutionExit(Duration.ofSeconds(1)))
                     .isInstanceOf(InterruptedException.class);
             assertThat(Thread.currentThread().isInterrupted()).isFalse();
 
             release.countDown();
             waiting.join(2000);
             assertThat(saturated.get()).isTrue();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
         } finally {
             release.countDown();
             global.close();
@@ -414,7 +414,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void awaitBodyCompletionInterruptedDuringWaitClearsFlagAndThrows() throws Exception {
+    void awaitExecutionExitInterruptedDuringWaitClearsFlagAndThrows() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -435,7 +435,7 @@ class TaskGroupBodyCompletionTest {
             Thread waiter = new Thread(() -> {
                 waiting.countDown();
                 try {
-                    group.awaitBodyCompletion(Duration.ofSeconds(30));
+                    group.awaitExecutionExit(Duration.ofSeconds(30));
                 } catch (Throwable failure) {
                     outcome.set(failure);
                 }
@@ -454,7 +454,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void closeAndAwaitFromWithinMemberBodyAreRejectedAsSelfAwait() throws Exception {
+    void closeAndAwaitFromWithinMemberExecutionAreRejectedAsSelfAwait() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -467,7 +467,7 @@ class TaskGroupBodyCompletionTest {
                     .par(TaskKey.<Integer>named("self"), global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         try {
-                            Objects.requireNonNull(groupRef.get()).awaitBodyCompletion(Duration.ofMillis(10));
+                            Objects.requireNonNull(groupRef.get()).awaitExecutionExit(Duration.ofMillis(10));
                         } catch (Throwable failure) {
                             awaitFailure.set(failure);
                         }
@@ -507,7 +507,7 @@ class TaskGroupBodyCompletionTest {
                     .par(KEY_OUTER_STRING, global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         // The inner task's executor is a direct executor service, so it runs inline
-                        // on the member thread and the inner body nests under the member body on the
+                        // on the member thread and the inner execution nests under the member execution on the
                         // same call stack.
                         return global.par(ParId.of("direct"))
                                 .submit(
@@ -515,7 +515,7 @@ class TaskGroupBodyCompletionTest {
                                         () -> {
                                             try {
                                                 Objects.requireNonNull(groupRef.get())
-                                                        .awaitBodyCompletion(Duration.ofMillis(10));
+                                                        .awaitExecutionExit(Duration.ofMillis(10));
                                                 return "unguarded";
                                             } catch (IllegalStateException guarded) {
                                                 return "guarded";
@@ -537,7 +537,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void blockedObservationCallbackDoesNotBlockBodyCompletion() throws Exception {
+    void blockedObservationCallbackDoesNotBlockExecutionExit() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
         CountDownLatch callbackRelease = new CountDownLatch(1);
@@ -564,10 +564,10 @@ class TaskGroupBodyCompletionTest {
                     callbackExecutor);
 
             assertThat(callbackEntered.await(2, TimeUnit.SECONDS)).isTrue();
-            // The observation callback is still blocked, but the task body has already exited and
+            // The observation callback is still blocked, but the task execution has already exited and
             // the observation snapshot is published: callbacks run on the consumer's executor,
             // never on the execution path.
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
 
             callbackRelease.countDown();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
@@ -603,9 +603,9 @@ class TaskGroupBodyCompletionTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // Cancelling before the join leaves the combine unsubmitted; its slot is released as
-            // skipped, so body completion still converges.
+            // skipped, so execution exit still converges.
             group.close();
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(combineRuns).hasValue(0);
             assertThat(group.callableReleased("assemble")).isTrue();
         } finally {
@@ -616,7 +616,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void successfulGroupWithCombineReportsBodyCompletion() throws Exception {
+    void successfulGroupWithCombineReportsExecutionExit() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -628,7 +628,7 @@ class TaskGroupBodyCompletionTest {
 
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             // The future's own holder release sits in run()'s finally, just after completion:
             // await the probe instead of racing it.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -642,13 +642,13 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void emptyGroupReportsImmediateBodyCompletion() throws Exception {
+    void emptyGroupReportsImmediateExecutionExit() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Void, Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             group.close();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
@@ -680,7 +680,7 @@ class TaskGroupBodyCompletionTest {
             for (int i = 0; i < waiters.length; i++) {
                 waiters[i] = new Thread(() -> {
                     try {
-                        if (group.awaitBodyCompletion(Duration.ofSeconds(10))) {
+                        if (group.awaitExecutionExit(Duration.ofSeconds(10))) {
                             trueResults.incrementAndGet();
                         }
                     } catch (InterruptedException ignored) {
@@ -705,7 +705,7 @@ class TaskGroupBodyCompletionTest {
     }
 
     @Test
-    void successfulAwaitEstablishesVisibilityOfBodyWrites() throws Exception {
+    void successfulAwaitEstablishesVisibilityOfExecutionWrites() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -722,8 +722,8 @@ class TaskGroupBodyCompletionTest {
                     })
                     .submitAll();
 
-            assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
-            // Plain field writes by the task bodies are visible after a successful wait.
+            assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
+            // Plain field writes by the task executions are visible after a successful wait.
             assertThat(writes).containsExactly(1, 2);
         } finally {
             global.close();

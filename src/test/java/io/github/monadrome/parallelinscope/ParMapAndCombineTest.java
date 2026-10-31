@@ -70,7 +70,7 @@ class ParMapAndCombineTest {
             assertThat(result.terminalValueOrThrow()).isEqualTo(20);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(2, 4, 6, 8);
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             TaskCompletion<Integer> terminal = result.terminal();
             assertThat(terminal).isNotNull();
             assertThat(terminal.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -292,7 +292,7 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineBodySeesTheAdmissionThreadsTtlContext() throws Exception {
+    void combineExecutionSeesTheAdmissionThreadsTtlContext() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(1);
         ExecutorService cpu = Executors.newSingleThreadExecutor();
         runtime = ParRuntime.builder()
@@ -356,7 +356,7 @@ class ParMapAndCombineTest {
     }
 
     @SuppressWarnings("NullAway")
-    private static CombineBody<List<@Nullable Integer>, Integer> nullBody() {
+    private static Combiner<List<@Nullable Integer>, Integer> nullCombiner() {
         return null;
     }
 
@@ -438,12 +438,12 @@ class ParMapAndCombineTest {
             caller.start();
             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
 
-            // The combined run is retained and body-tracked like any other admission: a runtime
+            // The combined run is retained and execution-tracked like any other admission: a runtime
             // snapshot must see it until it drains.
             org.awaitility.Awaitility.await().untilAsserted(() -> {
                 ParRuntimeSnapshot snapshot = runtime.snapshot();
                 assertThat(snapshot.undrainedBatches()).isEqualTo(1);
-                assertThat(snapshot.unexitedBodySignals()).isGreaterThanOrEqualTo(1);
+                assertThat(snapshot.unexitedExecutionSignals()).isGreaterThanOrEqualTo(1);
             });
 
             release.countDown();
@@ -487,7 +487,7 @@ class ParMapAndCombineTest {
     @Test
     void nestedCombineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
         // The batch only feeds its combine and never waits for it, so a same-pool combine admitted
-        // from a body on another pool must not read as a self-loop on the batch's pool.
+        // from an execution on another pool must not read as a self-loop on the batch's pool.
         ExecutorService outer = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>());
         ExecutorService pool = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
@@ -538,7 +538,7 @@ class ParMapAndCombineTest {
         try {
             Par par = runtime.par(ParId.of("worker"));
             BatchOptions options = BatchOptions.timeout("batch", TIMEOUT);
-            CombineBody<List<@Nullable Integer>, Integer> combine =
+            Combiner<List<@Nullable Integer>, Integer> combine =
                     values -> Objects.requireNonNull(values).size();
 
             assertThatThrownBy(() -> par.<Integer, Integer, Integer>mapAndCombine(
@@ -553,7 +553,7 @@ class ParMapAndCombineTest {
                             Arrays.asList(1), nullFunction(), options, par, combine))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> par.<Integer, Integer, Integer>mapAndCombine(
-                            Arrays.asList(1), v -> v, options, par, nullBody()))
+                            Arrays.asList(1), v -> v, options, par, nullCombiner()))
                     .isInstanceOf(NullPointerException.class);
         } finally {
             other.close();
@@ -563,10 +563,10 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineSubmittedAsDeadlineFiresNeverRunsItsBody() throws Exception {
+    void combineSubmittedAsDeadlineFiresNeverRunsItsExecution() throws Exception {
         // The tight terminal-submit race: the success gate has passed and the combine has been
         // handed to its executor — but not yet dequeued — when the deadline fires. The cascade
-        // must cancel the queued combine before its body can be entered. The manual clock makes
+        // must cancel the queued combine before its execution can be entered. The manual clock makes
         // the interleaving exact: advance() runs the timer synchronously on this thread, so the
         // cancellation has fully landed before the gate releases the task to its pool.
         ManualClock clock = new ManualClock();
@@ -607,7 +607,7 @@ class ParMapAndCombineTest {
             combineGate.awaitDrained();
             BatchCombinedResult<Integer, Integer> result = Objects.requireNonNull(outcome.get());
             assertThat(combineRuns)
-                    .as("a combine cancelled while queued must never enter its body")
+                    .as("a combine cancelled while queued must never enter its execution")
                     .hasValue(0);
             assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.SUCCESS))
                     .isEqualTo(2);

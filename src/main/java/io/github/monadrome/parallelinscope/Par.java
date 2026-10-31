@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
 public final class Par {
     /*
      * Admission resolves the batch, prepares its task futures and views, and binds cancellation
-     * before any executor handoff. Submission may execute a body inline, so binding first is
+     * before any executor handoff. Submission may execute an execution inline, so binding first is
      * required for deadline enforcement on that path. SlidingWindowSubmitter then limits handoffs
      * to the resolved parallelism; TaskSubmissions supplies the shared task instrumentation.
      */
@@ -117,11 +117,11 @@ public final class Par {
      * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
      * fail-fast, and ancestor cancellation still interrupt task runners. A source declared through
      * {@link BatchOptions#cancelOn(ListenableFuture)} cancels on any completion and interrupts
-     * running bodies the same way. Cleanup waits within {@link BatchOptions#closeGrace(Duration)} (or
-     * the remaining deadline when unset); inspect {@link TaskBatchResult#bodyCompletionConfirmed()}
-     * before releasing resources shared by direct bodies; nested calls must confirm their own exit
-     * separately. Direct executors and CallerRunsPolicy may execute bodies on this caller; their
-     * existing interrupt isolation applies during that body, separately from the uninterruptible
+     * running executions the same way. Cleanup waits within {@link BatchOptions#closeGrace(Duration)} (or
+     * the remaining deadline when unset); inspect {@link TaskBatchResult#executionExitConfirmed()}
+     * before releasing resources shared by direct executions; nested calls must confirm their own exit
+     * separately. Direct executors and CallerRunsPolicy may execute executions on this caller; their
+     * existing interrupt isolation applies during that execution, separately from the uninterruptible
      * waiting policy.
      *
      * @param elements input elements, or {@code null} for an empty batch
@@ -150,15 +150,15 @@ public final class Par {
      * exactly once, only after every element succeeded. When any element fails, is cancelled, or
      * the deadline expires first, the combine never runs and its result is terminal: cancelled with
      * the batch's attribution, or {@code SUBMISSION_FAILURE} when its own executor rejected it. The
-     * combine body receives the element values in input order; successful null elements appear as
+     * combiner receives the element values in input order; successful null elements appear as
      * null entries. One execution budget covers both the elements and the combine, and the call
      * returns only after their results settle and bounded cleanup has been attempted.
      *
      * <p>Everything {@link #map} documents about synchronous waiting, interruption, close grace,
      * and borrowed executors applies to this method as well; the combine is submitted from the
      * converging thread, so a {@code combinePar} backed by a saturating {@code CallerRunsPolicy}
-     * pool never runs the body there — that handoff is recorded as {@code SUBMISSION_FAILURE}
-     * instead. A direct executor retains its normal inline behavior; see {@link CombineBody}.
+     * pool never runs the execution there — that handoff is recorded as {@code SUBMISSION_FAILURE}
+     * instead. A direct executor retains its normal inline behavior; see {@link Combiner}.
      *
      * @param elements input elements; must contain at least one element — a combine over an empty
      *     batch has no fan-out to summarize, mirroring the group's rejection of an
@@ -167,11 +167,11 @@ public final class Par {
      * @param options immutable per-batch request; it cannot select an executor
      * @param combinePar the entry whose executor runs the terminal combine; must belong to the same
      *     {@link ParRuntime}
-     * @param combineBody the terminal combine body; it may throw any checked exception, recorded as
+     * @param combiner the terminal combiner; it may throw any checked exception, recorded as
      *     {@code USER_FAILURE} with the original cause
      * @return the frozen element results plus the terminal combine's result and observation
      * @throws NullPointerException if {@code options}, {@code function}, {@code combinePar}, or
-     *     {@code combineBody} is null, or the input contains a null element
+     *     {@code combiner} is null, or the input contains a null element
      * @throws IllegalArgumentException if {@code elements} is null or empty, if the options declare
      *     an inherited timeout and no scoped task encloses this call, or if {@code combinePar}
      *     belongs to a different {@link ParRuntime}
@@ -182,12 +182,12 @@ public final class Par {
             Function<? super T, ? extends @Nullable R> function,
             BatchOptions options,
             Par combinePar,
-            CombineBody<List<@Nullable R>, C> combineBody) {
+            Combiner<List<@Nullable R>, C> combiner) {
         Objects.requireNonNull(options, "options cannot be null");
         Objects.requireNonNull(function, "function cannot be null");
         Objects.requireNonNull(combinePar, "combinePar cannot be null");
-        Objects.requireNonNull(combineBody, "combineBody cannot be null");
-        return runtime.whileOpen(() -> mapAndCombineWhileOpen(elements, function, options, combinePar, combineBody));
+        Objects.requireNonNull(combiner, "combiner cannot be null");
+        return runtime.whileOpen(() -> mapAndCombineWhileOpen(elements, function, options, combinePar, combiner));
     }
 
     private <T, R, C> BatchCombinedResult<R, C> mapAndCombineWhileOpen(
@@ -195,7 +195,7 @@ public final class Par {
             Function<? super T, ? extends @Nullable R> function,
             BatchOptions options,
             Par combinePar,
-            CombineBody<List<@Nullable R>, C> combineBody) {
+            Combiner<List<@Nullable R>, C> combiner) {
         if (combinePar.runtime() != runtime) {
             throw new IllegalArgumentException(
                     "combinePar '" + combinePar.id() + "' belongs to a different ParRuntime");
@@ -207,7 +207,7 @@ public final class Par {
                     "mapAndCombine requires at least one element; use Par.map for an empty batch");
         }
         MultiTaskContext unit = admitUnit(options.spec(), elements.size(), parent);
-        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
+        return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combiner);
     }
 
     /** Copies input references while releasing the admitted token if snapshot validation fails. */
@@ -241,10 +241,10 @@ public final class Par {
             MultiTaskContext unit,
             BatchOptions options,
             Par combinePar,
-            CombineBody<List<@Nullable R>, C> combineBody) {
+            Combiner<List<@Nullable R>, C> combiner) {
         /*
          * The batch bind includes the still-pending terminal, so success cannot commit early and
-         * cancellation reaches a combine that has not been submitted. Both share one body tracker.
+         * cancellation reaches a combine that has not been submitted. Both share one execution tracker.
          * The combine has its own unit, structurally under the batch; its token is not bound
          * because the batch bind supplies its deadline and cascade. It declares UNKNOWN task type
          * and no enqueue refusal, so it needs no admission diagnostic.
@@ -255,12 +255,12 @@ public final class Par {
          */
 
         ImmutableList<T> list = snapshotInputs(elements, unit);
-        // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
-        // and the frozen body-completion diagnostics report on the whole run.
-        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size() + 1);
+        // The tracker covers the elements and the terminal combine alike, so the execution-exit barrier
+        // and the frozen execution exit diagnostics report on the whole run.
+        ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size() + 1);
         List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
                         callableMapper.apply(list.get(index))))
                 .collect(toImmutableList());
         MultiTaskContext terminalUnit = MultiTaskContext.resolve(
@@ -271,12 +271,12 @@ public final class Par {
                         .executor(combinePar));
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
-                new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), bodyCompletion.register(terminalUnit));
-        // The terminal body reads the settled element futures at run time; the success gate below
+                new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), executionExit.register(terminalUnit));
+        // The terminal execution reads the settled element futures at run time; the success gate below
         // guarantees they all completed successfully before the combine is ever submitted. TTL
         // capture happens here, on the admission thread, inside prepare.
         ExecutionPhaseHintFuture<C> terminalFuture =
-                TaskSubmissions.prepare(terminalContext, () -> combineBody.apply(settledValues(tasks)));
+                TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
@@ -284,13 +284,13 @@ public final class Par {
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(),
                 unit,
-                bodyCompletion,
+                executionExit,
                 options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         // Bind before submitting, with the still-pending terminal in the bound set: the token's
         // SUCCESS then requires the combine too, and the fail-fast/deadline cascade cancels an
-        // unsubmitted combine before its body can ever be entered.
+        // unsubmitted combine before its execution can ever be entered.
         List<ListenableFuture<?>> bound = new ArrayList<>(views.size() + 1);
         bound.addAll(views);
         bound.add(terminalView);
@@ -320,7 +320,7 @@ public final class Par {
                 },
                 MoreExecutors.directExecutor());
         runtime.retainUntilComplete(completion);
-        runtime.trackBodies(bodyCompletion);
+        runtime.trackExecutions(executionExit);
         TaskBatch<R> batch = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(batch.submitCanceller());
         return batch.finishCombined(terminalView);
@@ -381,7 +381,7 @@ public final class Par {
      * enclosing scope. A deadline that expires before the task starts never enters user code.
      *
      * @param taskName the task name reported on the returned future
-     * @param task the task body
+     * @param task the task execution
      * @param options immutable per-task request; it cannot select an executor
      * @return the task's future view, carrying its name and cancellation attribution
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
@@ -398,10 +398,10 @@ public final class Par {
         MultiTaskContext parent =
                 MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
         MultiTaskContext unit = admitUnit(options.spec(taskName), 1, parent);
-        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(1);
+        ExecutionExitTracker executionExit = ExecutionExitTracker.create(1);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         TaskExecutionContext taskContext =
-                new TaskExecutionContext(unit, 0, System.nanoTime(), bodyCompletion.register(unit));
+                new TaskExecutionContext(unit, 0, System.nanoTime(), executionExit.register(unit));
         ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(taskContext, task);
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         // Bind before submitting: a deadline expiring during submission cancels the prepared
@@ -409,7 +409,7 @@ public final class Par {
         ListenableFuture<?> completion = unit.cancellationToken()
                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
-        runtime.trackBodies(bodyCompletion);
+        runtime.trackExecutions(executionExit);
         TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor());
         return view;
     }
@@ -438,16 +438,16 @@ public final class Par {
             BatchOptions options) {
         ImmutableList<T> list = snapshotInputs(elements, unit);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
-        BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
+        ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size());
         List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), bodyCompletion.register(unit)),
+                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
                         callableMapper.apply(list.get(index))))
                 .collect(toImmutableList());
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(),
                 unit,
-                bodyCompletion,
+                executionExit,
                 options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         // Bind before submitting; the temporary submission canceller is linked to the real one
@@ -455,7 +455,7 @@ public final class Par {
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
         runtime.retainUntilComplete(completion);
-        runtime.trackBodies(bodyCompletion);
+        runtime.trackExecutions(executionExit);
         TaskBatch<R> result = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(result.submitCanceller());
         return result;

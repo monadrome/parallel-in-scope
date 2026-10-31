@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
  * member, or a terminal combine.
  *
  * <p>A node describes only its own unit — identity, name, the executor it runs on, and its shape
- * — and holds no reference to a parent, a child, a token, a future, or a body. Who waits for whom is
+ * — and holds no reference to a parent, a child, a token, a future, or an execution. Who waits for whom is
  * recorded by the runtime's {@link ExecutorWaitGraph} at admission, never by the node; a node only
  * names the waiting and awaited units of a recorded wait.
  *
@@ -39,7 +39,7 @@ final class TaskNode {
      * @param name the logical unit name, shown with the id
      * @param executor the supplied executor the unit runs on, or null when resolved without one
      * @param executorLabel the executor's display label, or null when resolved without one
-     * @param starvationProne whether a body blocked on this unit can starve it of a thread
+     * @param starvationProne whether an execution blocked on this unit can starve it of a thread
      * @param taskType the unit's workload classification
      * @param parallelism the effective parallelism
      * @param taskCount the number of tasks in the unit
@@ -89,7 +89,7 @@ final class TaskNode {
     }
 
     /**
-     * Whether a body blocked waiting on this unit can be starved of a thread by it: the unit's
+     * Whether an execution blocked waiting on this unit can be starved of a thread by it: the unit's
      * executor buffers a submission behind a busy worker instead of growing or rejecting.
      */
     boolean starvationProne() {

@@ -326,7 +326,7 @@ public class CancellationTokenTest {
 
     @Test
     public void businessTimeoutExceptionIsFailFastNotFrameworkTimeout() {
-        // A member body may legitimately throw java.util.concurrent.TimeoutException; the token
+        // A member execution may legitimately throw java.util.concurrent.TimeoutException; the token
         // must classify by event source, not by exception type: only the armed deadline produces
         // TIMEOUT. Here the 60s deadline cannot have expired, so the failure is a business
         // failure and the token must commit FAIL_FAST.
@@ -571,7 +571,7 @@ public class CancellationTokenTest {
     @Test
     public void retiredDomainSchedulerFallsBackToTheBindParameter() {
         // The token tree's scheduler belongs to the ancestor runtime, which may already be closed:
-        // a cancelled body that is still running can nest new work into another runtime, and the
+        // a cancelled execution that is still running can nest new work into another runtime, and the
         // nested token inherits the retired scheduler. Rejection there must arm the deadline on the
         // caller's live scheduler instead of failing the bind.
         ManualClock clock = new ManualClock();

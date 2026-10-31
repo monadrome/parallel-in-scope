@@ -124,7 +124,7 @@ final class TaskGroupDefinition {
 
         /** The executor entry of a slot the library runs; adopted members never reach this. */
         Par runPar() {
-            return verifyNotNull(par, "slot '%s' runs no body", name);
+            return verifyNotNull(par, "slot '%s' runs no execution", name);
         }
     }
 }

@@ -30,7 +30,7 @@ public class ExecutionPhaseCartesianTest {
                         .map(interrupt -> Arguments.of(Named.of(caseId(timing, interrupt), timing), interrupt)));
     }
 
-    /** Verifies Future, phase, body-entry, completion, and interrupt planes for each combination. */
+    /** Verifies Future, phase, execution-entry, completion, and interrupt planes for each combination. */
     @ParameterizedTest(name = "{0};mayInterrupt={1}")
     @MethodSource("lifecycleCases")
     public void cancellationLifecycleMatchesTimingAndInterruptPolicy(Timing timing, boolean mayInterrupt)

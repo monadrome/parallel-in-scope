@@ -32,20 +32,20 @@ ioPool.purge(); // 应用自己的维护边界
 具体删除入口见 [v0.3 迁移指南](../docs/en/migration-v0.3.md#executor-queue-cleanup)。
 
 移除的维护失败面是 phase 通知排序、observer 捕获释放、取消估算与维护服务关闭的协调。
-这不是宣称发现了这些路径的新缺陷。取消、中断投递与 body 退出语义不变；取消项可能
+这不是宣称发现了这些路径的新缺陷。取消、中断投递与执行退出语义不变；取消项可能
 留在物理队列中并占用有界容量，导致后续拒绝。未启用自动 purge 的应用此前就有此行为。
 
 ## 阶段查询契约
 
 `ExecutionPhase` 是执行权与退出进度的提示，独立于 future 的完成状态。
-它不证明物理排队、实际用户 body 入口或线程已经交回 executor。
+它不证明物理排队、实际用户执行入口或线程已经交回 executor。
 
 | 阶段 | 含义 |
 | --- | --- |
 | SUBMITTED | 执行权尚未被 run、取消清理或提交失败认领；准备完毕不等于已入队 |
-| RUNNING | run 取得执行权，尚未完成退出清理；不保证已进入用户 body |
-| CANCELLED_BEFORE_RUN | 取消清理抢到执行权，后续 run 不会进入 body；保留此分类 |
-| CANCEL_REQUESTED_RUNNING | run 已取得执行权且 future 已被取消；不证明 body 已退出 |
+| RUNNING | run 取得执行权，尚未完成退出清理；不保证已进入用户执行 |
+| CANCELLED_BEFORE_RUN | 取消清理抢到执行权，后续 run 不会进入执行；保留此分类 |
+| CANCEL_REQUESTED_RUNNING | run 已取得执行权且 future 已被取消；不证明执行已退出 |
 | TERMINAL | run 的退出清理结束（含异常退出），或提交失败取得执行权；后者可以先于 future 结算 |
 
 - `phase()` MUST 非阻塞，MUST NOT 读取或清除调用线程的中断标志，MUST NOT 依赖 callback。
@@ -58,7 +58,7 @@ ioPool.purge(); // 应用自己的维护边界
 - `cancel()` 的 boolean 仍只表示该调用是否成功取消 future；MUST NOT 用它判定运行前取消。
 - 库 MUST NOT 因任务取消自动 purge 用户 executor；取消 MUST NOT 被解释为物理队列移除。
 
-body 退出和中断投递的权威要求仍分别在提交/生命周期契约与
+执行退出和中断投递的权威要求仍分别在提交/生命周期契约与
 [中断契约「取消中断投递不越界」](interruption-contract.md#24-取消中断投递不越界)，此处不复制其协议。
 
 ## 简化机制与取舍
@@ -70,12 +70,12 @@ SUBMITTED 竞争一次认领。取消清理使用 CAS 推进运行中状态，ru
 查询读取 phase；RUNNING 同时观察到 future 已取消时返回运行中取消提示。这使取消
 已提交但 interruptTask 尚未返回的时间窗也可查询，不增加通知、轮询或另一份取消状态。
 
-保留 AbstractFuture 负责结果与 listener；保留 TaskBodyState/TaskObservation 的 body
+保留 AbstractFuture 负责结果与 listener；保留 TaskExecutionState/TaskObservation 的执行
 完成屏障；保留 runner 投递握手、inline 隔离、两轮提交失败归因和捕获释放。
 
 不采用原草案的一位 claimed：它无法提供用户要求的阶段查询。也不在本次替换为
 FutureTask + ExecutionList：该方向能复用标准执行/中断机制，但本次没有验证其提交失败
-先认领后结算、inline 隔离、body 屏障和取消后异常诊断等适配，不能视为已证明的替代。
+先认领后结算、inline 隔离、执行屏障和取消后异常诊断等适配，不能视为已证明的替代。
 现有中断握手已有独立证明与回归；删除通知不改变该协议。
 
 A/B/C 取舍中，专用取消 callback 可以保留自动 purge，但会留下估算和维护生命周期；
@@ -88,8 +88,8 @@ A/B/C 取舍中，专用取消 callback 可以保留自动 purge，但会留下�
 ## 验证与对抗性评审
 
 验证范围包括取消时间 × mayInterrupt、延迟/抛异常中断投递、自取消、重复 run、
-提交失败认领与结算之间取消、捕获释放、body 完成、inline 隔离、公开 API 清单和
-应用手动 purge。原 phase callback 阻塞测试改为在测试中暂停 TaskBodyState 的认领，
+提交失败认领与结算之间取消、捕获释放、执行完成、inline 隔离、公开 API 清单和
+应用手动 purge。原 phase callback 阻塞测试改为在测试中暂停 TaskExecutionState 的认领，
 不增加生产回调。
 
 Spotless 已应用。修改前相关测试通过；实现后第一轮 89 个相关测试通过。
@@ -99,7 +99,7 @@ Spotless 已应用。修改前相关测试通过；实现后第一轮 89 个相�
 ### 独立评审与处置
 
 GPT-6 Astra 在独立上下文中以 15 分钟预算只读评审 interleavings、契约逐项映射、
-listener/body 清理、Java 8、泛型、API 迁移和测试质量；第二轮只读复查修复和新增测试。
+listener/执行清理、Java 8、泛型、API 迁移和测试质量；第二轮只读复查修复和新增测试。
 审计与验证工作树保留在 `/tmp/parallel-simplification-review.53RBoO/`。
 
 - 保留并修复：把 TERMINAL 放在入口标志恢复之后，若自定义 Thread.interrupt 在恢复时

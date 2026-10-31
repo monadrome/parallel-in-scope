@@ -4,9 +4,10 @@
 
 ### Breaking changes
 
+- Rename the task-execution terms to execution and execution exit, with no aliases: `awaitBodyCompletion` to `awaitExecutionExit`, `bodyCompletionConfirmed` to `executionExitConfirmed`, `unfinishedBodies` to `unexitedExecutions`, `unexitedBodySignals` to `unexitedExecutionSignals`, workload-fit `bodies`, `unattributedBodies`, and `unmeasuredBodies` to `executions`, `unattributedExecutions`, and `unmeasuredExecutions`, and `CombineBody` to `Combiner`. Behaviour is unchanged. See [migration-v0.4](docs/en/migration-v0.4.md#execution-exit-terminology).
 - Replace request-scoped task-graph observation with an always-on, runtime-level executor wait
   graph. Every nested synchronous call — `map`, `mapAndCombine`, or `runAll` made inside a task
-  body — records which registered executor waits for which starvation-prone executor; no scope or
+  execution — records which registered executor waits for which starvation-prone executor; no scope or
   switch is needed, and waits from unrelated requests now combine, so the classic cross-request
   cycle (one request waiting from pool A on B, another from B on A) is visible. Read the state with
   the new `ParRuntime.executorWaitReport()`, whose `ExecutorWaitReport.cyclicComponents()` lists
@@ -23,7 +24,7 @@
   deadline never fired, because the public constructors carried no deadline scheduler, and
   `cancel()` stopped nothing. Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or
   `ParRuntime.group(name, timeout)`; read attribution from `TaskOutcome`; observe cancellation and
-  the remaining budget inside a body with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
+  the remaining budget inside an execution with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
 - Make `TaskType` an optional diagnostic declaration that never changes execution. Replace
   `IO_BOUND`, `CPU_BOUND`, and `MIXED` with `COMPUTE`, `BLOCKING`, and `UNKNOWN`; the default on
   `BatchOptions` and `TaskOptions` is `UNKNOWN`. A `CPU_BOUND` unit used to make a
@@ -35,7 +36,7 @@
 - Remove `Checkpoints.checkRunnable`, `Checkpoints.checkSupplier`, `Checkpoints.checkpoint(String,
   boolean)`, and `Checkpoints.sleep(long)`. The first two turned a user exception type into a
   `CancellationException` while the outcome stayed `USER_FAILURE`; handle that exception as a
-  business failure, or call `Checkpoints.checkpoint()` where the body should stop. Replace
+  business failure, or call `Checkpoints.checkpoint()` where the execution should stop. Replace
   `checkpoint(name, lean)` with `checkpoint()` and `sleep(millis)` with
   `checkSleep(millis, TimeUnit.MILLISECONDS)`. See the 0.4 migration guide.
 
@@ -47,18 +48,18 @@
   `COMPUTE` entry and `INFO` for the reverse. The runtime remembers at most 1024 pairs and then logs
   one summary instead of further new pairs.
 - Screen workload fit all the time with the new `ParRuntime.workloadFitReport()`. The runtime times
-  the bodies admitted through an entry or unit declared `COMPUTE`, comparing thread CPU time with
+  the executions admitted through an entry or unit declared `COMPUTE`, comparing thread CPU time with
   execution time, and judges each entry in epochs of ten seconds of execution time. The first epoch
   with CPU use below half sets `ParMeasurement.issue()` and logs one `WARNING`: a screening lead for
   blocking work in a compute pool, including work whose author did not know it blocks. Judging the
   entry rather than each unit catches blocking spread over many small units. Units are attributed up
   to 256 per entry, and a unit declared `COMPUTE` is judged for suspected declaration drift. Counts
-  are cumulative; a body whose entry and unit are both undeclared or blocking is never timed, and
+  are cumulative; an execution whose entry and unit are both undeclared or blocking is never timed, and
   direct executor work is never measured.
 
 - Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>)` and
   `GroupStart.cancelOn(ListenableFuture<?>)`. Any completion of the caller-owned source cancels the
-  whole batch or group, including `mapAndCombine`, and interrupts running bodies like a deadline or
+  whole batch or group, including `mapAndCombine`, and interrupts running executions like a deadline or
   fail-fast does: every framework cancellation interrupts, and there is no non-interrupting variant.
   Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins), never finish the source,
   register only after successful preparation immediately before binding, and sever the execution
@@ -69,11 +70,11 @@
   `cancelOn`, and enclosing cancellation cancel it with `cancel(true)`, and a `runAll()`
   that fails admission cancels it (a stale-stage or thread-confinement rejection leaves it
   untouched). Each produced value has one owner — the combine once its
-  body starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
+  execution starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
   other value exactly once, including a value that arrives after cancellation. Closers run on a
   runtime-owned thread after the group's completion is published, not on the `runAll()` caller (a
   runtime that has already shut down runs refused releases inline), so a blocking closer cannot hold
-  `runAll()` past its cleanup wait; `bodyCompletionConfirmed()` also
+  `runAll()` past its cleanup wait; `executionExitConfirmed()` also
   covers adopted futures and their closers. An optional producer
   `Par` puts nested waits on adopted futures into `executorWaitReport()`.
 
@@ -90,10 +91,10 @@
   so runtime shutdown cannot retire either framework scheduler early.
 
 - Add `TaskKey<T>.named(name)` for typed group declarations and result lookup.
-  `par(key, par, [options,] body)` and `combine(key, par, [options,] body)` bind the body to
+  `par(key, par, [options,] taskCode)` and `combine(key, par, [options,] taskCode)` bind the execution to
   the key's type; `GroupValues.valueOf(key)` reads members, and `TaskGroupResult.resultOf(key)`
   reads member or terminal results. Keys use object identity and may be reused across runs.
-  `combineValues(key, par, [options,] body)` receives a `GroupValues` view for keyed input access
+  `combineValues(key, par, [options,] taskCode)` receives a `GroupValues` view for keyed input access
   through the existing prepared terminal. Names stay unique; types are checked only at compile time.
   Remove string-plus-`Class`/`TypeToken` declarations, typed name/position lookup overloads,
   `typeAt`/`typeOf`, and raw-class result validation. Migrate declarations and typed reads to
@@ -109,7 +110,7 @@
   element failures first, so an element's business exception is no longer reported as the combine's
   `FAIL_FAST` cancellation. `TaskBatchResult.BatchReport` and `report()` are removed in favor of
   `outcomeCounts()` and `failedTaskResult()`, matching `TaskGroupResult`. Nested batch reads inside a
-  batch body no longer need a try/catch.
+  batch execution no longer need a try/catch.
 
 - Add `ImmediateResult.successful()` and `fold(onValue, onFailure, onCancelled)`, an exhaustive
   consumer that branches on the outcome: execution failures (`USER_FAILURE`, `SUBMISSION_FAILURE`)
@@ -122,7 +123,7 @@
 
 ### Changed
 
-- Stop warning when a body acknowledges a cancellation that already settled its task. A body that
+- Stop warning when an execution acknowledges a cancellation that already settled its task. An execution that
   exits through a `Checkpoints` call that read the committed cancellation, or through a raw JDK
   blocking call woken by the engine's cancellation interrupt on that run, is now logged as
   `failed after cancellation` at `FINE` instead of `WARNING`; the decision reads where the
@@ -143,15 +144,15 @@
   read-only, and does not change settle attribution, missing frozen observations, or cleanup budgets.
 
 - Deliver the once-per-`Par` inert `rejectEnqueue` warning from a runtime-owned thread instead of the
-  submitting thread. A log handler that threw used to fail the submission before any body ran, and
+  submitting thread. A log handler that threw used to fail the submission before any execution ran, and
   one that blocked delayed it; a failing handler or a delivery that cannot start now only loses the
   message. The new `TaskType` mismatch warnings are delivered the same way.
 - An explicit timeout too large for the clock range — `ChronoUnit.FOREVER`,
   `Duration.ofSeconds(Long.MAX_VALUE)`, or any duration whose deadline overflows — no longer
   resolves to the internal no-deadline sentinel. It resolves to the latest representable deadline,
   so the deadline timer is armed and, without `closeGrace`, `map` and `runAll` wait for cancelled
-  bodies to exit within the remaining deadline, exactly as a 200-year timeout does; before, such a
-  scope returned after fail-fast without waiting and reported the bodies as unfinished. Any positive
+  executions to exit within the remaining deadline, exactly as a 200-year timeout does; before, such a
+  scope returned after fail-fast without waiting and reported the executions as unfinished. Any positive
   timeout is still accepted. Callers who want cancel-without-waiting set `closeGrace(Duration.ZERO)`.
   `Checkpoints.remaining()` in such a scope reads a large finite budget instead of
   `Duration.ofNanos(Long.MAX_VALUE)`.

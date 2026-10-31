@@ -63,10 +63,22 @@ class TaskGroupConvergenceTest {
                 CountDownLatch fire = new CountDownLatch(1);
                 TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
                                 "first-failure-" + round, TIMEOUT)
-                        .par(TaskKey.<Integer>named("m0"), global.par(ParId.of("worker")), failingBody(0, ready, fire))
-                        .par(TaskKey.<Integer>named("m1"), global.par(ParId.of("worker")), failingBody(1, ready, fire))
-                        .par(TaskKey.<Integer>named("m2"), global.par(ParId.of("worker")), failingBody(2, ready, fire))
-                        .par(TaskKey.<Integer>named("m3"), global.par(ParId.of("worker")), failingBody(3, ready, fire))
+                        .par(
+                                TaskKey.<Integer>named("m0"),
+                                global.par(ParId.of("worker")),
+                                failingTaskCode(0, ready, fire))
+                        .par(
+                                TaskKey.<Integer>named("m1"),
+                                global.par(ParId.of("worker")),
+                                failingTaskCode(1, ready, fire))
+                        .par(
+                                TaskKey.<Integer>named("m2"),
+                                global.par(ParId.of("worker")),
+                                failingTaskCode(2, ready, fire))
+                        .par(
+                                TaskKey.<Integer>named("m3"),
+                                global.par(ParId.of("worker")),
+                                failingTaskCode(3, ready, fire))
                         .submitAll();
                 assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
                 fire.countDown();
@@ -101,19 +113,19 @@ class TaskGroupConvergenceTest {
                         .par(
                                 TaskKey.<Integer>named("m0"),
                                 global.par(ParId.of("worker")),
-                                blockingBody(started, release))
+                                blockingTaskCode(started, release))
                         .par(
                                 TaskKey.<Integer>named("m1"),
                                 global.par(ParId.of("worker")),
-                                blockingBody(started, release))
+                                blockingTaskCode(started, release))
                         .par(
                                 TaskKey.<Integer>named("m2"),
                                 global.par(ParId.of("worker")),
-                                blockingBody(started, release))
+                                blockingTaskCode(started, release))
                         .par(
                                 TaskKey.<Integer>named("m3"),
                                 global.par(ParId.of("worker")),
-                                blockingBody(started, release))
+                                blockingTaskCode(started, release))
                         .submitAll();
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
@@ -192,7 +204,7 @@ class TaskGroupConvergenceTest {
     // Counts this member in as ready, waits for the common fire signal, then fails the odd members:
     // only half of the group fails, so the recorded name has to come from the failing half rather
     // than from any member of the group.
-    private static Callable<Integer> failingBody(int index, CountDownLatch ready, CountDownLatch fire) {
+    private static Callable<Integer> failingTaskCode(int index, CountDownLatch ready, CountDownLatch fire) {
         return () -> {
             ready.countDown();
             fire.await(30, TimeUnit.SECONDS);
@@ -204,7 +216,7 @@ class TaskGroupConvergenceTest {
     }
 
     // Counts this member in as started, then returns only once the release latch opens.
-    private static Callable<Integer> blockingBody(CountDownLatch started, CountDownLatch release) {
+    private static Callable<Integer> blockingTaskCode(CountDownLatch started, CountDownLatch release) {
         return () -> {
             started.countDown();
             release.await(30, TimeUnit.SECONDS);

@@ -187,7 +187,7 @@ class VariableLinkedBlockingQueueSignalTest {
         IteratorDrivenAssertions.assertExhausted(queue.iterator());
     }
 
-    /** Tiny helper keeping iterator assertions off the main test body. */
+    /** Tiny helper keeping iterator assertions off the main test execution. */
     private static final class IteratorDrivenAssertions {
         private static void assertExhausted(Iterator<?> iterator) {
             assertFalse(iterator.hasNext());

@@ -4,7 +4,7 @@
 
 - 核心出发点：Batch/Group 的终端激活与清理协议重复，修改一条路径容易漏掉另一条。
 - 不变量与拟议 MUST：MUST 复用 TaskSubmissions 并保留 Batch 顺序/滑窗与 Group 类型/名称
-  差异；Future 终态、body 退出、观测发布与 runner 交接 MUST 保持独立。
+  差异；Future 终态、执行退出、观测发布与 runner 交接 MUST 保持独立。
 - 被否决方向及理由：不按类大小抽象，不新增 public bridge、概念子包或超集 options；
   不能以内部测试独占某方法为由删除该方法保护的交错。
 
@@ -15,14 +15,14 @@
 [TaskBatch](../../src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java) 的 finish/finishCombined。
 
 共享准备和上下文包装已经在 `TaskSubmissions`。下一步可集中两处真实重复：全成功后的唯一
-终端激活，以及一次 cleanup 起点、共用预算、body/观测等待。Batch 的输入顺序和滑窗、
+终端激活，以及一次 cleanup 起点、共用预算、执行/观测等待。Batch 的输入顺序和滑窗、
 Group 的名称类型校验和独立成员 deadline 留在各自编排层。
 
 改前改后用户仍写 `par.mapAndCombine(...)` 或 `runtime.group(...).par(...).combine(...).runAll()`。
 消除的是修一个入口却忘了另一个入口的绑定、inline、清理预算或观测规则；没有公开签名迁移。
 
 只在提取后能让协议改动集中于一处时增加包私有抽象。现行两条路径可能尚有理由保持差异，
-不以类大小决定拆分，也不新增超集 options、public bridge 或概念子包。Future 终态、body
+不以类大小决定拆分，也不新增超集 options、public bridge 或概念子包。Future 终态、执行
 退出、最终观测和 runner 中断交接不能合并成一个状态。
 
 验证应同时从公开 Batch/Group 入口打同一组交错，保留专门针对两者差异的测试。
@@ -41,7 +41,7 @@ supplied ExecutorService；MUST 保留用户选择的提交对象与包装器行
 
 组收敛的内部 memberSnapshot/临时 report 与 finish 的最终记录是另一项候选：内部可评估
 只保留 outcome、首失败、身份和收敛时间的轻量记录，最终出口才冻结公开快照。
-MUST 保留收敛时刻与 body 退出时刻的区别；先迁移内部 live 消费及 barrier 交错测试，
+MUST 保留收敛时刻与执行退出时刻的区别；先迁移内部 live 消费及 barrier 交错测试，
 不能将删除动态查询当成已经解决重复快照，也不能提前合并生命周期。
 
 2026-10-02 过度设计分析（F6–F8，全文

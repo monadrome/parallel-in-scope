@@ -38,7 +38,7 @@ class ParRuntimeSnapshotTest {
         assertThat(snapshot.activeAdmissions()).isZero();
         assertThat(snapshot.undrainedBatches()).isZero();
         assertThat(snapshot.activeObservations()).isZero();
-        assertThat(snapshot.unexitedBodySignals()).isZero();
+        assertThat(snapshot.unexitedExecutionSignals()).isZero();
         assertThat(snapshot.toString()).contains("closed=false");
     }
 
@@ -51,11 +51,11 @@ class ParRuntimeSnapshotTest {
         assertThat(snapshot.activeAdmissions()).isEqualTo(3);
         assertThat(snapshot.undrainedBatches()).isEqualTo(2);
         assertThat(snapshot.activeObservations()).isEqualTo(1);
-        assertThat(snapshot.unexitedBodySignals()).isEqualTo(4);
+        assertThat(snapshot.unexitedExecutionSignals()).isEqualTo(4);
     }
 
     @Test
-    void snapshotDistinguishesUndrainedFuturesFromUnexitedBodies() throws Exception {
+    void snapshotDistinguishesUndrainedFuturesFromUnexitedExecutions() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
@@ -83,7 +83,7 @@ class ParRuntimeSnapshotTest {
             await().untilAsserted(() -> {
                 ParRuntimeSnapshot snapshot = runtime.snapshot();
                 assertThat(snapshot.undrainedBatches()).isEqualTo(1);
-                assertThat(snapshot.unexitedBodySignals()).isEqualTo(1);
+                assertThat(snapshot.unexitedExecutionSignals()).isEqualTo(1);
             });
 
             runtime.close();
@@ -93,7 +93,7 @@ class ParRuntimeSnapshotTest {
             assertThat(runtime.awaitQuiescence(Duration.ofSeconds(10))).isTrue();
             ParRuntimeSnapshot drained = runtime.snapshot();
             assertThat(drained.undrainedBatches()).isZero();
-            assertThat(drained.unexitedBodySignals()).isZero();
+            assertThat(drained.unexitedExecutionSignals()).isZero();
             caller.join(TimeUnit.SECONDS.toMillis(10));
         } finally {
             executor.shutdownNow();
@@ -101,9 +101,9 @@ class ParRuntimeSnapshotTest {
     }
 
     @Test
-    void oneBatchWithManyOutstandingBodiesContributesOneBodySignal() throws Exception {
-        // The body-signal counter's unit is the admitted run: a batch whose bodies are all still
-        // running contributes exactly one signal, not one per body.
+    void oneBatchWithManyOutstandingExecutionsContributesOneExecutionSignal() throws Exception {
+        // The execution-signal counter's unit is the admitted run: a batch whose executions are all still
+        // running contributes exactly one signal, not one per execution.
         ExecutorService executor = Executors.newFixedThreadPool(3);
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
@@ -122,8 +122,8 @@ class ParRuntimeSnapshotTest {
                                         }
                                         return value;
                                     },
-                                    BatchOptions.timeout("multi-body", Duration.ofSeconds(30))),
-                    "snapshot-multi-body-caller");
+                                    BatchOptions.timeout("multi-execution", Duration.ofSeconds(30))),
+                    "snapshot-multi-execution-caller");
             caller.setDaemon(true);
             caller.start();
             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
@@ -131,7 +131,7 @@ class ParRuntimeSnapshotTest {
             await().untilAsserted(() -> {
                 ParRuntimeSnapshot snapshot = runtime.snapshot();
                 assertThat(snapshot.undrainedBatches()).isEqualTo(1);
-                assertThat(snapshot.unexitedBodySignals()).isEqualTo(1);
+                assertThat(snapshot.unexitedExecutionSignals()).isEqualTo(1);
             });
 
             release.countDown();

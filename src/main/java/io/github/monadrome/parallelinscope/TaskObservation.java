@@ -19,8 +19,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The sink is a {@link SettableFuture} that is set exactly once with the task's final immutable
  * {@link TaskCompletion} snapshot. Publication waits out the window in which the task future is
- * already terminal but the user body's {@code finally} has not run yet: an instrumented task
- * publishes only after its future has settled <em>and</em> its {@link TaskBodyState} slot reached
+ * already terminal but the user task code's {@code finally} has not run yet: an instrumented task
+ * publishes only after its future has settled <em>and</em> its {@link TaskExecutionState} slot reached
  * {@code EXITED} or {@code SKIPPED}, so the recorded end time is always final. A submission-failure
  * snapshot may be published before the task future settles, so a cancellation cascade cannot
  * replace the recorded handoff failure with a cancellation.
@@ -72,21 +72,21 @@ final class TaskObservation<T> {
 
     /**
      * Creates the observation of an instrumented task: publishes after {@code settle} is terminal
-     * and the task's body slot reached {@code EXITED} or {@code SKIPPED}. A context without a body
+     * and the task's execution slot reached {@code EXITED} or {@code SKIPPED}. A context without an execution
      * slot (a task prepared outside any tracked submission) publishes on settle alone.
      */
     static <T> TaskObservation<T> forTask(TaskExecutionContext context, ListenableFuture<T> settle) {
         TaskObservation<T> observation = new TaskObservation<>(
                 () -> settledSnapshot(context, settle),
-                context.bodyState() == null ? 1 : 2,
+                context.executionState() == null ? 1 : 2,
                 context.multiTaskContext().name(),
                 context.multiTaskContext().unitId(),
                 context.taskIndex(),
                 context.submitTimeNanos());
         settle.addListener(observation::signal, directExecutor());
-        TaskBodyState body = context.bodyState();
-        if (body != null) {
-            body.terminal().addListener(observation::signal, directExecutor());
+        TaskExecutionState taskCode = context.executionState();
+        if (taskCode != null) {
+            taskCode.terminal().addListener(observation::signal, directExecutor());
         }
         return observation;
     }

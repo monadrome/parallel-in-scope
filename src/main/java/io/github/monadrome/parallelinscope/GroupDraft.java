@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * The mutable declaration state behind one fluent group chain, shared by every stage object the
  * chain hands back.
  *
- * <p>Declarations are validated as they are made — before any run state exists — and the bodies
+ * <p>Declarations are validated as they are made — before any run state exists — and the executions
  * stay owned by this draft until {@link #submit} moves them into the preparation kernel, which is
  * also where they are released on every failure path.
  *
@@ -56,7 +56,7 @@ final class GroupDraft {
     }
 
     /**
-     * One declared plain member: a body the library runs on {@code par}, or an adopted source whose
+     * One declared plain member: an execution the library runs on {@code par}, or an adopted source whose
      * optional {@code par} names the producer. The payload is cleared once the kernel takes it.
      */
     private static final class MemberDecl {
@@ -65,16 +65,16 @@ final class GroupDraft {
         final TaskKey<?> key;
 
         @Nullable
-        Callable<?> body;
+        Callable<?> taskCode;
 
         @Nullable
         AdoptedSource adopted;
 
-        MemberDecl(TaskKey<?> key, Par par, TaskOptions options, Callable<?> body) {
+        MemberDecl(TaskKey<?> key, Par par, TaskOptions options, Callable<?> taskCode) {
             this.key = key;
             this.par = par;
             this.options = options;
-            this.body = body;
+            this.taskCode = taskCode;
         }
 
         MemberDecl(TaskKey<?> key, @Nullable Par producer, AdoptedSource adopted) {
@@ -85,7 +85,7 @@ final class GroupDraft {
         }
     }
 
-    /** The declared terminal combine; its body is cleared on the same terms as a member's. */
+    /** The declared terminal combine; its execution is cleared on the same terms as a member's. */
     private static final class CombineDecl {
         final Par par;
         final TaskOptions options;
@@ -93,14 +93,14 @@ final class GroupDraft {
         final boolean valueView;
 
         @Nullable
-        CombineBody<?, ?> body;
+        Combiner<?, ?> combiner;
 
-        CombineDecl(TaskKey<?> key, Par par, TaskOptions options, CombineBody<?, ?> body, boolean valueView) {
+        CombineDecl(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
             this.key = key;
             this.valueView = valueView;
             this.par = par;
             this.options = options;
-            this.body = body;
+            this.combiner = combiner;
         }
     }
 
@@ -112,15 +112,15 @@ final class GroupDraft {
         this.cancellationSignal = checkNotNull(signal, "signal cannot be null");
     }
 
-    void addMember(TaskKey<?> key, Par par, TaskOptions options, Callable<?> body) {
+    void addMember(TaskKey<?> key, Par par, TaskOptions options, Callable<?> taskCode) {
         checkNotNull(key, "key cannot be null");
         checkNotNull(par, "par cannot be null");
         checkNotNull(options, "options cannot be null");
-        checkNotNull(body, "body cannot be null");
+        checkNotNull(taskCode, "task code cannot be null");
         checkNameAvailable(key.name());
         checkPar(par);
         seenNames.add(key.name());
-        members.add(new MemberDecl(key, par, options, body));
+        members.add(new MemberDecl(key, par, options, taskCode));
     }
 
     void addAdopted(
@@ -140,15 +140,15 @@ final class GroupDraft {
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source, closer, owner.releases())));
     }
 
-    void setCombine(TaskKey<?> key, Par par, TaskOptions options, CombineBody<?, ?> body, boolean valueView) {
+    void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
         checkNotNull(key, "key cannot be null");
         checkNotNull(par, "par cannot be null");
         checkNotNull(options, "options cannot be null");
-        checkNotNull(body, "body cannot be null");
+        checkNotNull(combiner, "combiner cannot be null");
         checkNameAvailable(key.name());
         checkPar(par);
         seenNames.add(key.name());
-        combine = new CombineDecl(key, par, options, body, valueView);
+        combine = new CombineDecl(key, par, options, combiner, valueView);
     }
 
     private void checkNameAvailable(String memberName) {
@@ -184,7 +184,7 @@ final class GroupDraft {
     }
 
     /**
-     * Freezes the declaration, moves the bodies into the submission kernel, and submits. The draft
+     * Freezes the declaration, moves the executions into the submission kernel, and submits. The draft
      * is already consumed by the caller, so a failure here cannot be retried either.
      */
     <V, R> TaskGroup<V, R> submit() {
@@ -194,7 +194,7 @@ final class GroupDraft {
             return cast(owner.submitPreparedGroup(definition, payloads));
         } catch (RuntimeException | Error failure) {
             // Admission or preparation failed: prepare cancelled the futures it built and released
-            // the bodies it took; clear whatever was never taken.
+            // the executions it took; clear whatever was never taken.
             payloads.discard();
             throw failure;
         }
@@ -217,26 +217,26 @@ final class GroupDraft {
     }
 
     /**
-     * Moves every body out of the draft into the one-shot carrier the kernel consumes, clearing the
+     * Moves every execution out of the draft into the one-shot carrier the kernel consumes, clearing the
      * draft's own references as it goes so a submitted draft retains no request closure.
      */
     private TaskGroup.RunBindings takePayloads() {
-        Callable<?>[] taskBodies = new Callable<?>[members.size()];
+        Callable<?>[] taskCodes = new Callable<?>[members.size()];
         AdoptedSource[] adopted = new AdoptedSource[members.size()];
         for (int index = 0; index < members.size(); index++) {
             MemberDecl member = members.get(index);
-            taskBodies[index] = member.body;
+            taskCodes[index] = member.taskCode;
             adopted[index] = member.adopted;
-            member.body = null;
+            member.taskCode = null;
             member.adopted = null;
         }
         adoptedSources.clear();
         CombineDecl combineDecl = combine;
-        CombineBody<?, ?> combineBody = combineDecl == null ? null : combineDecl.body;
+        Combiner<?, ?> combiner = combineDecl == null ? null : combineDecl.combiner;
         if (combineDecl != null) {
-            combineDecl.body = null;
+            combineDecl.combiner = null;
         }
-        return new TaskGroup.RunBindings(taskBodies, adopted, combineBody);
+        return new TaskGroup.RunBindings(taskCodes, adopted, combiner);
     }
 
     @SuppressWarnings("unchecked")
@@ -253,15 +253,15 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<T> par(TaskKey<T> key, Par par, Callable<? extends T> body) {
-            return par(key, par, TaskOptions.inheritTimeout(), body);
+        public <T> Step<T> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+            return par(key, par, TaskOptions.inheritTimeout(), taskCode);
         }
 
         @Override
-        public <T> Step<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body) {
+        public <T> Step<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
             draft.checkThread();
             draft.checkStage(0);
-            draft.addMember(key, par, options, body);
+            draft.addMember(key, par, options, taskCode);
             return next();
         }
 
@@ -349,15 +349,16 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> body) {
-            return par(key, par, TaskOptions.inheritTimeout(), body);
+        public <T> Step<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+            return par(key, par, TaskOptions.inheritTimeout(), taskCode);
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body) {
+        public <T> Step<Tuple2<V, T>> par(
+                TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.addMember(key, par, options, body);
+            draft.addMember(key, par, options, taskCode);
             return next();
         }
 
@@ -399,31 +400,31 @@ final class GroupDraft {
         }
 
         @Override
-        public <R> Combined<V, R> combine(TaskKey<R> key, Par par, CombineBody<? super V, ? extends R> body) {
-            return combine(key, par, TaskOptions.inheritTimeout(), body);
+        public <R> Combined<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner) {
+            return combine(key, par, TaskOptions.inheritTimeout(), combiner);
         }
 
         @Override
         public <R> Combined<V, R> combine(
-                TaskKey<R> key, Par par, TaskOptions options, CombineBody<? super V, ? extends R> body) {
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.setCombine(key, par, options, body, false);
+            draft.setCombine(key, par, options, combiner, false);
             return nextCombined();
         }
 
         @Override
         public <R> Combined<V, R> combineValues(
-                TaskKey<R> key, Par par, CombineBody<GroupValues<V>, ? extends R> body) {
-            return combineValues(key, par, TaskOptions.inheritTimeout(), body);
+                TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner) {
+            return combineValues(key, par, TaskOptions.inheritTimeout(), combiner);
         }
 
         @Override
         public <R> Combined<V, R> combineValues(
-                TaskKey<R> key, Par par, TaskOptions options, CombineBody<GroupValues<V>, ? extends R> body) {
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.setCombine(key, par, options, body, true);
+            draft.setCombine(key, par, options, combiner, true);
             return nextCombined();
         }
 

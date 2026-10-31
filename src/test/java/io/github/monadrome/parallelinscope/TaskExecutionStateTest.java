@@ -4,13 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-/** Direct contract test of the per-task body lifecycle slot's state machine. */
-class TaskBodyStateTest {
+/** Direct contract test of the per-task execution lifecycle slot's state machine. */
+class TaskExecutionStateTest {
 
     @Test
     void claimRunningWinsExactlyOnce() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context());
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.claimRunning()).isTrue();
         assertThat(slot.claimRunning()).isFalse();
@@ -21,11 +21,11 @@ class TaskBodyStateTest {
 
     @Test
     void skippedBeforeClaimPreventsRunningAndReleasesTheSlot() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context());
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context());
 
         slot.skipped();
-        // The slot is terminal: a late executor invocation must not enter the body.
+        // The slot is terminal: a late executor invocation must not enter the execution.
         assertThat(slot.claimRunning()).isFalse();
         // A second skip is a no-op; the tracker was released exactly once either way.
         slot.skipped();
@@ -34,8 +34,8 @@ class TaskBodyStateTest {
 
     @Test
     void exitedIsIdempotentAndReleasesOnce() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context());
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.claimRunning()).isTrue();
         slot.exited();
@@ -45,8 +45,8 @@ class TaskBodyStateTest {
 
     @Test
     void terminalSignalCompletesWithTheWinningTransition() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context());
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.terminal().isDone()).isFalse();
         slot.claimRunning();
@@ -56,8 +56,8 @@ class TaskBodyStateTest {
 
     @Test
     void isOutstandingTracksPendingRunningAndTerminalStates() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context());
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.isOutstanding()).isTrue();
         slot.claimRunning();

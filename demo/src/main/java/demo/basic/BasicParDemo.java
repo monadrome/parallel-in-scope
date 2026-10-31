@@ -66,7 +66,7 @@ public class BasicParDemo {
             System.out.println("\n处理完成!");
             System.out.println("结果: " + result.reportString());
             System.out.println("值: " + result.valuesOrThrow());
-            System.out.println("任务体已退出: " + result.bodyCompletionConfirmed());
+            System.out.println("任务体已退出: " + result.executionExitConfirmed());
 
         } finally {
             // 8. 清理资源

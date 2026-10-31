@@ -153,7 +153,7 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
   §19.1，全文见 [archive/group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md)）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取声明名；
-- 成员选项 MAY 省略：不带 options 的 `par(key, par, body)` 重载等价于传
+- 成员选项 MAY 省略：不带 options 的 `par(key, par, taskCode)` 重载等价于传
   `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
   因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
   需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
@@ -177,7 +177,7 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 
 `TaskType` 是任务与线程池两侧共用的可选负载声明，取值 `COMPUTE`（主要消耗 CPU，不应在等待中占住
 线程）、`BLOCKING`（任何阶段会阻塞线程：IO、锁、sleep、join、等待其他任务或嵌套批次）、
-`UNKNOWN`（未声明）。单元侧由 `BatchOptions.taskType` / `TaskOptions.taskType` 声明任务体本身；
+`UNKNOWN`（未声明）。单元侧由 `BatchOptions.taskType` / `TaskOptions.taskType` 声明任务代码本身；
 入口侧由 `ParRuntime.Builder.register(ParId, ExecutorService, TaskType)` 声明该入口预期承载的
 任务类型，两参重载等价于 `UNKNOWN`，读取用 `Par.taskType()`。共享同一物理池的多个入口各自保留
 声明。
@@ -186,8 +186,8 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
   `rejectEnqueue` 表达：`SmartBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
   `rejectEnqueue`。
 - 两侧缺省 MUST 为 `UNKNOWN`；`UNKNOWN` 可显式书写，表示刻意不声明。嵌套单元 MUST NOT 继承父单元
-  的类型：任务体里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明
-  解析，未声明即 `UNKNOWN`。类型描述任务体本身，继承等于替用户编造声明；终端 combine 同样不请求
+  的类型：任务代码里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明
+  解析，未声明即 `UNKNOWN`。类型描述任务代码本身，继承等于替用户编造声明；终端 combine 同样不请求
   拒绝入队。
 - **提交时比对。** 每个单元在准入处（批次、单任务、组成员、组 combine）比对入口与单元的声明：
   两侧都非 `UNKNOWN` 且不同时，按 `(Par, 单元名)` 记录一次；方向不需要单独的键，因为一个入口只有
@@ -247,7 +247,7 @@ public enum TaskOutcome {
 `TaskGroupResult<V, R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
 `valuesResult`/`terminalResult`、`valuesOrThrow()`/`terminalValueOrThrow()`、
-`bodyCompletionConfirmed()`/`unfinishedBodies()` 与 `members()`/`terminal()` 快照）。
+`executionExitConfirmed()`/`unexitedExecutions()` 与 `members()`/`terminal()` 快照）。
 
 成员完成快照统一为 `TaskCompletion`（batch 元素与 group 成员共用），字段为
 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/`result()`/`failure()`。组结果中的

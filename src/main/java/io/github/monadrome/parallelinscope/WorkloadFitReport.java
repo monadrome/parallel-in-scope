@@ -10,8 +10,8 @@ import java.util.List;
 /**
  * Immutable snapshot of the runtime's always-on workload-fit screening.
  *
- * <p>The runtime measures bodies admitted through an entry or unit declared {@link
- * TaskType#COMPUTE}, comparing thread CPU time with execution time. Bodies whose entry and unit are
+ * <p>The runtime measures executions admitted through an entry or unit declared {@link
+ * TaskType#COMPUTE}, comparing thread CPU time with execution time. Executions whose entry and unit are
  * both undeclared or {@link TaskType#BLOCKING} are not measured.
  *
  * <p>Low CPU use sets {@link ParMeasurement#issue()} only for entries declared {@code COMPUTE} and
@@ -37,7 +37,7 @@ public final class WorkloadFitReport {
 
     /**
      * Returns, in registration order, one measurement per entry declared {@link TaskType#COMPUTE}
-     * and per other entry that has run a body of a unit declared {@code COMPUTE}. An entry that is
+     * and per other entry that has run an execution of a unit declared {@code COMPUTE}. An entry that is
      * absent was never screened, so an empty or clean report says nothing about it.
      */
     public List<ParMeasurement> pars() {
@@ -60,9 +60,9 @@ public final class WorkloadFitReport {
     }
 
     /**
-     * The screened bodies of one entry. Its counts include the bodies of every unit, attributed or
+     * The screened executions of one entry. Its counts include the executions of every unit, attributed or
      * not; a total and each unit's totals are individually consistent, but are not one atomic
-     * snapshot. They may differ because bodies are finishing concurrently or diagnostic bookkeeping
+     * snapshot. They may differ because executions are finishing concurrently or diagnostic bookkeeping
      * failed.
      *
      * @since 0.4.0
@@ -71,37 +71,37 @@ public final class WorkloadFitReport {
     public static final class ParMeasurement {
         private final ParId par;
         private final TaskType taskType;
-        private final long bodies;
+        private final long executions;
         private final long cpuNanos;
         private final long executionNanos;
-        private final long unattributedBodies;
-        private final long unmeasuredBodies;
+        private final long unattributedExecutions;
+        private final long unmeasuredExecutions;
         private final boolean issue;
         private final ImmutableList<UnitMeasurement> units;
 
         ParMeasurement(
                 ParId par,
                 TaskType taskType,
-                long bodies,
+                long executions,
                 long cpuNanos,
                 long executionNanos,
-                long unattributedBodies,
-                long unmeasuredBodies,
+                long unattributedExecutions,
+                long unmeasuredExecutions,
                 boolean issue,
                 List<UnitMeasurement> units) {
             this.par = checkNotNull(par, "par cannot be null");
             this.taskType = checkNotNull(taskType, "taskType cannot be null");
-            this.bodies = bodies;
+            this.executions = executions;
             this.cpuNanos = cpuNanos;
             this.executionNanos = executionNanos;
-            this.unattributedBodies = unattributedBodies;
-            this.unmeasuredBodies = unmeasuredBodies;
+            this.unattributedExecutions = unattributedExecutions;
+            this.unmeasuredExecutions = unmeasuredExecutions;
             this.issue = issue;
             this.units = ImmutableList.copyOf(units);
         }
 
         /**
-         * The entry the bodies were submitted through; another entry sharing its pool is measured
+         * The entry the executions were submitted through; another entry sharing its pool is measured
          * apart.
          */
         public ParId par() {
@@ -113,17 +113,17 @@ public final class WorkloadFitReport {
             return taskType;
         }
 
-        /** Timed bodies that finished. */
-        public long bodies() {
-            return bodies;
+        /** Timed executions that finished. */
+        public long executions() {
+            return executions;
         }
 
-        /** Total thread CPU time of the timed bodies. */
+        /** Total thread CPU time of the timed executions. */
         public Duration cpuTime() {
             return Duration.ofNanos(cpuNanos);
         }
 
-        /** Total execution time of the timed bodies, excluding time spent queued. */
+        /** Total execution time of the timed executions, excluding time spent queued. */
         public Duration executionTime() {
             return Duration.ofNanos(executionNanos);
         }
@@ -137,20 +137,20 @@ public final class WorkloadFitReport {
         }
 
         /**
-         * Timed bodies of units beyond the entry's attribution capacity of 256 units; counted here
+         * Timed executions of units beyond the entry's attribution capacity of 256 units; counted here
          * only.
          */
-        public long unattributedBodies() {
-            return unattributedBodies;
+        public long unattributedExecutions() {
+            return unattributedExecutions;
         }
 
-        /** Bodies that were to be timed but whose CPU time could not be read; not counted elsewhere. */
-        public long unmeasuredBodies() {
-            return unmeasuredBodies;
+        /** Executions that were to be timed but whose CPU time could not be read; not counted elsewhere. */
+        public long unmeasuredExecutions() {
+            return unmeasuredExecutions;
         }
 
         /**
-         * Whether the entry is declared {@link TaskType#COMPUTE} and an epoch of its bodies used
+         * Whether the entry is declared {@link TaskType#COMPUTE} and an epoch of its executions used
          * CPU for less than half their execution time. Set once, for the runtime's lifetime.
          */
         public boolean issue() {
@@ -166,12 +166,12 @@ public final class WorkloadFitReport {
         public String toString() {
             return "ParMeasurement{par='" + par
                     + "', taskType=" + taskType
-                    + ", bodies=" + bodies
+                    + ", executions=" + executions
                     + ", cpuTime=" + cpuTime()
                     + ", executionTime=" + executionTime()
                     + ", cpuToExecutionRatio=" + cpuToExecutionRatio()
-                    + ", unattributedBodies=" + unattributedBodies
-                    + ", unmeasuredBodies=" + unmeasuredBodies
+                    + ", unattributedExecutions=" + unattributedExecutions
+                    + ", unmeasuredExecutions=" + unmeasuredExecutions
                     + ", issue=" + issue
                     + ", units=" + units
                     + '}';
@@ -179,7 +179,7 @@ public final class WorkloadFitReport {
     }
 
     /**
-     * The screened bodies of one unit within an entry, keyed by unit name and unit type.
+     * The screened executions of one unit within an entry, keyed by unit name and unit type.
      *
      * @since 0.4.0
      */
@@ -187,7 +187,7 @@ public final class WorkloadFitReport {
     public static final class UnitMeasurement {
         private final String unit;
         private final TaskType taskType;
-        private final long bodies;
+        private final long executions;
         private final long cpuNanos;
         private final long executionNanos;
         private final boolean suspectedDeclarationDrift;
@@ -195,13 +195,13 @@ public final class WorkloadFitReport {
         UnitMeasurement(
                 String unit,
                 TaskType taskType,
-                long bodies,
+                long executions,
                 long cpuNanos,
                 long executionNanos,
                 boolean suspectedDeclarationDrift) {
             this.unit = checkNotNull(unit, "unit cannot be null");
             this.taskType = checkNotNull(taskType, "taskType cannot be null");
-            this.bodies = bodies;
+            this.executions = executions;
             this.cpuNanos = cpuNanos;
             this.executionNanos = executionNanos;
             this.suspectedDeclarationDrift = suspectedDeclarationDrift;
@@ -217,17 +217,17 @@ public final class WorkloadFitReport {
             return taskType;
         }
 
-        /** Timed bodies that finished. */
-        public long bodies() {
-            return bodies;
+        /** Timed executions that finished. */
+        public long executions() {
+            return executions;
         }
 
-        /** Total thread CPU time of the timed bodies. */
+        /** Total thread CPU time of the timed executions. */
         public Duration cpuTime() {
             return Duration.ofNanos(cpuNanos);
         }
 
-        /** Total execution time of the timed bodies, excluding time spent queued. */
+        /** Total execution time of the timed executions, excluding time spent queued. */
         public Duration executionTime() {
             return Duration.ofNanos(executionNanos);
         }
@@ -241,9 +241,9 @@ public final class WorkloadFitReport {
         }
 
         /**
-         * Whether the unit is declared {@link TaskType#COMPUTE} and an epoch of its bodies used CPU
+         * Whether the unit is declared {@link TaskType#COMPUTE} and an epoch of its executions used CPU
          * for less than half their execution time, suggesting the declaration no longer matches the
-         * body. Set once, for the runtime's lifetime; never sets {@link ParMeasurement#issue()}.
+         * execution. Set once, for the runtime's lifetime; never sets {@link ParMeasurement#issue()}.
          */
         public boolean suspectedDeclarationDrift() {
             return suspectedDeclarationDrift;
@@ -253,7 +253,7 @@ public final class WorkloadFitReport {
         public String toString() {
             return "UnitMeasurement{unit='" + unit
                     + "', taskType=" + taskType
-                    + ", bodies=" + bodies
+                    + ", executions=" + executions
                     + ", cpuTime=" + cpuTime()
                     + ", executionTime=" + executionTime()
                     + ", cpuToExecutionRatio=" + cpuToExecutionRatio()

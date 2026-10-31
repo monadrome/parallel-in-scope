@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
  * Prepares scoped tasks and hands them to executors under their submission policy.
  *
  * <p>Preparation captures TTL context and attaches lifecycle observations without executing the
- * body. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
+ * execution. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
  * without entering user code. Callers own cancellation binding and the choice of submission order.
  */
 final class TaskSubmissions {
@@ -35,7 +35,7 @@ final class TaskSubmissions {
      */
     static <V> ExecutionPhaseHintFuture<V> prepare(TaskExecutionContext taskContext, Callable<V> callable) {
         ExecutionPhaseHintFuture<V> future =
-                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.bodyState());
+                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionState());
         future.observation(TaskObservation.forTask(taskContext, future));
         return future;
     }
@@ -46,7 +46,7 @@ final class TaskSubmissions {
      * {@link SubmissionException} without running user code.
      *
      * <p>The scope installed here covers the submission only. An executor that runs the task inside
-     * {@code execute()} would otherwise leave it installed around the body as well, which {@link
+     * {@code execute()} would otherwise leave it installed around the execution as well, which {@link
      * ExecutionPhaseHintFuture#run()} undoes.
      */
     static void submitScoped(ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor) {

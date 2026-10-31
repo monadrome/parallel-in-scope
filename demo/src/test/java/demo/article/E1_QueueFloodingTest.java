@@ -119,7 +119,7 @@ class E1_QueueFloodingTest {
                     },
                     options);
 
-            // The synchronous result returns only after every body has updated the measurements.
+            // The synchronous result returns only after every execution has updated the measurements.
             assertThat(result.valuesOrThrow()).hasSize(TASK_COUNT);
             assertThat(maxConcurrency.get())
                     .as("Max concurrency should be bounded by parallelism=%d", parallelism)

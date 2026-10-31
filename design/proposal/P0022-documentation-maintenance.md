@@ -4,7 +4,7 @@
 
 - 核心出发点：用户示例、现行契约与历史记录各自承担不同责任，修复错误教学与漂移的事实源。
 - 不变量与拟议 MUST：示例 MUST 编译并遵守上下文恢复及 P1–P4；MUST 区分中断投递与 IO 停止、
-  Future 终态与 body 退出。ADR 的决定 MUST NOT 被改写，变更使用后继 ADR 与 Superseded 链接；
+  Future 终态与执行退出。ADR 的决定 MUST NOT 被改写，变更使用后继 ADR 与 Superseded 链接；
   过时的非决策内容按 adr/AGENTS.md 蒸馏。
 - 被否决方向及理由：不恢复已删除 listener/运行句柄来迎合旧文档，不恢复 throwing Function，
   不按符号零命中宣布整篇 ADR 失效，不将本地路径门禁通过称为示例或语义验证通过。
@@ -31,7 +31,7 @@ P0011 的 MDC/TTL、checked Function、缺少成功返回、中断处理和 IO �
 - task-group-cancellation 的已删 listener/直接 CANCELLED 观察与共享归因描述；
   lifecycle 的 resolve 签名枚举：逐项按机制统一，取消与观测 MUST 保留单一事实源。
 - task-group-api-and-options 中 failure 只属于业务/提交失败的过强表述、lifecycle 中把直接
-  body 确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
+  执行确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
   与 group 的 unchecked 包装用具体消费代码解释，不为统一表面添加 throwing callback 家族。
 - PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 failedTaskResult()
   只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时为空，不代表所有任务成功；取消细节

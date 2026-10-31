@@ -22,7 +22,7 @@ ImmediateResult<User> result = runtime.group("user", timeout)
 ```
 
 - Replace string-plus-type `par` and `combine` declarations with a saved key. Explicit `TaskOptions`
-  still go immediately before the body. Tuple-based `combine` still receives the assembled `V`.
+  still go immediately before the execution. Tuple-based `combine` still receives the assembled `V`.
 - Generic results need no reified token: `TaskKey<List<Order>> orders = TaskKey.named("orders")`.
   Code already using the earlier 0.4 key draft replaces `TaskKey.of(name, type)` with `named(name)`
   and removes `type()` reads.
@@ -30,11 +30,11 @@ ImmediateResult<User> result = runtime.group("user", timeout)
   declaration key. Reconstructing a same-name key throws `IllegalArgumentException`.
 - Dynamic `valueOf(name)` / `valueAt(index)` return `Object`; `resultOf(name)` / `resultAt(index)`
   return `ImmediateResult<?>`. Type-parameter overloads and `typeAt` / `typeOf` are removed.
-- Use `combineValues(terminalKey, par, body)` for member input by key. Its `GroupValues` excludes
+- Use `combineValues(terminalKey, par, taskCode)` for member input by key. Its `GroupValues` excludes
   the terminal itself; the frozen result supports `resultOf(terminalKey)`.
 - Raw types and unchecked casts are the caller's responsibility. An incompatible return value
   is no longer converted to `USER_FAILURE` by a raw-class check; a later typed use may throw
-  `ClassCastException`. Normal user-body exceptions still produce `USER_FAILURE`.
+  `ClassCastException`. Normal user task code exceptions still produce `USER_FAILURE`.
 
 Keys can be reused across runs, usually as `static final` fields. Results remain isolated per run.
 Task names remain unique across members and the terminal. Unknown keys, duplicate names, null
@@ -43,6 +43,27 @@ Literal-null `valueOf(null)` / `resultOf(null)` calls need a `String` or `TaskKe
 
 Cancellation, deadline, TTL, success-gated terminal submission, and bounded cleanup semantics
 are unchanged. These API removals have no compatibility shims; recompile consumers against 0.4.
+
+## Execution exit terminology
+
+A run of task code is an **execution**, and its exit from the task code is an **execution exit**. A `Task` is still the caller-visible future. The names below are removed with no aliases:
+
+| Removed name | Use instead |
+|---|---|
+| `TaskBatch.awaitBodyCompletion(Duration)`, `TaskGroup.awaitBodyCompletion(Duration)` | `awaitExecutionExit(Duration)` |
+| `bodyCompletionConfirmed()` on `TaskBatchResult`, `BatchCombinedResult`, `TaskGroupResult` | `executionExitConfirmed()` |
+| `unfinishedBodies()` on the same result types | `unexitedExecutions()` |
+| `ParRuntimeSnapshot.unexitedBodySignals()` | `unexitedExecutionSignals()` |
+| `WorkloadFitReport.ParMeasurement.bodies()`, `WorkloadFitReport.UnitMeasurement.bodies()` | `executions()` |
+| `ParMeasurement.unattributedBodies()` | `unattributedExecutions()` |
+| `ParMeasurement.unmeasuredBodies()` | `unmeasuredExecutions()` |
+| `CombineBody<V, R>` | `Combiner<V, R>`; `apply` is unchanged |
+
+Migration:
+
+- Rename the calls. `executionExitConfirmed()` answers the same question as `bodyCompletionConfirmed()`. Do not replace it with `isDone()`, an outcome read, or another settled-state check: only the exit answer says that task code has left its thread.
+- Rename explicit `CombineBody` declarations to `Combiner`. Lambdas and method references need no change.
+- Code that parses the old `toString()` labels of workload-fit reports must read the `executions` labels instead. The format is not a stable parsing contract.
 
 ## Static contract annotations
 
@@ -105,7 +126,7 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 The failure mode removed: when an element failed, `terminalValueOrThrow()` used to report only the
 combine's `FAIL_FAST` cancellation, so the business exception never appeared in the chain unless the
 caller read the elements first. Batch and group reads also needed different catch blocks, and a
-nested batch read inside a batch body needed a try/catch only to satisfy the compiler.
+nested batch read inside a batch execution needed a try/catch only to satisfy the compiler.
 
 | 0.3 | 0.4 |
 |---|---|
@@ -119,7 +140,7 @@ A `catch (ExecutionException e)` that only wraps these calls becomes a compile e
 finds it. A try block that also catches `ExecutionException` from another source, such as
 `ImmediateResult.valueOrThrow()`, still compiles, but a batch failure it used to catch now
 propagates: review such blocks by hand. A rethrown failure is the stored instance, so its stack shows
-the worker, not the caller. A body that throws its own `CancellationException` is a `USER_FAILURE`
+the worker, not the caller. An execution that throws its own `CancellationException` is a `USER_FAILURE`
 and is now rethrown as-is; read `outcome()` to tell it from framework cancellation. `reportString()`
 keeps its text; the format is diagnostic, not a parsing contract.
 
@@ -199,8 +220,8 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 ```
 
 - Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or `ParRuntime.group(name, timeout)`.
-- End the remaining work early by throwing from a body; fail-fast cancels the siblings.
-- Inside a body, observe cancellation and the remaining budget with `Checkpoints.checkpoint()` and
+- End the remaining work early by throwing from an execution; fail-fast cancels the siblings.
+- Inside an execution, observe cancellation and the remaining budget with `Checkpoints.checkpoint()` and
   `Checkpoints.remaining()`.
 - Read attribution from `TaskOutcome`; `CancellationToken.State` has no public replacement.
 
@@ -233,10 +254,10 @@ par.map(skus, this::fetchPrice,
         BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect));
 ```
 
-The failure mode removed is the gap between polling checkpoints: cancellation can now reach a body
+The failure mode removed is the gap between polling checkpoints: cancellation can now reach an execution
 already blocked in a cooperative interruptible wait. Source success, failure, and cancellation all
-trigger cancellation, and the cancellation interrupts running bodies exactly as a deadline or
-fail-fast does; there is no non-interrupting variant, because a body that cannot tolerate
+trigger cancellation, and the cancellation interrupts running executions exactly as a deadline or
+fail-fast does; there is no non-interrupting variant, because an execution that cannot tolerate
 interruption would still be interrupted by its deadline. The source stays caller-owned, and
 attribution remains first-wins with `GROUP_CANCELLED` when the source wins. Registration and listener
 severing follow admission and terminal completion; empty batches and groups do not register. This
@@ -293,7 +314,7 @@ for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicCom
 for every element. Do not mutate a non-concurrent collection while it is being copied; changing
 an element object is not isolated by a shallow copy.
 
-Null input elements now throw `NullPointerException` before any mapper or combine body runs,
+Null input elements now throw `NullPointerException` before any mapper or combiner runs,
 instead of being passed to the mapper by unchecked callers. Remove or replace null elements before
 calling either entry point. Null collections still mean an empty batch for `map`; `mapAndCombine`
 still rejects null or empty collections. Successful null mapper results remain valid.
@@ -305,7 +326,7 @@ which contradicts token-based attribution, or duplicated a remaining method.
 
 | Removed | Replacement |
 |---|---|
-| `checkRunnable(action, type)`, `checkSupplier(supplier, type)` | Handle the exception as a business failure, or call `Checkpoints.checkpoint()` where the body should stop |
+| `checkRunnable(action, type)`, `checkSupplier(supplier, type)` | Handle the exception as a business failure, or call `Checkpoints.checkpoint()` where the execution should stop |
 | `checkpoint(String, boolean)` | `Checkpoints.checkpoint()` |
 | `sleep(long)` | `Checkpoints.checkSleep(long, TimeUnit.MILLISECONDS)` |
 
@@ -329,7 +350,7 @@ Checkpoints.checkSleep(200, TimeUnit.MILLISECONDS);
 committed cancellation the outcome was still `USER_FAILURE`, so the method's promise of
 "cancellation" did not hold. `checkpoint(String, boolean)` could only fail on a mistyped name.
 
-Late-failure logging changed. When cancellation has already settled a task and its body then exits
+Late-failure logging changed. When cancellation has already settled a task and its execution then exits
 through a `Checkpoints` call that read that cancellation, or through a JDK blocking call woken by the
 engine's cancellation interrupt on that run, the `task '<name>' failed after cancellation` record is
 `FINE` instead of `WARNING`. Every other late failure, including one carrying a suppressed

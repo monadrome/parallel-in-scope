@@ -1,6 +1,6 @@
 # 字符串具名终端输入
 
-类型化 key 终端输入已由 `combineValues(TaskKey, Par, body)` 实现，现行规则见
+类型化 key 终端输入已由 `combineValues(TaskKey, Par, taskCode)` 实现，现行规则见
 [组声明契约](../group-one-shot-api-refactor-codex.md#41-类型化声明键)。本提案仅保留未知 schema
 或字符串名称消费方的入口候选；下方字符串重载仍未实现，须以真实动态消费需求重新论证。
 
@@ -35,4 +35,4 @@
 编译期类型安全。采用不同名字避免 lambda 重载歧义；保留 typed combine，无迁移。
 这是上轮 E6 的剩余候选，只有真实的大组消费需求足以覆盖新增接口成本时才实施。
 
-主动采用新入口才改变终端输入形状，旧 typed combine 无迁移；body、预算与取消管线不变。
+主动采用新入口才改变终端输入形状，旧 typed combine 无迁移；执行、预算与取消管线不变。

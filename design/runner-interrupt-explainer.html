@@ -43,7 +43,7 @@ restoreEntryInterruptState();
 <p>关键是两个 volatile 字段上的读写顺序。不能把“投递中”移到读取 runner 之后，也不能把退出等待移到清空 runner 之前。</p>
 <h2>本次实测</h2><div class="evidence"><div class="result"><strong>当前工作树源码 · Java 8</strong><p><code>reused before delivery = true<br>B interrupted = true</code></p></div><div class="result safe"><strong>/tmp 最小握手副本 · Java 8</strong><p><code>reused before delivery = false<br>B interrupted = false</code></p></div></div>
 <p class="muted">探针重写 Thread.interrupt()，在实际投递前用闩锁暂停取消线程，让 A 正常退出，并模拟线程池任务间清标志。它控制的是合法的暂停窗口，而非随机等待。此处结果来自真实 Java 探针；上方时间线是协议演示。</p>
-<h2>正式落地时的边界</h2><ul><li>这个布尔标志依赖 AbstractFuture 对一次成功 cancel(true) 只调用一次 interruptTask()；若以后支持多个独立投递者，必须改用能协调多投递者的协议。</li><li>投递结束必须在 finally 中发布，包括 interrupt() 抛异常时。等待不能被取消中断提前打断。</li><li>只等待中断投递完成，不等待 A 的任务体配合取消。自定义 interrupt() 若永久阻塞，安全退出也会被阻塞；不能用超时放行来重新引入越界。</li><li>应补充取消早于 runner 发布、cancel(false)、inline、入口标志恢复、投递异常和正常完成竞争的测试。当前 Java 8 探针不是完整回归验收；本轮未独立复核 JDK 25。</li></ul>
+<h2>正式落地时的边界</h2><ul><li>这个布尔标志依赖 AbstractFuture 对一次成功 cancel(true) 只调用一次 interruptTask()；若以后支持多个独立投递者，必须改用能协调多投递者的协议。</li><li>投递结束必须在 finally 中发布，包括 interrupt() 抛异常时。等待不能被取消中断提前打断。</li><li>只等待中断投递完成，不等待 A 的任务代码配合取消。自定义 interrupt() 若永久阻塞，安全退出也会被阻塞；不能用超时放行来重新引入越界。</li><li>应补充取消早于 runner 发布、cancel(false)、inline、入口标志恢复、投递异常和正常完成竞争的测试。当前 Java 8 探针不是完整回归验收；本轮未独立复核 JDK 25。</li></ul>
 <footer>握手协议已落实到工作树源码。验证与评审记录：<a href="runner-interrupt-delivery.md">runner-interrupt-delivery.md</a> · 源码：<a href="../src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java">ExecutionPhaseHintFuture.java</a> · 契约：<a href="interruption-contract.md">interruption-contract.md</a></footer>
 </main>
 <script>

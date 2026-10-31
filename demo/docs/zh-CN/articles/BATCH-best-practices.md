@@ -81,8 +81,8 @@ Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult();
 ```
 
 生产环境中，可以把 `reportString()` 打到日志里，配合 `completions()` 的可用终态快照做监控告警（见 G1）。
-返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unfinishedBodies()`，
-`bodyCompletionConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
+返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unexitedExecutions()`，
+`executionExitConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
 
 ### 4. 异常不要吞
 

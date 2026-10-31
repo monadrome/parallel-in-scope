@@ -77,12 +77,12 @@ public final class ParRuntime implements AutoCloseable {
     private final AtomicInteger activeObservations = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Monitor quiescenceMonitor = new Monitor();
-    private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
+    private final Set<ListenableFuture<@Nullable Void>> liveExecutionSignals = Sets.newConcurrentHashSet();
     private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
     private final WorkloadClock workloadClock;
 
     /*
-     * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter on
+     * Satisfied once shutdown has completed and no tracked task execution remains in flight. A waiter on
      * this guard is re-evaluated whenever a thread occupies and releases the monitor, so each state
      * change that can satisfy it is followed by an enter/leave pair rather than a hand-built
      * wait/notify protocol.
@@ -90,7 +90,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
         @Override
         public boolean isSatisfied() {
-            return servicesShutdown.get() && liveBodySignals.isEmpty();
+            return servicesShutdown.get() && liveExecutionSignals.isEmpty();
         }
     };
 
@@ -169,14 +169,14 @@ public final class ParRuntime implements AutoCloseable {
                     // A discarding policy never reports rejection: DiscardPolicy drops the new
                     // task outright, and DiscardOldestPolicy drops the oldest queued task to make
                     // room for it. Either way the framework would keep waiting on a future whose
-                    // body may never run. Refuse to register such a pool at all.
+                    // execution may never run. Refuse to register such a pool at all.
                     RejectedExecutionHandler policy =
                             ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
                     if (policy instanceof ThreadPoolExecutor.DiscardPolicy
                             || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
                         // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
                         // named: rejection as a thrown exception is the more direct contract, and
-                        // running the body on the submitting thread carries consequences a caller
+                        // running the execution on the submitting thread carries consequences a caller
                         // has to opt into knowingly — see ADR-0007.
                         throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
                                 + introspectable.getClass().getName() + " using "
@@ -293,7 +293,7 @@ public final class ParRuntime implements AutoCloseable {
      * Returns the executor waits-for structure this runtime has observed so far.
      *
      * <p>Every nested synchronous call — {@code Par.map}, {@code Par.mapAndCombine}, or a task
-     * group's {@code runAll()} made inside a task body — records which registered executor waits
+     * group's {@code runAll()} made inside a task execution — records which registered executor waits
      * for which; no scope or switch is needed. When those waits first form a cycle among
      * starvation-prone pools, the runtime also logs one JUL {@code WARNING} per cyclic component,
      * from a runtime-owned thread rather than the submitting one. The report accumulates for the
@@ -415,7 +415,7 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Admits and starts one frozen group run. Called by {@link GroupDraft#submit()} after the
-     * declaration is complete and its bodies have moved into {@code payloads}.
+     * declaration is complete and its executions have moved into {@code payloads}.
      *
      * <p>The whole startup — preparation, binds, and submission — is one admission against {@link
      * #close()}: either the group is accepted completely or rejected completely, never partially,
@@ -427,10 +427,10 @@ public final class ParRuntime implements AutoCloseable {
      * <p>The admission boundary is the submission boundary: the submit start — structural parent,
      * deadline ceiling, TTL and observation snapshots — is resolved here, so a slow declaration
      * never consumes the group's execution budget and inherited-deadline errors surface before any
-     * body can run.
+     * execution can run.
      *
      * @param definition the frozen structure built from the declaration
-     * @param payloads this run's bodies, already owned by the kernel
+     * @param payloads this run's executions, already owned by the kernel
      * @return the running group, holding the complete member registry
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread
      *     has no enclosing scoped task
@@ -465,7 +465,7 @@ public final class ParRuntime implements AutoCloseable {
      * executions already being set up, so each either completes setup and returns its result or is
      * rejected before any task is submitted. Services drain runs admitted before shutdown; open
      * starvation observations retain the diagnostic services until their scopes close. This method
-     * does not wait for task bodies or observation reports to finish.
+     * does not wait for task executions or observation reports to finish.
      */
     @Override
     public void close() {
@@ -482,12 +482,12 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Waits until this topology is closed and fully drained: no admission is setting up an
-     * execution, no admitted run retains incomplete futures, every admitted task body has exited,
+     * execution, no admitted run retains incomplete futures, every admitted task execution has exited,
      * no open starvation observation retains the diagnostic services, and the framework-owned
      * services have shut down. Call {@link #close()} first; without it this method simply waits out
      * the timeout.
      *
-     * <p>Task-body exit is tracked separately from future completion: a task cancelled while
+     * <p>Task-execution exit is tracked separately from future completion: a task cancelled while
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *
@@ -526,12 +526,12 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the current always-on workload-fit screening of library-admitted bodies.
+     * Returns the current always-on workload-fit screening of library-admitted executions.
      *
-     * <p>Bodies are measured when either their entry or unit declares {@link TaskType#COMPUTE}.
+     * <p>Executions are measured when either their entry or unit declares {@link TaskType#COMPUTE}.
      * Only a compute entry can acquire an entry issue and a {@code WARNING}; a compute unit can
      * independently acquire declaration drift and an {@code INFO}. Counts are cumulative, so two
-     * reports bound an interval. Library-admitted bodies are measured even when their executor
+     * reports bound an interval. Library-admitted executions are measured even when their executor
      * runs them inline; work submitted directly to an executor outside library admission is not
      * measured. See {@link WorkloadFitReport} for verdicts, calibration, and limitations.
      *
@@ -562,8 +562,8 @@ public final class ParRuntime implements AutoCloseable {
      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
      * how many starvation observations are open, and how many admitted runs still have a direct
-     * body whose exit has not been confirmed (one count per run, regardless of the number of its
-     * outstanding bodies). Open observations retain framework services after runtime close until
+     * execution whose exit has not been confirmed (one count per run, regardless of the number of its
+     * outstanding executions). Open observations retain framework services after runtime close until
      * their reports publish.
      *
      * <p>The five readings are independent samples of concurrent counters: the snapshot is a
@@ -579,7 +579,7 @@ public final class ParRuntime implements AutoCloseable {
                 activeAdmissions.get(),
                 activeBatches.get(),
                 activeObservations.get(),
-                liveBodySignals.size());
+                liveExecutionSignals.size());
     }
 
     /**
@@ -655,23 +655,23 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Tracks one submission's task-body completion signal until every body has exited. Task bodies
-     * outlive their futures when a cancellation wins mid-run, so quiescence cannot read body exit
+     * Tracks one submission's execution exit signal until every execution has exited. Task executions
+     * outlive their futures when a cancellation wins mid-run, so quiescence cannot read execution exit
      * from the future drain alone. Must be called inside {@link #whileOpen}: after shutdown begins
      * and admissions drain, no new signal can appear, so {@link #awaitQuiescence} observing an
      * empty set is stable.
      */
     @SuppressWarnings("CollectionUndefinedEquality")
-    void trackBodies(BodyCompletionTracker tracker) {
-        ListenableFuture<@Nullable Void> signal = tracker.bodyExit();
+    void trackExecutions(ExecutionExitTracker tracker) {
+        ListenableFuture<@Nullable Void> signal = tracker.executionExit();
         if (signal.isDone()) return;
-        liveBodySignals.add(signal);
+        liveExecutionSignals.add(signal);
         // directExecutor: the listener runs inside the signal's completion, so a completed
         // signal is always removed before the completing thread returns — the quiescence check
         // never sees a stale entry.
         signal.addListener(
                 () -> {
-                    liveBodySignals.remove(signal);
+                    liveExecutionSignals.remove(signal);
                     quiescenceMonitor.enter();
                     quiescenceMonitor.leave();
                 },
@@ -816,7 +816,7 @@ public final class ParRuntime implements AutoCloseable {
          *
          * <p>The task type is diagnostic only. Submission compares it with each unit's declared
          * type and logs a mismatch once per entry and unit name, and the runtime screens the
-         * entry's bodies for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
+         * entry's executions for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
          * ParRuntime#workloadFitReport()}. It never changes how the executor is used.
          *
          * @param id the logical entry id

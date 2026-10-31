@@ -30,8 +30,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Always-on workload-fit screening, driven by a scripted clock so every body's CPU and execution
- * time are exact. An epoch is ten seconds of execution time; ten bodies of one second close one.
+ * Always-on workload-fit screening, driven by a scripted clock so every execution's CPU and execution
+ * time are exact. An epoch is ten seconds of execution time; ten executions of one second close one.
  */
 @SuppressWarnings("NullAway.Init")
 class WorkloadFitScreeningTest {
@@ -78,7 +78,7 @@ class WorkloadFitScreeningTest {
     }
 
     @Test
-    void aComputeEntryWhoseBodiesUseLittleCpuIsFlaggedOnceAnEpochEnds() {
+    void aComputeEntryWhoseExecutionsUseLittleCpuIsFlaggedOnceAnEpochEnds() {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
 
         assertThat(runtime.par(CPU)
@@ -88,14 +88,14 @@ class WorkloadFitScreeningTest {
 
         ParMeasurement measurement = measurement(CPU);
         assertThat(measurement.taskType()).isEqualTo(TaskType.COMPUTE);
-        assertThat(measurement.bodies()).isEqualTo(10);
+        assertThat(measurement.executions()).isEqualTo(10);
         assertThat(measurement.executionTime()).isEqualTo(Duration.ofSeconds(10));
         assertThat(measurement.cpuTime()).isEqualTo(Duration.ofSeconds(1));
         assertThat(measurement.cpuToExecutionRatio()).isEqualTo(0.1);
         assertThat(measurement.issue()).isTrue();
         assertThat(runtime.workloadFitReport().anyIssue()).isTrue();
         assertThat(measurement.units())
-                .extracting(UnitMeasurement::unit, UnitMeasurement::taskType, UnitMeasurement::bodies)
+                .extracting(UnitMeasurement::unit, UnitMeasurement::taskType, UnitMeasurement::executions)
                 .containsExactly(tuple("work", TaskType.UNKNOWN, 10L));
         UnitMeasurement unit = measurement.units().get(0);
         assertThat(unit.cpuTime()).isEqualTo(Duration.ofSeconds(1));
@@ -105,7 +105,7 @@ class WorkloadFitScreeningTest {
         assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
         assertThat(records.get(0).getMessage())
                 .startsWith(
-                        "Par 'cpu' is registered for TaskType.COMPUTE, but its task bodies used CPU for 10% of 10.0s")
+                        "Par 'cpu' is registered for TaskType.COMPUTE, but its task executions used CPU for 10% of 10.0s")
                 .contains("may be waiting", "workloadFitReport()", "Logged once per Par")
                 .doesNotContain("proven", "misuse");
     }
@@ -119,7 +119,7 @@ class WorkloadFitScreeningTest {
         }
 
         ParMeasurement measurement = measurement(CPU);
-        assertThat(measurement.bodies()).isEqualTo(300);
+        assertThat(measurement.executions()).isEqualTo(300);
         assertThat(measurement.units())
                 .hasSize(30)
                 .allSatisfy(unit -> assertThat(unit.executionTime())
@@ -157,7 +157,7 @@ class WorkloadFitScreeningTest {
         assertThat(records.get(0).getLevel()).isEqualTo(Level.INFO);
         assertThat(records.get(0).getMessage())
                 .startsWith(
-                        "Unit 'score' on Par 'cpu' declares TaskType.COMPUTE, but its task bodies used CPU for 10%");
+                        "Unit 'score' on Par 'cpu' declares TaskType.COMPUTE, but its task executions used CPU for 10%");
     }
 
     @Test
@@ -231,9 +231,9 @@ class WorkloadFitScreeningTest {
         }
 
         ParMeasurement measurement = measurement(CPU);
-        assertThat(measurement.bodies()).isEqualTo(WorkloadFit.UNIT_CAPACITY + 2);
+        assertThat(measurement.executions()).isEqualTo(WorkloadFit.UNIT_CAPACITY + 2);
         assertThat(measurement.units()).hasSize(WorkloadFit.UNIT_CAPACITY);
-        assertThat(measurement.unattributedBodies()).isEqualTo(2);
+        assertThat(measurement.unattributedExecutions()).isEqualTo(2);
     }
 
     @Test
@@ -248,8 +248,8 @@ class WorkloadFitScreeningTest {
         clock.readable(true);
 
         ParMeasurement measurement = measurement(CPU);
-        assertThat(measurement.unmeasuredBodies()).isEqualTo(3);
-        assertThat(measurement.bodies()).isZero();
+        assertThat(measurement.unmeasuredExecutions()).isEqualTo(3);
+        assertThat(measurement.executions()).isZero();
         assertThat(measurement.issue()).isFalse();
         assertThat(records).hasSize(1);
         assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
@@ -271,13 +271,13 @@ class WorkloadFitScreeningTest {
                         options("lost"));
         clock.readable(true);
 
-        assertThat(measurement(CPU).unmeasuredBodies()).isEqualTo(1);
+        assertThat(measurement(CPU).unmeasuredExecutions()).isEqualTo(1);
         assertThat(measurement(CPU).issue()).isFalse();
     }
 
     /**
      * Screening only reports: an error from the timing's closing clock reading, standing in for a VM
-     * error, drops the sample, leaves the body's result alone, and still lets the worker restore its
+     * error, drops the sample, leaves the execution's result alone, and still lets the worker restore its
      * task context, so the next task on that thread does not inherit the finished one.
      */
     @Test
@@ -306,7 +306,7 @@ class WorkloadFitScreeningTest {
 
             assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.valuesOrThrow()).containsExactly(1);
-            assertThat(measurement(CPU).bodies()).isZero();
+            assertThat(measurement(CPU).executions()).isZero();
             assertThat(worker.submit(() -> TaskExecutionContext.current() == null)
                             .get(10, TimeUnit.SECONDS))
                     .isTrue();
@@ -316,9 +316,9 @@ class WorkloadFitScreeningTest {
     }
 
     @Test
-    void anErrorFromTheClosingReadKeepsTheBodysOwnFailure() {
+    void anErrorFromTheClosingReadKeepsTheExecutionsOwnFailure() {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
-        IllegalStateException own = new IllegalStateException("the body's own failure");
+        IllegalStateException own = new IllegalStateException("the execution's own failure");
         TaskBatchResult<Integer> result;
         try {
             result = runtime.par(CPU)
@@ -335,11 +335,11 @@ class WorkloadFitScreeningTest {
 
         assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.results().get(0).failure()).isSameAs(own);
-        assertThat(measurement(CPU).bodies()).isZero();
+        assertThat(measurement(CPU).executions()).isZero();
     }
 
     @Test
-    void anErrorFromTheOpeningReadStillRunsTheBody() {
+    void anErrorFromTheOpeningReadStillRunsTheExecution() {
         runtime = runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE));
         clock.failWith(new AssertionError("clock failure standing in for a VM error"));
         TaskBatchResult<Integer> result;
@@ -350,7 +350,7 @@ class WorkloadFitScreeningTest {
         }
 
         assertThat(result.valuesOrThrow()).containsExactly(2, 2);
-        assertThat(measurement(CPU).bodies()).isZero();
+        assertThat(measurement(CPU).executions()).isZero();
     }
 
     @Test
@@ -367,11 +367,11 @@ class WorkloadFitScreeningTest {
                 .announcements(MoreExecutors.directExecutor())
                 .build()) {
             other.par(CPU).map(inputs(4), value -> value, options("foreign"));
-            assertThat(other.workloadFitReport().pars().get(0).bodies()).isEqualTo(4);
+            assertThat(other.workloadFitReport().pars().get(0).executions()).isEqualTo(4);
         }
 
         assertThat(runtime.workloadFitReport().pars())
-                .extracting(ParMeasurement::par, ParMeasurement::bodies, ParMeasurement::issue)
+                .extracting(ParMeasurement::par, ParMeasurement::executions, ParMeasurement::issue)
                 .containsExactly(tuple(CPU, 10L, true), tuple(IO, 10L, false));
     }
 
@@ -388,7 +388,7 @@ class WorkloadFitScreeningTest {
         }
         Uninterruptibles.awaitUninterruptibly(done);
 
-        assertThat(measurement(CPU).bodies()).isZero();
+        assertThat(measurement(CPU).executions()).isZero();
         assertThat(clock.wallReads()).isZero();
     }
 
@@ -408,7 +408,7 @@ class WorkloadFitScreeningTest {
                 .isEqualTo(20);
 
         assertThat(runtime.workloadFitReport().pars())
-                .extracting(ParMeasurement::par, ParMeasurement::bodies)
+                .extracting(ParMeasurement::par, ParMeasurement::executions)
                 .containsExactly(tuple(CPU, 1L));
         assertThat(measurement(CPU).units())
                 .extracting(UnitMeasurement::unit, UnitMeasurement::taskType)
@@ -416,7 +416,7 @@ class WorkloadFitScreeningTest {
     }
 
     @Test
-    void aBodyWaitingForANestedBatchIsMeasuredOnItsOwnEntry() {
+    void anExecutionWaitingForANestedBatchIsMeasuredOnItsOwnEntry() {
         runtime =
                 runtime(builder -> builder.register(CPU, pool, TaskType.COMPUTE).register(IO, secondPool));
         Par inner = runtime.par(IO);
@@ -433,7 +433,7 @@ class WorkloadFitScreeningTest {
                         options("outer"));
 
         assertThat(runtime.workloadFitReport().pars())
-                .extracting(ParMeasurement::par, ParMeasurement::bodies, ParMeasurement::issue)
+                .extracting(ParMeasurement::par, ParMeasurement::executions, ParMeasurement::issue)
                 .containsExactly(tuple(CPU, 10L, true));
     }
 
@@ -446,8 +446,8 @@ class WorkloadFitScreeningTest {
         runtime.par(CPU).map(inputs(5), spending(100, 10), options("work"));
         ParMeasurement after = measurement(CPU);
 
-        assertThat(before.bodies()).isEqualTo(3);
-        assertThat(after.bodies() - before.bodies()).isEqualTo(5);
+        assertThat(before.executions()).isEqualTo(3);
+        assertThat(after.executions() - before.executions()).isEqualTo(5);
         assertThat(after.executionTime().minus(before.executionTime())).isEqualTo(Duration.ofMillis(500));
     }
 
@@ -461,7 +461,7 @@ class WorkloadFitScreeningTest {
         runtime.par(plain).map(inputs(1), value -> value, options("load"));
 
         assertThat(runtime.workloadFitReport().pars())
-                .extracting(ParMeasurement::par, ParMeasurement::bodies)
+                .extracting(ParMeasurement::par, ParMeasurement::executions)
                 .containsExactly(tuple(IO, 1L), tuple(CPU, 0L));
     }
 
@@ -482,7 +482,7 @@ class WorkloadFitScreeningTest {
 
     /**
      * The warning is delivered on a runtime-owned thread, so a logging handler that throws never
-     * reaches the body or changes the batch's outcome.
+     * reaches the execution or changes the batch's outcome.
      */
     @Test
     void aFailingLogHandlerNeverChangesTheOutcome() {

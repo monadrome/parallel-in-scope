@@ -3,7 +3,7 @@
 ## 1. 决策摘要
 
 Group 是异构协调范围。每次运行通过
-`runtime.group(name, timeout).par(key, par, body)…runAll()` 声明和执行。
+`runtime.group(name, timeout).par(key, par, taskCode)…runAll()` 声明和执行。
 `TaskKey<T>` 是可复用的类型化槽位地址；`TaskId` 是逐次生成的执行身份，两者不互换。
 类型安全由声明与读取共享的泛型参数保证，结果不保存或校验运行期类型令牌。
 本决策按 [第一性原理](first-principles.md) 复用现有执行管道，消除重复指定类型产生的漂移。
@@ -67,7 +67,7 @@ runAll 是唯一公开准入边界；它同步等待结果收敛并尝试有界�
 
 raw type 或 unchecked cast 可破坏泛型约束，由调用者负责。框架 MUST NOT 将这种违规
 通过额外原始类检查转换为 USER_FAILURE；后续使用处仍可能产生 JVM 插入的 ClassCastException。
-用户 body 自身抛出的 ClassCastException 与其他异常一样，仍是 USER_FAILURE。
+用户执行自身抛出的 ClassCastException 与其他异常一样，仍是 USER_FAILURE。
 同名 key 不碰撞并不表示允许重复诊断名称；身份寻址和组内名称唯一是独立约束。
 
 ### 4.2 草稿生命周期
@@ -75,11 +75,11 @@ raw type 或 unchecked cast 可破坏泛型约束，由调用者负责。框架 
 草稿只能由创建线程使用；每次调用 MUST 先校验线程和当前 stage，再校验参数。
 par/combine 成功后推进 stage，旧阶段失效；runAll 第一次合法调用消耗草稿，
 即使执行失败也不能重试。closeGrace 只能在首个成员前设置且不推进阶段。
-body/options/Par/key 不得为 null，Par 必须属于创建草稿的 runtime。
+执行/options/Par/key 不得为 null，Par 必须属于创建草稿的 runtime。
 省略选项等于 TaskOptions.inheritTimeout()。
 
 group(name, timeout) 要求显式正数预算；groupInheriting 只在提交现场有外层 scoped task 时有效。
-deadline 从统一提交准备边界起算。body 在准备后移交执行管道；失败路径清空框架持有的 payload。
+deadline 从统一提交准备边界起算。执行在准备后移交执行管道；失败路径清空框架持有的 payload。
 尚未提交的草稿可能保留请求 closure，这是显式草稿生命周期的代价。
 
 ## 5. 值视图与终端
@@ -98,7 +98,7 @@ terminal 失败使聚合值读取失败，单独成功成员的结果仍可读�
 ## 6. 错误时机
 
 工厂校验名称；声明期校验归属、参数和重复名称；准入期检查 runtime 及继承 deadline。
-executor rejection 和 body 异常作为运行结果记录。结果查询不等待、不消费中断标志，
+executor rejection 和执行异常作为运行结果记录。结果查询不等待、不消费中断标志，
 且不因当前线程被中断而改变只读行为。
 
 ## 7. 取舍
@@ -141,7 +141,7 @@ key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 
 **测试要咬得住，而不只是绿。**
 
 - 声明顺序 ≠ 完成顺序：验证"有序"的用例必须强制两者分离（让声明在后的成员先完成），
-  且顺序要由观察建立（先看到 future 终结），不能靠 body 内的时序碰运气。
+  且顺序要由观察建立（先看到 future 终结），不能靠执行内的时序碰运气。
 - 反向验证（回退修复看测试变红）只覆盖改过的行；关键路径的零覆盖，三轮评审加逐修复
   反向验证都没有发现，是 PIT 发现的——变异测试问的是另一个问题："这些测试咬不咬得住"。
   两者互补，都已在根 AGENTS.md 的 Adversarial Review 里成为流程步骤。
@@ -160,9 +160,9 @@ key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 
 - 仅断言 `TIMEOUT`，无法区分显式成员预算与组预算。加入明显早于组 deadline 的收敛上限；
   临时丢弃显式选项后测试实际失败，恢复选项后通过。
 - 旧 combine 的覆盖不能替代新值视图入口。新增 join 前取消、终端运行中取消、终端拒绝，
-  分别检查 key 结果、提交或调用次数及 body 退出确认。
-- 配合中断退出不能证明有界清理。另用独立 latch 保持 body 未退出，通过有界 `Future.get`
-  观察清理返回及未退出摘要；finally 释放 body、确认退出、排空 finish worker 并关闭 scope。
+  分别检查 key 结果、提交或调用次数及执行退出确认。
+- 配合中断退出不能证明有界清理。另用独立 latch 保持执行未退出，通过有界 `Future.get`
+  观察清理返回及未退出摘要；finally 释放执行、确认退出、排空 finish worker 并关闭 scope。
   复审指出同步调用 finish 可能在故障时卡住测试，改为上述受控 worker 后确认无阻塞发现。
 - key 身份查询的反向验证临时改用名称定位，同名 key 冒用测试实际失败；恢复引用身份后通过。
 

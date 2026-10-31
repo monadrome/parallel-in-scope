@@ -77,7 +77,7 @@
       "file": "src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
       "mutations": [
         {
-          "find": "        BodyCompletionTracker.awaitSettledUninterruptibly(observationsReady, budget, start, \"batch observation signal\");\n",
+          "find": "        ExecutionExitTracker.awaitSettledUninterruptibly(observationsReady, budget, start, \"batch observation signal\");\n",
           "replace": "        // publication wait removed by the race-claim harness\n"
         }
       ],
@@ -86,19 +86,19 @@
     },
     {
       "id": "taskgroup-observation-publication",
-      "protocol": "TaskGroup.awaitBodyCompletion observation publication",
-      "claim": "A true awaitBodyCompletion result must wait until every member observation future carries the final snapshot; removing the observation loop must make a test fail.",
+      "protocol": "TaskGroup.awaitExecutionExit observation publication",
+      "claim": "A true awaitExecutionExit result must wait until every member observation future carries the final snapshot; removing the observation loop must make a test fail.",
       "method": "mutation",
       "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
       "mutations": [
         {
-          "find": "        long budgetNanos = Deadlines.saturatedNanos(timeout);\n        for (MemberState member : membersAndTerminal) {\n            if (!BodyCompletionTracker.awaitSettled(\n                    member.view.observationView(), budgetNanos, startNanos, \"member observation signal\")) {\n                return false;\n            }\n        }\n        return true;",
+          "find": "        long budgetNanos = Deadlines.saturatedNanos(timeout);\n        for (MemberState member : membersAndTerminal) {\n            if (!ExecutionExitTracker.awaitSettled(\n                    member.view.observationView(), budgetNanos, startNanos, \"member observation signal\")) {\n                return false;\n            }\n        }\n        return true;",
           "replace": "        return true;"
         }
       ],
-      "tests": "TaskGroupBodyCompletionTest",
+      "tests": "TaskGroupExecutionExitTest",
       "expect": "failure",
-      "note": "Real by code review: ScopedCallable publishes body exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitBodyCompletion, so it cannot exercise the window; needs a deterministic test."
+      "note": "Real by code review: ScopedCallable publishes execution exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitExecutionExit, so it cannot exercise the window; needs a deterministic test."
     },
     {
       "id": "adopted-end-time-before-mirror-settle",
@@ -121,7 +121,7 @@
       "protocol": "TaskGroup adopted member",
       "claim": "TaskGroup.converge hands discarded adopted values to their closers only after it publishes completion, so a closer that runs inline because the releases executor could not start it cannot hold runAll past its bounded cleanup wait.",
       "method": "code-proof",
-      "proof": "AdoptedSource.closeThenRelease runs the closer on ParRuntime.releases(), the deadline action pool, and runs it on the calling thread only when execute throws. An adopting group retains ownershipSettled with its member futures, and converge sets it only after the hand-off, so ParRuntime.shutdownServicesWhenAdmissionsComplete cannot shut the pool down before converge dispatches; execute can still throw when the cached pool fails to create a thread (OutOfMemoryError, a SecurityException from the factory). If settleAdopted(true) ran before completion.set, that inline closer would block the converging thread before completion is published, and runAll's getUninterruptibly(completion) would wait for the closer instead of the deadline. Publishing first lets runAll proceed to its bounded body-exit wait, where the closer's still-held body slot is reported unfinished.",
+      "proof": "AdoptedSource.closeThenRelease runs the closer on ParRuntime.releases(), the deadline action pool, and runs it on the calling thread only when execute throws. An adopting group retains ownershipSettled with its member futures, and converge sets it only after the hand-off, so ParRuntime.shutdownServicesWhenAdmissionsComplete cannot shut the pool down before converge dispatches; execute can still throw when the cached pool fails to create a thread (OutOfMemoryError, a SecurityException from the factory). If settleAdopted(true) ran before completion.set, that inline closer would block the converging thread before completion is published, and runAll's getUninterruptibly(completion) would wait for the closer instead of the deadline. Publishing first lets runAll proceed to its bounded execution-exit wait, where the closer's still-held execution slot is reported unfinished.",
       "note": "The dispatched path is tested dynamically by TaskGroupAdoptedFutureTest#aBlockingCloserOfAGroupThatConvergesInsideRunAllDoesNotHoldTheCaller, #aMissingInheritedDeadlineAbandonsTheSourcesOffTheCallerThread, and #aDeadlineDrivenDiscardRunsTheCloserOffTheThreadThatDeliversTheDeadline, each of which fails when the closer runs inline. #aBlockingCloserCannotHoldRunAllPastItsCleanupBudget does not detect inlining (its group converges on a worker after publication); it guards the bounded wait itself. The refused-release ordering has no public seam to inject a refusing executor into a live group, so it remains a reasoning proof; AdoptedSourceTest#aReleaseTheExecutorRefusesRunsOnTheSettlingThread covers only the inline fallback itself."
     },
     {

@@ -15,7 +15,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
  *
  * <p>The first round quotes healthy services. Pricing then goes down: the second round fails until
  * the breaker opens, after which quotes degrade to an unavailable price. Closing the context stops
- * the runtime, waits for its bodies, and shuts the pools down.
+ * the runtime, waits for its executions, and shuts the pools down.
  */
 public final class QuoteApplication {
 

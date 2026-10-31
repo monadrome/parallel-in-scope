@@ -11,7 +11,7 @@
 
 ### 10.1 成员级观测快照
 
-成员完成时发布统一的 `TaskCompletion` 终态快照（成员 future 终态与任务体退出两个信号汇合），
+成员完成时发布统一的 `TaskCompletion` 终态快照（成员 future 终态与执行退出两个信号汇合），
 最终经 `TaskGroupResult.members()`/`terminal()` 可见：
 
 - 成功结果、用户异常（`result()`/`failure()`）；
@@ -20,7 +20,7 @@
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
 - `outcome()`：与 `resultOf(name).outcome()` 相同的冻结归因，每个成员只有一个结论（[取消契约](task-group-cancellation.md) §8.4.1）。
 
-快照在成员 future 终态**且**任务体进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 outcome 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
+快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 outcome 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
 
 Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 

@@ -106,8 +106,8 @@ Three contracts shape that first call:
   by omission, and an explicit timeout is capped by any enclosing deadline.
 - **A batch is fail-fast.** The first failure cancels the rest of the batch, including elements that
   were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
-  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `bodyCompletionConfirmed()`
-  before releasing resources shared by direct bodies, and confirm nested exits separately.
+  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `executionExitConfirmed()`
+  before releasing resources shared by direct executions, and confirm nested exits separately.
 - **Parallelism defaults to no cap.** `BatchOptions` starts at `Integer.MAX_VALUE`, which resolution
   caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.

@@ -7,17 +7,17 @@
 ## 1. 模型
 
 取消是语义，中断是机制（[中断契约](interruption-contract.md) §2.1）。取消回答“这项工作还要不要
-继续、为什么停”，由内核的 token 决定并记录；中断只是让阻塞中的 body 尽快观察到这个决定的手段。
+继续、为什么停”，由内核的 token 决定并记录；中断只是让阻塞中的执行尽快观察到这个决定的手段。
 结果归因不在取消发生的位置写入，而是在任务落定时读取 token 状态。
 
 | 层 | 职责 | 内核机制 | 权威契约 |
 |---|---|---|---|
 | 决策 | 谁先取消、为什么取消 | `CancellationToken`（包私有）的 first-wins 状态机 | [取消传播](cancellation-propagation.md) §5、§8 |
 | 传播 | 把决定送到绑定的 future 和子作用域 | `bind()` 的组合 future、`ParentLink`、Guava 级联 | [取消传播](cancellation-propagation.md) §1–§4 |
-| 执行 | body 能否进入、中断投递、线程交接 | `ExecutionPhaseHintFuture`、`TaskBodyState` | [中断契约](interruption-contract.md) §2.3–§2.4、[runner 中断投递](runner-interrupt-delivery.md) |
-| 协作 | body 观察取消并退出 | `Checkpoints` 的检查点与阻塞适配器 | [中断契约](interruption-contract.md) §3.1 |
+| 执行 | 执行能否进入、中断投递、线程交接 | `ExecutionPhaseHintFuture`、`TaskExecutionState` | [中断契约](interruption-contract.md) §2.3–§2.4、[runner 中断投递](runner-interrupt-delivery.md) |
+| 协作 | 执行观察取消并退出 | `Checkpoints` 的检查点与阻塞适配器 | [中断契约](interruption-contract.md) §3.1 |
 | 归因 | 把 token 状态映射为 `TaskOutcome` | `TokenOutcomes`、落定钉子 | [组取消](task-group-cancellation.md) §8.4.1、[落定归因](batch-settle-attribution.md) |
-| 出口 | 等结果落定，再有界等待 body 退出 | `BodyCompletionTracker`、同步冻结 | [同步出口](synchronous-scope-exit.md) §4 |
+| 出口 | 等结果落定，再有界等待执行退出 | `ExecutionExitTracker`、同步冻结 | [同步出口](synchronous-scope-exit.md) §4 |
 
 token 是包私有的内核类型，公开面只有 `TaskOutcome` 这套归因词汇
 （[取消传播](cancellation-propagation.md) §5.3）。
@@ -44,23 +44,23 @@ token 是包私有的内核类型，公开面只有 `TaskOutcome` 这套归因�
 
 1. **准入时先接线**：子 token 在构造时挂上父链接，deadline 取自身与父的较小值；请求来源在 bind
    之前注册；所有入口先 bind，再提交（[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)）。
-   因此 inline 执行的 body 和提交途中到期的 deadline 都已被覆盖。
+   因此 inline 执行的执行和提交途中到期的 deadline 都已被覆盖。
 2. **提交决定**：来源调用 `transitionTo`，一次 `compareAndSet(RUNNING, terminal)` 决定胜者，输家不
    改变状态。胜者依次切断父链接与请求来源链接，并同步通知状态监听器；组利用这个时机把成员的
    `TIMEOUT` 上升到组 token（[组取消](task-group-cancellation.md) §8.4 第 4 步）。
 3. **级联**：`cancelBoundWork` 对仍未完成的组合句柄调用 `cancel(true)`，Guava 再逐个取消输入和提交
    循环。框架取消一律中断（[取消传播](cancellation-propagation.md) §5.1）。输掉 first-wins 的回调
    也照样级联，因为对已终态 future 的取消是 no-op。
-4. **执行层**：尚未取得执行资格的任务被标记为 `SKIPPED`，永远不会进入 body；正在运行的任务收到
+4. **执行层**：尚未取得执行资格的任务被标记为 `SKIPPED`，永远不会进入执行；正在运行的任务收到
    中断，投递握手保证这次中断不会落到复用同一线程的下一个任务（[中断契约](interruption-contract.md) §2.4）。
    被收养的成员由镜像把取消转发给 source（[收养契约](task-group-adopted-futures.md) A1）。
-5. **协作退出**：body 在检查点或阻塞适配器处读到已提交的取消，抛出带库来源标记的取消确认。标记只
+5. **协作退出**：执行在检查点或阻塞适配器处读到已提交的取消，抛出带库来源标记的取消确认。标记只
    决定迟到失败的日志级别，不参与归因（[中断契约](interruption-contract.md) §3.1）。
 6. **落定与归因**：任务 future 终态时读 token 得出 outcome，冻结后不随后来的级联改变
    （[落定归因](batch-settle-attribution.md)）。每个任务只有一个公开归因
    （[组取消](task-group-cancellation.md) §8.4.1）。
-7. **同步出口**：`map` / `runAll` 不可中断地等全部结果落定，再在一个清理预算内等 body 退出；
-   未退出的 body 作为数据报告，不伪造退出（[同步出口](synchronous-scope-exit.md) §4）。
+7. **同步出口**：`map` / `runAll` 不可中断地等全部结果落定，再在一个清理预算内等执行退出；
+   未退出的执行作为数据报告，不伪造退出（[同步出口](synchronous-scope-exit.md) §4）。
 
 ## 4. 各入口的 token 拓扑
 
@@ -75,13 +75,13 @@ token 是包私有的内核类型，公开面只有 `TaskOutcome` 这套归因�
 
 ## 5. 容易混淆的事实
 
-- **future 终态、body 退出与线程交接是三件事。** 运行中被取消的任务，future 立即完成，用户代码
-  可能仍在执行；`bodyCompletionConfirmed()` 只覆盖直接 body，不递归覆盖嵌套调用
+- **future 终态、执行退出与线程交接是三件事。** 运行中被取消的任务，future 立即完成，用户代码
+  可能仍在执行；`executionExitConfirmed()` 只覆盖直接执行，不递归覆盖嵌套调用
   （[同步出口](synchronous-scope-exit.md) §1）。
 - **取消已提交不等于中断已送达，更不等于 IO 已停止。** 中断只是协作信号。
 - **`isCancelled()` 说明不了是谁取消的。** 归因只读已提交的 token 状态
   （[取消传播](cancellation-propagation.md) §7 第 3 条）。
-- **借用线程有损隔离。** inline 执行的 body 退出时会恢复入口时的中断标志，执行期间新到的中断会丢失
+- **借用线程有损隔离。** inline 执行的执行退出时会恢复入口时的中断标志，执行期间新到的中断会丢失
   （[中断契约](interruption-contract.md) §2.3）。
 
 ## 6. 按问题查文档

@@ -79,7 +79,7 @@ public final class ResilientCall {
      * interruption of that wait as an undeclared {@link InterruptedException} with the interrupt
      * flag cleared. This method restores the flag and translates that exception into a {@link
      * CancellationException} whose cause is the original exception, so a cancellation during the
-     * backoff ends the body as cancelled.
+     * backoff ends the execution as cancelled.
      *
      * @param breaker the breaker guarding the downstream; build it from {@link
      *     #circuitBreakerConfig()}

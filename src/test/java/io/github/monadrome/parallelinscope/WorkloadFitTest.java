@@ -34,7 +34,7 @@ class WorkloadFitTest {
 
     /**
      * Bookkeeping can fail after both clock readings succeed; the commit is guarded like the readings,
-     * so the failure drops the sample instead of leaving {@code stop()}, which runs in the body's
+     * so the failure drops the sample instead of leaving {@code stop()}, which runs in the execution's
      * {@code finally}.
      */
     @Test
@@ -58,7 +58,7 @@ class WorkloadFitTest {
             clock.spend(Duration.ofMillis(10), Duration.ofMillis(1));
 
             assertThatCode(timing::stop).doesNotThrowAnyException();
-            assertThat(runtime.workloadFitReport().pars().get(0).bodies()).isZero();
+            assertThat(runtime.workloadFitReport().pars().get(0).executions()).isZero();
         } finally {
             direct.shutdownNow();
         }
@@ -76,13 +76,13 @@ class WorkloadFitTest {
     }
 
     /**
-     * Concurrent bodies commit to one entry and race to create each of its units. Every total and the
-     * unit map are replaced by compare-and-set, so the published totals match the committed bodies
-     * exactly, no body is lost to a unit created by a losing thread, and exactly one commit sees the
+     * Concurrent executions commit to one entry and race to create each of its units. Every total and the
+     * unit map are replaced by compare-and-set, so the published totals match the committed executions
+     * exactly, no execution is lost to a unit created by a losing thread, and exactly one commit sees the
      * verdict transition and announces it, although many epochs close.
      */
     @Test
-    void concurrentBodiesCommitExactTotalsAndAnnounceTheVerdictOnce() throws Exception {
+    void concurrentExecutionsCommitExactTotalsAndAnnounceTheVerdictOnce() throws Exception {
         ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         List<Runnable> announcements = Collections.synchronizedList(new ArrayList<>());
@@ -121,14 +121,14 @@ class WorkloadFitTest {
 
             WorkloadFitReport.ParMeasurement measurement =
                     runtime.workloadFitReport().pars().get(0);
-            long bodies = (long) threads * perThread;
-            assertThat(measurement.bodies()).isEqualTo(bodies);
-            assertThat(measurement.executionTime()).isEqualTo(Duration.ofMillis(100 * bodies));
-            assertThat(measurement.cpuTime()).isEqualTo(Duration.ofMillis(10 * bodies));
-            assertThat(measurement.unattributedBodies()).isZero();
+            long executions = (long) threads * perThread;
+            assertThat(measurement.executions()).isEqualTo(executions);
+            assertThat(measurement.executionTime()).isEqualTo(Duration.ofMillis(100 * executions));
+            assertThat(measurement.cpuTime()).isEqualTo(Duration.ofMillis(10 * executions));
+            assertThat(measurement.unattributedExecutions()).isZero();
             assertThat(measurement.units())
                     .hasSize(unitCount)
-                    .allSatisfy(unit -> assertThat(unit.bodies()).isEqualTo(bodies / unitCount));
+                    .allSatisfy(unit -> assertThat(unit.executions()).isEqualTo(executions / unitCount));
             assertThat(measurement.issue()).isTrue();
             assertThat(announcements).hasSize(1);
         } finally {
@@ -140,7 +140,7 @@ class WorkloadFitTest {
     /**
      * More units than attribution slots race for the last ones while a reader keeps reading reports.
      * The unit map only grows by compare-and-set, so it never exceeds its capacity, no report goes
-     * backwards, and every unit is attributed all of its bodies or none of them.
+     * backwards, and every unit is attributed all of its executions or none of them.
      */
     @Test
     void unitsRacingForTheLastAttributionSlotsAreAttributedWholeOrNotAtAll() throws Exception {
@@ -166,16 +166,16 @@ class WorkloadFitTest {
             CountDownLatch start = new CountDownLatch(1);
             Future<?> reader = workers.submit(() -> {
                 start.await();
-                long bodies = 0;
+                long executions = 0;
                 int attributed = 0;
                 do {
                     WorkloadFitReport.ParMeasurement current =
                             runtime.workloadFitReport().pars().get(0);
-                    assertThat(current.bodies()).isGreaterThanOrEqualTo(bodies);
+                    assertThat(current.executions()).isGreaterThanOrEqualTo(executions);
                     assertThat(current.units())
                             .hasSizeGreaterThanOrEqualTo(attributed)
                             .hasSizeLessThanOrEqualTo(WorkloadFit.UNIT_CAPACITY);
-                    bodies = current.bodies();
+                    executions = current.executions();
                     attributed = current.units().size();
                 } while (!done.get());
                 return null;
@@ -202,11 +202,12 @@ class WorkloadFitTest {
 
             WorkloadFitReport.ParMeasurement measurement =
                     runtime.workloadFitReport().pars().get(0);
-            assertThat(measurement.bodies()).isEqualTo((long) threads * perThread);
+            assertThat(measurement.executions()).isEqualTo((long) threads * perThread);
             assertThat(measurement.units())
                     .hasSize(WorkloadFit.UNIT_CAPACITY)
-                    .allSatisfy(unit -> assertThat(unit.bodies()).isEqualTo(perUnit));
-            assertThat(measurement.unattributedBodies()).isEqualTo((unitCount - WorkloadFit.UNIT_CAPACITY) * perUnit);
+                    .allSatisfy(unit -> assertThat(unit.executions()).isEqualTo(perUnit));
+            assertThat(measurement.unattributedExecutions())
+                    .isEqualTo((unitCount - WorkloadFit.UNIT_CAPACITY) * perUnit);
         } finally {
             done.set(true);
             workers.shutdownNow();

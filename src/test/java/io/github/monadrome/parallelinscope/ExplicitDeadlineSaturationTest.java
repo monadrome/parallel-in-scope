@@ -96,7 +96,7 @@ class ExplicitDeadlineSaturationTest {
 
     @ParameterizedTest
     @MethodSource("largeTimeouts")
-    void batchFailFastWaitsForASlowBodyUnderAnyLargeTimeout(Duration timeout) {
+    void batchFailFastWaitsForASlowExecutionUnderAnyLargeTimeout(Duration timeout) {
         CountDownLatch slowEntered = new CountDownLatch(1);
         CountDownLatch slowExited = new CountDownLatch(1);
         AtomicReference<Duration> remaining = new AtomicReference<>();
@@ -117,15 +117,15 @@ class ExplicitDeadlineSaturationTest {
                 BatchOptions.timeout("astronomic-batch", timeout));
 
         assertThat(slowExited.getCount()).isZero();
-        assertThat(batch.bodyCompletionConfirmed()).isTrue();
-        assertThat(batch.unfinishedBodies()).isEmpty();
+        assertThat(batch.executionExitConfirmed()).isTrue();
+        assertThat(batch.unexitedExecutions()).isEmpty();
         assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(remaining.get()).isLessThan(Duration.ofNanos(Long.MAX_VALUE));
     }
 
     @ParameterizedTest
     @MethodSource("largeTimeouts")
-    void groupFailFastWaitsForASlowBodyUnderAnyLargeTimeout(Duration timeout) {
+    void groupFailFastWaitsForASlowExecutionUnderAnyLargeTimeout(Duration timeout) {
         CountDownLatch slowEntered = new CountDownLatch(1);
         CountDownLatch slowExited = new CountDownLatch(1);
 
@@ -143,8 +143,8 @@ class ExplicitDeadlineSaturationTest {
                 .runAll();
 
         assertThat(slowExited.getCount()).isZero();
-        assertThat(group.bodyCompletionConfirmed()).isTrue();
-        assertThat(group.unfinishedBodies()).isEmpty();
+        assertThat(group.executionExitConfirmed()).isTrue();
+        assertThat(group.unexitedExecutions()).isEmpty();
     }
 
     @Test
@@ -167,8 +167,8 @@ class ExplicitDeadlineSaturationTest {
                     BatchOptions.timeout("cancel-only", ChronoUnit.FOREVER.getDuration())
                             .closeGrace(Duration.ZERO));
 
-            assertThat(batch.bodyCompletionConfirmed()).isFalse();
-            assertThat(batch.unfinishedBodies()).containsEntry("cancel-only", 1);
+            assertThat(batch.executionExitConfirmed()).isFalse();
+            assertThat(batch.unexitedExecutions()).containsEntry("cancel-only", 1);
         } finally {
             release.countDown();
         }

@@ -221,7 +221,7 @@ class GroupDraftContractTest {
         }
     }
 
-    // NullAway: the raw Callable is the point — it is how a body lies about its declared type
+    // NullAway: the raw Callable is the point — it is how an execution lies about its declared type
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void thePerMemberFutureIsReachableByDeclarationPosition() throws Exception {
@@ -324,14 +324,14 @@ class GroupDraftContractTest {
                                 || Runnable.class.isAssignableFrom(fieldType)
                                 || Future.class.isAssignableFrom(fieldType)
                                 || CancellationToken.class.isAssignableFrom(fieldType)
-                                || CombineBody.class.isAssignableFrom(fieldType)
+                                || Combiner.class.isAssignableFrom(fieldType)
                                 || Consumer.class.isAssignableFrom(fieldType)
                                 || Function.class.isAssignableFrom(fieldType)
                                 || Supplier.class.isAssignableFrom(fieldType)
                                 || TaskExecutionContext.class.isAssignableFrom(fieldType)
                                 || MultiTaskContext.class.isAssignableFrom(fieldType)
-                                || BodyCompletionTracker.class.isAssignableFrom(fieldType)
-                                || TaskBodyState.class.isAssignableFrom(fieldType))
+                                || ExecutionExitTracker.class.isAssignableFrom(fieldType)
+                                || TaskExecutionState.class.isAssignableFrom(fieldType))
                         .as(
                                 "field %s.%s must not be declared as user executable or run state",
                                 current.getName(), field.getName())

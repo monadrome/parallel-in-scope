@@ -21,7 +21,7 @@ ImmediateResult<User> result = runtime.group("user", timeout)
         .runAll().resultOf(user);
 ```
 
-- 把字符串加类型的 par/combine 声明改为保存的 key。显式 TaskOptions 仍放在 body 前；
+- 把字符串加类型的 par/combine 声明改为保存的 key。显式 TaskOptions 仍放在执行前；
   元组 combine 仍接收聚合值 V。
 - 泛型结果直接声明 `TaskKey<List<Order>> orders = TaskKey.named("orders")`。
   已使用早期 0.4 key 草案的代码将 `TaskKey.of(name, type)` 改成 `named(name)`，删除 `type()` 读取。
@@ -29,10 +29,10 @@ ImmediateResult<User> result = runtime.group("user", timeout)
   同名重建会抛 IllegalArgumentException。
 - 动态 `valueOf(name)` / `valueAt(index)` 返回 Object；`resultOf(name)` / `resultAt(index)`
   返回 ImmediateResult<?>。移除带类型参数的查询重载及 typeAt/typeOf。
-- 终端按 key 读取成员时使用 `combineValues(terminalKey, par, body)`；其 GroupValues 不含
+- 终端按 key 读取成员时使用 `combineValues(terminalKey, par, taskCode)`；其 GroupValues 不含
   终端自己。冻结结果可通过 `resultOf(terminalKey)` 读取终端。
 - raw type 和 unchecked cast 造成的类型违规由调用方负责，不再由 raw-class 检查转换为
-  USER_FAILURE；后续类型化使用仍可能抛 ClassCastException。用户 body 自抛异常仍归 USER_FAILURE。
+  USER_FAILURE；后续类型化使用仍可能抛 ClassCastException。用户执行自抛异常仍归 USER_FAILURE。
 
 key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔离。普通成员和终端之间的
 名称仍须唯一。未知 key、重名、null 参数、foreign runtime、过期阶段和跨线程草稿调用仍有
@@ -40,6 +40,27 @@ key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔�
 
 取消、deadline、TTL、终端成功门控和有界清理保持原语义。移除的 API 不提供兼容 shim，
 消费方须使用 0.4 重新编译。
+
+## 执行术语
+
+任务代码的一次运行称为**执行**（execution），执行离开任务代码称为**执行退出**（execution exit）。`Task` 仍是调用方可见的 future。下表的旧名字直接删除，不保留别名：
+
+| 旧名字 | 0.4 中的名字 |
+|---|---|
+| `TaskBatch.awaitBodyCompletion(Duration)`、`TaskGroup.awaitBodyCompletion(Duration)` | `awaitExecutionExit(Duration)` |
+| `TaskBatchResult`、`BatchCombinedResult`、`TaskGroupResult` 上的 `bodyCompletionConfirmed()` | `executionExitConfirmed()` |
+| 同上类型的 `unfinishedBodies()` | `unexitedExecutions()` |
+| `ParRuntimeSnapshot.unexitedBodySignals()` | `unexitedExecutionSignals()` |
+| `WorkloadFitReport.ParMeasurement.bodies()`、`WorkloadFitReport.UnitMeasurement.bodies()` | `executions()` |
+| `ParMeasurement.unattributedBodies()` | `unattributedExecutions()` |
+| `ParMeasurement.unmeasuredBodies()` | `unmeasuredExecutions()` |
+| `CombineBody<V, R>` | `Combiner<V, R>`，`apply` 不变 |
+
+迁移：
+
+- 直接改调用。`executionExitConfirmed()` 回答的问题与 `bodyCompletionConfirmed()` 相同。不要改用 `isDone()`、结果的 `outcome()` 或其他落定状态读取替代：只有执行退出确认才说明任务代码已经离开线程。
+- 显式声明 `CombineBody` 的代码改用 `Combiner`；lambda 与方法引用无需改动。
+- 若代码解析负载报告的旧 `toString()` 标签，改为读取 `executions` 标签；该格式不是稳定的解析契约。
 
 ## 静态契约注解
 
@@ -95,7 +116,7 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 ```
 
 消除的失败模式：元素失败时，`terminalValueOrThrow()` 过去只报 combine 的 `FAIL_FAST` 取消，
-调用方不先读元素，业务异常就不在异常链上。批次与组的读取还要写不同的 catch 块；批次 body 内
+调用方不先读元素，业务异常就不在异常链上。批次与组的读取还要写不同的 catch 块；批次执行内
 嵌套读取批次结果，只为满足编译器就得写 try/catch。
 
 | 0.3 | 0.4 |
@@ -108,7 +129,7 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 
 只包住这些调用的 `catch (ExecutionException e)` 会变成编译错误，由编译器找出。同一 try 块另有
 `ExecutionException` 来源（如 `ImmediateResult.valueOrThrow()`）时仍能编译，但原先被捕获的批次
-失败会外抛，需人工复查。重抛的失败是存储的原实例，异常栈是 worker 栈而非调用方栈。body 自抛的
+失败会外抛，需人工复查。重抛的失败是存储的原实例，异常栈是 worker 栈而非调用方栈。执行自抛的
 `CancellationException` 归 `USER_FAILURE`，现在原样抛出；要与框架取消区分，读 `outcome()`。
 `reportString()` 文本不变，格式只用于诊断，不是解析契约。
 
@@ -180,8 +201,8 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 ```
 
 - 限时用 `BatchOptions.timeout`、`TaskOptions.timeout` 或 `ParRuntime.group(name, timeout)`。
-- 提前结束其余工作：在任务体里抛异常，fail-fast 会取消兄弟任务。
-- 在任务体内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
+- 提前结束其余工作：在任务代码里抛异常，fail-fast 会取消兄弟任务。
+- 在任务代码内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
 - 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
 
 公开面仍没有运行句柄或成员直消方法。请求级外部取消改用下面的显式输入，不重新公开 token。
@@ -211,9 +232,9 @@ par.map(skus, this::fetchPrice,
         BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect));
 ```
 
-消除的失败模式是轮询检查点之间的空窗：取消现在能到达已经阻塞在可中断等待中的 body。来源成功、
-失败或取消都会触发取消，并像 deadline、fail-fast 一样中断正在运行的 body；没有不中断的变体，因为
-承受不了中断的 body 照样会被自己的 deadline 中断。来源仍由调用方所有；归因保持 first-wins，来源先赢时
+消除的失败模式是轮询检查点之间的空窗：取消现在能到达已经阻塞在可中断等待中的执行。来源成功、
+失败或取消都会触发取消，并像 deadline、fail-fast 一样中断正在运行的执行；没有不中断的变体，因为
+承受不了中断的执行照样会被自己的 deadline 中断。来源仍由调用方所有；归因保持 first-wins，来源先赢时
 为 `GROUP_CANCELLED`。注册与监听切断分别遵循准入和终态；空批次与空组不注册。这不表示任意 IO 已经停止，
 同步有界清理也不变。
 
@@ -264,7 +285,7 @@ for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicCom
 集合，包含 List；顺序链表不再逐项按下标遍历。复制期间不要无同步地修改非并发集合，浅复制也
 不会隔离元素对象本身的修改。
 
-null 输入元素现在会在任何 mapper 或 combine body 执行前抛出 `NullPointerException`，不再
+null 输入元素现在会在任何 mapper 或 combine 执行执行前抛出 `NullPointerException`，不再
 由未检查的调用传入 mapper。调用前移除或替换 null 元素。`map` 对 null 集合仍返回空批次；
 `mapAndCombine` 仍拒绝 null 或空集合。mapper 成功返回 null 的语义不变。
 
@@ -297,7 +318,7 @@ Checkpoints.checkSleep(200, TimeUnit.MILLISECONDS);
 `checkSupplier` 把 `SocketTimeoutException` 转成 `CancellationException`，但没有已提交的取消时结果仍是
 `USER_FAILURE`，方法名承诺的「取消」不成立。`checkpoint(String, boolean)` 的名字校验只会因写错名字而失败。
 
-迟到失败日志有变化：取消已落定任务后，body 经读到该取消的 `Checkpoints` 调用退出，或经本次运行中被内核
+迟到失败日志有变化：取消已落定任务后，执行经读到该取消的 `Checkpoints` 调用退出，或经本次运行中被内核
 取消中断唤醒的 JDK 阻塞调用退出时，`task '<name>' failed after cancellation` 记录为 `FINE`，不再是
 `WARNING`。其他迟到失败（包括带 suppressed `close()` 失败的）仍是 `WARNING`。靠统计这类告警来计数取消的
 监控会看到数量下降；改读 `outcomeCounts()` 或 `TaskOutcome`。见

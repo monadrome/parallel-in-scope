@@ -265,19 +265,19 @@ class SlidingWindowSubmitterTest {
     }
 
     /**
-     * The default for every task type: a rejected element fails and its body never runs.
+     * The default for every task type: a rejected element fails and its execution never runs.
      */
     @Test
-    void rejectedCpuElementFailsWithoutRunningItsBodyByDefault() throws Exception {
+    void rejectedCpuElementFailsWithoutRunningItsExecutionByDefault() throws Exception {
         ListeningExecutorService rejected = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
-        AtomicBoolean bodyRan = new AtomicBoolean();
+        AtomicBoolean executionRan = new AtomicBoolean();
         try {
             SlidingWindowSubmitter<Integer> executor =
                     new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.COMPUTE));
 
             TaskBatch<Integer> batch = submitAllWithViews(executor, futures(() -> {
-                bodyRan.set(true);
+                executionRan.set(true);
                 return 7;
             }));
 
@@ -285,7 +285,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(bodyRan).isFalse();
+            assertThat(executionRan).isFalse();
         } finally {
         }
     }
@@ -350,7 +350,7 @@ class SlidingWindowSubmitterTest {
 
     /**
      * A task already terminal when the initial window reaches it — cancelled by the deadline
-     * cascade before submission, so its body runs zero times — must not be handed to the worker
+     * cascade before submission, so its execution runs zero times — must not be handed to the worker
      * pool at all: the handoff is pure waste. Its completion listener still publishes, so the
      * window accounting is unchanged.
      */
@@ -499,7 +499,7 @@ class SlidingWindowSubmitterTest {
                         .hasCauseInstanceOf(SubmissionException.class)
                         .hasRootCauseInstanceOf(AssertionError.class);
             }
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(captured).anySatisfy(record -> {
                 assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
                 assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
@@ -676,7 +676,7 @@ class SlidingWindowSubmitterTest {
 
     /**
      * The same escalation path observes a sliding-window handoff {@code Error} with no shape
-     * difference, and the batch stays closeable afterward: body-completion tracking settles and
+     * difference, and the batch stays closeable afterward: execution exit tracking settles and
      * the abandoned prepared future releases its user callable.
      */
     @Test
@@ -696,7 +696,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
             batch.close();
         } finally {
@@ -705,12 +705,12 @@ class SlidingWindowSubmitterTest {
     }
 
     /**
-     * An initial-window handoff {@code Error} abandons every prepared body: the batch stays
-     * closeable, {@code awaitBodyCompletion} settles, and no prepared future retains its user
+     * An initial-window handoff {@code Error} abandons every prepared execution: the batch stays
+     * closeable, {@code awaitExecutionExit} settles, and no prepared future retains its user
      * callable.
      */
     @Test
-    void initialWindowHandoffErrorReleasesPreparedBodiesAndSettlesTheBatch() throws Exception {
+    void initialWindowHandoffErrorReleasesPreparedExecutionsAndSettlesTheBatch() throws Exception {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(handoffExecutor(command -> {
             throw new AssertionError("handoff broken");
         }));
@@ -720,7 +720,7 @@ class SlidingWindowSubmitterTest {
             List<ExecutionPhaseHintFuture<Integer>> tasks = futures(() -> 1, () -> 2, () -> 3);
             TaskBatch<Integer> batch = submitAllWithViews(executor, tasks);
 
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
             batch.close();
             assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
@@ -801,7 +801,7 @@ class SlidingWindowSubmitterTest {
 
             @Override
             public void execute(Runnable command) {
-                // The body runs on the pool's own thread; the second handoff parks that worker
+                // The execution runs on the pool's own thread; the second handoff parks that worker
                 // thread inside execute, leaving the calling thread free to cancel mid-handoff.
                 backing.execute(() -> {
                     if (executions.incrementAndGet() >= 2) {
@@ -855,7 +855,7 @@ class SlidingWindowSubmitterTest {
      * elements and the claimer itself disposes of the claimed index. The vulnerable window is
      * nanoseconds wide and cannot be gated deterministically, so this test hammers it: many rounds
      * of submit + cancel at staggered moments, asserting the one observable corruption the race
-     * produced — a task body that ran while its element was already abandoned (user code ran,
+     * produced — a task execution that ran while its element was already abandoned (user code ran,
      * the caller reads "never submitted"). On the fixed code the invariant holds by construction;
      * if the claim ever moves back below the completion check, staggered rounds make the corruption
      * possible again.
@@ -906,7 +906,7 @@ class SlidingWindowSubmitterTest {
                         .until(() -> batch.results().get(0).isDone()
                                 && batch.results().get(1).isDone());
 
-                // The invariant: a body that entered user code is reported as a real success,
+                // The invariant: an execution that entered user code is reported as a real success,
                 // never as an abandoned element; an abandoned element never entered user code.
                 assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
                         .as("round %s element 0", round)

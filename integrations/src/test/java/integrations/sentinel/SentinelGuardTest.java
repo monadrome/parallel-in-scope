@@ -124,7 +124,7 @@ class SentinelGuardTest {
         assertThat(batch.outcomeCounts())
                 .containsEntry(TaskOutcome.USER_FAILURE, 1)
                 .containsEntry(TaskOutcome.FAIL_FAST, 3);
-        assertThat(batch.bodyCompletionConfirmed()).isTrue();
+        assertThat(batch.executionExitConfirmed()).isTrue();
         ClusterNode node = ClusterBuilderSlot.getClusterNode("traced");
         assertThat(node.totalException()).isEqualTo(1);
         assertThat(node.curThreadNum()).isZero();

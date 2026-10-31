@@ -22,7 +22,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".BatchOptions",
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".CombinedGroupStep",
-            BASE_PACKAGE + ".CombineBody",
+            BASE_PACKAGE + ".Combiner",
             BASE_PACKAGE + ".ExecutorWaitReport",
             BASE_PACKAGE + ".GroupStart",
             BASE_PACKAGE + ".GroupStep",
@@ -85,7 +85,7 @@ class PublicApiSurfaceTest {
             assertThat(java.util.concurrent.Future.class.isAssignableFrom(type)).isFalse();
             assertThat(AutoCloseable.class.isAssignableFrom(type)).isFalse();
             assertThat(Arrays.stream(type.getMethods()).map(java.lang.reflect.Method::getName))
-                    .doesNotContain("cancel", "close", "awaitBodyCompletion", "completionFuture", "submitCanceller");
+                    .doesNotContain("cancel", "close", "awaitExecutionExit", "completionFuture", "submitCanceller");
         }
     }
 

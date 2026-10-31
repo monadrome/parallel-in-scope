@@ -22,14 +22,14 @@ import org.jspecify.annotations.Nullable;
  * runAll()} on, mirrored into the member future the group binds, classifies, and freezes.
  *
  * <p>Lifecycle: the declaration creates the instance; preparation attaches the member's execution
- * context, whose body slot stands for the source's outstanding work; then exactly one of {@link
+ * context, whose execution slot stands for the source's outstanding work; then exactly one of {@link
  * #connect()} (the group admitted the member) or {@link #abandon()} (admission failed) claims the
  * source. A connected source settles the mirror through this class's own listener, which writes the
  * end time first; cancelling the mirror cancels the source with the mirror's own interrupt flag
  * ({@code cancel(true)} for every framework cancellation).
  *
  * <p>A listener of the source that throws while the group cancels it is logged and never
- * interrupts the group's cancellation cascade or cleanup. The body slot is released once the
+ * interrupts the group's cancellation cascade or cleanup. The execution slot is released once the
  * source has settled and — for a member that declares a closer — the group has decided who owns
  * the value and, when nobody does, the closer has returned.
  *
@@ -59,7 +59,7 @@ final class AdoptedSource {
     /*
      * Countdown over the release signals: the source settled, and — only when a closer is declared
      * — the group decided ownership. Whichever signal arrives last closes a discarded value and
-     * releases the body slot; the decrement orders the other signal's writes (the decision, the end
+     * releases the execution slot; the decrement orders the other signal's writes (the decision, the end
      * time) before that step.
      */
     private final AtomicInteger pendingSignals;
@@ -83,19 +83,22 @@ final class AdoptedSource {
 
     /** Attaches the prepared member context; called once on the admitting thread before binding. */
     void attach(TaskExecutionContext prepared) {
-        verify(prepared.bodyState() != null, "an adopted member must own a body slot");
+        verify(prepared.executionState() != null, "an adopted member must own an execution slot");
         this.context = prepared;
     }
 
     /**
      * Connects the source to the mirror after the group and member tokens are bound. A mirror the
      * group cancelled earlier has already cancelled the source; the connection still registers the
-     * settle listener, so the body slot is released when the source finally settles.
+     * settle listener, so the execution slot is released when the source finally settles.
      */
     void connect() {
         verify(claimed.compareAndSet(false, true), "adopted source '%s' was already claimed", name);
         TaskExecutionContext prepared = verifyNotNull(context, "adopted member '%s' was not prepared", name);
-        verify(verifyNotNull(prepared.bodyState()).claimRunning(), "adopted member '%s' already left PENDING", name);
+        verify(
+                verifyNotNull(prepared.executionState()).claimRunning(),
+                "adopted member '%s' already left PENDING",
+                name);
         prepared.markStarted(System.nanoTime());
         connected = true;
         source.addListener(this::sourceSettled, directExecutor());
@@ -115,7 +118,7 @@ final class AdoptedSource {
 
     /**
      * Releases a source the group never admitted: cancels it and its mirror, closes the value it
-     * produced anyway, and releases the body slot preparation may have registered. A no-op once
+     * produced anyway, and releases the execution slot preparation may have registered. A no-op once
      * connected.
      */
     void abandon() {
@@ -123,13 +126,13 @@ final class AdoptedSource {
             return;
         }
         TaskExecutionContext prepared = context;
-        TaskBodyState body = prepared == null ? null : prepared.bodyState();
-        if (body != null) {
-            body.claimRunning();
+        TaskExecutionState taskCode = prepared == null ? null : prepared.executionState();
+        if (taskCode != null) {
+            taskCode.claimRunning();
         }
         cancelSource(true);
         mirror.cancel(false);
-        source.addListener(() -> closeThenRelease(body), directExecutor());
+        source.addListener(() -> closeThenRelease(taskCode), directExecutor());
     }
 
     private void sourceSettled() {
@@ -202,24 +205,24 @@ final class AdoptedSource {
         if (pendingSignals.decrementAndGet() != 0) {
             return;
         }
-        TaskBodyState body = verifyNotNull(verifyNotNull(context).bodyState());
+        TaskExecutionState taskCode = verifyNotNull(verifyNotNull(context).executionState());
         if (discarded) {
-            closeThenRelease(body);
+            closeThenRelease(taskCode);
         } else {
-            body.exited();
+            taskCode.exited();
         }
     }
 
     /**
      * Hands the settled source's non-null successful value to the closer on the releases executor,
-     * then releases {@code body}; releases it directly when there is nothing to close. Never throws.
+     * then releases {@code taskCode}; releases it directly when there is nothing to close. Never throws.
      */
-    private void closeThenRelease(@Nullable TaskBodyState body) {
+    private void closeThenRelease(@Nullable TaskExecutionState taskCode) {
         ResourceCloser<Object> release = closer;
         Object value = release == null ? null : producedValue();
         if (release == null || value == null) {
-            if (body != null) {
-                body.exited();
+            if (taskCode != null) {
+                taskCode.exited();
             }
             return;
         }
@@ -231,8 +234,8 @@ final class AdoptedSource {
             try {
                 close(release, value);
             } finally {
-                if (body != null) {
-                    body.exited();
+                if (taskCode != null) {
+                    taskCode.exited();
                 }
             }
         };
@@ -270,7 +273,7 @@ final class AdoptedSource {
         try {
             LOGGER.log(Level.WARNING, "closing the discarded value of adopted member '" + name + "' failed", failure);
         } catch (Throwable ignored) {
-            // A user-installed log handler must not keep the body slot from being released.
+            // A user-installed log handler must not keep the execution slot from being released.
         }
     }
 }

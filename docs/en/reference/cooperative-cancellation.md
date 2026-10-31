@@ -9,21 +9,21 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 | Location | Mechanism | Application work |
 |---|---|---|
 | Before task execution | `ScopedCallable` runs `Checkpoints.checkpoint()` | None |
-| While a body runs | Cancellation requests a runner interrupt | Use interruptible operations or client timeouts; I/O response depends on the client |
+| While an execution runs | Cancellation requests a runner interrupt | Use interruptible operations or client timeouts; I/O response depends on the client |
 | Sliding-window submission | `SlidingWindowSubmitter` stops submitting after cancellation | None |
 
 ### Sliding-window preparation
 
 Every element has its internal execution future prepared before cancellation and deadlines are
 bound. Binding finishes before submission starts; the sliding window only controls when each
-prepared task enters the executor. Cancellation therefore reaches running bodies and prevents
+prepared task enters the executor. Cancellation therefore reaches running executions and prevents
 unsubmitted tasks from starting. There are no placeholders or later delegate-binding steps.
 
 `Par.map` waits for all results to settle and attempts bounded cleanup before returning frozen
-`ImmediateResult` data. `unfinishedBodies()` reports direct bodies whose exit was not confirmed;
-terminal cancellation alone does not prove that a body stopped.
+`ImmediateResult` data. `unexitedExecutions()` reports direct executions whose exit was not confirmed;
+terminal cancellation alone does not prove that an execution stopped.
 
-Tasks that have not started are skipped, running bodies receive an interrupt request, and unsubmitted
+Tasks that have not started are skipped, running executions receive an interrupt request, and unsubmitted
 tasks do not enter the executor. An interrupt request does not guarantee that blocked I/O stops.
 
 ## Add checkpoints to CPU-bound work
@@ -60,7 +60,7 @@ Two utilities round out the API:
 | `Checkpoints.remaining()` | Read the current scoped task's remaining budget (`Optional<Duration>`); empty outside a scoped task, `Duration.ZERO` once the deadline has elapsed, and exactly `Duration.ofNanos(Long.MAX_VALUE)` when the scope has no deadline. Read-only: it never throws, never cancels, and does not touch the interrupt flag. |
 | `Checkpoints.propagateCancellation(ex)` | Re-throw cancellation exceptions from a catch block |
 
-`remaining()` lets a task body hand its real budget to a downstream call instead of a separately configured timeout:
+`remaining()` lets a task execution hand its real budget to a downstream call instead of a separately configured timeout:
 
 ```java
 .par(TaskKey.<User>named("user"), ioPar, () -> {
@@ -102,7 +102,7 @@ that exception with its original cause, as above. A group member's Callable can 
 
 ## Replace `Thread.sleep()` with `Checkpoints.checkSleep()`
 
-Inside a `Par` task body, use `Checkpoints.checkSleep()` instead of `Thread.sleep()`:
+Inside a `Par` task execution, use `Checkpoints.checkSleep()` instead of `Thread.sleep()`:
 
 ```java
 // not recommended
@@ -119,7 +119,7 @@ cancellation does not collect a useless stack trace.
 
 ## Logging after cancellation
 
-When cancellation has already settled a task, a body that then exits by throwing has no result
+When cancellation has already settled a task, an execution that then exits by throwing has no result
 left to carry; the engine logs it from the `ExecutionPhaseHintFuture` logger as
 `task '<name>' failed after cancellation`, with the original exception. The level depends on where
 the exception came from, never on its type:
@@ -146,14 +146,14 @@ A `Checkpoints` blocking adapter interrupted while the scope is not cancelled th
 | Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
-| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; running bodies are interrupted, as for every other cancellation source |
+| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; running executions are interrupted, as for every other cancellation source |
 
 All sources use the same internal token state check. The external input is declared on the batch's
-`BatchOptions` or on `GroupStart` (before the first member); task bodies never poll an application
+`BatchOptions` or on `GroupStart` (before the first member); task executions never poll an application
 flag. See [Cancel when a request completes](../user-guide.md#request-cancellation).
 Nested `Par.map` calls inherit a parent token,
 so cancellation reaches child tasks at their next checkpoint or interruptible blocking operation.
-Task bodies can also throw cancellation exceptions. `ImmediateResult.outcome()` exposes the frozen
+Task executions can also throw cancellation exceptions. `ImmediateResult.outcome()` exposes the frozen
 task attribution; see [Immediate results](../user-guide.md#task-future-attribution).
 Interrupting the caller waiting in `map` or `runAll` does not cancel execution; those waits restore
 the interrupt flag on exit. Results expose no execution-owned token or running future;

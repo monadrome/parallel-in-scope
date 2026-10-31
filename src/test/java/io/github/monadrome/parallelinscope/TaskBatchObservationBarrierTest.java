@@ -74,7 +74,7 @@ class TaskBatchObservationBarrierTest {
             }
             assertThat(view.cancel(true)).isFalse();
             publication.set(null);
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(view.isDone()).isTrue();
             List<TaskCompletion<Integer>> observations = view.get(2, TimeUnit.SECONDS);
             assertThat(observations.get(0)).isSameAs(snapshot);
@@ -115,7 +115,7 @@ class TaskBatchObservationBarrierTest {
         return batch(TaskObservation.of(() -> snapshot, publication), grace);
     }
 
-    /** Installs a controlled observation on a real attributed task view before running its body. */
+    /** Installs a controlled observation on a real attributed task view before running its execution. */
     private static TaskBatch<Integer> batch(TaskObservation<Integer> observation, Duration grace) {
         CancellationToken token = CancellationToken.create();
         ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(() -> 7);
@@ -123,7 +123,7 @@ class TaskBatchObservationBarrierTest {
         Task<Integer> task = Task.attributedOnSettle("observed", token, future);
         future.run();
         return TaskBatch.of(
-                BodyCompletionTracker.empty(),
+                ExecutionExitTracker.empty(),
                 Futures.immediateVoidFuture(),
                 Collections.singletonList(task),
                 token,

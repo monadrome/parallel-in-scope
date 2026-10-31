@@ -216,7 +216,7 @@ final class CancellationToken {
         // The token tree's own domain scheduler wins: a nested unit inherits the ancestor's clock,
         // and only the scheduler paired with that clock fires under its time. The parameter is the
         // fallback for tokens created without a runtime seam — and for a retired domain scheduler:
-        // the ancestor runtime may already be closed while one of its cancelled bodies is still
+        // the ancestor runtime may already be closed while one of its cancelled executions is still
         // running and nests new work into another runtime. The delay stays meaningful there: an
         // ancestor on the real clock retires with real-domain deadlines, and a retired manual clock
         // can no longer advance, so falling back fires the deadline no later than the domain would.
@@ -292,7 +292,7 @@ final class CancellationToken {
     /**
      * Schedules the deadline action on the domain scheduler, falling back to the caller's scheduler
      * when the domain scheduler rejects because its owning runtime was already closed (a cancelled
-     * ancestor body can still be running and nesting new work).
+     * ancestor execution can still be running and nesting new work).
      *
      * <p>When both schedulers reject, the outcome depends on the token: a token that concurrently
      * went terminal no longer needs the timer — the cancellation it implies reaches the bound
@@ -328,7 +328,7 @@ final class CancellationToken {
     }
 
     /**
-     * Cancels bound work, interrupting running bodies. Every cancellation source interrupts: a
+     * Cancels bound work, interrupting running executions. Every cancellation source interrupts: a
      * deadline, fail-fast, an explicit or request cancellation, and ancestor propagation alike.
      */
     private void cancelBoundWork(ListenableFuture<?> allFutures) {
@@ -374,7 +374,7 @@ final class CancellationToken {
      * Cancels this token and its linked work, interrupting running threads.
      *
      * <p>There is no non-interrupting variant: like a deadline or fail-fast, an explicit
-     * cancellation interrupts running bodies, and the cancellation propagates down the token tree
+     * cancellation interrupts running executions, and the cancellation propagates down the token tree
      * with interruption.
      */
     void cancel() {

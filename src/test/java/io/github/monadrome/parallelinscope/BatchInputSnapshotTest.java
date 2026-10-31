@@ -51,7 +51,7 @@ class BatchInputSnapshotTest {
         }
     }
 
-    /** Null input elements cannot execute any mapper or terminal body in either entry point. */
+    /** Null input elements cannot execute any mapper or terminal execution in either entry point. */
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     @SuppressWarnings("NullAway")
@@ -61,22 +61,22 @@ class BatchInputSnapshotTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build()) {
             Par par = spy(runtime.par(ParId.of("worker")));
             List<Integer> input = Arrays.asList(1, null, 3);
-            AtomicInteger bodies = new AtomicInteger();
+            AtomicInteger executions = new AtomicInteger();
             BatchOptions options = BatchOptions.timeout("null-input", Duration.ofSeconds(5));
             assertThatThrownBy(() -> {
                         if (combined) {
                             par.mapAndCombine(
                                     input,
-                                    value -> bodies.incrementAndGet(),
+                                    value -> executions.incrementAndGet(),
                                     options,
                                     par,
-                                    values -> bodies.incrementAndGet());
+                                    values -> executions.incrementAndGet());
                         } else {
-                            par.map(input, value -> bodies.incrementAndGet(), options);
+                            par.map(input, value -> executions.incrementAndGet(), options);
                         }
                     })
                     .isInstanceOf(NullPointerException.class);
-            assertThat(bodies).hasValue(0);
+            assertThat(executions).hasValue(0);
             ArgumentCaptor<MultiTaskContext> admission = ArgumentCaptor.forClass(MultiTaskContext.class);
             verify(par).diagnoseAdmission(admission.capture());
             assertThat(admission.getValue().cancellationToken().state()).isEqualTo(CancellationToken.State.CANCELLED);

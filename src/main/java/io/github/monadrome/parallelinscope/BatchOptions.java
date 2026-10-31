@@ -104,7 +104,7 @@ public final class BatchOptions {
     /**
      * Returns a copy of these options with the given diagnostic task type for every element.
      *
-     * <p>The declaration describes the element bodies; nested batches and the terminal combine of
+     * <p>The declaration describes the element executions; nested batches and the terminal combine of
      * {@link Par#mapAndCombine} do not inherit it. It never changes admission, enqueueing,
      * rejection, or any element's outcome; see {@link TaskType}.
      *
@@ -134,14 +134,14 @@ public final class BatchOptions {
 
     /**
      * Returns a copy with the cleanup budget used by {@link Par#map} after results settle, waiting
-     * for direct task bodies and their final observations before returning.
+     * for direct task executions and their final observations before returning.
      *
      * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
      * waiting. When unset, the budget is derived from the remaining execution deadline. A run that
      * ends at its deadline has no remaining budget: unless a grace was set explicitly, its derived
-     * cleanup wait is zero and bodies still unwinding are not awaited. A terminal
-     * cancellation result can coexist with a body still closing resources; inspect {@link
-     * TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
+     * cleanup wait is zero and executions still unwinding are not awaited. A terminal
+     * cancellation result can coexist with an execution still closing resources; inspect {@link
+     * TaskBatchResult#executionExitConfirmed()} for the frozen direct-execution exit status.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
@@ -161,10 +161,10 @@ public final class BatchOptions {
      * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or
      * is cancelled. The source remains caller-owned: the library never completes or cancels it.
      *
-     * <p>Like a deadline or fail-fast, the cancellation interrupts running bodies; there is no
+     * <p>Like a deadline or fail-fast, the cancellation interrupts running executions; there is no
      * non-interrupting variant. Interruption is cooperative and does not guarantee that arbitrary
      * IO or user code stops. The source takes effect at execution admission, before
-     * any body can start; an empty batch returns successfully without registering.
+     * any execution can start; an empty batch returns successfully without registering.
      *
      * @throws NullPointerException if {@code signal} is null
      */

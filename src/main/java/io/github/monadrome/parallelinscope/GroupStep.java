@@ -33,7 +33,7 @@ public interface GroupStep<V> {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
 
     /**
      * Declares a keyed member with explicit task options.
@@ -42,7 +42,7 @@ public interface GroupStep<V> {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
 
     /**
      * Declares a member as an adopted future; see {@link GroupStart#adopt(TaskKey,
@@ -87,7 +87,7 @@ public interface GroupStep<V> {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, CombineBody<? super V, ? extends R> body);
+    <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner);
 
     /**
      * Declares a keyed terminal combine with explicit task options.
@@ -97,7 +97,7 @@ public interface GroupStep<V> {
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <R> CombinedGroupStep<V, R> combine(
-            TaskKey<R> key, Par par, TaskOptions options, CombineBody<? super V, ? extends R> body);
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner);
 
     /**
      * Declares a keyed terminal combine whose input is the successful member-value view. Use {@link
@@ -109,7 +109,7 @@ public interface GroupStep<V> {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, CombineBody<GroupValues<V>, ? extends R> body);
+    <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner);
 
     /**
      * Declares a value-view terminal combine with explicit task options.
@@ -119,16 +119,16 @@ public interface GroupStep<V> {
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <R> CombinedGroupStep<V, R> combineValues(
-            TaskKey<R> key, Par par, TaskOptions options, CombineBody<GroupValues<V>, ? extends R> body);
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner);
 
     /**
      * Executes the declared group and returns frozen results after all task results settle and a
      * bounded cleanup attempt. Waiting ignores interruption and restores the interrupt flag; caller
      * interruption does not cancel the group. Deadline and ancestor cancellation remain active.
-     * Check TaskGroupResult.bodyCompletionConfirmed before releasing shared resources.
+     * Check TaskGroupResult.executionExitConfirmed before releasing shared resources.
      *
      * <p>Consumes the draft whether the submission succeeds or fails; a second {@code runAll()}
-     * throws. A failure after admission — a rejected handoff, a failing body, a timeout, a
+     * throws. A failure after admission — a rejected handoff, a failing execution, a timeout, a
      * cancellation — is returned as outcome data. Use TaskGroupResult.valuesOrThrow to raise it.
      *
      * @return the frozen group result
