@@ -37,6 +37,28 @@ mvn clean verify                      # tests + package checks; not a release bu
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
 ```
 
+## Task Routes
+
+Classify the request before following the rest of this file. The table selects
+the process; the named sections and documents own the rules. Routes are
+cumulative: when two rows apply, follow both and let the more restrictive gate
+win. Classify by the smallest change that satisfies the request, not by the
+largest scope it could grow into.
+
+| Request shape | Route | Do not |
+|---|---|---|
+| Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, commit | Write a proposal or run adversarial review |
+| Reproducible behavior defect | Reproduce the failure first; fix the root cause; add a regression test and reverse-verify it | Fix by inspection, or claim completion without a failing case |
+| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and the owning contract; write or update the `design/proposal/` entry; stop for the maintainer's direction | Implement before the direction is settled |
+| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests; run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
+| Documentation or site change only | Check the diff, referenced paths, and cited commands; run `python3 scripts/check-doc-refs.py` | Run Java tests or `spotless` |
+| Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `java8-runtime` job locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the Java 8 check |
+| Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action per Current Development Line, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
+
+If the request crosses into a gated route mid-task, stop and reclassify instead
+of finishing under the old route. A request for analysis authorizes the analysis,
+not implementation.
+
 ## Architecture
 
 Base package: `io.github.monadrome.parallelinscope`.
