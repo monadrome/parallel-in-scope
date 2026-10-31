@@ -3,6 +3,8 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -13,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 
 /** Input snapshots keep sequential collections linear and reject null elements before execution. */
 class BatchInputSnapshotTest {
@@ -56,7 +59,7 @@ class BatchInputSnapshotTest {
         ExecutorService executor = MoreExecutors.newDirectExecutorService();
         try (ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build()) {
-            Par par = runtime.par(ParId.of("worker"));
+            Par par = spy(runtime.par(ParId.of("worker")));
             List<Integer> input = Arrays.asList(1, null, 3);
             AtomicInteger bodies = new AtomicInteger();
             BatchOptions options = BatchOptions.timeout("null-input", Duration.ofSeconds(5));
@@ -74,6 +77,9 @@ class BatchInputSnapshotTest {
                     })
                     .isInstanceOf(NullPointerException.class);
             assertThat(bodies).hasValue(0);
+            ArgumentCaptor<MultiTaskContext> admission = ArgumentCaptor.forClass(MultiTaskContext.class);
+            verify(par).diagnoseAdmission(admission.capture());
+            assertThat(admission.getValue().cancellationToken().state()).isEqualTo(CancellationToken.State.CANCELLED);
         } finally {
             executor.shutdownNow();
         }
