@@ -14,7 +14,7 @@
 承接 documentation-audit-2026-10-08 的 D1–D10、doc-value-audit-2026-10-09、
 decision-brief-2026-10-09 的文档与流程项，以及四代核心审计的文档维护建议。
 这些是历史审计输入；实施前逐项对照当前树，不照抄行号、计数或“全部仍成立”。
-`6588e97` 已修 graveyard 死链接与两参 map 示例，不能再作为待修项。
+graveyard 死链接与两参 map 示例已修，不能再作为待修项。
 分析稿退出与提案可见性由 [生命周期契约](../proposal-lifecycle.md) 承接。
 
 ## 用户示例的具体修复目标
@@ -33,7 +33,7 @@ P0011 的 MDC/TTL、checked Function、缺少成功返回、中断处理和 IO �
 - task-group-api-and-options 中 failure 只属于业务/提交失败的过强表述、lifecycle 中把直接
   执行确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
   与 group 的 unchecked 包装用具体消费代码解释，不为统一表面添加 throwing callback 家族。
-- PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 failedTaskResult()
+- PR #56 重落分支的 O-13/O-14 还需明确教学：批次 failedTaskResult()
   只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时为空，不代表所有任务成功；取消细节
   从逐元素 ImmediateResult 读取。FAIL_FAST 可同时覆盖已运行后取消与未提交的元素，单靠
   outcome 不能推断执行历史，应结合可用最终观测。维持现有归因，不为区分这两者增加开关。
@@ -98,7 +98,7 @@ rechecked the first-round fixes against source and tests.
   outside this English-only task and are not part of its diff. A low-value idea-graveyard paraphrase
   was reverted rather than creating unnecessary locale drift.
 
-A subsequent Codex review of `ea9cddc` found no Standards issues and retained two Spec findings:
+A subsequent Codex review of the fix commit found no Standards issues and retained two Spec findings:
 
 - Retained: `ParRuntime.Builder.build()` described only directly registered pools, although the
   guard also rejects recognized TTL-wrapped discarding pools. Its Javadoc now includes that case.

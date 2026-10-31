@@ -402,8 +402,8 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
    和 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)；
    回归锁在 `InlineSubmissionLivenessTest`。
 3. **inline 路径的结构性死锁（非中断）**：同步占用提交线程时 batch 的 deadline
-   结构性地无法解救。修复：所有入口先 bind 后提交（adr/0007）；分析底稿见
-   [decision-log.md](decision-log.md) 的 inline-fallback-path-analysis 条目。
+   结构性地无法解救。修复：所有入口先 bind 后提交（adr/0007）；inline 回退的三项缺陷与删除理由见
+   [decision-log.md](decision-log.md) 的「Executor rejection belongs to the executor」条目。
 
 一个测试教训：把 `get()` 换成 `getDone` 时，手写的"`get()` 无条件抛
 `InterruptedException`"的 stub 会让 `getUninterruptibly` 的重试循环永不退出——

@@ -41,6 +41,9 @@ The source tree should contain fewer repeated explanations while preserving loca
 
 ## History
 
-The [original decision](archive/0009-comment-minimization-and-placement.md) preserves the wording
-before ADR 0012 changed implementation-note and local-protocol placement. The current record links
-the replacement rules in place; the successor contains their rationale.
+ADR 0012 changed two rules in place. Rule 2 originally ended "It does not serve as a destination for
+implementation rationale"; rule 4 originally ended at "Keep it beside the statement when its position
+matters", without permitting class or method protocol blocks. The rejected alternative "Move
+implementation explanations into method Javadoc" was originally rejected "because Javadoc serves
+callers, while implementation rationale belongs with the local statement or the canonical design
+document". ADR 0012 holds the reasoning for the change.

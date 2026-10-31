@@ -11,12 +11,12 @@
 
 ## 后续审计反证与实施前复核
 
-以下盘点保留 2026-10-02、`756c573` 的候选论证，成员数、类型名与定位不是当前版本事实。
+以下盘点保留 2026-10-02 版本的候选论证，成员数、类型名与定位不是当前版本事实。
 后续核心审计已给出反证：公开 CancellationToken 仍能支持应用自己的父子协作循环与预算；
 TaskCompletion 工厂支持纯数据消费者测试；`valuesResult` 与抛异常入口能力不同；
 图静态查询与 close 报告的时点不同；容量工厂必须权衡显式选择与便利性。
 这些反证没有自动否决全部候选，但撤除了“零调用即可删除”的依据。当前图 API 已随
-`5c1887a` 改变，N2 的旧名单必须重新核对；取消接入与 P0001 的形状也必须协调。
+0.4 的执行器等待图改变，N2 的旧名单必须重新核对；取消接入与 P0001 的形状也必须协调。
 每项仍需独立选择，不将本提案入库解释成缩减已批准。
 
 source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策略开关随运行时级执行器等待图删除
@@ -34,7 +34,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 
 - 公开面以 `src/test/java/.../PublicApiSurfaceTest.java` 钉住的清单为准：**36 个公开类型**
   （27 个顶层 + 9 个嵌套）。
-- 成员级盘点对新编译产物（基线 HEAD `756c573`）逐类 `javap -public`；使用证据用全文检索
+- 成员级盘点对新编译产物（基线为 2026-10-02 的 HEAD）逐类 `javap -public`；使用证据用全文检索
   统计三类消费方：`src/test/java`（测试）、`demo/src`（demo 模块）、用户文档（`docs/en`、
   `docs/zh`、`README*.md`）。`docs/**/migration-*.md` 单独标注"仅迁移文档"；`design/`、
   `adr/`、`CHANGELOG.md` 记为设计依据，不算用户使用。
@@ -54,7 +54,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 | `TaskListener` SPI 及 `ParRuntime.Builder.taskListener`/`parTaskListener`、`ParRuntime.taskListeners()`/`taskListenersFor(ParId)` 整条注册与读取面 | [decision-log.md](../decision-log.md) 对应条目（已落地） |
 | `DeadlockDetectionListener` SPI + `DeadlockDetectionEvent` | [decision-log.md](../decision-log.md) 对应条目（已落地） |
 | `TaskGroupDefinition`（+`Builder`/`Member`）、`TaskGroup`（+`Bindings`/`Combiner`/`CombineContext`）、`TaskFuture` 接口、`Par.submit` | 组一次性链式 API（[group-one-shot-api-refactor-codex.md](../group-one-shot-api-refactor-codex.md)）+ 同步出口契约（[synchronous-scope-exit.md](../synchronous-scope-exit.md)） |
-| `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | `df89b43 feat!: drop the runOnCallerThread submission option` |
+| `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | 提交 `feat!: drop the runOnCallerThread submission option` |
 | `ParRuntime.executorTags()`/`executorTags(ParId)`/`executorTags(ExecutorService)`/`parsWithExecutorTag`、`ParRuntime.Builder.register(ParId, ExecutorService, String...)` 重载 | 可用性缺口收口提交 |
 | `TaskGroupResult.memberCount()`（09-27 版 C2） | 已随上述重构移除 |
 | `Checkpoints.checkRunnable`/`checkSupplier`、`checkpoint(String, boolean)`、`sleep(long)` | 检查点取消确认按 token 归因（[中断契约](../interruption-contract.md) §3.1，`proposal:P0034`）：前两者把用户异常类型映射为取消而结果仍是 `USER_FAILURE`；后两者分别由 `checkpoint()`、`checkSleep(long, TimeUnit)` 覆盖 |
@@ -175,7 +175,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 
 `SmartBlockingQueue.create(int)` 与 `TaskCompletion.succeeded/failed` 已在 0.4 删除，迁移写入
 `docs/{en,zh}/migration-v0.4.md`，理由与被否决方向见 decision-log 的
-task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随批次读取统一删除。
+「Removed `TaskCompletion` and `SmartBlockingQueue` factories」条目。`TaskBatchResult.BatchReport` 也随批次读取统一删除。
 
 ### N2（已了结）：`TaskGraphObservationScope` 静态查询
 
@@ -208,7 +208,7 @@ task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随�
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
 | `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |
-| `TaskType.MIXED` | 已拍板保留为意图声明；明确不重开 | [decision-log.md](../decision-log.md) 对应条目 |
+| `TaskType.MIXED` | 已删除：0.4 改为 `COMPUTE`/`BLOCKING`/`UNKNOWN` 诊断声明 | [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md) |
 | `queue` 两个类保持 public | 产物边界已关闭 | [adr/0006](../../adr/0006-queues-ship-with-core.md) |
 | `ParId.value()` | 值类型唯一显式取值口 | — |
 | `LeanCancellationException` | 穿越用户 lambda 的可观察异常类型，双异常策略的一半 | 哲学文档 §四 |

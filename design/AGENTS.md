@@ -2,18 +2,16 @@
 
 使用规则：**先读本表，按摘要匹配当前任务，只加载命中的文档，不要预读全部。**
 契约类文档以实现约束力（MUST/MUST NOT/SHOULD）书写，是本仓库当前行为的权威依据。
-需要理解决策背景、否决方案或后果时，再读主题下链接的 ADR；需要复核旧方案、评审或验证材料时，
-再读历史记录。`Accepted` ADR 的未取代部分仍然有效，`Partially superseded` ADR 须连同其后继阅读，
-`Superseded` ADR 只用于追溯，不得作为当前实现依据。需要永久关闭重提的边界问题可由 ADR 持有权威结论，
-其余当前行为、生命周期与并发不变量均由活契约持有，不在 ADR 或历史记录中复制。
+需要理解决策背景、否决方案或后果时，再读主题下链接的 ADR。`Accepted` ADR 的未取代部分仍然有效，
+`Partially superseded` ADR 须连同其后继阅读，`Superseded` ADR 只用于理解为什么换了方向，不得作为当前
+实现依据。需要永久关闭重提的边界问题可由 ADR 持有权威结论，其余当前行为、生命周期与并发不变量均由
+活契约持有，不在 ADR 中复制。
 
-本目录有五类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
-`proposal/`，已写出但尚未落地）、**分析稿**（临时输入，收割后删除；默认不入库，用户要求时
-才入库到 `analysis/`，见维护原则第 9 条）、**历史记录**（tracked，位于 `history/`，保留有长期
-价值的评审与验证材料，不约束实现）和**归档**（tracked，位于 `archive/` 与 `analysis/archive/`，
-只用于追溯，不约束实现）。已落地的提案蒸馏为活契约；已否决、已被取代方向的结论与否决理由浓缩在
-[decision-log.md](decision-log.md)，全文见 [archive/](archive/)。先查日志，确需论证细节再读归档文件；
-**不得引用提交 hash 或行号来定位内容**。
+本目录只保留当前视图，有三类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
+`proposal/`，已写出但尚未落地）和**分析稿**（临时输入，收割后删除；默认不入库，用户要求时才入库到
+`analysis/`，见维护原则第 9 条）。已落地的提案蒸馏为活契约；已否决、已被取代方向的结论与否决理由
+写在 [decision-log.md](decision-log.md)。仓库不保留全文归档：被取代的全文、评审流水与验证记录在
+蒸馏出结论与否决理由之后删除，现行文档不得依赖它们。**不得引用提交 hash 或行号来定位内容。**
 
 新能力与契约变更无需先开 issue：提案直接写进 `proposal/`、加入在途路由并提交，不区分草稿、
 已接受或进行中。落地时将蒸馏摘要并入活契约、写下历史回指并在同一提交删除提案与路由行；
@@ -21,38 +19,39 @@
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
 
-**本表分为活契约与在途提案两节，分析稿不入表。** 相关 ADR 与历史记录按主题附在活契约下，
+**本表分为活契约与在途提案两节，分析稿不入表。** 相关 ADR 按主题附在活契约下，
 不另建 ADR 编号索引或第二套主题导航。CI 中的 `scripts/check-design-routes.py` 对两节共用双向校验：
 表内链接必须存在，已跟踪且仍存在的顶层活文档、`proposal/` 中的全部提案必须分别入表；
 `analysis/` 不在校验范围内。接手工作时先读相应路由，再用 `git status --short design/` 查未入库的分析输入。
 
-对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，浓缩为
-「已排除的替代方案与原因」并入正文或 [decision-log.md](decision-log.md)，需要保留的流水
-归档到 [history/](history/)。后续评审轮次的基线读取：先读 decision-log、文档正文与
-[history/](history/)。
+对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，保留的发现并入
+契约规则，驳回与降级的发现连同理由浓缩为「已排除的替代方案与原因」或「评审中驳回的主张」并入正文
+或 [decision-log.md](decision-log.md)；反向验证、PIT 分类与轮次流水不入库，提交说明记录本次结果。
+后续评审轮次的基线读取：先读 decision-log 与文档正文。
 流程见根 [AGENTS.md](../AGENTS.md) 的 Adversarial Review。
 
 ## 文档维护原则
 
 写、改、删本目录文档时遵守：
 
-1. **不复制代码能回答的事实**——行号、类清单、方法签名必然漂移。引用机制名或符号名，
-   不写「文件:行号」；引用历史时链接仓库内的归档文件（[archive/](archive/)、
-   [analysis/archive/](analysis/archive/)、[history/](history/)），不依赖提交 hash。
+1. **不复制代码能回答的事实**——行号、类清单、方法签名必然漂移。引用机制名、符号名或章节标题，
+   不写「文件:行号」，也不写提交 hash：提交 hash 随 rebase 或改写失效，引用它的文档必须跟着改，
+   形成链式修改。需要说明来源时写日期、提案编号或机制名。
 2. **单一事实源**：一个事实只在一处写全，其余位置只许指向、不许复述（正面例：P1–P4 全文在
-   [interruption-contract.md](interruption-contract.md)，根 AGENTS.md 只留摘要）。
-3. **取代即原地改写**，不在活文档里加「已取代」注解；需要留存的旧形状移入
-   [archive/](archive/)。
-4. **否决记录比采纳记录更保值**——采纳的理由能从代码推断，否决的理由不能，必须写全。
-   已入库提案被否决或被取代时，结论与完整否决理由写进 [decision-log.md](decision-log.md)
+   [interruption-contract.md](interruption-contract.md)，根 AGENTS.md 只留摘要）。指针要能独立读懂：
+   被指向处只剩一句话时，把那句话写在指针处，不建「见某处某行」的单行跳转链。
+3. **取代即原地改写**，不在活文档里加「已取代」注解；旧形状不留全文，被放弃的理由按第 4 条写下。
+4. **否决记录比采纳记录更保值**——采纳的理由能从代码推断，否决的理由不能，必须写下。
+   每条否决或驳回至少带一条理由，以便日后撤销否决时知道要推翻什么；「仅评审对照价值」「已被取代」
+   不算理由。已入库提案被否决或被取代时，结论与否决理由写进 [decision-log.md](decision-log.md)
    （需要关闭重提的按第 10 条写进 ADR，日志留指针）是删除提案文件与路由行的前置条件；
    这不算实现落地，不向行为契约写落地回指。
-5. **生命周期两态且单向**：入库提案 → 活契约。需要留痕但不再约束实现的材料移入
-   归档目录，不依赖 git 历史的可达性。蒸馏摘要随提案写出并随论证更新；落地时编辑并入
+5. **生命周期两态且单向**：入库提案 → 活契约。不再约束实现的材料不留全文，蒸馏后删除。
+   蒸馏摘要随提案写出并随论证更新；落地时编辑并入
    契约，写下历史回指，与实现、提案及路由行的删除同一提交。蒸馏保留核心出发点、设计原则与
    不变量、被否决方向及理由；可保留核心代码（状态机骨架、协议顺序这类代码比文字更精确的
    表达）；删除行号、类/方法清单、签名枚举、测试计数、命令输出、多轮评审流水。
-   **禁止「文件:行号」与提交 hash 取回**——引用机制名或符号名；历史全文链接归档文件。
+   **禁止「文件:行号」与提交 hash**——引用机制名、符号名或章节标题。
    既有活文档不强制立即重写，下次被相关变更触碰时顺手蒸馏。
 6. **契约与实现同一提交**，两者互为评审校验。行为变更的 commit message 或 PR 描述列出本次
    改变/新增的 MUST/MUST NOT 条目，防止漏节漂移。
@@ -64,8 +63,7 @@
    BACKLOG 或在途提案后删除。逐条确认落点；未跟踪文件没有仓库内副本，拿不准时保留并说明。
    分析稿默认不主动入库，只在用户要求时入库：放进 `analysis/`（不入路由表、不约束实现），
    开头写入库说明——按用户要求入库、日期与目的、不是现行契约；须通过
-   `scripts/check-local-links.py`。已收割但仍被决策日志引用的全文移入
-   `analysis/archive/`，不写提交 hash。
+   `scripts/check-local-links.py`。收割完成后删除，不另存全文。
 10. **决策理由按性质只落一处**，其余位置只放指针：
     - **ADR**（[adr/](../adr/)）：跨模块、难以逆转，或需要关闭重提的决定（产物边界、核心协议
       顺序、「不要在评审、缺陷分诊或重构提案中重提」一类结论）。ADR 的决定不改写：决定改变时写
@@ -109,11 +107,10 @@
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 | [workload-fit-screening.md](workload-fit-screening.md) | **负载匹配筛查契约**：runtime 级常开，只给条目或单元声明为 `COMPUTE` 的库准入任务代码计时；按条目、每 10 秒执行时间一个周期判定，粘滞 issue 与一次 `WARNING`；单元只归因（每条目至多 256）与判漂移；累计计数经 `workloadFitReport()` 读取；不包装或改变用户任务，与饥饿观测不共享状态（ADR 0010） |
 
-相关决策与历史：
+相关决策：
 
 - [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)：`TaskType` 作为负载匹配诊断声明；运行时筛查窗口部分由 ADR 0010 取代。
 - [ADR 0010](../adr/0010-always-on-workload-fit-screening.md)：runtime 级常开、按条目判定的负载匹配筛查。
-- 评审与验证记录：[负载匹配筛查](history/workload-fit-screening-review-records-2026-10-30.md)、[线程池饥饿观测](history/thread-pool-starvation-observation-review-records-2026-10-30.md)；只用于复核，不约束当前实现。
 
 ### 取消与队列
 
@@ -124,7 +121,7 @@
 | [sliding-window-refill.md](sliding-window-refill.md) | 滑窗事件驱动补窗契约：调用方完成初始窗口、完成线程认领下一元素、窗口上界与取消/失败处置、框架线程 O(1) 资源上界 |
 | [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
 
-相关决策与历史：
+相关决策：
 
 - [ADR 0006](../adr/0006-queues-ship-with-core.md)：queue 产物边界与评审责任的权威结论；其中 `TaskType` 的排队/拒绝语义已由 ADR 0008 取代。
 - [ADR 0003](../adr/0003-event-coalesced-purge-maintenance.md)：`Superseded`，现行规则见 [execution future simplification](execution-future-simplification.md)；仅供追溯自动 purge 旧方案。
@@ -161,7 +158,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [first-principles.md](first-principles.md) | 项目公理层：结构化并发出发点、推导出的核心决策、新需求评估判据；评估任何新特性/新概念先对照本文 |
-| [decision-log.md](decision-log.md) | 归档提案的结论与否决理由浓缩表；重提旧方向前先查这里 |
+| [decision-log.md](decision-log.md) | 已否决、已被取代或已收割方向的结论、否决理由与现行落点；重提旧方向前先查这里 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
 

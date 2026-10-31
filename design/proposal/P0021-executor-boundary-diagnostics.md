@@ -18,7 +18,7 @@
   历史公开 map 探针直到有限 deadline 才以 TIMEOUT 收敛，不能报告永久挂起。
   优先明确借用 executor 的关闭顺序，再评估稳定 shutdown 的快速诊断。
 - bare 与 TTL wrapper 注册为不同 supplied 身份；历史同池饥饿报告 NO_ISSUE 符合当时的
-  身份契约。先复核 `5c1887a` 的 TaskGraph/ExecutorGraph；资源身份投影若改变契约须单独
+  身份契约。先复核当前的执行器等待图；资源身份投影若改变契约须单独
   决定，不解包改变真实提交去向，也不合并可能改变行为的一般 wrapper。
 - 全量准备仍可能按输入数量占内存，批内窗口不限制总请求负载。先测 TTL 捕获、准备保留、
   timeout 同时到期、阻塞 JUL handler 与取消派发延迟；未测量就不写性能数字。

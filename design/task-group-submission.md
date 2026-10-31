@@ -35,9 +35,8 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 deadline 布防）、以及向目标 executor 的实际提交——处于同一次 `ParRuntime.whileOpen()` 中：
 
 - 历史规则曾要求「实际 executor 调用在 admission 外进行」，以防止 executor 行为延长
-  admission。该规则被一个已复现的竞态否决（见
-  [取消意图与时钟域评审记录](history/cancel-intent-clock-domain-validation.md)
-  第七轮）：start 在 admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
+  admission。该规则被一个已复现的竞态否决（2026-10-08 时钟域评审第七轮）：start 在
+  admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
   runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
   admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。
 - 代价与不变量：close() 从不等待 admission（只在 admission 与批次都排空后才关闭服务），
@@ -160,9 +159,9 @@ io.github.monadrome.parallelinscope/
   TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
 ```
 
-`ParName` 已更名为 `ParId` 保留（见
-[decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
-增补裁定 §19.6、§19.10，全文见 [archive/group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md)）。
+`ParName` 已更名为 `ParId` 保留：v0.3 重设计曾提议删除 `ParName`、端点改收裸 `String`，
+评审否决——值类型是执行器查找边界唯一的校验点与查找键（`ParId.of` 构造即校验非 null、非空白），
+删掉它只把同一校验下沉到每个端点，不合并任何功能。组名与成员名从来不是查找键，仍是 `String`。
 
 `ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 与 `TaskGroup` 在完成
 owner、policy、runtime identity 和 executor 的解析后直接调用同包内核；任务准备与

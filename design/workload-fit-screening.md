@@ -99,17 +99,14 @@ execution, proportional sampling, a lifetime cumulative ratio, time-based rollin
 verdicts are rejected in ADR 0010. Starvation evidence and workload measurements share no field, so
 they are separate reports with separate rules.
 
-## Review history
+Two proposals about log delivery were not adopted. Catching a handler failure at the log call
+still lets a blocking or re-entrant handler hold admission, so warnings are delivered off the
+admitting thread instead. Strict ordering between individual mismatch warnings and the overflow
+summary would need a serial delivery queue; logs are best effort, so messages may appear out of
+admission order and the summary says only that the memory is full.
 
-The first implementation screened inside the starvation observation window. Kimi and Codex
-reviewed it and its two fix commits read-only in three rounds; the disposition tables and
-mutation records are in
-[the starvation observation review records](history/thread-pool-starvation-observation-review-records-2026-10-30.md).
-
-Kimi and Codex reviewed the always-on implementation read-only in two rounds; round 2 confirmed no
-new blocking finding. The disposition tables, reverse checks, and mutation records are in
-[the workload-fit screening review records](history/workload-fit-screening-review-records-2026-10-30.md).
-The findings that
-changed behavior live in contract item 8 and under Limits. A test interleaving a timing failure with
-cancellation was rejected: the timing never inspects the execution's exception, so a cancelled execution takes
-the path the execution-failure test already pins.
+A test interleaving a timing failure with cancellation was rejected: the timing never inspects the
+execution's exception, so a cancelled execution takes the path the execution-failure test already
+pins. The first, window-scoped implementation and the always-on one were each reviewed read-only by
+two reviewers until a round found no new blocking defect; the findings that changed behavior live in
+contract item 8 and under Limits above.

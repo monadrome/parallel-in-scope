@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-27
 - Decision scope: `TaskType` 的取值、缺省、声明位置与消费者；它与入队拒绝的关系
-- Supersedes: [decision-log](../design/decision-log.md) 的 task-type-semantics-v0.3-proposal 行
+- Supersedes: [decision-log](../design/decision-log.md) 的「`TaskType` semantics (v0.3)」条目
   （`TaskType.MIXED` 保留、不重开）；[ADR 0005](0005-globalpar-executor-binding.md) 规则 10 中
   「可影响排队与拒绝策略」；[ADR 0006](0006-queues-ship-with-core.md) 规则 2 中 `TaskType` 的
   排队/拒绝语义
@@ -49,8 +49,7 @@
 
 机制细节、阈值、告警文案与契约条目已于 2026-10-30 落地到活契约：
 [API 与选项 §3.2.1](../design/task-group-api-and-options.md) 与
-[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准。提案原文见
-[archive/P0025-workload-fit-diagnostics.md](../design/archive/P0025-workload-fit-diagnostics.md)。
+[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准（`proposal:P0025`）。
 
 ## Alternatives Considered
 

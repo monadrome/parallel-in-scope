@@ -331,7 +331,7 @@ P-P1/P-P3/P-P6 已于 2026-10-31 按 `2ccb9ab` 复核更新影响面，P-P2 已�
 批次聚合读取改用组侧规则：`TaskBatchResult`/`BatchCombinedResult` 新增 `orThrow()`，`valuesOrThrow()`/
 `terminalValueOrThrow()` 非受检；`BatchReport` 删除，计数与首失败改为 `outcomeCounts()`/`failedTaskResult()`。
 批次 body 内嵌套 `valuesOrThrow()` 不再需要 try/catch。规则见 `design/synchronous-scope-exit.md` §3，
-取舍见 decision-log 的 batch-group-read-surface-symmetry 行。
+取舍见 decision-log 的「Batch and group aggregate reads」条目。
 
 ### O-9 / O-10 · 低成本复利（文档）
 
@@ -355,7 +355,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ### O-13 · 纯超时批次的 `failedTaskResult()` 恒为空
 
-来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余（全文 [design/analysis/archive/kimi-review-0.3.0-snapshot.md](design/analysis/archive/kimi-review-0.3.0-snapshot.md)），2026-10-02 按当前 HEAD 复核仍成立。
+来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
 但 `TaskBatchResult.failedTaskResult()`（原 `report().firstException()`）只取用户/提交失败，纯超时批次为空；
 `orThrow()` 此时抛首个非成功元素的取消异常。
@@ -422,10 +422,9 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 ## 待决策
 
 1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不作构建或发布产物维护。** 4 个探针
-   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）的源码归档在
-   [design/archive/benchmarks/](design/archive/benchmarks/)，仅供复现历史性能数字，不参与
-   Maven 构建，也不承诺维护。caller-runs 拍板全文见
-   [design/archive/caller-runs-support-after-inline-deletion.md](design/archive/caller-runs-support-after-inline-deletion.md)。
+   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）已随归档目录删除：它们测的是已不存在的代码，
+   性能结论须按当前代码重新测量（见 P0027）。caller-runs 拍板的结论与理由见
+   [design/decision-log.md](design/decision-log.md)。
 2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；

@@ -29,9 +29,10 @@ Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberNam
 组完成观测的唯一公开入口是 `runAll()` 的同步返回值：返回即表示全部冻结成员（含 terminal
 combine）已终态、不可变结果已发布，不存在组完成回调的注册入口。
 
-历史归属：`TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除
-（[decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
-增补裁定 §19.8，全文见 [archive/group-api-redesign-v0.3-decision.md](archive/group-api-redesign-v0.3-decision.md)）；其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
+历史归属：`TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除。理由：future 组合是
+Guava 习语，回调 executor 应由调用方选择，框架不再持有并调用用户代码；原 listener 的保证（异常隔离、
+不改结果、只调用一次）由 future 语义接管，「不在组锁内回调」与「回调期间不安装当前任务」随框架不再
+调用 listener 而消亡。其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
 同步返回使"先观察终态再消费"成为结构保证，不再需要回调语义。
 
 ## 11. 执行器等待规则

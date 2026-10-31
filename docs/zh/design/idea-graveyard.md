@@ -15,7 +15,7 @@
 
 **为什么不做：**
 
-我们曾经实现过 `failFast` 开关，后来在 [0b8cb63](https://github.com/monadrome/parallel-in-scope/commit/0b8cb63) 中**主动删除**了它。
+我们曾经实现过 `failFast` 开关，后来**主动删除**了它。
 
 fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全部成功，要么在第一个失败时取消剩余任务。允许"忽略失败继续跑"会引入多种复杂性：
 
@@ -248,7 +248,7 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 **替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 group 成员（收 `Callable`，可直接声明 `throws`）；单任务用单成员组，把纯映射留给 `map`。
 
-**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。结论与完整否决理由见 `design/decision-log.md` 对应条目；逐项否决分析的全文见 `design/archive/par-map-throwing-function-v0.3-proposal.md`；除非用户明确重启该决策，后续不再重开。
+**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。结论与每种备选签名的否决理由见 `design/decision-log.md` 对应条目；除非用户明确重启该决策，后续不再重开。
 
 ---
 

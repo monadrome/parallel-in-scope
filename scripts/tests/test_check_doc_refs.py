@@ -37,26 +37,39 @@ class CheckDocRefsTest(unittest.TestCase):
         return path
 
     def test_hash_retrieval_is_a_violation(self):
-        self.write("design/contract.md", "# Contract\nSee `git show abc1234:design/archive/x.md`.\n")
+        self.write("design/contract.md", "# Contract\nSee `git show abc1234:design/old.md`.\n")
         self.assertEqual(
             docs.violations(self.root),
-            ["design/contract.md:2: hash-based retrieval: See `git show abc1234:design/archive/x.md`."],
+            [
+                "design/contract.md:2: hash-based retrieval: See `git show abc1234:design/old.md`.",
+                "design/contract.md:2: commit-hash reference: See `git show abc1234:design/old.md`.",
+            ],
         )
 
     def test_line_number_suffix_is_a_violation(self):
         self.write("design/contract.md", "# Contract\nSee Checkpoints.java:525.\nAlso guide.md:12-18.\n")
         self.assertEqual(len(docs.violations(self.root)), 2)
 
-    def test_relative_links_and_bare_provenance_hashes_are_allowed(self):
+    def test_provenance_hashes_are_a_violation(self):
+        self.write("design/contract.md", "# Contract\nRemoved in `abc1234`.\nLanded in 7e2ceae.\n")
+        self.assertEqual(
+            docs.violations(self.root),
+            [
+                "design/contract.md:2: commit-hash reference: Removed in `abc1234`.",
+                "design/contract.md:3: commit-hash reference: Landed in 7e2ceae.",
+            ],
+        )
+
+    def test_hex_like_words_and_relative_links_are_allowed(self):
         self.write(
             "design/contract.md",
-            "# Contract\nSee [archive/x.md](archive/x.md); removed in `abc1234`.\n",
+            "# Contract\nSee [decision-log.md](decision-log.md), `deadbeef`, `1234567`, and #1e75d3aa.\n"
+            "Also design/abc1234-notes.md and v0.4.0-abc12345x.\n",
         )
         self.assertEqual(docs.violations(self.root), [])
 
-    def test_archive_inputs_and_pinned_baselines_are_exempt(self):
-        self.write("design/archive/old.md", "See `git show abc1234:x.md` and Foo.java:9.\n")
-        self.write("design/analysis/input.md", "See Foo.java:9.\n")
+    def test_analysis_inputs_and_pinned_baselines_are_exempt(self):
+        self.write("design/analysis/input.md", "See `git show abc1234:x.md` and Foo.java:9.\n")
         self.write("BACKLOG.md", "See Foo.java:9.\n")
         self.write("todo.md", "See Foo.java:9.\n")
         self.assertEqual(docs.violations(self.root), [])

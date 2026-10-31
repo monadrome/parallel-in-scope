@@ -340,7 +340,7 @@ rates、per-reviewer/union 计数、recall 分子分母和 notes 保留了可解
 
 ## 14. 对抗性评审记录
 
-初始实现的评审基线是 commit `11d28978`。独立 Kimi 复审确认了一个 P1：超时后 leader
+初始实现经过独立评审。独立 Kimi 复审确认了一个 P1：超时后 leader
 收到 `SIGTERM` 并退出时，`close` 处理器会清理尚未触发的 grace timer；如果 descendant
 忽略 `SIGTERM`/`SIGHUP`，进程组就不会继续收到 `SIGKILL`，从而在 runner 返回后存活。
 该 finding 以一个 detached Node parent/child 场景复现，child 的存活状态是可观察的失败

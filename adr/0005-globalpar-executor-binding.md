@@ -5,11 +5,11 @@
 - Decision scope: GlobalPar executor topology, per-batch context, and cross-resource observation
 - Supersedes: None
 - Partially superseded by: [execution future simplification](../design/execution-future-simplification.md)
-  （线程池级 purge 策略）；[decision-log](../design/decision-log.md) 的 task-listener 与
-  deadlock-listener 删除行（全局 listener）；[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
+  （线程池级 purge 策略）；[decision-log](../design/decision-log.md) 的「Listener SPIs removed」条目
+  （全局 listener）；[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
   （`TaskType` 不再影响排队与拒绝）
 
-> 注记（2026-10-27）：`GlobalPar` 现名 `ParRuntime`（`fc75ffa`）；组装边界的字符串名称现为
+> 注记（2026-10-27）：`GlobalPar` 现名 `ParRuntime`（v0.3.0）；组装边界的字符串名称现为
 > 类型化的 `ParId`；单次调用输入现为 `BatchOptions`/`TaskOptions`。本文的 `GlobalExecutionPolicy`、
 > `BatchExecutionContext`、`ThreadRelay` 是决策时的设计形状，不在当前代码中，现行的选项、上下文与
 > 生命周期契约见 [task-group-api-and-options](../design/task-group-api-and-options.md) 与
@@ -113,8 +113,7 @@ listening adapter。同一个池被两个独立 `GlobalPar` 使用时，两个�
 
 ## History
 
-2026-10-27 蒸馏；此前全文见
-[archive/0005-globalpar-executor-binding.md](archive/0005-globalpar-executor-binding.md)。删除：
+2026-10-27 蒸馏。删除：
 `GlobalExecutionPolicy`/`BatchExecutionOptions`/`BatchExecutionContext`/`TaskExecutionContext`/
 `ExecutorRuntime` 的字段与 API 草图、`ThreadRelay` 传播项与 `TaskEdge` 字段、purge registry 与
 purge 策略、错误模型与观测字段清单、典型使用示例、现有概念处理表、W0–W6 实施任务拆解、验收标准、

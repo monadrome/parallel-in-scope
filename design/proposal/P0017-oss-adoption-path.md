@@ -12,7 +12,7 @@
 ## 当前基线与未决目标
 
 README 直接推荐 0.3 快照、同时标出 0.2 稳定版；本地 Quick Start 已关闭 runtime 和借用池。
-CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已由 `81d8724` 实施。
+CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已实施。
 这些不能照旧审计再列为缺失。源码、snapshot、稳定版与在线站点是否一致仍要用当前公开
 入口复核，不能复用 2026-10-09 的 jar、404、PR 数量或 CI 结论。
 
@@ -70,7 +70,7 @@ JDK 用户能判断适用性，人类贡献者能按 CONTRIBUTING 完成小修�
 
 ## 来源
 
-Claude `67244035` 与 Codex `01a120ae` 的 2026-10-09 同题 OSS 审计和交叉比较。
+Claude 与 Codex 的 2026-10-09 同题 OSS 审计和交叉比较。
 保留“公开构件优先于本地绿”的纠正，撤回陈旧本地 main 与同名本地 snapshot 的证据。
 文档内部语义/CHANGELOG/BACKLOG 清理仍归 [P0022](P0022-documentation-maintenance.md)，
 不再维护第二份细节清单。
