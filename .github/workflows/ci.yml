@@ -37,6 +37,9 @@ jobs:
       - name: Check design route table
         run: python3 scripts/check-design-routes.py
 
+      - name: Check documentation references
+        run: python3 scripts/check-doc-refs.py
+
       - name: Test repository scripts
         run: python3 -m unittest discover -s scripts -t scripts
 
@@ -76,6 +79,19 @@ jobs:
 
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
+
+      - name: Verify registered race claims
+        timeout-minutes: 30
+        run: python3 scripts/check-race-claims.py
+
+      - name: Upload race-claim evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: race-claims-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.java-version }}
+          path: target/race-claims/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Capture the built library version
         run: echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
