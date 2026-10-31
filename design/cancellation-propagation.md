@@ -2,6 +2,7 @@
 
 > `CancellationToken.bind` 的正确性依赖一组 Guava 取消传播语义，这些语义并不直观。
 > 本文记录这套机制与正确用法。全部结论对 `guava-33.6.0-jre` 源码逐条验证过，每节附源码位置。
+> 取消机制各层如何衔接、各问题归哪份契约，见 [取消机制总览](cancellation-model.md)。
 
 ## 1. 当前 bind 形态
 
