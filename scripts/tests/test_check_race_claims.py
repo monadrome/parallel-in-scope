@@ -118,10 +118,23 @@ class RegistryTest(unittest.TestCase):
         ids = [claim["id"] for claim in claims]
         self.assertEqual(len(ids), len(set(ids)))
         for claim in claims:
-            self.assertIn(claim["method"], {"mutation", "existing-test", "needs-jcstress"})
+            self.assertIn(
+                claim["method"],
+                {"mutation", "existing-test", "code-proof", "needs-jcstress"},
+            )
             if claim["method"] == "mutation":
                 self.assertTrue(claim.get("mutations"), claim["id"])
                 self.assertTrue(claim.get("tests"), claim["id"])
+            if claim["method"] == "existing-test":
+                self.assertTrue(claim.get("tests"), claim["id"])
+            if claim["method"] == "code-proof":
+                self.assertTrue(claim.get("proof"), claim["id"])
+
+    def test_code_proof_is_reasoning(self):
+        entry = race.run_claim(
+            {"id": "reasoning", "method": "code-proof", "proof": "a concrete interleaving"}, 1
+        )
+        self.assertEqual(entry["result"], "PROVEN_BY_REASONING")
 
 
 if __name__ == "__main__":

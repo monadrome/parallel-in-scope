@@ -10,11 +10,16 @@ evidence.
 - `mutation`: apply one or more exact source replacements in a throwaway git
   worktree, run the cited tests, and expect a failure. A failure proves the
   cited tests detect the reversed ordering.
-- `existing-test`: run an existing deterministic interleaving test. This is
-  weaker than a mutation because it does not show the test is sensitive to the
-  reordered code; prefer `mutation` when the code can be changed.
-- `needs-jcstress`: the claim is a JMM/happens-before claim that a latch or
-  single-threaded test cannot exercise. It needs a jcstress-style harness.
+- `existing-test`: run an existing deterministic interleaving test in a
+  throwaway worktree at HEAD. This is weaker than a mutation because it does not
+  show the test is sensitive to the reordered code; prefer `mutation` when the
+  code can be changed.
+- `code-proof`: a concrete code-level interleaving or JMM argument is the
+  proof; no test is run. Use this only when the argument names the exact steps
+  and why the guard/wait is necessary. It records a test gap when no dynamic
+  test covers the claim.
+- `needs-jcstress`: no dynamic JMM harness exists. This is a statement about
+  tooling, not a claim that the code reasoning is wrong.
 
 ## Usage
 
@@ -38,17 +43,27 @@ start over.
 | `PROVEN` | The mutation caused a cited test to fail. |
 | `PROVEN_TIMEOUT` | The mutation made the cited tests hang; liveness evidence. |
 | `PROVEN_BY_TEST` | An existing interleaving test passed. |
+| `PROVEN_BY_REASONING` | A reviewed code/JMM proof, with no dynamic test. |
 | `UNPROVEN` | The mutation survived; no cited test detected the ordering. |
 | `NEEDS_JCSTRESS` | No JMM-aware harness exists yet. |
 | `INVALID_MUTATION` | The replacement did not compile or did not match exactly once. |
 | `ERROR` | The worktree or test command failed before a result was recorded. |
 
+## Provenance
+
+Every result records `source_head`, `registry_sha`, `timestamp`, and, where a
+test ran, `test_command` and `log`. Failures and timeouts retain the raw Maven
+log under `target/race-claims/<claim-id>.log`; a `PROVEN` result means a test
+failed, not that the failure has already been attributed to the claim. Inspect
+the log before treating a mutation as evidence.
+
 ## Policy
 
-An `UNPROVEN` or `NEEDS_JCSTRESS` claim cannot justify a block comment or a
-local proof comment. Either add a deterministic test or a jcstress experiment
-that kills the mutation, or remove the comment. Do not add a comment because
-several reviewers believe the race is real.
+A local proof comment may be justified by `PROVEN`, `PROVEN_TIMEOUT`,
+`PROVEN_BY_TEST` with a relevant assertion, or `PROVEN_BY_REASONING` with a
+concrete interleaving/JMM argument. `UNPROVEN` and `NEEDS_JCSTRESS` record test
+gaps: add a deterministic test or a jcstress experiment, or do not claim dynamic
+proof. Do not add a comment because several reviewers believe the race is real.
 
 The registry is the review record: when a comment is added or moved, add or
 update its claim and run the harness. A claim whose code site changed but whose
