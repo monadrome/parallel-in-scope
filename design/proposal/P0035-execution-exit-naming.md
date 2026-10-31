@@ -178,7 +178,7 @@ Combiner<Tuple2<User, Account>, Profile> combine =
 
 ## 8. 实施与验证计划
 
-[P0034](P0034-checkpoint-cancellation-acknowledgement.md) 正在修改相邻的取消契约与公开 API；
+[P0034](../archive/P0034-checkpoint-cancellation-acknowledgement.md) 正在修改相邻的取消契约与公开 API；
 实现从它已经落地的最新开发线开始，避免把其提案措辞误当作当前实现。实施时：
 
 1. 先写清并保持执行退出、结果落定、观测发布和嵌套执行边界，再完成公开及内部改名和所有引用更新。
