@@ -5,21 +5,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 
 /**
- * Shared single-task preparation and submission used by both entry points.
+ * Prepares scoped tasks and hands them to executors under their submission policy.
  *
- * <p>{@code Par.map} and {@code TaskGroup} must not each grow their own copy of the
- * scoped-task pipeline. This class owns the two pieces that are identical for every task:
- *
- * <ul>
- *   <li>Wrapping a user {@link Callable} with {@link ScopedCallable} lifecycle instrumentation and
- *       a TTL snapshot, and presenting it as an {@link ExecutionPhaseHintFuture}
- *   <li>Submitting a prepared future inside the {@link SubmissionScope} of its batch; rejection
- *       handling remains the bound executor's responsibility
- * </ul>
- *
- * <p>The entry points keep their distinct topologies on top of this: the batch path drives a
- * sliding window through {@link SlidingWindowSubmitter}, while the task group freezes every
- * prepared member before submitting any of them.
+ * <p>Preparation captures TTL context and attaches lifecycle observations without executing the
+ * body. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
+ * without entering user code. Callers own cancellation binding and the choice of submission order.
  */
 final class TaskSubmissions {
 

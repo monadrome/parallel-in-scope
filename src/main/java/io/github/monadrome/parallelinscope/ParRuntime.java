@@ -56,8 +56,9 @@ import org.jspecify.annotations.Nullable;
  * registered executors are borrowed and are never shut down by this object.
  *
  * <p>{@link #close()} immediately rejects new batch and group executions and observation scopes.
- * Runs admitted before closing retain their submission, timeout, and cancellation processing while the framework-owned
- * services drain; {@code close()} itself does not wait for those runs to finish.
+ * Runs admitted before closing retain their submission, timeout, and cancellation processing while
+ * the framework-owned services drain; {@code close()} itself does not wait for those runs to
+ * finish.
  *
  * @since 0.3.0
  */
@@ -80,10 +81,10 @@ public final class ParRuntime implements AutoCloseable {
     private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
     private final WorkloadClock workloadClock;
 
-    /**
-     * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter
-     * on this guard is re-evaluated whenever a thread occupies and releases the monitor, so each
-     * state change that can satisfy it is followed by an enter/leave pair rather than a hand-built
+    /*
+     * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter on
+     * this guard is re-evaluated whenever a thread occupies and releases the monitor, so each state
+     * change that can satisfy it is followed by an enter/leave pair rather than a hand-built
      * wait/notify protocol.
      */
     private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
@@ -93,12 +94,12 @@ public final class ParRuntime implements AutoCloseable {
         }
     };
 
-    /**
+    /*
      * The root clock domain for tokens this runtime creates without a cancellation parent.
      * Package-private and defaulted to the system clock; tests inject a manual clock together with
-     * a manual {@link #timeoutScheduler} so deadline detection becomes deterministic. A unit with
-     * a cancellation parent inherits that parent's clock instead, so nested runtimes share the
-     * ancestor's domain (see {@link MultiTaskContext}).
+     * a manual timeoutScheduler so deadline detection becomes deterministic. A unit with a
+     * cancellation parent inherits that parent's clock instead, so nested runtimes share the
+     * ancestor's domain (see MultiTaskContext).
      */
     private final Ticker ticker;
 
@@ -109,10 +110,10 @@ public final class ParRuntime implements AutoCloseable {
     /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
     private final Executor announcements;
 
-    /**
-     * Deadline scheduler handed to every {@link CancellationToken#bind}. Immutable and stateless
-     * over its two services, so one instance serves every bind: a group allocated one per member
-     * plus one for itself when this was built per call.
+    /*
+     * Deadline scheduler handed to every CancellationToken.bind. Immutable and stateless over its
+     * two services, so one instance serves every bind: a group allocated one per member plus one
+     * for itself when this was built per call.
      */
     private final ScheduledExecutorService timeoutScheduler;
 
@@ -246,7 +247,8 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
-    /** Returns the installed process-wide runtime.
+    /**
+     * Returns the installed process-wide runtime.
      *
      * @throws IllegalStateException if no runtime has been installed
      */
@@ -256,7 +258,8 @@ public final class ParRuntime implements AutoCloseable {
         return value;
     }
 
-    /** Returns the configured default {@link Par}.
+    /**
+     * Returns the configured default {@link Par}.
      *
      * @throws IllegalStateException if this runtime has no default entry
      */
@@ -277,7 +280,8 @@ public final class ParRuntime implements AutoCloseable {
         return value;
     }
 
-    /** Returns the {@link Par} registered under the given id, or empty when none is.
+    /**
+     * Returns the {@link Par} registered under the given id, or empty when none is.
      *
      * @throws NullPointerException if {@code id} is null
      */
@@ -288,12 +292,13 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Returns the executor waits-for structure this runtime has observed so far.
      *
-     * <p>Every nested synchronous call — {@code Par.map}, {@code Par.mapAndCombine}, or a task group's
-     * {@code runAll()} made inside a task body — records which registered executor waits for which;
-     * no scope or switch is needed. When those waits first form a cycle among starvation-prone pools,
-     * the runtime also logs one JUL {@code WARNING} per cyclic component, from a runtime-owned thread
-     * rather than the submitting one. The report accumulates for the runtime's lifetime and is a
-     * structural risk signal, not a deadlock proof; see {@link ExecutorWaitReport}.
+     * <p>Every nested synchronous call — {@code Par.map}, {@code Par.mapAndCombine}, or a task
+     * group's {@code runAll()} made inside a task body — records which registered executor waits
+     * for which; no scope or switch is needed. When those waits first form a cycle among
+     * starvation-prone pools, the runtime also logs one JUL {@code WARNING} per cyclic component,
+     * from a runtime-owned thread rather than the submitting one. The report accumulates for the
+     * runtime's lifetime and is a structural risk signal, not a deadlock proof; see {@link
+     * ExecutorWaitReport}.
      *
      * @return the current immutable snapshot
      * @since 0.4.0
@@ -330,9 +335,9 @@ public final class ParRuntime implements AutoCloseable {
      *
      * <p>The scope samples each distinct physical executor at the requested interval and publishes
      * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
-     * instances can produce saturation evidence; other registered executors are named in the
-     * report as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise
-     * change user work.
+     * instances can produce saturation evidence; other registered executors are named in the report
+     * as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise change
+     * user work.
      *
      * @param samplingInterval the interval between samples, at least 10 milliseconds
      * @return the closeable observation scope
@@ -361,11 +366,11 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Opens a one-shot task-group declaration with an explicit group timeout.
      *
-     * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and nothing runs
-     * while it is built: no cancellation token, future, deadline, timer, or TTL snapshot exists and
-     * no executor is called until {@link GroupStep#runAll()} or {@link GroupStart#runAll()}.
-     * The group timeout is a forced explicit choice: use this entry for an explicit budget, or
-     * {@link #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
+     * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and building it
+     * neither executes work nor captures the execution context. Execution budgets and TTL context
+     * are resolved only at {@link GroupStep#runAll()} or {@link GroupStart#runAll()}. The group
+     * timeout is a forced explicit choice: use this entry for an explicit budget, or {@link
+     * #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
      * deadline.
      *
      * <p>The returned stage is single-use and single-threaded; see {@link GroupStart}.
@@ -476,11 +481,11 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Waits until this topology is closed and fully drained: no admission is setting up an execution,
-     * no admitted run retains incomplete futures, every admitted task body has exited, no open
-     * starvation observation retains the diagnostic services, and the framework-owned services
-     * have shut down. Call {@link #close()} first; without it this method simply waits out the
-     * timeout.
+     * Waits until this topology is closed and fully drained: no admission is setting up an
+     * execution, no admitted run retains incomplete futures, every admitted task body has exited,
+     * no open starvation observation retains the diagnostic services, and the framework-owned
+     * services have shut down. Call {@link #close()} first; without it this method simply waits out
+     * the timeout.
      *
      * <p>Task-body exit is tracked separately from future completion: a task cancelled while
      * running completes its future immediately but may still be executing user code that ignores
@@ -520,14 +525,13 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the current always-on workload-fit screening of the bodies admitted through entries or
-     * units declared {@link TaskType#COMPUTE}.
+     * Returns the current always-on workload-fit screening of library-admitted bodies.
      *
-     * <p>The runtime compares each such body's thread CPU time with its execution time and judges each
-     * entry in epochs of ten seconds of execution time; the first epoch with CPU use below half sets
-     * {@link WorkloadFitReport.ParMeasurement#issue()} and logs one {@code WARNING}. Counts are
-     * cumulative, so two reports bound an interval. A body whose entry and unit are both undeclared or
-     * blocking is never timed, and work submitted directly to an executor is never measured.
+     * <p>Bodies are measured when either their entry or unit declares {@link TaskType#COMPUTE}.
+     * Only a compute entry can acquire an entry issue and a {@code WARNING}; a compute unit can
+     * independently acquire declaration drift and an {@code INFO}. Counts are cumulative, so two
+     * reports bound an interval. Direct executor submissions are not measured. See {@link
+     * WorkloadFitReport} for verdicts, calibration, and limitations.
      *
      * @return the current immutable report
      * @since 0.4.0
@@ -545,8 +549,8 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Returns the in-flight work this topology still tracks: admissions setting up an execution,
-     * undrained runs, and open starvation observations. Open observations retain framework
-     * services and therefore participate in {@link #awaitQuiescence(Duration)}.
+     * undrained runs, and open starvation observations. Open observations retain framework services
+     * and therefore participate in {@link #awaitQuiescence(Duration)}.
      */
     public int inFlight() {
         return activeAdmissions.get() + activeBatches.get() + activeObservations.get();
@@ -555,9 +559,10 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
-     * how many starvation observations are open, and how many admitted runs still have an
-     * incomplete aggregate body-exit signal (one signal per run, covering every body of that run).
-     * Open observations retain framework services after runtime close until their reports publish.
+     * how many starvation observations are open, and how many admitted runs still have a direct
+     * body whose exit has not been confirmed (one count per run, regardless of the number of its
+     * outstanding bodies). Open observations retain framework services after runtime close until
+     * their reports publish.
      *
      * <p>The five readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
@@ -616,8 +621,8 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Keeps a submitted batch's futures from being dropped until every one reaches a terminal
-     * state. Callers that already hold a completion aggregate — such as the one returned by
-     * {@link CancellationToken#bind} over the same futures — pass it to {@link
+     * state. Callers that already hold a completion aggregate — such as the one returned by {@link
+     * CancellationToken#bind} over the same futures — pass it to {@link
      * #retainUntilComplete(ListenableFuture)} instead of building a second aggregate here.
      */
     void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
@@ -774,8 +779,8 @@ public final class ParRuntime implements AutoCloseable {
         private @Nullable Executor announcements;
 
         /**
-         * Registers a logical entry with one exact executor object and no declared {@link TaskType};
-         * equivalent to {@link #register(ParId, ExecutorService, TaskType)} with {@link
+         * Registers a logical entry with one exact executor object and no declared {@link
+         * TaskType}; equivalent to {@link #register(ParId, ExecutorService, TaskType)} with {@link
          * TaskType#UNKNOWN}.
          *
          * @param id the logical entry id
@@ -793,12 +798,12 @@ public final class ParRuntime implements AutoCloseable {
          * carry.
          *
          * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
-         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
-         * two ids may intentionally use the same physical pool; each entry keeps its own task type.
+         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so two
+         * ids may intentionally use the same physical pool; each entry keeps its own task type.
          *
-         * <p>The task type is diagnostic only. Submission compares it with each unit's declared type
-         * and logs a mismatch once per entry and unit name, and the runtime screens the entry's bodies
-         * for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
+         * <p>The task type is diagnostic only. Submission compares it with each unit's declared
+         * type and logs a mismatch once per entry and unit name, and the runtime screens the
+         * entry's bodies for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
          * ParRuntime#workloadFitReport()}. It never changes how the executor is used.
          *
          * @param id the logical entry id
@@ -819,7 +824,8 @@ public final class ParRuntime implements AutoCloseable {
             return this;
         }
 
-        /** Sets the default registered entry.
+        /**
+         * Sets the default registered entry.
          *
          * @throws NullPointerException if {@code id} is null
          * @throws IllegalStateException if a default entry was already configured
@@ -852,7 +858,10 @@ public final class ParRuntime implements AutoCloseable {
             return this;
         }
 
-        /** Test seam: the executor that delivers diagnostic log messages. Package-private; not a supported public SPI. */
+        /**
+         * Test seam: the executor that delivers diagnostic log messages. Package-private; not a
+         * supported public SPI.
+         */
         @VisibleForTesting
         Builder announcements(Executor announcements) {
             this.announcements = checkNotNull(announcements, "announcements cannot be null");

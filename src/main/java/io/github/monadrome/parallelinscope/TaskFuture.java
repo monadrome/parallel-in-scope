@@ -20,12 +20,14 @@ import org.jspecify.annotations.Nullable;
  * a batch element's {@link ImmediateResult} — is the authority; it can carry a finer cause than the
  * token chain of a single future reveals, and a batch element's is pinned when the element settled.
  *
- * <p>Every method is safe on any thread at any point of the task's life: none of them block, throw,
- * or change the future. {@link #outcome()} and {@link #failure()} report a terminal value once the
- * future is done and never fall back to {@link TaskOutcome#RUNNING} afterward. A terminal value
- * can still be refined while the enclosing scope settles: a group member learns about its group's
- * cancellation through the token chain, which may commit just after the member future was already
- * cancelled, so a direct cancellation can read {@link TaskOutcome#MEMBER_CANCELLED} and then {@link
+ * <p>The metadata queries {@link #taskName()}, {@link #outcome()}, {@link #deadlineNanos()}, {@link
+ * #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or change
+ * the future. Inherited future operations retain their ordinary blocking and cancellation
+ * semantics. {@link #outcome()} and {@link #failure()} report a terminal value once the future is
+ * done and never fall back to {@link TaskOutcome#RUNNING} afterward. A terminal value can still be
+ * refined while the enclosing scope settles: a group member learns about its group's cancellation
+ * through the token chain, which may commit just after the member future was already cancelled, so
+ * a direct cancellation can read {@link TaskOutcome#MEMBER_CANCELLED} and then {@link
  * TaskOutcome#GROUP_CANCELLED} for the same future. Reads taken once the enclosing scope has
  * converged agree with each other.
  *
@@ -45,18 +47,24 @@ interface TaskFuture<T> extends ListenableFuture<T> {
      * TaskOutcome#FAIL_FAST}, {@link TaskOutcome#GROUP_CANCELLED}, or — when no framework
      * cancellation path committed, meaning the caller cancelled the future directly — {@link
      * TaskOutcome#MEMBER_CANCELLED}. A failure that merely reports observed cancellation (a
-     * cooperative checkpoint, or an interrupt racing the cascade cancel) is attributed the same
-     * way rather than as a user failure.
+     * cooperative checkpoint, or an interrupt racing the cascade cancel) is attributed the same way
+     * rather than as a user failure.
      */
     TaskOutcome outcome();
 
-    /** Returns the absolute deadline in {@link System#nanoTime()} units, or {@link Long#MAX_VALUE} for none. */
+    /**
+     * Returns the absolute deadline in {@link System#nanoTime()} units, or {@link Long#MAX_VALUE}
+     * for none.
+     */
     long deadlineNanos();
 
     /** Returns the remaining budget before {@link #deadlineNanos()}; never negative. */
     Duration remaining();
 
-    /** Returns the failure behind a {@link TaskOutcome#USER_FAILURE} or {@code SUBMISSION_FAILURE}; null otherwise. */
+    /**
+     * Returns the failure behind a {@link TaskOutcome#USER_FAILURE} or {@code SUBMISSION_FAILURE};
+     * null otherwise.
+     */
     @Nullable
     Throwable failure();
 
@@ -71,8 +79,8 @@ interface TaskFuture<T> extends ListenableFuture<T> {
      * {@code finally}. A task that never started reports zero start/end times and durations with
      * its real outcome — submission failure and pre-execution cancellation included. Once the
      * enclosing scope has completed (every future terminal and every task body exited), this future
-     * is guaranteed to be done; {@link TaskBatch#awaitBodyCompletion(Duration)} returning
-     * {@code true} implies the data is already available.
+     * is guaranteed to be done; {@link TaskBatch#awaitBodyCompletion(Duration)} returning {@code
+     * true} implies the data is already available.
      *
      * <p>User task failure, cancellation, and rejection all complete this future successfully with
      * the real outcome data. The future never returns {@code null}, never requires polling, and

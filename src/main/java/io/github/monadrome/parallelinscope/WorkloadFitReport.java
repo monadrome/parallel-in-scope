@@ -10,17 +10,20 @@ import java.util.List;
 /**
  * Immutable snapshot of the runtime's always-on workload-fit screening.
  *
- * <p>The runtime times the bodies it admits through an entry or a unit declared {@link
- * TaskType#COMPUTE}, comparing each body's thread CPU time with its execution time, and judges the
- * totals per entry in epochs of ten seconds of execution time. An epoch whose CPU time is below half
- * its execution time flags its entry for the runtime's lifetime and logs one {@code WARNING}. That
- * is a screening lead that blocking work occupies a compute pool — I/O, a lock, a nested wait — or
- * that the pool is paused, throttled, or has more runnable threads than cores; it is not proof.
- * Bodies whose entry and unit are both undeclared or {@link TaskType#BLOCKING} are never timed.
+ * <p>The runtime measures bodies admitted through an entry or unit declared {@link
+ * TaskType#COMPUTE}, comparing thread CPU time with execution time. Bodies whose entry and unit are
+ * both undeclared or {@link TaskType#BLOCKING} are not measured.
  *
- * <p>Every count and duration is cumulative over the runtime's lifetime and never decreases, so the
- * difference between two reports measures the interval between them. Reports are created only by
- * the library; read the current one with {@link ParRuntime#workloadFitReport()}.
+ * <p>Low CPU use sets {@link ParMeasurement#issue()} only for entries declared {@code COMPUTE} and
+ * logs one {@code WARNING} per entry. A unit declared {@code COMPUTE} can independently set {@link
+ * UnitMeasurement#suspectedDeclarationDrift()} and log one {@code INFO}; unit drift never sets the
+ * entry's issue. Both verdicts persist for the runtime's lifetime. They suggest blocking, pauses,
+ * throttling, or excessive runnable threads and are not proof of misuse.
+ *
+ * <p>The current calibration judges epochs of ten seconds of execution time and flags CPU use below
+ * half that time. These diagnostic calibration values may change between releases. Counts and
+ * durations are cumulative; differences between reports measure an interval. Reports are created
+ * only by the library; read one with {@link ParRuntime#workloadFitReport()}.
  *
  * @since 0.4.0
  */
@@ -33,9 +36,9 @@ public final class WorkloadFitReport {
     }
 
     /**
-     * Returns, in registration order, one measurement per entry declared {@link TaskType#COMPUTE} and
-     * per other entry that has run a body of a unit declared {@code COMPUTE}. An entry that is absent
-     * was never screened, so an empty or clean report says nothing about it.
+     * Returns, in registration order, one measurement per entry declared {@link TaskType#COMPUTE}
+     * and per other entry that has run a body of a unit declared {@code COMPUTE}. An entry that is
+     * absent was never screened, so an empty or clean report says nothing about it.
      */
     public List<ParMeasurement> pars() {
         return pars;
@@ -58,9 +61,9 @@ public final class WorkloadFitReport {
 
     /**
      * The screened bodies of one entry. Its counts include the bodies of every unit, attributed or
-     * not; a total and the units' totals are each consistent on their own but are updated separately,
-     * so they can differ by bodies that are finishing while the report is read, and by a body whose
-     * bookkeeping failed, for example with an {@link OutOfMemoryError}, after its unit's total counted it.
+     * not; a total and each unit's totals are individually consistent, but are not one atomic
+     * snapshot. They may differ because bodies are finishing concurrently or diagnostic bookkeeping
+     * failed.
      *
      * @since 0.4.0
      */
@@ -97,7 +100,10 @@ public final class WorkloadFitReport {
             this.units = ImmutableList.copyOf(units);
         }
 
-        /** The entry the bodies were submitted through; another entry sharing its pool is measured apart. */
+        /**
+         * The entry the bodies were submitted through; another entry sharing its pool is measured
+         * apart.
+         */
         public ParId par() {
             return par;
         }
@@ -122,12 +128,18 @@ public final class WorkloadFitReport {
             return Duration.ofNanos(executionNanos);
         }
 
-        /** CPU time divided by execution time, or {@link Double#NaN} when no execution time was timed. */
+        /**
+         * CPU time divided by execution time, or {@link Double#NaN} when no execution time was
+         * timed.
+         */
         public double cpuToExecutionRatio() {
             return executionNanos == 0 ? Double.NaN : (double) cpuNanos / executionNanos;
         }
 
-        /** Timed bodies of units beyond the entry's attribution capacity of 256 units; counted here only. */
+        /**
+         * Timed bodies of units beyond the entry's attribution capacity of 256 units; counted here
+         * only.
+         */
         public long unattributedBodies() {
             return unattributedBodies;
         }
@@ -138,8 +150,8 @@ public final class WorkloadFitReport {
         }
 
         /**
-         * Whether the entry is declared {@link TaskType#COMPUTE} and an epoch of its bodies used CPU
-         * for less than half their execution time. Set once, for the runtime's lifetime.
+         * Whether the entry is declared {@link TaskType#COMPUTE} and an epoch of its bodies used
+         * CPU for less than half their execution time. Set once, for the runtime's lifetime.
          */
         public boolean issue() {
             return issue;
@@ -220,15 +232,18 @@ public final class WorkloadFitReport {
             return Duration.ofNanos(executionNanos);
         }
 
-        /** CPU time divided by execution time, or {@link Double#NaN} when no execution time was timed. */
+        /**
+         * CPU time divided by execution time, or {@link Double#NaN} when no execution time was
+         * timed.
+         */
         public double cpuToExecutionRatio() {
             return executionNanos == 0 ? Double.NaN : (double) cpuNanos / executionNanos;
         }
 
         /**
-         * Whether the unit is declared {@link TaskType#COMPUTE} and an epoch of its bodies used CPU for
-         * less than half their execution time, suggesting the declaration no longer matches the body.
-         * Set once, for the runtime's lifetime; never sets {@link ParMeasurement#issue()}.
+         * Whether the unit is declared {@link TaskType#COMPUTE} and an epoch of its bodies used CPU
+         * for less than half their execution time, suggesting the declaration no longer matches the
+         * body. Set once, for the runtime's lifetime; never sets {@link ParMeasurement#issue()}.
          */
         public boolean suspectedDeclarationDrift() {
             return suspectedDeclarationDrift;

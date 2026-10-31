@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
  * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
  * concurrency limit controls the sliding window. Timeout and enqueue rejection form the execution
  * policy; an optional {@link TaskType} declaration is diagnostic only and never changes execution.
- * {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned
- * cancellation input for the whole scope.
+ * {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned cancellation input for
+ * the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
@@ -54,7 +54,8 @@ public final class BatchOptions {
         this.cancellationInterrupt = cancellationInterrupt;
     }
 
-    /** Returns batch options that inherit the enclosing scope's deadline.
+    /**
+     * Returns batch options that inherit the enclosing scope's deadline.
      *
      * @param name the batch name
      * @throws NullPointerException if {@code name} is null
@@ -68,8 +69,8 @@ public final class BatchOptions {
      * Returns batch options with an explicit timeout for the whole batch.
      *
      * <p>Any positive duration is accepted. One whose deadline does not fit the clock range
-     * resolves to the latest representable deadline: it still arms the deadline timer and still
-     * derives the default cleanup budget, never meaning "no deadline".
+     * resolves to the latest representable deadline: it remains a finite execution deadline and
+     * still determines the default cleanup budget, never meaning "no deadline".
      *
      * @param name the batch name
      * @param timeout the positive execution timeout
@@ -130,8 +131,8 @@ public final class BatchOptions {
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
      * <p>The policy is honored only when the registered executor's queue is a {@link
-     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
-     * flag is inert.
+     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this flag
+     * is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
         return new BatchOptions(
@@ -146,13 +147,13 @@ public final class BatchOptions {
     }
 
     /**
-     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle,
-     * waiting for direct task bodies and their final observations before returning.
+     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle, waiting
+     * for direct task bodies and their final observations before returning.
      *
      * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
      * waiting. When unset, the budget is derived from the remaining execution deadline. A terminal
-     * cancellation result can coexist with a body still closing resources; inspect
-     * {@link TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
+     * cancellation result can coexist with a body still closing resources; inspect {@link
+     * TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
@@ -170,13 +171,13 @@ public final class BatchOptions {
     }
 
     /**
-     * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or is
-     * cancelled. The source remains caller-owned: the library never completes or cancels it.
+     * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or
+     * is cancelled. The source remains caller-owned: the library never completes or cancels it.
      *
      * <p>The explicit {@code interrupt} argument controls interruption of running bodies; it is not
-     * inferred from the source's completion. Interruption is cooperative and does not guarantee that
-     * arbitrary IO or user code stops. Registration happens at execution admission, immediately
-     * before binding and submission; an empty batch returns successfully without registering.
+     * inferred from the source's completion. Interruption is cooperative and does not guarantee
+     * that arbitrary IO or user code stops. The source takes effect at execution admission, before
+     * any body can start; an empty batch returns successfully without registering.
      *
      * @throws NullPointerException if {@code signal} is null
      */
@@ -199,8 +200,8 @@ public final class BatchOptions {
 
     /**
      * Requested parallelism; always positive. The default {@link Integer#MAX_VALUE} places no limit
-     * beyond the batch size — resolution caps it by the task count, so the whole batch is submitted
-     * at once. Set a lower value to bound the sliding window.
+     * beyond the batch size — the effective limit is the task count. Set a lower value to bound the
+     * sliding window.
      */
     public int parallelism() {
         return parallelism;
@@ -211,12 +212,18 @@ public final class BatchOptions {
         return Optional.ofNullable(timeout);
     }
 
-    /** Returns the diagnostic task type declared for every element; {@link TaskType#UNKNOWN} by default. */
+    /**
+     * Returns the diagnostic task type declared for every element; {@link TaskType#UNKNOWN} by
+     * default.
+     */
     public TaskType taskType() {
         return taskType;
     }
 
-    /** Returns whether enqueue refusal is requested; it has effect only with a {@link SmartBlockingQueue}. */
+    /**
+     * Returns whether enqueue refusal is requested; it has effect only with a {@link
+     * SmartBlockingQueue}.
+     */
     public boolean rejectEnqueue() {
         return rejectEnqueue;
     }

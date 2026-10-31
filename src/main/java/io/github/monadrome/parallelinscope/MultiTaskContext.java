@@ -18,12 +18,15 @@ import org.jspecify.annotations.Nullable;
  * parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when there
  * is none). The cancellation token is always a new child token, so cancellation propagates downward
  * without making child failure cancel its parent.
- *
- * <p>The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live in
- * the {@link TaskNode} created once here; this context adds the execution state around it. The node
- * never points back, so the task graph holds nodes without keeping tokens or parent chains alive.
  */
 final class MultiTaskContext {
+    /*
+     * The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live
+     * in the TaskNode created once here; this context adds the execution state around it. The node
+     * never points back, so the task graph holds nodes without keeping tokens or parent chains
+     * alive.
+     */
+
     /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
     private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
 
@@ -53,8 +56,8 @@ final class MultiTaskContext {
      * Resolution parameters for one unit: everything {@link #resolve(Resolution)} needs beyond the
      * {@link UnitSpec}. Unset parent-dependent values default from the structural parent — the
      * cancellation parent to its token, the deadline ceiling to its deadline — so callers that nest
-     * under an enclosing scoped task set only the parent.
-     * Setters are order-independent: explicitly set values always win over inherited defaults.
+     * under an enclosing scoped task set only the parent. Setters are order-independent: explicitly
+     * set values always win over inherited defaults.
      */
     static final class Resolution {
         private final UnitSpec spec;
@@ -79,8 +82,8 @@ final class MultiTaskContext {
         }
 
         /**
-         * The cancellation parent, when it differs from the structural parent — a task-group
-         * member takes the group token, which is not a graph parent.
+         * The cancellation parent, when it differs from the structural parent — a task-group member
+         * takes the group token, which is not a graph parent.
          */
         Resolution cancellationParent(@Nullable CancellationToken parent) {
             this.cancellationParent = parent;
@@ -144,11 +147,8 @@ final class MultiTaskContext {
     }
 
     /**
-     * Resolves a unit from its parameters: requested parallelism is capped by task count, an
-     * explicit timeout uses the earlier of its own and any ceiling deadline, and an inherited
-     * timeout resolves to the enclosing deadline (rejected when there is none). The cancellation
-     * token is always a new child token, so cancellation propagates downward without making child
-     * failure cancel its parent.
+     * Resolves one executable unit under the deadline, cancellation, and parallelism rules of this
+     * class. Explicitly configured resolution parameters take precedence over inherited defaults.
      */
     static MultiTaskContext resolve(Resolution resolution) {
         UnitSpec spec = resolution.spec;
@@ -202,16 +202,18 @@ final class MultiTaskContext {
      * expires at the earlier of its own deadline and the ceiling; a null timeout inherits the
      * ceiling verbatim, which is the only way to reach the {@link Long#MAX_VALUE} no-deadline
      * sentinel.
-     *
-     * <p>The explicit sum goes through {@link Deadlines#after} because both ends can be extreme — a
-     * saturated timeout and a negative {@link System#nanoTime()} reading — and a wrapped sum would
-     * read as already expired. Where that sum saturates, the deadline is clamped to {@link
-     * Deadlines#LATEST_FINITE_DEADLINE}: a declared timeout keeps arming its timer and deriving its
-     * cleanup budget from the remaining deadline instead of turning into the sentinel, which arms no
-     * timer and waits for no body exit. A clock reading already at that latest deadline leaves the
-     * clamped deadline expired; no real {@code nanoTime()} gets there.
      */
     static long resolveDeadlineNanos(@Nullable Duration timeout, long ceilingNanos, long nowNanos) {
+        /*
+         * The explicit sum goes through Deadlines.after because both ends can be extreme — a
+         * saturated timeout and a negative System.nanoTime() reading — and a wrapped sum would read
+         * as already expired. Where that sum saturates, the deadline is clamped to
+         * Deadlines.LATEST_FINITE_DEADLINE: a declared timeout keeps arming its timer and deriving
+         * its cleanup budget from the remaining deadline instead of turning into the sentinel,
+         * which arms no timer and waits for no body exit. A clock reading already at that latest
+         * deadline leaves the clamped deadline expired; no real nanoTime() gets there.
+         */
+
         if (timeout == null) {
             return ceilingNanos;
         }
@@ -220,7 +222,10 @@ final class MultiTaskContext {
         return Math.min(requestedDeadline, ceilingNanos);
     }
 
-    /** The logical unit name: batches use the options name; group members and combines use the key name. */
+    /**
+     * The logical unit name: batches use the options name; group members and combines use the key
+     * name.
+     */
     String name() {
         return node.name();
     }
@@ -267,8 +272,8 @@ final class MultiTaskContext {
     }
 
     /**
-     * The structural parent used for nesting and graph edges. Cancellation parentage may differ:
-     * a task-group member's cancellation parent is the group token, carried inside {@link
+     * The structural parent used for nesting and graph edges. Cancellation parentage may differ: a
+     * task-group member's cancellation parent is the group token, carried inside {@link
      * #cancellationToken()}, not by this field.
      */
     @Nullable

@@ -18,18 +18,21 @@ import org.jspecify.annotations.Nullable;
  * Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task
  * bodies whose entry or unit is declared {@link TaskType#COMPUTE}.
  *
- * <p>Each entry owns one {@link Entry}: an aggregate total and up to {@link #UNIT_CAPACITY} unit
- * totals keyed by unit name and unit type. Every total is one immutable value replaced by
- * compare-and-set, so a report reads each total in one consistent state and exactly one commit sees
- * the transition that sets a verdict. A body whose entry and unit are both undeclared or blocking
- * reads no clock and touches no total.
- *
  * <p>Verdicts are judged per epoch of {@link #EPOCH_EXECUTION_NANOS} of execution time, so a
  * regression after a long healthy period is not diluted by it. The aggregate of an entry declared
- * {@code COMPUTE} sets the entry's issue; a unit declared {@code COMPUTE} sets its own drift. Both are
- * sticky and announced once. The thresholds are internal calibration values, not a stable contract.
+ * {@code COMPUTE} sets the entry's issue; a unit declared {@code COMPUTE} sets its own drift. Both
+ * are sticky and announced once. The thresholds are internal calibration values, not a stable
+ * contract.
  */
 final class WorkloadFit {
+    /*
+     * Each entry owns one Entry: an aggregate total and up to .UNIT_CAPACITY unit totals keyed by
+     * unit name and unit type. Every total is one immutable value replaced by compare-and-set, so a
+     * report reads each total in one consistent state and exactly one commit sees the transition
+     * that sets a verdict. A body whose entry and unit are both undeclared or blocking reads no
+     * clock and touches no total.
+     */
+
     static final long EPOCH_EXECUTION_NANOS = 10_000_000_000L;
     static final int UNIT_CAPACITY = 256;
 
@@ -39,8 +42,9 @@ final class WorkloadFit {
 
     /**
      * Starts timing one body of {@code unit}, or returns null when the body is not screened or its
-     * CPU time cannot be read; an unreadable reading is counted on the entry. Screening only reports,
-     * so any failure here, an {@link Error} included, skips the timing and lets the body run.
+     * CPU time cannot be read; an unreadable reading is counted on the entry. Screening only
+     * reports, so any failure here, an {@link Error} included, skips the timing and lets the body
+     * run.
      */
     static @Nullable Timing start(MultiTaskContext unit) {
         Par par = unit.par();
@@ -85,7 +89,8 @@ final class WorkloadFit {
 
         /**
          * Reads both clocks and commits the sample to the entry. Screening only reports, so any
-         * failure here, an {@link Error} included, drops the sample and leaves the body's result alone.
+         * failure here, an {@link Error} included, drops the sample and leaves the body's result
+         * alone.
          */
         void stop() {
             try {
@@ -108,7 +113,10 @@ final class WorkloadFit {
         private final AtomicReference<ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>>> units =
                 new AtomicReference<>(ImmutableMap.of());
 
-        /** The entry's measurement, or null when the entry is not declared COMPUTE and never ran a screened body. */
+        /**
+         * The entry's measurement, or null when the entry is not declared COMPUTE and never ran a
+         * screened body.
+         */
         WorkloadFitReport.@Nullable ParMeasurement measurement(Par par) {
             Totals totals = verifyNotNull(aggregate.get());
             if (par.taskType() != TaskType.COMPUTE && totals.bodies == 0 && totals.unmeasuredBodies == 0) {
@@ -235,8 +243,8 @@ final class WorkloadFit {
     }
 
     /**
-     * Immutable totals. A judged total accumulates the current epoch and, the first time an epoch ends
-     * with low CPU use, keeps that epoch as the evidence for its sticky verdict.
+     * Immutable totals. A judged total accumulates the current epoch and, the first time an epoch
+     * ends with low CPU use, keeps that epoch as the evidence for its sticky verdict.
      */
     private static final class Totals {
         static final Totals EMPTY = new Totals(0, 0, 0, 0, 0, 0, 0, false, 0, 0);

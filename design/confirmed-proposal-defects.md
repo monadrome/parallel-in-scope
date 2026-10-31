@@ -45,7 +45,7 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0009 | Deferred: new named terminal input API without a demonstrated failing use case |
 | P0010 | Null mapper fixed; shutdown quick failure, wrapper identity, and resource measurements continue in P0021 |
 | P0011 | Concrete recipes, IO prose, and test name fixed; broader history/navigation/ADR/changelog/BACKLOG maintenance continues in P0022 |
-| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; general accessor/Javadoc/comment maintenance continues in P0024 without a demonstrated runtime failure |
+| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; core comment contracts and implementation notes are reconciled under ADR 0012; test-comment follow-ups remain in P0029 without a demonstrated runtime failure |
 | P0013 | Deferred: SDK/agent compatibility requires fixed-version external verification; manual Context recipe is already corrected |
 | P0014 | Fully implemented, distilled into interruption-contract |
 | P0015 | Confirmed propagation fixed; uncommitted RUNNING-clock attribution choice continues in P0020 |
@@ -91,7 +91,7 @@ The existing external consumer was clean-compiled and ran nine tests on Corretto
 the final locally installed 0.3.0-SNAPSHOT. Its actual Surefire classpath artifact SHA-256 matches
 the built JAR. This is local-artifact verification, not Central download verification. Normal JAR,
 sources, and Javadoc packaging succeeded; Javadoc emitted 100 existing accessor/queue documentation
-warnings, which remain separate maintenance in P0024. No deploy or remote consumer verification was
+warnings, which remain separate maintenance in P0029 and P0030. No deploy or remote consumer verification was
 run. The pre-commit read-only review and follow-up findings above are independent of these checks.
 
 Reverse verification in an independent checkout removed only the four production fixes: all 17
@@ -123,4 +123,4 @@ Historical source: `proposal:P0011`; remaining maintenance directions are in P00
 Concrete Javadoc responsibility and obsolete reference corrections came from `proposal:P0012`.
 They change teaching only, preserving Checkpoints.remaining as a read-only query and
 propagateCancellation's existing cancellation-only control behavior. General maintenance remains
-in P0024.
+in P0029.

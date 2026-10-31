@@ -5,11 +5,15 @@ import java.lang.management.ThreadMXBean;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The JVM's clocks behind workload-fit screening. The {@link ThreadMXBean} is resolved once, on
- * first use, because the JDK 8 factory method is synchronized; a runtime without {@code
- * java.management} reads as having no CPU clock rather than failing the body that asked.
+ * System wall and thread-CPU clocks for workload-fit screening. An unavailable management API is
+ * reported as an unreadable CPU clock rather than a failure.
  */
 enum SystemWorkloadClock implements WorkloadClock {
+    /*
+     * Resolve ThreadMXBean lazily once: the JDK 8 factory is synchronized, and a runtime without
+     * java.management must remain usable without CPU screening.
+     */
+
     INSTANCE;
 
     @Override

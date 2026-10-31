@@ -108,17 +108,27 @@ explicit human confirmation before implementing it.
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
-- Do not add explanatory, restating, or provenance comments between code.
-  Express behavior through names, structure, and tests. Public Javadoc documents
-  caller-visible contracts; durable design decisions belong in the existing
-  design/ADR source of truth. Keep a short local comment only for a
-  statement-level ordering, race, or lifetime proof that no declaration-level
-  Javadoc or design document can carry; keep it beside the relevant statement.
-  This applies to library, test, and demo code. The `queue` package's JDK-port
-  parity comments are the only other exception, as `queue/AGENTS.md` requires.
-  Before moving or deleting a comment, preserve every distinct claim. Do not use
-  comment count or length as a deletion criterion, and do not add mechanical
-  comment-density or length gates.
+- Declaration Javadoc states the contract its reader can rely on: purpose,
+  inputs and results, nullability, exceptions, concurrency, cancellation, and
+  lifecycle. This includes internal declarations. Public Javadoc must make sense
+  without reading package-private types; retain observable ordering and
+  resource-lifetime guarantees in the contract.
+- Put maintainer-only algorithms and local protocol explanations in ordinary
+  `/* ... */` comments inside the owning class or private mechanism. Use
+  `@implNote` only for implementation details useful in generated API docs,
+  after registering the tag in the Javadoc build. `@implSpec` states requirements
+  on implementers or overrides, not a private algorithm.
+- Keep statement-level ordering, race, lifetime, and dependency proofs beside
+  the statements they justify. Durable decisions and cross-method invariants
+  belong in the existing design/ADR source of truth; local notes explain their
+  application rather than copy the rationale. See
+  `adr/0012-contract-and-implementation-comment-layers.md` when choosing a layer.
+- Express routine behavior through names, structure, and tests. Before moving
+  or deleting a comment, preserve each distinct valid claim and correct claims
+  that no longer match the code. Do not use comment count, density, or length
+  as a deletion criterion or add mechanical gates for them. These rules apply
+  to library, tests, and demo; the queue package's JDK-port parity comments
+  remain governed by `queue/AGENTS.md`.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
   Respelled public members need changelog and migration-guide entries. Preserve

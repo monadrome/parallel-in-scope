@@ -27,28 +27,29 @@ import org.jspecify.annotations.Nullable;
  * Waiting on the signal therefore cannot be defeated by tasks that start late: a {@code true}
  * result is monotonic and establishes a happens-before edge from every task body's writes to the
  * waiting thread (via {@link SettableFuture}).
- *
- * <p>The signal is a future rather than a bare latch so it composes with the rest of the library:
- * the owning {@code ParRuntime} aggregates the signals of every admitted submission without
- * dedicating a thread per wait, and a timed wait distinguishes "all bodies exited" from "budget
- * elapsed" instead of merging them.
- *
- * <p>The tracker also carries the identity units needed by the self-await guard: the units of the
- * group's members (and terminal combine) or of the batch. Registration happens on the single
- * submitting thread before submission; the slot list and identity set are never mutated afterward,
- * and publication to other threads rides the task-submission handoff.
  */
 final class BodyCompletionTracker {
+    /*
+     * The signal is a future rather than a bare latch so it composes with the rest of the library:
+     * the owning ParRuntime aggregates the signals of every admitted submission without dedicating
+     * a thread per wait, and a timed wait distinguishes "all bodies exited" from "budget elapsed"
+     * instead of merging them.
+     *
+     * The tracker also carries the identity units needed by the self-await guard: the units of the
+     * group's members (and terminal combine) or of the batch. Registration happens on the single
+     * submitting thread before submission; the slot list and identity set are never mutated
+     * afterward, and publication to other threads rides the task-submission handoff.
+     */
 
     private final AtomicInteger outstanding;
     private final SettableFuture<@Nullable Void> bodyExit = SettableFuture.create();
     private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
     private final List<TaskBodyState> slots;
 
-    /**
-     * The unit of the most recent registration. Batch submissions register the same unit once
-     * per task, and only the first identity-set insert carries information; registration is
-     * confined to the single submitting thread, so a plain field suffices.
+    /*
+     * The unit of the most recent registration. Batch submissions register the same unit once per
+     * task, and only the first identity-set insert carries information; registration is confined to
+     * the single submitting thread, so a plain field suffices.
      */
     private @Nullable MultiTaskContext lastRegisteredUnit;
 
@@ -107,9 +108,9 @@ final class BodyCompletionTracker {
     }
 
     /**
-     * Counts the bodies that have neither exited nor been determined to never enter, keyed by
-     * task name. Used to make a close-grace timeout visible: the outstanding members are named in
-     * the warning instead of the wait failing silently.
+     * Counts the bodies that have neither exited nor been determined to never enter, keyed by task
+     * name. Used to make a close-grace timeout visible: the outstanding members are named in the
+     * warning instead of the wait failing silently.
      */
     Map<String, Integer> stuckBodySummary() {
         Map<String, Integer> counts = new LinkedHashMap<>();
@@ -224,11 +225,6 @@ final class BodyCompletionTracker {
      * post-settle body-completion wait for {@code Par.map}: the configured close grace when the
      * scope declared one, otherwise what is left of its execution deadline.
      *
-     * <p>The deadline lives in the token's clock domain, so the relative budget is derived from the
-     * token's own clock — never from {@link System#nanoTime()}, which a manual deadline clock must
-     * not be subtracted from. The derived budget is then spent as a real-time bounded wait: cleanup
-     * waits measure the actual passage of time, which no virtual clock may fabricate.
-     *
      * @param configured the declared close grace, or null to derive from the deadline
      * @param token the scope's cancellation token, or null when the scope carries none
      * @return the budget in nanoseconds; {@code 0} means cancel without waiting, which is what a
@@ -237,6 +233,13 @@ final class BodyCompletionTracker {
      *     budget is astronomical.
      */
     static long closeGraceBudgetNanos(@Nullable Duration configured, @Nullable CancellationToken token) {
+        /*
+         * The deadline lives in the token's clock domain, so the relative budget is derived from
+         * the token's own clock — never from System.nanoTime(), which a manual deadline clock must
+         * not be subtracted from. The derived budget is then spent as a real-time bounded wait:
+         * cleanup waits measure the actual passage of time, which no virtual clock may fabricate.
+         */
+
         if (configured != null) {
             return Deadlines.saturatedNanos(configured);
         }
@@ -249,12 +252,6 @@ final class BodyCompletionTracker {
     /**
      * Waits for one future to settle inside an already-running budget, without letting the wait
      * itself become a failure.
-     *
-     * <p>{@code awaitBodyCompletion} needs this twice over: body exit and future settlement ride the
-     * same signals, but a future's {@code get()} waiters can wake before its listeners have run, so
-     * a caller that must see the published observation has to wait out that window too. The budget
-     * is the caller's total, measured from {@code startNanos}, so successive calls consume one
-     * shared allowance rather than each getting the full timeout.
      *
      * @param future the future to wait on
      * @param budgetNanos the caller's whole budget in nanoseconds
@@ -270,6 +267,14 @@ final class BodyCompletionTracker {
     static boolean awaitSettled(
             ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail)
             throws InterruptedException {
+        /*
+         * awaitBodyCompletion needs this twice over: body exit and future settlement ride the same
+         * signals, but a future's get() waiters can wake before its listeners have run, so a caller
+         * that must see the published observation has to wait out that window too. The budget is
+         * the caller's total, measured from startNanos, so successive calls consume one shared
+         * allowance rather than each getting the full timeout.
+         */
+
         if (future.isDone()) {
             return true;
         }

@@ -74,14 +74,16 @@ final class SlidingWindowSubmitter<V> {
      * cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the
      * thread actually running the body — including a caller thread running it inline.
      *
-     * <p>Each view also pins its element's attribution when the element settles ({@link
-     * Task#attributedOnSettle}); building the views before the bind is what orders that pin ahead
-     * of the fail-fast commit the element's own failure triggers.
-     *
      * @param tasks prepared task futures, in element order
      * @return the element views, positionally aligned with {@code tasks}
      */
     ImmutableList<Task<V>> viewsFor(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+        /*
+         * Each view also pins its element's attribution when the element settles
+         * (Task.attributedOnSettle); building the views before the bind is what orders that pin
+         * ahead of the fail-fast commit the element's own failure triggers.
+         */
+
         ImmutableList.Builder<Task<V>> views = ImmutableList.builderWithExpectedSize(tasks.size());
         for (ExecutionPhaseHintFuture<V> task : tasks) {
             views.add(Task.attributedOnSettle(unit.name(), unit.cancellationToken(), task));
@@ -92,10 +94,10 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Submits all tasks and returns the batch result immediately.
      *
-     * <p>Each returned future is the {@link Task} view of the exact {@link ExecutionPhaseHintFuture}
-     * passed in: the caller prepares tasks via {@link TaskSubmissions} and builds their views with
-     * {@link #viewsFor}, and this executor only coordinates when each prepared future enters the
-     * worker pool.
+     * <p>Each returned future is the {@link Task} view of the exact {@link
+     * ExecutionPhaseHintFuture} passed in: the caller prepares tasks via {@link TaskSubmissions}
+     * and builds their views with {@link #viewsFor}, and this executor only coordinates when each
+     * prepared future enters the worker pool.
      *
      * @param tasks prepared task futures to execute
      * @param results the element views from {@link #viewsFor}, positionally aligned with {@code
@@ -142,27 +144,22 @@ final class SlidingWindowSubmitter<V> {
     }
 
     /**
-     * Fails every element from {@code fromIndex} on as a submission failure, in two passes.
+     * Records a shared submission failure for every unsubmitted element from {@code fromIndex}.
      *
-     * <p>A handoff failure is the batch's shared verdict: the element that hit it never reached the
-     * executor, and neither will any element after it. Every one of them must report {@code
-     * SUBMISSION_FAILURE} with the original throwable as cause, which is the contract recorded in
-     * {@code design/decision-log.md}.
-     *
-     * <p>Two passes, because the token is already bound by the time this runs. Settling any element
-     * exceptionally fires the token's fail-fast cascade synchronously, on this thread, and that
-     * cascade cancels every sibling still pending — which would overwrite their verdict with a
-     * cancellation and lose the reason the batch failed. No settle order avoids this: whichever
-     * element settles first triggers the cascade against the rest. So pass one claims each element
-     * and records its attribution without settling anything (invisible to the token, which watches
-     * the futures rather than the observations), and pass two settles them. An element cancelled by
-     * the cascade in between still reports its recorded submission failure.
-     *
-     * <p>The cascade does still cancel the elements before {@code fromIndex} — the ones already
-     * handed to the executor. That is the intended fail-fast behavior and unchanged from before.
+     * <p>Every affected element retains {@code SUBMISSION_FAILURE} with the original handoff cause,
+     * even if fail-fast cancellation races settlement. Already handed-off elements are cancelled by
+     * the ordinary fail-fast cascade.
      */
     private void failRemainingAsSubmissionFailures(
             List<? extends ExecutionPhaseHintFuture<V>> tasks, int fromIndex, Throwable failure) {
+        /*
+         * The token is bound before submission. Settling one failure synchronously cancels pending
+         * siblings, so no settlement order can preserve every affected element's verdict by itself.
+         * First claim every affected element and record its submission failure without settling;
+         * then settle them. A cascade between those passes cannot erase the recorded failure. See
+         * design/decision-log.md for the shared-verdict decision.
+         */
+
         int size = tasks.size();
         boolean[] claimed = new boolean[size - fromIndex];
         for (int pending = fromIndex; pending < size; pending++) {
@@ -190,10 +187,10 @@ final class SlidingWindowSubmitter<V> {
      * so a task rejected or cancelled before it runs still releases its window slot when it
      * settles.
      *
-     * <p>A task already terminal when its turn comes — cancelled by the deadline cascade while
-     * the window was still filling, for example — is not handed to the pool at all: its {@code
-     * run()} would CAS-fail and no-op, so the handoff is pure waste. The listener fires immediately
-     * for a done future, releasing the slot for the next claim.
+     * <p>A task already terminal when its turn comes — cancelled by the deadline cascade while the
+     * window was still filling, for example — is not handed to the pool at all: its {@code run()}
+     * would CAS-fail and no-op, so the handoff is pure waste. The listener fires immediately for a
+     * done future, releasing the slot for the next claim.
      */
     private void submit(ExecutionPhaseHintFuture<V> task, Runnable onComplete) {
         task.addListener(onComplete, directExecutor());
@@ -232,12 +229,6 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Event-driven sliding-window refill for one batch.
      *
-     * <p>Instead of a framework thread parked in a completion queue (one per concurrently refilling
-     * batch), every submitted element's completion listener claims and hands off the next element
-     * itself. Claims are serialized by a single non-reentrant guard so that an inline completion —
-     * a direct executor or a saturated CallerRunsPolicy pool running the next body on the
-     * completing thread — extends the guard holder's loop instead of recursing.
-     *
      * <p>The slot invariant: a claim consumes one window slot, the element's completion releases it
      * exactly once, and at most {@code start} claims are outstanding, so no more than {@code
      * parallelism} elements of this batch are ever in flight. Cancellation claims every unclaimed
@@ -245,6 +236,14 @@ final class SlidingWindowSubmitter<V> {
      * of it locally and never hands a cancelled batch's element to the pool.
      */
     private final class RefillDriver {
+        /*
+         * Instead of a framework thread parked in a completion queue (one per concurrently
+         * refilling batch), every submitted element's completion listener claims and hands off the
+         * next element itself. Claims are serialized by a single non-reentrant guard so that an
+         * inline completion — a direct executor or a saturated CallerRunsPolicy pool running the
+         * next body on the completing thread — extends the guard holder's loop instead of
+         * recursing.
+         */
 
         private final List<? extends ExecutionPhaseHintFuture<V>> tasks;
         private final List<Task<V>> results;
@@ -371,8 +370,8 @@ final class SlidingWindowSubmitter<V> {
         /**
          * Abandons every element from the first unclaimed index on, then marks the signal settled
          * so an in-flight refill disposes of its own claimed index instead of handing it off. The
-         * claim-first ordering mirrors the old claim-before-completion-check discipline: an index
-         * is owned by exactly one path, and abandoning is idempotent when both overlap.
+         * claim-first ordering ensures that an index is owned by exactly one path, and abandoning
+         * is idempotent when both overlap.
          */
         void abandonUnclaimed(Throwable reason) {
             if (!settled.compareAndSet(false, true)) {

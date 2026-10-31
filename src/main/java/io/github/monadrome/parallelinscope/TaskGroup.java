@@ -38,9 +38,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A group is declared and submitted in one fluent chain — {@link ParRuntime#group(String,
  * Duration)} or {@link ParRuntime#groupInheriting(String)}, then {@link GroupStart#par}, then
- * {@link GroupStep#runAll()} — the internal running object holds the
- * complete member registry: futures are looked up by declaration position ({@link #futureAt(int)}),
- * by name ({@link #futureOf(String)}), or as the whole named map ({@link #members()}).
+ * {@link GroupStep#runAll()} — the internal running object holds the complete member registry:
+ * futures are looked up by declaration position ({@link #futureAt(int)}), by name ({@link
+ * #futureOf(String)}), or as the whole named map ({@link #members()}).
  *
  * <p>The type parameters describe the group's result shape. {@code V} is the member values as
  * {@link GroupValues#typedValues()} exposes them — a single member's type for a one-member group,
@@ -54,9 +54,9 @@ import org.jspecify.annotations.Nullable;
  * value is reached through {@link #terminalFuture()} and is not a slot in {@link GroupValues}.
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
- * deadline, or any single member deadline cancels every unfinished member. All outcomes are
- * attributed by reading {@link CancellationToken} states after the fact — never by capturing who
- * initiated a cancel — so attribution stays correct under races.
+ * deadline, or any single member deadline cancels every unfinished member. Outcomes preserve
+ * whether work failed, timed out, or was cancelled; the frozen group result is authoritative after
+ * convergence.
  */
 final class TaskGroup<V, R> implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
@@ -81,10 +81,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /** The same members as {@link #memberStates}, addressable by declaration position. */
     private final ImmutableList<MemberState> orderedMembers;
 
-    /**
-     * Every task the group waits on: the members in declaration order, then the combine when one
-     * is declared. Fixed at construction, so the cancel cascade in {@link #memberCompleted} walks
-     * it without rebuilding it once per completing task.
+    /*
+     * Every task the group waits on: the members in declaration order, then the combine when one is
+     * declared. Fixed at construction, so the cancel cascade in memberCompleted walks it without
+     * rebuilding it once per completing task.
      */
     private final ImmutableList<MemberState> membersAndTerminal;
 
@@ -103,13 +103,12 @@ final class TaskGroup<V, R> implements AutoCloseable {
      */
     private final SettableFuture<GroupValues<V>> values = SettableFuture.create();
 
-    /**
-     * The read-only view handed out by {@link #valuesFuture()}. The sink stays reachable only from
-     * this object, so a caller cannot cancel the group's own value publication — cancelling the view
-     * returns {@code false}. Without
-     * the wrapper a caller could cancel the future while members were still running, and a group
-     * that then converged on SUCCESS would report {@link CancellationException} from
-     * {@code valuesFuture().get()} instead of its {@link GroupValues}.
+    /*
+     * The read-only view handed out by valuesFuture(). The sink stays reachable only from this
+     * object, so a caller cannot cancel the group's own value publication — cancelling the view
+     * returns false. Without the wrapper a caller could cancel the future while members were still
+     * running, and a group that then converged on SUCCESS would report CancellationException from
+     * valuesFuture().get() instead of its GroupValues.
      */
     private final ListenableFuture<GroupValues<V>> valuesView = TaskObservation.readOnly(values);
 
@@ -216,8 +215,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * <p>Listeners run on the thread that converges the group, and that thread publishes {@link
      * #completionFuture()} only after this future's listeners have returned. A listener that blocks
      * waiting for the completion future — or for anything else only that thread can produce —
-     * therefore deadlocks the group. Register such a listener with an asynchronous executor, or wait
-     * on the completion future from the thread that submitted the group.
+     * therefore deadlocks the group. Register such a listener with an asynchronous executor, or
+     * wait on the completion future from the thread that submitted the group.
      */
     public ListenableFuture<GroupValues<V>> valuesFuture() {
         return valuesView;
@@ -327,8 +326,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * The future of the plain member at a zero-based declaration position.
      *
-     * <p>The position is the order the {@code par} calls were written, not the order tasks completed
-     * in: completion order never changes an index. The terminal combine does not occupy a position.
+     * <p>The position is the order the {@code par} calls were written, not the order tasks
+     * completed in: completion order never changes an index. The terminal combine does not occupy a
+     * position.
      *
      * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
      *     count; the message carries both
@@ -399,9 +399,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * WARN level: a leaked body is visible data, not silence. The group's executors are never shut
      * down, and user code that ignores interruption may keep running after this method returns.
      *
-     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait
-     * is skipped with the interrupt flag preserved; an interruption during the wait likewise
-     * restores the flag and returns. This method adds no checked exception.
+     * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait is
+     * skipped with the interrupt flag preserved; an interruption during the wait likewise restores
+     * the flag and returns. This method adds no checked exception.
      *
      * <p>A normal return does not by itself make resources used by task bodies safe to release;
      * confirm body exit with {@link #awaitBodyCompletion(Duration)} first.
@@ -428,13 +428,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * exited, or the budget elapses.
      *
      * <p>Body exit means the user {@code Callable} returned or threw and its {@code finally}
-     * completed. A {@code true} result also covers tasks that
-     * will never be entered (cancelled, rejected, or never submitted) and establishes a
-     * happens-before edge from every task body's writes to this thread; once {@code true}, the
-     * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
-     * while at least one body had not exited, which may include tasks that have not started yet.
-     * A {@code true} result additionally waits out the member observation publication barrier, so
-     * every member's {@link TaskFuture#completionFuture()} is already done with its final snapshot.
+     * completed. A {@code true} result also covers tasks that will never be entered (cancelled,
+     * rejected, or never submitted) and establishes a happens-before edge from every task body's
+     * writes to this thread; once {@code true}, the result cannot be invalidated by a task starting
+     * late. {@code false} means the budget elapsed while at least one body had not exited, which
+     * may include tasks that have not started yet. A {@code true} result additionally waits out the
+     * member observation publication barrier, so every member's {@link
+     * TaskFuture#completionFuture()} is already done with its final snapshot.
      *
      * <p>This method never cancels tasks and does not require a prior {@link #close()}; the budget
      * is an independent cleanup wait that neither extends the group's execution deadline nor
@@ -521,14 +521,14 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Builds the complete run of one submission and admits it: resolves the structural parent and
-     * deadline ceiling from the calling thread, creates the group token, every
-     * member context and future, and the terminal combine's pipeline, taking each body from the
-     * one-shot {@code payloads}. Runs inside one {@link ParRuntime#whileOpen} admission.
+     * Prepares one complete run inside a single {@link ParRuntime#whileOpen} admission. Resolves
+     * nesting, deadline, and TTL context from the calling thread and takes ownership of this run's
+     * bodies from {@code payloads}. No body executes until preparation succeeds.
      *
-     * <p>The terminal combine's body is wrapped to receive the assembled member values. On any preparation failure
-     * every prepared future is cancelled — releasing the bodies the kernel took — and the exception
-     * propagates so the caller can discard the untaken payloads; no user code runs on this path.
+     * <p>The terminal combine's body is wrapped to receive the assembled member values. On any
+     * preparation failure every prepared future is cancelled — releasing the bodies the kernel took
+     * — and the exception propagates so the caller can discard the untaken payloads; no user code
+     * runs on this path.
      *
      * <p>The runtime's executor waits-for graph receives the caller's waits on every member and the
      * terminal together, only after every task prepared, so a failed preparation records nothing.
@@ -792,7 +792,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * Submits the prepared combine to its own executor exactly once, with no group state lock held.
      * The submission runs on the convergence callback thread (or the submit thread for an empty
-     * group); the user function itself runs only on the combine executor's worker. A combine that
+     * group); the executor decides where the body runs, including inline execution for a direct
+     * executor. A recognized thread pool's inline rejection fallback is refused. A combine that
      * lost to cancellation is never submitted, and a cancellation racing the submission still
      * cannot enter user code because the future's phase claim guards the call.
      */
@@ -884,11 +885,11 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /**
      * Classifies an exceptionally completed member. A failure that merely signals observed
-     * cancellation — a checkpoint threw a {@link CancellationException}, or
-     * the worker thread was interrupted — can win the race against the cascade cancel on the
-     * member future; it is attributed through the tokens like a cancellation instead of being
-     * recorded as a user failure. A spontaneous {@code CancellationException} from user code with
-     * no committed framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     * cancellation — a checkpoint threw a {@link CancellationException}, or the worker thread was
+     * interrupted — can win the race against the cascade cancel on the member future; it is
+     * attributed through the tokens like a cancellation instead of being recorded as a user
+     * failure. A spontaneous {@code CancellationException} from user code with no committed
+     * framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
      */
     private TaskOutcome classifyFailure(MemberState member, @Nullable Throwable failure) {
         if (failure instanceof SubmissionException) {
@@ -901,12 +902,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Classifies a cancelled member by reading token states only. The member token records its own
-     * deadline; the group token is otherwise the single authority, because it commits its state
-     * before cancelling member futures. A group token still RUNNING means no framework path
-     * cancelled the member: the user cancelled it directly.
+     * Returns the cancellation outcome of a settled member from its member and group deadlines and
+     * the group's cancellation state.
      */
     private TaskOutcome classifyCancelled(MemberState member) {
+        /*
+         * The member token records its own deadline; otherwise the group token is authoritative.
+         * The group commits its state before cancelling member futures. A still-RUNNING group
+         * therefore identifies a direct member cancellation, rather than a framework cascade.
+         */
+
         return classifyCancelled(member, TaskOutcome.MEMBER_CANCELLED);
     }
 
@@ -918,16 +923,23 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Converges the group on the unique thread whose barrier increment observed every task
-     * terminal: the read-modify-write that won also publishes every other task's classification
-     * and timestamps, so the decision and the snapshot are taken over a complete, immutable view
-     * without holding a lock.
-     *
-     * <p>The values future is published first, so a done completion future always implies a done
-     * values future — a caller that reads both never has to consider a converged group whose values
-     * are still pending.
+     * Publishes the final group decision after every task's classification is available. The values
+     * future is terminal before the completion future is published.
      */
     private void converge() {
+        /*
+         * The final barrier increment is a read-modify-write that acquires every preceding member's
+         * classification and timing writes. The winning thread sees a complete immutable view
+         * without a group state lock. Publish values first so a done completion future always
+         * implies done values; direct listeners must not block that publication sequence.
+         */
+
+        /*
+         * The values future is published first, so a done completion future always implies a done
+         * values future — a caller that reads both never has to consider a converged group whose
+         * values are still pending.
+         */
+
         TaskOutcome decided = deriveOutcome();
         TaskGroupReport result = snapshot(decided, failedTaskName.get());
         try {
@@ -999,11 +1011,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * Derives the group outcome from the group token state. A recorded failure takes precedence:
      * whenever a member or the terminal combine already failed, the group reports that failure's
      * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
-     * outcome no longer depends on completion order. On fail-fast with no failed member the
-     * trigger was a direct member cancellation, so the group reports {@link
-     * TaskOutcome#MEMBER_CANCELLED}. A token still RUNNING or SUCCESS with no recorded failure
-     * means no framework cancellation path committed: the group succeeded only if every member
-     * did.
+     * outcome no longer depends on completion order. On fail-fast with no failed member the trigger
+     * was a direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELLED}.
+     * A token still RUNNING or SUCCESS with no recorded failure means no framework cancellation
+     * path committed: the group succeeded only if every member did.
      */
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
@@ -1032,8 +1043,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /**
      * Returns the member or terminal combine recorded as failed, or {@code null} when no failure
-     * has been recorded. The failed name may belong to the terminal combine, which is not a
-     * member.
+     * has been recorded. The failed name may belong to the terminal combine, which is not a member.
      */
     private @Nullable MemberState failedTask() {
         String name = failedTaskName.get();
@@ -1051,8 +1061,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /**
      * The group-level observation summary of the settled completion future. The completion future
-     * is only ever set with a result — convergence never fails or cancels it — so a failure here
-     * is an implementation defect.
+     * is only ever set with a result — convergence never fails or cancels it — so a failure here is
+     * an implementation defect.
      */
     private static TaskCompletion<TaskGroupReport> groupSummary(SettableFuture<TaskGroupReport> completion) {
         try {

@@ -15,20 +15,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The {@link TaskFuture} implementation the library delivers; it is package-private because
- * instances are never constructed by users and never appear in a public signature — callers only
- * ever see the {@link TaskFuture} contract.
+ * The kernel's {@link TaskFuture} view over one prepared task execution.
  *
  * <p>A task is a thin forwarding shell over the future that actually carries its outcome, plus the
  * name and {@link CancellationToken} that belong to the task rather than to that future. The shell
  * owns its identity from creation on: an element still waiting for a free concurrency slot already
- * answers with its final name, deadline, and token attribution, because the shell wraps the prepared
- * future from the start and submission never swaps the delegate underneath it.
+ * answers with its final name, deadline, and token attribution, because the shell wraps the
+ * prepared future from the start and submission never swaps the delegate underneath it.
  *
- * <p>Forwarding is literal: {@link #get()}, {@link #cancel(boolean)}, {@link #isDone()}, and
- * {@link #addListener(Runnable, Executor)} behave exactly as they do on the
- * delegate, including the interruption and cancellation-cascade semantics. Only read-only
- * information is added.
+ * <p>Forwarding is literal: {@link #get()}, {@link #cancel(boolean)}, {@link #isDone()}, and {@link
+ * #addListener(Runnable, Executor)} behave exactly as they do on the delegate, including the
+ * interruption and cancellation-cascade semantics. Only read-only information is added.
  */
 final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
 
@@ -80,29 +77,34 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * Wraps a batch element or a batch's terminal combine, and pins its attribution at the moment
-     * its delegate settles: {@link #settledAttribution()} completes with the {@link #outcome()} read
-     * by a listener registered here, on whichever thread settles the delegate.
+     * its delegate settles: {@link #settledAttribution()} completes with the {@link #outcome()}
+     * read by a listener registered here, on whichever thread settles the delegate.
      *
-     * <p>A batch shares one token across its elements, and an element's own failure commits that
-     * token's {@code FAIL_FAST} through the bind's aggregate listener on the same delegate. Reading
-     * the token later — when the batch freezes — would let that commit reattribute the element that
-     * caused it: a body that raised its own {@link java.util.concurrent.CancellationException} or
-     * {@link InterruptedException} reads {@link TaskOutcome#USER_FAILURE} while the token is still
-     * running and {@link TaskOutcome#FAIL_FAST} once its own failure committed the cascade. The pin
-     * fixes the read to completion time, the moment a group member is classified in
-     * {@code TaskGroup.memberCompleted}.
-     *
-     * <p>Callers MUST create this view before binding the token: the pin is then registered on the
-     * delegate ahead of the bind's listeners, and Guava's {@code AbstractFuture} runs a settled
-     * future's listeners in registration order, so the pin reads the token before this element's
-     * own failure can commit it. The view is still the element's only caller-visible handle from
-     * creation on; the pin only adds read-only information.
-     *
-     * <p>Classification of a settled delegate reads only immutable future state and the token's
-     * atomic state, so it does not throw; should it ever fail, the pin carries that failure instead
-     * of staying pending, and the freeze surfaces it as a broken invariant rather than hanging.
+     * <p>Callers must create this view before binding the token, so the attribution is recorded
+     * before this element's failure can trigger fail-fast. The view is still the element's only
+     * caller-visible handle from creation on; the pin only adds read-only information.
      */
     static <T> Task<T> attributedOnSettle(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
+        /*
+         * A batch shares one token across its elements, and an element's own failure commits that
+         * token's FAIL_FAST through the bind's aggregate listener on the same delegate. Reading the
+         * token later — when the batch freezes — would let that commit reattribute the element that
+         * caused it: a body that raised its own java.util.concurrent.CancellationException or
+         * InterruptedException reads TaskOutcome.USER_FAILURE while the token is still running and
+         * TaskOutcome.FAIL_FAST once its own failure committed the cascade. The pin fixes the read
+         * to completion time, the moment a group member is classified in TaskGroup.memberCompleted.
+         *
+         * Classification of a settled delegate reads only immutable future state and the token's
+         * atomic state, so it does not throw; should it ever fail, the pin carries that failure
+         * instead of staying pending, and the freeze surfaces it as a broken invariant rather than
+         * hanging.
+         */
+
+        /*
+         * Guava AbstractFuture runs listeners in registration order. Registering the pin before
+         * bind's listeners lets it read the token before this element's failure commits fail-fast
+         * on that token.
+         */
         SettableFuture<TaskOutcome> attribution = SettableFuture.create();
         Task<T> view = new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), attribution);
         delegate.addListener(
@@ -253,11 +255,11 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * Mirrors {@link FluentFuture}'s chaining methods while keeping the result wrapped in a {@link
-     * Task}, so internal composition cannot silently drop the task view. The seam is package-private
-     * on purpose: a derived future is not a task the library executes, so it stays out of the
-     * public contract ({@link TaskFuture} and {@code FluentFuture.from(task)} remain the caller's
-     * route to fluent chaining), while the kernel keeps the name and the token that the chain
-     * started from.
+     * Task}, so internal composition cannot silently drop the task view. The seam is
+     * package-private on purpose: a derived future is not a task the library executes, so it stays
+     * out of the public contract ({@link TaskFuture} and {@code FluentFuture.from(task)} remain the
+     * caller's route to fluent chaining), while the kernel keeps the name and the token that the
+     * chain started from.
      */
     <R> Task<R> transform(Function<? super T, R> function, Executor executor) {
         return derived(fluent().transform(function, executor));

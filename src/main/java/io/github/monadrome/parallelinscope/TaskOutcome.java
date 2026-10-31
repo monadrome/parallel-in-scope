@@ -3,14 +3,12 @@ package io.github.monadrome.parallelinscope;
 /**
  * Unified running-or-terminal classification of a single task.
  *
- * <p>This is the single vocabulary used across the library for "how a task ended" (or whether it
- * is still running). It merges the former {@code FutureState} (batch report) and {@code
- * TaskGroupMemberReason} (group member result) enums: the terminal values are a strict refinement
- * of the old four-state future view, and {@link #RUNNING} absorbs the "not yet terminal" case.
+ * <p>This is the single vocabulary used across the library for "how a task ended" (or whether it is
+ * still running). {@link #RUNNING} denotes a result that is not yet terminal.
  *
  * <p>Execution results expose terminal values through {@link ImmediateResult#outcome()}, frozen
- * from task and scope cancellation attribution: that is what separates
- * {@link #SUBMISSION_FAILURE} from {@link #USER_FAILURE} and names a cancellation's cause.
+ * from task and scope cancellation attribution: that is what separates {@link #SUBMISSION_FAILURE}
+ * from {@link #USER_FAILURE} and names a cancellation's cause.
  *
  * <p>{@link #TIMEOUT} means the execution deadline cancelled the task; it is not inferred from a
  * {@link java.util.concurrent.TimeoutException} thrown by a body, which is an ordinary {@link
@@ -20,12 +18,11 @@ package io.github.monadrome.parallelinscope;
  * <p>This enum is also the terminal vocabulary of a whole task group: {@link
  * TaskGroupResult#outcome()} reports one of {@link #SUCCESS}, {@link #USER_FAILURE}, {@link
  * #SUBMISSION_FAILURE}, {@link #TIMEOUT}, {@link #MEMBER_CANCELLED}, or {@link #GROUP_CANCELLED} —
- * a group with a recorded failed task adopts that task's own outcome, whether or not the group
- * token has committed fail-fast yet, so the outcome does not depend on completion order. At group
- * level, {@link #MEMBER_CANCELLED}
- * means the cancellation originated from (or was applied directly to) a single member, while
- * {@link #GROUP_CANCELLED} means the group was cancelled as a whole or the cancellation propagated
- * down from an enclosing scope.
+ * a group with a recorded failed task adopts that task's own outcome, so the outcome does not
+ * depend on completion order. At group level, {@link #MEMBER_CANCELLED} means the cancellation
+ * originated from (or was applied directly to) a single member, while {@link #GROUP_CANCELLED}
+ * means the group was cancelled as a whole or the cancellation propagated down from an enclosing
+ * scope.
  *
  * @since 0.3.0
  */

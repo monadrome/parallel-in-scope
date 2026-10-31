@@ -24,26 +24,22 @@ import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Main facade for parallel execution.
+ * An execution entry bound to one executor in a {@link ParRuntime}.
  *
- * <p>Each {@code Par} is created by one {@link ParRuntime} and remains bound to its executor
- * runtime. Calls are rejected once its owner begins shutdown.
- *
- * <p>Provides the {@link #map} instance method that wires together the entire parallel execution
- * pipeline:
- *
- * <ul>
- *   <li>Resolution of {@link BatchOptions} into a batch context
- *   <li>Scoped task preparation via {@code TaskSubmissions}
- *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
- *   <li>Parent-child cancellation chaining
- *   <li>Timeout and fail-fast cancellation, bound before any element is submitted
- * </ul>
+ * <p>Provides synchronous batch execution with bounded parallelism, deadlines, fail-fast
+ * cancellation, and frozen results. Nested executions inherit cancellation and cannot extend an
+ * enclosing deadline. New executions are rejected once the owning runtime begins shutdown.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @since 0.3.0
  */
 public final class Par {
+    /*
+     * Admission resolves the batch, prepares its task futures and views, and binds cancellation
+     * before any executor handoff. Submission may execute a body inline, so binding first is
+     * required for deadline enforcement on that path. SlidingWindowSubmitter then limits handoffs
+     * to the resolved parallelism; TaskSubmissions supplies the shared task instrumentation.
+     */
 
     private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
 
@@ -56,7 +52,10 @@ public final class Par {
     private final TaskType taskType;
     private final WorkloadFit.Entry workload = new WorkloadFit.Entry();
 
-    /** One-shot latch for the inert enqueue-refusal diagnostic; see {@link #warnIfEnqueueRefusalInert}. */
+    /**
+     * One-shot latch for the inert enqueue-refusal diagnostic; see {@link
+     * #warnIfEnqueueRefusalInert}.
+     */
     private final AtomicBoolean enqueueRefusalWarningIssued = new AtomicBoolean();
 
     private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
@@ -106,25 +105,24 @@ public final class Par {
     /**
      * Executes a batch using the executor bound when the owning {@link ParRuntime} was built.
      *
-     * <p>The supplied elements are shallow-copied into an immutable input-ordered snapshot before
-     * task preparation; elements must be non-null. Callers must not mutate a non-concurrent
-     * collection while it is being copied. A {@code null} or empty collection returns an empty
-     * result without submitting work. When
-     * invoked within another scoped task, the child batch inherits cancellation and cannot outlive
-     * its parent's deadline. The selected executor never changes per call and is not owned by this
-     * {@code Par}. Once the owning {@link ParRuntime} is closed, this method throws {@link
-     * IllegalStateException} before submitting any task.
+     * <p>The supplied elements are shallow-copied into an input-ordered snapshot before execution;
+     * elements must be non-null. Callers must not mutate a non-concurrent collection while it is
+     * being copied. A {@code null} or empty collection returns an empty result without submitting
+     * work. When invoked within another scoped task, the child batch inherits cancellation and
+     * cannot outlive its parent's deadline. The selected executor never changes per call and is not
+     * owned by this {@code Par}. Once the owning {@link ParRuntime} is closed, this method throws
+     * {@link IllegalStateException} before submitting any task.
      *
      * <p>This call waits for all results, ignoring interruptions while waiting and restoring the
      * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
      * fail-fast, and ancestor cancellation still interrupt task runners. A source declared through
      * {@link BatchOptions#cancelOn(ListenableFuture, boolean)} cancels on any completion with its
-     * explicit interrupt policy. Cleanup waits within
-     * {@link BatchOptions#closeGrace(Duration)} (or the remaining deadline when unset); inspect
-     * {@link TaskBatchResult#bodyCompletionConfirmed()} before releasing resources shared by direct
-     * bodies; nested calls must confirm their own exit separately. Direct
-     * executors and CallerRunsPolicy may execute bodies on this caller; their existing interrupt
-     * isolation applies during that body, separately from the uninterruptible waiting policy.
+     * explicit interrupt policy. Cleanup waits within {@link BatchOptions#closeGrace(Duration)} (or
+     * the remaining deadline when unset); inspect {@link TaskBatchResult#bodyCompletionConfirmed()}
+     * before releasing resources shared by direct bodies; nested calls must confirm their own exit
+     * separately. Direct executors and CallerRunsPolicy may execute bodies on this caller; their
+     * existing interrupt isolation applies during that body, separately from the uninterruptible
+     * waiting policy.
      *
      * @param elements input elements, or {@code null} for an empty batch
      * @param function synchronous mapping function, run at most once for each submitted element; it
@@ -146,20 +144,20 @@ public final class Par {
      * Executes a batch and then, only when every element succeeded, one terminal combine over the
      * element values.
      *
-     * <p>The combine is a real scoped task prepared and bound with the elements on the calling
-     * thread — TTL capture, deadline, and cancellation are shared with the batch — but it is
-     * submitted to {@code combinePar} exactly once, only after every element succeeded. When any
-     * element fails, is cancelled, or the deadline expires first, the combine never runs and its
-     * result is terminal: cancelled with the batch's attribution, or {@code SUBMISSION_FAILURE} when
-     * its own executor rejected it. The combine body receives the element values in input order;
-     * successful null elements appear as null entries. The batch token cannot report success before
-     * the combine settles, so one admission's budget covers fan-out and summary together.
+     * <p>The combine is a scoped task whose TTL context is captured on the calling thread. It
+     * shares the batch's deadline and cancellation lifecycle and is submitted to {@code combinePar}
+     * exactly once, only after every element succeeded. When any element fails, is cancelled, or
+     * the deadline expires first, the combine never runs and its result is terminal: cancelled with
+     * the batch's attribution, or {@code SUBMISSION_FAILURE} when its own executor rejected it. The
+     * combine body receives the element values in input order; successful null elements appear as
+     * null entries. One execution budget covers both the elements and the combine, and the call
+     * returns only after their results settle and bounded cleanup has been attempted.
      *
      * <p>Everything {@link #map} documents about synchronous waiting, interruption, close grace,
      * and borrowed executors applies to this method as well; the combine is submitted from the
      * converging thread, so a {@code combinePar} backed by a saturating {@code CallerRunsPolicy}
-     * pool never runs the body there — the same inline guard the group combine uses records {@code
-     * SUBMISSION_FAILURE} instead.
+     * pool never runs the body there — that handoff is recorded as {@code SUBMISSION_FAILURE}
+     * instead. A direct executor retains its normal inline behavior; see {@link CombineBody}.
      *
      * @param elements input elements; must contain at least one element — a combine over an empty
      *     batch has no fan-out to summarize, mirroring the group's rejection of an
@@ -231,19 +229,9 @@ public final class Par {
     }
 
     /**
-     * The combined-batch pipeline: {@link #executeGlobal} plus one prepared terminal combine. The
-     * combine shares the batch token (bind covers it while still pending, so SUCCESS cannot commit
-     * early and the cascade always reaches it) and joins the same body tracker, but gets its own
-     * unit — the batch unit's structural child, for cancellation and deadline. Its token is never
-     * bound: deadline and cascade come from the batch token, exactly like a group member whose
-     * deadline equals the group's. Like any nested unit it declares no task type of its own and
-     * requests no enqueue refusal, so it has nothing to diagnose at admission.
-     *
-     * <p>The executor waits are recorded from who waits for whom, not from that structural pointer:
-     * the caller blocks until both the batch and the combine finish, so it waits on both, while the
-     * batch only feeds the combine and waits on nothing. A combine on the batch's own pool is
-     * therefore no self-loop, while a combine on the caller's own starvation-prone pool is the
-     * self-loop it really is.
+     * Executes the batch and its terminal combine under one execution and cleanup budget. The
+     * combine is submitted only after every element succeeds; the returned snapshot covers both the
+     * elements and the combine.
      */
     private <T, R, C> BatchCombinedResult<R, C> executeCombined(
             Collection<T> elements,
@@ -252,6 +240,18 @@ public final class Par {
             BatchOptions options,
             Par combinePar,
             CombineBody<List<@Nullable R>, C> combineBody) {
+        /*
+         * The batch bind includes the still-pending terminal, so success cannot commit early and
+         * cancellation reaches a combine that has not been submitted. Both share one body tracker.
+         * The combine has its own unit, structurally under the batch; its token is not bound
+         * because the batch bind supplies its deadline and cascade. It declares UNKNOWN task type
+         * and no enqueue refusal, so it needs no admission diagnostic.
+         *
+         * Wait edges follow synchronous waits, not structural parentage: the caller waits for the
+         * batch and the combine; the batch only feeds values into the combine. A combine on the
+         * batch's pool adds no self-loop unless that pool is also the waiting caller's pool.
+         */
+
         ImmutableList<T> list = snapshotInputs(elements, unit);
         // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
         // and the frozen body-completion diagnostics report on the whole run.
@@ -461,8 +461,8 @@ public final class Par {
 
     /**
      * Logs what a unit's admission through this entry can say about the unit's options; never
-     * changes whether or how the unit is admitted, queued, or completed. Messages are delivered on a
-     * runtime-owned thread, so a logging handler that throws or blocks never reaches the caller.
+     * changes whether or how the unit is admitted, queued, or completed. Messages are delivered on
+     * a runtime-owned thread, so a logging handler that throws or blocks never reaches the caller.
      */
     void diagnoseAdmission(MultiTaskContext unit) {
         warnIfEnqueueRefusalInert(unit);
@@ -471,20 +471,21 @@ public final class Par {
 
     /**
      * Reports once per Par that a requested enqueue refusal cannot take effect here.
-     *
-     * <p>Only {@link SmartBlockingQueue#offer} reads {@code rejectEnqueue}, so on any other queue
-     * the option is inert: nothing tells the caller that the protection they opted into is not
-     * running. The diagnostic belongs on the submission path rather than at registration because
-     * options are per task and per batch: registration cannot know whether the option will ever be
-     * used. It stays a warning: throwing would fail every caller that legitimately runs on a plain
-     * pool.
-     *
-     * <p>The message claims only what the library knows. It cannot say what the executor will do
-     * with an element that cannot start immediately — an inline executor runs it, a bounded queue
-     * with an abort policy rejects it, a buffering queue holds it — so it reports the inert option
-     * and the fix, not the executor's behavior.
      */
     private void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
+        /*
+         * Only SmartBlockingQueue.offer reads rejectEnqueue, so on any other queue the option is
+         * inert: nothing tells the caller that the protection they opted into is not running. The
+         * diagnostic belongs on the submission path rather than at registration because options are
+         * per task and per batch: registration cannot know whether the option will ever be used. It
+         * stays a warning: throwing would fail every caller that legitimately runs on a plain pool.
+         *
+         * The message claims only what the library knows. It cannot say what the executor will do
+         * with an element that cannot start immediately — an inline executor runs it, a bounded
+         * queue with an abort policy rejects it, a buffering queue holds it — so it reports the
+         * inert option and the fix, not the executor's behavior.
+         */
+
         if (!unit.rejectEnqueue() || executorRuntime.enqueueRefusalEffective()) {
             return;
         }

@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-27
+- Partially superseded by: [ADR 0012](0012-contract-and-implementation-comment-layers.md), implementation-note and local-block placement
 - Decision scope: Retention and placement of explanatory comments in source, Javadoc, tests, and design documents
 - Supersedes: [decision-log](../design/decision-log.md), `inline-comment-audit-2026-10-09`, only its rejection of qualitative comment principles; rejection of numeric thresholds and mechanical gates remains in force
 
@@ -21,9 +22,9 @@ The 2026-10-09 comment audit rejected comment-count and line-length gates, and r
 ## Decision
 
 1. Minimize explanatory comments. Express behavior through names, structure, and tests where those already make the relevant fact clear. Remove comments that only restate behavior or provenance.
-2. Public Javadoc documents caller-visible behavior, including result meaning, boundaries, null conditions, and exceptions. It does not serve as a destination for implementation rationale.
+2. Public Javadoc documents caller-visible behavior, including result meaning, boundaries, null conditions, and exceptions. Implementation details useful in generated documentation use a separate `@implNote`, per [ADR 0012](0012-contract-and-implementation-comment-layers.md).
 3. Durable decisions and invariants spanning methods or components belong in the existing design or ADR source of truth. Avoid maintaining the same explanation in both that document and source.
-4. Keep a short local comment for a correctness-relevant invariant, ordering or race proof, or dependency behavior when the code and canonical documents do not make it clear. Keep it beside the statement when its position matters.
+4. Keep a short local comment for a correctness-relevant invariant, ordering or race proof, or dependency behavior when the code and canonical documents do not make it clear. Keep it beside the statement when its position matters; local class or method protocol blocks are also permitted by [ADR 0012](0012-contract-and-implementation-comment-layers.md).
 5. Test comments may explain a non-obvious interleaving or why an assertion detects a regression. Remove narration that the test structure already makes clear.
 6. Before moving or deleting a comment, ensure every distinct claim remains clear in its destination or is evident from the code, contract, or test.
 7. Do not use comment count, density, or length as a deletion criterion. Do not add mechanical comment-density or line-length gates.
@@ -31,7 +32,7 @@ The 2026-10-09 comment audit rejected comment-count and line-length gates, and r
 ## Alternatives Considered
 
 - **Ban all local comments.** Rejected because removing a nearby ordering or race proof can make a concurrency-sensitive sequence harder to review and change safely.
-- **Move implementation explanations into method Javadoc.** Rejected because Javadoc serves callers, while implementation rationale belongs with the local statement or the canonical design document.
+- **Move implementation explanations into method Javadoc.** Contract prose still serves callers; [ADR 0012](0012-contract-and-implementation-comment-layers.md) permits separate implementation notes and local protocol blocks while preserving nearby statement proofs.
 - **Measure comment length or density.** Rejected by the 2026-10-09 audit: such thresholds are easy to evade and do not distinguish repetition from necessary concurrency knowledge.
 
 ## Consequences

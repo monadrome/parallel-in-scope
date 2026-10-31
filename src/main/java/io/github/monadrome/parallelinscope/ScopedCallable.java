@@ -7,35 +7,24 @@ import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Central task wrapper with full lifecycle instrumentation.
+ * Executes a task with its scoped context, cancellation checkpoint, timing, and final observation.
  *
- * <p>Wraps a {@link Callable} with:
- *
- * <ul>
- *   <li>Context setup (TaskExecutionContext)
- *   <li>Cooperative cancellation checkpoint
- *   <li>Timing metrics published through the task's observation future
- *   <li>Workload-fit timing of the body when its entry or unit is declared {@code COMPUTE}
- *   <li>Cleanup on completion
- * </ul>
- *
- * <p>The active {@link TaskExecutionContext} is available to inner callables through {@link
- * TaskExecutionContext#current()}.
- *
- * <p>Timeline: {@code submitTime -> startTime -> endTime}
+ * <p>The previous {@link TaskExecutionContext} is restored on exit. Body exit is published only
+ * after the user body's {@code finally} has completed and its captured body reference has been
+ * released. Workload diagnostics must not replace the body's own value or failure.
  *
  * @param <V> return value type
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class ScopedCallable<V> implements Callable<V> {
 
-    /**
-     * The user body (plus any decorator chain), held in a one-way releasable slot. {@link
-     * #call()}'s finally clears it after the user body's own finally has exited, so neither this
-     * wrapper nor anything retaining it (for example the TTL wrapper) keeps the user closure
-     * reachable once the body has ended. Written by the worker thread only; read by the worker
-     * and by test probes, hence the volatile slot. Plain volatile reads and writes are enough: the
-     * slot only ever moves from set to cleared, so it needs no CAS.
+    /*
+     * The user body (plus any decorator chain), held in a one-way releasable slot. call()'s finally
+     * clears it after the user body's own finally has exited, so neither this wrapper nor anything
+     * retaining it (for example the TTL wrapper) keeps the user closure reachable once the body has
+     * ended. Written by the worker thread only; read by the worker and by test probes, hence the
+     * volatile slot. Plain volatile reads and writes are enough: the slot only ever moves from set
+     * to cleared, so it needs no CAS.
      */
     private volatile @Nullable Callable<V> delegate;
 
@@ -84,8 +73,9 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /**
-     * Runs the body inside its workload-fit timing, if it is screened. The timing ends before {@link
-     * #call()}'s cleanup begins and never throws, so the caller sees the body's own result or exception.
+     * Runs the body inside its workload-fit timing, if it is screened. The timing ends before
+     * {@link #call()}'s cleanup begins and never throws, so the caller sees the body's own result
+     * or exception.
      */
     private V callTimed(Callable<V> body) throws Exception {
         WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());

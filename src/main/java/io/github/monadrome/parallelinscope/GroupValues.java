@@ -19,11 +19,11 @@ import org.jspecify.annotations.Nullable;
  * returns {@code Object}. The order is the order the {@code par} calls were written, never the
  * order tasks completed in. Successful null values are allowed.
  *
- * <p>The snapshot is shallowly immutable and never blocks: it is built only after every member has
- * completed, from already-settled futures. User objects inside it are not copied or frozen.
+ * <p>The snapshot is shallowly immutable and never blocks: it contains only completed members'
+ * successful values. User objects inside it are not copied or frozen.
  *
- * <p>Types are enforced by the compiler; no runtime type information is stored or checked.
- * Raw types and unchecked casts can defeat this guarantee and are the caller's responsibility.
+ * <p>Types are enforced by the compiler; no runtime type information is stored or checked. Raw
+ * types and unchecked casts can defeat this guarantee and are the caller's responsibility.
  *
  * @param <V> the group's assembled member-value type
  * @since 0.3.0
@@ -33,7 +33,9 @@ public final class GroupValues<V> {
 
     private final ImmutableList<TaskKey<?>> keys;
 
-    /** Null-tolerant by design: {@code ImmutableList} rejects nulls, successful member values allow them. */
+    /*
+     * Null-tolerant by design: ImmutableList rejects nulls, successful member values allow them.
+     */
     private final List<@Nullable Object> values;
 
     private final @Nullable V typedValues;
