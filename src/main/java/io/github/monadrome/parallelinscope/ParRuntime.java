@@ -530,8 +530,9 @@ public final class ParRuntime implements AutoCloseable {
      * <p>Bodies are measured when either their entry or unit declares {@link TaskType#COMPUTE}.
      * Only a compute entry can acquire an entry issue and a {@code WARNING}; a compute unit can
      * independently acquire declaration drift and an {@code INFO}. Counts are cumulative, so two
-     * reports bound an interval. Direct executor submissions are not measured. See {@link
-     * WorkloadFitReport} for verdicts, calibration, and limitations.
+     * reports bound an interval. Library-admitted bodies are measured even when their executor
+     * runs them inline; work submitted directly to an executor outside library admission is not
+     * measured. See {@link WorkloadFitReport} for verdicts, calibration, and limitations.
      *
      * @return the current immutable report
      * @since 0.4.0

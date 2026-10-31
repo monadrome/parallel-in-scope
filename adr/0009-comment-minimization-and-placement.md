@@ -38,3 +38,9 @@ The 2026-10-09 comment audit rejected comment-count and line-length gates, and r
 ## Consequences
 
 The source tree should contain fewer repeated explanations while preserving local reasoning that is needed to understand correctness. Public Javadoc remains focused on caller-visible contracts, and durable design rationale has one maintained home. Applying the principles requires human judgment; comment volume alone cannot establish whether a comment is useful. The decision changes documentation practice only and has no runtime or API effect.
+
+## History
+
+The [original decision](archive/0009-comment-minimization-and-placement.md) preserves the wording
+before ADR 0012 changed implementation-note and local-protocol placement. The current record links
+the replacement rules in place; the successor contains their rationale.
