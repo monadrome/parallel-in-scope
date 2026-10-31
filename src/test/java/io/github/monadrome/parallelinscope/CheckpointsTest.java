@@ -475,6 +475,49 @@ class CheckpointsTest {
     }
 
     @Test
+    void durationCheckJoinWaitsForALiveTarget() throws Exception {
+        CountDownLatch releaseTarget = new CountDownLatch(1);
+        Thread target = new Thread(() -> {
+            try {
+                releaseTarget.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        AtomicReference<Throwable> joinerOutcome = new AtomicReference<>();
+        Thread joiner = new Thread(() -> {
+            try {
+                Checkpoints.checkJoin(target, Duration.ofSeconds(30));
+            } catch (Throwable failure) {
+                joinerOutcome.set(failure);
+            }
+        });
+        target.start();
+        joiner.start();
+        try {
+            // The Duration overload must forward its budget to the timed join: a joiner that only
+            // checks cancellation leaves the wait immediately instead of parking on the live
+            // target.
+            await().atMost(2, TimeUnit.SECONDS)
+                    .until(() -> joiner.getState() == Thread.State.TIMED_WAITING || !joiner.isAlive());
+            assertThat(joiner.getState()).isEqualTo(Thread.State.TIMED_WAITING);
+            assertThat(target.isAlive()).isTrue();
+            assertThat(joinerOutcome.get()).isNull();
+        } finally {
+            releaseTarget.countDown();
+            target.join(2000L);
+            joiner.join(2000L);
+            if (joiner.isAlive()) {
+                joiner.interrupt();
+                joiner.join(2000L);
+            }
+        }
+        assertThat(joinerOutcome.get()).isNull();
+        assertThat(target.isAlive()).isFalse();
+        assertThat(joiner.isAlive()).isFalse();
+    }
+
+    @Test
     void blockingAdaptersTranslateInterruptionsAndRestoreTheFlag() throws Exception {
         Thread.currentThread().interrupt();
         assertThatThrownBy(Checkpoints::rawCheckpoint).isInstanceOf(LeanCancellationException.class);
