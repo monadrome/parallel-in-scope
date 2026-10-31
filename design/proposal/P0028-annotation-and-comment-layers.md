@@ -1,6 +1,6 @@
 # 注解层与块注释层（共识稿）
 
-- 状态：进行中——注解层已落地（见 §实施记录）；块注释层与 C 类清理待规则确认
+- 状态：注解层已落地并通过 2026-10-31 独立复核（见 §实施记录）；块注释层经确认不落地，C 类清理保留为可选项
 - 日期：2026-10-28
 - 基线：`dev/v0.4.0` 工作树
 - 评审：Claude 主线分析 + Kimi K3.1 Pro 独立只读评审
@@ -80,17 +80,16 @@ E（JDK 移植标记）2、A（纯复述）0。逐条清单与 HTML 对照见本
 
 **`@CheckReturnValue`：**
 
-- `BatchOptions` 全部工厂和 wither：`inheritTimeout`、`timeout`、`parallelism`、
-  `taskType`、`rejectEnqueue`、`closeGrace`、`cancelOn`——全部返回新副本
-  （`BatchOptions.java`）。
-- `TaskOptions` 的工厂和 wither（`TaskOptions.java`）。
+- `BatchOptions` 与 `TaskOptions`：落地为**类级** `@CheckReturnValue`
+  （`BatchOptions.java`、`TaskOptions.java`），覆盖全部工厂和 wither。落地前全仓核实
+  不存在语句位置丢弃 getter 返回值的调用点，"类级误伤 getter"的顾虑未兑现。
 - one-shot 链的 `par`、`combine`、`combineValues`、`runAll`：前三种返回下一阶段，
   忽略后声明链无法继续；`runAll` 返回冻结结果（`GroupStart.java`、
   `GroupStep.java`、`CombinedGroupStep.java`）。
 **`@CanIgnoreReturnValue`：**
 
-- 所有 `orThrow()`（`TaskBatchResult.java`、`TaskGroupResult.java`、
-  `TaskGroupReport.java`）：返回 `this` 仅用于链式调用；忽略返回值不会跳过方法本身的
+- 所有 `orThrow()`（`BatchCombinedResult.java`、`TaskBatchResult.java`、
+  `TaskGroupResult.java`、`TaskGroupReport.java`）：返回 `this` 仅用于链式调用；忽略返回值不会跳过方法本身的
   失败抛出，因此独立 `result.orThrow();` 也是完整用法。
 - `GroupStart.closeGrace`、`GroupStart.cancelOn`：直接修改共享 draft 并返回同一
   阶段（`GroupDraft.java`）。
@@ -177,8 +176,8 @@ test/demo/verification 至少命中 26 / 1 / 0 个现有调用（见 §风险）
 
 #### 1.6 依赖就绪
 
-`com.google.errorprone:error_prone_annotations:2.47.0` 已通过 Guava 传递到
-compile classpath；`@VisibleForTesting` 来自 Guava 自身。无需新增依赖。
+`com.google.errorprone:error_prone_annotations:2.50.0`（由 Guava 33.7.2-jre 的 parent POM
+管理）已传递到 compile classpath；`@VisibleForTesting` 来自 Guava 自身。无需新增依赖。
 
 ### 2. 块注释层
 
@@ -346,10 +345,47 @@ options.parallelism(4);      // error: [CheckReturnValue] ...
 未落地：
 
 - 5–6 条协议块注释：当前根 `AGENTS.md` 仍是“禁止代码间注释”的绝对口径；
-  块注释层需要先按开放问题 1 收窄规则，否则会与现行规则冲突。
-- 30 条 C 类局部注释上移：留待块注释层建立后处理。
+  块注释层需要先按开放问题 1 收窄规则，否则会与现行规则冲突。（2026-10-31 复核
+  确认不落地，见下方记录。）
+- 30 条 C 类局部注释上移：留待块注释层建立后处理。（2026-10-31 复核改为：不依赖
+  块注释层，可独立推进，仍为可选项。）
 - 包级 `@CheckReturnValue`、`RestrictedApi`、`fullyLock()` 辅助方法重构：
   仍按开放问题 2–4 待定。
+
+### 2026-10-31：独立复核与收口
+
+Fresh-seat 只读复核确认注解层与代码一致——`@GuardedBy` 三处"无目标"结论
+（`ParRuntime`/`ExecutorWaitGraph`/`TaskExecutionContext`）、queue 的 `head`/`last`
+单锁试点、13 个 `fullyLock()` 路径窄抑制、`bulkRemove` 的 `ancestor` 移入临界区，
+均与源码相符。发现的问题与处置：
+
+- options 类级 `@CheckReturnValue` 与核心分析稿"方法级"口径矛盾：全仓核实零
+  getter 丢弃站点，维持类级；§1.1 已改为落地口径。
+- `ExecutionPhaseHintFuture.callableReleased` 的 `@VisibleForTesting` 移除：
+  `TaskGroup` 的两个测试探针在生产类中调用它，"仅测试可见"口径失真；探针注解
+  保留在 `TaskGroup` 一侧。
+- `ParRuntime.group()`/`groupInheriting()` 补 `@CheckReturnValue`：链入口返回值被
+  丢弃意味着组从未运行，链接口的类级注解接不住入口自身；CHANGELOG 与 v0.4 迁移
+  指南（en/zh）同步披露。
+- 事实修正：`error_prone_annotations` 传递版本为 2.50.0（Guava 33.7.2-jre parent
+  管理），§1.6 已改；`@CanIgnoreReturnValue` 台账补 `BatchCombinedResult.orThrow`。
+- 本提案记录之外的后续注解扩展（其他提交所加，补记于此）：`@Immutable` 扩展到
+  `ParRuntimeSnapshot`、`UnitSpec`、`TaskId`、`ThreadPoolStarvationReport`、
+  `Tuple2`；`Builder.workloadClock/announcements`、`TaskTypeMismatches(int)` 获得
+  测试可见性注解；`WorkloadFitReport` 标 `@Immutable`。
+- 块注释层（§2）确认不落地：现行 `AGENTS.md` 只允许语句级就近证明，且五条协议均
+  有 design/ 文档承载（cancellation-propagation、task-group-*、sliding-window-refill、
+  draining-queue-contract、task-graph）；开放问题 1 随规则收窄（提交 `5d71449`，
+  与本提案同一提交）已失效，关闭。
+- 开放项不变：`MustBeClosedChecker` 100 个测试站点待清理（WARN 常驻）、
+  `RestrictedApi`、包级 `@CheckReturnValue`、`fullyLock()` 辅助方法、
+  `submissionExecutorIsAdapter` 与 `TaskExecutionContext` 计时 getter 是否标注、
+  `awaitQuiescence`/`awaitBodyCompletion` 布尔结果的豁免语义。
+
+验证：`mvn clean verify`（1034 测试，0 失败）、`mvn spotless:check`、
+`check-english-docs.py`、`check-local-links.py`、`check-design-routes.py`、
+`check-api-surface.py`（0 API 变更）通过。本地 `PATH` 的 `javap` 是 JDK 8，
+api-surface 需以构建 JDK 的 `javap` 运行。
 
 ## 评审记录
 

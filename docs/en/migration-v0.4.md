@@ -46,10 +46,12 @@ are unchanged. These API removals have no compatibility shims; recompile consume
 
 ## Static contract annotations
 
-The API now carries Error Prone annotations without changing runtime behavior. Use the returned
-copy from every `BatchOptions` and `TaskOptions` wither and the returned stage from each group
-`par`, `combine`, and `combineValues`; use the frozen result from `runAll`. Standalone
-`result.orThrow();` remains valid because the method itself performs the failure check.
+The API now carries Error Prone annotations without changing runtime behavior. Consume the value
+returned by `ParRuntime.group(String, Duration)` and `ParRuntime.groupInheriting(String)`:
+dropping it silently declares nothing and runs no group. Use the returned copy from every
+`BatchOptions` and `TaskOptions` wither and the returned stage from each group `par`, `combine`,
+and `combineValues`; use the frozen result from `runAll`. Standalone `result.orThrow();` remains
+valid because the method itself performs the failure check.
 
 Close resources returned by `ParRuntime.Builder.build()` and
 `openThreadPoolStarvationObservation()` with try-with-resources. Downstream Error Prone builds
