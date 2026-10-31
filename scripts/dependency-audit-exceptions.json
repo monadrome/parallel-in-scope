@@ -1,0 +1,21 @@
+{
+  "exceptions": [
+    {
+      "kind": "maven-dependency",
+      "component": "org.junit.jupiter:junit-jupiter",
+      "module": "demo",
+      "reason": "demo keeps a Java 8 test runtime baseline; see adr/0011"
+    },
+    {
+      "kind": "maven-dependency",
+      "component": "org.junit.jupiter:junit-jupiter",
+      "module": "verification",
+      "reason": "verification consumer runs on JDK 8 in CI; see adr/0011"
+    },
+    {
+      "kind": "toolchain",
+      "component": "Maven",
+      "reason": "runner default accepted; pinning deferred"
+    }
+  ]
+}

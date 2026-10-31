@@ -682,6 +682,36 @@ def collect_toolchain(root: Path) -> list[Item]:
     return items
 
 
+def load_exceptions(root: Path) -> list[dict[str, str]]:
+    path = root / "scripts" / "dependency-audit-exceptions.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FatalAuditError(f"cannot read {path}: {exc}") from exc
+    entries = data.get("exceptions", [])
+    if not isinstance(entries, list):
+        raise FatalAuditError(f"{path}: exceptions must be a list")
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def apply_exceptions(items: list[Item], exceptions: list[dict[str, str]]) -> list[Item]:
+    for item in items:
+        for entry in exceptions:
+            if entry.get("kind") and entry["kind"] != item.kind:
+                continue
+            if entry.get("component") and entry["component"] != item.component:
+                continue
+            if entry.get("module") and entry["module"] != item.module:
+                continue
+            item.status = "accepted"
+            reason = str(entry.get("reason", "accepted exception"))
+            item.reason = f"{reason}; {item.reason}" if item.reason else reason
+            break
+    return items
+
+
 def summarize(items: list[Item]) -> dict[str, int]:
     return dict(sorted(Counter(item.status for item in items).items()))
 
@@ -733,6 +763,7 @@ def render_markdown(items: list[Item], meta: dict[str, str]) -> str:
         f"- Audited ref: `{meta['ref']}` @ `{meta['commit'] or 'unknown'}`",
         f"- Generated: `{meta['generated_at']}`",
         "- Policy: stable releases only. Major upgrades need a manual Java 8 review.",
+        "- Accepted exceptions are intentional; see `scripts/dependency-audit-exceptions.json`.",
         "- Triage: run the `dependency-audit` skill or review this issue; do not upgrade a major without a Java 8 check.",
         "",
         "## Summary",
@@ -811,7 +842,7 @@ def audit(root: Path, timeout: float, offline: bool, token: str | None) -> list[
     items.extend(collect_actions(root, timeout, offline, token))
     items.extend(collect_pypi(root, timeout, offline))
     items.extend(collect_toolchain(root))
-    return items
+    return apply_exceptions(items, load_exceptions(root))
 
 
 def main(argv: list[str] | None = None) -> int:
