@@ -246,10 +246,11 @@ Documentation must stay readable and correct without the Git object database:
   make the document wrong by default.
 - Write a pointer so that it reads on its own: when the target holds a single
   sentence, write that sentence at the pointer instead of a jump to it.
-- `scripts/check-doc-refs.py` enforces these rules on live documents. `BACKLOG.md`
-  (pinned to a baseline commit), `todo.md` (scratch), analysis inputs under
-  `design/analysis/`, and the changelog are exempt, so they may still carry
-  hashes; do not add new ones to them either.
+- `scripts/check-doc-refs.py` enforces these rules on live documents. Until the
+  maintainer rewrites them, `BACKLOG.md`, `todo.md` (scratch), analysis inputs
+  under `design/analysis/`, the changelog, and the dated records under
+  `verification/` and `tools/` are exempt and may still carry hashes; do not
+  add new ones. Most hashes they cite are already unreachable from any branch.
 
 ## Autonomous Completion
 

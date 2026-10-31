@@ -80,6 +80,9 @@ analysis input is [analysis/unbounded-timeout-factory-proposal.md](analysis/unbo
 - The cost is the promise, not the code: a public seam needs a contract for paired replacement
   (`build()` does not check it today), a list of controlled and uncontrolled waits, and a lasting
   constraint on the deadline mechanism.
+- A separate test artifact exposing the seams: it can reach package-private seams only through a
+  new public bridge type in the main artifact (a public SPI under another name) or a split package,
+  which does not work on the module path.
 - Not used as a reason: "users can instrument `System.nanoTime()`". It is a JIT intrinsic, JDK
   timers and `parkNanos` bypass it, and the trick breaks across versions.
 
@@ -119,14 +122,18 @@ and [interruption-contract.md](interruption-contract.md).
   enabled a path that pulls user code onto the submitting thread.
 - A per-task `runOnCallerThread` option: removed before 0.3.0. Double execution was never the
   problem (`ThreadPoolExecutor` does not both enqueue and reject, and the phase CAS runs a task at
-  most once). The inline path had three other defects, all from borrowing a thread without
-  isolating it: the task's restored interrupt flag leaked onto the caller or submitter thread; that
+  most once). The inline path had three other defects on a borrowed thread: the task's restored interrupt flag leaked onto the caller or submitter thread; that
   dirty flag made the submit loop abandon the rest of the batch (12 elements ran 3 and reported 9
   `SUBMISSION_FAILURE`); and synchronous occupation of the submitting thread deadlocked in a way no
   deadline could rescue, because bind came after submission. The executor's own handler expresses
   the same choice once, where the pool is built.
 - A rejected terminal combine is recorded as `SUBMISSION_FAILURE` and never runs inline: its
   submission happens on a convergence callback thread that the scope does not own.
+- Refilling the sliding window directly from a completion listener: first rejected because, under
+  saturation, `CallerRunsPolicy` makes the completing worker run the next element inline, so call
+  depth grows with each consecutive rejection, and user code enters the framework completion path
+  that way. It was later adopted with a non-reentrant claim gate that turns the recursion into a
+  loop; see [sliding-window-refill.md](sliding-window-refill.md).
 - One shared relay thread for all batches: rejected in review because `runOnCallerThread` inline
   fallback would serialize user code from unrelated batches onto one thread. The reason weakened when
   the option was removed, but `CallerRunsPolicy` causes the same serialization.
@@ -168,6 +175,12 @@ that still constrain bounded waiting are:
 - Keeping the occupancy count in `MultiTaskContext`: it would pollute the cancellation attribution
   carrier.
 - Polling instead of signalling: needless wake-ups and latency when both signals already exist.
+- Renaming the drain wait to `awaitTermination` and adding a new execution-exit `awaitQuiescence`:
+  proposed because the old wait returned once futures drained while user code could still run, so
+  "quiescence" named the wrong thing. Not done; instead `ParRuntime.awaitQuiescence` itself was
+  changed in 0.3.0 to also wait for execution exit, which removed the mismatch without a second
+  method. A group-level `awaitTermination` was not added because one capability would have had two
+  entries.
 
 ### Executor transparency (2026-09-25)
 
@@ -180,6 +193,11 @@ read it.
 - Making `build()` reject executors it cannot see through: rejected because it would also refuse
   `ForkJoinPool`, virtual-thread executors, and framework-managed pools, and the library has no right
   to assume a user pool's shape on Java 8.
+- Classifying virtual-thread executors by probing class names: rejected because it is a heuristic
+  guess, a wrong classification is worse than `UNKNOWN`, and observation must not invent facts; on
+  the Java 8 baseline there is no type to test with `instanceof`.
+- Installing a `SmartBlockingQueue` for the user at registration: rejected because a
+  `ThreadPoolExecutor`'s work queue is fixed at construction and the user owns the pool.
 
 ## Group and batch API
 
@@ -195,6 +213,10 @@ still apply to any reusable-declaration proposal:
   states, turning configuration errors into pending futures.
 - A definition that stores `Callable`s: an immutable definition still captures short-lived and
   mutable objects through closures.
+- A definition that stores a `Supplier<Callable<?>>` factory: it only moves the capture into
+  another layer.
+- A runtime check of whether a lambda captures anything: unreliable, because capture depends on
+  compiler and JVM implementation and can be bypassed.
 - A generic input or dependency bag: a function stored in the definition can still capture other
   objects, so the bag only moves the object graph by hand.
 - A single-use definition: it would lose concurrent reuse of a stable structure and bring back a
@@ -263,6 +285,13 @@ Narrowly adopted as `ImmediateResult.successful()` and three-way `fold` (`propos
 - `fold` on `TaskCompletion`: an observation record is not a second consumption entry.
 - A single-task synchronous fetch entry: a one-element `map` and a one-member group already express
   it, and no downstream need was shown.
+- Keeping the status quo and documenting a full switch: leaves "forgetting a case" to the user.
+- A step builder with every outcome branch required: the simplest call site needs one lambda per
+  outcome, and every new `TaskOutcome` value breaks every call site.
+- A visitor interface: Java 8 has no exhaustiveness check, so it breaks call sites like the step
+  builder and adds anonymous-class boilerplate.
+- A match chain directly on the live future without a snapshot: each handler reads the token at its
+  own time, keeping the read skew the change removes.
 
 Reopen with real consuming code that `fold` cannot express and existing entries cannot serve.
 
@@ -306,8 +335,8 @@ data and executor waits are read from `ParRuntime.executorWaitReport()`
   concept next to Guava's future-plus-callback idiom, and a runtime-wide listener list is
   configuration invisible at the submission point.
 - A `TaskFuture` timing triple for immediate callbacks (an unadopted variant): the record gives no
-  reason for not adopting it. The question became moot when `Task` and `TaskFuture` became
-  package-private with the synchronous exit; a reopener must first show a public live future.
+  reason for not adopting it. (Implementer's note: `Task` and `TaskFuture` are package-private
+  since the synchronous exit, so the question has no public target today.)
 - The request-scoped `TaskGraphObservationScope` and its report (the adopted variant), and the
   variants that deleted or kept `ParRuntimeDeadlockPolicy`: all removed in 0.4, because a request
   scope cannot see the cross-request cycle and its static queries ignored the policy and read
@@ -327,7 +356,8 @@ Rejected alternatives are in [ADR 0008](../adr/0008-tasktype-as-workload-fit-dia
   refactor proposals.
 - Resizable blocking queue experiment (three variants: condition, monitor, future-coordinated):
   removed on the v0.2 line; the removal commit called them exploratory and not referenced by the
-  engine. None entered a contract, and the implementations were kept only on a local branch. A future
+  engine. None entered a contract. The removal commit names a preservation branch that does not exist; the
+  sources were kept only on a local branch. A future
   implementation must answer, without relying on timing: which
   object makes delegate, capacity, and generation appear atomically related; where a waiter sleeps
   and how it learns its delegate was replaced; what keeps a reserved drain head valid against take,
@@ -392,7 +422,7 @@ searches surfaced obsolete contracts as if they were current, and links into fro
 upkeep. Rejected: keeping the archives as frozen read-only trees, because those costs remain while
 the distilled reasons already answer "why not".
 
-### Process decisions
+### Process decisions: edit links, commit autonomy, proposal mechanism
 
 - MkDocs edit links follow the publishing branch: `edit_uri` stays `edit/main/docs/`. A per-branch
   value was rejected because the dev-to-main merge is a manual PR with no automation to flip it, and
@@ -416,11 +446,11 @@ the distilled reasons already answer "why not".
 - Low adoption does not prove that the library has no users or poor quality.
 - The benchmark deferral is not lifted because "marketing is cheap"; it needs a real downstream
   threshold.
-- No community or compliance platform is built by default; there is no demand that needs one.
+- No community or compliance platform is built by default (reason not recorded).
 - The CompletableFuture, async, or retry pipeline is not restored: the comparison with HKJ only
   confirmed the boundary between future settlement and execution exit.
-- Branch or worktree deletion instructions found in historical sessions are not executed; they
-  belonged to their own sessions.
+- Branch or worktree deletion instructions found in historical sessions are not executed (reason not
+  recorded).
 - Listener-error diagnostics (`proposal:P0016`): a permanently pending report is not re-reported,
   since the re-entry deadlock behind it was fixed, and an internal error injection is not used as a
   natural public counterexample.
@@ -444,4 +474,4 @@ Historical observations are not current defect evidence, and a carried item is n
 | OpenTelemetry sessions (2026-10-09/10) | Unexecuted SDK and agent verification is [P0013](proposal/P0013-opentelemetry-verification.md). Withdrawn as unproven: "the agent works everywhere", "propagation always duplicates spans", "OTel necessarily violates TTL I3" |
 | PR #56 reland branches | The checkpoint `TIMEOUT` escalation gap was reproduced and fixed in [task-group-cancellation.md](task-group-cancellation.md); the RUNNING-clock fallback is a new policy choice in [P0020](proposal/P0020-deadline-attribution-policy.md), not a proven defect. Failure-read and interruption regressions were fixed in [interruption-contract.md](interruption-contract.md); a single classification carrier remains a [P0006](proposal/P0006-execution-protocol-consolidation.md) candidate. The O-13/O-14 teaching items (empty `failedTaskResult()` for a pure timeout, ambiguous `FAIL_FAST` history) are in [P0022](proposal/P0022-documentation-maintenance.md) with current semantics kept |
 | OSS audits (2026-10-09) | Adoption path in [P0017](proposal/P0017-oss-adoption-path.md), artifact verification in [P0023](proposal/P0023-artifact-verification.md). Benchmarks stay deferred until a real downstream threshold exists; `closeAndAwait` only joins two existing steps without removing a failure mode, so no new API |
-| SSOT audit, question 2 (2026-10-29) | MkDocs `edit_uri` stays `edit/main/docs/` (decided under "Process decisions"); the follow-up about publishing-time link flipping is BACKLOG O-18 |
+| SSOT audit, question 2 (2026-10-29) | MkDocs `edit_uri` stays `edit/main/docs/`, because the site is published only from `main`; the follow-up about publishing-time link flipping is BACKLOG O-18 |

@@ -64,6 +64,27 @@ class CheckDocRefsTest(unittest.TestCase):
             ],
         )
 
+    def test_hash_arguments_to_other_git_commands_are_violations(self):
+        self.write(
+            "design/contract.md",
+            "# Contract\nRun `git worktree add /tmp/x 2b2e3ad0`.\nThen `git checkout 9784312`.\n"
+            "Plain `git diff --check` is fine.\n",
+        )
+        self.assertEqual(
+            [error.split(": ")[1] for error in docs.violations(self.root)],
+            ["hash-based retrieval", "commit-hash reference", "hash-based retrieval"],
+        )
+
+    def test_digit_hashes_need_commit_context(self):
+        self.write(
+            "design/contract.md",
+            "# Contract\nRemoved in 0.3.0 (9784312).\nBuffers hold `8388608` bytes and `10000000` ns.\n",
+        )
+        self.assertEqual(
+            docs.violations(self.root),
+            ["design/contract.md:2: commit-hash reference: Removed in 0.3.0 (9784312)."],
+        )
+
     def test_hex_like_words_and_relative_links_are_allowed(self):
         self.write(
             "design/contract.md",
