@@ -239,7 +239,9 @@ deadline、bind 与归因状态机）。历史来源：`proposal:P0025`（intern
 公开面没有成员句柄，被收养成员也不交给执行器，不存在可选择的中断意图。更早的时钟域评审驳回过
 「普通 bound 直消或父传 `cancel(false)` 一律升级为 `true`」：Guava 沿 futureToken→allAsList 链先以
 `wasInterrupted()=false` 取消输入，聚合回调的 `cancel(true)` 落在已终态 future 上是 no-op，反向验证
-在旧代码下全部通过；该区分随 §5.1 的意图移除失去对象，不重提。
+在旧代码下全部通过；该区分随 §5.1 的意图移除失去对象，不重提。同轮还驳回「combine 超时回归须断言
+token 归因」：评审的故障注入直接把批次决定写成 `TIMEOUT`，生产路径不可达（只有 timer 能提交
+`TIMEOUT`），而业务 `TimeoutException` 按契约恒为 `USER_FAILURE`，与 token 状态无关。
 
 ## 6. 速查表
 

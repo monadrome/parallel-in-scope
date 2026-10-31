@@ -74,6 +74,9 @@
 11. **Java 8 与 Java 21**：公共 API 只依赖 `ExecutorService`；虚拟线程只是另一种 supplied
     executor；Java 8 主源码不直接链接 Java 21 API，相关能力只能通过可选扩展注入。
 
+原决定另列为明确不做、正文未给理由的三项：不默认使用 `ForkJoinPool.commonPool()`；不根据父任务
+上下文自动选择另一个 `Par`；`GlobalPar` 不负责关闭用户创建的 executor。
+
 ## Alternatives Considered
 
 - **每次 `map` 传入 executor 或 executor name。** 拒绝：资源选择和业务调用耦合，重复选择资源，

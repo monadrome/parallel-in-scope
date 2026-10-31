@@ -252,5 +252,10 @@ queue 不在本次机制变更范围。
   future；饥饿是执行布局限制，不是同步出口的活性缺陷。不合作的执行与 `execute` 的墙钟耗时限制见 §4。
 - 「`SUCCESS` 与已记录失败可能并存」：`SUCCESS` 要求 future 成功，提交失败的 phase claim 排斥执行进入
   任务代码，合法路径不可达；只在内部矛盾输入下表现为异常形状差异。
+- 「结果在 `published` 之前已经冻结，第二个 gate 多余」：`converge` 之前构造的是内部
+  `TaskGroupReport`，`ImmediateResult` 在 `published` 之后的 `finish` 中冻结；gate 保留后续回调的
+  暂停点，不能按错误的冻结顺序移除。
+- 「『original cause』可能误指原执行异常」：指南指存储的 Throwable，读取以它为
+  `ExecutionException` 的 cause；取消包装下的原执行异常在下一层 cause，两层 identity 均有回归。
 - 「deadline 读取测试须先用 latch 证明执行已开始」：断言对象是冻结读取的形状，执行是否已开始都落
   `TIMEOUT`，读取结果相同。
