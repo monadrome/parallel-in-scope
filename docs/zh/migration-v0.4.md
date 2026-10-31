@@ -255,3 +255,13 @@ for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicCom
   单个执行器就是自环。`toString()` 取代 `executorEdges()` 与 `taskEdges()`。
 - 报告在运行时的整个生命周期内累积，并合并不同请求的等待。没有「单个请求的结论」：需要对某段代码
   下结论时，像测试那样让它跑在一个专用的 `ParRuntime` 上。
+
+## 批次输入快照
+
+`Par.map` 与 `mapAndCombine` 在准备任务前，通过 `ImmutableList.copyOf` 浅复制所有非空输入
+集合，包含 List；顺序链表不再逐项按下标遍历。复制期间不要无同步地修改非并发集合，浅复制也
+不会隔离元素对象本身的修改。
+
+null 输入元素现在会在任何 mapper 或 combine body 执行前抛出 `NullPointerException`，不再
+由未检查的调用传入 mapper。调用前移除或替换 null 元素。`map` 对 null 集合仍返回空批次；
+`mapAndCombine` 仍拒绝 null 或空集合。mapper 成功返回 null 的语义不变。

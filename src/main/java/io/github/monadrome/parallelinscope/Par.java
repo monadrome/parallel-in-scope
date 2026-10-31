@@ -106,9 +106,10 @@ public final class Par {
     /**
      * Executes a batch using the executor bound when the owning {@link ParRuntime} was built.
      *
-     * <p>The supplied elements are snapshotted on entry unless the collection is already a {@link
-     * List}, in which case callers must not structurally mutate it while this method runs. A
-     * {@code null} or empty collection returns an empty result without submitting work. When
+     * <p>The supplied elements are shallow-copied into an immutable input-ordered snapshot before
+     * task preparation; elements must be non-null. Callers must not mutate a non-concurrent
+     * collection while it is being copied. A {@code null} or empty collection returns an empty
+     * result without submitting work. When
      * invoked within another scoped task, the child batch inherits cancellation and cannot outlive
      * its parent's deadline. The selected executor never changes per call and is not owned by this
      * {@code Par}. Once the owning {@link ParRuntime} is closed, this method throws {@link
@@ -129,6 +130,7 @@ public final class Par {
      * @param function synchronous mapping function, run at most once for each submitted element; it
      *     may return {@code null}, which completes the element as {@code SUCCESS} with a null value
      * @param options immutable per-batch request; it cannot select an executor
+     * @throws NullPointerException if the input contains a null element
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call
      * @throws IllegalStateException if the owning ParRuntime has begun shutdown
@@ -169,6 +171,7 @@ public final class Par {
      * @param combineBody the terminal combine body; it may throw any checked exception, recorded as
      *     {@code USER_FAILURE} with the original cause
      * @return the frozen element results plus the terminal combine's result and observation
+     * @throws NullPointerException if the input contains a null element
      * @throws IllegalArgumentException if {@code elements} is null or empty, if the options declare
      *     an inherited timeout and no scoped task encloses this call, or if {@code combinePar}
      *     belongs to a different {@link ParRuntime}
@@ -207,6 +210,16 @@ public final class Par {
         return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combineBody);
     }
 
+    /** Copies input references while releasing the admitted token if snapshot validation fails. */
+    private static <T> ImmutableList<T> snapshotInputs(Collection<T> elements, MultiTaskContext unit) {
+        try {
+            return ImmutableList.copyOf(elements);
+        } catch (RuntimeException | Error failure) {
+            unit.cancellationToken().cancel(false);
+            throw failure;
+        }
+    }
+
     private MultiTaskContext admitUnit(UnitSpec spec, int taskCount, @Nullable MultiTaskContext parent) {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(spec, taskCount)
                 .structuralParent(parent)
@@ -239,7 +252,7 @@ public final class Par {
             BatchOptions options,
             Par combinePar,
             CombineBody<List<@Nullable R>, C> combineBody) {
-        List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
+        ImmutableList<T> list = snapshotInputs(elements, unit);
         // The tracker covers the elements and the terminal combine alike, so the body-exit barrier
         // and the frozen body-completion diagnostics report on the whole run.
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size() + 1);
@@ -421,7 +434,7 @@ public final class Par {
             Function<T, Callable<R>> callableMapper,
             MultiTaskContext unit,
             BatchOptions options) {
-        List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
+        ImmutableList<T> list = snapshotInputs(elements, unit);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         BodyCompletionTracker bodyCompletion = BodyCompletionTracker.create(list.size());
         List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())

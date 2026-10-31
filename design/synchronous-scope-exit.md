@@ -160,6 +160,29 @@ MUST 落到 `AssertionError`，不被 default 分支吸收：新增 `TaskOutcome
 不消费中断。被否决的平行快照类型、typestate 链与单任务获取入口见
 [decision-log.md](decision-log.md)。历史来源：`proposal:P0019`。
 
+### 输入快照与观测屏障
+
+非空批次输入 MUST 在任何任务准备前浅复制为输入顺序的不可变列表，包含原本为 List 的输入，
+避免顺序链表逐项下标读取的平方级成本。输入元素 MUST 非 null；复制失败 MUST 结束已经准入的
+单元 token，释放其父传播链接，而不是留下永不绑定的运行中子单元。复制仍在该单元 deadline
+预算内；不承诺无同步并发修改普通集合时的快照一致性。null 集合与空集合保持各入口原有规则，
+成功 null 结果不变；迁移见 0.4 指南。
+
+用户代码改前改后均为 `par.map(items, mapper, options).valuesOrThrow()`；移除的是顺序输入的重复
+遍历，以及只等待观测发布却提前收集完整观测列表的成本，不增加公开入口。
+
+同步冻结 MUST 等待元素观测发布或耗尽既有清理预算。未请求内部完整观测列表时，这个屏障
+MUST NOT 收集每个观测值或构造完整聚合结果列表；使用不收集值的 Guava 成功组合，观测构造
+异常 MUST 保持可见，不能把失败输入当作成功发布。完整列表只在内部观测入口被请求时惰性
+构造，其 future MUST 保持引用稳定、忽略取消，列表仍只读并保留原单元素观测对象。
+内部 `awaitBodyCompletion` 返回 true 时，既有完整列表 future 也 MUST 已完成；只等待轻量
+屏障不足以保证随后注册的完整列表监听器已发布。
+
+最终快照仍按每个元素的 settle pin 冻结结果，并从可用观测读取最终时间；MUST NOT 用较晚的
+共享 token 状态替换落定归因，也 MUST NOT 在返回后补齐缺失观测。body 退出、future 终态、
+观测发布三者保持独立；body/观测清理共用一个预算起点。仅惰性化同一个聚合列表而继续在
+同步出口等待它，不能消除主路径收集成本；直接复用所有原观测也会丢失归因校正。
+
 ## 4. 中断与有界清理
 
 map/runAll 不声明 InterruptedException；等待阶段用 Guava Uninterruptibles，退出恢复标志。

@@ -103,6 +103,13 @@
 
 ### Fixed
 
+- Snapshot nonempty batch inputs with `ImmutableList.copyOf` in both `map` and `mapAndCombine`,
+  avoiding quadratic indexed traversal of sequential lists. Null input elements now fail before
+  any task runs; successful null results and the existing empty-input rules are unchanged.
+- Wait for batch observation publication without collecting its values on the synchronous exit.
+  The internal full observation-list view is initialized only when requested, remains shared and
+  read-only, and does not change settle attribution, missing frozen observations, or cleanup budgets.
+
 - Deliver the once-per-`Par` inert `rejectEnqueue` warning from a runtime-owned thread instead of the
   submitting thread. A log handler that threw used to fail the submission before any body ran, and
   one that blocked delayed it; a failing handler or a delivery that cannot start now only loses the

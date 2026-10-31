@@ -282,3 +282,15 @@ for (ExecutorWaitReport.Component cycle : runtime.executorWaitReport().cyclicCom
 - The report accumulates for the runtime's lifetime and combines waits from separate requests.
   There is no per-request verdict: to judge one piece of code, run it against a dedicated
   `ParRuntime`, as a test would.
+
+## Batch input snapshots
+
+`Par.map` and `mapAndCombine` now shallow-copy every nonempty input collection with
+`ImmutableList.copyOf` before preparing tasks. Sequential lists no longer incur indexed traversal
+for every element. Do not mutate a non-concurrent collection while it is being copied; changing
+an element object is not isolated by a shallow copy.
+
+Null input elements now throw `NullPointerException` before any mapper or combine body runs,
+instead of being passed to the mapper by unchecked callers. Remove or replace null elements before
+calling either entry point. Null collections still mean an empty batch for `map`; `mapAndCombine`
+still rejects null or empty collections. Successful null mapper results remain valid.
