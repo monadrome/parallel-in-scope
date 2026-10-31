@@ -100,7 +100,7 @@
 | PR #56 / `c4ddfc7`：穷尽匹配及 B 系列余项 | 原未跟踪穷尽匹配稿全文未找到；历史提交与 PR 正文可恢复的 typestate/单任务结果目标进 `proposal:P0019`（后以 `ImmediateResult.fold` 落地，见 2026-10-27 行），不补造签名、不恢复 async 入口。O-13 的纯超时 firstException 为 null 与 O-14 的 FAIL_FAST 执行历史歧义进 P0011，保留当前语义并说明消费方式；O-15 的 API diff 已实现 |
 | Kimi/Codex close 评审：报告与 ISSUE 诊断 | 基础重入死锁已由 `0867df5` 修复；P0016 的 listener Error 诊断遗漏及防御性双 Error 原因保全经当前回归修复，并入 [图契约](task-graph.md)。不重报永久 pending，不把内部错误注入当自然公开业务反例 |
 | Claude `67244035`、Codex `01a120ae`：OSS 审计与互盲比较 | 选型、首用、贡献职责与公开入口进 [P0017](proposal/P0017-oss-adoption-path.md)；构件身份/消费者/发布追溯由 [P0023](proposal/P0023-artifact-verification.md) 继续承接，错误发布摘要已修。CHANGELOG/BACKLOG/文档语义由 P0022 承接。陈旧本地 main、同名本地 install、旧 jar/404/CI/PR 数量不作为当前事实；“低采用量”不证明无用户或库质量差 |
-| OSS 审计后续选择：snapshot 与 API diff | dev push/manual + UTC 日限流已在现行 snapshot workflow；API diff、JDK 25、dev 贡献基线、英文 demo 的中文说明也已实现。移除“新建这些机制”的旧建议；日期门禁不是同源码构件身份验证，实际部署/下载校验仍归 P0018 |
+| OSS 审计后续选择：snapshot 与 API diff | dev push / 每日 schedule / manual + UTC 日限流已在现行 snapshot workflow（schedule 只从默认分支副本触发，主线文件需随开发线同步）；API diff、JDK 25、dev 贡献基线、英文 demo 的中文说明也已实现。移除“新建这些机制”的旧建议；日期门禁不是同源码构件身份验证，实际部署/下载校验仍归 P0018 |
 | OSS 弱候选：benchmark、组合关闭、治理平台 | benchmark 仍按既有暂缓及真实下游门槛评估，不凭“做营销很便宜”解除。closeAndAwait 只减少现有两步拼接，尚未证明解决有界排空/共享资源的失败模式，本轮不提出新 API；优先用现有入口讲清职责。javadoc 警告先实测分类；Automatic-Module-Name、重建复现和升级追溯按 P0018 评估；不默认建设社区或合规平台 |
 | 历史 Javadoc 审计的零文档结论 | `34a0027` 已在 P0012 入库之前补 TaskGroupResult 访问器文档；清掉迁移误带的过时待办，不能假称这项实现源自 P0012。核心源码访问器与实现说明已由 ADR 0012 的分层修正承接；测试余项见 [P0029](proposal/P0029-test-comment-maintenance.md) |
 | 四代源码/契约审计、HKJ 异步比较、通知/purge 简化 | 已落地的 runner 交接、事件补窗、终态跳过、Monitor 排空、时钟域、预算查询、批次汇总、快照与失败 helper 不重新立项。剩余请求取消、共享预算、子树确认、内部协议/分配/诊断与具名输入分别由 P0001/P0004–P0010 承接。HKJ 的 Future settled 与 body-exit 对比是边界佐证，不恢复 CF/async/重试管道 |
