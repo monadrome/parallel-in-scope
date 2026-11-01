@@ -26,10 +26,10 @@ interleaving explorer does not control. Test the narrow window instead.
 mvn test-compile surefire:test@lincheck-test
 ```
 
-`mvn test` also runs these tests through the same execution. Do not use
-`-Dtest='*LincheckTest'`: the property overrides the default execution's
-excludes, so the class runs once with Mockito's agent and once in the isolated
-fork.
+`mvn test` also runs these tests through the same execution. Do not pass
+`-Dtest=<pattern>` expecting a single run: Surefire's `test` property overrides
+the excludes in every execution, so a matching class runs once in `default-test`
+and again in `lincheck-test`. For a single Lincheck run use the command above.
 
 The tests use 10,000 invocations. That is deliberate: an early probe with 5
 invocations missed a lost update that 10,000 reproduced. Do not lower the count
@@ -54,13 +54,21 @@ declares. Lincheck 3.7's transitive 1.14.12 does not recognize the JDK 25
 class-file version and otherwise breaks Mockito's inline mock maker even in the
 default execution.
 
+This isolation is Surefire-only. An IDE that runs the whole package in one JVM
+can still put the Lincheck test after a Mockito test and reproduce the agent
+interference; run the Lincheck class alone when that happens. Run `mvn test` for
+the verified configuration.
+
 ## Relationship to PIT and Java 8
 
 - Lincheck is a `test`-scope dependency; Kotlin/ByteBuddy/ASM never enter the
   published artifact or its runtime classpath.
-- PIT runs its own instrumentation and should not run Lincheck tests in the same
-  mutation pass. Run PIT with the deterministic tests
-  (`CancellationTokenTest`, `CancellationTokenBindRaceTest`) and record the
-  Lincheck tests as dynamic interleaving evidence, not mutation evidence.
+- PIT runs its own instrumentation and must not run Lincheck tests in the same
+  mutation pass. The POM's `excludedTestClasses` keeps `*LincheckTest` out of
+  PIT discovery even though the default `targetTests` wildcard and
+  `scripts/run-pit-core.sh` select the whole package; the mutation pass still
+  uses the deterministic tests (`CancellationTokenTest`,
+  `CancellationTokenBindRaceTest`). Record Lincheck results as dynamic
+  interleaving evidence, not mutation evidence.
 - The tests compile at release 11 and run on JDK 25, the same as the rest of the
   test suite; the library bytecode remains release 8.

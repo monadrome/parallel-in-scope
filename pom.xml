@@ -59,6 +59,8 @@
         <errorprone.version>2.50.0</errorprone.version>
         <nullaway.version>0.14.2</nullaway.version>
         <spotbugs.version>4.10.5.0</spotbugs.version>
+        <!-- PIT-style override: an inline <threshold> would shadow this user property. -->
+        <spotbugs.threshold>High</spotbugs.threshold>
 
         <!-- PIT run defaults live here, not as inline plugin <configuration>. An
              explicit configuration value shadows the parameter's user property, so
@@ -335,7 +337,7 @@
                         <version>${spotbugs.version}</version>
                         <configuration>
                             <effort>Max</effort>
-                            <threshold>High</threshold>
+                            <threshold>${spotbugs.threshold}</threshold>
                             <excludeFilterFile>verification/spotbugs-exclude.xml</excludeFilterFile>
                         </configuration>
                         <executions>
@@ -377,6 +379,12 @@
                             <excludedClasses>
                                 <param>io.github.monadrome.parallelinscope.queue.*Demo*</param>
                             </excludedClasses>
+                            <!-- Lincheck attaches its own instrumentation agent and must not run
+                                 inside PIT's instrumented worker. Surefire's exclude does not
+                                 constrain PIT's targetTests discovery, so exclude it here too. -->
+                            <excludedTestClasses>
+                                <param>*LincheckTest</param>
+                            </excludedTestClasses>
                             <outputFormats>
                                 <param>HTML</param>
                                 <param>XML</param>

@@ -9,11 +9,12 @@ detector families Error Prone does not implement:
 - annotation versus runtime-contract mismatches
   (`NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE`)
 
-The default CI build does not run the profile. A full scan of the current tree
-produces 29 findings: 2 high, 20 medium, 7 low. The high findings are both
-`NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE` on defensive null checks;
-they are reviewed false positives and listed in
-[`spotbugs-exclude.xml`](spotbugs-exclude.xml). The medium findings are
+The default CI build does not run the profile. With the reviewed baseline
+applied, a full scan of the current tree produces 27 findings: 20 medium, 7 low.
+Without the baseline it is 29: the two excluded high findings are both
+`NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE` on defensive null checks,
+reviewed as false positives in [`spotbugs-exclude.xml`](spotbugs-exclude.xml).
+The medium findings are
 `CT_CONSTRUCTOR_THROW` (finalizer-attack heuristic; this library has no
 finalizers), `EI_EXPOSE_REP` (intentional result/monitor views),
 `AT_*` on the weak-consistency `QueueSpliterator`, and one benign
@@ -33,8 +34,8 @@ Full report without failing the build:
 mvn -Pspotbugs -Dspotbugs.threshold=Low -Dmaven.test.skip=true spotbugs:spotbugs
 ```
 
-The HTML/XML report is under `target/spotbugs.html` and
-`target/spotbugsXml.xml`. Triage a new finding before adding an exclusion; the
+The report is written to `target/spotbugsXml.xml`. Triage a new finding before
+adding an exclusion; the
 baseline file is for reviewed false positives only, not for silencing whole
 detector families.
 

@@ -3,8 +3,8 @@
 
   Only High-priority findings are gated, so this file is deliberately short: every entry is a
   reviewed false positive, not a blanket suppression. Run the full report with
-  `mvn -Pspotbugs -Dspotbugs.threshold=Low -DskipTests spotbugs:spotbugs` and triage new
-  entries before adding to this file.
+  `mvn -Pspotbugs -Dspotbugs.threshold=Low -Dmaven.test.skip=true spotbugs:spotbugs` and
+  triage new entries before adding to this file.
 -->
 <FindBugsFilter>
     <!--
