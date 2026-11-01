@@ -845,17 +845,23 @@ final class TaskGroup<V, R> implements AutoCloseable {
         }
     }
 
-    /*
-     * Startup failed after prepare registered retention and execution-exit tracking, and before any
-     * submission, so no execution has run. The caller receives the failure and never sees this group,
-     * which leaves this method as the only owner of what prepare acquired. Cancelling the group token
-     * first terminates it, which severs its parent link and makes convergence attribute the cancelled
-     * members to the group. Cancelling every prepared future then skips each execution — releasing
-     * its exit slot — and drives the member listeners registered above through convergence, which
-     * settles adopted ownership; together they complete everything retainUntilComplete and
-     * trackExecutions hold. A cleanup failure is suppressed into the startup failure the caller sees.
+    /**
+     * Releases everything {@link #prepare} acquired after startup failed and before any submission,
+     * then returns; the caller rethrows {@code failure}. No execution runs. On return the group token
+     * is terminal and every prepared future is cancelled, so retention, execution-exit tracking, and
+     * adopted ownership drain and the runtime can quiesce. A failure during this cleanup is added to
+     * {@code failure} as suppressed instead of replacing it.
+     *
+     * @param failure the startup failure the caller will rethrow
      */
     private void abandonStartup(Throwable failure) {
+        /*
+         * The caller never sees this group, so this method is the only owner of what prepare
+         * acquired. Cancelling the group token first terminates it, which severs its parent link and
+         * makes convergence attribute the cancelled members to the group. Cancelling every prepared
+         * future then skips each execution, releasing its exit slot, and drives the member listeners
+         * registered in start through convergence, which settles adopted ownership.
+         */
         try {
             groupToken.cancel();
             for (MemberState member : membersAndTerminal) {
