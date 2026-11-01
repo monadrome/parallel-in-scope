@@ -910,4 +910,58 @@ class ParRuntimeTest {
             executor.shutdownNow();
         }
     }
+
+    @Test
+    void installingAClosedRuntimeIsRejected() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("late"), executor).build();
+        try {
+            runtime.close();
+            assertThatThrownBy(() -> ParRuntime.installGlobal(runtime))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ParRuntime is closed");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void aFreshRuntimeReportsAnEmptyNonNullExecutorWaitReport() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        try {
+            ExecutorWaitReport report = runtime.executorWaitReport();
+            assertThat(report).isNotNull();
+            assertThat(report.cyclicComponents()).isEmpty();
+            assertThat(report.toString()).contains("no executor wait cycle observed");
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void dispatchingSchedulerAwaitTerminationIsFalseWhileATimerEntryIsPending() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        try {
+            java.util.concurrent.ScheduledExecutorService scheduler = runtime.timeoutScheduler();
+            java.util.concurrent.ScheduledFuture<?> pending = scheduler.schedule(() -> {}, 10, TimeUnit.SECONDS);
+            runtime.close();
+            assertThat(scheduler.isShutdown()).isTrue();
+            assertThat(scheduler.awaitTermination(0, TimeUnit.NANOSECONDS))
+                    .as("a shut-down dispatching scheduler with a pending timer entry is not terminated")
+                    .isFalse();
+            pending.cancel(false);
+            assertThat(scheduler.awaitTermination(5, TimeUnit.SECONDS))
+                    .as("cancelling the drained timer's last entry lets it terminate")
+                    .isTrue();
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
 }

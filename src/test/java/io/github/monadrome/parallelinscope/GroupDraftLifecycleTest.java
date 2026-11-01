@@ -318,6 +318,102 @@ class GroupDraftLifecycleTest {
         }
     }
 
+    @Test
+    void guardedEntriesAreRejectedOffTheOwnerThread() throws Exception {
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            Par par = global.par(ParId.of("worker"));
+            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
+
+            // Every entry that mutates the draft is confined to its creating thread, including the
+            // configuration and submission entries, not only member declaration.
+            assertRejectedOffThread(() -> start.closeGrace(Duration.ZERO));
+            assertRejectedOffThread(start::submitAll);
+
+            GroupDraft.Start stepStart = global.groupDraft("page-2", TIMEOUT);
+            GroupDraft.Step<Integer> stepForSubmit = stepStart.par(TaskKey.<Integer>named("one"), par, () -> 1);
+            assertRejectedOffThread(stepForSubmit::submitAll);
+
+            GroupDraft.Start combinedStart = global.groupDraft("page-3", TIMEOUT);
+            GroupDraft.Combined<Integer, Integer> combinedForSubmit = combinedStart
+                    .par(TaskKey.<Integer>named("one"), par, () -> 1)
+                    .combineValues(TaskKey.<Integer>named("total"), par, values -> 1);
+            assertRejectedOffThread(combinedForSubmit::submitAll);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void aStaleStepRejectsCombineValues() throws Exception {
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            Par par = global.par(ParId.of("worker"));
+            GroupDraft.Step<Integer> first =
+                    global.groupDraft("page", TIMEOUT).par(TaskKey.<Integer>named("one"), par, () -> 1);
+
+            // The chain moved past `first`, so a terminal combine declared through the stale step is
+            // rejected like any other stale-stage call.
+            first.par(TaskKey.<Integer>named("two"), par, () -> 2);
+            assertThatThrownBy(() -> first.combineValues(TaskKey.<Integer>named("total"), par, values -> 1))
+                    .isInstanceOf(IllegalStateException.class);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void submitAllAdvancesTheStageSoASecondSubmissionIsRejected() throws Exception {
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        try {
+            Par par = global.par(ParId.of("worker"));
+
+            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
+            start.submitAll();
+            assertThatThrownBy(start::submitAll)
+                    .as("an empty group's submission consumes the draft")
+                    .isInstanceOf(IllegalStateException.class);
+
+            GroupDraft.Combined<Integer, Integer> combined = global.groupDraft("page-2", TIMEOUT)
+                    .par(TaskKey.<Integer>named("one"), par, () -> 1)
+                    .combineValues(TaskKey.<Integer>named("total"), par, values -> 1);
+            combined.submitAll();
+            assertThatThrownBy(combined::submitAll)
+                    .as("a combined group's submission consumes the draft")
+                    .isInstanceOf(IllegalStateException.class);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    private static void assertRejectedOffThread(Runnable entry) throws InterruptedException {
+        CountDownLatch attempted = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread other = new Thread(() -> {
+            try {
+                entry.run();
+            } catch (Throwable thrown) {
+                failure.set(thrown);
+            }
+            attempted.countDown();
+        });
+        other.start();
+        assertThat(attempted.await(2, TimeUnit.SECONDS)).isTrue();
+        other.join(2000);
+        assertThat(failure.get())
+                .as("a guarded draft entry is rejected off the owner thread")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     private static Callable<Integer> record(List<String> order, String name, int value) {
         return () -> {
             order.add(name);

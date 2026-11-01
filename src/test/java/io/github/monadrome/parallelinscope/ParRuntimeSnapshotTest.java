@@ -43,6 +43,18 @@ class ParRuntimeSnapshotTest {
     }
 
     @Test
+    void everySampledCounterIsReadableFromTheSnapshot() {
+        // The snapshot is a value carrier: each field must survive the trip into the sample, so an
+        // operator reading a non-zero counter during a stuck drain sees the real value.
+        ParRuntimeSnapshot snapshot = new ParRuntimeSnapshot(true, 3, 2, 1, 4);
+        assertThat(snapshot.closed()).isTrue();
+        assertThat(snapshot.activeAdmissions()).isEqualTo(3);
+        assertThat(snapshot.undrainedBatches()).isEqualTo(2);
+        assertThat(snapshot.activeObservations()).isEqualTo(1);
+        assertThat(snapshot.unexitedBodySignals()).isEqualTo(4);
+    }
+
+    @Test
     void snapshotDistinguishesUndrainedFuturesFromUnexitedBodies() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
