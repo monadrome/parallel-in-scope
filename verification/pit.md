@@ -78,6 +78,10 @@ PIT writes `target/pit-reports/mutations.xml` and HTML reports. Preserve the XML
 and logs for each batch before another run overwrites them. Record the source
 revision and any uncommitted input changes, command, JDK, scope, mutators, and
 exclusions beside the results; report timestamps alone do not prove freshness.
+The repeatable core runner is [scripts/run-pit-core.sh](../scripts/run-pit-core.sh);
+durable evidence is kept under
+[verification/pit-audit/](pit-audit/2026-10-31/README.md) with its per-batch XML,
+logs, checksums, and run metadata.
 
 ## Interpret every raw status
 
