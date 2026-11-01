@@ -42,6 +42,8 @@ mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not i
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
 python3 scripts/check-java-conventions.py  # new library-source convention violations; see verification/java-conventions.md
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
+python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
+python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
 ```
 
 ## Task Routes
@@ -342,6 +344,13 @@ Documentation must stay readable and correct without the Git object database:
   ```
 
   The `$HOME` form resolves on other checkouts without hardcoding a user path.
+- Record every delivery except a mechanical edit in the delivery ledger
+  (`verification/delivery-ledger.md`): after the change's last commit, run
+  `scripts/process-metrics.py record` with the change's review runs, PIT
+  reports, local gate failures, maintainer asks, and user corrections, and
+  commit the record alone as `chore: record delivery <topic>`. Keep a count of
+  failed required checks and of stops for a decision while you work; record
+  unknown usage as unknown instead of estimating it.
 - After verification, commit and deliver to the development line: rebase onto
   its freshly fetched tip, rerun the checks whose inputs the incoming commits
   changed, and fast-forward push it; when the push is rejected, repeat from the
@@ -508,6 +517,9 @@ Load documents when their subject affects the task:
   under `docs/`.
 - `verification/lincheck.md` - Interleaving research for narrow cancellation
   windows; read before adding or changing a `*LincheckTest`.
+- `verification/delivery-ledger.md` - Per-delivery process record: when to
+  write it, field meanings, the report, and its limitations; read before
+  delivering a change or changing `scripts/process-metrics.py`.
 - `verification/java-conventions.md` - Diff-scoped gate for written Java
   conventions: rules, exemptions, baseline subtraction, and limitations; read
   before changing `scripts/check-java-conventions.py` or when it reports.
