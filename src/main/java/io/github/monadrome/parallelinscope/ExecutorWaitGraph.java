@@ -201,10 +201,8 @@ final class ExecutorWaitGraph {
 
     /** Announces exactly those components formed by the successful installation. */
     private void announceNewComponents(State previous, State installed) {
-        for (ExecutorWaitReport.Component component : installed.report.cyclicComponents()) {
-            if (!previous.componentKeys.contains(component.identities())) {
-                announce(() -> LOGGER.warning(warning(component)));
-            }
+        for (ExecutorWaitReport.Component component : installed.componentsAbsentFrom(previous)) {
+            announce(() -> LOGGER.warning(warning(component)));
         }
     }
 
@@ -350,6 +348,20 @@ final class ExecutorWaitGraph {
             }
             return new State(next, ExecutorWaitReport.of(components), keys.build());
         }
+
+        /**
+         * Returns this state's components whose identity sets were absent from {@code previous},
+         * retaining report order. Component identity sets are the announcement deduplication keys.
+         */
+        ImmutableList<ExecutorWaitReport.Component> componentsAbsentFrom(State previous) {
+            ImmutableList.Builder<ExecutorWaitReport.Component> added = ImmutableList.builder();
+            for (ExecutorWaitReport.Component component : report.cyclicComponents()) {
+                if (!previous.componentKeys.contains(component.identities())) {
+                    added.add(component);
+                }
+            }
+            return added.build();
+        }
     }
 
     /**
@@ -363,7 +375,7 @@ final class ExecutorWaitGraph {
         ImmutableGraph<ExecutorIdentity> graph = graphOf(waits);
         List<ExecutorIdentity> nodes = new ArrayList<>(graph.nodes());
         nodes.sort((left, right) -> Integer.compare(position(left), position(right)));
-        Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = reachabilityByNode(nodes, graph);
+        Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = reachabilityByNode(graph);
         Set<ExecutorIdentity> assigned = new HashSet<>();
         ImmutableList.Builder<ExecutorWaitReport.Component> components = ImmutableList.builder();
         for (ExecutorIdentity node : nodes) {
@@ -392,9 +404,9 @@ final class ExecutorWaitGraph {
 
     /** Computes each node's reachable set once for the component grouping pass. */
     private static Map<ExecutorIdentity, Set<ExecutorIdentity>> reachabilityByNode(
-            List<ExecutorIdentity> nodes, ImmutableGraph<ExecutorIdentity> graph) {
+            ImmutableGraph<ExecutorIdentity> graph) {
         Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = new HashMap<>();
-        for (ExecutorIdentity node : nodes) {
+        for (ExecutorIdentity node : graph.nodes()) {
             reach.put(node, Graphs.reachableNodes(graph, node));
         }
         return reach;

@@ -579,14 +579,11 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // Deadlines resolve on the token tree's clock domain: a nested group inherits its parent's
         // clock, a root group takes the runtime's. `start` stays on the system clock — it feeds
         // submit times and the report, which are cross-thread real-time observations.
-        Ticker domain = structuralParent == null
-                ? env.ticker()
-                : structuralParent.cancellationToken().ticker();
+        Ticker domain = MultiTaskContext.domainFor(
+                structuralParent == null ? null : structuralParent.cancellationToken(), env.ticker());
         long deadlineNow = domain.read();
         long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
-                groupTimeout,
-                structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(),
-                deadlineNow);
+                groupTimeout, MultiTaskContext.deadlineCeilingFor(structuralParent), deadlineNow);
         // A group with nothing to run completes immediately with SUCCESS and never executes or
         // cancels a member, so it does not need a parent cancellation link. Skipping the link
         // matters: the token of such a group is never bound, so a parent-linked one would hold a
