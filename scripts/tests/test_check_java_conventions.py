@@ -103,6 +103,11 @@ class RuleTest(unittest.TestCase):
                 text = java_class(f"    {declaration}\n        return false;\n    }}\n")
                 self.assertEqual(rules_in(text), [])
 
+    def test_r1_reads_past_an_annotation_with_a_named_element(self):
+        text = java_class('    @SuppressWarnings(value = "unchecked")\n'
+                          '    public String getName() {\n        return "";\n    }\n')
+        self.assertEqual(rules_in(text), ["R1"])
+
     def test_r1_ignores_calls_and_counts_implicitly_public_interface_methods(self):
         calls = java_class("    private final Object v = getValue();\n"
                            "    void run() {\n        Object x = getValue();\n        getValue();\n    }\n")
@@ -135,6 +140,18 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(rules_in(message_call('"x " + "is positive."')), ["R2"])
         other = java_class('    void run(Mock m) {\n        m.verify(m, "Not a precondition.");\n    }\n')
         self.assertEqual(rules_in(other), [])
+
+    def test_r2_handles_a_generic_comma_before_the_message(self):
+        text = java_class('    void run(Object v) {\n'
+                          '        checkArgument(v instanceof java.util.Map<String, Integer>, "Bad value");\n'
+                          '    }\n')
+        self.assertEqual(rules_in(text), ["R2"])
+
+    def test_r2_reports_the_message_line_not_the_preceding_argument(self):
+        text = java_class('    void run(boolean ok) {\n        checkArgument(ok,\n'
+                          '            "Bad value");\n    }\n')
+        found = [violation for violation in violations_in(text) if violation.rule == "R2"]
+        self.assertEqual([violation.line for violation in found], [8])
 
     def test_r3_flags_single_l_forms_in_any_case_and_keeps_doubled_l_forms(self):
         for word in ("canceled", "Canceling", "CANCELED", "onCanceled", "cancelable", "signaling", "labeled",
