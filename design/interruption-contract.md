@@ -22,8 +22,9 @@ inline 路径上一次中断卫生缺失曾让 12 个元素的批次只执行 3 
 
 ### 2.1 中断是请求，不是命令
 
-`Thread.interrupt()` 不停止任何东西。它只做两件事：置一个布尔标志；如果线程正阻塞在
-可中断方法上，让那个方法抛 `InterruptedException`。线程可以完全无视它继续跑。
+`Thread.interrupt()` 不强制停止线程。它发出协作请求，具体响应取决于正在执行的操作，
+用户代码也可以不响应。任务已取消、future 已终态、中断已投递和任务体已退出是四个不同事实，
+不能互相替代。
 
 推论：**取消是语义，中断是机制。** 二者不能混用。本库的取消语义由
 `CancellationToken` 承载，中断只是让阻塞中的任务体尽快观察到取消的手段之一。
@@ -43,10 +44,11 @@ inline 路径上一次中断卫生缺失曾让 12 个元素的批次只执行 3 
 ```
 
 想清掉 `cancel(true)` 投递的那个中断，但**做不到**：中断标志不携带来源信息。
-清掉它就可能同时清掉任务自己用作通信手段的另一个中断。
+清掉它就可能同时清掉任务自己用作通信手段的另一个中断。多次投递也会合并成同一个标志，
+不能用它计数；即使框架记录了自己曾投递中断，也不能证明没有外部投递同时发生。
 
 这是本文最重要的一条依据：**你无法判断一个中断标志是谁设的、为什么设的。**
-因此"清掉标志"永远是一个有损操作，只有在你确定自己是该信号的唯一消费者时才允许。
+因此清除需要明确的处理职责和契约（P3），不能从标志本身推断处理权限。
 
 同一个类里还能看到为这件事付出的另一份代价——`INTERRUPTING`/`INTERRUPTED` 两个状态。
 `cancel(true)` 先 CAS 到 `INTERRUPTING`，再调 `t.interrupt()`，最后才置 `INTERRUPTED`；
@@ -63,18 +65,22 @@ if (s == INTERRUPTING)
 **中断的跨任务泄漏是一个 JDK 认为值得付出这些代价去防的问题**（本库在这上面的实际
 教训见 §7）。
 
-### 2.3 标志与异常互斥：抛出即清除
+### 2.3 标志与异常的关系由操作契约决定
 
-一个中断信号只以两种形态之一存在，绝不同时存在：
+| 操作 | 响应中断时的行为 |
+|---|---|
+| `sleep`、`wait`、`join` 和常见可中断阻塞操作 | 抛 `InterruptedException`，并按各自契约清除标志 |
+| `Thread.interrupted()` | 读取并清除当前线程标志 |
+| `Thread.isInterrupted()` | 只读，不清除标志 |
+| `LockSupport.park` | 可以因中断返回，不因此抛 `InterruptedException` 或清除标志；也可能因其他原因返回 |
+| 等待进入 `synchronized` | 中断不会取消 monitor 获取 |
+| 阻塞在 `InterruptibleChannel` 上的 I/O | 关闭 channel、置位标志，并抛 `ClosedByInterruptException` |
 
-- **标志置位**：线程在跑，没阻塞在可中断方法上。
-- **`InterruptedException` 已抛出，标志已清除**：可中断方法响应了中断。
+“异常已抛出”和“标志为 true”不是互斥状态：捕获方可以恢复标志，另一线程可以再次中断，
+用户也可以自行构造 `InterruptedException`。不能仅凭异常类型反推当前标志或中断来源。
 
-这是 JDK 的普遍约定：抛 `InterruptedException` 的方法**会清掉标志**。
-`Thread.interrupted()` 也是读并清（区别于只读的 `Thread.currentThread().isInterrupted()`）。
-
-推论：捕获 `InterruptedException` 后，信号**只存在于你手里的那个异常对象里**。
-你把它吞掉，信号就彻底消失了，没有任何人能再发现它。
+可中断阻塞操作清除标志后，异常承担了这次中断的传递职责；没有消费职责的捕获方若既不传播、
+也不记住并恢复，这次通知就会丢失。延后恢复的前提见 §5.2.1。
 
 ## 3. JDK 与 Guava 在"已完成 future"上的分歧
 
@@ -90,7 +96,7 @@ else if (s == COMPLETING)
     Thread.yield();
 ```
 
-**一旦 `isDone()` 承诺了完成，`get()` 就不许抛 `InterruptedException`。**
+这是 `FutureTask` 在完成状态上的实现选择，不是所有 `Future` 实现都遵循的通用规则。
 
 **Guava `AbstractFuture` 相反：先查标志，再读值**：
 
@@ -113,18 +119,20 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 
 ## 4. 四条原则
 
-**P1. 不吞。** 捕获 `InterruptedException` 后必须做且只做三件事之一：
+**P1. 中间层不丢信号。** 没有消费职责的中间层捕获 `InterruptedException` 后，选择：
 往上抛；恢复标志（`Thread.currentThread().interrupt()`）；转译为携带原 cause 的领域异常
-**并**恢复标志。空的 `catch` 块与只记日志的 `catch` 块都是丢信号。
+**并**恢复标志。明确不可中断的等待可以先记住、最后恢复（§5.2.1）；并非每次捕获后都立刻
+恢复。空的 `catch` 或只记日志而继续普通业务操作会丢失通知。
 
-**P2. 策略归线程所有者。** 库代码不决定"被中断后该怎么办"，只负责把信号如实传上去。
-决定权属于创建该线程的人。具体表现：**阻塞方法必须声明 `throws InterruptedException`**，
-而不是自己吞掉再返回一个布尔值。
+**P2. 策略归有明确职责的所有者。** 线程所有者及其通过接口契约委托的执行边界决定如何响应；
+权限不单由“谁调用了线程构造器”决定。执行器可以管理自己 worker 的任务切换和停机策略，
+任务体可以响应取消，普通库方法则不能代替调用方决定中断含义。库的可中断阻塞方法传播
+`InterruptedException`，不能静默转成布尔答案；不可中断接口必须明确声明其政策及恢复时点。
 
-**P3. 清标志需要资格。** 由 2.2，清标志是有损操作。只有两种情况允许：
-(a) 你即将抛出 `InterruptedException`，清除是该约定的一部分；
-(b) 你是该信号语义上的唯一消费者，且这一点在 javadoc 里写明了。
-其余一切情况只读不清——用 `isInterrupted()`，不用 `interrupted()`。
+**P3. 清标志需要契约依据。** 清除只能用于明确的信号传递或消费职责：按阻塞接口约定转交
+`InterruptedException`，按不可中断接口约定暂记后恢复，或由拥有相应生命周期的边界消费。
+其余情况下只读不清——用 `isInterrupted()`，不用 `interrupted()`。本库已经接受的有损任务边界
+隔离及其限制单列于 §5.4；它不赋予其他包装器清除任意新中断的权限。
 
 **P4. 不要在"只读"方法里把中断变成失败。** 报告状态的方法（`outcome()`、`failure()`、
 各种 `isXxx`）不得因调用线程恰好带中断标志而改变结论或抛异常。原因见第 3 节：
@@ -132,7 +140,7 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 
 ## 5. 分角色使用规范
 
-中断处理的正确做法取决于你在哪一层。四个角色，四套规则。
+中断处理取决于所在角色及接口契约，不能只按是否出现 `catch` 或 `finally` 判断。
 
 ### 5.1 任务体（用户代码，`Callable` 内部）
 
@@ -140,12 +148,14 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 |---|---|
 | 想响应取消 | 调 `Checkpoints.checkpoint()`；阻塞操作用 `Checkpoints` 的包装版本 |
 | 捕获到 `InterruptedException` 且要退出 | 抛出去（`call() throws Exception` 允许），或恢复标志后返回 |
-| 捕获到 `InterruptedException` 但要继续干活 | 恢复标志，别裸奔 |
-| 绝不要 | 空 `catch`；`catch` 后只 `log.warn` |
+| 捕获后必须先完成明确的等待或必要清理 | 记录中断；完成或异常退出前恢复，共享原有时间预算（§5.2.1） |
+| 普通中间层没有继续执行的职责 | 传播或恢复后退出；不能只记日志并继续普通业务操作 |
 
-任务体抛出 `InterruptedException` 是**被支持的**：库把它识别为"任务观察到了取消"而非
-用户失败，按 token 归因（`TokenOutcomes.causedByCancellation`，取消信号改道见
-[task-group-cancellation.md](task-group-cancellation.md)）。
+任务体抛出 `InterruptedException` 是被支持的。任务监督边界把原异常记录到 future，属于执行
+失败的报告，不要求对所有任务异常机械地恢复 worker 标志。取消归因仍以已提交的 token 状态为
+依据：有框架取消时按 token 归因；没有框架取消时，自抛 `InterruptedException` 或
+`CancellationException` 保留 `USER_FAILURE`。异常类型只帮助识别取消形状，不证明来源；见
+[取消与归因](task-group-cancellation.md) 和 [批次落定归因](batch-settle-attribution.md)。
 
 库内所有检查点收敛到 `Checkpoints` 的同一个私有助手（恢复标志 + 保留 cause 转译为
 `LeanCancellationException`）。这是刻意的单一策略点：改一处即全改。**新增检查点必须
@@ -153,7 +163,8 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 
 ### 5.2 库的阻塞方法
 
-必须声明 `throws InterruptedException`（P2）。校验顺序固定：参数校验 → 自等待检查 →
+除同步出口已经明确的不可中断政策外，必须声明 `throws InterruptedException`（P2）。
+校验顺序固定：参数校验 → 自等待检查 →
 中断检查 → 状态检查；javadoc 需写明"抛出时标志已按 Java 约定清除"。
 
 中断检查先于状态检查，**包括状态已成立的快路径**：已 quiescent 的 runtime 上调
@@ -161,6 +172,36 @@ Guava `get()` 抛 `InterruptedException` **并吃掉标志**——调用方若�
 不得照抄 JDK `FutureTask.get()` 的"已完成就不查中断"捷径（第 3 节——那是状态检查
 方法的行为，本库只把它留给 P4 覆盖的只读方法，不放行阻塞方法）。阻塞方法把已中断的
 调用方转成布尔答案属于第 6 节用例 9 明令禁止的行为。
+
+### 5.2.1 延后恢复：保存观察到的中断
+
+明确不可中断的等待采用“捕获、记录、继续等待、最后恢复”。以下是 Guava
+`Uninterruptibles.getUninterruptibly` 的核心模式：
+
+```java
+boolean interrupted = false;
+try {
+    for (;;) {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            interrupted = true;
+        }
+    }
+} finally {
+    if (interrupted) {
+        Thread.currentThread().interrupt();
+    }
+}
+```
+
+它暂时承担完成等待的职责，并在退出时把观察到的中断重新交给上层。`finally` 没有清除标志的
+`else`，所以不会主动抹去退出前另一次已置位的中断；正常返回和异常退出都经过恢复。
+若捕获后立即恢复，再重试一个检查标志的阻塞操作，可能反复立即抛出而形成忙循环。
+
+此模式只能用于已声明的不可中断操作或必要清理，不能用于任意业务重试。定时等待和清理必须
+跨中断共享原预算，不能每次获得完整 timeout。本库优先复用 Guava 的实现；恢复标志本身不
+证明工作成功，也不能让一个永远不完成的 future 获得进展。
 
 ### 5.3 库的状态检查方法（只读）
 
@@ -177,8 +218,8 @@ MUST 返回原业务 cause 与既有落定归因并保留 caller flag，包括�
 
 ### 5.4 executor 边界（最容易漏的一层）
 
-**任务体退出时可能留下脏标志，谁负责清？** 答案是 executor，而不是 `FutureTask`——
-后者故意不清（2.2）。`ThreadPoolExecutor.runWorker` 在每个任务**开始前**清：
+任务之间的线程政策归执行器所有者，不归一个通用 future 包装器。`FutureTask` 不自行清除
+任务留下的标志（§2.2）；`ThreadPoolExecutor.runWorker` 在任务切换时同时处理标志与停机状态：
 
 ```java
 // If pool is stopping, ensure thread is interrupted;
@@ -191,26 +232,32 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
     wt.interrupt();
 ```
 
-池化 worker 因此免疫；虚拟线程每任务一条新线程也免疫；但 direct executor、
-`CallerRunsPolicy`、用户 `RejectedExecutionHandler` 借用的线程**不免疫**。
+这不是无条件清除：池进入 `STOP` 时要保持中断，检查期间还要防止 `shutdownNow` 竞态。
+`beforeExecute` 也可在这个检查之后设置中断。通用任务包装器既不拥有池的生命周期，又不能
+把入口标志一概视为前一个任务的残留，因此不能声称自己的无条件清除与 `runWorker` 等价。
+每任务一条新线程避免了复用污染，但不消除该线程本身的中断处理义务。
 
-**规范：库在任何"任务体可能跑在非池化线程上"的路径上，必须自己恢复边界卫生。**
+direct executor、`CallerRunsPolicy` 和自定义拒绝处理器可能借用调用方或完成回调线程，
+任务取消就会与线程所有者的外部中断共享同一标志。单个标志无法同时满足三个目标：
 
-现行实现把隔离放在 `ExecutionPhaseHintFuture.run()`：那是唯一同时覆盖三条被借用线程
-（调用方线程、库的 submitter 线程、用户拒绝处理器借用的任意线程）的位置。进入时清
-标志，退出时恢复到进入时状态，与 `runWorker` 对池化 worker 做的事一致；池化 worker
-本来就免疫，所以那条路径上是 no-op。清理在任务体退出**之后**才做，不在中途——否则会
-吞掉取消中断，而取消中断是这条路径上唯一能解救被占住线程的机制。
+1. 保留 inline 执行，让任务使用这条借来的线程；
+2. 用线程中断解救 inline body 的阻塞，并隔离它留下的任务取消标志；
+3. 完整保留同一期间新投递给线程所有者的外部中断。
 
-取舍：一个 bit 无法区分三个来源（任务体自己的恢复、库的取消中断、真正发给被借用线程
-的中断），三者一律丢弃。被牺牲的是第三种——`map()` 执行期间发给调用方线程的真中断会
-丢失（决策记录见 [adr/0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)；
-用户侧说明见 user-guide 的拒绝处置章节）。
+本库当前选择按 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)
+隔离任务边界：`ExecutionPhaseHintFuture.run()` 进入时保存并清除标志，任务体退出及中断
+投递握手结束后恢复入口的布尔状态；它覆盖调用方、补窗完成线程和拒绝处理器借用的线程，
+也作用于池化路径。入口为 false 时，退出会清除期间留下的标志，包括新外部中断。
+入口为 true 时，退出会重新置位。用户可见限制见 [使用指南](../docs/en/user-guide.md#interruption-and-cleanup)。
 
-这条不是后补的要求：[extension-and-wrapping.md](extension-and-wrapping.md) 的 INV-3
-（成功、异常、Error、**中断**、拒绝、**inline** 都恢复 worker 原状态）与 INV-10
-（inline 路径与正常路径顺序相同）早已写明；`first-principles.md` 也把 inline 列入必须
-恢复的路径。
+**恢复入口状态不等于保存中断。** 它不同于 §5.2.1 的“观察过中断就重新置位”，不能把前者
+作为一般库函数的默认模式，也不能把中断当作普通 ThreadLocal 上下文栈式还原。池化路径也
+不能假定此操作是 no-op：执行器在 `beforeExecute` 设置的入口中断会暂时被隐藏，body 看不到。
+
+这是既有执行政策的边界说明，不改变 ADR 的选择或承诺解决信号归因。若要改变入口清除、
+外部中断保留或 inline 支持范围，需要单独确定执行政策并用后继 ADR 记录；只把清除改成
+保留，会同时把任务取消标志带给调用方，不能视为无语义变化的局部修复。既有精确恢复要求
+见 [扩展与包装契约](extension-and-wrapping.md) 的 INV-3。
 
 ### 5.5 取消中断投递与 runner 退出
 
@@ -223,6 +270,15 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 
 实现与验证依据见 [runner 中断投递修复](runner-interrupt-delivery.md)。此握手只等待投递结束，
 不等待用户任务体响应取消；任务体结束观测也不等同于线程已完成交接。
+
+投递失败与接收方响应中断要分开：线程 A 调用 `B.interrupt()` 抛出 `SecurityException`，
+异常发生在 A；它不是 B 的阻塞操作抛出 `InterruptedException`，不能通过给 A 恢复标志
+伪造一个中断。Java 8 的访问检查或自定义线程可以产生这种投递异常。
+
+投递、握手结束、future 完成通知与 body 退出是独立职责。仅在 `finally` 释放投递标记，
+不能证明 future 的监听器、归因和运行时记账继续执行；失败路径也要核对这些后续步骤。
+OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是完成通知独立于
+投递成败的参考。§5.2.1 的不可中断等待不能弥补已丢失的完成通知。
 
 ## 6. 验证矩阵
 
@@ -237,10 +293,10 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 | 4b | 同上，12 元素批次 | **12 个全部执行**，无 `SUBMISSION_FAILURE`（§7 丢任务教训的回归锁） |
 | 4c | 同上，随后调 `reportString()` | 正常返回，不抛（§7 复合缺陷的回归锁） |
 | 5 | 非 inline 路径 + 任务体恢复标志 | 提交线程标志始终为 false（对照锁：防止修复把两条路径改成另一种不一致） |
-| 6 | 任务体抛 `InterruptedException` | 归因为取消类而非 `USER_FAILURE` |
+| 6 | 任务体抛 `InterruptedException` | 已有框架取消时按 token 归因；无框架取消时为 `USER_FAILURE` |
 | 7 | `awaitBodyCompletion` 在已置标志的线程上调用 | 抛 `InterruptedException` 且标志已清 |
 | 8 | `Checkpoints.rawCheckpoint()` 在已置标志的线程上调用 | 抛 `LeanCancellationException` 且标志保持设置（非信号唯一消费者，与阻塞适配器一致） |
-| 9 | 库的阻塞方法被中断 | 全部抛 `InterruptedException`，无一转成布尔返回值 |
+| 9 | 库的可中断阻塞方法被中断 | 抛 `InterruptedException`，不转成布尔返回值；不含已声明不可中断的同步出口 |
 | 10 | 已 quiescent 的 runtime 上调 `awaitQuiescence(Duration.ZERO)`，调用线程已置标志 | 抛 `InterruptedException` 且标志已清，不得返回 `true` |
 
 ## 7. 历史教训（已全部修复）
@@ -264,3 +320,14 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 `InterruptedException`"的 stub 会让 `getUninterruptibly` 的重试循环永不退出——
 **测试会挂住而不是变红**。这类路径的测试必须用真实 Guava future + 真实
 `interrupt()`，不能用手写 stub。
+
+## 8. 原始依据
+
+- [Java 8 Thread API](https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html)：
+  `interrupt`、`interrupted`、`isInterrupted` 的标志语义和不同阻塞操作的响应。
+- [OpenJDK FutureTask](https://github.com/openjdk/jdk8u/blob/jdk8u412-b08/jdk/src/share/classes/java/util/concurrent/FutureTask.java)：
+  `cancel` 的完成通知、`handlePossibleCancellationInterrupt` 的交接握手及不清标志的理由。
+- [OpenJDK ThreadPoolExecutor](https://github.com/openjdk/jdk8u/blob/jdk8u412-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java)：
+  `runWorker` 的任务切换、停机状态检查及 `beforeExecute` 顺序。
+- [Guava Uninterruptibles](https://github.com/google/guava/blob/v33.7.2/guava/src/com/google/common/util/concurrent/Uninterruptibles.java)：
+  `getUninterruptibly` 的延后恢复及定时版本的共享预算。
