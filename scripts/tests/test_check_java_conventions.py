@@ -111,6 +111,15 @@ class RuleTest(unittest.TestCase):
         text = java_class("    @java.lang.Override\n    public boolean isShutdown() {\n        return false;\n    }\n")
         self.assertEqual(rules_in(text), [])
 
+    def test_r1_reads_past_an_array_valued_annotation(self):
+        text = java_class('    @Override\n    @SuppressWarnings({"unchecked"})\n'
+                          '    public boolean isShutdown() {\n        return false;\n    }\n')
+        self.assertEqual(rules_in(text), [])
+
+    def test_r1_flags_an_accessor_name_with_a_dollar_sign(self):
+        text = java_class('    public String getFoo$Bar() {\n        return "";\n    }\n')
+        self.assertEqual(rules_in(text), ["R1"])
+
     def test_r1_ignores_calls_and_counts_implicitly_public_interface_methods(self):
         calls = java_class("    private final Object v = getValue();\n"
                            "    void run() {\n        Object x = getValue();\n        getValue();\n    }\n")
@@ -167,6 +176,22 @@ class RuleTest(unittest.TestCase):
                           '            "Bad value");\n    }\n')
         found = [violation for violation in violations_in(text) if violation.rule == "R2"]
         self.assertEqual([violation.line for violation in found], [8])
+
+    def test_r2_handles_explicit_constructor_type_arguments(self):
+        text = java_class('    void run() {\n'
+                          '        checkArgument(new <String, Integer>Holder() != null, "Bad value");\n'
+                          '    }\n')
+        self.assertEqual(rules_in(text), ["R2"])
+
+    def test_r2_sees_through_escaped_trailing_whitespace(self):
+        self.assertEqual(rules_in(message_call('"bad value.\\n"')), ["R2"])
+
+    def test_r3_exempts_a_mandated_override_name(self):
+        text = java_class('    @Override\n    public void onCanceled() {\n    }\n')
+        self.assertEqual(rules_in(text), [])
+
+    def test_r3_flags_an_acronym_prefixed_name(self):
+        self.assertEqual(rules_in(java_class('    static class URLCanceledTask {\n    }\n')), ["R3"])
 
     def test_r3_flags_single_l_forms_in_any_case_and_keeps_doubled_l_forms(self):
         for word in ("canceled", "Canceling", "CANCELED", "onCanceled", "cancelable", "signaling", "labeled",
