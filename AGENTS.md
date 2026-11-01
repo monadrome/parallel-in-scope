@@ -40,6 +40,7 @@ mvn spotless:check                    # verify formatting without writing; CI ru
 mvn clean verify                      # tests + package checks; not a release build
 mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not in default CI
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
+python3 scripts/check-java-conventions.py  # new library-source convention violations; see verification/java-conventions.md
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 ```
 
@@ -507,6 +508,9 @@ Load documents when their subject affects the task:
   under `docs/`.
 - `verification/lincheck.md` - Interleaving research for narrow cancellation
   windows; read before adding or changing a `*LincheckTest`.
+- `verification/java-conventions.md` - Diff-scoped gate for written Java
+  conventions: rules, exemptions, baseline subtraction, and limitations; read
+  before changing `scripts/check-java-conventions.py` or when it reports.
 - `verification/spotbugs.md` - Opt-in static audit scope, baseline, and why it
   is not a default gate; read before running the `spotbugs` profile or editing
   `verification/spotbugs-exclude.xml`.

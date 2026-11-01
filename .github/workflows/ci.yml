@@ -44,6 +44,12 @@ jobs:
       - name: Check documentation references
         run: python3 scripts/check-doc-refs.py
 
+      - name: Check Java conventions on new lines
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
+          python3 scripts/check-java-conventions.py --base "$BASE"
+
       - name: Test repository scripts
         run: python3 -m unittest discover -s scripts -t scripts
 
