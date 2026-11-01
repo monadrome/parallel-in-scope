@@ -190,6 +190,11 @@ class RuleTest(unittest.TestCase):
         text = java_class('    @Override\n    public void onCanceled() {\n    }\n')
         self.assertEqual(rules_in(text), [])
 
+    def test_r3_exempts_a_mandated_name_under_another_annotation(self):
+        text = java_class('    @Override\n    @SuppressWarnings("unchecked")\n'
+                          '    public void onCanceled() {\n    }\n')
+        self.assertEqual(rules_in(text), [])
+
     def test_r3_flags_an_acronym_prefixed_name(self):
         self.assertEqual(rules_in(java_class('    static class URLCanceledTask {\n    }\n')), ["R3"])
 
