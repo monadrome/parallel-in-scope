@@ -85,6 +85,12 @@ class RepoTestCase(unittest.TestCase):
             status = review.main(["--repo", str(self.root), *args])
         return status, (json.loads(out.getvalue()) if out.getvalue() else None), err.getvalue()
 
+    def commit_medium_change(self):
+        """Commit two 60-line main files, one using volatile, so the plan runs in per-lens mode."""
+        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
+        self.write(f"{MAIN}/B.java", java("B", 60))
+        self.commit("medium")
+
     def plan(self, *extra):
         run_dir = Path(self.temp.name) / "run"
         status, summary, err = self.run_script("plan", "--base", self.base, "--output-dir", str(run_dir), *extra)
@@ -138,9 +144,7 @@ class PlanModeTest(RepoTestCase):
         self.assertIn("## R1 Behavior preservation is the definition", brief)
 
     def test_medium_change_gets_one_detector_per_triggered_lens(self):
-        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
-        self.write(f"{MAIN}/B.java", java("B", 60))
-        self.commit("medium")
+        self.commit_medium_change()
         _, _, plan = self.plan()
         self.assertEqual(plan["mode"], "per-lens")
         ids = [a["id"] for a in plan["agents"]]
@@ -166,9 +170,7 @@ class PlanModeTest(RepoTestCase):
             self.assertLessEqual(agent["codeLines"], LIMITS["shardLines"])
 
     def test_reviewers_rotate_deterministically(self):
-        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
-        self.write(f"{MAIN}/B.java", java("B", 60))
-        self.commit("medium")
+        self.commit_medium_change()
         _, _, first = self.plan("--reviewers", "kiro,claude")
         _, _, second = self.plan("--reviewers", "kiro,claude", "--force")
         reviewers = [a["reviewer"] for a in first["agents"]]
@@ -229,9 +231,7 @@ class RoutesAndRulesTest(RepoTestCase):
 class MergeTest(RepoTestCase):
     def setUp(self):
         super().setUp()
-        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
-        self.write(f"{MAIN}/B.java", java("B", 60))
-        self.commit("medium")
+        self.commit_medium_change()
         self.run_dir, _, self.plan_data = self.plan()
 
     def finding(self, **overrides):
@@ -298,9 +298,7 @@ print(json.dumps({"agent": agent, "summary": "s", "findings": [] if mode != "pro
 class DetectTest(RepoTestCase):
     def setUp(self):
         super().setUp()
-        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
-        self.write(f"{MAIN}/B.java", java("B", 60))
-        self.commit("medium")
+        self.commit_medium_change()
         self.run_dir, _, self.plan_data = self.plan()
         script = Path(self.temp.name) / "fake_reviewer.py"
         script.write_text(FAKE_REVIEWER, encoding="utf-8")
