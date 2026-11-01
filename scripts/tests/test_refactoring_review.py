@@ -392,7 +392,7 @@ class PureFunctionTest(unittest.TestCase):
 --- a/A.java
 +++ b/A.java
 @@ -2,1 +2,1 @@
-     void run(int value) {
++    void run(int value) {
 """
         config = {
             "complexity": {
