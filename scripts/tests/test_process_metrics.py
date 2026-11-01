@@ -99,7 +99,7 @@ class PitTest(unittest.TestCase):
             snapshot = metrics.pit_snapshot(path, "mutations.xml")
         self.assertEqual(snapshot["total"], 12)
         self.assertEqual(snapshot["inconclusive"], 4)
-        self.assertEqual(snapshot["inconclusiveRate"], round(4 / 12, 4))
+        self.assertEqual(snapshot["inconclusiveRate"], 0.3333)
         self.assertEqual(snapshot["statuses"]["KILLED"], 5)
 
     def test_empty_report_has_no_rate(self):
@@ -176,6 +176,41 @@ class RankingTest(unittest.TestCase):
         self.assertEqual(report["localGateFailures"], {"mvn test": 2})
 
 
+class MarkdownTest(unittest.TestCase):
+    REPORT = {
+        "records": 1,
+        "unrecordedRuns": {"adversarial": 2, "refactoring": 0},
+        "changes": [{
+            "id": "2026-11-05-add-b", "routes": ["defect", "docs"], "commits": 2, "reviewRounds": 1,
+            "failedReviewRuns": 1, "refactoringFindings": 3, "gateFailures": 2, "asks": 1, "corrections": 0,
+            "pitInconclusiveRate": None, "tokens": None, "cost": 1.5, "currency": "USD",
+        }],
+        "rules": [{"rule": "M05", "title": "Duplication across files", "findings": 2, "applied": 1, "rejected": 0,
+                   "deferred": 0, "reverted": 0, "unknown": 1, "mechanizable": 1}],
+        "localGateFailures": {"mvn test": 2},
+        "reviewYield": {"runs": 3, "systemStatuses": {"completed": 2, "timed_out": 1}, "clusters": {"total": 4},
+                        "reviewerTokens": None, "systemsWithUsage": 0, "reviewerCostsByCurrency": {}},
+    }
+
+    def test_renders_unknowns_as_dashes_and_cost_with_its_currency(self):
+        text = metrics.render_markdown(self.REPORT)
+        self.assertIn("| 2026-11-05-add-b | defect, docs | 2 | 1 | 1 | 3 | 2 | 1 | 0 | - | - | 1.5 USD |", text)
+        self.assertIn("| M05 | Duplication across files | 2 | 1 | 0 | 0 | 0 | 1 | 1 |", text)
+        self.assertIn("| mvn test | 2 |", text)
+        self.assertIn("Reviewer statuses: completed=2, timed_out=1.", text)
+        self.assertIn("Reviewer tokens: - (0 systems reported usage). Reviewer cost: -.", text)
+        self.assertNotIn("## CI", text)
+
+    def test_renders_the_ci_section_only_when_present(self):
+        ci = {"runsInspected": 5, "workflows": {"CI": {"runs": 5, "failures": 1}},
+              "failedSteps": [{"step": "CI / build / test", "count": 1}]}
+        text = metrics.render_markdown(self.REPORT | {"ci": ci})
+        self.assertIn("## CI (5 most recent runs)", text)
+        self.assertIn("| CI | 5 | 1 |", text)
+        self.assertIn("| CI / build / test | 1 |", text)
+        self.assertLess(text.index("## CI"), text.index("## Adversarial review yield"))
+
+
 class CiTest(unittest.TestCase):
     def test_counts_failed_steps_only_for_failed_runs(self):
         calls = []
@@ -230,7 +265,7 @@ class RecordTest(unittest.TestCase):
         self.assertEqual(code, 0)
         record = json.loads((self.repo / metrics.LEDGER_DIR / "2026-11-05-add-b.json").read_text(encoding="utf-8"))
         self.assertEqual(json.loads(out)["id"], "2026-11-05-add-b")
-        self.assertEqual(record["schemaVersion"], metrics.SCHEMA)
+        self.assertEqual(record["schemaVersion"], "process-ledger/v1")
         self.assertEqual(record["change"], {"commits": ["fix: add b"], "files": 1, "insertions": 1, "deletions": 0})
         self.assertEqual(record["gates"]["failures"], {"mvn test": 3})
         self.assertEqual(record["interventions"], {"asks": 1, "corrections": 0})
