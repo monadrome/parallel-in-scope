@@ -860,15 +860,21 @@ final class TaskGroup<V, R> implements AutoCloseable {
          * acquired. Cancelling the group token first terminates it, which severs its parent link and
          * makes convergence attribute the cancelled members to the group. Cancelling every prepared
          * future then skips each execution, releasing its exit slot, and drives the member listeners
-         * registered in start through convergence, which settles adopted ownership.
+         * registered in start through convergence, which settles adopted ownership. Each step runs
+         * even when an earlier one throws, so one failing listener cannot leave later members
+         * pending.
          */
         try {
             groupToken.cancel();
-            for (MemberState member : membersAndTerminal) {
-                member.future.cancel(true);
-            }
         } catch (RuntimeException | Error cleanupFailure) {
             failure.addSuppressed(cleanupFailure);
+        }
+        for (MemberState member : membersAndTerminal) {
+            try {
+                member.future.cancel(true);
+            } catch (RuntimeException | Error cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
         }
     }
 
