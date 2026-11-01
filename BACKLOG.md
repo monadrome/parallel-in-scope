@@ -233,7 +233,7 @@ Guava 的 SEVERE 日志里。
 | ~~`TaskType.java:10-11`~~ | ~~`taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**~~ **已不适用（0.4，2026-10-30）**：`TaskType` 改为诊断声明、从不影响入队（ADR 0008），由提交时比对与负载匹配筛查消费 |
 | `MultiTaskContext.java:168-169` | `parallelism(0)` 实为最大并发，与"0 个并行"的直觉相反；指南只说了负值 |
 | `MultiTaskContext.java:203-210` | 超大 `Duration` 溢出饱和为 `Long.MAX_VALUE`，而它同时是"无 deadline"哨兵 → 有限超时静默变无限 |
-| ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已修复（工作区，未提交）**：公开查询侧新增 `GroupValues.valueOf(String, Class<T>)`、`TaskGroupResult.resultOf(String, Class<T>)`；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
+| ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已随 TaskKey 重设计关闭**：2026-10-02 工作区批次新增的 `valueOf(String, Class<T>)`/`resultOf(String, Class<T>)` 重载已被 0.4 迁移移除——类型化读取统一走 `TaskKey`，动态名/位查询返回 `Object`/`ImmediateResult<?>`（见 docs/en/migration-v0.4.md）；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
 | ~~`TaskBatchResult.java:363-372`~~ | ~~`firstException() == null` 双义~~ **已随同步化重构作废**：公开 `TaskBatchResult` 按构造即冻结终态，null 只剩"没有失败"一义 |
 | ~~`TaskBatchResult.java:37, :237`~~ | ~~`close()` 返回 `void`~~ **已随同步化重构作废**：`TaskBatchResult` 不再是 `AutoCloseable` |
 
@@ -263,7 +263,7 @@ P-P1/P-P3/P-P6 已于 2026-10-31 按 `2ccb9ab` 复核更新影响面，P-P2 已�
 | ~~O-7~~ | ~~`stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法~~ **已修复（0.4，聚合读取统一）** | — | — | — |
 | ~~O-8~~ | ~~嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法~~ **已修复（0.4，批次读取改非受检）** | — | — | — |
 | O-9 | 主源码零 `@since`；`package-info` 无入口导引 | 文档 | 读码 | 低 |
-| ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
+| ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复 `c8f12c2a`**（2026-10-02 的工作区批次未落地；本次以 0.3.0 Class 形态补 README，中英 quickstart 补 0.4 TaskKey 形态） | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
 | ~~O-12~~ | ~~`TaskGroup` 成了不可达的公开类型~~ **已不存在**：`TaskGroup` 现为包私有（`TaskGroup.java:59`），`TaskGroupReport` 无公开签名泄漏 | — | — | — |
 | O-16 | 负载匹配筛查的阈值与 CPU 计时开销未实测（2026-10-30 落地时照提案原值） | 功能/校准 | 读码 | 低-中 |
@@ -445,7 +445,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 > P-P0、A-P0 已于 `9f8867c` 完成。
 
-1. ~~**用户使用速修（O 组）**~~ **已完成（2026-10-02）**：O-4（告警文案）、O-10（README 任务组示例）；
+1. ~~**用户使用速修（O 组）**~~ **已完成**：O-4（告警文案，2026-10-02）、O-10（README 任务组示例，`c8f12c2a`；2026-10-02 批次该项实际未落地）；
    O-9（`@since`）仍开放。O-1 已随同步化重构关闭，O-2 已修复（工作区）。
 2. **性能线**：P-P2、P-P7 已完成。剩余先测 P0027 的公开冻结结果读取，再做 P-P3 的内部保留审计；
    P-P1、P-P6 在代表性实测前不进入实现。
