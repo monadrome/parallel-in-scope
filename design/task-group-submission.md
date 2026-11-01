@@ -74,6 +74,10 @@ fail-fast/timeout/cancel 终结的成员尝试一次目标 executor 提交。由
 inline 执行，执行期间部分甚至全部成员已经终态属于合法行为。
 
 成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的执行，并且不得执行任何用户 callable。
+该要求覆盖准备之后、首次提交之前的启动阶段：调用方 `cancelOn` 信号的准入（例如其 `addListener`
+抛出）与组/成员 bind 失败时，启动路径先终结组 token，再取消全部 prepared future，使执行出口槽位、
+retain 与 adopted 所有权经正常收敛释放，runtime 仍可达到 quiescence；清理中的失败作为 suppressed
+附在调用方看到的启动失败上。
 
 ### 7.3 Prepared single-task submission
 
