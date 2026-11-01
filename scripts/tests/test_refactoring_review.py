@@ -223,6 +223,24 @@ class RoutesAndRulesTest(RepoTestCase):
         copied = json.loads((run_dir / "rules" / "refactoring-review" / "config.json").read_text(encoding="utf-8"))
         self.assertEqual(copied["limits"]["minShardLines"], 40)
 
+    def test_head_fills_nested_configuration_keys_without_overriding_base(self):
+        config_path = self.root / "refactoring-review" / "config.json"
+        base_config = json.loads(config_path.read_text(encoding="utf-8"))
+        del base_config["complexity"]["stage"]
+        config_path.write_text(json.dumps(base_config), encoding="utf-8")
+        self.base = self.commit("older nested rules")
+        head_config = json.loads(config_path.read_text(encoding="utf-8"))
+        head_config["complexity"]["stage"] = "changed-head-value"
+        head_config["complexity"]["newSignal"] = True
+        config_path.write_text(json.dumps(head_config), encoding="utf-8")
+        self.write(f"{MAIN}/A.java", java("A", 5))
+        self.commit("new nested rules and code")
+        run_dir, _, plan = self.plan()
+        self.assertEqual(plan["configKeysFromHead"], ["complexity.stage", "complexity.newSignal"])
+        copied = json.loads((run_dir / "rules" / "refactoring-review" / "config.json").read_text(encoding="utf-8"))
+        self.assertEqual(copied["complexity"]["stage"], "changed-head-value")
+        self.assertTrue(copied["complexity"]["newSignal"])
+
     def test_rules_fall_back_to_head_when_the_base_has_none(self):
         self.git("rm", "-r", "-q", "refactoring-review")
         self.base = self.commit("drop rules")
@@ -368,6 +386,31 @@ class VerifyTest(RepoTestCase):
 
 
 class PureFunctionTest(unittest.TestCase):
+    def test_complexity_collector_rejects_unterminated_source(self):
+        with self.assertRaises(ValueError):
+            complexity.collect_file("A.java", 'class A { void run() { String value = "unterminated; }')
+
+    def test_complexity_collector_rejects_invalid_thresholds(self):
+        config = {
+            "complexity": {
+                "thresholds": {"cyclomatic": -1},
+                "excludeGlobs": [],
+                "maxCandidatesPerAgent": 5,
+            }
+        }
+        with self.assertRaises(ValueError):
+            complexity.collect(Path("."), {}, {}, "", config)
+
+    def test_complexity_plan_records_collection_failure_as_blocked(self):
+        config = {"complexity": {"enabled": True}}
+        with mock.patch.object(review, "complexity_inputs", return_value=({}, {}, "")), mock.patch.object(
+            review.complexity_metrics, "collect", side_effect=ValueError("bad thresholds")
+        ):
+            evidence = review.build_complexity_evidence(Path("."), "base", "head", config)
+        self.assertEqual(evidence["status"], "blocked")
+        self.assertIn("bad thresholds", evidence["error"])
+        self.assertIn("blocked", review.complexity_brief(evidence, []))
+
     def test_complexity_collector_reports_gray_stage_candidates(self):
         source = """class A {
     void run(int value) {

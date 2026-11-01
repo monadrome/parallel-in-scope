@@ -122,15 +122,21 @@ def fill_missing_keys(config: dict, newer: dict) -> list[str]:
     keeping every base value means the change still cannot relax a rule that reviews it.
     """
     added = []
+    def fill(prefix: str, current: dict, incoming: dict) -> None:
+        for key, value in incoming.items():
+            name = f"{prefix}.{key}" if prefix else key
+            if key not in current:
+                current[key] = value
+                added.append(name)
+            elif isinstance(value, dict) and isinstance(current[key], dict):
+                fill(name, current[key], value)
+
     for key, value in newer.items():
         if key not in config:
             config[key] = value
             added.append(key)
         elif isinstance(value, dict) and isinstance(config[key], dict):
-            for nested, nested_value in value.items():
-                if nested not in config[key]:
-                    config[key][nested] = nested_value
-                    added.append(f"{key}.{nested}")
+            fill(key, config[key], value)
     return added
 
 
@@ -434,7 +440,7 @@ def build_plan(files: list[ChangedFile], config: dict) -> dict:
 
 def complexity_inputs(repo: Path, base: str, head: str, config: dict) -> tuple[dict[str, str], dict[str, str], str]:
     """Return the core Java sources and the diff used by the gray-stage collector."""
-    paths = git(repo, "diff", "--name-only", "--diff-filter=AM", base, head).splitlines()
+    paths = git(repo, "diff", "--name-only", "--diff-filter=ACMR", base, head).splitlines()
     paths = [
         path
         for path in paths
@@ -466,16 +472,33 @@ def build_complexity_evidence(repo: Path, base: str, head: str, config: dict) ->
             "summary": {"methods": 0, "touchedCandidates": 0, "injectedCandidates": 0},
             "candidates": [],
         }
-    base_files, head_files, diff = complexity_inputs(repo, base, head, config)
     collector_config = dict(config)
     collector_config["_base"] = base
     collector_config["_head"] = head
-    return complexity_metrics.collect(repo, base_files, head_files, diff, collector_config)
+    try:
+        base_files, head_files, diff = complexity_inputs(repo, base, head, config)
+        evidence = complexity_metrics.collect(repo, base_files, head_files, diff, collector_config)
+        evidence["status"] = "completed"
+        return evidence
+    except (OSError, ValueError, KeyError, RunError) as error:
+        return {
+            "version": "complexity-metrics/v1",
+            "stage": "gray-evaluation",
+            "status": "blocked",
+            "purpose": "attention-routing evidence; not a quality score or CI gate",
+            "error": f"{type(error).__name__}: {error}",
+            "base": base,
+            "head": head,
+            "summary": {"methods": 0, "touchedCandidates": 0, "injectedCandidates": 0},
+            "candidates": [],
+        }
 
 
 def complexity_brief(evidence: dict, files: list[str]) -> str:
     if evidence.get("stage") != "gray-evaluation":
         return "Complexity evidence is disabled for this run."
+    if evidence.get("status") == "blocked":
+        return f"Complexity gray evaluation is blocked: {evidence.get('error', 'unknown error')}. Do not treat this as a clean review."
     candidates = [candidate for candidate in evidence.get("candidates", []) if candidate["path"] in files]
     if not candidates:
         return (

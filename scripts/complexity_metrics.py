@@ -9,7 +9,6 @@ the scanner without changing the refactoring-review contract.
 
 from __future__ import annotations
 
-import bisect
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,6 +101,8 @@ def _mask_comments_and_strings(source: str) -> str:
                 if source[i] != "\n":
                     out[i] = " "
                 i += 1
+    if state != "code":
+        raise ValueError(f"unterminated Java {state} literal or comment")
     return "".join(out)
 
 
@@ -110,6 +111,8 @@ def _line_of(source: str, offset: int) -> int:
 
 
 def _matching_brace(masked: str, opening: int) -> int | None:
+    if opening < 0:
+        return None
     depth = 0
     for index in range(opening, len(masked)):
         char = masked[index]
@@ -238,7 +241,23 @@ def _trigger(metric: MethodMetric, base: MethodMetric | None, thresholds: dict) 
 
 
 def collect(repo: Path, base_files: dict[str, str], head_files: dict[str, str], diff: str, config: dict) -> dict:
-    thresholds = config["complexity"]["thresholds"]
+    del repo
+    complexity = config.get("complexity")
+    if not isinstance(complexity, dict):
+        raise ValueError("complexity configuration is missing")
+    thresholds = complexity.get("thresholds")
+    required_thresholds = {
+        "cyclomatic",
+        "codeLines",
+        "maxNesting",
+        "deltaCyclomatic",
+        "deltaCodeLines",
+        "deltaMaxNesting",
+    }
+    if not isinstance(thresholds, dict) or not required_thresholds.issubset(thresholds):
+        raise ValueError("complexity thresholds are incomplete")
+    if any(not isinstance(thresholds[name], int) or thresholds[name] < 0 for name in required_thresholds):
+        raise ValueError("complexity thresholds must be non-negative integers")
     excluded = config["complexity"].get("excludeGlobs", [])
     base_metrics: dict[str, MethodMetric] = {}
     head_metrics: dict[str, MethodMetric] = {}
@@ -273,6 +292,8 @@ def collect(repo: Path, base_files: dict[str, str], head_files: dict[str, str], 
         candidates.append(entry)
 
     limit = config["complexity"].get("maxCandidatesPerAgent", 5)
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError("maxCandidatesPerAgent must be a positive integer")
     return {
         "version": "complexity-metrics/v1",
         "stage": "gray-evaluation",
