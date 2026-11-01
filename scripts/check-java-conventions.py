@@ -193,6 +193,7 @@ def matching_paren(code: str, open_index: int) -> int:
 
 def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[int, int]]:
     spans, depth, angles, start = [], 0, 0, open_index + 1
+    last_close_angle = code.rfind(">", open_index, close_index)
     for index in range(open_index + 1, close_index):
         char = code[index]
         if char in "([{":
@@ -200,10 +201,11 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
         elif char in ")]}":
             depth -= 1
         elif (char == "<" and depth == 0 and index > 0 and not code[index - 1].isspace()
-                and (code[index - 1].isalnum() or code[index - 1] in "_$>]")):
+                and (code[index - 1].isalnum() or code[index - 1] in "_$>]") and index < last_close_angle):
             # Type arguments after an identifier (`Map<String, Integer>`) nest their commas.
-            # An unspaced comparison such as `a<b, c>d` is indistinguishable from a type
-            # argument list and merges two arguments; the message then stays unchecked.
+            # Requiring a later `>` keeps `checkArgument(a<b, "msg")` split correctly; an
+            # expression with both brackets, such as `a<b, c>d`, is still indistinguishable
+            # from a type argument list and merges two arguments.
             angles += 1
         elif char == ">" and angles > 0 and code[index - 1] != "-":
             angles -= 1

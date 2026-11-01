@@ -146,6 +146,12 @@ class RuleTest(unittest.TestCase):
                           '    }\n')
         self.assertEqual(rules_in(text), ["R2"])
 
+    def test_r2_handles_an_unspaced_comparison_before_the_message(self):
+        text = java_class('    void run(int a, int b) {\n'
+                          '        checkArgument(a<b, "Bad value");\n'
+                          '    }\n')
+        self.assertEqual(rules_in(text), ["R2"])
+
     def test_r2_reports_the_message_line_not_the_preceding_argument(self):
         text = java_class('    void run(boolean ok) {\n        checkArgument(ok,\n'
                           '            "Bad value");\n    }\n')
