@@ -19,7 +19,7 @@ not by a sweep.
 
 | Rule | Violation | Exemption |
 |---|---|---|
-| R1 accessor naming | A public or protected zero-argument method named `get[A-Z]...` or `is[A-Z]...` declared in a class, enum, or interface body (interface methods count as public unless `private`) | The method carries `@Override`, which marks a JDK or third-party contract such as `ExecutorService.isShutdown()` |
+| R1 accessor naming | A public or protected zero-argument method named `get[A-Z]...` or `is[A-Z]...` declared in a class, enum, or interface body (interface methods count as public unless `private`) | The method carries `@Override` or a qualified form such as `@java.lang.Override`, which marks a JDK or third-party contract such as `ExecutorService.isShutdown()` |
 | R2 exception message style | A string-literal message passed to `checkArgument`, `checkState`, `checkNotNull`, `checkElementIndex`, `checkPositionIndex`, `verify`, or `verifyNotNull` (bare, or qualified by `Preconditions.`/`Verify.`) that ends with `.`, starts with an uppercase letter, or contains a `%` that does not begin `%s` | A leading code identifier may keep its casing (below) |
 | R3 doubled-l spelling | `canceled`, `canceling`, `canceler(s)`, `cancelable`, `signaling`, `labeled` in lowercase, capitalized, or uppercase form, as a word or a camelCase part (`onCanceled`), in code, comments, or strings | None; the gate sees only added occurrences |
 | R4 null checks | `requireNonNull` in code (comments and strings are ignored) | None; use Guava `checkNotNull` |
@@ -40,8 +40,9 @@ in a variable or built from non-literal parts is skipped. For
 `checkElementIndex`/`checkPositionIndex` the checked argument is the
 description (third argument). Whether a message interpolates the offending
 value or names an actionable alternative is not mechanically checkable and is
-left to review. A comma inside `Identifier<...>` is treated as type-argument
-nesting, so `Map<String, Integer>` does not shift the message position. The
+left to review. A comma inside type arguments is treated as nesting, including
+`Map<String, Integer>` and an explicit method type argument such as
+`this.<String, Integer>call()`, so it does not shift the message position. The
 nesting applies only when a `>` follows later in the call, which keeps
 `checkArgument(a<b, "message")` split correctly; an expression that combines
 both brackets, such as `a<b, c>d`, is still indistinguishable from a type

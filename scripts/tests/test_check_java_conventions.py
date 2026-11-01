@@ -107,6 +107,10 @@ class RuleTest(unittest.TestCase):
                           '    public String getName() {\n        return "";\n    }\n')
         self.assertEqual(rules_in(text), ["R1"])
 
+    def test_r1_exempts_fully_qualified_override(self):
+        text = java_class("    @java.lang.Override\n    public boolean isShutdown() {\n        return false;\n    }\n")
+        self.assertEqual(rules_in(text), [])
+
     def test_r1_ignores_calls_and_counts_implicitly_public_interface_methods(self):
         calls = java_class("    private final Object v = getValue();\n"
                            "    void run() {\n        Object x = getValue();\n        getValue();\n    }\n")
@@ -149,6 +153,12 @@ class RuleTest(unittest.TestCase):
     def test_r2_handles_an_unspaced_comparison_before_the_message(self):
         text = java_class('    void run(int a, int b) {\n'
                           '        checkArgument(a<b, "Bad value");\n'
+                          '    }\n')
+        self.assertEqual(rules_in(text), ["R2"])
+
+    def test_r2_handles_explicit_method_type_arguments_before_the_message(self):
+        text = java_class('    void run() {\n'
+                          '        checkArgument(this.<String, Integer>value(), "Bad value");\n'
                           '    }\n')
         self.assertEqual(rules_in(text), ["R2"])
 
