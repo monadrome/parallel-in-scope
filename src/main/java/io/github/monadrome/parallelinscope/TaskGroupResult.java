@@ -290,11 +290,9 @@ public final class TaskGroupResult<V, R> {
             return this;
         }
         Throwable failure = report.recordedFailure();
-        if (failure instanceof RuntimeException) throw (RuntimeException) failure;
-        if (failure instanceof Error) throw (Error) failure;
         if (failure != null) {
-            throw new CompletionException(
-                    "task group '" + groupName() + "' failed in '" + failedTaskName() + "'", failure);
+            throw TaskBatchResult.selectedFailure(
+                    failure, "task group '" + groupName() + "' failed in '" + failedTaskName() + "'");
         }
         Throwable cancellation = values.failure();
         if (cancellation instanceof CancellationException) throw (CancellationException) cancellation;

@@ -29,7 +29,8 @@ export interface MetricsInput {
   gold: GoldRecord | null;
 }
 
-function emptyCounts(): CountSet {
+/** Zeroed finding counts; shared by per-run evaluation and the cross-run leaderboard. */
+export function emptyCounts(): CountSet {
   return {
     total: 0,
     adjudicated: 0,
@@ -41,7 +42,8 @@ function emptyCounts(): CountSet {
   };
 }
 
-function rateSet(counts: CountSet): RateSet {
+/** Verdict rates over adjudicated findings; every rate is null when nothing is adjudicated. */
+export function rateSet(counts: CountSet): RateSet {
   if (counts.adjudicated === 0) {
     return { confirmed: null, rejected: null, neutral: null, uncertain: null };
   }
