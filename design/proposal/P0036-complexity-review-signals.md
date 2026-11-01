@@ -39,3 +39,10 @@ purpose = attention-routing evidence; not a quality score or CI gate
 先观察若干真实 change 中候选的接受、拒绝、延期和误报比例。只有当候选稳定带来有效的
 重构发现，才讨论 AST 采集器、额外风险信号或 delivery ledger 聚合；复杂度下降本身不是
 成功标准。
+
+## 蒸馏摘要
+
+复杂度指标只负责定位评审注意力，语义评审负责决定是否重构；评测结果必须标记为
+`gray-evaluation`，不得直接成为质量分、CI 门禁或自动修改依据。候选只来自单个 change，
+并排除 `queue`；采集失败必须显式报告，不能当作零候选。后续是否扩大到 AST、额外风险信号
+或 delivery ledger，取决于灰度期间的有效发现率和误报成本。
