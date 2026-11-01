@@ -1,19 +1,17 @@
 package demo.advanced;
 
-import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.ExecutorWaitReport;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 死锁检测示例：演示线程池嵌套调用导致的死锁
@@ -78,22 +76,16 @@ public class DeadlockDetectionDemo {
                     },
                     optionsA);
 
-            // 等待完成 — 由于死锁，会超时
-            try {
-                Futures.allAsList(result.results().stream()
-                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                                .collect(java.util.stream.Collectors.toList()))
-                        .get(6, TimeUnit.SECONDS);
-                System.out.println("[main] 所有任务完成（意外！）");
-            } catch (TimeoutException e) {
+            // map 同步返回时全部元素已终态：直接读冻结的 outcome 分布，按 TIMEOUT 归因识别死锁
+            if (result.outcomeCounts().getOrDefault(TaskOutcome.TIMEOUT, 0) > 0) {
                 long elapsed = System.currentTimeMillis() - start;
                 System.out.println("[main] 死锁！超时 " + elapsed + "ms");
                 System.out.println("[main] 4 个线程全被 task-A 占住");
                 System.out.println("[main] task-B 需要线程但永远分配不到 → 循环等待");
-            } catch (Exception e) {
-                long elapsed = System.currentTimeMillis() - start;
-                System.out.println("[main] 异常完成: " + e.getMessage() + " (" + elapsed + "ms)");
+            } else {
+                System.out.println("[main] 所有任务完成（意外！）");
             }
+            System.out.println("[main] 执行报告: " + result.reportString());
 
             System.out.println("\n=== 解决方案 ===");
             System.out.println("1. 拆分线程池：task-A 和 task-B 使用不同的池");
@@ -130,14 +122,7 @@ public class DeadlockDetectionDemo {
                 },
                 optionsB);
 
-        try {
-            Futures.allAsList(resultB.results().stream()
-                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                            .collect(java.util.stream.Collectors.toList()))
-                    .get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            System.out.println(
-                    "  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());
-        }
+        // 嵌套 map 返回时结果已冻结；死锁场景下 task-B 以 TIMEOUT/FAIL_FAST 归因结束
+        System.out.println("  [task-B-" + parentItem + "] 结果分布: " + resultB.reportString());
     }
 }

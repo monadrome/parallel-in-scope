@@ -95,6 +95,24 @@ public final class QuickStart {
   封顶——不写 `.parallelism(...)` 等于整批一次性提交。需要有界窗口就显式设置；0 或负数在入口
   被拒绝。
 
+固定的一组异构命名操作——取用户、取账户，再组装档案——改用一次性任务组而不是批次。已发布的
+`0.3.0` 行上，成员类型是 `Class` 标记：
+
+```java
+TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+        .group("profile", Duration.ofSeconds(3))
+        .par("user", io, User.class, () -> loadUser(userId))
+        .par("account", io, Account.class, () -> loadAccount(userId))
+        .combine("profile", io, Profile.class,
+                values -> Profile.of(values.first(), values.second()))
+        .runAll();
+Profile value = profile.terminalValueOrThrow(); // 0.3.x 上该方法声明受检的 ExecutionException
+```
+
+`runAll()` 一次性消费声明并返回冻结结果，没有需要关闭的句柄。首个成员失败会取消其余成员，
+成员超时则取消整个组。开发线把 `Class` 标记换成了可复用的类型化 key，并把聚合读取改为非受检；
+参见 [v0.4 迁移指南](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/docs/zh/migration-v0.4.md)。
+
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。
 

@@ -35,5 +35,30 @@ try {
 batch fails fast when an element fails. Because the mapper is a `Function`, wrap checked exceptions
 in `UncheckedIOException` or another unchecked exception.
 
+A fixed, heterogeneous set of named operations goes through a one-shot group instead: each member
+states its typed key, its `Par`, and this run's body, and an optional terminal combine turns the
+member values into one result. Declare keys once and reuse them; `runAll()` runs the declaration
+once, blocks until every member and the combine settle, and returns frozen results.
+
+```java
+Par io = runtime.defaultPar();
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+    .group("profile", Duration.ofSeconds(3))
+    .par(userKey, io, () -> loadUser(userId))
+    .par(accountKey, io, () -> loadAccount(userId))
+    .combineValues(profileKey, io, values -> Profile.of(
+        values.valueOf(userKey), values.valueOf(accountKey)))
+    .runAll();
+Profile value = profile.terminalValueOrThrow();
+```
+
+The key binds declaration and result lookup to the same type: `profile.resultOf(userKey)` reads a
+member's typed `ImmediateResult<User>` without a cast. The first member failure cancels its
+siblings, and a member timeout cancels the whole group.
+
 The [interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) has a
 Chinese UI and illustrates the same cancellation, timeout, fail-fast, and sliding-window semantics.
