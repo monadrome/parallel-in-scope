@@ -2,9 +2,6 @@
 target/
 __pycache__/
 
-# jqwik's local failing-sample database
-.jqwik-database
-
 # IDE
 .idea/
 *.iml
