@@ -81,7 +81,6 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
      * calls wait for the same publication. Sampling failures are recorded in the report; a sampling
      * {@link Error} is rethrown only after report publication has been attempted.
      */
-    @SuppressWarnings("ReferenceEquality")
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
@@ -89,32 +88,9 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             if (scheduled != null) {
                 scheduled.cancel(false);
             }
-            Error finalSamplingError = null;
             try {
-                awaitSampling();
-                try {
-                    finalSample();
-                } catch (Throwable failure) {
-                    recordSamplingFailure(failure);
-                    if (failure instanceof Error) {
-                        finalSamplingError = (Error) failure;
-                    }
-                }
-                Throwable failure = samplingFailure.get();
-                Error samplingError = failure instanceof Error ? (Error) failure : finalSamplingError;
-                try {
-                    reportSink.set(report());
-                } catch (RuntimeException | Error publicationFailure) {
-                    if (samplingError == null) {
-                        throw publicationFailure;
-                    }
-                    if (samplingError != publicationFailure) {
-                        samplingError.addSuppressed(publicationFailure);
-                    }
-                }
-                if (samplingError != null) {
-                    throw samplingError;
-                }
+                Error samplingError = finishSampling();
+                publishReport(samplingError);
             } catch (RuntimeException | Error failure) {
                 reportSink.setException(failure);
                 throw failure;
@@ -123,6 +99,46 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
             }
         } else {
             awaitReportPublication();
+        }
+    }
+
+    /**
+     * Waits for the active sample, performs the final sample, and returns the recorded or final
+     * sampling {@link Error} that must be rethrown after report publication.
+     */
+    private @Nullable Error finishSampling() {
+        awaitSampling();
+        Error finalSamplingError = null;
+        try {
+            finalSample();
+        } catch (Throwable failure) {
+            recordSamplingFailure(failure);
+            if (failure instanceof Error) {
+                finalSamplingError = (Error) failure;
+            }
+        }
+        Throwable failure = samplingFailure.get();
+        return failure instanceof Error ? (Error) failure : finalSamplingError;
+    }
+
+    /**
+     * Publishes the report even when {@code samplingError} is pending, suppressing a distinct
+     * publication failure onto that error before rethrowing it.
+     */
+    @SuppressWarnings("ReferenceEquality")
+    private void publishReport(@Nullable Error samplingError) {
+        try {
+            reportSink.set(report());
+        } catch (RuntimeException | Error publicationFailure) {
+            if (samplingError == null) {
+                throw publicationFailure;
+            }
+            if (samplingError != publicationFailure) {
+                samplingError.addSuppressed(publicationFailure);
+            }
+        }
+        if (samplingError != null) {
+            throw samplingError;
         }
     }
 
