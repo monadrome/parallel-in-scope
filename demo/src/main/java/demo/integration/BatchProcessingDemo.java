@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li>大数据集分批处理
  *   <li>并行度控制
- *   <li>错误处理
+ *   <li>聚合结果读取
  *   <li>性能监控
  * </ul>
  */
