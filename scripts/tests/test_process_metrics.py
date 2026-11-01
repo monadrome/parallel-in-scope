@@ -53,6 +53,7 @@ REPORT = """# Refactoring review
 | R1 | M05 | `a` | T1 -> T1 | applied (`abc1234`) | landed |
 | R2 | S02 | `b` | T0 -> T0 | Deferred | over the limit |
 | R3 | S03 | `c` | T0 -> T0 | moved elsewhere | unclear |
+| R4 | D04 | `d` | T2 -> T2 | review | reachable fallback |
 
 ## Verification
 
@@ -83,7 +84,7 @@ class DispositionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / "report.md"
             report.write_text(REPORT, encoding="utf-8")
-            self.assertEqual(metrics.report_dispositions(report), {"R1": "applied", "R2": "deferred", "R3": "unknown"})
+            self.assertEqual(metrics.report_dispositions(report), {"R1": "applied", "R2": "deferred", "R3": "unknown", "R4": "review"})
 
     def test_missing_report_yields_no_dispositions(self):
         self.assertEqual(metrics.report_dispositions(Path("/nonexistent/report.md")), {})
@@ -186,7 +187,7 @@ class MarkdownTest(unittest.TestCase):
             "pitInconclusiveRate": None, "tokens": None, "cost": 1.5, "currency": "USD",
         }],
         "rules": [{"rule": "M05", "title": "Duplication across files", "findings": 2, "applied": 1, "rejected": 0,
-                   "deferred": 0, "reverted": 0, "unknown": 1, "mechanizable": 1}],
+                   "deferred": 0, "review": 0, "reverted": 0, "unknown": 1, "mechanizable": 1}],
         "localGateFailures": {"mvn test": 2},
         "reviewYield": {"runs": 3, "systemStatuses": {"completed": 2, "timed_out": 1}, "clusters": {"total": 4},
                         "reviewerTokens": None, "systemsWithUsage": 0, "reviewerCostsByCurrency": {}},
@@ -195,7 +196,7 @@ class MarkdownTest(unittest.TestCase):
     def test_renders_unknowns_as_dashes_and_cost_with_its_currency(self):
         text = metrics.render_markdown(self.REPORT)
         self.assertIn("| 2026-11-05-add-b | defect, docs | 2 | 1 | 1 | 3 | 2 | 1 | 0 | - | - | 1.5 USD |", text)
-        self.assertIn("| M05 | Duplication across files | 2 | 1 | 0 | 0 | 0 | 1 | 1 |", text)
+        self.assertIn("| M05 | Duplication across files | 2 | 1 | 0 | 0 | 0 | 0 | 1 | 1 |", text)
         self.assertIn("| mvn test | 2 |", text)
         self.assertIn("Reviewer statuses: completed=2, timed_out=1.", text)
         self.assertIn("Reviewer tokens: - (0 systems reported usage). Reviewer cost: -.", text)

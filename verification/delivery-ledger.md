@@ -51,7 +51,7 @@ rest separately. Omit a flag whose evidence does not exist for the change.
 | `routes` | self-reported | Task Routes rows that applied: `mechanical`, `defect`, `contract`, `concurrency`, `docs`, `dependency`, `release`, or `other` |
 | `change` | git | Commit subjects of `--base..HEAD` and the diff's file, insertion, and deletion counts |
 | `reviews.adversarial` | llm-review-bench run | Run status; per reviewer system: status, attempts, total duration, finding verdict counts, and usage from the newest evaluation; deduplicated cluster verdict counts |
-| `reviews.refactoring` | refactoring-review run | Each merged finding's rules, tier, scope, `mechanizable` flag, and disposition from the report's Dispositions table (`applied`, `rejected`, `deferred`, `reverted`, or `unknown` when the report is missing or the cell does not start with one of these) |
+| `reviews.refactoring` | refactoring-review run | Each merged finding's rules, tier, scope, `mechanizable` flag, and disposition from the report's Dispositions table (`applied`, `rejected`, `deferred`, `review`, `reverted`, or `unknown` when the report is missing or the cell does not start with one of these) |
 | `gates.failures` | self-reported | Per required local check (Commands, Verification And Completion): runs that failed on this change before it passed. Count every failed run, including ones fixed within a minute |
 | `pit` | `mutations.xml` | Raw status counts and the inconclusive count: every status other than `KILLED`, `SURVIVED`, `NO_COVERAGE`, and `NON_VIABLE`, per "Interpret every raw status" in [PIT verification](pit.md) |
 | `interventions.asks` | self-reported | Times the agent stopped for a maintainer decision under Autonomous Completion |
