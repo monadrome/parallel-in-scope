@@ -33,6 +33,7 @@ def load_script():
 
 
 review = load_script()
+complexity = review.complexity_metrics
 CONFIG = json.loads((RULES / "config.json").read_text(encoding="utf-8"))
 LIMITS = CONFIG["limits"]
 
@@ -133,6 +134,10 @@ class PlanModeTest(RepoTestCase):
         self.write(f"{MAIN}/A.java", java("A", 10))
         self.commit("small")
         run_dir, summary, plan = self.plan()
+        self.assertEqual(plan["evaluation"]["stage"], "gray-evaluation")
+        metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+        self.assertEqual(metrics["stage"], "gray-evaluation")
+        self.assertIn("not a quality score", metrics["purpose"])
         self.assertEqual(plan["mode"], "single")
         self.assertEqual([a["id"] for a in plan["agents"]], ["all"])
         self.assertEqual(plan["agents"][0]["lenses"], ["D", "S", "V"])
@@ -363,6 +368,50 @@ class VerifyTest(RepoTestCase):
 
 
 class PureFunctionTest(unittest.TestCase):
+    def test_complexity_collector_reports_gray_stage_candidates(self):
+        source = """class A {
+    void run(int value) {
+        if (value > 0) { while (value-- > 0) { } }
+    }
+}
+"""
+        metrics = complexity.collect_file("src/main/java/io/github/monadrome/parallelinscope/A.java", source)
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].symbol, "A#run(int value)")
+        self.assertEqual(metrics[0].cyclomatic, 3)
+        self.assertEqual(metrics[0].max_nesting, 2)
+
+    def test_complexity_collector_uses_added_lines_and_thresholds(self):
+        source = """class A {
+    void run(int value) {
+        if (value > 0) { while (value-- > 0) { } }
+    }
+}
+"""
+        diff = """diff --git a/A.java b/A.java
+--- a/A.java
++++ b/A.java
+@@ -2,1 +2,1 @@
+     void run(int value) {
+"""
+        config = {
+            "complexity": {
+                "thresholds": {
+                    "cyclomatic": 3,
+                    "codeLines": 80,
+                    "maxNesting": 4,
+                    "deltaCyclomatic": 2,
+                    "deltaCodeLines": 10,
+                    "deltaMaxNesting": 1,
+                },
+                "excludeGlobs": [],
+                "maxCandidatesPerAgent": 5,
+            }
+        }
+        result = complexity.collect(Path("."), {}, {"A.java": source}, diff, config)
+        self.assertEqual(result["stage"], "gray-evaluation")
+        self.assertEqual(result["summary"]["touchedCandidates"], 1)
+
     def test_parse_diff_separates_code_comment_and_blank_lines(self):
         patch = "\n".join(
             [
