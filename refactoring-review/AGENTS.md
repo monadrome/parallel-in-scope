@@ -3,7 +3,7 @@
 Rule router for refactoring-review: the behavior-preserving restructuring pass that runs on every
 code change after its behavior commit and before code review (`/multi-review`). The orchestration
 steps live in `.claude/skills/refactoring-review/SKILL.md`; this directory owns the rules, and
-`scripts/refactoring-review.py` owns the deterministic parts (gate, plan, merge, verify).
+`scripts/refactoring-review.py` owns the deterministic parts (gate, plan, detect, merge, verify).
 
 ## Position In The Workflow
 
@@ -29,6 +29,7 @@ Read only the rows your role needs.
 | [lenses/concurrency.md](lenses/concurrency.md) | lens `C`: the concurrency-mechanism ladder and its review rules | the detector assigned `C`; implementers choosing a mechanism |
 | [lenses/conventions.md](lenses/conventions.md) | lens `V`: repository conventions a reviewer applies by judgement | the detector assigned `V` |
 | [lenses/tests.md](lenses/tests.md) | lens `T`: test structure, oracles, timing | the detector assigned `T` |
+| [lenses/defensive.md](lenses/defensive.md) | lens `D`: checks, catches, fallbacks, guards, and switches for failures nothing can cause, with the firing question that separates them from trust-boundary checks | the detector assigned `D`; implementers deciding whether to add a check |
 | [detector-brief.md](detector-brief.md) | the prompt template every detector receives, with its output schema | the script (fills it); detectors (receive it) |
 | [report-template.md](report-template.md) | the shape of the run report and its dispositions | the main agent writing the report |
 

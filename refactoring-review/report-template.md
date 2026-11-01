@@ -27,6 +27,8 @@ Disposition is one of:
 - rejected: wrong, suppressed by a higher source (cite it), or already rejected in
   `design/decision-log.md` or `docs/zh/design/idea-graveyard.md`
 - deferred: T2 or over a stop rule; give the destination (BACKLOG entry, proposal, open item)
+- review: a removal something can reach (a lens `D` T2 such as a reachable fallback), so a behavior
+  change rather than a refactoring; passed to code review as an attack surface with its trigger
 - reverted: applied, then undone because verification failed or a test assertion had to change
 
 ## Verification

@@ -10,6 +10,9 @@ Subcommands:
     Decide whether the change from the merge-base of ``--base`` and ``--head`` needs
     refactoring-review. When it does, write the run directory: ``plan.json``, the full and
     per-detector diffs, the rules as read, and one filled detector brief per detector.
+``detect``
+    Run each planned detector's brief through a read-only reviewer CLI (kimi, codex, claude), at most
+    ``--concurrency`` at a time, and save the parsed JSON as ``agents/<id>/findings.json``.
 ``merge``
     Validate each detector's ``agents/<id>/findings.json``, enforce per-detector budgets, merge
     duplicates, and write ``merged.json``.
@@ -17,14 +20,15 @@ Subcommands:
     After the refactor commits, measure their code-line growth against the behavior change, list
     test lines that touch assertions or timing, and list commits that are not ``refactor:`` commits.
 
-Every subcommand prints one JSON object on stdout. Exit status: 0 success; 1 a check failed (merge:
-a detector missing or invalid; verify: a stop rule, a test-oracle edit, or a non-refactor commit);
-2 the command could not run.
+Every subcommand prints one JSON object on stdout. Exit status: 0 success; 1 a check failed (detect:
+a detector did not complete; merge: a detector missing or invalid; verify: a stop rule, a test-oracle
+edit, or a non-refactor commit); 2 the command could not run.
 """
 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime
 import fnmatch
 import hashlib
@@ -567,6 +571,115 @@ def command_plan(args: argparse.Namespace, repo: Path) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------- detect
+
+
+def kimi_argv(prompt: str, repo: Path, agent_dir: Path, last_message: Path) -> list[str]:
+    return ["kimi", "--output-format", "text", "--add-dir", str(agent_dir), "-p", prompt]
+
+
+def codex_argv(prompt: str, repo: Path, agent_dir: Path, last_message: Path) -> list[str]:
+    return [
+        "codex", "exec", "-C", str(repo), "--sandbox", "read-only",
+        "--add-dir", str(agent_dir), "--output-last-message", str(last_message), prompt,
+    ]
+
+
+def claude_argv(prompt: str, repo: Path, agent_dir: Path, last_message: Path) -> list[str]:
+    return ["claude", "-p", prompt]
+
+
+# Argv builders for detectors run by `detect`; the read-only flags mirror the review bench adapters
+# (tools/llm-review-bench/docs/adapters.md). Tests register extra entries.
+REVIEWERS = {"kimi": kimi_argv, "codex": codex_argv, "claude": claude_argv}
+
+
+def extract_findings(text: str) -> dict | None:
+    """Return the last JSON object in ``text`` that carries a ``findings`` array."""
+    decoder = json.JSONDecoder()
+    found = None
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
+        try:
+            value, _ = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict) and isinstance(value.get("findings"), list):
+            found = value
+    return found
+
+
+def run_detector(agent: dict, reviewer: str, repo: Path, run_dir: Path, timeout: int) -> dict:
+    agent_dir = run_dir / "agents" / agent["id"]
+    attempt = len(list(agent_dir.glob("attempt-*.stdout.log"))) + 1
+    stdout_path = agent_dir / f"attempt-{attempt}.stdout.log"
+    stderr_path = agent_dir / f"attempt-{attempt}.stderr.log"
+    last_message = agent_dir / f"attempt-{attempt}.last-message.txt"
+    argv = REVIEWERS[reviewer]((agent_dir / "brief.md").read_text(encoding="utf-8"), repo, agent_dir, last_message)
+    started = datetime.datetime.now()
+    status = "completed"
+    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+        try:
+            completed = subprocess.run(argv, cwd=repo, stdout=stdout, stderr=stderr, timeout=timeout, check=False)
+            if completed.returncode != 0:
+                status = f"exit-{completed.returncode}"
+        except subprocess.TimeoutExpired:
+            status = "timeout"
+        except OSError as error:
+            status = f"not-runnable: {error}"
+    text = last_message.read_text(encoding="utf-8", errors="replace") if last_message.exists() else ""
+    payload = extract_findings(text) or extract_findings(stdout_path.read_text(encoding="utf-8", errors="replace"))
+    if payload is not None:
+        (agent_dir / "findings.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    elif status == "completed":
+        status = "unparsable"
+    return {
+        "agent": agent["id"],
+        "reviewer": reviewer,
+        "attempt": attempt,
+        "status": status,
+        "seconds": round((datetime.datetime.now() - started).total_seconds()),
+        "findings": None if payload is None else len(payload["findings"]),
+    }
+
+
+def command_detect(args: argparse.Namespace, repo: Path) -> int:
+    run_dir = Path(args.run_dir).resolve()
+    plan = load_plan(run_dir)
+    if not plan.get("required"):
+        raise RunError("the plan did not require refactoring-review; nothing to detect")
+    head = resolve(repo, "HEAD")
+    if head != plan["head"]:
+        raise RunError(f"detectors read the working tree, which is at {head[:12]}, not the plan head {plan['head'][:12]}")
+    before = git(repo, "status", "--porcelain")
+    if dirty_code_paths(repo, run_rules(run_dir)):
+        raise RunError("detectors read the working tree; commit or stash its code changes first")
+    only = {item for item in (args.only or "").split(",") if item}
+    agents = [agent for agent in plan["agents"] if not only or agent["id"] in only]
+    unknown = only - {agent["id"] for agent in plan["agents"]}
+    if unknown:
+        raise RunError(f"--only names unknown detectors: {', '.join(sorted(unknown))}")
+    choices = {agent["id"]: agent.get("reviewer") or args.reviewer for agent in agents}
+    missing = sorted({name for name in choices.values() if name not in REVIEWERS})
+    if missing:
+        raise RunError(f"no runner for reviewer(s) {', '.join(missing)}; known: {', '.join(sorted(REVIEWERS))}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+        futures = [pool.submit(run_detector, agent, choices[agent["id"]], repo, run_dir, args.timeout) for agent in agents]
+        results = [future.result() for future in futures]
+    after = git(repo, "status", "--porcelain")
+    snapshot_modified = after != before
+    if snapshot_modified:
+        for result in results:
+            result["status"] = "snapshot-modified"
+    log = run_dir / "detect.jsonl"
+    with log.open("a", encoding="utf-8") as handle:
+        for result in results:
+            handle.write(json.dumps(result) + "\n")
+    print(json.dumps({"detectors": results, "snapshotModified": snapshot_modified}, indent=2))
+    return 0 if all(result["status"] == "completed" for result in results) else 1
+
+
 # ---------------------------------------------------------------------------- merge
 
 
@@ -766,6 +879,13 @@ def parser() -> argparse.ArgumentParser:
     plan.add_argument("--allow-dirty", action="store_true", help="plan even with uncommitted code changes")
     plan.add_argument("--force", action="store_true", help="overwrite an existing plan.json")
 
+    detect = commands.add_parser("detect", help="run each planned detector through a read-only reviewer CLI")
+    detect.add_argument("run_dir")
+    detect.add_argument("--reviewer", default="kimi", help="reviewer for detectors the plan left unassigned")
+    detect.add_argument("--concurrency", type=int, default=3, help="detectors running at once (default: 3)")
+    detect.add_argument("--timeout", type=int, default=1500, help="seconds per detector (default: 1500)")
+    detect.add_argument("--only", help="comma-separated detector ids to (re)run")
+
     merge = commands.add_parser("merge", help="validate and merge detector findings")
     merge.add_argument("run_dir")
 
@@ -778,7 +898,7 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     repo = Path(args.repo)
-    handlers = {"plan": command_plan, "merge": command_merge, "verify": command_verify}
+    handlers = {"plan": command_plan, "detect": command_detect, "merge": command_merge, "verify": command_verify}
     try:
         return handlers[args.command](args, repo)
     except RunError as error:

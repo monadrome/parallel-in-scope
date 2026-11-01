@@ -38,6 +38,13 @@
       "shardable": true
     },
     {
+      "id": "D",
+      "name": "defensive",
+      "file": "lenses/defensive.md",
+      "classes": ["main", "script"],
+      "shardable": true
+    },
+    {
       "id": "S",
       "name": "structure",
       "file": "lenses/structure.md",
