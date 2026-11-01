@@ -195,6 +195,19 @@ class RuleTest(unittest.TestCase):
                           '    public void onCanceled() {\n    }\n')
         self.assertEqual(rules_in(text), [])
 
+    def test_r3_crosses_a_multiline_annotation_to_find_override(self):
+        text = java_class('    @Override\n    @SuppressWarnings({\n        "unchecked"\n    })\n'
+                          '    public void onCanceled() {\n    }\n')
+        self.assertEqual(rules_in(text), [])
+
+    def test_r3_ignores_an_override_named_in_a_comment(self):
+        text = java_class('    // @Override\n    String canceled = "";\n')
+        self.assertEqual(rules_in(text), ["R3"])
+
+    def test_r3_exempts_only_the_mandated_method_name(self):
+        text = java_class('    @Override public void onCanceled() { String canceled = ""; }\n')
+        self.assertEqual(rules_in(text), ["R3"])
+
     def test_r3_flags_an_acronym_prefixed_name(self):
         self.assertEqual(rules_in(java_class('    static class URLCanceledTask {\n    }\n')), ["R3"])
 
