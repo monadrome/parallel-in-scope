@@ -1,0 +1,31 @@
+design/AGENTS.md
+  s_716c6c1bc1b8bf::t_374103dafc5bca 158-159
+design/proposal/P0031-late-value-close.md
+  s_716c6c1bc1b8bf::t_4b3d6d9ad60f3f 140-146
+  s_716c6c1bc1b8bf::t_59a1bd7448a1b9 1-84,90-95,101-139
+  s_716c6c1bc1b8bf::t_41d2b10cce3337 85-89
+  s_716c6c1bc1b8bf::t_aa2b1301dbc8bf 96-100
+design/proposal/P0032-async-group-member.md
+  s_716c6c1bc1b8bf::t_bcaa03f516408b 143-150
+  s_716c6c1bc1b8bf::t_9227515c9479eb 1-17,21,26-27,36-132,138-142
+  s_716c6c1bc1b8bf::t_827cef8af25c07 19-20,22-25
+  s_716c6c1bc1b8bf::t_93c75140b022ac 133-137
+  s_716c6c1bc1b8bf::t_b19c4c3dbf86ba 18
+  s_716c6c1bc1b8bf::t_6ae9ae832ddc59 28-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1b4f44a9b411c0d47999cad4411d54e8339ea349",
+  "prompts": {},
+  "sessions": {
+    "s_716c6c1bc1b8bf": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_ebaa32e8-255d-4bc2-abfd-4878e61891bc",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
