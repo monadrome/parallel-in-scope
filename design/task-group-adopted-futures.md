@@ -173,3 +173,13 @@ closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落�
   source 的快捷路径可在落定监听器写入结束时间之前收敛，成功组的报告结束时间为 0；改为 A2 的单一落定路径，
   确定性的窗口测试在恢复快捷路径后失败。
 - 三轮已满，按根 AGENTS.md 停止评审；第三轮的修复由回归测试与反向验证支撑，未再经独立评审。
+
+接管收尾（暂停 goal 运行后在主会话完成）：对 `AdoptedSource*`、`TaskGroup`、`GroupDraft*`、`TaskGroupDefinition*`
+跑含 `VOID_METHOD_CALLS` 的 PIT（组相关全部契约测试，无历史输入）。首轮暴露的四个缺口已补测试并反向验证：
+`adopt` 的重名校验、阶段与线程限制、带生产者与 closer 的四参重载（此前无覆盖）、收敛完成 `ownershipSettled`
+后运行时不再保留收养组（撤掉该完成即 `awaitQuiescence` 超时）。变更行上的剩余存活均已分类：
+`slot -> slot.adopted` 恒真的两处为等价（无收养成员时 combine 的认领与额外保留都不可观察：combine 若晚于
+丢弃决定启动，其 future 已随组取消而跳过 body；`ownershipSettled` 在同一次收敛的 finally 中完成）；
+`Verify` 调用删除三处为防御性内部不变量（参数中的 CAS 与状态迁移仍执行，合法调用图不触发）；
+`takePayloads` 清空身份集合为已消费草稿的引用卫生，不可观察；`par` 分支的 `diagnoseAdmission` 删除是
+原有调用移位，属既有 TaskType 诊断测试不在本范围内的覆盖限制。未变更行上的存活不属本次变更。
