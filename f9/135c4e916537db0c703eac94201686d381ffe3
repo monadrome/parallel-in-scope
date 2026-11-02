@@ -1,0 +1,29 @@
+CHANGELOG.md
+  s_ef3e34f9b12897::t_7b660b69a7db90 60-64,70
+design/task-group-adopted-futures.md
+  s_ef3e34f9b12897::t_031eba0d7f64cf 1-3,5-46,49-50,53-62,66,75-81,85-103,110-123,126,130,132,134,144,146
+src/main/java/io/github/monadrome/parallelinscope/ResourceCloser.java
+  s_ef3e34f9b12897::t_a00a507112ed34 1-5,14,31-45
+  s_ef3e34f9b12897::t_80e0dc39b769ca 6-13
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+  s_ef3e34f9b12897::t_847f0000693445 1-14,16-26,28-156,158-161,164-167,169-237,241-253,255-275,279-368,415-431,433,436-437,440-442,519-563,565-576,578-582,584-600,602-603,605-607,609-661,663-665,667-670,446-448,450,456,464,466-467,470,477-480,497,505,511,518
+  s_ef3e34f9b12897::t_145f3c024327c2 369-413,451,468,471-472,475-476,495,516
+  s_ef3e34f9b12897::t_7d7ed104a8a74c 434,445,452
+  s_ef3e34f9b12897::t_57a9c769fd3447 453-454
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f9135c4e916537db0c703eac94201686d381ffe3",
+  "prompts": {},
+  "sessions": {
+    "s_ef3e34f9b12897": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_4c6145df-39ff-426f-a76e-e3293325e30f",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
