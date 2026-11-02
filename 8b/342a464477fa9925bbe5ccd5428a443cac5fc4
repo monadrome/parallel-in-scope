@@ -1,0 +1,59 @@
+integrations/pom.xml
+  s_c979f2e5c3db4e::t_62f6f201b0a2c4 1-126
+integrations/src/test/java/integrations/sentinel/SentinelGuardTest.java
+  s_c979f2e5c3db4e::t_b3413724e3eb68 1-59,61-64,72-73,76-77,86-88,100-210
+integrations/src/main/java/integrations/sentinel/SentinelGuard.java
+  s_c979f2e5c3db4e::t_c45adc49739fde 1-96
+integrations/README.en.md
+  s_c979f2e5c3db4e::t_3756a45f35413c 1-118
+AGENTS.md
+  s_c979f2e5c3db4e::t_6b2ceccbe2c17c 429-432
+integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java
+  s_c979f2e5c3db4e::t_d704b41106fae9 1-104
+integrations/src/main/java/integrations/sentinel/SentinelFlowRules.java
+  s_c979f2e5c3db4e::t_a22838f96d654d 1-40
+integrations/README.md
+  s_c979f2e5c3db4e::t_46dff9e622dd75 1-94
+integrations/src/main/java/integrations/resilience4j/ResilientCall.java
+  s_c979f2e5c3db4e::t_7eb863c482bc4c 1-124
+integrations/src/test/java/integrations/app/QuoteServiceTest.java
+  s_c979f2e5c3db4e::t_722ad5e284447a 1-4,6-59,66-69,71-74,77-80,84-85,89-92,94,96-99,104-145,147-197
+integrations/src/main/java/integrations/app/QuoteService.java
+  s_c979f2e5c3db4e::t_1d6b46f60b3617 1-125
+integrations/src/main/java/integrations/app/Quote.java
+  s_c979f2e5c3db4e::t_d176b0845375be 1-59
+integrations/src/test/java/integrations/resilience4j/ResilientCallTest.java
+  s_c979f2e5c3db4e::t_6c7e30b12ef73d 132-164
+  s_c979f2e5c3db4e::t_4766a00f98cabf 1-95,97-131,165-171,176-262
+integrations/src/main/java/integrations/support/Cancellations.java
+  s_c979f2e5c3db4e::t_bde42d737fdba0 1-71
+integrations/src/main/java/integrations/app/PricingClient.java
+  s_c979f2e5c3db4e::t_e4015b37e89538 1-13
+integrations/AGENTS.md
+  s_c979f2e5c3db4e::t_3afa7117a9c0a3 1-78
+integrations/src/main/java/integrations/app/QuoteApplication.java
+  s_c979f2e5c3db4e::t_45cb93280fa8c7 1-90
+integrations/src/main/java/integrations/app/QuoteConfiguration.java
+  s_c979f2e5c3db4e::t_7a5fd09480432c 1-129
+integrations/src/main/java/integrations/app/InventoryClient.java
+  s_c979f2e5c3db4e::t_4927aea24b154c 1-13
+integrations/src/main/java/integrations/spring/ParRuntimeLifecycle.java
+  s_c979f2e5c3db4e::t_22e5178c403801 1-23,28-76
+  s_c979f2e5c3db4e::t_4985a457c50d15 24-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8b342a464477fa9925bbe5ccd5428a443cac5fc4",
+  "prompts": {},
+  "sessions": {
+    "s_c979f2e5c3db4e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_5c1d981d-568e-499e-a7e3-75dcdbbe9496",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
