@@ -18,6 +18,11 @@ export async function resolveIdentity(
       `${system.agent} CLI not found (command ${JSON.stringify(command)}); install it, set system.command, or select another --agents value`,
     );
   }
+  if (probe.status !== 'ok') {
+    throw new ValidationError(
+      `${system.agent} CLI health check ${probe.status}: ${probe.error ?? 'unknown probe failure'}; command ${JSON.stringify(command)}`,
+    );
+  }
   return {
     agent: system.agent,
     version: system.version !== 'unknown' ? system.version : probe.version,

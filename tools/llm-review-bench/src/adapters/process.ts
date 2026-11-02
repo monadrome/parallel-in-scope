@@ -13,6 +13,15 @@ export interface ProcessSpec {
   timeoutMs: number;
   graceMs: number;
   env?: Record<string, string | null>;
+  progressMs?: number;
+  onProgress?: (progress: ProcessProgress) => void;
+}
+
+export interface ProcessProgress {
+  pid: number | null;
+  elapsedMs: number;
+  stdoutBytes: number;
+  stderrBytes: number;
 }
 
 export interface ProcessResult {
@@ -66,6 +75,7 @@ export async function runLoggedProcess(spec: ProcessSpec): Promise<ProcessResult
     let timeoutTimer: NodeJS.Timeout | null = null;
     let graceTimer: NodeJS.Timeout | null = null;
     let settleTimer: NodeJS.Timeout | null = null;
+    let progressTimer: NodeJS.Timeout | null = null;
     let childPid: number | null = null;
 
     const clearTimers = (): void => {
@@ -80,6 +90,10 @@ export async function runLoggedProcess(spec: ProcessSpec): Promise<ProcessResult
       if (settleTimer !== null) {
         clearTimeout(settleTimer);
         settleTimer = null;
+      }
+      if (progressTimer !== null) {
+        clearInterval(progressTimer);
+        progressTimer = null;
       }
     };
 
@@ -122,6 +136,24 @@ export async function runLoggedProcess(spec: ProcessSpec): Promise<ProcessResult
     }
     childPid = child.pid ?? null;
 
+    const progressMs = spec.progressMs ?? 15_000;
+    if (spec.onProgress !== undefined && progressMs > 0) {
+      progressTimer = setInterval(() => {
+        void Promise.all([
+          fs.stat(spec.stdoutPath).then((stat) => stat.size).catch(() => 0),
+          fs.stat(spec.stderrPath).then((stat) => stat.size).catch(() => 0),
+        ]).then(([stdoutBytes, stderrBytes]) => {
+          spec.onProgress?.({
+            pid: childPid,
+            elapsedMs: monotonicMs() - started,
+            stdoutBytes,
+            stderrBytes,
+          });
+        });
+      }, progressMs);
+      progressTimer.unref();
+    }
+
     timeoutTimer = setTimeout(() => {
       timedOut = true;
       if (childPid !== null) {
@@ -159,7 +191,7 @@ export async function probeCommand(
   command: string,
   args: string[],
   timeoutMs = 15_000,
-): Promise<{ found: boolean; version: string }> {
+): Promise<{ found: boolean; status: 'ok' | 'missing' | 'timed_out' | 'failed'; version: string; error: string | null }> {
   const { execFile } = await import('node:child_process');
   const { promisify } = await import('node:util');
   try {
@@ -170,16 +202,16 @@ export async function probeCommand(
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
     });
     const firstLine = result.stdout.split('\n').map((line) => line.trim()).find((line) => line.length > 0);
-    return { found: true, version: firstLine ?? 'unknown' };
+    return { found: true, status: 'ok', version: firstLine ?? 'unknown', error: null };
   } catch (error) {
     const failure = error as NodeJS.ErrnoException & { stdout?: string; killed?: boolean };
     if (failure.code === 'ENOENT') {
-      return { found: false, version: 'missing' };
+      return { found: false, status: 'missing', version: 'missing', error: failure.message };
     }
-    if (failure.killed === true) {
-      return { found: true, version: 'unknown' };
+    if (failure.killed === true || failure.code === 'ETIMEDOUT') {
+      return { found: true, status: 'timed_out', version: 'unknown', error: `probe timed out after ${timeoutMs}ms` };
     }
     const firstLine = (failure.stdout ?? '').split('\n').map((line) => line.trim()).find((line) => line.length > 0);
-    return { found: true, version: firstLine ?? 'unknown' };
+    return { found: true, status: 'failed', version: firstLine ?? 'unknown', error: failure.message ?? 'probe failed' };
   }
 }
