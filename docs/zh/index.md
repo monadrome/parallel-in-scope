@@ -17,6 +17,7 @@
 | [5 分钟快速上手](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/docs/zh-CN/articles/QUICK-START-5-minutes.md) | 用最小示例完成首次调用 |
 | [批量调用最佳实践](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/docs/zh-CN/articles/BATCH-best-practices.md) | HTTP、数据库和混合 IO 场景 |
 | [Demo 文档索引](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/docs/zh-CN/README.md) | 示例：问题复现、解决方案和可执行测试 |
+| [集成示例](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/integrations/README.md) | Resilience4j、Sentinel、Spring 独立示例工程 |
 
 ## API 与契约参考
 
@@ -41,3 +42,10 @@
 | [测试使用本库的代码](testing/testing-your-code.md) | 确定性超时、清理、预算与结果测试 |
 | [TaskBatchResult 测试设计](testing/task-batch-result-report-test-design.md) | 稳定契约与并发断言 |
 | [AI 并发审查误报复盘](case-studies/ai-concurrency-review-false-positive.md) | 一次误报审查与可执行的验证方法 |
+
+## 文档角色
+
+- 主使用指南描述受支持的用户工作流。
+- API/契约参考定义当前契约。
+- Demo 文章讲解问题与示例，不覆盖 API 契约。
+- 内部文档随实现演进。

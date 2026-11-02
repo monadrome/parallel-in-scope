@@ -36,7 +36,8 @@ batch fails fast when an element fails. Because the mapper is a `Function`, wrap
 in `UncheckedIOException` or another unchecked exception.
 
 A fixed, heterogeneous set of named operations goes through a one-shot group instead: each member
-states its typed key, its `Par`, and this run's body, and an optional terminal combine turns the
+states its typed key, its `Par`, and this run's body (an already-in-flight future joins with
+`adopt` instead), and an optional terminal combine turns the
 member values into one result. Declare keys once and reuse them; `runAll()` runs the declaration
 once, blocks until every member and the combine settle, and returns frozen results.
 

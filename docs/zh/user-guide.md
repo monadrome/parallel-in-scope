@@ -4,7 +4,7 @@
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
-它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出类型化 key、`Par` 与本次运行的 body；它不是可动态增长的批次。
+它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出类型化 key、`Par` 与本次运行的 body（已在途的 future 改用 `adopt` 加入）；它不是可动态增长的批次。
 
 ## 构建执行拓扑
 
@@ -186,6 +186,7 @@ User value = user.valueOrThrow();
 TaskKey<User> userKey = TaskKey.named("user");
 TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
+
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
@@ -194,6 +195,7 @@ TaskGroupResult<Tuple2<User, Account>, Profile> result = global
                 values.valueOf(userKey), values.valueOf(accountKey)))
         .runAll();
 ImmediateResult<User> user = result.resultOf(userKey);
+Profile profile = result.terminalValueOrThrow();
 ```
 
 泛型结果用 `TaskKey<List<Order>> orders = TaskKey.named("orders")`。key 按对象身份区分，
@@ -288,7 +290,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 ```
 
 - 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
-  外层作用域——都以同一中断意图取消它；`runAll()` 在准入前抛出时取消全部被收养的 future。不要自己取消它：
+  外层作用域——都以同一中断意图取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
+  线程不符的拒绝不触及它们）。不要自己取消它：
   那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
 - future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
 - 每个非 null 值恰好有一个所有者：combine 的 body 开始后归 combine，否则组成功时归调用方。声明了
@@ -307,7 +310,7 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 
 收养成员不运行任何 body：不提交任务、不回放 TTL 上下文，任务类型诊断与负载匹配计时都不适用。
 
-<a id="task-attribution"></a>
+<a id="read-task-attribution-from-a-future"></a>
 
 ## 即时结果 {#task-future-attribution}
 
@@ -355,6 +358,8 @@ body 入口的中断状态，不保证保留 inline body 期间新收到的外�
 executor handoff 可使墙钟耗时超过 deadline。
 
 结果全部终态后，按 closeGrace 等待退出；未配置则使用剩余执行预算，零预算不等待。
+以 deadline 结束的运行剩余预算为零，未显式配置 closeGrace 时派生等待为零——要在超时后等待
+body 退出，请显式声明 closeGrace。
 中断不重置、不跳过预算。每次执行不关闭 executor；Java 无法强制停止任意 body 或 close。
 
 bodyCompletionConfirmed 只确认直接 batch 元素、group 成员及 combine 已退出 finally，

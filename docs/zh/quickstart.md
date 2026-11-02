@@ -35,7 +35,7 @@ try {
 由于 mapper 是 `Function`，受检异常必须包成 `UncheckedIOException` 或其他非受检异常。
 
 固定的一组异构命名操作改用一次性任务组：每个成员声明自己的类型化 key、`Par` 和本次运行的
-函数体，可选的末端 combine 把成员值汇成一个结果。key 声明一次即可复用；`runAll()` 只执行一次
+函数体（已在途的 future 改用 `adopt` 加入），可选的末端 combine 把成员值汇成一个结果。key 声明一次即可复用；`runAll()` 只执行一次
 声明，阻塞到所有成员和 combine 终态后返回冻结结果。
 
 ```java

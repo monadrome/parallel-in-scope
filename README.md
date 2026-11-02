@@ -156,6 +156,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 | [v0.3 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.3.0/docs/en) | Frozen source for the stable release |
 | [0.4 development documentation](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/docs/en) | Next-line guide for `0.4.0-SNAPSHOT` |
 | [Demo project](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/demo) | Runnable examples and the article catalog |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/integrations) | 0.4 development: standalone Resilience4j, Sentinel, and Spring examples |
 | [Contributing](CONTRIBUTING.md) | Development and contribution workflow |
 | [Changelog](CHANGELOG.md) | Release history |
 | [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.3.0` line |
