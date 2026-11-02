@@ -25,7 +25,7 @@
     `cancel(true)` 尝试取消外部 future（与它触发的 fail-fast 意图一致）；此时迟到值无法观察，文档写明。
   - body 退出确认 MUST 只覆盖供给函数本身；外部异步工作属于"外部线程/异步 IO"，不在库任务体边界内。
   - 桥接在外部完成线程上直接落定（`directExecutor`），不新增执行器跳转。
-  - 开启 [P0031](P0031-late-value-close.md) 的 `closeLateValue` 时，"是否送达"MUST 只由 `member.set(value)` 的
+  - 开启 `proposal:P0031` 的 `closeLateValue` 时，"是否送达"MUST 只由 `member.set(value)` 的
     返回值判定：返回 false 才关闭，MUST NOT 凭 `isDone()` 判断。桥接、切断与迟到关闭 MUST 由同一个原子
     桥接状态协调，保证每个外部值恰好处置一次：送达或关闭，不重不漏。成员终态切断后保留的仅关闭监听
     MUST NOT 引用成员。该关闭发生在外部时间线上，MUST NOT 计入 `bodyCompletionConfirmed` 或

@@ -156,5 +156,4 @@
 | [proposal/P0029-test-comment-maintenance.md](proposal/P0029-test-comment-maintenance.md) | 测试 helper/交错说明、旧词汇与 placeholder 负断言的独立核实；核心注释分层见 ADR 0012 |
 | [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |
 | [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |
-| [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | opt-in `closeLateValue`：取消后才返回、发布失败的 `AutoCloseable` 值由库在 body 退出前关闭；已送达值永不关闭，不发现捕获对象 |
-| [proposal/P0032-async-group-member.md](proposal/P0032-async-group-member.md) | 组成员 `parAsync(key, par, AsyncCallable)`：bind 后启动异步操作，库持有成员 future、按获胜取消的意图转发取消、沿用现有归因；Batch 版另立 |
+| [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | `par` 成员与批次元素复用 adopt 的 `ResourceCloser` 与恰好一个所有者规则：迟到值与失败作用域的值在释放线程上关闭，body-exit 槽覆盖关闭 |
