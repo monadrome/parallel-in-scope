@@ -33,11 +33,12 @@ TaskKey<List<Order>> orders = TaskKey.named("orders");
 
 ## 3. 阶段与提交边界
 
-- `GroupStart` 支持 closeGrace、首个 par 和空组 runAll。
-- `GroupStep<V>` 支持后续 par、combine、combineValues 和 runAll。
+- `GroupStart` 支持 closeGrace、首个 par 或 adopt 和空组 runAll。
+- `GroupStep<V>` 支持后续 par、adopt、combine、combineValues 和 runAll。
 - `CombinedGroupStep<V,R>` 仅支持 runAll。
 
-首个成员的 T 成为 V；后续成员将 V 扩为左嵌套 Tuple2。
+首个成员的 T 成为 V；后续成员将 V 扩为左嵌套 Tuple2。adopt 成员与 par 成员占同样的位置、名称与 key，
+其所有权、取消与值关闭规则见 [收养契约](task-group-adopted-futures.md)。
 combine 接收 V；combineValues 接收只含成功普通成员的 GroupValues<V>。
 两者通过同一 prepared terminal 执行，MUST 共享成功门控、deadline、TTL、取消、
 拒绝和有界清理机制。terminal 不在普通成员的位置、名称结果或 GroupValues 中，

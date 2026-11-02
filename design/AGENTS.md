@@ -89,6 +89,7 @@
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、body 自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
+| [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；恰好一次的值交接（combine 入口或成功的调用方）与其余值的 `ResourceCloser` 关闭；closer 在 completion 发布后运行并计入 body-exit 槽；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
 
 ### 观测与诊断
 
@@ -157,4 +158,3 @@
 | [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |
 | [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | opt-in `closeLateValue`：取消后才返回、发布失败的 `AutoCloseable` 值由库在 body 退出前关闭；已送达值永不关闭，不发现捕获对象 |
 | [proposal/P0032-async-group-member.md](proposal/P0032-async-group-member.md) | 组成员 `parAsync(key, par, AsyncCallable)`：bind 后启动异步操作，库持有成员 future、按获胜取消的意图转发取消、沿用现有归因；Batch 版另立 |
-| [proposal/P0033-adopted-future-members.md](proposal/P0033-adopted-future-members.md) | 组成员收养外部 `ListenableFuture`：组 token 取消 source、恰好一次的值交接与丢弃值关闭、body-exit 覆盖 closer、生产者 `Par` 进入执行器等待图 |

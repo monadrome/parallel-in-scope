@@ -1,0 +1,114 @@
+# 组成员收养外部 future 契约
+
+> 本文是 `adopt` 组成员的活契约：出发点、所有权与取消、值交接与丢弃值关闭、退出确认、与执行器等待图及
+> 线程池饥饿观测的兼容、被排除的替代方案。历史来源：`proposal:P0033`。组声明、token 拓扑与同步出口的
+> 通用规则仍由 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)、
+> [task-group-cancellation.md](task-group-cancellation.md)、[synchronous-scope-exit.md](synchronous-scope-exit.md) 持有。
+
+## 1. 出发点
+
+很多并发工作在进入作用域之前就已在途：异步 HTTP/RPC 客户端、`ListeningExecutorService.submit`、
+`FluentFuture` 链、`ClosingFuture.finishToFuture()`、缓存加载器都只交出一个 `ListenableFuture`。把多个这样的
+future 汇合成一个结构化作用域时，手写 `Futures.allAsList` + 超时会让用户「忘记」四件事：
+
+1. `allAsList` 一个输入失败时不取消其余输入；
+2. 超时只停止等待，既不取消输入，也不继承外层作用域的 deadline；
+3. 取消与成功完成竞争时，已产出的资源值（响应体、连接、流）落进无人读取的 future 而泄漏；作用域失败时，
+   已成功的兄弟值同样无人关闭；
+4. 池线程等待外部 future 不进入执行器等待图，同池自等待的饥饿风险不可见。
+
+`adopt` 把一个外部 future 声明为组成员。它参数化既有成员机制：同一组 token、fail-fast、deadline、
+`cancelOn`、收敛屏障、结果冻结与 body-exit 跟踪；只把成员结果的来源从「库执行的 body」换成「被收养的
+future」。收养成员没有 body，不提交到任何执行器，不捕获或回放 TTL，不是第二条执行管道。
+
+改前改后的用户代码：
+
+```java
+// 改前：取消、关闭、deadline 与中断全部手写，取消竞争中迟到的值仍会泄漏
+List<Response> both = Futures.allAsList(profile, orders).get(2, TimeUnit.SECONDS);
+
+// 改后
+TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page", Duration.ofSeconds(2))
+        .adopt(PROFILE, client.get("/profile"), Response::close)
+        .adopt(ORDERS, client.get("/orders"), Response::close)
+        .combine(PAGE, cpuPar, both -> {
+            try (Response p = both.first(); Response o = both.second()) {
+                return render(p, o);
+            }
+        })
+        .runAll();
+```
+
+## 2. 契约
+
+**所有权与取消**
+
+- A1 `runAll()` 被调用起组拥有每个被收养的 source。组取消未完成成员的任何原因（fail-fast、组或祖先
+  deadline、`cancelOn`、直接取消成员的级联）MUST 以同一取消意图取消 source：成员 future 是 source 的
+  `setFuture` 镜像，取消镜像即以 `wasInterrupted()` 取消 source。`runAll()` 在准入前抛出（运行时已关闭、
+  继承 deadline 却没有外层任务、准备或启动失败）时，MUST 取消全部未连接的 source，按 A4 关闭其产出的值，
+  并释放已登记的 body 槽。同一 source 在一个草稿内 MUST NOT 被收养两次（按引用身份拒绝）。
+- A2 source 与镜像的连接 MUST 发生在组 bind 与成员 bind 之后，与 `par` 成员「先 bind 后提交」同一位置；
+  连接 MUST NOT 因镜像已完成而跳过，因此准入时就被取消（例如 `cancelOn` 的信号已完成）的成员仍会取消 source。
+- A3 归因：source 成功即 `SUCCESS`；失败即 `USER_FAILURE` 并保留原始原因，由取消引起的失败按 token 归因；
+  被组以外的一方取消即直接成员取消，成员读 `MEMBER_CANCELLED`，整组按既有规则级联。归因 MUST 在收敛时读
+  token，MUST NOT 用 `isCancelled()` 事后猜测组级原因。
+
+**值交接与关闭**
+
+- A4 组里每个产出的非 null 值恰好有一个所有者：声明 combine 时，combine body 进入时取得全部收养值，此后
+  combine 失败也不再由组关闭；未声明 combine 时，组以 `SUCCESS` 收敛即交给 `runAll()` 调用方。其余每个值——
+  组未成功、combine 从未进入、取消之后才到达的成功值——MUST 恰好交给该成员的 `ResourceCloser` 一次。交接与
+  丢弃由组内同一个原子决定裁决（combine 入口与收敛竞争同一次 CAS），MUST NOT 既交出又关闭；null 值与失败、
+  被取消的 source 不调用 closer。
+- A5 closer 是用户代码：异常 MUST NOT 改变任何 outcome 或退出确认，只记 `WARNING`；`InterruptedException`
+  恢复运行它的线程的中断标志。closer 在完成 source 或收敛组的线程上运行，丢弃路径 MUST 在收敛发布 completion
+  之后才运行 closer，因此阻塞的 closer 不能让 `runAll()` 越过有界清理等待；交接路径不运行用户代码，在发布前
+  完成，使成功组的成员最终观测确定可读。
+
+**退出确认**
+
+- A6 每个收养成员在组的 body-exit 跟踪中占一个槽，连接时视为已运行：source 落定后，且（声明了 closer 时）
+  所有权已决定、丢弃值的 closer 已返回，才释放。`bodyCompletionConfirmed()` 为 true 即所有 source 已落定、
+  所有丢弃值已关闭；忽略取消的 source 在清理预算耗尽时出现在 `unfinishedBodies()` 中；`awaitQuiescence`
+  同样等待这些槽。成员观测的开始时间是连接时刻，结束时间是 source 落定时刻，并在镜像落定之前写入，
+  使收敛时的组报告读到最终结束时间。
+
+**观测兼容**
+
+- A7 声明生产者 `Par` 时，成员单元的节点取该 `Par` 的执行器身份与 starvation-prone 判定，嵌套 `runAll()`
+  的等待按 [task-graph.md](task-graph.md) P2–P5 原样记录：在执行器 A 上的 body 收养由 A 完成的 future 是自环。
+  生产者是用户声明、库不核实的事实；未声明时节点没有执行器，MUST NOT 成边。生产者必须属于同一运行时。
+- A8 收养成员不做 TaskType 提交诊断，不参与负载匹配筛查计时（没有库执行的 body）。线程池饥饿观测照常对生产者
+  池采样：收养 MUST NOT 包装、提交、取消（source 之外）或重排池上的任务；source 排在等待者自己占住的池
+  队列里时，两个信号互补可见——等待图给出自环，采样给出 `POTENTIAL_STARVATION`，组按 deadline 以 `TIMEOUT`
+  结束并取消 source。
+
+## 3. 被排除的替代方案
+
+- **批次形状 `Par.map(List<ListenableFuture<T>>)`**：批次是同构映射，依赖 body 与滑窗限流；future 列表既没有
+  可映射的 body，也没有可限流的提交。动态个数的输入循环收养，再按保存的 key 读取。
+- **返回异步句柄或在 future 上链式编排**：违反同步出口与 idea-graveyard 的编排否决；结果仍是冻结的
+  `TaskGroupResult`。
+- **作用域退出时总是关闭（`ClosingFuture` 式）**：没有 combine 时调用方拿到已关闭的值（use-after-close）；
+  有 combine 时 combine 用 try-with-resources 关一次、作用域再关一次即双重关闭。改为「交出一次，其余关闭」。
+- **closer 在库自有线程池运行**：运行时关闭后线程池可能已停，需要第二条回退路径，并让「丢弃值在有界清理前
+  关闭」变得不确定。改为落定线程运行并计入 body-exit 槽。
+- **收敛发布前运行 closer**：阻塞的 closer 会挡住 completion，`runAll()` 失去以 deadline 为唯一活性来源的保证。
+- **由 `T extends AutoCloseable` 推断 closer**：隐式行为，也表达不了「归还连接池」一类释放；closer 必须显式。
+- **强制生产者 `Par`**：客户端 IO 线程完成的 future 不属于任何注册执行器，强制即伪造边（task-graph P2/P4）。
+- **收养成员接受 `TaskOptions`**：taskType 与 rejectEnqueue 没有消费者；成员级 timeout 暂不提供，组 deadline
+  已是活性来源，需要时按真实用例参数化。
+- **专门适配 `ClosingFuture`**：`finishToFuture()` 已是 `ListenableFuture`，作为普通 source 收养；取消它会取消
+  管道并由 `ClosingFuture` 关闭其登记的资源。
+
+## 4. 验证基线
+
+`TaskGroupAdoptedFutureTest` 覆盖：成功交给调用方且不关闭、与 `par` 成员及 combine 混用、成员失败以中断取消
+在途 source 并关闭已产出值、source 失败为 `USER_FAILURE` 且取消兄弟、组 deadline 取消 source、调用方取消
+source 为直接成员取消、准入即取消仍取消 source、忽略取消的 source 迟到值被关闭且清理预算内报告未完成、
+combine 进入即拥有、combine 未进入由 closer 关闭、deadline 与 combine 入口竞争下每个值恰好一个所有者、
+closer 失败不改变结果、阻塞 closer 不挡住 `runAll()`、收敛报告的结束时间、准入失败与缺少继承 deadline 时
+放弃 source 并恢复 closer 中断、声明期校验、Guava 的 `ListenableFutureTask`/`FluentFuture`/`ClosingFuture`
+形状、有生产者时同池自环与无生产者时不成边、source 排在等待者自己的池上时等待图与饥饿观测同时可见。
+A5 的发布顺序与 A6 的结束时间顺序登记在 `verification/race-claims/claims.json`。

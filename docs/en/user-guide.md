@@ -303,6 +303,55 @@ positional access is convenient. As members accumulate, have the combine emit th
 immediately rather than passing the nested `Tuple2` out: the nesting is a declaration artifact, and
 callers downstream should not have to rebuild the member order to read a value.
 
+### Adopt futures already in flight {#adopted-futures}
+
+Work that is already running elsewhere — an asynchronous HTTP or RPC client, a
+`ListeningExecutorService.submit`, a `FluentFuture` chain, `ClosingFuture.finishToFuture()` — joins a
+group through `adopt(key, future)`. The member's result is the future's result, and it shares the
+group's deadline, fail-fast, `cancelOn`, typed reads, and frozen result with the `par` members.
+
+```java
+TaskKey<Response> profileKey = TaskKey.named("profile");
+TaskKey<Response> ordersKey = TaskKey.named("orders");
+TaskKey<Page> pageKey = TaskKey.named("page");
+
+TaskGroupResult<Tuple2<Response, Response>, Page> result = global
+        .group("page", Duration.ofSeconds(2))
+        .adopt(profileKey, client.get("/profile"), Response::close)
+        .adopt(ordersKey, client.get("/orders"), Response::close)
+        .combine(pageKey, cpuPar, both -> {
+            try (Response profile = both.first(); Response orders = both.second()) {
+                return render(profile, orders);
+            }
+        })
+        .runAll();
+```
+
+- From `runAll()` on, the group owns each adopted future. Whatever cancels the group's unfinished
+  members — a failure, the deadline, `cancelOn`, an enclosing scope — cancels the future with the
+  same interrupt intent; a `runAll()` that throws before admission cancels every adopted future.
+  Do not cancel it yourself: that is a direct member cancellation, which cancels the group. Adopt each
+  future once per group.
+- A successful future reads `SUCCESS`; a failed one reads `USER_FAILURE` with its own cause.
+- Every non-null value has exactly one owner: the combine once its body starts, otherwise you, when the
+  group succeeds. With a `ResourceCloser`, every other value is closed exactly once — the values of a
+  group that failed, timed out, or was cancelled, and a value that arrives after the group cancelled
+  its future. The closer runs on the thread that settles the future or the group; keep it short, and
+  hand slow releases to your own executor. A closer failure is logged and changes nothing.
+- `bodyCompletionConfirmed()` also confirms that every adopted future settled and every discarded
+  value was closed. A future that ignores cancellation is listed in `unfinishedBodies()` until it
+  settles; its late value is still closed.
+- `adopt(key, producerPar, future)` names the registered executor that completes the future. When a
+  task body runs the group, that wait enters the [executor wait report](#observe-nested-work) like a `par`
+  member's: adopting, on pool `io`, a future that pool `io` completes is a self-loop. Name a producer
+  only when that executor really completes the future. Without a producer no wait is recorded. The
+  [direct-work observation](#observe-direct-executor-work) samples the producer pool as usual, so a
+  future queued behind its own waiter shows up as both a wait cycle and `POTENTIAL_STARVATION` while
+  the group ends at its deadline with `TIMEOUT`.
+
+No body runs for an adopted member: nothing is submitted, no TTL context is replayed, and task-type
+diagnostics and workload-fit timing do not apply.
+
 <a id="read-task-attribution-from-a-future"></a>
 
 ## Immediate results {#task-future-attribution}
@@ -542,7 +591,7 @@ assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 
 `cyclicComponents()` lists each cyclic strongly connected component: its `members()`, one concrete `cycle()` in wait order, and in `toString()` the first pair of task units observed behind each wait. Each executor appears as the set of every `ParId` it is registered under — two ids naming one pool are one executor, and a name alone never makes a cycle.
 
-The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs a body inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
+The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures not adopted with a producer `Par`, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs a body inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
 
 ## Screen workload fit {#workload-fit}
 
@@ -872,8 +921,9 @@ account.addListener(() -> {
 }, executor);
 ```
 
-Because `map` and `runAll` are synchronous, interop happens on the result side: there is no
-submission-side future to compose, only the already-frozen `ImmediateResult`.
+Because `map` and `runAll` are synchronous, results come back as the already-frozen
+`ImmediateResult`; there is no running library future to compose. Futures from other libraries enter a
+group as [adopted members](#adopted-futures).
 
 ### Resilience4j, Sentinel, and Spring
 
