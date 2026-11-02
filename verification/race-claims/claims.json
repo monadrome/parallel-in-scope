@@ -103,18 +103,18 @@
     {
       "id": "adopted-end-time-before-mirror-settle",
       "protocol": "TaskGroup adopted member",
-      "claim": "AdoptedSource.connect registers the source listener that marks the end time before setFuture registers the mirror's listener, so convergence, which the mirror's settle can trigger synchronously, snapshots a final end time.",
+      "claim": "AdoptedSource.sourceSettled writes the end time before it settles the mirror, so convergence, which the mirror's settle can trigger synchronously, snapshots a final end time; the mirror settles only through this listener, never by copying an already-done source.",
       "method": "mutation",
       "file": "src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
       "mutations": [
         {
-          "find": "        source.addListener(this::sourceSettled, directExecutor());\n        mirror.setFuture(source);",
-          "replace": "        mirror.setFuture(source);\n        source.addListener(this::sourceSettled, directExecutor());"
+          "find": "        verifyNotNull(context).markEnded(System.nanoTime());\n        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }",
+          "replace": "        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }\n        verifyNotNull(context).markEnded(System.nanoTime());"
         }
       ],
-      "tests": "TaskGroupAdoptedFutureTest#theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember",
+      "tests": "TaskGroupAdoptedFutureTest#theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember+aSourceThatCompletesWhileItsEarlierListenersRunStillReportsItsEndTime",
       "expect": "failure",
-      "note": "An already-completed source settles the mirror inside setFuture, so the reversed order converges before the end time is written."
+      "note": "Before the third review round the mirror used setFuture, which copies an already-done source without waiting for the source's listeners; codex reproduced a SUCCESS report with endTime 0. The window test drives that interleaving deterministically."
     },
     {
       "id": "adopted-closers-after-completion",

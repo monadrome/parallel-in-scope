@@ -44,12 +44,18 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 **所有权与取消**
 
 - A1 `runAll()` 被调用起组拥有每个被收养的 source。组取消未完成成员的任何原因（fail-fast、组或祖先
-  deadline、`cancelOn`、直接取消成员的级联）MUST 以同一取消意图取消 source：成员 future 是 source 的
-  `setFuture` 镜像，取消镜像即以 `wasInterrupted()` 取消 source。`runAll()` 在准入前抛出（运行时已关闭、
+  deadline、`cancelOn`、直接取消成员的级联）MUST 以同一取消意图取消 source：成员 future 是库自有的镜像，
+  镜像被取消时在 `afterDone` 中以 `wasInterrupted()` 取消 source。source 的监听器在被取消时抛出（含 `Error`）
+  MUST 只记 `WARNING`，MUST NOT 逃进组的取消级联或清理：级联逐个取消绑定的 future，一个逃出的 `Error` 会让其余
+  成员永不取消，而 token 已经终态，deadline 也不再触发，`runAll()` 永久挂起。抛出的监听器还会让 Guava 跳过
+  source 之后的监听器（可能包括本成员的落定监听器），因此取消之后 source 已完成时由取消方补做落定，恰好一次。
+  `runAll()` 在准入前抛出（运行时已关闭、
   继承 deadline 却没有外层任务、准备或启动失败）时，MUST 取消全部未连接的 source，按 A4 关闭其产出的值，
   并释放已登记的 body 槽。同一 source 在一个草稿内 MUST NOT 被收养两次（按引用身份拒绝）。
-- A2 source 与镜像的连接 MUST 发生在组 bind 与成员 bind 之后，与 `par` 成员「先 bind 后提交」同一位置；
-  连接 MUST NOT 因镜像已完成而跳过，因此准入时就被取消（例如 `cancelOn` 的信号已完成）的成员仍会取消 source。
+- A2 source 与镜像的连接（登记落定监听器）MUST 发生在组 bind 与成员 bind 之后，与 `par` 成员「先 bind 后提交」
+  同一位置；连接 MUST NOT 因镜像已完成而跳过。准入时就被取消（例如 `cancelOn` 的信号已完成）的成员在 bind 中
+  取消镜像，镜像随即取消 source；连接仍登记监听器，使 body 槽在 source 落定后释放。镜像 MUST 只经由这一个落定
+  监听器完成，MUST NOT 直接复制一个已完成的 source（`setFuture` 的快捷路径不等 source 先前的监听器跑完）。
 - A3 归因：source 成功即 `SUCCESS`；失败即 `USER_FAILURE` 并保留原始原因，由取消引起的失败按 token 归因；
   被组以外的一方取消即直接成员取消，成员读 `MEMBER_CANCELLED`，整组按既有规则级联。归因 MUST 在收敛时读
   token，MUST NOT 用 `isCancelled()` 事后猜测组级原因。
@@ -161,3 +167,9 @@ closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落�
   `adopt` 重载缺少 `@throws`，已补齐；Java 8 消费者测试的导入分组已整理。
 - **驳回**：claude 认为 closer 恢复的中断标志会残留在复用的动作池线程上。`ThreadPoolExecutor.runWorker` 在每个
   任务之前清除未停止池的中断标志，标志不会带到下一个任务。
+- codex 重跑后保留两项并修复：其一，source 自己的监听器在组取消它时抛出 `Error`，原实现经 `setFuture` 的取消
+  传播把它抛进 token 级联与放弃清理，其余 source 不再取消、已产出值不关闭；反向验证显示只捕获
+  `RuntimeException` 时级联测试永久挂起、放弃测试失败。改为 A1 的隔离与补做落定。其二，`setFuture` 复制已完成
+  source 的快捷路径可在落定监听器写入结束时间之前收敛，成功组的报告结束时间为 0；改为 A2 的单一落定路径，
+  确定性的窗口测试在恢复快捷路径后失败。
+- 三轮已满，按根 AGENTS.md 停止评审；第三轮的修复由回归测试与反向验证支撑，未再经独立评审。

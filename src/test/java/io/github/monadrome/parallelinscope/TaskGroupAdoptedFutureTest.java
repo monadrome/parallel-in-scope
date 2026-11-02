@@ -7,12 +7,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ClosingFuture;
 import com.google.common.util.concurrent.FluentFuture;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -452,6 +454,114 @@ class TaskGroupAdoptedFutureTest {
 
         boolean fail(Throwable failure) {
             return setException(failure);
+        }
+    }
+
+    @Test
+    void aSourceListenerThatThrowsWhileTheGroupCancelsItDoesNotStopTheCascade() throws Exception {
+        ParRuntime runtime = runtime(pool(2));
+        SettableFuture<Resource> throwing = SettableFuture.create();
+        throwing.addListener(
+                () -> {
+                    throw new AssertionError("caller listener");
+                },
+                directExecutor());
+        SettableFuture<Resource> sibling = SettableFuture.create();
+        Resource produced = new Resource("produced");
+        TaskKey<Resource> third = TaskKey.named("third");
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        pools.add(caller);
+
+        Future<TaskGroupResult<?, Void>> running = caller.submit(() -> runtime.group("throwing-listener", TIMEOUT)
+                .adopt(FIRST, throwing)
+                .adopt(SECOND, sibling)
+                .adopt(third, Futures.immediateFuture(produced), Resource::close)
+                .par(FAILING, io(runtime), () -> {
+                    throw new IllegalStateException("boom");
+                })
+                .runAll());
+        TaskGroupResult<?, Void> result = running.get(5, TimeUnit.SECONDS);
+
+        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(throwing.isCancelled()).isTrue();
+        assertThat(sibling.isCancelled()).isTrue();
+        assertThat(produced.closes).hasValue(1);
+        assertThat(result.bodyCompletionConfirmed()).isTrue();
+    }
+
+    @Test
+    void anAdmissionFailureFinishesItsCleanupPastAThrowingSourceListener() {
+        ParRuntime runtime = runtime(pool(1));
+        SettableFuture<Resource> throwing = SettableFuture.create();
+        throwing.addListener(
+                () -> {
+                    throw new AssertionError("caller listener");
+                },
+                directExecutor());
+        Resource produced = new Resource("produced");
+        RecordingFuture<Resource> pending = new RecordingFuture<>();
+        GroupStep<Tuple2<Tuple2<Resource, Resource>, Resource>> draft = runtime.group("closed", TIMEOUT)
+                .adopt(FIRST, throwing)
+                .adopt(SECOND, Futures.immediateFuture(produced), Resource::close)
+                .adopt(TaskKey.<Resource>named("third"), pending);
+        runtime.close();
+
+        assertThatThrownBy(draft::runAll).isInstanceOf(IllegalStateException.class);
+
+        assertThat(throwing.isCancelled()).isTrue();
+        assertThat(produced.closes).hasValue(1);
+        assertThat(pending.isCancelled()).isTrue();
+    }
+
+    @Test
+    void aSourceThatCompletesWhileItsEarlierListenersRunStillReportsItsEndTime() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        ExecutorService completer = Executors.newSingleThreadExecutor();
+        pools.add(completer);
+        CompletingOnRegistration<Resource> source = new CompletingOnRegistration<>(new Resource("first"), completer);
+
+        TaskGroup<Resource, Void> group =
+                runtime.groupDraft("window", TIMEOUT).adopt(FIRST, source).submitAll();
+        source.releaseBlocker.countDown();
+
+        TaskCompletion<?> snapshot = Objects.requireNonNull(
+                group.completionFuture().get(5, TimeUnit.SECONDS).members().get("first"));
+        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(snapshot.endTimeNanos()).isNotZero();
+    }
+
+    /**
+     * A source that completes as soon as the group registers on it, while an earlier listener of
+     * the source still runs, so the source is done before the group's own listener has run.
+     */
+    static final class CompletingOnRegistration<T> extends ForwardingListenableFuture<T> {
+        final SettableFuture<T> delegate = SettableFuture.create();
+        final CountDownLatch blockerEntered = new CountDownLatch(1);
+        final CountDownLatch releaseBlocker = new CountDownLatch(1);
+        private final T value;
+        private final Executor completer;
+
+        CompletingOnRegistration(T value, Executor completer) {
+            this.value = value;
+            this.completer = completer;
+            delegate.addListener(
+                    () -> {
+                        blockerEntered.countDown();
+                        Uninterruptibles.awaitUninterruptibly(releaseBlocker);
+                    },
+                    directExecutor());
+        }
+
+        @Override
+        protected ListenableFuture<T> delegate() {
+            return delegate;
+        }
+
+        @Override
+        public void addListener(Runnable listener, Executor executor) {
+            delegate.addListener(listener, executor);
+            completer.execute(() -> delegate.set(value));
+            Uninterruptibles.awaitUninterruptibly(blockerEntered);
         }
     }
 
