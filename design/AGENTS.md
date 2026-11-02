@@ -157,3 +157,4 @@
 | [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |
 | [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | opt-in `closeLateValue`：取消后才返回、发布失败的 `AutoCloseable` 值由库在 body 退出前关闭；已送达值永不关闭，不发现捕获对象 |
 | [proposal/P0032-async-group-member.md](proposal/P0032-async-group-member.md) | 组成员 `parAsync(key, par, AsyncCallable)`：bind 后启动异步操作，库持有成员 future、按获胜取消的意图转发取消、沿用现有归因；Batch 版另立 |
+| [proposal/P0033-adopted-future-members.md](proposal/P0033-adopted-future-members.md) | 组成员收养外部 `ListenableFuture`：组 token 取消 source、恰好一次的值交接与丢弃值关闭、body-exit 覆盖 closer、生产者 `Par` 进入执行器等待图 |
