@@ -1,0 +1,28 @@
+src/main/java/io/github/monadrome/parallelinscope/GroupStep.java
+  s_ef3e34f9b12897::t_8218196695d503 35-36,39-70
+design/task-group-adopted-futures.md
+  s_ef3e34f9b12897::t_031eba0d7f64cf 1-3,5-46,49-50,53-62,66,77-83,87-105,112-125,128,132,134,136,146,148,155,157
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+  s_ef3e34f9b12897::t_847f0000693445 1-14,16-22,24-27,29-157,159-162,165-168,170-238,242-254,256-276,280-369,459-475,477,480-481,484-486,563-607,609-620,622-626,628-644,646-647,649-651,653-705,707-709,711-714,490-492,494,500,508,510-511,514,521-524,541,549,555,562,417,422,433,435,441-442,446,451-452,455-457
+  s_ef3e34f9b12897::t_145f3c024327c2 370-414,495,512,515-516,519-520,539,560
+  s_ef3e34f9b12897::t_7d7ed104a8a74c 478,489,496,416,418-419,423-432,434,436,439-440,443-445,449-450,453-454
+  s_ef3e34f9b12897::t_57a9c769fd3447 497-498,420-421,437-438,447-448
+src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+  s_ef3e34f9b12897::t_9a9982db8842c2 56-91,95-105,110-118,123-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5f755499183459aacae78e4faa5384b0b776ede1",
+  "prompts": {},
+  "sessions": {
+    "s_ef3e34f9b12897": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_4c6145df-39ff-426f-a76e-e3293325e30f",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
