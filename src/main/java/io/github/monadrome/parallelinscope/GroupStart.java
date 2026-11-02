@@ -89,6 +89,9 @@ public interface GroupStart {
      * is passed to {@code closer} exactly once. See {@link ResourceCloser} for threading and failure
      * handling, and {@link #adopt(TaskKey, ListenableFuture)} for ownership and attribution.
      *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
+     * @throws IllegalStateException if this stage is stale or used from another thread
      * @since 0.4.0
      */
     <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
@@ -100,7 +103,10 @@ public interface GroupStart {
      * member's. It never submits, wraps, or reroutes work. Declare a producer only when that
      * executor completes the source; a wrong attribution records a wrong wait.
      *
-     * @throws IllegalArgumentException additionally if {@code producer} belongs to another runtime
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
+     *     {@code producer} belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      * @since 0.4.0
      */
     <T> GroupStep<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
@@ -110,6 +116,10 @@ public interface GroupStart {
      * undelivered values are released by {@code closer}; combines {@link #adopt(TaskKey, Par,
      * ListenableFuture)} and {@link #adopt(TaskKey, ListenableFuture, ResourceCloser)}.
      *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
+     *     {@code producer} belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      * @since 0.4.0
      */
     <T> GroupStep<T> adopt(

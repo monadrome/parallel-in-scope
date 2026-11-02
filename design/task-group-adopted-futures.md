@@ -67,7 +67,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
   恢复运行它的线程的中断标志。丢弃路径 MUST 在收敛发布 completion 之后才交出 closer，且 closer MUST 在运行时
   自有的超时动作线程池上运行，MUST NOT 在落定线程上内联：落定线程可能就是 `runAll()` 调用方（source 已完成时
   组在 `submitPrepared` 内同步收敛，准入失败时在调用方放弃 source），也可能是运行时投递 deadline 的线程。该池
-  按需扩容，阻塞的 closer 只占它的一个线程，`runAll()` 不会越过有界清理等待。运行时服务关闭后池拒绝任务，
+  按需扩容，阻塞的 closer 只占它的一个线程，`runAll()` 不会越过有界清理等待。收养组的运行时保留 MUST 持续到
+  收敛把丢弃值交出之后（`ownershipSettled` 与成员 future 一同保留），因此在 `runAll()` 等待期间调用
+  `ParRuntime.close()` 也不会让池在交出之前停止。运行时服务关闭后池拒绝任务，
   被拒绝的释放在交出它的线程上内联运行：迟到值的落定线程，或对已关闭运行时调用 `runAll()`、因准入失败放弃
   已完成 source 的调用方；这条路径不承诺有界返回，Javadoc 与使用指南写明。一次性守卫保证执行器既启动又抛出
   时也不重复关闭。交接路径不运行用户代码，
@@ -150,3 +152,12 @@ closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落�
   指出 deadline 路径测试只断言线程名前缀，撤掉派发仍通过；改为经包内 `timeoutScheduler` 测试缝注入命名可辨识的
   投递线程，断言组在其上收敛而 closer 不在其上运行，反向验证撤掉派发即失败。kiro 指出竞态登记的说明把一个
   检不出内联的测试列为证据，已更正。
+
+第三轮（kiro、claude、ocr 读到文件；codex 首次运行连接中断后重跑一次）：
+
+- **保留并修复**：kiro 复现 `runAll()` 等待期间调用 `close()` 时，运行时对成员 future 的保留先于收敛完成，
+  动作池在 closer 交出前停止，丢弃值在 source 的完成线程上内联关闭（这些值并非迟到值）；修复为收养组额外保留
+  `ownershipSettled`，收敛交出 closer 后才释放，回归测试在撤掉保留后失败。claude 指出带 closer/producer 的
+  `adopt` 重载缺少 `@throws`，已补齐；Java 8 消费者测试的导入分组已整理。
+- **驳回**：claude 认为 closer 恢复的中断标志会残留在复用的动作池线程上。`ThreadPoolExecutor.runWorker` 在每个
+  任务之前清除未停止池的中断标志，标志不会带到下一个任务。
