@@ -128,7 +128,8 @@ public final class Par {
      * @param function synchronous mapping function, run at most once for each submitted element; it
      *     may return {@code null}, which completes the element as {@code SUCCESS} with a null value
      * @param options immutable per-batch request; it cannot select an executor
-     * @throws NullPointerException if the input contains a null element
+     * @throws NullPointerException if {@code options} or {@code function} is null (checked before
+     *     the empty-batch shortcut), or the input contains a null element
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
      *     task encloses this call
      * @throws IllegalStateException if the owning ParRuntime has begun shutdown
@@ -169,7 +170,8 @@ public final class Par {
      * @param combineBody the terminal combine body; it may throw any checked exception, recorded as
      *     {@code USER_FAILURE} with the original cause
      * @return the frozen element results plus the terminal combine's result and observation
-     * @throws NullPointerException if the input contains a null element
+     * @throws NullPointerException if {@code options}, {@code function}, {@code combinePar}, or
+     *     {@code combineBody} is null, or the input contains a null element
      * @throws IllegalArgumentException if {@code elements} is null or empty, if the options declare
      *     an inherited timeout and no scoped task encloses this call, or if {@code combinePar}
      *     belongs to a different {@link ParRuntime}

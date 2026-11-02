@@ -102,6 +102,8 @@ public final class BatchCombinedResult<E, C> {
      * otherwise throws its {@link CancellationException}.
      *
      * @return this result
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when a selected element or the combine ended cancelled
      * @since 0.4.0
      */
     @CanIgnoreReturnValue

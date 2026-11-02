@@ -497,6 +497,7 @@ public final class ParRuntime implements AutoCloseable {
      *
      * @param timeout the maximum time to wait
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
+     * @throws NullPointerException if {@code timeout} is null
      * @throws InterruptedException if the calling thread is interrupted before or while waiting;
      *     the interrupt flag is cleared per Java interruption convention
      */

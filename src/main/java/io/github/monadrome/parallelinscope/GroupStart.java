@@ -49,7 +49,12 @@ public interface GroupStart {
      */
     <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> body);
 
-    /** Declares the first keyed member with explicit task options. */
+    /** Declares the first keyed member with explicit task options.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
 
     /**
@@ -59,7 +64,9 @@ public interface GroupStart {
      * <p>From {@code runAll()} on the group owns {@code source}. Whatever cancels the group's
      * unfinished members — a failure, a deadline, {@link #cancelOn}, ancestor cancellation, or a
      * directly cancelled member — cancels the source with the same interrupt intent. When {@code
-     * runAll()} throws before admitting the group, every adopted source is cancelled. Do not cancel
+     * runAll()} fails admission, every adopted source is cancelled; a stale-stage or
+     * thread-confinement violation throws before the draft is consumed and leaves the sources
+     * untouched. Do not cancel
      * or reuse the source yourself afterwards: cancelling it is a direct member cancellation, which
      * cancels the whole group. Each future can be adopted once per group.
      *
@@ -130,7 +137,9 @@ public interface GroupStart {
      * interruption and restores the flag; it does not extend task execution deadlines.
      *
      * <p>Callable only before the first member is declared. When never configured, the close budget
-     * is derived from the group's remaining execution deadline at close time.
+     * is derived from the group's remaining execution deadline at close time. A group that ends at
+     * its deadline has no remaining budget: unless a grace was declared explicitly, its derived
+     * cleanup wait is zero and bodies still unwinding are not awaited.
      *
      * @param grace the cleanup wait budget; zero skips waiting for body exit
      * @return this stage, for chaining
@@ -158,13 +167,14 @@ public interface GroupStart {
     GroupStart cancelOn(ListenableFuture<?> signal, boolean interrupt);
 
     /**
-     * Executes an empty group: no members, no combine, immediately successful.
+     * Executes an empty group: no members, no combine, immediately successful on an open runtime.
      *
      * <p>Consumes the draft and returns a frozen result with empty GroupValues. Like every runAll,
      * waiting is uninterruptible and preserves the interrupt flag. There is no running handle.
      *
      * @return the frozen empty result
-     * @throws IllegalStateException if this stage is stale, or the draft is used from another thread
+     * @throws IllegalStateException if this stage is stale, the draft is used from another thread,
+     *     or the owning ParRuntime has begun shutdown
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */

@@ -26,10 +26,22 @@ import java.util.concurrent.Callable;
 @CheckReturnValue
 public interface GroupStep<V> {
 
-    /** Declares a member with the key's name and type; lookup uses this exact key object. */
+    /**
+     * Declares a member with the key's name and type; lookup uses this exact key object.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> body);
 
-    /** Declares a keyed member with explicit task options. */
+    /**
+     * Declares a keyed member with explicit task options.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
 
     /**
@@ -68,10 +80,22 @@ public interface GroupStep<V> {
     <T> GroupStep<Tuple2<V, T>> adopt(
             TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
 
-    /** Declares a keyed terminal combine using the group's assembled member-value type. */
+    /**
+     * Declares a keyed terminal combine using the group's assembled member-value type.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, CombineBody<? super V, ? extends R> body);
 
-    /** Declares a keyed terminal combine with explicit task options. */
+    /**
+     * Declares a keyed terminal combine with explicit task options.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <R> CombinedGroupStep<V, R> combine(
             TaskKey<R> key, Par par, TaskOptions options, CombineBody<? super V, ? extends R> body);
 
@@ -80,10 +104,20 @@ public interface GroupStep<V> {
      * GroupValues#valueOf(TaskKey)} to read members by their declaration keys. The combine has the
      * same scheduling and failure semantics as {@link #combine}; its input contains only plain
      * members, so it cannot read itself.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, CombineBody<GroupValues<V>, ? extends R> body);
 
-    /** Declares a value-view terminal combine with explicit task options. */
+    /**
+     * Declares a value-view terminal combine with explicit task options.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
     <R> CombinedGroupStep<V, R> combineValues(
             TaskKey<R> key, Par par, TaskOptions options, CombineBody<GroupValues<V>, ? extends R> body);
 
@@ -98,8 +132,8 @@ public interface GroupStep<V> {
      * cancellation — is returned as outcome data. Use TaskGroupResult.valuesOrThrow to raise it.
      *
      * @return the frozen group result
-     * @throws IllegalStateException if this stage is stale, the draft was already submitted, or the
-     *     draft is used from another thread
+     * @throws IllegalStateException if this stage is stale, the draft was already submitted, the
+     *     draft is used from another thread, or the owning ParRuntime has begun shutdown
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */
