@@ -139,7 +139,7 @@ final class GroupDraft {
                 key.name());
         seenNames.add(key.name());
         adoptedSources.add(source);
-        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source, closer)));
+        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source, closer, owner.releases())));
     }
 
     void setCombine(TaskKey<?> key, Par par, TaskOptions options, CombineBody<?, ?> body, boolean valueView) {

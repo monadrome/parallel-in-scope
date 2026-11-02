@@ -60,11 +60,16 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
   combine 失败也不再由组关闭；未声明 combine 时，组以 `SUCCESS` 收敛即交给 `runAll()` 调用方。其余每个值——
   组未成功、combine 从未进入、取消之后才到达的成功值——MUST 恰好交给该成员的 `ResourceCloser` 一次。交接与
   丢弃由组内同一个原子决定裁决（combine 入口与收敛竞争同一次 CAS），MUST NOT 既交出又关闭；null 值与失败、
-  被取消的 source 不调用 closer。
+  被取消的 source 不调用 closer。所有权不同于可见性：冻结结果仍报告被丢弃成员的 outcome 与值，供失败诊断；
+  该值归 closer 释放，调用方 MUST NOT 在 `runAll()` 返回后使用它（Javadoc 与使用指南写明）。有 combine 的组，
+  成员值同样归 combine。
 - A5 closer 是用户代码：异常 MUST NOT 改变任何 outcome 或退出确认，只记 `WARNING`；`InterruptedException`
-  恢复运行它的线程的中断标志。closer 在完成 source 或收敛组的线程上运行，丢弃路径 MUST 在收敛发布 completion
-  之后才运行 closer，因此阻塞的 closer 不能让 `runAll()` 越过有界清理等待；交接路径不运行用户代码，在发布前
-  完成，使成功组的成员最终观测确定可读。
+  恢复运行它的线程的中断标志。丢弃路径 MUST 在收敛发布 completion 之后才交出 closer，且 closer MUST 在运行时
+  自有的超时动作线程池上运行，MUST NOT 在落定线程上内联：落定线程可能就是 `runAll()` 调用方（source 已完成时
+  组在 `submitPrepared` 内同步收敛，准入失败时在调用方放弃 source），也可能是运行时投递 deadline 的线程。该池
+  按需扩容，阻塞的 closer 只占它的一个线程，`runAll()` 不会越过有界清理等待。运行时服务关闭后池拒绝任务，
+  此后迟到的值在落定线程上关闭；一次性守卫保证执行器既启动又抛出时也不重复关闭。交接路径不运行用户代码，
+  在发布前完成，使成功组的成员最终观测确定可读。
 
 **退出确认**
 
@@ -72,7 +77,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
   所有权已决定、丢弃值的 closer 已返回，才释放。`bodyCompletionConfirmed()` 为 true 即所有 source 已落定、
   所有丢弃值已关闭；忽略取消的 source 在清理预算耗尽时出现在 `unfinishedBodies()` 中；`awaitQuiescence`
   同样等待这些槽。成员观测的开始时间是连接时刻，结束时间是 source 落定时刻，并在镜像落定之前写入，
-  使收敛时的组报告读到最终结束时间。
+  使经由 source 收敛的组报告读到最终结束时间。准入即被取消的组在连接之前就已收敛，组报告中该成员的时间为 0，
+  与连接前被取消的 `par` 成员一致；冻结结果中的成员观测在 source 落定后发布真实时间。准入失败时放弃的 source
+  也取消其镜像，使运行时对成员 future 的保留随之结束。
 
 **观测兼容**
 
@@ -92,8 +99,12 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
   `TaskGroupResult`。
 - **作用域退出时总是关闭（`ClosingFuture` 式）**：没有 combine 时调用方拿到已关闭的值（use-after-close）；
   有 combine 时 combine 用 try-with-resources 关一次、作用域再关一次即双重关闭。改为「交出一次，其余关闭」。
-- **closer 在库自有线程池运行**：运行时关闭后线程池可能已停，需要第二条回退路径，并让「丢弃值在有界清理前
-  关闭」变得不确定。改为落定线程运行并计入 body-exit 槽。
+- **closer 在落定线程上内联运行**（首版实现）：独立评审复现，source 已完成时组在 `runAll()` 调用线程的
+  `submitPrepared` 内同步收敛，阻塞的 closer 让 `runAll()` 永不返回；deadline 驱动的收敛则在运行时内部线程上
+  运行用户代码。改为交给运行时的超时动作池，仅在其拒绝（服务已关闭）时回退到落定线程；body-exit 槽仍保证
+  有界清理等待覆盖 closer。
+- **冻结结果中扣下被丢弃的值**：成员 outcome 仍是 `SUCCESS`，没有「已释放」的 outcome 可表达，把值换成 null
+  会伪造结果；改为写明所有权与可见性的区别。
 - **收敛发布前运行 closer**：阻塞的 closer 会挡住 completion，`runAll()` 失去以 deadline 为唯一活性来源的保证。
 - **由 `T extends AutoCloseable` 推断 closer**：隐式行为，也表达不了「归还连接池」一类释放；closer 必须显式。
 - **强制生产者 `Par`**：客户端 IO 线程完成的 future 不属于任何注册执行器，强制即伪造边（task-graph P2/P4）。
@@ -108,7 +119,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 在途 source 并关闭已产出值、source 失败为 `USER_FAILURE` 且取消兄弟、组 deadline 取消 source、调用方取消
 source 为直接成员取消、准入即取消仍取消 source、忽略取消的 source 迟到值被关闭且清理预算内报告未完成、
 combine 进入即拥有、combine 未进入由 closer 关闭、deadline 与 combine 入口竞争下每个值恰好一个所有者、
-closer 失败不改变结果、阻塞 closer 不挡住 `runAll()`、收敛报告的结束时间、准入失败与缺少继承 deadline 时
-放弃 source 并恢复 closer 中断、声明期校验、Guava 的 `ListenableFutureTask`/`FluentFuture`/`ClosingFuture`
+closer 失败不改变结果、阻塞 closer 不挡住 `runAll()`（含组在 `runAll()` 内同步收敛）、closer 不在调用线程
+上运行、收敛报告的结束时间、准入失败与缺少继承 deadline 时放弃 source、声明期校验、Guava 的 `ListenableFutureTask`/`FluentFuture`/`ClosingFuture`
 形状、有生产者时同池自环与无生产者时不成边、source 排在等待者自己的池上时等待图与饥饿观测同时可见。
-A5 的发布顺序与 A6 的结束时间顺序登记在 `verification/race-claims/claims.json`。
+`AdoptedSourceTest` 覆盖放弃已准备的 source（取消镜像、释放槽）、连接后放弃是空操作、null 值不交给 closer、
+closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落定线程。A5 的发布顺序与 A6 的结束时间顺序登记在
+`verification/race-claims/claims.json`。`verification/maven-central-consumer` 在 Java 8 运行时上覆盖收养成员。

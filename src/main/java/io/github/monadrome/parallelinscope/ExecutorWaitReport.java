@@ -23,10 +23,9 @@ import java.util.Set;
  * deadlock proof. A wait recorded once stays recorded, so a cycle may join waits that never
  * happened at the same time, and a pool with headroom may never actually starve; an empty report
  * says nothing about waits the library cannot see — external futures not adopted with a producer,
- * direct executor submissions,
- * locks, unregistered or opaque executors, or other runtimes. A wait is attributed to the executor
- * its unit was submitted to; when a body runs inline on a borrowed thread, the blocked thread may
- * belong to another pool.
+ * direct executor submissions, locks, unregistered or opaque executors, or other runtimes. A wait is
+ * attributed to the executor its unit was submitted to; when a body runs inline on a borrowed
+ * thread, the blocked thread may belong to another pool.
  *
  * <p>Reports are created only by the library; read the current one with {@link
  * ParRuntime#executorWaitReport()}.

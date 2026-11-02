@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -27,8 +28,11 @@ import org.jspecify.annotations.Nullable;
  * that declares a closer — the group has decided who owns the value and, when nobody does, the
  * closer has returned.
  *
- * <p>The closer runs at most once, only for a non-null successful value, and never escapes a
- * failure into the thread that runs it. See {@code design/task-group-adopted-futures.md}.
+ * <p>The closer runs at most once, only for a non-null successful value, on the runtime's {@code
+ * releases} executor rather than on the settling thread, which can be the {@code runAll()} caller
+ * or a runtime-internal deadline thread. Only a release the executor refuses (its runtime has shut
+ * down) runs on the settling thread. A closer failure never escapes. See {@code
+ * design/task-group-adopted-futures.md}.
  */
 final class AdoptedSource {
     private static final Logger LOGGER = Logger.getLogger(AdoptedSource.class.getName());
@@ -36,6 +40,7 @@ final class AdoptedSource {
     private final String name;
     private final ListenableFuture<?> source;
     private final @Nullable ResourceCloser<Object> closer;
+    private final Executor releases;
     private final SettableFuture<Object> mirror = SettableFuture.create();
 
     /** Set by the one winner between {@link #connect()} and {@link #abandon()}. */
@@ -53,10 +58,11 @@ final class AdoptedSource {
     private volatile @Nullable TaskExecutionContext context;
 
     @SuppressWarnings("unchecked")
-    AdoptedSource(String name, ListenableFuture<?> source, @Nullable ResourceCloser<?> closer) {
+    AdoptedSource(String name, ListenableFuture<?> source, @Nullable ResourceCloser<?> closer, Executor releases) {
         this.name = name;
         this.source = source;
         this.closer = (ResourceCloser<Object>) closer;
+        this.releases = releases;
         this.pendingSignals = new AtomicInteger(closer == null ? 1 : 2);
     }
 
@@ -98,8 +104,9 @@ final class AdoptedSource {
     }
 
     /**
-     * Releases a source the group never admitted: cancels it, closes the value it produced anyway,
-     * and releases the body slot preparation may have registered. A no-op once connected.
+     * Releases a source the group never admitted: cancels it and its mirror, closes the value it
+     * produced anyway, and releases the body slot preparation may have registered. A no-op once
+     * connected.
      */
     void abandon() {
         if (!claimed.compareAndSet(false, true)) {
@@ -111,17 +118,8 @@ final class AdoptedSource {
             body.claimRunning();
         }
         source.cancel(true);
-        source.addListener(
-                () -> {
-                    try {
-                        closeIfProduced();
-                    } finally {
-                        if (body != null) {
-                            body.exited();
-                        }
-                    }
-                },
-                directExecutor());
+        mirror.cancel(false);
+        source.addListener(() -> closeThenRelease(body), directExecutor());
     }
 
     private void sourceSettled() {
@@ -133,30 +131,60 @@ final class AdoptedSource {
         if (pendingSignals.decrementAndGet() != 0) {
             return;
         }
-        try {
-            if (discarded) {
-                closeIfProduced();
-            }
-        } finally {
-            verifyNotNull(verifyNotNull(context).bodyState()).exited();
+        TaskBodyState body = verifyNotNull(verifyNotNull(context).bodyState());
+        if (discarded) {
+            closeThenRelease(body);
+        } else {
+            body.exited();
         }
     }
 
-    /** Passes the source's non-null successful value to the closer; never throws. */
-    private void closeIfProduced() {
+    /**
+     * Hands the settled source's non-null successful value to the closer on the releases executor,
+     * then releases {@code body}; releases it directly when there is nothing to close. Never throws.
+     */
+    private void closeThenRelease(@Nullable TaskBodyState body) {
         ResourceCloser<Object> release = closer;
-        if (release == null || source.isCancelled()) {
+        Object value = release == null ? null : producedValue();
+        if (release == null || value == null) {
+            if (body != null) {
+                body.exited();
+            }
             return;
         }
-        Object value;
+        AtomicBoolean ran = new AtomicBoolean();
+        Runnable closing = () -> {
+            if (!ran.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                close(release, value);
+            } finally {
+                if (body != null) {
+                    body.exited();
+                }
+            }
+        };
         try {
-            value = Futures.getDone(source);
+            releases.execute(closing);
+        } catch (Throwable notStarted) {
+            /* The guard keeps an executor that started the task and then threw from running it twice. */
+            closing.run();
+        }
+    }
+
+    private @Nullable Object producedValue() {
+        if (source.isCancelled()) {
+            return null;
+        }
+        try {
+            return Futures.getDone(source);
         } catch (ExecutionException | CancellationException noValue) {
-            return;
+            return null;
         }
-        if (value == null) {
-            return;
-        }
+    }
+
+    private void close(ResourceCloser<Object> release, Object value) {
         try {
             release.close(value);
         } catch (InterruptedException interrupted) {

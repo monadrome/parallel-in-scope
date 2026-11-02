@@ -293,8 +293,9 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 - future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
 - 每个非 null 值恰好有一个所有者：combine 的 body 开始后归 combine，否则组成功时归调用方。声明了
   `ResourceCloser` 时，其余每个值恰好关闭一次——组失败、超时或被取消时的值，以及组取消 future 之后才到达的值。
-  closer 在完成 future 或收敛组的线程上运行；保持简短，慢的释放交给自己的执行器。closer 失败只记日志，
-  不改变任何结果。
+  closer 在结果决定之后于运行时自有线程上运行，从不在调用 `runAll()` 的线程上；耗时长的释放交给自己的执行器。
+  closer 失败只记日志，不改变任何结果。冻结结果仍显示被丢弃成员的值以便诊断；该值归 closer 释放，
+  `runAll()` 返回后不要再使用它。
 - `bodyCompletionConfirmed()` 同时确认所有被收养的 future 已落定、所有丢弃值已关闭。忽略取消的 future 在落定前
   出现在 `unfinishedBodies()` 中，它迟到的值仍会被关闭。
 - `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务体运行时，这次等待像 `par`

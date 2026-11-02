@@ -427,16 +427,77 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aMissingInheritedDeadlineAbandonsTheSourcesAndRestoresACloserInterrupt() {
+    void aMissingInheritedDeadlineAbandonsTheSourcesOffTheCallerThread() throws Exception {
         ParRuntime runtime = runtime(pool(1));
+        AtomicReference<Thread> closerThread = new AtomicReference<>();
+        CountDownLatch closed = new CountDownLatch(1);
         GroupStep<Resource> draft = runtime.groupInheriting("orphan")
                 .adopt(FIRST, Futures.immediateFuture(new Resource("produced")), resource -> {
-                    throw new InterruptedException("interrupted while closing");
+                    closerThread.set(Thread.currentThread());
+                    closed.countDown();
                 });
 
         assertThatThrownBy(draft::runAll).isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(Thread.interrupted()).isTrue();
+        assertThat(closed.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(closerThread.get()).isNotSameAs(Thread.currentThread());
+    }
+
+    @Test
+    void aBlockingCloserOfAGroupThatConvergesInsideRunAllDoesNotHoldTheCaller() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        CountDownLatch releaseCloser = new CountDownLatch(1);
+        AtomicReference<Thread> closerThread = new AtomicReference<>();
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        pools.add(caller);
+        AtomicReference<Thread> callerThread = new AtomicReference<>();
+
+        Future<TaskGroupResult<Tuple2<Resource, Resource>, Void>> running = caller.submit(() -> {
+            callerThread.set(Thread.currentThread());
+            return runtime.group("immediate", TIMEOUT)
+                    .closeGrace(Duration.ofMillis(50))
+                    .adopt(FIRST, Futures.immediateFuture(new Resource("first")), resource -> {
+                        closerThread.set(Thread.currentThread());
+                        releaseCloser.await();
+                    })
+                    .adopt(SECOND, Futures.immediateFailedFuture(new IOException("down")))
+                    .runAll();
+        });
+        try {
+            TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.bodyCompletionConfirmed()).isFalse();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closerThread.get() != null);
+            assertThat(closerThread.get()).isNotSameAs(callerThread.get());
+        } finally {
+            releaseCloser.countDown();
+        }
+    }
+
+    @Test
+    void aDeadlineDrivenDiscardRunsTheCloserOnAThreadThatDeliversNoDeadline() {
+        ParRuntime runtime = runtime(pool(1));
+        AtomicReference<String> closerThread = new AtomicReference<>();
+        CountDownLatch hold = new CountDownLatch(1);
+        try {
+            TaskGroupResult<?, Void> result = runtime.group("deadline", Duration.ofMillis(50))
+                    .closeGrace(TIMEOUT)
+                    .adopt(
+                            FIRST,
+                            Futures.immediateFuture(new Resource("first")),
+                            resource -> closerThread.set(Thread.currentThread().getName()))
+                    .par(FAILING, io(runtime), () -> {
+                        hold.await();
+                        return "late";
+                    })
+                    .runAll();
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(closerThread.get()).startsWith("ParRuntime-services-");
+        } finally {
+            hold.countDown();
+        }
     }
 
     @Test

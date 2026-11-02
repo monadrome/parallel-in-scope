@@ -12,13 +12,20 @@ package io.github.monadrome.parallelinscope;
  * cancelled the future. A value handed to an owner is never passed here, and the closer is never
  * called with {@code null}.
  *
- * <p>The closer runs on the thread that settles the adopted future or converges the group, never
- * before the group's outcome is decided. It should not block; dispatch to an executor of your own
- * when releasing can wait. {@code runAll()} waits for pending closers only within its bounded
- * cleanup wait: {@link TaskGroupResult#bodyCompletionConfirmed()} is {@code true} only after every
- * adopted future settled and every discarded value was closed. An exception thrown here is logged at
- * {@code WARNING} and never changes an outcome; an {@link InterruptedException} also restores the
- * interrupt flag of the thread that ran the closer.
+ * <p>The frozen {@link TaskGroupResult} still reports a discarded member's outcome and value, so a
+ * failed group can be diagnosed; the value is the closer's to release, so do not use it after
+ * {@code runAll()} returns. Likewise the member values of a group with a combine belong to the
+ * combine.
+ *
+ * <p>The closer runs only after the group's outcome is decided, on a runtime-owned thread: never on
+ * the thread calling {@code runAll()}, and never on the thread that delivers deadlines. Once the
+ * runtime has shut down its services, a value that arrives later is closed on the thread that
+ * settles its future. A closer may block, but it then holds one runtime thread; dispatch to an
+ * executor of your own when releasing can wait long. {@code runAll()} waits for pending closers
+ * only within its bounded cleanup wait: {@link TaskGroupResult#bodyCompletionConfirmed()} is {@code
+ * true} only after every adopted future settled and every discarded value was closed. An exception
+ * thrown here is logged at {@code WARNING} and never changes an outcome; an {@link
+ * InterruptedException} also restores the interrupt flag of the thread that ran the closer.
  *
  * @param <T> the adopted value type
  * @since 0.4.0
