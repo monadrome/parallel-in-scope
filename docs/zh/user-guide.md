@@ -300,7 +300,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
   `ResourceCloser`）；耗时长的释放交给自己的执行器。
   closer 失败只记日志，不改变任何结果。冻结结果仍显示被丢弃成员的值以便诊断；该值归 closer 释放，
   `runAll()` 返回后不要再使用它。
-- `bodyCompletionConfirmed()` 同时确认所有被收养的 future 已落定、所有丢弃值已关闭。忽略取消的 future 在落定前
+- `bodyCompletionConfirmed()` 同时确认所有被收养的 future 已落定、每个丢弃值的 closer 已运行完毕；
+  closer 失败只记日志、不改变该确认结果，确认不保证值已被释放。忽略取消的 future 在落定前
   出现在 `unfinishedBodies()` 中，它迟到的值仍会被关闭。
 - `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务体运行时，这次等待像 `par`
   成员一样进入[执行器等待报告](#nested-observation)：在 `io` 池上收养由 `io` 池完成的 future 是自环。只在该

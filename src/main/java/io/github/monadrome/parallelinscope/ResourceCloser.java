@@ -25,7 +25,8 @@ package io.github.monadrome.parallelinscope;
  * may block, but it then holds one runtime thread; dispatch to an
  * executor of your own when releasing can wait long. {@code runAll()} waits for pending closers
  * only within its bounded cleanup wait: {@link TaskGroupResult#bodyCompletionConfirmed()} is {@code
- * true} only after every adopted future settled and every discarded value was closed. An exception
+ * true} only after every adopted future settled and every discarded value's closer finished
+ * running. An exception
  * thrown here is logged at {@code WARNING} and never changes an outcome; an {@link
  * InterruptedException} also restores the interrupt flag of the thread that ran the closer.
  *

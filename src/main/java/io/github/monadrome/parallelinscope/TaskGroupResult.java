@@ -175,7 +175,9 @@ public final class TaskGroupResult<V, R> {
      * can be terminal while its body is still unwinding, so check this before releasing a resource
      * the bodies share. Bodies of nested calls made inside them are not covered. An adopted member
      * occupies one exit slot connected as already run: confirmation also means every adopted source
-     * settled and, with a declared closer, every discarded value was closed.
+     * settled and, with a declared closer, each discarded value's closer finished running — a
+     * closer failure is logged and does not change confirmation, so a confirmed value is not
+     * guaranteed to have been released.
      */
     public boolean bodyCompletionConfirmed() {
         return unfinishedBodies.isEmpty();
