@@ -45,6 +45,9 @@ todo/
 .firecrawl/
 skills-lock.json
 
+# Local property-test state left behind by jqwik runs
+.jqwik-database
+
 # Local planning state
 .planning/
 **/task_plan.md
