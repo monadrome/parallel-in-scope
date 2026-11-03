@@ -1,12 +1,16 @@
 import json
+import os
 import subprocess
+import sys
 import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from issue_agent import agents, schemas
+from issue_agent.proc import run_logged
 from issue_agent.github import GitHub
 
 
@@ -40,13 +44,24 @@ class SessionArgumentsTest(unittest.TestCase):
     def capture(self, read_only):
         captured = {}
 
-        def fake_run(args, **kwargs):
+        class FakeProcess:
+            returncode = 0
+            pid = -1
+
+            def wait(self, timeout=None):
+                return 0
+
+            def poll(self):
+                return self.returncode
+
+        def fake_popen(args, **kwargs):
             captured["args"] = args
             kwargs["stdout"].write(json.dumps({"type": "result", "structured_output": {"ok": True}}))
-            return subprocess.CompletedProcess(args, 0)
+            return FakeProcess()
 
         with tempfile.TemporaryDirectory() as tmp, \
-                mock.patch.object(agents.subprocess, "run", side_effect=fake_run), \
+                mock.patch.object(agents.subprocess, "Popen", side_effect=fake_popen), \
+                mock.patch.object(agents, "terminate_process_group"), \
                 mock.patch.object(agents.config_module, "claude_provider_env", return_value={}):
             result = agents.claude(fake_config(tmp), "prompt", schemas.TRIAGE, Path(tmp), Path(tmp) / "x.log", 1.0, 1, read_only)
         self.assertTrue(result.ok)
@@ -65,6 +80,60 @@ class SessionArgumentsTest(unittest.TestCase):
         for tool in ("Bash(git push:*)", "Bash(gh:*)", "Bash(curl:*)", "WebFetch", "WebSearch"):
             self.assertIn(tool, denied)
         self.assertIn("--strict-mcp-config", args)
+
+
+class ProcessCleanupTest(unittest.TestCase):
+    def test_claude_normal_exit_kills_descendants(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fake = root / "claude.py"
+            fake.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json, pathlib, signal, subprocess, sys, time\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'])\n"
+                "pathlib.Path('child.pid').write_text(str(child.pid))\n"
+                "print(json.dumps({'type':'result','structured_output':{'ok':True}}), flush=True)\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            config = fake_config(root)
+            config.claude_bin = str(fake)
+            result = agents.claude(config, "prompt", schemas.TRIAGE, root, root / "claude.log", 1.0, 1, True)
+            self.assertTrue(result.ok)
+            child_pid = int((root / "child.pid").read_text(encoding="utf-8"))
+            for _ in range(20):
+                try:
+                    os.kill(child_pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.05)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
+
+    def test_run_logged_kills_descendants_after_timeout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "child.py"
+            script.write_text(
+                "import pathlib, signal, subprocess, sys, time\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'])\n"
+                "pathlib.Path(sys.argv[1]).write_text(str(child.pid))\n"
+                "time.sleep(60)\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(subprocess.TimeoutExpired):
+                run_logged([sys.executable, str(script), str(root / "child.pid")], root / "run.log", cwd=root, timeout=0.3)
+            child_pid = int((root / "child.pid").read_text(encoding="utf-8"))
+            for _ in range(20):
+                try:
+                    os.kill(child_pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.05)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
 
 
 if __name__ == "__main__":
