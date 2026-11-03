@@ -37,6 +37,9 @@ todo/
 # ZCode local harness state
 .zcode/
 
+# Kiro local harness state
+.kiro/
+
 # Playwright MCP scratch output
 .playwright-mcp/
 
