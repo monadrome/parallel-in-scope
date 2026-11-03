@@ -78,6 +78,11 @@ public interface GroupStart {
      * source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
      * waiting and is reported among the unfinished executions.
      *
+     * <p>The group never closes the source's value. Resource lifetime belongs to the source's own
+     * pipeline or the value's recipient. A {@link com.google.common.util.concurrent.ClosingFuture}
+     * pipeline can join through {@code finishToFuture()}; cancelling the adopted future cancels the
+     * pipeline, but source settlement does not wait for the pipeline's asynchronous close.
+     *
      * <p>An unattributed source records no executor wait. Use {@link #adopt(TaskKey, Par,
      * ListenableFuture)} when a registered executor completes the source.
      *
@@ -87,21 +92,6 @@ public interface GroupStart {
      * @since 0.4.0
      */
     <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
-
-    /**
-     * Declares the first member as an adopted future whose undelivered values are released by
-     * {@code closer}. Each non-null value the source produces has one owner: the terminal combine
-     * once its execution is entered, otherwise the caller when the group succeeds. Every other value —
-     * of a group that did not succeed, or one that arrived after the group cancelled the source —
-     * is passed to {@code closer} exactly once. See {@link ResourceCloser} for threading and failure
-     * handling, and {@link #adopt(TaskKey, ListenableFuture)} for ownership and attribution.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
-     * @throws IllegalStateException if this stage is stale or used from another thread
-     * @since 0.4.0
-     */
-    <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
 
     /**
      * Declares the first member as an adopted future completed by work on {@code producer}'s
@@ -117,20 +107,6 @@ public interface GroupStart {
      * @since 0.4.0
      */
     <T> GroupStep<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
-
-    /**
-     * Declares the first member as an adopted future attributed to {@code producer} whose
-     * undelivered values are released by {@code closer}; combines {@link #adopt(TaskKey, Par,
-     * ListenableFuture)} and {@link #adopt(TaskKey, ListenableFuture, ResourceCloser)}.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
-     *     {@code producer} belongs to another runtime
-     * @throws IllegalStateException if this stage is stale or used from another thread
-     * @since 0.4.0
-     */
-    <T> GroupStep<T> adopt(
-            TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
 
     /**
      * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores

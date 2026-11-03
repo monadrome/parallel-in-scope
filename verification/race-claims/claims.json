@@ -117,14 +117,6 @@
       "note": "Before the third review round the mirror used setFuture, which copies an already-done source without waiting for the source's listeners; codex reproduced a SUCCESS report with endTime 0. The window test drives that interleaving deterministically."
     },
     {
-      "id": "adopted-closers-after-completion",
-      "protocol": "TaskGroup adopted member",
-      "claim": "TaskGroup.converge hands discarded adopted values to their closers only after it publishes completion, so a closer that runs inline because the releases executor could not start it cannot hold runAll past its bounded cleanup wait.",
-      "method": "code-proof",
-      "proof": "AdoptedSource.closeThenRelease runs the closer on ParRuntime.releases(), the deadline action pool, and runs it on the calling thread only when execute throws. An adopting group retains ownershipSettled with its member futures, and converge sets it only after the hand-off, so ParRuntime.shutdownServicesWhenAdmissionsComplete cannot shut the pool down before converge dispatches; execute can still throw when the cached pool fails to create a thread (OutOfMemoryError, a SecurityException from the factory). If settleAdopted(true) ran before completion.set, that inline closer would block the converging thread before completion is published, and runAll's getUninterruptibly(completion) would wait for the closer instead of the deadline. Publishing first lets runAll proceed to its bounded execution-exit wait, where the closer's still-held execution slot is reported unfinished.",
-      "note": "The dispatched path is tested dynamically by TaskGroupAdoptedFutureTest#aBlockingCloserOfAGroupThatConvergesInsideRunAllDoesNotHoldTheCaller, #aMissingInheritedDeadlineAbandonsTheSourcesOffTheCallerThread, and #aDeadlineDrivenDiscardRunsTheCloserOffTheThreadThatDeliversTheDeadline, each of which fails when the closer runs inline. #aBlockingCloserCannotHoldRunAllPastItsCleanupBudget does not detect inlining (its group converges on a worker after publication); it guards the bounded wait itself. The refused-release ordering has no public seam to inject a refusing executor into a live group, so it remains a reasoning proof; AdoptedSourceTest#aReleaseTheExecutorRefusesRunsOnTheSettlingThread covers only the inline fallback itself."
-    },
-    {
       "id": "kernel-delivery-flag-before-interrupt",
       "protocol": "ExecutionPhaseHintFuture interrupt delivery",
       "claim": "interruptTask writes cancellationInterruptDelivered only after reading a non-null runner and before calling interrupt(), so a runner whose JDK blocking call throws InterruptedException because of that interrupt reads the flag as true, and a run that never received this future's delivery reads it as false.",

@@ -38,15 +38,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Adopted group members: a caller-supplied {@link ListenableFuture} owned by the group, cancelled
- * through the group's token tree, and released through its {@link ResourceCloser} when no owner
- * receives its value. See {@code design/task-group-adopted-futures.md}.
+ * Adopted group members: caller-supplied futures owned by the group from {@code runAll()}, cancelled
+ * through its token tree, and mirrored into frozen member results. Resource lifetime remains with
+ * the source's own pipeline or the value's recipient. See {@code design/task-group-adopted-futures.md}.
  */
 class TaskGroupAdoptedFutureTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    private static final TaskKey<Resource> FIRST = TaskKey.named("first");
-    private static final TaskKey<Resource> SECOND = TaskKey.named("second");
+    private static final TaskKey<String> FIRST = TaskKey.named("first");
+    private static final TaskKey<String> SECOND = TaskKey.named("second");
     private static final TaskKey<String> FAILING = TaskKey.named("failing");
     private static final TaskKey<String> TERMINAL = TaskKey.named("terminal");
 
@@ -80,14 +80,9 @@ class TaskGroupAdoptedFutureTest {
         return runtime.par(ParId.of("io"));
     }
 
-    /** A closeable value that counts how often it was released. */
-    static final class Resource implements AutoCloseable {
-        final String name;
+    /** A closeable value whose lifecycle is not owned by the group. */
+    static final class CloseableValue implements AutoCloseable {
         final AtomicInteger closes = new AtomicInteger();
-
-        Resource(String name) {
-            this.name = name;
-        }
 
         @Override
         public void close() {
@@ -102,10 +97,6 @@ class TaskGroupAdoptedFutureTest {
         @Override
         protected void interruptTask() {
             interrupted = true;
-        }
-
-        boolean complete(T value) {
-            return set(value);
         }
     }
 
@@ -127,27 +118,23 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void adoptedValuesAreHandedToTheCallerOfASuccessfulGroup() {
         ParRuntime runtime = runtime(pool(2));
-        Resource first = new Resource("first");
-        Resource second = new Resource("second");
-        SettableFuture<Resource> pending = SettableFuture.create();
-        pools.get(0).execute(() -> pending.set(second));
+        SettableFuture<String> pending = SettableFuture.create();
+        pools.get(0).execute(() -> pending.set("second"));
 
-        TaskGroupResult<Tuple2<Resource, Resource>, Void> result = runtime.group("load", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(first), Resource::close)
-                .adopt(SECOND, pending, Resource::close)
+        TaskGroupResult<Tuple2<String, String>, Void> result = runtime.group("load", TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture("first"))
+                .adopt(SECOND, pending)
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        Tuple2<Resource, Resource> values =
+        Tuple2<String, String> values =
                 Objects.requireNonNull(result.valuesOrThrow().typedValues());
-        assertThat(values.first()).isSameAs(first);
-        assertThat(values.second()).isSameAs(second);
-        assertThat(first.closes).hasValue(0);
-        assertThat(second.closes).hasValue(0);
+        assertThat(values.first()).isEqualTo("first");
+        assertThat(values.second()).isEqualTo("second");
         assertThat(result.executionExitConfirmed()).isTrue();
         TaskCompletion<?> observed = Objects.requireNonNull(result.members().get("second"));
         assertThat(observed.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        assertThat(observed.result()).isSameAs(second);
+        assertThat(observed.result()).isEqualTo("second");
     }
 
     @Test
@@ -172,14 +159,15 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aFailingMemberCancelsPendingSourcesWithInterruptAndClosesProducedValues() {
+    void aFailingMemberCancelsPendingSourcesWithoutClosingTheirValues() {
         ParRuntime runtime = runtime(pool(2));
-        Resource produced = new Resource("produced");
-        RecordingFuture<Resource> pending = new RecordingFuture<>();
+        CloseableValue produced = new CloseableValue();
+        TaskKey<CloseableValue> producedKey = TaskKey.named("produced");
+        RecordingFuture<String> pending = new RecordingFuture<>();
 
         TaskGroupResult<?, Void> result = runtime.group("fail", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(produced), Resource::close)
-                .adopt(SECOND, pending, Resource::close)
+                .adopt(producedKey, Futures.immediateFuture(produced))
+                .adopt(SECOND, pending)
                 .par(FAILING, io(runtime), () -> {
                     throw new IllegalStateException("boom");
                 })
@@ -190,7 +178,7 @@ class TaskGroupAdoptedFutureTest {
         assertThat(pending.isCancelled()).isTrue();
         assertThat(pending.interrupted).isTrue();
         assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
-        assertThat(produced.closes).hasValue(1);
+        assertThat(produced.closes).hasValue(0);
         assertThat(result.executionExitConfirmed()).isTrue();
     }
 
@@ -198,7 +186,7 @@ class TaskGroupAdoptedFutureTest {
     void aFailedSourceIsAUserFailureThatCancelsItsSiblings() {
         ParRuntime runtime = runtime(pool(1));
         IOException failure = new IOException("connection reset");
-        SettableFuture<Resource> sibling = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
 
         TaskGroupResult<?, Void> result = runtime.group("fail", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFailedFuture(failure))
@@ -214,11 +202,11 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void theGroupDeadlineCancelsAPendingSource() {
         ParRuntime runtime = runtime(pool(1));
-        SettableFuture<Resource> pending = SettableFuture.create();
+        SettableFuture<String> pending = SettableFuture.create();
 
         TaskGroupResult<?, Void> result = runtime.group("slow", Duration.ofMillis(50))
                 .closeGrace(TIMEOUT)
-                .adopt(FIRST, pending, Resource::close)
+                .adopt(FIRST, pending)
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -229,8 +217,8 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void cancellingAnAdoptedSourceIsADirectMemberCancellation() {
         ParRuntime runtime = runtime(pool(2));
-        SettableFuture<Resource> cancelledByCaller = SettableFuture.create();
-        SettableFuture<Resource> sibling = SettableFuture.create();
+        SettableFuture<String> cancelledByCaller = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
         pools.get(0).execute(() -> cancelledByCaller.cancel(false));
 
         TaskGroupResult<?, Void> result = runtime.group("cancel", TIMEOUT)
@@ -247,7 +235,7 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void aSourceCancelledAtAdmissionIsCancelledEvenWhenTheMirrorWasCancelledFirst() {
         ParRuntime runtime = runtime(pool(1));
-        RecordingFuture<Resource> pending = new RecordingFuture<>();
+        RecordingFuture<String> pending = new RecordingFuture<>();
 
         TaskGroupResult<?, Void> result = runtime.group("cancelled", TIMEOUT)
                 .cancelOn(Futures.immediateFuture("request done"))
@@ -260,13 +248,14 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aValueArrivingAfterCancellationIsClosedAndTheSourceIsReportedUnfinishedUntilThen() {
+    void aLateValueIsNotClosedAndTheSourceIsReportedUnfinishedUntilItSettles() {
         ParRuntime runtime = runtime(pool(1));
-        StubbornFuture<Resource> stubborn = new StubbornFuture<>();
+        StubbornFuture<CloseableValue> stubborn = new StubbornFuture<>();
+        TaskKey<CloseableValue> key = TaskKey.named("first");
 
         TaskGroupResult<?, Void> result = runtime.group("late", Duration.ofMillis(50))
                 .closeGrace(Duration.ofMillis(20))
-                .adopt(FIRST, stubborn, Resource::close)
+                .adopt(key, stubborn)
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -274,42 +263,19 @@ class TaskGroupAdoptedFutureTest {
         assertThat(result.executionExitConfirmed()).isFalse();
         assertThat(result.unexitedExecutions()).containsEntry("first", 1);
 
-        Resource late = new Resource("late");
+        CloseableValue late = new CloseableValue();
         assertThat(stubborn.complete(late)).isTrue();
-        Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertThat(late.closes).hasValue(1));
+        assertThat(late.closes).hasValue(0);
     }
 
     @Test
-    void theCombineOwnsTheAdoptedValuesOnceItsExecutionIsEntered() {
+    void aFailedMemberSkipsTheCombine() {
         ParRuntime runtime = runtime(pool(1));
-        Resource first = new Resource("first");
-        AtomicReference<Resource> seen = new AtomicReference<>();
-
-        TaskGroupResult<Resource, String> result = runtime.group("combine", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(first), Resource::close)
-                .combine(TERMINAL, io(runtime), value -> {
-                    seen.set(value);
-                    throw new IllegalStateException("render failed");
-                })
-                .runAll();
-
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(result.failedTaskName()).isEqualTo("terminal");
-        assertThat(seen.get()).isSameAs(first);
-        assertThat(first.closes).hasValue(0);
-    }
-
-    @Test
-    void aCombineThatNeverEntersLeavesTheValuesToTheCloser() {
-        ParRuntime runtime = runtime(pool(1));
-        Resource first = new Resource("first");
         AtomicBoolean combineRan = new AtomicBoolean();
 
         TaskGroupResult<?, String> result = runtime.group("combine", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(first), Resource::close)
-                .adopt(SECOND, Futures.immediateFailedFuture(new IOException("down")), Resource::close)
+                .adopt(FIRST, Futures.immediateFuture("first"))
+                .adopt(SECOND, Futures.immediateFailedFuture(new IOException("down")))
                 .combine(TERMINAL, io(runtime), values -> {
                     combineRan.set(true);
                     return "never";
@@ -318,93 +284,14 @@ class TaskGroupAdoptedFutureTest {
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(combineRan).isFalse();
-        assertThat(first.closes).hasValue(1);
-    }
-
-    @Test
-    void exactlyOneOwnerReleasesEachValueWhenTheDeadlineRacesTheCombine() {
-        ParRuntime runtime = runtime(pool(2));
-        for (int run = 0; run < 200; run++) {
-            Resource value = new Resource("raced-" + run);
-            SettableFuture<Resource> source = SettableFuture.create();
-            pools.get(0).execute(() -> source.set(value));
-
-            TaskGroupResult<Resource, String> result = runtime.group("race", Duration.ofNanos(1 + run * 5_000L))
-                    .closeGrace(TIMEOUT)
-                    .adopt(FIRST, source, Resource::close)
-                    .combine(TERMINAL, io(runtime), adopted -> {
-                        try (Resource owned = Objects.requireNonNull(adopted)) {
-                            return owned.name;
-                        }
-                    })
-                    .runAll();
-
-            assertThat(result.executionExitConfirmed()).isTrue();
-            int expected = source.isCancelled() ? 0 : 1;
-            assertThat(value.closes)
-                    .as("run %s ended %s", run, result.outcome())
-                    .hasValue(expected);
-        }
-    }
-
-    @Test
-    void aFailingCloserNeverChangesTheOutcomeOrTheExitConfirmation() {
-        ParRuntime runtime = runtime(pool(1));
-        AtomicInteger attempts = new AtomicInteger();
-
-        TaskGroupResult<?, Void> result = runtime.group("closer", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(new Resource("first")), resource -> {
-                    attempts.incrementAndGet();
-                    throw new IOException("close failed");
-                })
-                .par(FAILING, io(runtime), () -> {
-                    throw new IllegalStateException("boom");
-                })
-                .runAll();
-
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(result.failedTaskName()).isEqualTo("failing");
-        assertThat(attempts).hasValue(1);
-        assertThat(result.executionExitConfirmed()).isTrue();
-    }
-
-    @Test
-    void aBlockingCloserCannotHoldRunAllPastItsCleanupBudget() throws Exception {
-        ParRuntime runtime = runtime(pool(2));
-        CountDownLatch closerEntered = new CountDownLatch(1);
-        CountDownLatch releaseCloser = new CountDownLatch(1);
-        ExecutorService caller = Executors.newSingleThreadExecutor();
-        pools.add(caller);
-
-        Future<TaskGroupResult<Tuple2<Resource, String>, Void>> running =
-                caller.submit(() -> runtime.group("blocking-closer", TIMEOUT)
-                        .closeGrace(Duration.ofMillis(50))
-                        .adopt(FIRST, Futures.immediateFuture(new Resource("first")), resource -> {
-                            closerEntered.countDown();
-                            releaseCloser.await();
-                        })
-                        .par(FAILING, io(runtime), () -> {
-                            throw new IllegalStateException("boom");
-                        })
-                        .runAll());
-        try {
-            TaskGroupResult<Tuple2<Resource, String>, Void> result = running.get(5, TimeUnit.SECONDS);
-
-            assertThat(closerEntered.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.executionExitConfirmed()).isFalse();
-            assertThat(result.unexitedExecutions()).containsEntry("first", 1);
-        } finally {
-            releaseCloser.countDown();
-        }
     }
 
     @Test
     void theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember() throws Exception {
         ParRuntime runtime = runtime(pool(1));
 
-        TaskGroup<Resource, Void> group = runtime.groupDraft("timed", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(new Resource("first")))
+        TaskGroup<String, Void> group = runtime.groupDraft("timed", TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture("first"))
                 .submitAll();
 
         TaskCompletion<?> snapshot = Objects.requireNonNull(
@@ -415,31 +302,25 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aRunAdmittedBeforeCloseStillDispatchesItsDiscardedValues() throws Exception {
+    void aRunAdmittedBeforeCloseStillConvergesWhenItsSourceFails() throws Exception {
         ParRuntime runtime = runtime(pool(1));
-        ConnectedFuture<Resource> failing = new ConnectedFuture<>();
-        AtomicReference<Thread> closerThread = new AtomicReference<>();
+        ConnectedFuture<String> failing = new ConnectedFuture<>();
         ExecutorService caller = Executors.newSingleThreadExecutor();
         pools.add(caller);
 
-        Future<TaskGroupResult<Tuple2<Resource, Resource>, Void>> running =
+        Future<TaskGroupResult<Tuple2<String, String>, Void>> running =
                 caller.submit(() -> runtime.group("closing", TIMEOUT)
                         .closeGrace(TIMEOUT)
-                        .adopt(
-                                FIRST,
-                                Futures.immediateFuture(new Resource("first")),
-                                resource -> closerThread.set(Thread.currentThread()))
+                        .adopt(FIRST, Futures.immediateFuture("first"))
                         .adopt(SECOND, failing)
                         .runAll());
         assertThat(failing.connected.await(5, TimeUnit.SECONDS)).isTrue();
         runtime.close();
         failing.fail(new IOException("down"));
 
-        TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
+        TaskGroupResult<Tuple2<String, String>, Void> result = running.get(5, TimeUnit.SECONDS);
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.executionExitConfirmed()).isTrue();
-        assertThat(closerThread.get()).isNotSameAs(Thread.currentThread());
-        assertThat(Objects.requireNonNull(closerThread.get()).getName()).startsWith("ParRuntime-services-");
     }
 
     /** A source that reports when the group connects to it. */
@@ -460,22 +341,21 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void aSourceListenerThatThrowsWhileTheGroupCancelsItDoesNotStopTheCascade() throws Exception {
         ParRuntime runtime = runtime(pool(2));
-        SettableFuture<Resource> throwing = SettableFuture.create();
+        SettableFuture<String> throwing = SettableFuture.create();
         throwing.addListener(
                 () -> {
                     throw new AssertionError("caller listener");
                 },
                 directExecutor());
-        SettableFuture<Resource> sibling = SettableFuture.create();
-        Resource produced = new Resource("produced");
-        TaskKey<Resource> third = TaskKey.named("third");
+        SettableFuture<String> sibling = SettableFuture.create();
+        TaskKey<String> third = TaskKey.named("third");
         ExecutorService caller = Executors.newSingleThreadExecutor();
         pools.add(caller);
 
         Future<TaskGroupResult<?, Void>> running = caller.submit(() -> runtime.group("throwing-listener", TIMEOUT)
                 .adopt(FIRST, throwing)
                 .adopt(SECOND, sibling)
-                .adopt(third, Futures.immediateFuture(produced), Resource::close)
+                .adopt(third, Futures.immediateFuture("produced"))
                 .par(FAILING, io(runtime), () -> {
                     throw new IllegalStateException("boom");
                 })
@@ -485,32 +365,30 @@ class TaskGroupAdoptedFutureTest {
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(throwing.isCancelled()).isTrue();
         assertThat(sibling.isCancelled()).isTrue();
-        assertThat(produced.closes).hasValue(1);
         assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
     void anAdmissionFailureFinishesItsCleanupPastAThrowingSourceListener() {
         ParRuntime runtime = runtime(pool(1));
-        SettableFuture<Resource> throwing = SettableFuture.create();
+        SettableFuture<String> throwing = SettableFuture.create();
         throwing.addListener(
                 () -> {
                     throw new AssertionError("caller listener");
                 },
                 directExecutor());
-        Resource produced = new Resource("produced");
-        RecordingFuture<Resource> pending = new RecordingFuture<>();
-        GroupStep<Tuple2<Tuple2<Resource, Resource>, Resource>> draft = runtime.group("closed", TIMEOUT)
+        RecordingFuture<String> pending = new RecordingFuture<>();
+        GroupStep<Tuple2<Tuple2<String, String>, String>> draft = runtime.group("closed", TIMEOUT)
                 .adopt(FIRST, throwing)
-                .adopt(SECOND, Futures.immediateFuture(produced), Resource::close)
-                .adopt(TaskKey.<Resource>named("third"), pending);
+                .adopt(SECOND, Futures.immediateFuture("produced"))
+                .adopt(TaskKey.<String>named("third"), pending);
         runtime.close();
 
         assertThatThrownBy(draft::runAll).isInstanceOf(IllegalStateException.class);
 
         assertThat(throwing.isCancelled()).isTrue();
-        assertThat(produced.closes).hasValue(1);
         assertThat(pending.isCancelled()).isTrue();
+        assertThat(pending.interrupted).isTrue();
     }
 
     @Test
@@ -518,9 +396,9 @@ class TaskGroupAdoptedFutureTest {
         ParRuntime runtime = runtime(pool(1));
         ExecutorService completer = Executors.newSingleThreadExecutor();
         pools.add(completer);
-        CompletingOnRegistration<Resource> source = new CompletingOnRegistration<>(new Resource("first"), completer);
+        CompletingOnRegistration<String> source = new CompletingOnRegistration<>("first", completer);
 
-        TaskGroup<Resource, Void> group =
+        TaskGroup<String, Void> group =
                 runtime.groupDraft("window", TIMEOUT).adopt(FIRST, source).submitAll();
         source.releaseBlocker.countDown();
 
@@ -566,73 +444,34 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void anAdmissionFailureCancelsEverySourceAndClosesProducedValues() {
+    void anAdmissionFailureCancelsEverySource() {
         ParRuntime runtime = runtime(pool(1));
-        Resource produced = new Resource("produced");
-        RecordingFuture<Resource> pending = new RecordingFuture<>();
-        GroupStep<Tuple2<Resource, Resource>> draft = runtime.group("closed", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(produced), Resource::close)
-                .adopt(SECOND, pending, Resource::close);
+        RecordingFuture<String> pending = new RecordingFuture<>();
+        GroupStep<Tuple2<String, String>> draft = runtime.group("closed", TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture("produced"))
+                .adopt(SECOND, pending);
         runtime.close();
 
         assertThatThrownBy(draft::runAll).isInstanceOf(IllegalStateException.class);
 
-        assertThat(produced.closes).hasValue(1);
         assertThat(pending.isCancelled()).isTrue();
         assertThat(pending.interrupted).isTrue();
     }
 
     @Test
-    void aMissingInheritedDeadlineAbandonsTheSourcesOffTheCallerThread() throws Exception {
+    void aMissingInheritedDeadlineAbandonsTheSources() {
         ParRuntime runtime = runtime(pool(1));
-        AtomicReference<Thread> closerThread = new AtomicReference<>();
-        CountDownLatch closed = new CountDownLatch(1);
-        GroupStep<Resource> draft = runtime.groupInheriting("orphan")
-                .adopt(FIRST, Futures.immediateFuture(new Resource("produced")), resource -> {
-                    closerThread.set(Thread.currentThread());
-                    closed.countDown();
-                });
+        RecordingFuture<String> pending = new RecordingFuture<>();
+        GroupStep<String> draft = runtime.groupInheriting("orphan").adopt(FIRST, pending);
 
         assertThatThrownBy(draft::runAll).isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(closed.await(5, TimeUnit.SECONDS)).isTrue();
-        assertThat(closerThread.get()).isNotSameAs(Thread.currentThread());
+        assertThat(pending.isCancelled()).isTrue();
+        assertThat(pending.interrupted).isTrue();
     }
 
     @Test
-    void aBlockingCloserOfAGroupThatConvergesInsideRunAllDoesNotHoldTheCaller() throws Exception {
-        ParRuntime runtime = runtime(pool(1));
-        CountDownLatch releaseCloser = new CountDownLatch(1);
-        AtomicReference<Thread> closerThread = new AtomicReference<>();
-        ExecutorService caller = Executors.newSingleThreadExecutor();
-        pools.add(caller);
-        AtomicReference<Thread> callerThread = new AtomicReference<>();
-
-        Future<TaskGroupResult<Tuple2<Resource, Resource>, Void>> running = caller.submit(() -> {
-            callerThread.set(Thread.currentThread());
-            return runtime.group("immediate", TIMEOUT)
-                    .closeGrace(Duration.ofMillis(50))
-                    .adopt(FIRST, Futures.immediateFuture(new Resource("first")), resource -> {
-                        closerThread.set(Thread.currentThread());
-                        releaseCloser.await();
-                    })
-                    .adopt(SECOND, Futures.immediateFailedFuture(new IOException("down")))
-                    .runAll();
-        });
-        try {
-            TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
-
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.executionExitConfirmed()).isFalse();
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closerThread.get() != null);
-            assertThat(closerThread.get()).isNotSameAs(callerThread.get());
-        } finally {
-            releaseCloser.countDown();
-        }
-    }
-
-    @Test
-    void aDeadlineDrivenDiscardRunsTheCloserOffTheThreadThatDeliversTheDeadline() throws Exception {
+    void aDeadlineDrivenConvergenceRunsOnTheThreadThatDeliversTheDeadline() throws Exception {
         ExecutorService io = pool(1);
         ScheduledExecutorService deliverer = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                 .setNameFormat("deadline-deliverer-%d")
@@ -643,16 +482,12 @@ class TaskGroupAdoptedFutureTest {
                 .timeoutScheduler(deliverer)
                 .build();
         runtimes.add(runtime);
-        AtomicReference<String> closerThread = new AtomicReference<>();
         AtomicReference<String> convergingThread = new AtomicReference<>();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<Resource, String>, Void> group = runtime.groupDraft("deadline", Duration.ofMillis(50))
+            TaskGroup<Tuple2<String, String>, Void> group = runtime.groupDraft("deadline", Duration.ofMillis(50))
                     .closeGrace(TIMEOUT)
-                    .adopt(
-                            FIRST,
-                            Futures.immediateFuture(new Resource("first")),
-                            resource -> closerThread.set(Thread.currentThread().getName()))
+                    .adopt(FIRST, Futures.immediateFuture("first"))
                     .par(FAILING, io(runtime), () -> {
                         hold.await();
                         return "late";
@@ -661,12 +496,10 @@ class TaskGroupAdoptedFutureTest {
             group.completionFuture()
                     .addListener(
                             () -> convergingThread.set(Thread.currentThread().getName()), directExecutor());
-            TaskGroupResult<Tuple2<Resource, String>, Void> result = group.finish();
+            TaskGroupResult<Tuple2<String, String>, Void> result = group.finish();
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(convergingThread.get()).startsWith("deadline-deliverer-");
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closerThread.get() != null);
-            assertThat(closerThread.get()).startsWith("ParRuntime-services-");
         } finally {
             hold.countDown();
         }
@@ -676,62 +509,60 @@ class TaskGroupAdoptedFutureTest {
     void declarationsRejectReusedSourcesForeignProducersAndNulls() {
         ParRuntime runtime = runtime(pool(1));
         ParRuntime other = runtime(pool(1));
-        SettableFuture<Resource> source = SettableFuture.create();
-        GroupStep<Resource> step = runtime.group("checks", TIMEOUT).adopt(FIRST, source);
+        SettableFuture<String> source = SettableFuture.create();
+        GroupStep<String> step = runtime.group("checks", TIMEOUT).adopt(FIRST, source);
 
         assertThatThrownBy(() -> step.adopt(SECOND, source))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("second");
         GroupStart foreign = runtime.group("foreign", TIMEOUT);
-        assertThatThrownBy(() -> foreign.adopt(FIRST, io(other), SettableFuture.<Resource>create()))
+        assertThatThrownBy(() -> foreign.adopt(FIRST, io(other), SettableFuture.<String>create()))
                 .isInstanceOf(IllegalArgumentException.class);
         GroupStart nulls = runtime.group("nulls", TIMEOUT);
         assertThatThrownBy(() -> nulls.adopt(FIRST, nullFuture())).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> nulls.adopt(FIRST, source, nullCloser())).isInstanceOf(NullPointerException.class);
         assertThat(source.isCancelled()).isFalse();
     }
 
     @SuppressWarnings("NullAway")
-    private static ListenableFuture<Resource> nullFuture() {
+    private static ListenableFuture<String> nullFuture() {
         return null;
     }
 
     @Test
     void adoptDeclarationsShareNameUniquenessStageAndThreadConfinementWithPar() throws Exception {
         ParRuntime runtime = runtime(pool(1));
-        GroupStep<Resource> step = runtime.group("names", TIMEOUT).adopt(FIRST, SettableFuture.create());
-        assertThatThrownBy(() -> step.adopt(FIRST, SettableFuture.<Resource>create()))
+        GroupStep<String> step = runtime.group("names", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        assertThatThrownBy(() -> step.adopt(FIRST, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate name 'first'");
-        GroupStep<Resource> ran = runtime.group("par-then-adopt", TIMEOUT).par(FIRST, io(runtime), () -> null);
-        assertThatThrownBy(() -> ran.adopt(FIRST, SettableFuture.<Resource>create()))
+        GroupStep<String> ran = runtime.group("par-then-adopt", TIMEOUT).par(FIRST, io(runtime), () -> null);
+        assertThatThrownBy(() -> ran.adopt(FIRST, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate name 'first'");
 
         GroupStart start = runtime.group("stale", TIMEOUT);
-        GroupStep<Resource> advanced = start.adopt(FIRST, SettableFuture.create());
-        assertThatThrownBy(() -> start.adopt(SECOND, SettableFuture.<Resource>create()))
+        GroupStep<String> advanced = start.adopt(FIRST, SettableFuture.create());
+        assertThatThrownBy(() -> start.adopt(SECOND, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no longer current");
-        GroupStep<Tuple2<Resource, Resource>> next = advanced.adopt(SECOND, SettableFuture.create());
+        GroupStep<Tuple2<String, String>> next = advanced.adopt(SECOND, SettableFuture.create());
         assertThat(next).isNotNull();
-        assertThatThrownBy(() -> advanced.adopt(TaskKey.<Resource>named("third"), SettableFuture.<Resource>create()))
+        assertThatThrownBy(() -> advanced.adopt(TaskKey.<String>named("third"), SettableFuture.<String>create()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no longer current");
 
         GroupStart confinedStart = runtime.group("confined-start", TIMEOUT);
-        GroupStep<Resource> confinedStep =
-                runtime.group("confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        GroupStep<String> confinedStep = runtime.group("confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
         AtomicReference<Throwable> fromStart = new AtomicReference<>();
         AtomicReference<Throwable> fromStep = new AtomicReference<>();
         Thread other = new Thread(() -> {
             try {
-                GroupStep<?> unused = confinedStart.adopt(FIRST, SettableFuture.<Resource>create());
+                GroupStep<?> unused = confinedStart.adopt(FIRST, SettableFuture.<String>create());
             } catch (Throwable failure) {
                 fromStart.set(failure);
             }
             try {
-                GroupStep<?> unused = confinedStep.adopt(SECOND, SettableFuture.<Resource>create());
+                GroupStep<?> unused = confinedStep.adopt(SECOND, SettableFuture.<String>create());
             } catch (Throwable failure) {
                 fromStep.set(failure);
             }
@@ -743,46 +574,16 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void theAttributedOverloadWithACloserReleasesValuesOfAFailedGroupOnEitherStage() {
-        ParRuntime runtime = runtime(pool(2));
-        Resource first = new Resource("first");
-        Resource second = new Resource("second");
-
-        TaskGroupResult<Tuple2<Tuple2<Resource, Resource>, String>, Void> result = runtime.group("attributed", TIMEOUT)
-                .adopt(FIRST, io(runtime), Futures.immediateFuture(first), Resource::close)
-                .adopt(SECOND, io(runtime), Futures.immediateFuture(second), Resource::close)
-                .par(FAILING, io(runtime), () -> {
-                    throw new IOException("boom");
-                })
-                .runAll();
-
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(result.resultOf(FIRST).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        Awaitility.await().atMost(TIMEOUT).untilAsserted(() -> {
-            assertThat(first.closes).hasValue(1);
-            assertThat(second.closes).hasValue(1);
-        });
-    }
-
-    @Test
-    void anAdoptingGroupStopsHoldingTheRuntimeOnceOwnershipIsSettled() throws Exception {
+    void anAdoptingGroupStopsHoldingTheRuntimeOnceItsSourcesSettle() throws Exception {
         ParRuntime runtime = runtime(pool(1));
-        Resource first = new Resource("first");
 
-        TaskGroupResult<Resource, Void> result = runtime.group("settled", TIMEOUT)
-                .adopt(FIRST, Futures.immediateFuture(first), Resource::close)
+        TaskGroupResult<String, Void> result = runtime.group("settled", TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture("first"))
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         runtime.close();
         assertThat(runtime.awaitQuiescence(TIMEOUT)).isTrue();
-        assertThat(first.closes).hasValue(0);
-    }
-
-    @SuppressWarnings("NullAway")
-    private static ResourceCloser<Resource> nullCloser() {
-        return null;
     }
 
     @Test

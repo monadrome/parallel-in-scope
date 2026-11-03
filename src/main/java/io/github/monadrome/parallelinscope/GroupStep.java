@@ -54,31 +54,12 @@ public interface GroupStep<V> {
     <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
     /**
-     * Declares a member as an adopted future whose undelivered values are released by {@code
-     * closer}; see {@link GroupStart#adopt(TaskKey, ListenableFuture, ResourceCloser)}.
-     *
-     * @since 0.4.0
-     */
-    <T> GroupStep<Tuple2<V, T>> adopt(
-            TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
-
-    /**
      * Declares a member as an adopted future completed on {@code producer}'s executor; see {@link
      * GroupStart#adopt(TaskKey, Par, ListenableFuture)}.
      *
      * @since 0.4.0
      */
     <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
-
-    /**
-     * Declares a member as an adopted future attributed to {@code producer} whose undelivered values
-     * are released by {@code closer}; see {@link GroupStart#adopt(TaskKey, Par, ListenableFuture,
-     * ResourceCloser)}.
-     *
-     * @since 0.4.0
-     */
-    <T> GroupStep<Tuple2<V, T>> adopt(
-            TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer);
 
     /**
      * Declares a keyed terminal combine using the group's assembled member-value type.

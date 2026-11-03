@@ -88,7 +88,7 @@ batch_classes() {
       printf '%s' "$package.CancellationToken*,$package.Deadlines*,$package.LeanCancellationException*,$package.TokenOutcomes*,$package.TaskExecutionState*,$package.ExecutionExitTracker*,$package.ExecutionPhaseHintFuture*,$package.TaskFuture,$package.TaskCompletion*"
       ;;
     C)
-      printf '%s' "$package.TaskGroup*,$package.GroupDraft*,$package.GroupStart*,$package.GroupStep*,$package.GroupValues*,$package.CombinedGroupStep*,$package.Combiner*,$package.TaskBatch*,$package.BatchCombinedResult*,$package.MultiTaskContext*,$package.Checkpoints*,$package.Announcements*,$package.AdoptedSource*,$package.ResourceCloser*"
+      printf '%s' "$package.TaskGroup*,$package.GroupDraft*,$package.GroupStart*,$package.GroupStep*,$package.GroupValues*,$package.CombinedGroupStep*,$package.Combiner*,$package.TaskBatch*,$package.BatchCombinedResult*,$package.MultiTaskContext*,$package.Checkpoints*,$package.Announcements*,$package.AdoptedSource*"
       ;;
     D)
       printf '%s' "$package.Par,$package.Par\$1,$package.ParRuntime*,$package.SlidingWindowSubmitter*,$package.TaskSubmissions*,$package.SubmissionScope*,$package.SubmissionException*"

@@ -207,6 +207,27 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 
 公开面仍没有运行句柄或成员直消方法。请求级外部取消改用下面的显式输入，不重新公开 token。
 
+## 收养值的资源所有权
+
+较早的 0.4 开发快照允许 `adopt` 接收 `ResourceCloser`。该类型及所有带 closer 的重载在 0.4 稳定 API 之前删除。
+
+改前：
+
+```java
+.adopt(profileKey, client.get("/profile"), Response::close)
+```
+
+改后：
+
+```java
+.adopt(profileKey, client.get("/profile"))
+```
+
+组仍取消 source 并报告冻结结果，但从不关闭它的值。删除 closer 参数；中间资源通过 `DeferredCloser` 交给
+`ClosingFuture` 管道管理，或由读取该值的接收方管理。这消除了相互竞争的资源所有者及可能的双重关闭，同时也意味着
+组失败或 source 迟到产出时不再调用原来的 closer。source 落定与 `executionExitConfirmed()` 不等待外部管道的异步关闭。
+ClosingFuture 示例见[收养指南](user-guide.md#adopted-futures)。
+
 ## 请求取消输入
 
 `BatchOptions.cancelOn(ListenableFuture<?> signal)` 与

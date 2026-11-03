@@ -228,6 +228,30 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 There is still no public running handle or member-cancellation method. Request-scoped external
 cancellation instead uses the new input below, without making the token public again.
 
+## Adopted value ownership
+
+Earlier 0.4 development snapshots accepted a `ResourceCloser` on `adopt`. That type and all closer-taking
+overloads are removed before the stable 0.4 API.
+
+Before:
+
+```java
+.adopt(profileKey, client.get("/profile"), Response::close)
+```
+
+After:
+
+```java
+.adopt(profileKey, client.get("/profile"))
+```
+
+The group still cancels the source and reports its frozen result, but never closes its value. Remove the closer
+argument and manage intermediate resources in a `ClosingFuture` pipeline through `DeferredCloser`, or in the recipient
+that reads the value. This removes competing resource owners and possible double close; it also means a failed group
+or a late-producing source no longer invokes the former closer. Source settlement and `executionExitConfirmed()` do not
+wait for an external pipeline's asynchronous close. See the [adoption guide](user-guide.md#adopted-futures) for a
+`ClosingFuture` example.
+
 ## Request cancellation input
 
 `BatchOptions.cancelOn(ListenableFuture<?> signal)` and

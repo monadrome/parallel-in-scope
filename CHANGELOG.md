@@ -4,6 +4,11 @@
 
 ### Breaking changes
 
+- Remove `ResourceCloser` and the closer-taking `adopt` overloads from the earlier 0.4 development API.
+  Adopted futures keep structured cancellation, deadlines, attribution, and frozen results, but the group no longer
+  closes their values. Manage intermediate resources in a `ClosingFuture` pipeline or by the value's recipient;
+  source settlement does not wait for an external pipeline's asynchronous close. See the 0.4 migration guide.
+
 - Rename the task-execution terms to execution and execution exit, with no aliases: `awaitBodyCompletion` to `awaitExecutionExit`, `bodyCompletionConfirmed` to `executionExitConfirmed`, `unfinishedBodies` to `unexitedExecutions`, `unexitedBodySignals` to `unexitedExecutionSignals`, workload-fit `bodies`, `unattributedBodies`, and `unmeasuredBodies` to `executions`, `unattributedExecutions`, and `unmeasuredExecutions`, and `CombineBody` to `Combiner`. Behaviour is unchanged. See [migration-v0.4](docs/en/migration-v0.4.md#execution-exit-terminology).
 - Replace request-scoped task-graph observation with an always-on, runtime-level executor wait
   graph. Every nested synchronous call — `map`, `mapAndCombine`, or `runAll` made inside a task
@@ -69,13 +74,9 @@
   The group owns each adopted `ListenableFuture` from `runAll()` on: fail-fast, deadlines,
   `cancelOn`, and enclosing cancellation cancel it with `cancel(true)`, and a `runAll()`
   that fails admission cancels it (a stale-stage or thread-confinement rejection leaves it
-  untouched). Each produced value has one owner — the combine once its
-  execution starts, otherwise the caller of a successful group — and the new `ResourceCloser` closes every
-  other value exactly once, including a value that arrives after cancellation. Closers run on a
-  runtime-owned thread after the group's completion is published, not on the `runAll()` caller (a
-  runtime that has already shut down runs refused releases inline), so a blocking closer cannot hold
-  `runAll()` past its cleanup wait; `executionExitConfirmed()` also
-  covers adopted futures and their closers. An optional producer
+  untouched). Values enter ordinary combines and frozen results; their resource lifetime stays with
+  the source's own pipeline or the value's recipient. `executionExitConfirmed()` confirms that adopted
+  futures settled, not that an external pipeline's asynchronous close finished. An optional producer
   `Par` puts nested waits on adopted futures into `executorWaitReport()`.
 
 - Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted

@@ -33,7 +33,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParId",
-            BASE_PACKAGE + ".ResourceCloser",
             BASE_PACKAGE + ".SmartBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskCompletion",

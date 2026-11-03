@@ -123,8 +123,7 @@ final class GroupDraft {
         members.add(new MemberDecl(key, par, options, taskCode));
     }
 
-    void addAdopted(
-            TaskKey<?> key, @Nullable Par producer, ListenableFuture<?> source, @Nullable ResourceCloser<?> closer) {
+    void addAdopted(TaskKey<?> key, @Nullable Par producer, ListenableFuture<?> source) {
         checkNotNull(key, "key cannot be null");
         checkNotNull(source, "source cannot be null");
         checkNameAvailable(key.name());
@@ -137,7 +136,7 @@ final class GroupDraft {
                 key.name());
         seenNames.add(key.name());
         adoptedSources.add(source);
-        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source, closer, owner.releases())));
+        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
     }
 
     void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
@@ -267,38 +266,18 @@ final class GroupDraft {
 
         @Override
         public <T> Step<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
-            return adopted(key, null, source, null);
-        }
-
-        @Override
-        public <T> Step<T> adopt(
-                TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
-            return adopted(key, null, source, checkNotNull(closer, "closer cannot be null"));
+            return adopted(key, null, source);
         }
 
         @Override
         public <T> Step<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
-            return adopted(key, checkNotNull(producer, "producer cannot be null"), source, null);
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
         }
 
-        @Override
-        public <T> Step<T> adopt(
-                TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
-            return adopted(
-                    key,
-                    checkNotNull(producer, "producer cannot be null"),
-                    source,
-                    checkNotNull(closer, "closer cannot be null"));
-        }
-
-        private <T> Step<T> adopted(
-                TaskKey<T> key,
-                @Nullable Par producer,
-                ListenableFuture<? extends T> source,
-                @Nullable ResourceCloser<? super T> closer) {
+        private <T> Step<T> adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
             draft.checkThread();
             draft.checkStage(0);
-            draft.addAdopted(key, producer, source, closer);
+            draft.addAdopted(key, producer, source);
             return next();
         }
 
@@ -364,38 +343,19 @@ final class GroupDraft {
 
         @Override
         public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
-            return adopted(key, null, source, null);
-        }
-
-        @Override
-        public <T> Step<Tuple2<V, T>> adopt(
-                TaskKey<T> key, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
-            return adopted(key, null, source, checkNotNull(closer, "closer cannot be null"));
+            return adopted(key, null, source);
         }
 
         @Override
         public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
-            return adopted(key, checkNotNull(producer, "producer cannot be null"), source, null);
-        }
-
-        @Override
-        public <T> Step<Tuple2<V, T>> adopt(
-                TaskKey<T> key, Par producer, ListenableFuture<? extends T> source, ResourceCloser<? super T> closer) {
-            return adopted(
-                    key,
-                    checkNotNull(producer, "producer cannot be null"),
-                    source,
-                    checkNotNull(closer, "closer cannot be null"));
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
         }
 
         private <T> Step<Tuple2<V, T>> adopted(
-                TaskKey<T> key,
-                @Nullable Par producer,
-                ListenableFuture<? extends T> source,
-                @Nullable ResourceCloser<? super T> closer) {
+                TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.addAdopted(key, producer, source, closer);
+            draft.addAdopted(key, producer, source);
             return next();
         }
 
