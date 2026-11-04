@@ -107,6 +107,10 @@ class ParMapAndCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            // One attribution per task: the terminal's own child token reads differently, but its
+            // final observation carries the frozen FAIL_FAST.
+            assertThat(java.util.Objects.requireNonNull(result.terminal()).outcome())
+                    .isEqualTo(TaskOutcome.FAIL_FAST);
             ImmediateResult<Integer> failing = result.batchResult().results().get(1);
             assertThat(failing.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(failing.failure()).isSameAs(boom);
