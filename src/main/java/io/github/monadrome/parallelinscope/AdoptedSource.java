@@ -25,9 +25,10 @@ import org.jspecify.annotations.Nullable;
  * context, whose body slot stands for the source's outstanding work; then exactly one of {@link
  * #connect()} (the group admitted the member) or {@link #abandon()} (admission failed) claims the
  * source. A connected source settles the mirror through this class's own listener, which writes the
- * end time first; cancelling the mirror cancels the source with the mirror's own interrupt flag ({@code
- * cancel(true)} for every framework cancellation). A
- * listener of the source that throws while the group cancels it is logged and never interrupts the
+ * end time first; cancelling the mirror cancels the source with the mirror's own interrupt flag
+ * ({@code cancel(true)} for every framework cancellation).
+ *
+ * <p>A listener of the source that throws while the group cancels it is logged and never interrupts the
  * group's cancellation cascade or cleanup. The body slot is released once the source has settled and — for a member
  * that declares a closer — the group has decided who owns the value and, when nobody does, the
  * closer has returned.
