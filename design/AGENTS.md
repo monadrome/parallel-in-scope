@@ -1,15 +1,19 @@
 # 设计文档路由
 
 使用规则：**先读本表，按摘要匹配当前任务，只加载命中的文档，不要预读全部。**
-契约类文档以实现约束力（MUST/MUST NOT/SHOULD）书写，是本仓库行为的权威依据。
+契约类文档以实现约束力（MUST/MUST NOT/SHOULD）书写，是本仓库当前行为的权威依据。
+需要理解决策背景、否决方案或后果时，再读主题下链接的 ADR；需要复核旧方案、评审或验证材料时，
+再读历史记录。`Accepted` ADR 的未取代部分仍然有效，`Partially superseded` ADR 须连同其后继阅读，
+`Superseded` ADR 只用于追溯，不得作为当前实现依据。需要永久关闭重提的边界问题可由 ADR 持有权威结论，
+其余当前行为、生命周期与并发不变量均由活契约持有，不在 ADR 或历史记录中复制。
 
-本目录有四类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
+本目录有五类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
 `proposal/`，已写出但尚未落地）、**分析稿**（临时输入，收割后删除；默认不入库，用户要求时
-才入库到 `analysis/`，见维护原则第 9 条）和**归档**（tracked，位于 `archive/` 与
-`analysis/archive/`，只用于追溯，不约束实现）。已落地的提案蒸馏为活契约；已否决、已被取代
-方向的结论与否决理由浓缩在 [decision-log.md](decision-log.md)，全文见
-[archive/](archive/)。先查日志，确需论证细节再读归档文件；**不得引用提交 hash 或行号来
-定位内容**。
+才入库到 `analysis/`，见维护原则第 9 条）、**历史记录**（tracked，位于 `history/`，保留有长期
+价值的评审与验证材料，不约束实现）和**归档**（tracked，位于 `archive/` 与 `analysis/archive/`，
+只用于追溯，不约束实现）。已落地的提案蒸馏为活契约；已否决、已被取代方向的结论与否决理由浓缩在
+[decision-log.md](decision-log.md)，全文见 [archive/](archive/)。先查日志，确需论证细节再读归档文件；
+**不得引用提交 hash 或行号来定位内容**。
 
 新能力与契约变更无需先开 issue：提案直接写进 `proposal/`、加入在途路由并提交，不区分草稿、
 已接受或进行中。落地时将蒸馏摘要并入活契约、写下历史回指并在同一提交删除提案与路由行；
@@ -17,10 +21,10 @@
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
 
-**本表分为活契约与在途提案两节，分析稿不入表。** CI 中的 `scripts/check-design-routes.py`
-对两节共用双向校验：表内链接必须存在，已跟踪且仍存在的顶层活文档、`proposal/` 中的全部
-提案必须分别入表；`analysis/` 不在校验范围内。接手工作时先读相应路由，再用
-`git status --short design/` 查未入库的分析输入。
+**本表分为活契约与在途提案两节，分析稿不入表。** 相关 ADR 与历史记录按主题附在活契约下，
+不另建 ADR 编号索引或第二套主题导航。CI 中的 `scripts/check-design-routes.py` 对两节共用双向校验：
+表内链接必须存在，已跟踪且仍存在的顶层活文档、`proposal/` 中的全部提案必须分别入表；
+`analysis/` 不在校验范围内。接手工作时先读相应路由，再用 `git status --short design/` 查未入库的分析输入。
 
 对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，浓缩为
 「已排除的替代方案与原因」并入正文或 [decision-log.md](decision-log.md)，需要保留的流水
@@ -66,7 +70,7 @@
     - **ADR**（[adr/](../adr/)）：跨模块、难以逆转，或需要关闭重提的决定（产物边界、核心协议
       顺序、「不要在评审、缺陷分诊或重构提案中重提」一类结论）。ADR 的决定不改写：决定改变时写
       后继 ADR 并把旧篇标 `Superseded`；过时的非决策内容按 [adr/AGENTS.md](../adr/AGENTS.md)
-      蒸馏删除。
+      蒸馏删除。ADR 状态或后继关系变化时，同一提交更新所属主题的路由链接。
     - **活契约正文的「被排除的替代方案」**：只影响单一契约的取舍，随契约原地改写。
     - **[decision-log.md](decision-log.md)**：入库提案被否决、被取代或分析稿收割后的残值
       （结论、否决理由、落点）；只防重提，不定义当前行为。日志结论需要关闭重提时同时写
@@ -91,6 +95,12 @@
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、body 自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
 | [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；恰好一次的值交接（combine 入口或成功的调用方）与其余值的 `ResourceCloser` 关闭；closer 在 completion 发布后运行并计入 body-exit 槽；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
 
+相关决策（仅在任务涉及对应决策背景或边界时加载）：
+
+- [ADR 0002](../adr/0002-separate-task-execution-and-future-lifecycle.md)：执行侧与结果侧增强分离、完成驱动准入；占位准入、迟到 bind、purge 与补窗已被后续决定或契约部分取代。
+- [ADR 0005](../adr/0005-globalpar-executor-binding.md)：执行器拓扑、批次上下文与跨资源观测；现行命名、选项和生命周期以本主题活契约为准（部分取代）。
+- [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)：先 bind 后提交、准备后视图与借用线程隔离。
+
 ### 观测与诊断
 
 | 文档 | 摘要 |
@@ -99,6 +109,12 @@
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 | [workload-fit-screening.md](workload-fit-screening.md) | **负载匹配筛查契约**：runtime 级常开，只给条目或单元声明为 `COMPUTE` 的库准入任务体计时；按条目、每 10 秒执行时间一个周期判定，粘滞 issue 与一次 `WARNING`；单元只归因（每条目至多 256）与判漂移；累计计数经 `workloadFitReport()` 读取；不包装或改变用户任务，与饥饿观测不共享状态（ADR 0010） |
 
+相关决策与历史：
+
+- [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)：`TaskType` 作为负载匹配诊断声明；运行时筛查窗口部分由 ADR 0010 取代。
+- [ADR 0010](../adr/0010-always-on-workload-fit-screening.md)：runtime 级常开、按条目判定的负载匹配筛查。
+- 评审与验证记录：[负载匹配筛查](history/workload-fit-screening-review-records-2026-10-30.md)、[线程池饥饿观测](history/thread-pool-starvation-observation-review-records-2026-10-30.md)；只用于复核，不约束当前实现。
+
 ### 取消与队列
 
 | 文档 | 摘要 |
@@ -106,6 +122,12 @@
 | [cancellation-propagation.md](cancellation-propagation.md) | Guava `ListenableFuture` 取消传播机制（transform/catching/addCallback/组合 future 的方向差异），`CancellationToken.bind` 依赖的语义与源码索引 |
 | [sliding-window-refill.md](sliding-window-refill.md) | 滑窗事件驱动补窗契约：调用方完成初始窗口、完成线程认领下一元素、窗口上界与取消/失败处置、框架线程 O(1) 资源上界 |
 | [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
+
+相关决策与历史：
+
+- [ADR 0006](../adr/0006-queues-ship-with-core.md)：queue 产物边界与评审责任的权威结论；其中 `TaskType` 的排队/拒绝语义已由 ADR 0008 取代。
+- [ADR 0003](../adr/0003-event-coalesced-purge-maintenance.md)：`Superseded`，现行规则见 [execution future simplification](execution-future-simplification.md)；仅供追溯自动 purge 旧方案。
+- [ADR 0004](../adr/0004-lifecycle-blocking-queue-recovery.md)：`Superseded`，现行规则见 [draining queue contract](draining-queue-contract.md)；仅供追溯 abrupt-close 旧方案。
 
 ### 扩展与包装
 
@@ -125,6 +147,14 @@
 | [llm-review-benchmark.md](llm-review-benchmark.md) | **LLM 评审基准活契约**：日常 `/multi-review` 走 TypeScript CLI；不可变原始证据、版本化 clusters/verdicts/gold 与可复算指标；四态判定、open-world recall 边界、51m 分层预算、gold 隔离与安全边界；被排除的纯 Skill/Python 核心/文本去重/单总分/首期服务方案 |
 | [proposal-lifecycle.md](proposal-lifecycle.md) | 提案入库、蒸馏摘要、落地与否决的删除前提、历史回指、路由及残留门禁；维护提案或收割分析稿时读取 |
 
+相关决策与工程入口：
+
+- [ADR 0001](../adr/0001-layered-cartesian-concurrency-testing.md)：分层笛卡尔并发测试；其中 `TaskType` 相关部分由 ADR 0008 取代。
+- [ADR 0009](../adr/0009-comment-minimization-and-placement.md)：注释保留与放置原则；实现说明和局部证明的放置部分由 ADR 0012 取代。
+- [ADR 0011](../adr/0011-demo-and-verification-stay-on-junit-5.md)：根测试与 demo/verification consumer 的 JUnit 主版本和测试运行时边界。
+- [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md)：调用契约、实现说明与局部正确性证明的分层。
+- 工程规则与验证按任务加载：[根 AGENTS.md](../AGENTS.md)、[demo/AGENTS.md](../demo/AGENTS.md)、[PIT](../verification/pit.md)、[Lincheck](../verification/lincheck.md)、[SpotBugs](../verification/spotbugs.md)。
+
 ### 设计哲学与决策记录
 
 | 文档 | 摘要 |
@@ -133,7 +163,6 @@
 | [decision-log.md](decision-log.md) | 归档提案的结论与否决理由浓缩表；重提旧方向前先查这里 |
 | [docs/zh/design/philosophy.md](../docs/zh/design/philosophy.md)（[en](../docs/en/design/philosophy.md)） | 并发库的减法哲学：核心取舍与边界，评估新特性是否契合项目定位（已发布站点页面，保留在原位置） |
 | [docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)（[en](../docs/en/design/idea-graveyard.md)） | 明确不提供的能力及替代方案，引入新特性前先查否决记录（已发布站点页面，保留在原位置） |
-| [adr/](../adr/) | 架构决策记录（决定不改写，只按 adr/AGENTS.md 蒸馏过时内容；过时决策以 Superseded 标注）。注意 ADR 是历史快照，现行契约以本目录 `design/` 为准；例外是已在 ADR 里关闭的边界问题（如 [adr/0006](../adr/0006-queues-ship-with-core.md) 的 queue 产物边界），那类结论由 ADR 持有 |
 
 ## 在途提案
 
