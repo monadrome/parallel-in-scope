@@ -116,8 +116,8 @@ public final class Par {
      * <p>This call waits for all results, ignoring interruptions while waiting and restoring the
      * interrupt flag afterward. Interruption of this caller does not cancel the batch. Deadline,
      * fail-fast, and ancestor cancellation still interrupt task runners. A source declared through
-     * {@link BatchOptions#cancelOn(ListenableFuture, boolean)} cancels on any completion with its
-     * explicit interrupt policy. Cleanup waits within {@link BatchOptions#closeGrace(Duration)} (or
+     * {@link BatchOptions#cancelOn(ListenableFuture)} cancels on any completion and interrupts
+     * running bodies the same way. Cleanup waits within {@link BatchOptions#closeGrace(Duration)} (or
      * the remaining deadline when unset); inspect {@link TaskBatchResult#bodyCompletionConfirmed()}
      * before releasing resources shared by direct bodies; nested calls must confirm their own exit
      * separately. Direct executors and CallerRunsPolicy may execute bodies on this caller; their

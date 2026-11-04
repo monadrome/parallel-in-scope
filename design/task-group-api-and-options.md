@@ -84,7 +84,7 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.group(name,
 timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 与请求取消分别由
-`GroupStart.closeGrace(Duration)`、`GroupStart.cancelOn(ListenableFuture<?>, boolean)` 承担，
+`GroupStart.closeGrace(Duration)`、`GroupStart.cancelOn(ListenableFuture<?>)` 承担，
 两者都必须在首个 `par` 之前声明。
 
 ```java

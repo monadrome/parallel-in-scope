@@ -20,7 +20,7 @@ import java.util.concurrent.Callable;
  * the submission and cannot be retried, extended, or reused.
  *
  * <p>This stage carries the whole-group settings that must precede the first member: the group's
- * identity, {@link #closeGrace(Duration)}, and {@link #cancelOn(ListenableFuture, boolean)}.
+ * identity, {@link #closeGrace(Duration)}, and {@link #cancelOn(ListenableFuture)}.
  * Declaring a member moves the chain to {@link GroupStep}, which never exposes these settings
  * again, so a late {@code closeGrace} or {@code cancelOn} does not compile.
  *

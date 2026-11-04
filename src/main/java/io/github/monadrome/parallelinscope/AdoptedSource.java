@@ -25,7 +25,8 @@ import org.jspecify.annotations.Nullable;
  * context, whose body slot stands for the source's outstanding work; then exactly one of {@link
  * #connect()} (the group admitted the member) or {@link #abandon()} (admission failed) claims the
  * source. A connected source settles the mirror through this class's own listener, which writes the
- * end time first; cancelling the mirror cancels the source with the same interrupt intent. A
+ * end time first; cancelling the mirror cancels the source with the mirror's own interrupt flag ({@code
+ * cancel(true)} for every framework cancellation). A
  * listener of the source that throws while the group cancels it is logged and never interrupts the
  * group's cancellation cascade or cleanup. The body slot is released once the source has settled and — for a member
  * that declares a closer — the group has decided who owns the value and, when nobody does, the
@@ -169,7 +170,9 @@ final class AdoptedSource {
 
     /**
      * The member future the group sees: settled only from the source, and propagating its own
-     * cancellation, with the canceller's interrupt intent, to the source.
+     * cancellation to the source with the same {@code wasInterrupted()} flag; a framework cascade
+     * always cancels with {@code cancel(true)}, while the mirror's own {@code cancel(false)} only
+     * completes it as cancelled after the source already settled or was abandoned.
      */
     private final class Mirror extends AbstractFuture<Object> {
         void settleFrom(ListenableFuture<?> settled) {
