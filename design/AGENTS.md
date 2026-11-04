@@ -157,3 +157,4 @@
 | [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |
 | [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |
 | [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | `par` 成员与批次元素复用 adopt 的 `ResourceCloser` 与恰好一个所有者规则：迟到值与失败作用域的值在释放线程上关闭，body-exit 槽覆盖关闭 |
+| [proposal/P0034-checkpoint-cancellation-acknowledgement.md](proposal/P0034-checkpoint-cancellation-acknowledgement.md) | 检查点读到已提交 token 时抛带库来源标记的取消确认：按 token 归因、迟到时不告警；不新增 `TaskOutcome`；移除把用户异常类型映射为取消的 `Checkpoints` 入口 |
