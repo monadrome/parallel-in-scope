@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
  * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
  * concurrency limit controls the sliding window. Timeout and enqueue rejection form the execution
  * policy; an optional {@link TaskType} declaration is diagnostic only and never changes execution.
- * {@link #cancelOn(ListenableFuture, boolean)} adds an optional caller-owned cancellation input for
+ * {@link #cancelOn(ListenableFuture)} adds an optional caller-owned cancellation input for
  * the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
@@ -33,7 +33,6 @@ public final class BatchOptions {
     private final boolean rejectEnqueue;
     private final @Nullable Duration closeGrace;
     private final @Nullable ListenableFuture<?> cancellationSignal;
-    private final boolean cancellationInterrupt;
 
     private BatchOptions(
             String name,
@@ -42,8 +41,7 @@ public final class BatchOptions {
             TaskType taskType,
             boolean rejectEnqueue,
             @Nullable Duration closeGrace,
-            @Nullable ListenableFuture<?> cancellationSignal,
-            boolean cancellationInterrupt) {
+            @Nullable ListenableFuture<?> cancellationSignal) {
         this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
@@ -51,7 +49,6 @@ public final class BatchOptions {
         this.rejectEnqueue = rejectEnqueue;
         this.closeGrace = closeGrace;
         this.cancellationSignal = cancellationSignal;
-        this.cancellationInterrupt = cancellationInterrupt;
     }
 
     /**
@@ -62,7 +59,7 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code name} is blank
      */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.UNKNOWN, false, null, null, false);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.UNKNOWN, false, null, null);
     }
 
     /**
@@ -85,8 +82,7 @@ public final class BatchOptions {
                 TaskType.UNKNOWN,
                 false,
                 null,
-                null,
-                false);
+                null);
     }
 
     /**
@@ -102,8 +98,7 @@ public final class BatchOptions {
                 taskType,
                 rejectEnqueue,
                 closeGrace,
-                cancellationSignal,
-                cancellationInterrupt);
+                cancellationSignal);
     }
 
     /**
@@ -123,8 +118,7 @@ public final class BatchOptions {
                 checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
                 closeGrace,
-                cancellationSignal,
-                cancellationInterrupt);
+                cancellationSignal);
     }
 
     /**
@@ -135,15 +129,7 @@ public final class BatchOptions {
      * is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(
-                name,
-                parallelism,
-                timeout,
-                taskType,
-                rejectEnqueue,
-                closeGrace,
-                cancellationSignal,
-                cancellationInterrupt);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace, cancellationSignal);
     }
 
     /**
@@ -168,22 +154,21 @@ public final class BatchOptions {
                 taskType,
                 rejectEnqueue,
                 Validation.requireNonNegative(closeGrace, "closeGrace"),
-                cancellationSignal,
-                cancellationInterrupt);
+                cancellationSignal);
     }
 
     /**
      * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or
      * is cancelled. The source remains caller-owned: the library never completes or cancels it.
      *
-     * <p>The explicit {@code interrupt} argument controls interruption of running bodies; it is not
-     * inferred from the source's completion. Interruption is cooperative and does not guarantee
-     * that arbitrary IO or user code stops. The source takes effect at execution admission, before
+     * <p>Like a deadline or fail-fast, the cancellation interrupts running bodies; there is no
+     * non-interrupting variant. Interruption is cooperative and does not guarantee that arbitrary
+     * IO or user code stops. The source takes effect at execution admission, before
      * any body can start; an empty batch returns successfully without registering.
      *
      * @throws NullPointerException if {@code signal} is null
      */
-    public BatchOptions cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+    public BatchOptions cancelOn(ListenableFuture<?> signal) {
         return new BatchOptions(
                 name,
                 parallelism,
@@ -191,8 +176,7 @@ public final class BatchOptions {
                 taskType,
                 rejectEnqueue,
                 closeGrace,
-                checkNotNull(signal, "signal cannot be null"),
-                interrupt);
+                checkNotNull(signal, "signal cannot be null"));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -242,7 +226,7 @@ public final class BatchOptions {
         if (cancellationSignal == null) {
             return null;
         }
-        return token.cancelOn(cancellationSignal, cancellationInterrupt);
+        return token.cancelOn(cancellationSignal);
     }
 
     /** Adapts these options to the kernel carrier of this batch. */

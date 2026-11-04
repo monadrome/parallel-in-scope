@@ -173,7 +173,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
 | 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
 | 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
-| 外部取消来源 `cancelOn` | `CANCELLED` | 调用方持有的 `ListenableFuture` 以成功、失败或取消任一方式完成时，取消整个批次或组；归因 first-wins，来源先赢记 `GROUP_CANCELLED`，是否中断正在运行的任务体由显式 `interrupt` 参数决定 |
+| 外部取消来源 `cancelOn` | `CANCELLED` | 调用方持有的 `ListenableFuture` 以成功、失败或取消任一方式完成时，取消整个批次或组；归因 first-wins，来源先赢记 `GROUP_CANCELLED`，与其他取消来源一样中断正在运行的任务体 |
 
 所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
 外部取消输入声明在批次的 `BatchOptions` 或组的 `GroupStart` 上（组须在首个成员前声明），任务体内无需轮询应用标志，

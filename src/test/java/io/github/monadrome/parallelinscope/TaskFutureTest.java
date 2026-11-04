@@ -363,7 +363,7 @@ class TaskFutureTest {
                             BatchOptions.timeout("outer", SCOPE_TIMEOUT));
 
             assertThat(memberStarted.await(2, TimeUnit.SECONDS)).isTrue();
-            Objects.requireNonNull(outerToken.get()).cancel(true);
+            Objects.requireNonNull(outerToken.get()).cancel();
 
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> Objects.requireNonNull(innerGroup.get())

@@ -38,7 +38,6 @@ final class TaskGroupDefinition {
     private final @Nullable Duration timeout;
     private final @Nullable Duration closeGrace;
     private final @Nullable ListenableFuture<?> cancellationSignal;
-    private final boolean cancellationInterrupt;
     private final ImmutableList<Slot> members;
     private final @Nullable Slot combine;
 
@@ -47,14 +46,12 @@ final class TaskGroupDefinition {
             @Nullable Duration timeout,
             @Nullable Duration closeGrace,
             @Nullable ListenableFuture<?> cancellationSignal,
-            boolean cancellationInterrupt,
             List<Slot> members,
             @Nullable Slot combine) {
         this.name = name;
         this.timeout = timeout;
         this.closeGrace = closeGrace;
         this.cancellationSignal = cancellationSignal;
-        this.cancellationInterrupt = cancellationInterrupt;
         this.members = ImmutableList.copyOf(members);
         this.combine = combine;
     }
@@ -79,7 +76,7 @@ final class TaskGroupDefinition {
         if (cancellationSignal == null) {
             return null;
         }
-        return token.cancelOn(cancellationSignal, cancellationInterrupt);
+        return token.cancelOn(cancellationSignal);
     }
 
     /** The plain members in declaration order. */

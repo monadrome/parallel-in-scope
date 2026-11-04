@@ -290,7 +290,7 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
 ```
 
 - 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
-  外层作用域——都以同一中断意图取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
+  外层作用域——都以 `cancel(true)` 取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
   线程不符的拒绝不触及它们）。不要自己取消它：
   那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
 - future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
@@ -365,7 +365,7 @@ outerFuture.addListener(() -> {
         stop.set(null);
     }
 }, MoreExecutors.directExecutor());
-par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop, true));
+par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop));
 ```
 
 取消中断投递与 runner 退出相互协调：取消中断尚在投递时，任务不会把线程交还 executor，
@@ -467,8 +467,8 @@ CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常�
 ### 请求完成时取消执行 {#request-cancellation}
 
 用调用方持有的 `ListenableFuture<?>` 表示请求断开等外部事件。来源以成功、失败或取消中的任一方式
-完成，都会取消整个批次或任务组，包括 `mapAndCombine` 的终端汇总。是否中断正在运行的 body 只由显式
-`interrupt` 参数决定；库不会从来源的完成方式推断，也不会完成或反向取消来源。
+完成，都会取消整个批次或任务组，包括 `mapAndCombine` 的终端汇总，并像 deadline、fail-fast 一样中断
+正在运行的 body；没有不中断的变体。库不会完成或反向取消来源。
 
 ```java
 SettableFuture<Void> disconnect = SettableFuture.create();
@@ -476,7 +476,7 @@ onClientDisconnect(() -> disconnect.set(null));
 TaskBatchResult<Price> prices = par.map(
         skus,
         this::fetchPrice,
-        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect, true));
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect));
 ```
 
 组的取消输入在 `GroupStart` 上声明一次，必须位于首个成员之前。`TaskOptions` 刻意不提供成员级
@@ -484,13 +484,12 @@ TaskBatchResult<Price> prices = par.map(
 
 ```java
 TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
-        .cancelOn(disconnect, true)
+        .cancelOn(disconnect)
         .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
         .runAll();
 ```
 
 请求来源先赢时归因为 `GROUP_CANCELLED`；与祖先取消、deadline、fail-fast 的竞态仍按 first-wins。
-`cancelOn(source, false)` 先赢后保持不中断，落败的 deadline/fail-fast 回调也不会升级中断意图。
 只有全部准备成功后才注册来源，随后立即 bind 和提交，因此预完成来源能阻止 inline body 进入用户代码。
 空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 仍拒绝空输入。
 

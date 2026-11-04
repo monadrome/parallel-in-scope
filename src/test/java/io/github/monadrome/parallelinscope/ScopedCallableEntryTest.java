@@ -36,7 +36,7 @@ class ScopedCallableEntryTest {
     void aCancelledScopeRejectsTheBodyBeforeItRuns() throws Exception {
         MultiTaskContext cancelled = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
-        cancelled.cancellationToken().cancel(false);
+        cancelled.cancellationToken().cancel();
         AtomicBoolean ran = new AtomicBoolean(false);
 
         assertThatThrownBy(() -> new ScopedCallable<Void>(

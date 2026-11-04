@@ -65,19 +65,28 @@ class RequestCancellationTest {
         Par par = runtime.par(WORKER);
         TrackingFuture<Void> source = new TrackingFuture<>();
         BatchOptions base = BatchOptions.timeout("batch", TIMEOUT);
-        BatchOptions derived = base.cancelOn(source, false)
+        BatchOptions derived = base.cancelOn(source)
                 .parallelism(2)
                 .taskType(TaskType.COMPUTE)
                 .rejectEnqueue(true)
                 .closeGrace(Duration.ZERO);
 
-        assertThatThrownBy(() -> base.cancelOn(null, true)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> base.cancelOn(null)).isInstanceOf(NullPointerException.class);
         assertThat(source.listeners()).isEmpty();
         assertThat(Arrays.stream(TaskOptions.class.getMethods()).map(method -> method.getName()))
                 .doesNotContain("cancelOn");
+        assertThat(Arrays.stream(BatchOptions.class.getMethods())
+                        .filter(method -> method.getName().equals("cancelOn"))
+                        .map(method -> method.getParameterCount()))
+                .as("request cancellation always interrupts; there is no interrupt-policy overload")
+                .containsExactly(1);
+        assertThat(Arrays.stream(GroupStart.class.getMethods())
+                        .filter(method -> method.getName().equals("cancelOn"))
+                        .map(method -> method.getParameterCount()))
+                .containsExactly(1);
 
         source.succeed(null);
-        assertThat(runSingle(ScopeKind.BATCH, runtime, derived, source, false, () -> {
+        assertThat(runSingle(ScopeKind.BATCH, runtime, derived, source, () -> {
                     throw new AssertionError("body must not run");
                 }))
                 .isEqualTo(TaskOutcome.GROUP_CANCELLED);
@@ -94,12 +103,12 @@ class RequestCancellationTest {
         TrackingFuture<Void> source = new TrackingFuture<>();
         GroupStart start = runtime.group("group", TIMEOUT);
 
-        assertThatThrownBy(() -> start.cancelOn(null, true)).isInstanceOf(NullPointerException.class);
-        assertThat(start.cancelOn(source, false)).isSameAs(start);
+        assertThatThrownBy(() -> start.cancelOn(null)).isInstanceOf(NullPointerException.class);
+        assertThat(start.cancelOn(source)).isSameAs(start);
         assertThat(source.listeners()).isEmpty();
 
         GroupStep<Integer> step = start.par(MEMBER, par, () -> 1);
-        assertThatThrownBy(() -> start.cancelOn(source, true)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> start.cancelOn(source)).isInstanceOf(IllegalStateException.class);
         assertThat(step.runAll().resultAt(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(source.listeners()).hasSize(1);
         assertThat(source.isDone()).isFalse();
@@ -115,7 +124,7 @@ class RequestCancellationTest {
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread other = new Thread(() -> {
             try {
-                start.cancelOn(source, true);
+                start.cancelOn(source);
             } catch (Throwable thrown) {
                 failure.set(thrown);
             }
@@ -130,7 +139,7 @@ class RequestCancellationTest {
         assertThat(source.isDone()).isFalse();
 
         // The owner thread can still use the stage: the rejected call never registered or advanced.
-        assertThat(start.cancelOn(source, false)
+        assertThat(start.cancelOn(source)
                         .par(MEMBER, par, () -> 1)
                         .runAll()
                         .resultAt(0)
@@ -149,7 +158,7 @@ class RequestCancellationTest {
         AtomicInteger bodies = new AtomicInteger();
         complete(source, completion);
 
-        TaskOutcome outcome = runSingle(ScopeKind.BATCH, runtime, source, true, () -> {
+        TaskOutcome outcome = runSingle(ScopeKind.BATCH, runtime, source, () -> {
             bodies.incrementAndGet();
             return 1;
         });
@@ -168,7 +177,7 @@ class RequestCancellationTest {
         AtomicInteger bodies = new AtomicInteger();
         complete(source, completion);
 
-        TaskOutcome outcome = runSingle(ScopeKind.GROUP, runtime, source, true, () -> {
+        TaskOutcome outcome = runSingle(ScopeKind.GROUP, runtime, source, () -> {
             bodies.incrementAndGet();
             return 1;
         });
@@ -181,18 +190,15 @@ class RequestCancellationTest {
 
     static Stream<Arguments> runningCases() {
         return Stream.of(
-                Arguments.of(ScopeKind.BATCH, SourceCompletion.SUCCESS, true),
-                Arguments.of(ScopeKind.BATCH, SourceCompletion.SUCCESS, false),
-                Arguments.of(ScopeKind.GROUP, SourceCompletion.SUCCESS, true),
-                Arguments.of(ScopeKind.GROUP, SourceCompletion.SUCCESS, false),
-                Arguments.of(ScopeKind.BATCH, SourceCompletion.CANCELLED, false),
-                Arguments.of(ScopeKind.BATCH, SourceCompletion.FAILURE, true));
+                Arguments.of(ScopeKind.BATCH, SourceCompletion.SUCCESS),
+                Arguments.of(ScopeKind.GROUP, SourceCompletion.SUCCESS),
+                Arguments.of(ScopeKind.BATCH, SourceCompletion.CANCELLED),
+                Arguments.of(ScopeKind.BATCH, SourceCompletion.FAILURE));
     }
 
     @ParameterizedTest
     @MethodSource("runningCases")
-    void runningBodyReceivesOnlyTheDeclaredInterruptPolicy(
-            ScopeKind scope, SourceCompletion completion, boolean interrupt) throws Exception {
+    void sourceCompletionInterruptsTheRunningBody(ScopeKind scope, SourceCompletion completion) throws Exception {
         ParRuntime runtime = pooledRuntime();
         TrackingFuture<Void> source = new TrackingFuture<>();
         CountDownLatch entered = new CountDownLatch(1);
@@ -214,7 +220,7 @@ class RequestCancellationTest {
         };
         Thread caller = new Thread(() -> {
             try {
-                outcome.set(runSingle(scope, runtime, source, interrupt, body));
+                outcome.set(runSingle(scope, runtime, source, body));
             } catch (Throwable failure) {
                 callerFailure.set(failure);
             }
@@ -224,9 +230,7 @@ class RequestCancellationTest {
         try {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
             complete(source, completion);
-            if (interrupt) {
-                assertThat(interrupted.await(5, TimeUnit.SECONDS)).isTrue();
-            }
+            assertThat(interrupted.await(5, TimeUnit.SECONDS)).isTrue();
         } finally {
             release.countDown();
             caller.join(5000);
@@ -235,7 +239,7 @@ class RequestCancellationTest {
         assertThat(caller.isAlive()).isFalse();
         assertThat(callerFailure.get()).isNull();
         assertThat(outcome.get()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-        assertThat(wasInterrupted.get()).isEqualTo(interrupt);
+        assertThat(wasInterrupted.get()).isTrue();
         assertSevered(source, 0);
     }
 
@@ -245,7 +249,7 @@ class RequestCancellationTest {
         ParRuntime runtime = pooledRuntime();
         TrackingFuture<Void> source = new TrackingFuture<>();
 
-        TaskOutcome outcome = runSingle(scope, runtime, source, true, () -> 1);
+        TaskOutcome outcome = runSingle(scope, runtime, source, () -> 1);
 
         assertThat(outcome).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(source.isDone()).isFalse();
@@ -258,9 +262,9 @@ class RequestCancellationTest {
     void registeringAfterTokenCompletionSeversTheSourceLink() throws Exception {
         CancellationToken token = CancellationToken.create();
         TrackingFuture<Void> source = new TrackingFuture<>();
-        token.cancel(false);
+        token.cancel();
 
-        token.cancelOn(source, true);
+        token.cancelOn(source);
 
         assertThat(source.listeners()).hasSize(1);
         assertSevered(source, 0);
@@ -273,9 +277,9 @@ class RequestCancellationTest {
         TrackingFuture<Void> source = new TrackingFuture<>();
         AtomicInteger secondBodies = new AtomicInteger();
 
-        assertThat(runSingle(ScopeKind.BATCH, runtime, source, true, () -> 1)).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(runSingle(ScopeKind.BATCH, runtime, source, () -> 1)).isEqualTo(TaskOutcome.SUCCESS);
         source.succeed(null);
-        assertThat(runSingle(ScopeKind.BATCH, runtime, source, true, () -> {
+        assertThat(runSingle(ScopeKind.BATCH, runtime, source, () -> {
                     secondBodies.incrementAndGet();
                     return 2;
                 }))
@@ -293,15 +297,12 @@ class RequestCancellationTest {
         Par par = runtime.par(WORKER);
         TrackingFuture<Void> source = new TrackingFuture<>();
         source.succeed(null);
-        BatchOptions options = BatchOptions.timeout("batch", TIMEOUT).cancelOn(source, true);
+        BatchOptions options = BatchOptions.timeout("batch", TIMEOUT).cancelOn(source);
 
         assertThat(par.map(null, value -> value, options).valuesOrThrow()).isEmpty();
         assertThat(par.map(Collections.emptyList(), value -> value, options).valuesOrThrow())
                 .isEmpty();
-        assertThat(runtime.group("empty", TIMEOUT)
-                        .cancelOn(source, true)
-                        .runAll()
-                        .outcome())
+        assertThat(runtime.group("empty", TIMEOUT).cancelOn(source).runAll().outcome())
                 .isEqualTo(TaskOutcome.SUCCESS);
         assertThatThrownBy(() -> par.mapAndCombine(
                         Collections.emptyList(),
@@ -323,10 +324,10 @@ class RequestCancellationTest {
         assertThatThrownBy(() -> par.map(
                         Collections.singletonList(1),
                         value -> value,
-                        BatchOptions.inheritTimeout("batch").cancelOn(batchSource, true)))
+                        BatchOptions.inheritTimeout("batch").cancelOn(batchSource)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> runtime.groupInheriting("group")
-                        .cancelOn(groupSource, true)
+                        .cancelOn(groupSource)
                         .par(MEMBER, par, () -> 1)
                         .runAll())
                 .isInstanceOf(IllegalArgumentException.class);
@@ -345,11 +346,11 @@ class RequestCancellationTest {
         assertThatThrownBy(() -> par.map(
                         Collections.singletonList(1),
                         value -> value,
-                        BatchOptions.timeout("batch", TIMEOUT).cancelOn(batchSource, true)))
+                        BatchOptions.timeout("batch", TIMEOUT).cancelOn(batchSource)))
                 .isInstanceOf(RejectedExecutionException.class)
                 .hasMessageContaining("deadline scheduler is shut down");
         assertThatThrownBy(() -> runtime.group("group", TIMEOUT)
-                        .cancelOn(groupSource, true)
+                        .cancelOn(groupSource)
                         .par(MEMBER, par, () -> 1)
                         .runAll())
                 .isInstanceOf(RejectedExecutionException.class)
@@ -368,7 +369,7 @@ class RequestCancellationTest {
         CancellationToken token = CancellationToken.create();
         TrackingFuture<Void> source = new TrackingFuture<Void>().rejectingListeners();
 
-        assertThatThrownBy(() -> token.cancelOn(source, true))
+        assertThatThrownBy(() -> token.cancelOn(source))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("source rejected the listener");
 
@@ -386,7 +387,7 @@ class RequestCancellationTest {
         AtomicInteger bodies = new AtomicInteger();
         source.fail(new IllegalStateException("request failed"));
 
-        TaskOutcome outcome = runSingle(scope, runtime, source, true, () -> {
+        TaskOutcome outcome = runSingle(scope, runtime, source, () -> {
             bodies.incrementAndGet();
             return 1;
         });
@@ -411,7 +412,7 @@ class RequestCancellationTest {
                     elementBodies.incrementAndGet();
                     return value;
                 },
-                BatchOptions.timeout("batch", TIMEOUT).cancelOn(source, false),
+                BatchOptions.timeout("batch", TIMEOUT).cancelOn(source),
                 par,
                 values -> {
                     combineBodies.incrementAndGet();
@@ -428,15 +429,15 @@ class RequestCancellationTest {
 
     static Stream<Arguments> ancestorRaces() {
         return Stream.of(
-                Arguments.of(AncestorRace.ANCESTOR_CANCEL, TaskOutcome.GROUP_CANCELLED, false),
-                Arguments.of(AncestorRace.SOURCE, TaskOutcome.GROUP_CANCELLED, true),
-                Arguments.of(AncestorRace.ANCESTOR_TIMEOUT, TaskOutcome.TIMEOUT, true));
+                Arguments.of(AncestorRace.ANCESTOR_CANCEL, TaskOutcome.GROUP_CANCELLED),
+                Arguments.of(AncestorRace.SOURCE, TaskOutcome.GROUP_CANCELLED),
+                Arguments.of(AncestorRace.ANCESTOR_TIMEOUT, TaskOutcome.TIMEOUT));
     }
 
     @ParameterizedTest
     @MethodSource("ancestorRaces")
-    void ancestorAndSourceRacesRetainFirstWinsAttributionAndIntent(
-            AncestorRace race, TaskOutcome expectedOutcome, boolean expectInterrupt) throws Exception {
+    void ancestorAndSourceRacesRetainFirstWinsAttributionAndInterrupt(AncestorRace race, TaskOutcome expectedOutcome)
+            throws Exception {
         ParRuntime runtime = pooledRuntime();
         Par par = runtime.par(WORKER);
         TrackingFuture<Void> source = new TrackingFuture<>();
@@ -455,7 +456,7 @@ class RequestCancellationTest {
                             TaskExecutionContext current = TaskExecutionContext.current();
                             assertThat(current).isNotNull();
                             parentToken.set(current.multiTaskContext().cancellationToken());
-                            childOutcome.set(runSingle(ScopeKind.BATCH, runtime, source, true, () -> {
+                            childOutcome.set(runSingle(ScopeKind.BATCH, runtime, source, () -> {
                                 childEntered.countDown();
                                 try {
                                     releaseChild.await();
@@ -480,18 +481,16 @@ class RequestCancellationTest {
             CancellationToken parent = parentToken.get();
             assertThat(parent).isNotNull();
             if (race == AncestorRace.ANCESTOR_CANCEL) {
-                parent.cancel(false);
+                parent.cancel();
                 source.succeed(null);
             } else if (race == AncestorRace.ANCESTOR_TIMEOUT) {
                 parent.timeoutCancel();
                 source.succeed(null);
             } else {
                 source.succeed(null);
-                parent.cancel(false);
+                parent.cancel();
             }
-            if (expectInterrupt) {
-                assertThat(childInterrupted.await(5, TimeUnit.SECONDS)).isTrue();
-            }
+            assertThat(childInterrupted.await(5, TimeUnit.SECONDS)).isTrue();
         } finally {
             releaseChild.countDown();
             caller.join(5000);
@@ -500,23 +499,13 @@ class RequestCancellationTest {
         assertThat(caller.isAlive()).isFalse();
         assertThat(callerFailure.get()).isNull();
         assertThat(childOutcome.get()).isEqualTo(expectedOutcome);
-        assertThat(wasInterrupted.get()).isEqualTo(expectInterrupt);
+        assertThat(wasInterrupted.get()).isTrue();
         assertSevered(source, 0);
     }
 
     private static TaskOutcome runSingle(
-            ScopeKind scope,
-            ParRuntime runtime,
-            TrackingFuture<Void> source,
-            boolean interrupt,
-            Callable<Integer> body) {
-        return runSingle(
-                scope,
-                runtime,
-                BatchOptions.timeout("batch", TIMEOUT).cancelOn(source, interrupt),
-                source,
-                interrupt,
-                body);
+            ScopeKind scope, ParRuntime runtime, TrackingFuture<Void> source, Callable<Integer> body) {
+        return runSingle(scope, runtime, BatchOptions.timeout("batch", TIMEOUT).cancelOn(source), source, body);
     }
 
     private static TaskOutcome runSingle(
@@ -524,7 +513,6 @@ class RequestCancellationTest {
             ParRuntime runtime,
             BatchOptions options,
             TrackingFuture<Void> source,
-            boolean interrupt,
             Callable<Integer> body) {
         Par par = runtime.par(WORKER);
         if (scope == ScopeKind.BATCH) {
@@ -543,7 +531,7 @@ class RequestCancellationTest {
                     .outcome();
         }
         return runtime.group("group", TIMEOUT)
-                .cancelOn(source, interrupt)
+                .cancelOn(source)
                 .par(MEMBER, par, body)
                 .runAll()
                 .resultAt(0)

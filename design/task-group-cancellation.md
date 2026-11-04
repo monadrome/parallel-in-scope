@@ -13,7 +13,7 @@
 不新增公共 `GroupCancellationToken`，也不存在公开的组运行句柄或成员直消入口：组的执行取消来源是显式
 deadline、fail-fast、祖先取消与 `GroupStart.cancelOn` 请求来源（见
 [同步出口契约](synchronous-scope-exit.md) §4）。请求来源以任意方式完成时取消现有 group token，
-不替换 parent 链；显式中断意图、注册与确定性切断规则见
+不替换 parent 链；像其他取消来源一样中断运行中的 body，注册与确定性切断规则见
 [取消传播契约](cancellation-propagation.md) §5.4。历史来源：`proposal:P0001`。Group 内部复用现有
 `CancellationToken`：
 

@@ -44,8 +44,8 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 **所有权与取消**
 
 - A1 `runAll()` 被调用起组拥有每个被收养的 source。组取消未完成成员的任何原因（fail-fast、组或祖先
-  deadline、`cancelOn`、直接取消成员的级联）MUST 以同一取消意图取消 source：成员 future 是库自有的镜像，
-  镜像被取消时在 `afterDone` 中以 `wasInterrupted()` 取消 source。source 的监听器在被取消时抛出（含 `Error`）
+  deadline、`cancelOn`、直接取消成员的级联）MUST 以 `cancel(true)` 取消 source（框架取消一律中断，见[取消传播契约](cancellation-propagation.md) §5.1）：
+  成员 future 是库自有的镜像，镜像被取消时在 `afterDone` 中以 `wasInterrupted()` 取消 source。source 的监听器在被取消时抛出（含 `Error`）
   MUST 只记 `WARNING`，MUST NOT 逃进组的取消级联或清理：级联逐个取消绑定的 future，一个逃出的 `Error` 会让其余
   成员永不取消，而 token 已经终态，deadline 也不再触发，`runAll()` 永久挂起。抛出的监听器还会让 Guava 跳过
   source 之后的监听器（可能包括本成员的落定监听器），因此取消之后 source 已完成时由取消方补做落定，恰好一次。

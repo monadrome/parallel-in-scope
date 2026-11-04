@@ -76,7 +76,7 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源与中断意图 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
 | `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SmartBlockingQueue` 入队拒绝 |
 
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
@@ -106,7 +106,7 @@ public final class BatchOptions {
     public BatchOptions taskType(TaskType taskType);
     public BatchOptions rejectEnqueue(boolean rejectEnqueue);
     public BatchOptions closeGrace(Duration closeGrace);
-    public BatchOptions cancelOn(ListenableFuture<?> signal, boolean interrupt);
+    public BatchOptions cancelOn(ListenableFuture<?> signal);
 
     public String name();
     public int parallelism();

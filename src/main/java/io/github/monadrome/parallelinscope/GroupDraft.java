@@ -47,7 +47,6 @@ final class GroupDraft {
     private @Nullable CombineDecl combine;
     private @Nullable Duration closeGrace;
     private @Nullable ListenableFuture<?> cancellationSignal;
-    private boolean cancellationInterrupt;
     private int stage;
 
     GroupDraft(ParRuntime owner, String name, @Nullable Duration timeout) {
@@ -109,9 +108,8 @@ final class GroupDraft {
         this.closeGrace = Validation.requireNonNegative(grace, "closeGrace");
     }
 
-    void setCancellation(ListenableFuture<?> signal, boolean interrupt) {
+    void setCancellation(ListenableFuture<?> signal) {
         this.cancellationSignal = checkNotNull(signal, "signal cannot be null");
-        this.cancellationInterrupt = interrupt;
     }
 
     void addMember(TaskKey<?> key, Par par, TaskOptions options, Callable<?> body) {
@@ -215,8 +213,7 @@ final class GroupDraft {
                 ? null
                 : new TaskGroupDefinition.Slot(
                         declaredCombine.key, declaredCombine.par, declaredCombine.options, declaredCombine.valueView);
-        return new TaskGroupDefinition(
-                name, timeout, closeGrace, cancellationSignal, cancellationInterrupt, memberSlots, combineSlot);
+        return new TaskGroupDefinition(name, timeout, closeGrace, cancellationSignal, memberSlots, combineSlot);
     }
 
     /**
@@ -316,10 +313,10 @@ final class GroupDraft {
 
         @Override
         @CanIgnoreReturnValue
-        public Start cancelOn(ListenableFuture<?> signal, boolean interrupt) {
+        public Start cancelOn(ListenableFuture<?> signal) {
             draft.checkThread();
             draft.checkStage(0);
-            draft.setCancellation(signal, interrupt);
+            draft.setCancellation(signal);
             return this;
         }
 

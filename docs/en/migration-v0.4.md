@@ -209,8 +209,8 @@ cancellation instead uses the new input below, without making the token public a
 
 ## Request cancellation input
 
-`BatchOptions.cancelOn(ListenableFuture<?> signal, boolean interrupt)` and
-`GroupStart.cancelOn(ListenableFuture<?> signal, boolean interrupt)` are optional additions; code
+`BatchOptions.cancelOn(ListenableFuture<?> signal)` and
+`GroupStart.cancelOn(ListenableFuture<?> signal)` are optional additions; code
 that does not declare them keeps its existing behavior. There is deliberately no
 `TaskOptions.cancelOn`, because request cancellation applies to the whole batch or group rather than
 to an independent member policy.
@@ -230,14 +230,15 @@ After, complete a caller-owned future on disconnect and declare it on the scope:
 SettableFuture<Void> disconnect = SettableFuture.create();
 onClientDisconnect(() -> disconnect.set(null));
 par.map(skus, this::fetchPrice,
-        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect, true));
+        BatchOptions.timeout("prices", Duration.ofSeconds(5)).cancelOn(disconnect));
 ```
 
 The failure mode removed is the gap between polling checkpoints: cancellation can now reach a body
 already blocked in a cooperative interruptible wait. Source success, failure, and cancellation all
-trigger cancellation; only the explicit `interrupt` argument chooses interruption. The source stays
-caller-owned, attribution remains first-wins with `GROUP_CANCELLED` when the source wins, and
-`cancel(false)` is not upgraded by losing deadline or fail-fast callbacks. Registration and listener
+trigger cancellation, and the cancellation interrupts running bodies exactly as a deadline or
+fail-fast does; there is no non-interrupting variant, because a body that cannot tolerate
+interruption would still be interrupted by its deadline. The source stays caller-owned, and
+attribution remains first-wins with `GROUP_CANCELLED` when the source wins. Registration and listener
 severing follow admission and terminal completion; empty batches and groups do not register. This
 does not assert that arbitrary IO has stopped, and synchronous bounded cleanup is unchanged.
 

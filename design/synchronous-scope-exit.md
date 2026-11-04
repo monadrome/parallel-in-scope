@@ -87,7 +87,7 @@ par.map(ids, id -> {
 SettableFuture<Void> disconnect = SettableFuture.create();
 onClientDisconnect(() -> disconnect.set(null));
 par.map(ids, this::fetch,
-        BatchOptions.timeout("fetch", timeout).cancelOn(disconnect, true));
+        BatchOptions.timeout("fetch", timeout).cancelOn(disconnect));
 ```
 
 消除的失败模式是检查点之间（尤其阻塞 IO 中）取消不可达；外层 future 的取消也不证明内部同步调用
@@ -212,7 +212,8 @@ deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无
 结果归因不因迟到异常被改写。外部 root 取消不再依赖运行句柄或 caller interrupt；
 显式 deadline、fail-fast、祖先取消与 `cancelOn` 请求来源是四类执行取消来源，runtime.close
 接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或 body 退出确认；
-注册、切断、来源所有权与中断意图规则见 [取消传播契约](cancellation-propagation.md) §5.4。
+注册、切断与来源所有权规则见 [取消传播契约](cancellation-propagation.md) §5.4；所有取消来源都中断
+运行中的 body（同文 §5.1）。
 历史来源：`proposal:P0001`。
 
 ## 5. 第一性原理

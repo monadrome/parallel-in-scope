@@ -144,7 +144,7 @@ class ParentChildResultRetentionTest {
             CancellationToken parent = parentToken.get();
             assertThat(parent).isNotNull();
 
-            parent.cancel(true);
+            parent.cancel();
 
             awaitTrue(childInterrupted);
             awaitReported(childReport);
@@ -169,7 +169,7 @@ class ParentChildResultRetentionTest {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
-        child.cancel(true);
+        child.cancel();
 
         assertThat(linkedChild(child))
                 .as("a terminal child token must not keep its parent link reachable")
@@ -184,7 +184,7 @@ class ParentChildResultRetentionTest {
     @Test
     void childCreatedFromAlreadyCancelledParentSeversLinkDuringConstruction() throws Exception {
         CancellationToken parent = CancellationToken.create();
-        parent.cancel(true);
+        parent.cancel();
 
         CancellationToken child = new CancellationToken(parent);
 
