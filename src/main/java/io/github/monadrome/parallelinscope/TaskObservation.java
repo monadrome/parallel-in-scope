@@ -225,7 +225,7 @@ final class TaskObservation<T> {
      * attributed through the token chain, never guessed from {@code isCancelled()} alone; the
      * token's committed state is read only after the future is terminal. A batch or group result
      * replaces this outcome with the frozen attribution through {@code TaskCompletion.withResult};
-     * only the package-private completion future of a task publishes it unchanged.
+     * only package-private observation futures (a task's own and the batch aggregate) publish it unchanged.
      */
     private static <T> TaskCompletion<T> settledSnapshot(TaskExecutionContext context, ListenableFuture<T> settle) {
         MultiTaskContext unit = context.multiTaskContext();
