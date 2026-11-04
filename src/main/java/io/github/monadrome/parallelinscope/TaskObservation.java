@@ -223,7 +223,8 @@ final class TaskObservation<T> {
      * Builds the final snapshot of a settled task from its execution context: identity, timings,
      * outcome, and — on success — result read straight from the terminal future. Cancellation is
      * attributed through the token chain, never guessed from {@code isCancelled()} alone; the
-     * token's committed state is read only after the future is terminal.
+     * token's committed state is read only after the future is terminal. This outcome is internal:
+     * a batch or group result replaces it with the frozen attribution before any caller reads it.
      */
     private static <T> TaskCompletion<T> settledSnapshot(TaskExecutionContext context, ListenableFuture<T> settle) {
         MultiTaskContext unit = context.multiTaskContext();

@@ -126,8 +126,8 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 ### 8.4.1 token → outcome 归因映射（单一实现）
 
 上述"读 token 归因 outcome"的映射在根包的包私有 `TokenOutcomes.forCancelled(token, whenUncommitted)`
-中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome`、`ScopedCallable` 的监听器事件、
-批次元素 `Task.outcome()` 的落定归因三方共用：
+中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome` 与批次元素 `Task.outcome()` 的落定归因
+共用：
 
 | token state | 归因 outcome |
 |---|---|
@@ -137,14 +137,15 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 | `PROPAGATED_CANCELLED` | `originState()` 为 `TIMEOUT` 则 `TIMEOUT`，否则 `GROUP_CANCELLED` |
 | `RUNNING`/`SUCCESS`（无框架路径提交） | 调用方给定的 `whenUncommitted` |
 
-两个有意的分叉点：
+组侧在共享映射之前有两处前置判断：`TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`
+（成员自身 deadline），再委托共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务
+outcome）与 `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 
-- `ScopedCallable` 是**直接观察**：任务在 `CANCELLED` token 下抛出（如中断）时，观测事件记
-  `MEMBER_CANCELLED`，先拦截 `CANCELLED` 再调用共享映射；组快照保持事后归因
-  `GROUP_CANCELLED`，两者允许不一致（见观测契约）。
-- `TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
-  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务 outcome）与
-  `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
+**每个任务只有一个归因。** MUST：批次与组结果中的任务观测（`completions()`、`members()`、`terminal()`）
+的 outcome 等于该任务冻结的 `ImmediateResult` outcome，由 `TaskCompletion.withResult` 合成。内部观测
+快照在冻结前按自己的 token 读出的 outcome 只是计时载体，MUST NOT 到达任何公开读取，也 MUST NOT 参与
+归因判断。被否决：保留「直接观察」与「事后归因」两种结论——公开面已没有观测事件的读者，两套结论只会让
+同一任务在两个读取口给出不同答案。
 
 批次冻结的逐元素归因由 [落定归因契约](batch-settle-attribution.md) 持有；报告只统计冻结数据，
 不在读取时重新读取 token。共享 token 不妨碍逐元素落定分类。
