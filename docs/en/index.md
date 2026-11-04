@@ -3,7 +3,8 @@
 > This repository page follows `0.4.0-SNAPSHOT`. For the released `0.3.0` line, use the
 > [stable online documentation](https://monadrome.github.io/parallel-in-scope/).
 
-Start with the full user guide. Use the reference pages for exact contracts and the migration guides when upgrading.
+Start with the [5-minute quickstart](quickstart.md), then use the full user guide for supported
+workflows. Use the reference pages for exact contracts and the migration guides when upgrading.
 
 ## User Documentation
 

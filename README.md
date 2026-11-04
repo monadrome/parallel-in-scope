@@ -25,7 +25,7 @@ context propagation, sliding-window scheduling, and thread-pool deadlock and sta
 The published artifact remains Java 8 bytecode. A JDK 21 build is rejected by the enforcer; switch
 to JDK 25 before running Maven.
 
-## Quick Start
+## Minimal Example
 
 Add the dependency from Maven Central:
 

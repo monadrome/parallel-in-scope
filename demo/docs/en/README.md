@@ -9,6 +9,7 @@ The runnable demo classes and tests are language-neutral. The long-form problem 
 ## Start Here
 
 - [Demo README](../../README.en.md)
+- [5-minute quickstart](../../../docs/en/quickstart.md)
 - [Full English user guide](../../../docs/en/user-guide.md)
 - [v0.2 migration guide](../../../docs/en/migration-v0.2.md)
 - [Chinese article catalog](../zh-CN/README.md)
