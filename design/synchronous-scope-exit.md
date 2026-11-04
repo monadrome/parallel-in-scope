@@ -188,6 +188,9 @@ MUST NOT 收集每个观测值或构造完整聚合结果列表；使用不收�
 map/runAll 不声明 InterruptedException；等待阶段用 Guava Uninterruptibles，退出恢复标志。
 caller interrupt 不转成结果 Left、不触发 scope 取消，不跳过或重置清理预算。
 原 P2 阻塞方法规范对这两个执行入口明确例外；runtime.awaitQuiescence 仍传播中断。
+库保管调用线程的中断标志而不解释它：返回后的处理和把外部取消接入 `cancelOn` 是调用方的责任。
+依据、用户义务与被排除的「调用方中断即作用域取消」方案见
+[中断契约「调用方中断不是取消信号」](interruption-contract.md#22-调用方中断不是取消信号)。
 
 deadline、fail-fast、parent token、显式 `cancelOn` 请求来源、runner interruption、checkpoint 保持；
 所有入口仍 bind-before-submit，prepared future 视图从创建即绑定，不恢复 placeholder/later-bind。

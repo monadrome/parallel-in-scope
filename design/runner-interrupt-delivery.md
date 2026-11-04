@@ -19,7 +19,7 @@ only for the single winning `cancel(true)`, so there is only one delivery writer
 The cancelling thread publishes delivery in progress before reading runner and clears
 the flag in finally after calling interrupt. The executing thread clears runner before
 waiting out delivery, then restores its entry interrupt state and returns to its owner.
-The normative MUST/MUST NOT requirements live in interruption-contract section 5.5.
+The normative MUST/MUST NOT requirements live in the interruption contract's "取消中断投递不越界" section.
 
 Volatile accesses have a total synchronization order. If cancellation reads a non-null
 runner, its flag publication precedes that read and the runner's withdrawal. The exiting
@@ -66,7 +66,7 @@ self-cancellation and throwing delivery. The review seat remains open as an audi
   daemon threads while retaining bounded joins and explicit exit assertions.
 - Retained: add explicit self-cancel and interrupted-entry coverage. Added a test proving clean
   body entry and restoration of the borrowed thread's original true flag after self-cancel.
-- Final review maps each section 5.5 MUST/MUST NOT to implementation and finds no blocking
+- Final review maps each delivery-section MUST/MUST NOT to implementation and finds no blocking
   defects. No findings were rejected; optional suggestions above were implemented.
 
 ### PIT classification
