@@ -143,8 +143,10 @@ outcome）与 `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判�
 
 **每个任务只有一个归因。** MUST：批次与组结果中的任务观测（`completions()`、`members()`、`terminal()`）
 的 outcome 等于该任务冻结的 `ImmediateResult` outcome，由 `TaskCompletion.withResult` 合成。内部观测
-快照在冻结前按自己的 token 读出的 outcome 只是计时载体，MUST NOT 到达任何公开读取，也 MUST NOT 参与
-归因判断。被否决：保留「直接观察」与「事后归因」两种结论——公开面已没有观测事件的读者，两套结论只会让
+快照在冻结前按自己的 token 读出的 outcome 只是计时载体，MUST NOT 经公开 API 类型返回，也 MUST NOT 参与
+结果归因；包私有的任务 completion future 仍原样携带它，只供内核与测试使用。批次的观测快照在落定监听里先于
+落定钉子与 fail-fast bind 构建，因此与冻结 outcome 本来一致；组成员的快照读成员 token，可能与组的冻结归因
+不同（例如 fail-fast 兄弟读到 `MEMBER_CANCELLED`，冻结为 `FAIL_FAST`），由 `withResult` 统一。被否决：保留「直接观察」与「事后归因」两种结论——公开面已没有观测事件的读者，两套结论只会让
 同一任务在两个读取口给出不同答案。
 
 批次冻结的逐元素归因由 [落定归因契约](batch-settle-attribution.md) 持有；报告只统计冻结数据，
