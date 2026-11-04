@@ -297,3 +297,42 @@ Null input elements now throw `NullPointerException` before any mapper or combin
 instead of being passed to the mapper by unchecked callers. Remove or replace null elements before
 calling either entry point. Null collections still mean an empty batch for `map`; `mapAndCombine`
 still rejects null or empty collections. Successful null mapper results remain valid.
+
+## Checkpoint entry points and late-failure logging
+
+Four `Checkpoints` methods are removed. Each either mapped a user exception type onto cancellation,
+which contradicts token-based attribution, or duplicated a remaining method.
+
+| Removed | Replacement |
+|---|---|
+| `checkRunnable(action, type)`, `checkSupplier(supplier, type)` | Handle the exception as a business failure, or call `Checkpoints.checkpoint()` where the body should stop |
+| `checkpoint(String, boolean)` | `Checkpoints.checkpoint()` |
+| `sleep(long)` | `Checkpoints.checkSleep(long, TimeUnit.MILLISECONDS)` |
+
+Before:
+
+```java
+String body = Checkpoints.checkSupplier(() -> client.call(), SocketTimeoutException.class);
+Checkpoints.checkpoint("crawl", true);
+Checkpoints.sleep(200);
+```
+
+After:
+
+```java
+String body = client.call();   // a timeout is a business failure: USER_FAILURE
+Checkpoints.checkpoint();
+Checkpoints.checkSleep(200, TimeUnit.MILLISECONDS);
+```
+
+`checkSupplier` turned `SocketTimeoutException` into a `CancellationException`, but with no
+committed cancellation the outcome was still `USER_FAILURE`, so the method's promise of
+"cancellation" did not hold. `checkpoint(String, boolean)` could only fail on a mistyped name.
+
+Late-failure logging changed. When cancellation has already settled a task and its body then exits
+through a `Checkpoints` call that read that cancellation, or through a JDK blocking call woken by the
+engine's cancellation interrupt on that run, the `task '<name>' failed after cancellation` record is
+`FINE` instead of `WARNING`. Every other late failure, including one carrying a suppressed
+`close()` failure, stays a `WARNING`. Monitors that counted these warnings to count cancellations
+see fewer of them; read `outcomeCounts()` or `TaskOutcome` instead. See
+[logging after cancellation](reference/cooperative-cancellation.md#logging-after-cancellation).

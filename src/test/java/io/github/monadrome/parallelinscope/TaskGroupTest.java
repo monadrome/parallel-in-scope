@@ -121,10 +121,8 @@ class TaskGroupTest {
                         MultiTaskContext context = Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext();
                         context.cancellationToken().cancel();
-                        assertThatThrownBy(() -> Checkpoints.checkpoint("load-user", true))
-                                .isInstanceOf(IllegalStateException.class);
-                        assertThatThrownBy(() -> Checkpoints.checkpoint("user", true))
-                                .isInstanceOf(CancellationException.class);
+                        assertThat(context.name()).isEqualTo("user");
+                        assertThatThrownBy(Checkpoints::checkpoint).isInstanceOf(CancellationException.class);
                         return "alice";
                     })
                     .submitAll();

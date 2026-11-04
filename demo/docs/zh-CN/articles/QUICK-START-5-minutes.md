@@ -78,7 +78,7 @@ TaskBatchResult<Integer> result = par.map(numbers, n -> {
 ```
 
 超时后，未完成的任务会被取消：排队中尚未提交的元素直接不执行，正在运行的线程会被 `interrupt()`；
-任务体仍需响应中断，或改用 `Checkpoints.sleep(...)` 这类协作式原语，才能及时退出——
+任务体仍需响应中断，或改用 `Checkpoints.checkSleep(...)` 这类协作式原语，才能及时退出——
 `Thread.sleep(...)` 之外的不可中断 IO 无法被强行终止。
 
 ## 4. 控制并发度

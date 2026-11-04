@@ -210,6 +210,18 @@ deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无
 关闭主异常/suppressed 按 Java 规则；取消先落定后的迟到 body/close 失败在共享 future
 执行内核记录原 Throwable（包含 suppressed），logger handler 失败不阻止清理。MUST NOT 按异常类型过滤：
 close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟到失败，按类型丢弃会隐藏它。
+级别 MUST 按来源判定，判定只读异常对象与本 future 自身的投递标记，MUST NOT 读 token（避免与级联竞态）：
+- 无 suppressed 的库来源取消确认（`Checkpoints` 读到已提交 token 后抛出，见
+  [中断契约](interruption-contract.md) §3.1）记 `FINE`；
+- 无 suppressed 的 `InterruptedException`，且本 future 的取消中断已投递到本次运行（中断契约 §2.4）、
+  记录时线程中断标志为清除状态，记 `FINE`。JDK 阻塞调用因中断抛出时会清除标志；标志仍置位说明
+  这个异常不是那次中断的消费（例如 body 恢复标志后 close 另抛 `InterruptedException`）；
+- 其他一律 `WARNING`：带 suppressed、无标记或包装后的取消异常、用户自建的 `CancellationException`、
+  未经内核投递的 `InterruptedException`。
+
+接受的残余风险：内核投递之后、标志已清除时，独立抛出的无 suppressed `InterruptedException` 也记
+`FINE`；此时取消已提交、结果已落定，降级不隐藏任何结果。被否决：按类型过滤（会隐藏 close 失败）；
+新增 `TaskOutcome` 表示「body 读到取消」（见中断契约 §3.1）。`proposal:P0034`
 结果归因不因迟到异常被改写。外部 root 取消不再依赖运行句柄或 caller interrupt；
 显式 deadline、fail-fast、祖先取消与 `cancelOn` 请求来源是四类执行取消来源，runtime.close
 接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或 body 退出确认；

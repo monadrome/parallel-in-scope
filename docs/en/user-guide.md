@@ -463,7 +463,11 @@ their own exit: an outer body can finish while a child with shorter timeout/zero
 If confirmation is false, retain ownership for application-managed later cleanup; runtime shutdown
 followed by successful awaitQuiescence confirms all admitted bodies. Close failures retain Java's
 primary/suppressed exception rules. A failure lost because cancellation already settled the task is
-logged with task identity; it does not rewrite the frozen cancellation result. The library does not
+logged with task identity; it does not rewrite the frozen cancellation result. A body that merely
+acknowledges the cancellation, by exiting through a `Checkpoints` call that read it or through a JDK
+blocking call woken by the engine's cancellation interrupt, is logged at `FINE`; every other late
+failure, including any carrying a suppressed close failure, is a `WARNING`. See
+[logging after cancellation](reference/cooperative-cancellation.md#logging-after-cancellation). The library does not
 discover or close captured/returned objects, unmanaged threads, or external async operations.
 
 ### Application shutdown

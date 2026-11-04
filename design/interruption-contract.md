@@ -126,6 +126,12 @@ direct executor、`CallerRunsPolicy` 和自定义拒绝处理器可能借用调�
   和从 `run()` 返回之前完成，MUST NOT 因取消中断提前退出。
 - 取消中断 MUST NOT 投递到复用同一线程的后继任务。仅清空 runner、再次检查 runner 或
   在任务间清中断标志都不能替代投递握手。
+- 投递握手 MUST 记录「本 future 的取消中断已投递到本次运行」：只在读到非空 runner 时、
+  在 `Thread.interrupt()` 之前写入该 future 自身的 volatile 标记。interrupt 与被中断线程
+  对它的检测同步（JLS 17.4.4），因此因这次中断而抛 `InterruptedException` 的 runner 必然
+  读到标记；runner 发布前或撤销后的取消不写标记。future 至多运行一次，标记 MUST NOT 被
+  复用同一线程的后继任务读到。标记只决定迟到失败的日志级别（[同步出口契约](synchronous-scope-exit.md)
+  §4），MUST NOT 参与结果或归因。`proposal:P0034`
 
 实现与验证依据见 [runner 中断投递修复](runner-interrupt-delivery.md)。此握手只等待投递结束，
 不等待用户任务体响应取消；任务体结束观测也不等同于线程已完成交接。
@@ -147,7 +153,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
 
 | 情形 | 做法 |
 |---|---|
-| 想响应取消 | 调 `Checkpoints.checkpoint()`；阻塞操作用 `Checkpoints` 的包装版本 |
+| 想响应取消 | 调 `Checkpoints.checkpoint()`；阻塞操作用 `Checkpoints` 的包装版本（`checkSleep` 等） |
 | 捕获到 `InterruptedException` 且要退出 | 抛出去（`call() throws Exception` 允许），或恢复标志后返回 |
 | 捕获后必须先完成明确的等待或必要清理 | 记录中断；完成或异常退出前恢复，共享原有时间预算（§3.3） |
 | 普通中间层没有继续执行的职责 | 传播或恢复后退出；不能只记日志并继续普通业务操作 |
@@ -158,9 +164,26 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
 `CancellationException` 保留 `USER_FAILURE`。异常类型只帮助识别取消形状，不证明来源；见
 [取消与归因](task-group-cancellation.md) 和 [批次落定归因](batch-settle-attribution.md)。
 
-库内所有检查点收敛到 `Checkpoints` 的同一个私有助手（恢复标志 + 保留 cause 转译为
-`LeanCancellationException`）。这是刻意的单一策略点：改一处即全改。**新增检查点必须
-复用它**，不得各自实现转译。
+库内所有检查点收敛到 `Checkpoints` 的同一个私有策略点（恢复标志 + 保留 cause 转译为
+`LeanCancellationException`，并决定是否带库来源标记）。这是刻意的单一策略点：改一处即全改。
+**新增检查点必须复用它**，不得各自实现转译。
+
+检查点的取消确认按来源标记、按 token 归因：
+
+- `Checkpoints` MUST 只在读到**已提交**的取消 token 时抛带库来源标记的取消确认；deadline
+  backstop 自行提交 `TIMEOUT` 后重读 token，已提交才算。标记 MUST 由库在构造时给出（包私有
+  final 子类 `CheckpointCancellation`），用户代码 MUST NOT 能构造或继承带标记的实例。
+- 中断转译路径（阻塞适配器捕获 `InterruptedException`、`rawCheckpoint` 观察到标志）MUST 先
+  恢复标志，再读当前 token 并应用同一 deadline backstop：已提交才带标记；未提交时 MUST 保持
+  无标记的 `LeanCancellationException`（cause 为原中断），归因仍为 `USER_FAILURE`。
+- 标记只用于迟到失败日志（[同步出口契约](synchronous-scope-exit.md) §4），MUST NOT 参与归因；
+  归因只读 token。不新增 `TaskOutcome`：确认在落定前还是落定后到达取决于与级联的竞态，
+  新名字会把同一次取消拆成两种结果；body 退出事实已由 `bodyCompletionConfirmed()` 表达。
+- 公开面不提供把用户异常类型映射为取消的入口（已移除 `checkRunnable` / `checkSupplier`：
+  token 未提交时结果仍是 `USER_FAILURE`，方法名承诺的取消不成立），也不提供按名字校验的
+  `checkpoint(String, boolean)` 与重复的 `sleep(long)`。
+
+历史来源：`proposal:P0034`。
 
 ### 3.2 库的阻塞方法
 

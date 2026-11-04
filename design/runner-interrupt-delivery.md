@@ -32,6 +32,14 @@ entering the body. Self-cancellation completes delivery on the runner before it 
 the exit wait. A throwing interrupt still releases the delivery flag. The wait does not
 clear the interrupt flag and ends before existing borrowed-thread restoration.
 
+The same handshake records the delivery for the late-failure log. Only after it reads a
+non-null runner, and before it calls interrupt, the cancelling thread writes the future's own
+volatile `cancellationInterruptDelivered` flag. Interrupt synchronizes-with the runner's detection
+(JLS 17.4.4), so a runner that throws `InterruptedException` because of this delivery reads the
+flag; a cancellation that reads a null runner writes nothing. A future runs at most once, so the
+flag cannot reach a later task on the same thread. The flag only selects the log level; the rule is
+in the synchronous-exit contract, section 4, and the MUST items in the interruption contract.
+
 Use Thread.yield like FutureTask's pending-interrupt wait, with Java 8 APIs only. Do not
 hold a monitor across the overridable Thread.interrupt method. A custom interrupt that
 never returns also prevents safe thread handoff; a timeout cannot safely release it.

@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 取消机制示例：演示协作式取消（cooperative cancellation）
@@ -17,13 +18,13 @@ import java.util.concurrent.Executors;
  * <p>这个示例展示了 parallel-in-scope 的核心取消机制：
  *
  * <ul>
- *   <li>使用 {@link Checkpoints#sleep(long)} 替代 Thread.sleep — 可被取消中断
+ *   <li>使用 {@link Checkpoints#checkSleep(long, TimeUnit)} 替代 Thread.sleep — 可被取消中断
  *   <li>配置 {@link BatchOptions} 超时时间触发取消
  *   <li>被取消的任务抛出 {@code LeanCancellationException}
  *   <li>通过 {@code reportString()} 查看最终状态
  * </ul>
  *
- * <p>关键区别：普通 Thread.sleep() 不响应取消信号，而 Checkpoints.sleep() 会检查 CancellationToken 状态并抛出异常，实现协作式取消。
+ * <p>关键区别：普通 Thread.sleep() 不响应取消信号，而 Checkpoints.checkSleep() 会检查 CancellationToken 状态并抛出异常，实现协作式取消。
  */
 public class CancellationDemo {
 
@@ -57,8 +58,8 @@ public class CancellationDemo {
 
                         System.out.println("  [" + threadName + "] 处理: " + n);
 
-                        // 使用 Checkpoints.sleep() — 当超时触发取消时，这里会抛出 LeanCancellationException
-                        Checkpoints.sleep(1500);
+                        // 使用 Checkpoints.checkSleep() — 当超时触发取消时，这里会抛出 LeanCancellationException
+                        Checkpoints.checkSleep(1500, TimeUnit.MILLISECONDS);
                         return n * n;
                     },
                     options);
@@ -71,7 +72,7 @@ public class CancellationDemo {
             System.out.println("\n处理完成!");
             System.out.println("耗时: " + (endTime - startTime) + " 毫秒");
             System.out.println("执行报告: " + result.reportString());
-            System.out.println("（超时触发后，Checkpoints.sleep() 抛出 LeanCancellationException 实现协作式取消）");
+            System.out.println("（超时触发后，Checkpoints.checkSleep() 抛出 LeanCancellationException 实现协作式取消）");
 
         } finally {
             global.close();

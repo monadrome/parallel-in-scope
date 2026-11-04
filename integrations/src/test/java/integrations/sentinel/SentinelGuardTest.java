@@ -113,7 +113,7 @@ class SentinelGuardTest {
                                 throw new IllegalStateException("downstream failed for element 0");
                             }
                             siblingsBlocked.countDown();
-                            Checkpoints.sleep(20_000);
+                            Checkpoints.checkSleep(20_000, TimeUnit.MILLISECONDS);
                             return "unreachable";
                         },
                         rejection -> "fallback"),

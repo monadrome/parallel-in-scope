@@ -32,6 +32,12 @@
   `taskType(TaskType.COMPUTE).rejectEnqueue(true)` where the refusal was intended. The terminal
   combine of `mapAndCombine` no longer inherits the batch's type, and the inert-refusal warning now
   names only `rejectEnqueue`. See the 0.4 migration guide.
+- Remove `Checkpoints.checkRunnable`, `Checkpoints.checkSupplier`, `Checkpoints.checkpoint(String,
+  boolean)`, and `Checkpoints.sleep(long)`. The first two turned a user exception type into a
+  `CancellationException` while the outcome stayed `USER_FAILURE`; handle that exception as a
+  business failure, or call `Checkpoints.checkpoint()` where the body should stop. Replace
+  `checkpoint(name, lean)` with `checkpoint()` and `sleep(millis)` with
+  `checkSleep(millis, TimeUnit.MILLISECONDS)`. See the 0.4 migration guide.
 
 ### Features
 
@@ -113,6 +119,19 @@
 - Remove `TaskCompletion.succeeded/failed` (a completion is a library-produced observation that no
   public method accepts) and `SmartBlockingQueue.create(int)` (it returned a `SynchronousQueue` for
   non-positive capacity while the constructor rejects it). See the 0.4 migration guide.
+
+### Changed
+
+- Stop warning when a body acknowledges a cancellation that already settled its task. A body that
+  exits through a `Checkpoints` call that read the committed cancellation, or through a raw JDK
+  blocking call woken by the engine's cancellation interrupt on that run, is now logged as
+  `failed after cancellation` at `FINE` instead of `WARNING`; the decision reads where the
+  exception came from, never its type. Every other late failure, including one that carries a
+  suppressed `close()` failure, an `InterruptedException` the engine did not cause, and a
+  `CancellationException` built by user code, is still a `WARNING`. A `Checkpoints` adapter
+  interrupted while the scope is not cancelled still throws an unmarked `LeanCancellationException`
+  and the outcome stays `USER_FAILURE`. Monitors that counted these warnings should read
+  `outcomeCounts()` instead.
 
 ### Fixed
 

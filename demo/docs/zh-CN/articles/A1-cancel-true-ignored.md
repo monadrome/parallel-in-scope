@@ -51,8 +51,8 @@ BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMilli
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2", "url3");
 TaskBatchResult<String> result = par.map( urls, url -> {
-    // 模拟 IO 操作（Checkpoints.sleep 响应框架取消信号）
-    Checkpoints.sleep(5000);
+    // 模拟 IO 操作（Checkpoints.checkSleep 响应框架取消信号）
+    Checkpoints.checkSleep(5000, TimeUnit.MILLISECONDS);
     return fetchContent(url);
 }, opts);
 

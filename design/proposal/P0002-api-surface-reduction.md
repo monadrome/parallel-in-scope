@@ -57,6 +57,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 | `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | `df89b43 feat!: drop the runOnCallerThread submission option` |
 | `ParRuntime.executorTags()`/`executorTags(ParId)`/`executorTags(ExecutorService)`/`parsWithExecutorTag`、`ParRuntime.Builder.register(ParId, ExecutorService, String...)` 重载 | 可用性缺口收口提交 |
 | `TaskGroupResult.memberCount()`（09-27 版 C2） | 已随上述重构移除 |
+| `Checkpoints.checkRunnable`/`checkSupplier`、`checkpoint(String, boolean)`、`sleep(long)` | 检查点取消确认按 token 归因（[中断契约](../interruption-contract.md) §3.1，`proposal:P0034`）：前两者把用户异常类型映射为取消而结果仍是 `USER_FAILURE`；后两者分别由 `checkpoint()`、`checkSleep(long, TimeUnit)` 覆盖 |
 
 ## 三、当前公开面总览
 
@@ -202,8 +203,7 @@ task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随�
 | `Tuple2.of` | 用户为公开 SPI `CombineBody` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
 | `ImmediateResult.succeeded`/`failed` | user-guide（en）已记载语义；内核 `TaskGroup.java` 在用 | user-guide |
 | `ImmediateResult.asFuture()` | demo 最高频引用形式（约 42 处方法引用），Guava 组合的逃生口 | demo + user-guide en:477 |
-| `Checkpoints.checkRunnable`/`checkSupplier` | 与无参族语义不同（不恢复中断标志、抛带 cause 的 `CancellationException`），泛型翻译逃生口；**但零文档**——行动项是补 reference 文档，不是删除 | `CheckpointsTest`/`CheckpointsOutcomeTest` |
-| `Checkpoints` 阻塞适配器族、`rawCheckpoint`、`checkpoint(String, boolean)`、`sleep(long)` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
+| `Checkpoints` 阻塞适配器族、`rawCheckpoint` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
 | `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`bodyCompletionConfirmed()`/`unfinishedBodies()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |

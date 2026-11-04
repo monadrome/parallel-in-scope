@@ -169,21 +169,20 @@ deadline 是这条同步执行路径的取消来源。公开同步出口不改�
 
 `fillInStackTrace()` 是 JVM 里较贵的操作之一——它要收集整个调用栈的栈帧，开销随栈深度增长，往往构成异常创建成本的大头，单次调用在微秒量级（取决于栈深度）。如果检查点每秒被调用 100 万次，每秒就有数秒的 CPU 时间花在填栈上——这个开销是致命的。
 
-parallel-in-scope 在高频路径提供轻量取消异常，并在诊断场景使用 JDK 标准异常：
+parallel-in-scope 的检查点抛出轻量取消异常：
 
 - **`LeanCancellationException`：** 覆写 `fillInStackTrace()` 返回 `this`，零开销。用于高频检查点。
-- **`CancellationException`：** 保留完整堆栈。用于调试场景。
 
 ```java
 // 典型使用位置：循环体内部或长任务的关键步骤之间
 for (Item item : items) {
-    Checkpoints.checkpoint("process-item", true);  // 零开销，抛出 LeanCancellationException
+    Checkpoints.checkpoint();  // 零开销，抛出 LeanCancellationException
     process(item);
 }
-
-// 调试时切换为 false，保留完整堆栈方便排查
-Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 ```
+
+检查点读到已提交的取消后退出，是 body 对取消的正确响应，不是失败：归因读 token，取消已落定时
+内核按来源把这种确认记为 `FINE`，不产生告警。
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 

@@ -55,15 +55,13 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 ```
 
 关键规则：
-- **首选无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
-- **带名字的 `checkpoint(taskName, lean)` 仍会校验当前任务名**：名字不匹配（笔误、重构后的旧名字、调用位置在任务外）会抛 `IllegalStateException`，而不是静默跳过安全检查。`lean` 为 `false` 时抛出带完整堆栈的标准 `CancellationException`，适合调试定位取消发生位置。
+- **使用无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
 
-三种 checkpoint 在**任务作用域之外**的行为不同：
+两种 checkpoint 在**任务作用域之外**的行为不同：
 
 | Checkpoint | 在作用域之外 | 取消时 |
 |---|---|---|
 | `Checkpoints.checkpoint()` | 静默 no-op | 抛 `LeanCancellationException` |
-| `Checkpoints.checkpoint(taskName, lean)` | 抛 `IllegalStateException` | `lean=true` 抛 `LeanCancellationException`；`lean=false` 抛带堆栈的 `CancellationException` |
 | `Checkpoints.rawCheckpoint()` | 可用——不需要作用域，同时响应线程中断标志 | 抛 `LeanCancellationException` |
 
 `rawCheckpoint()` 响应中断但不消费它：抛出后中断标志保持设置，由线程所有者决定后续策略，与本类的阻塞适配器一致。
@@ -73,7 +71,6 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 | 方法 | 用途 | 典型场景 |
 |---|---|---|
 | `Checkpoints.remaining()` | 读取当前作用域任务的剩余预算（`Optional<Duration>`）；作用域之外为空，deadline 已过时为零，无 deadline 时恰为 `Duration.ofNanos(Long.MAX_VALUE)` 哨兵。只读：不抛异常、不触发取消、不触碰中断标志 | 把真实预算传给下游客户端 |
-| `Checkpoints.sleep(millis)` | 取消感知的 sleep，将 `InterruptedException` 统一转换为 `LeanCancellationException` | 替代 `Thread.sleep()` |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
 
 `remaining()` 让任务体把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
@@ -150,19 +147,37 @@ global.par(ParId.of("myExecutor")).map(items, item -> {
 或已提交的 scope 取消；它不负责普通 `InterruptedException` 的标志恢复。Function 须如上恢复标志
 并以原异常为 cause 转译；组成员的 Callable 可以直接抛出受检中断异常。
 
-## 用 `Checkpoints.sleep()` 替代 `Thread.sleep()`
+## 用 `Checkpoints.checkSleep()` 替代 `Thread.sleep()`
 
-在 `Par` 任务内部，永远使用 `Checkpoints.sleep()` 替代 `Thread.sleep()`：
+在 `Par` 任务内部，使用 `Checkpoints.checkSleep()` 替代 `Thread.sleep()`：
 
 ```java
 // 不推荐
 Thread.sleep(1000);  // InterruptedException 需要你自己处理
 
 // 推荐
-Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancellationException
+Checkpoints.checkSleep(1000, TimeUnit.MILLISECONDS);  // 自动将 InterruptedException 转换为 LeanCancellationException
+Checkpoints.checkSleep(Duration.ofSeconds(1));        // 同上，Duration 形式
 ```
 
-`Checkpoints.sleep()` 将 `InterruptedException` 统一转换为 `LeanCancellationException`，使得中断驱动的取消和协作式取消在异常类型上保持一致，同时避免为正常取消采集无用堆栈。
+`Checkpoints.checkSleep()` 将 `InterruptedException` 统一转换为 `LeanCancellationException`，使得中断驱动的取消和协作式取消在异常类型上保持一致，同时避免为正常取消采集无用堆栈。
+
+## 取消之后的日志 {#logging-after-cancellation}
+
+取消已经落定任务之后，body 再抛出异常时已没有结果可承载；内核在 `ExecutionPhaseHintFuture` 的
+logger 上记录 `task '<name>' failed after cancellation` 并附原异常。级别按异常来源决定，不按类型：
+
+| 迟到异常（无 suppressed） | 级别 |
+|---|---|
+| `Checkpoints` 读到已提交的取消后抛出 | `FINE` |
+| 本次运行中内核的取消中断唤醒 JDK 阻塞调用而抛出的原始 `InterruptedException` | `FINE` |
+| 其他：用户自建的 `CancellationException` / `LeanCancellationException`、包装后的异常、非内核引起的 `InterruptedException`、任何业务失败 | `WARNING` |
+
+带 suppressed 的迟到异常（典型是 try-with-resources 中 `close()` 失败）一律 `WARNING`，并附带
+suppressed。日志级别不改变结果：取消次数读 `outcomeCounts()` 或 `TaskOutcome`，不要数告警条数。
+
+scope 未取消时被中断的 `Checkpoints` 阻塞适配器抛出同一类型的 `LeanCancellationException`，cause 为
+`InterruptedException`，任务结果为 `USER_FAILURE`：单凭中断无法知道是谁发出的。
 
 ## 取消的触发源
 

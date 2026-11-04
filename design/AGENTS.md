@@ -84,7 +84,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) | **组声明契约 + 评审基线**：一次性链式草稿 `group(name, timeout).par(key, par, body)….runAll()`、三阶段 builder、引用身份 `TaskKey<T>` 的编译期类型安全、无运行期类型令牌的值视图、统一准入与单次生命周期；§9 是评审与验证教训 |
-| [synchronous-scope-exit.md](synchronous-scope-exit.md) | **同步出口契约**：`runAll()`/`Par.map` 在调用线程同步执行至完成或失败、外部 root 取消不依赖运行句柄、有界清理等待 |
+| [synchronous-scope-exit.md](synchronous-scope-exit.md) | **同步出口契约**：`runAll()`/`Par.map` 在调用线程同步执行至完成或失败、外部 root 取消不依赖运行句柄、有界清理等待、取消后迟到失败按来源定日志级别 |
 | [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、选项类型（`BatchOptions`/`TaskOptions` + `closeGrace`）、结果类型（`TaskGroupResult`/`TaskOutcome`） |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、ParRuntime 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | 冻结与统一提交契约、声明期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
@@ -134,7 +134,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [extension-and-wrapping.md](extension-and-wrapping.md) | 扩展边界契约：唯一用户扩展点是任务体本身（自助包装，不提供装饰器 SPI——含暂缓理由与重开条件）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、用户能包装的三个对象（线程池/Callable/FutureTask）、必须避免的 14 类问题、自助包装守则（MDC/追踪/指标/重试）、契约与验证矩阵 |
-| [interruption-contract.md](interruption-contract.md) | 中断处理跨层规范：总规则与三类所有者、P1–P4、核心设计（取消是语义、调用方中断不是取消信号及用户责任、借用线程隔离这一唯一有损例外、投递不越界）、分角色规范与验证矩阵；P1–P4 摘要已进根 AGENTS.md |
+| [interruption-contract.md](interruption-contract.md) | 中断处理跨层规范：总规则与三类所有者、P1–P4、核心设计（取消是语义、调用方中断不是取消信号及用户责任、借用线程隔离这一唯一有损例外、投递不越界与投递标记）、分角色规范（含检查点取消确认的来源标记）与验证矩阵；P1–P4 摘要已进根 AGENTS.md |
 | [runner-interrupt-delivery.md](runner-interrupt-delivery.md) | runner 退出与取消中断投递握手、volatile 顺序证明、回归验证与独立评审记录 |
 | [execution-future-simplification.md](execution-future-simplification.md) | execution phase 非阻塞查询契约、取消与终态竞态、自动 purge 移至实验分支的取舍与迁移、验证及评审记录 |
 | [confirmed-proposal-defects.md](confirmed-proposal-defects.md) | 提案缺陷的当前复现、逐项保留/暂缓/驳回处置、窄修复与独立验证记录；文档配方和发布摘要的落地约束 |
@@ -185,5 +185,4 @@
 | [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |
 | [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |
 | [proposal/P0031-late-value-close.md](proposal/P0031-late-value-close.md) | `par` 成员与批次元素复用 adopt 的 `ResourceCloser` 与恰好一个所有者规则：迟到值与失败作用域的值在释放线程上关闭，body-exit 槽覆盖关闭 |
-| [proposal/P0034-checkpoint-cancellation-acknowledgement.md](proposal/P0034-checkpoint-cancellation-acknowledgement.md) | 检查点读到已提交 token 时抛带库来源标记的取消确认：按 token 归因、迟到时不告警；不新增 `TaskOutcome`；移除把用户异常类型映射为取消的 `Checkpoints` 入口 |
 | [proposal/P0035-execution-exit-naming.md](proposal/P0035-execution-exit-naming.md) | 以 execution / execution exit 统一公开 API、内核与文档的一次执行及退出术语；`CombineBody` 更名 `Combiner`，行为不变并同步全部现行引用与迁移说明 |
