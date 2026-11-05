@@ -1,0 +1,20 @@
+src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java
+  s_6e4eb622def764::t_d82ebcdca3b020 211,214-241
+  s_6e4eb622def764::t_4a2157fb8b93fc 212-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b2a2e1f81c80864031fdd0538e39c124624f4a58",
+  "prompts": {},
+  "sessions": {
+    "s_6e4eb622def764": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a9c9-9c37-7df3-81d8-2486b560a889",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
