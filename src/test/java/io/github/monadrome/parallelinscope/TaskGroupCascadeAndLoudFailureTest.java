@@ -210,7 +210,7 @@ class TaskGroupCascadeAndLoudFailureTest {
             assertThat(group.futureOf("first").cancel(true)).isTrue();
 
             // The cascade cancels the sibling's token, which cancels and interrupts its parked
-            // body: the group converges instead of waiting for the untouched member.
+            // execution: the group converges instead of waiting for the untouched member.
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.futureOf("second").isDone()).isTrue();
                 assertThat(group.futureOf("second").isCancelled()).isTrue();

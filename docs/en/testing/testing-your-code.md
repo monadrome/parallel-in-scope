@@ -49,16 +49,16 @@ The rules that keep this deterministic:
 
 - Block the stub on a latch through `Checkpoints.checkAwait`, which responds to the cancellation
   interrupt. Never use `Thread.sleep` to simulate a slow call, and never use a wait that ignores
-  interruption: the body would keep its worker after the deadline.
+  interruption: the execution would keep its worker after the deadline.
 - Assert the outcome (`TaskOutcome.TIMEOUT`, or your fallback value), not elapsed time.
-- When the test needs to know that the body has started, release a second latch from inside the
-  body and wait for it; do not rely on timing.
-- Expect the library to log a warning for a body that fails after cancellation; it is the stub
+- When the test needs to know that the execution has started, release a second latch from inside the
+  execution and wait for it; do not rely on timing.
+- Expect the library to log a warning for an execution that fails after cancellation; it is the stub
   leaving through the interrupt, not a test failure.
 
-## Asserting that the body exited
+## Asserting that the execution exited
 
-`bodyCompletionConfirmed()` reports whether every body exited before the call returned. After a
+`executionExitConfirmed()` reports whether every execution exited before the call returned. After a
 timeout, the cleanup budget derived from the deadline is already used up, so without an explicit
 grace period the call returns as soon as the deadline fires and the check races the stub's exit.
 Give the test an explicit `closeGrace` when it asserts the exit:

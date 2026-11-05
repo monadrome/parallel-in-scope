@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Read-only snapshot of one group run's successful member values, published by {@link
- * TaskGroupResult#valuesOrThrow()} and handed to a terminal {@link CombineBody}.
+ * TaskGroupResult#valuesOrThrow()} and handed to a terminal {@link Combiner}.
  *
  * <p>Typed lookup uses the exact {@link TaskKey} supplied at declaration. Dynamic lookup by
  * zero-based declaration position ({@link #valueAt(int)}) or name ({@link #valueOf(String)})
@@ -69,7 +69,7 @@ public final class GroupValues<V> {
      * The member values as the group's static type: the single member's value for a one-member
      * group, left-nested {@link Tuple2} for larger groups, and null for a group with no members.
      *
-     * <p>Components may be null. This is the same value a terminal {@link CombineBody} receives.
+     * <p>Components may be null. This is the same value a terminal {@link Combiner} receives.
      */
     public @Nullable V typedValues() {
         return typedValues;

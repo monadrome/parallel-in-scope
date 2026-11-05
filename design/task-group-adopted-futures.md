@@ -18,8 +18,8 @@ future 汇合成一个结构化作用域时，手写 `Futures.allAsList` + 超�
 4. 池线程等待外部 future 不进入执行器等待图，同池自等待的饥饿风险不可见。
 
 `adopt` 把一个外部 future 声明为组成员。它参数化既有成员机制：同一组 token、fail-fast、deadline、
-`cancelOn`、收敛屏障、结果冻结与 body-exit 跟踪；只把成员结果的来源从「库执行的 body」换成「被收养的
-future」。收养成员没有 body，不提交到任何执行器，不捕获或回放 TTL，不是第二条执行管道。
+`cancelOn`、收敛屏障、结果冻结与执行-exit 跟踪；只把成员结果的来源从「库执行的执行」换成「被收养的
+future」。收养成员没有执行，不提交到任何执行器，不捕获或回放 TTL，不是第二条执行管道。
 
 改前改后的用户代码：
 
@@ -51,10 +51,10 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
   source 之后的监听器（可能包括本成员的落定监听器），因此取消之后 source 已完成时由取消方补做落定，恰好一次。
   `runAll()` 在准入前抛出（运行时已关闭、
   继承 deadline 却没有外层任务、准备或启动失败）时，MUST 取消全部未连接的 source，按 A4 关闭其产出的值，
-  并释放已登记的 body 槽。同一 source 在一个草稿内 MUST NOT 被收养两次（按引用身份拒绝）。
+  并释放已登记的执行槽。同一 source 在一个草稿内 MUST NOT 被收养两次（按引用身份拒绝）。
 - A2 source 与镜像的连接（登记落定监听器）MUST 发生在组 bind 与成员 bind 之后，与 `par` 成员「先 bind 后提交」
   同一位置；连接 MUST NOT 因镜像已完成而跳过。准入时就被取消（例如 `cancelOn` 的信号已完成）的成员在 bind 中
-  取消镜像，镜像随即取消 source；连接仍登记监听器，使 body 槽在 source 落定后释放。镜像 MUST 只经由这一个落定
+  取消镜像，镜像随即取消 source；连接仍登记监听器，使执行槽在 source 落定后释放。镜像 MUST 只经由这一个落定
   监听器完成，MUST NOT 直接复制一个已完成的 source（`setFuture` 的快捷路径不等 source 先前的监听器跑完）。
 - A3 归因：source 成功即 `SUCCESS`；失败即 `USER_FAILURE` 并保留原始原因，由取消引起的失败按 token 归因；
   被组以外的一方取消即直接成员取消，成员读 `MEMBER_CANCELLED`，整组按既有规则级联。归因 MUST 在收敛时读
@@ -62,7 +62,7 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 
 **值交接与关闭**
 
-- A4 组里每个产出的非 null 值恰好有一个所有者：声明 combine 时，combine body 进入时取得全部收养值，此后
+- A4 组里每个产出的非 null 值恰好有一个所有者：声明 combine 时，combine 执行进入时取得全部收养值，此后
   combine 失败也不再由组关闭；未声明 combine 时，组以 `SUCCESS` 收敛即交给 `runAll()` 调用方。其余每个值——
   组未成功、combine 从未进入、取消之后才到达的成功值——MUST 恰好交给该成员的 `ResourceCloser` 一次。交接与
   丢弃由组内同一个原子决定裁决（combine 入口与收敛竞争同一次 CAS），MUST NOT 既交出又关闭；null 值与失败、
@@ -83,10 +83,10 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 
 **退出确认**
 
-- A6 每个收养成员在组的 body-exit 跟踪中占一个槽，连接时视为已运行：source 落定后，且（声明了 closer 时）
-  所有权已决定、丢弃值的 closer 已返回，才释放。`bodyCompletionConfirmed()` 为 true 即所有 source 已落定、
+- A6 每个收养成员在组的执行-exit 跟踪中占一个槽，连接时视为已运行：source 落定后，且（声明了 closer 时）
+  所有权已决定、丢弃值的 closer 已返回，才释放。`executionExitConfirmed()` 为 true 即所有 source 已落定、
   每个丢弃值的 closer 已运行完毕（closer 失败只记日志，不改变确认结果，确认不保证值已被释放）；
-  忽略取消的 source 在清理预算耗尽时出现在 `unfinishedBodies()` 中；`awaitQuiescence`
+  忽略取消的 source 在清理预算耗尽时出现在 `unexitedExecutions()` 中；`awaitQuiescence`
   同样等待这些槽。成员观测的开始时间是连接时刻，结束时间是 source 落定时刻，并在镜像落定之前写入，
   使经由 source 收敛的组报告读到最终结束时间。准入即被取消的组在连接之前就已收敛，组报告中该成员的时间为 0，
   与连接前被取消的 `par` 成员一致；冻结结果中的成员观测在 source 落定后发布真实时间。准入失败时放弃的 source
@@ -95,24 +95,24 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page",
 **观测兼容**
 
 - A7 声明生产者 `Par` 时，成员单元的节点取该 `Par` 的执行器身份与 starvation-prone 判定，嵌套 `runAll()`
-  的等待按 [task-graph.md](task-graph.md) P2–P5 原样记录：在执行器 A 上的 body 收养由 A 完成的 future 是自环。
+  的等待按 [task-graph.md](task-graph.md) P2–P5 原样记录：在执行器 A 上的执行收养由 A 完成的 future 是自环。
   生产者是用户声明、库不核实的事实；未声明时节点没有执行器，MUST NOT 成边。生产者必须属于同一运行时。
-- A8 收养成员不做 TaskType 提交诊断，不参与负载匹配筛查计时（没有库执行的 body）。线程池饥饿观测照常对生产者
+- A8 收养成员不做 TaskType 提交诊断，不参与负载匹配筛查计时（没有库执行的执行）。线程池饥饿观测照常对生产者
   池采样：收养 MUST NOT 包装、提交、取消（source 之外）或重排池上的任务；source 排在等待者自己占住的池
   队列里时，两个信号互补可见——等待图给出自环，采样给出 `POTENTIAL_STARVATION`，组按 deadline 以 `TIMEOUT`
   结束并取消 source。
 
 ## 3. 被排除的替代方案
 
-- **批次形状 `Par.map(List<ListenableFuture<T>>)`**：批次是同构映射，依赖 body 与滑窗限流；future 列表既没有
-  可映射的 body，也没有可限流的提交。动态个数的输入循环收养，再按保存的 key 读取。
+- **批次形状 `Par.map(List<ListenableFuture<T>>)`**：批次是同构映射，依赖执行与滑窗限流；future 列表既没有
+  可映射的执行，也没有可限流的提交。动态个数的输入循环收养，再按保存的 key 读取。
 - **返回异步句柄或在 future 上链式编排**：违反同步出口与 idea-graveyard 的编排否决；结果仍是冻结的
   `TaskGroupResult`。
 - **作用域退出时总是关闭（`ClosingFuture` 式）**：没有 combine 时调用方拿到已关闭的值（use-after-close）；
   有 combine 时 combine 用 try-with-resources 关一次、作用域再关一次即双重关闭。改为「交出一次，其余关闭」。
 - **closer 在落定线程上内联运行**（首版实现）：独立评审复现，source 已完成时组在 `runAll()` 调用线程的
   `submitPrepared` 内同步收敛，阻塞的 closer 让 `runAll()` 永不返回；deadline 驱动的收敛则在运行时内部线程上
-  运行用户代码。改为交给运行时的超时动作池，仅在其拒绝（服务已关闭）时回退到落定线程；body-exit 槽仍保证
+  运行用户代码。改为交给运行时的超时动作池，仅在其拒绝（服务已关闭）时回退到落定线程；执行-exit 槽仍保证
   有界清理等待覆盖 closer。
 - **冻结结果中扣下被丢弃的值**：成员 outcome 仍是 `SUCCESS`，没有「已释放」的 outcome 可表达，把值换成 null
   会伪造结果；改为写明所有权与可见性的区别。
@@ -180,7 +180,7 @@ closer 失败与中断的日志与中断恢复、执行器拒绝时回退到落�
 `adopt` 的重名校验、阶段与线程限制、带生产者与 closer 的四参重载（此前无覆盖）、收敛完成 `ownershipSettled`
 后运行时不再保留收养组（撤掉该完成即 `awaitQuiescence` 超时）。变更行上的剩余存活均已分类：
 `slot -> slot.adopted` 恒真的两处为等价（无收养成员时 combine 的认领与额外保留都不可观察：combine 若晚于
-丢弃决定启动，其 future 已随组取消而跳过 body；`ownershipSettled` 在同一次收敛的 finally 中完成）；
+丢弃决定启动，其 future 已随组取消而跳过执行；`ownershipSettled` 在同一次收敛的 finally 中完成）；
 `Verify` 调用删除三处为防御性内部不变量（参数中的 CAS 与状态迁移仍执行，合法调用图不触发）；
 `takePayloads` 清空身份集合为已消费草稿的引用卫生，不可观察；`par` 分支的 `diagnoseAdmission` 删除是
 原有调用移位，属既有 TaskType 诊断测试不在本范围内的覆盖限制。未变更行上的存活不属本次变更。

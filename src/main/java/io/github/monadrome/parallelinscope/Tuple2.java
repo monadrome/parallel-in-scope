@@ -12,9 +12,9 @@ import org.jspecify.annotations.Nullable;
  * groups — {@code Tuple2<T1, T2>} for two members, {@code Tuple2<Tuple2<T1, T2>, T3>} for three, and
  * so on. The nesting is produced by the step builder, so callers normally never write {@link #of};
  * they read {@link #first()} and {@link #second()} off {@link GroupValues#typedValues()} or off the
- * value handed to a terminal {@link CombineBody}.
+ * value handed to a terminal {@link Combiner}.
  *
- * <p>Both components may be null: a member body that returns null is a successful member, and its
+ * <p>Both components may be null: a member execution that returns null is a successful member, and its
  * slot holds null in the same way it would hold any other value.
  *
  * @param <A> the first component type

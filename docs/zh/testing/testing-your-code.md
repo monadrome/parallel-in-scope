@@ -48,14 +48,14 @@ void fallsBackWhenTheClientHangs() throws ExecutionException {
 保持确定性的规则：
 
 - 桩通过 `Checkpoints.checkAwait` 阻塞在 latch 上，它会响应取消中断。不要用 `Thread.sleep` 模拟慢调用，
-  也不要用不响应中断的等待：那样 body 会在 deadline 之后继续占着 worker。
+  也不要用不响应中断的等待：那样执行会在 deadline 之后继续占着 worker。
 - 断言结局（`TaskOutcome.TIMEOUT` 或你的回退值），不断言耗时。
-- 测试需要知道 body 已经开始时，在 body 里释放第二个 latch 并等待它，不靠时序。
-- body 在取消后失败时库会记一条 warning；那是桩经由中断退出，不是测试失败。
+- 测试需要知道执行已经开始时，在执行里释放第二个 latch 并等待它，不靠时序。
+- 执行在取消后失败时库会记一条 warning；那是桩经由中断退出，不是测试失败。
 
-## 断言 body 已经退出
+## 断言执行已经退出
 
-`bodyCompletionConfirmed()` 表示调用返回前所有 body 都已退出。超时后，由 deadline 派生的清理预算已经
+`executionExitConfirmed()` 表示调用返回前所有执行都已退出。超时后，由 deadline 派生的清理预算已经
 用完，不显式设宽限期时，调用会在 deadline 触发后立即返回，这个检查会和桩的退出赛跑。测试要断言退出时，
 显式设置 `closeGrace`：
 

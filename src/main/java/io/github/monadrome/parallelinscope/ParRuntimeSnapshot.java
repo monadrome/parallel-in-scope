@@ -20,19 +20,19 @@ public final class ParRuntimeSnapshot {
     private final int activeAdmissions;
     private final int undrainedBatches;
     private final int activeObservations;
-    private final int unexitedBodySignals;
+    private final int unexitedExecutionSignals;
 
     ParRuntimeSnapshot(
             boolean closed,
             int activeAdmissions,
             int undrainedBatches,
             int activeObservations,
-            int unexitedBodySignals) {
+            int unexitedExecutionSignals) {
         this.closed = closed;
         this.activeAdmissions = activeAdmissions;
         this.undrainedBatches = undrainedBatches;
         this.activeObservations = activeObservations;
-        this.unexitedBodySignals = unexitedBodySignals;
+        this.unexitedExecutionSignals = unexitedExecutionSignals;
     }
 
     /** Whether shutdown has begun; new submissions are rejected once true. */
@@ -56,16 +56,16 @@ public final class ParRuntimeSnapshot {
     }
 
     /**
-     * Admitted runs with at least one direct task body whose exit has not been confirmed. The unit
-     * is a run, not a body: each admitted batch, group, or single task contributes one count until
-     * every direct body has exited or has been prevented from starting. A batch with a hundred
-     * outstanding bodies therefore contributes 1. A cancelled task completes its future immediately
+     * Admitted runs with at least one direct task execution whose exit has not been confirmed. The unit
+     * is a run, not an execution: each admitted batch, group, or single task contributes one count until
+     * every direct execution has exited or has been prevented from starting. A batch with a hundred
+     * outstanding executions therefore contributes 1. A cancelled task completes its future immediately
      * but may still be running user code, so this can exceed zero while {@link #undrainedBatches()}
      * is already zero — the distinction {@link ParRuntime#awaitQuiescence(java.time.Duration)}
      * waits on.
      */
-    public int unexitedBodySignals() {
-        return unexitedBodySignals;
+    public int unexitedExecutionSignals() {
+        return unexitedExecutionSignals;
     }
 
     @Override
@@ -74,7 +74,7 @@ public final class ParRuntimeSnapshot {
                 + ", activeAdmissions=" + activeAdmissions
                 + ", undrainedBatches=" + undrainedBatches
                 + ", activeObservations=" + activeObservations
-                + ", unexitedBodySignals=" + unexitedBodySignals
+                + ", unexitedExecutionSignals=" + unexitedExecutionSignals
                 + '}';
     }
 }

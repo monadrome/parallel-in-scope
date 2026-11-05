@@ -95,7 +95,7 @@ Two invariants to respect:
 - Parent propagation is wired in the `CancellationToken` constructor;
   `CancellationToken.bind()` wires the deadline timer and fail-fast. Every
   entry point binds **before** submitting — `Par.submit`, `Par.map`, and
-  `TaskGroup.start` alike — because submission can run a body on the
+  `TaskGroup.start` alike — because submission can run an execution on the
   submitting thread, and the deadline is that path's only source of liveness.
   The deadline itself lives in the token (min of the requested deadline and
   the parent's).
@@ -104,7 +104,7 @@ Two invariants to respect:
   reached a free parallelism slot. There are no placeholders and no later
   bind step: `SlidingWindowSubmitter.viewsFor()` builds the views, the caller
   binds them, and `submitAll()` only decides when each prepared future enters
-  the pool. Cancelling a view therefore reaches the thread running its body.
+  the pool. Cancelling a view therefore reaches the thread running its execution.
 
 Interruption rules (P1-P4): never swallow `InterruptedException`; rethrow it,
 restore the flag, or translate with the original cause and restore the flag.

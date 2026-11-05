@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task
- * bodies whose entry or unit is declared {@link TaskType#COMPUTE}.
+ * executions whose entry or unit is declared {@link TaskType#COMPUTE}.
  *
  * <p>Verdicts are judged per epoch of {@link #EPOCH_EXECUTION_NANOS} of execution time, so a
  * regression after a long healthy period is not diluted by it. The aggregate of an entry declared
@@ -29,7 +29,7 @@ final class WorkloadFit {
      * Each entry owns one Entry: an aggregate total and up to .UNIT_CAPACITY unit totals keyed by
      * unit name and unit type. Every total is one immutable value replaced by compare-and-set, so a
      * report reads each total in one consistent state and exactly one commit sees the transition
-     * that sets a verdict. A body whose entry and unit are both undeclared or blocking reads no
+     * that sets a verdict. An execution whose entry and unit are both undeclared or blocking reads no
      * clock and touches no total.
      */
 
@@ -41,9 +41,9 @@ final class WorkloadFit {
     private WorkloadFit() {}
 
     /**
-     * Starts timing one body of {@code unit}, or returns null when the body is not screened or its
+     * Starts timing one execution of {@code unit}, or returns null when the execution is not screened or its
      * CPU time cannot be read; an unreadable reading is counted on the entry. Screening only
-     * reports, so any failure here, an {@link Error} included, skips the timing and lets the body
+     * reports, so any failure here, an {@link Error} included, skips the timing and lets the execution
      * run.
      */
     static @Nullable Timing start(MultiTaskContext unit) {
@@ -69,7 +69,7 @@ final class WorkloadFit {
         return executionNanos > 0 && cpuNanos < executionNanos - cpuNanos;
     }
 
-    /** One body's opening clock readings. */
+    /** One execution's opening clock readings. */
     static final class Timing {
         private final Par par;
         private final String unit;
@@ -89,7 +89,7 @@ final class WorkloadFit {
 
         /**
          * Reads both clocks and commits the sample to the entry. Screening only reports, so any
-         * failure here, an {@link Error} included, drops the sample and leaves the body's result
+         * failure here, an {@link Error} included, drops the sample and leaves the execution's result
          * alone.
          */
         void stop() {
@@ -115,11 +115,11 @@ final class WorkloadFit {
 
         /**
          * The entry's measurement, or null when the entry is not declared COMPUTE and never ran a
-         * screened body.
+         * screened execution.
          */
         WorkloadFitReport.@Nullable ParMeasurement measurement(Par par) {
             Totals totals = verifyNotNull(aggregate.get());
-            if (par.taskType() != TaskType.COMPUTE && totals.bodies == 0 && totals.unmeasuredBodies == 0) {
+            if (par.taskType() != TaskType.COMPUTE && totals.executions == 0 && totals.unmeasuredExecutions == 0) {
                 return null;
             }
             ImmutableMap<Map.Entry<String, TaskType>, AtomicReference<Totals>> current = verifyNotNull(units.get());
@@ -129,7 +129,7 @@ final class WorkloadFit {
                 unitMeasurements.add(new WorkloadFitReport.UnitMeasurement(
                         unit.getKey().getKey(),
                         unit.getKey().getValue(),
-                        unitTotals.bodies,
+                        unitTotals.executions,
                         unitTotals.cpuNanos,
                         unitTotals.executionNanos,
                         unitTotals.flagged));
@@ -139,11 +139,11 @@ final class WorkloadFit {
             return new WorkloadFitReport.ParMeasurement(
                     par.id(),
                     par.taskType(),
-                    totals.bodies,
+                    totals.executions,
                     totals.cpuNanos,
                     totals.executionNanos,
-                    totals.unattributedBodies,
-                    totals.unmeasuredBodies,
+                    totals.unattributedExecutions,
+                    totals.unmeasuredExecutions,
                     totals.flagged,
                     unitMeasurements);
         }
@@ -157,8 +157,9 @@ final class WorkloadFit {
                             par,
                             Level.INFO,
                             "Unit '" + unit + "' on Par '" + par.id()
-                                    + "' declares TaskType.COMPUTE, but its task bodies used CPU for " + share(drift)
-                                    + "; the declaration may no longer match the body. Logged once per Par and unit name.");
+                                    + "' declares TaskType.COMPUTE, but its task executions used CPU for "
+                                    + share(drift)
+                                    + "; the declaration may no longer match the execution. Logged once per Par and unit name.");
                 }
             }
             Totals issue =
@@ -168,7 +169,7 @@ final class WorkloadFit {
                         par,
                         Level.WARNING,
                         "Par '" + par.id() + "' is registered for TaskType.COMPUTE, but its"
-                                + " task bodies used CPU for " + share(issue)
+                                + " task executions used CPU for " + share(issue)
                                 + ". They may be waiting on I/O, a lock, or"
                                 + " nested work, or the pool may be paused, throttled, or have more runnable threads than"
                                 + " cores. ParRuntime.workloadFitReport() attributes the time to units. Logged once per Par.");
@@ -179,12 +180,12 @@ final class WorkloadFit {
             for (; ; ) {
                 Totals current = verifyNotNull(aggregate.get());
                 if (aggregate.compareAndSet(current, current.withUnmeasured())) {
-                    if (current.unmeasuredBodies == 0) {
+                    if (current.unmeasuredExecutions == 0) {
                         announce(
                                 par,
                                 Level.WARNING,
                                 "Par '" + par.id() + "' cannot screen workload fit: thread CPU"
-                                        + " time is unsupported, disabled, or unreadable on this JVM, so its task bodies"
+                                        + " time is unsupported, disabled, or unreadable on this JVM, so its task executions"
                                         + " are counted as unmeasured. Logged once per Par.");
                     }
                     return;
@@ -249,11 +250,11 @@ final class WorkloadFit {
     private static final class Totals {
         static final Totals EMPTY = new Totals(0, 0, 0, 0, 0, 0, 0, false, 0, 0);
 
-        private final long bodies;
+        private final long executions;
         private final long cpuNanos;
         private final long executionNanos;
-        private final long unattributedBodies;
-        private final long unmeasuredBodies;
+        private final long unattributedExecutions;
+        private final long unmeasuredExecutions;
         private final long epochCpuNanos;
         private final long epochExecutionNanos;
         private final boolean flagged;
@@ -261,21 +262,21 @@ final class WorkloadFit {
         private final long flaggedExecutionNanos;
 
         private Totals(
-                long bodies,
+                long executions,
                 long cpuNanos,
                 long executionNanos,
-                long unattributedBodies,
-                long unmeasuredBodies,
+                long unattributedExecutions,
+                long unmeasuredExecutions,
                 long epochCpuNanos,
                 long epochExecutionNanos,
                 boolean flagged,
                 long flaggedCpuNanos,
                 long flaggedExecutionNanos) {
-            this.bodies = bodies;
+            this.executions = executions;
             this.cpuNanos = cpuNanos;
             this.executionNanos = executionNanos;
-            this.unattributedBodies = unattributedBodies;
-            this.unmeasuredBodies = unmeasuredBodies;
+            this.unattributedExecutions = unattributedExecutions;
+            this.unmeasuredExecutions = unmeasuredExecutions;
             this.epochCpuNanos = epochCpuNanos;
             this.epochExecutionNanos = epochExecutionNanos;
             this.flagged = flagged;
@@ -303,11 +304,11 @@ final class WorkloadFit {
                 }
             }
             return new Totals(
-                    bodies + 1,
+                    executions + 1,
                     cpuNanos + cpu,
                     executionNanos + execution,
-                    unattributedBodies + (unattributed ? 1 : 0),
-                    unmeasuredBodies,
+                    unattributedExecutions + (unattributed ? 1 : 0),
+                    unmeasuredExecutions,
                     epochCpu,
                     epochExecution,
                     nowFlagged,
@@ -317,11 +318,11 @@ final class WorkloadFit {
 
         private Totals withUnmeasured() {
             return new Totals(
-                    bodies,
+                    executions,
                     cpuNanos,
                     executionNanos,
-                    unattributedBodies,
-                    unmeasuredBodies + 1,
+                    unattributedExecutions,
+                    unmeasuredExecutions + 1,
                     epochCpuNanos,
                     epochExecutionNanos,
                     flagged,

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 /**
  * The drain bookkeeping behind {@link ParRuntime#snapshot()} and {@link
  * ParRuntime#awaitQuiescence(Duration)}: an admitted run is retained until its futures settle, its
- * body signal is tracked until every body exits, and quiescence after close waits out bodies.
+ * execution signal is tracked until every execution exits, and quiescence after close waits out executions.
  */
 // JUnit-style: 'runtime' is assigned inside each test method, not in a constructor or @BeforeEach.
 @SuppressWarnings("NullAway.Init")
@@ -35,7 +35,7 @@ class ParRuntimeQuiescenceTest {
     }
 
     @Test
-    void snapshotCountsAnInFlightGroupAsUndrainedWithUnexitedBodies() throws Exception {
+    void snapshotCountsAnInFlightGroupAsUndrainedWithUnexitedExecutions() throws Exception {
         ThreadPoolExecutor executor = buffering();
         runtime = ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
@@ -56,8 +56,8 @@ class ParRuntimeQuiescenceTest {
         assertThat(snapshot.undrainedBatches())
                 .as("an admitted group run is retained until its futures settle")
                 .isEqualTo(1);
-        assertThat(snapshot.unexitedBodySignals())
-                .as("the group's body signal is tracked until every member body exits")
+        assertThat(snapshot.unexitedExecutionSignals())
+                .as("the group's execution signal is tracked until every member execution exits")
                 .isEqualTo(1);
 
         release.countDown();
@@ -68,7 +68,7 @@ class ParRuntimeQuiescenceTest {
         // close by an instant; the drain is awaited, not assumed.
         org.awaitility.Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertThat(runtime.snapshot().undrainedBatches()).isZero();
-            assertThat(runtime.snapshot().unexitedBodySignals()).isZero();
+            assertThat(runtime.snapshot().unexitedExecutionSignals()).isZero();
         });
     }
 
@@ -96,7 +96,7 @@ class ParRuntimeQuiescenceTest {
         assertThat(runtime.snapshot().undrainedBatches())
                 .as("a submitted task's completion aggregate is retained until it settles")
                 .isEqualTo(1);
-        assertThat(runtime.snapshot().unexitedBodySignals()).isEqualTo(1);
+        assertThat(runtime.snapshot().unexitedExecutionSignals()).isEqualTo(1);
 
         release.countDown();
         TaskFuture<Integer> settled = submitted.get();
@@ -110,13 +110,13 @@ class ParRuntimeQuiescenceTest {
     }
 
     @Test
-    void awaitQuiescenceAfterCloseWaitsOutStillRunningBodies() throws Exception {
+    void awaitQuiescenceAfterCloseWaitsOutStillRunningExecutions() throws Exception {
         ThreadPoolExecutor executor = buffering();
         runtime = ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         TaskFuture<Integer> task = runtime.par(ParId.of("io"))
                 .submit(
-                        "body",
+                        "execution",
                         () -> {
                             release.await();
                             return 1;
@@ -126,13 +126,13 @@ class ParRuntimeQuiescenceTest {
 
         runtime.close();
         assertThat(runtime.awaitQuiescence(Duration.ofMillis(300)))
-                .as("quiescence does not arrive while the admitted body is still running")
+                .as("quiescence does not arrive while the admitted execution is still running")
                 .isFalse();
 
         release.countDown();
         assertThat(task.get(10, TimeUnit.SECONDS)).isEqualTo(1);
         assertThat(runtime.awaitQuiescence(Duration.ofSeconds(10)))
-                .as("the drain completes once the body exits")
+                .as("the drain completes once the execution exits")
                 .isTrue();
     }
 
@@ -143,7 +143,7 @@ class ParRuntimeQuiescenceTest {
         return pool;
     }
 
-    /** Waits until the pool has at least one active worker, so a submitted body has started. */
+    /** Waits until the pool has at least one active worker, so a submitted execution has started. */
     private static void awaitStarted(ThreadPoolExecutor executor) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 10_000L;
         while (executor.getActiveCount() == 0 && System.currentTimeMillis() < deadline) {

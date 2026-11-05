@@ -220,7 +220,7 @@ public class CancellationTriggerCartesianTest {
             }
         }
 
-        /** Waits until running work has entered its controlled body. */
+        /** Waits until running work has entered its controlled execution. */
         private void awaitEntry() throws InterruptedException {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
         }

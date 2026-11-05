@@ -63,7 +63,7 @@ public final class TaskOptions {
     /**
      * Returns a copy of these options with the given diagnostic task type.
      *
-     * <p>The declaration describes this task's own body and is not inherited by work it submits.
+     * <p>The declaration describes this task's own execution and is not inherited by work it submits.
      * It never changes admission, enqueueing, rejection, or the task's outcome; see {@link
      * TaskType}.
      *

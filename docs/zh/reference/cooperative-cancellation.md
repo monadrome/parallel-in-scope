@@ -16,7 +16,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 | 位置 | 机制 | 你需要做什么 |
 |---|---|---|
 | 任务执行前 | `ScopedCallable` 在调用你的代码之前自动执行一次 `Checkpoints.checkpoint()` | 无需任何操作 |
-| body 运行期间 | 取消请求向 runner 投递中断 | 使用可中断操作或客户端超时；I/O 是否响应由客户端决定 |
+| 执行运行期间 | 取消请求向 runner 投递中断 | 使用可中断操作或客户端超时；I/O 是否响应由客户端决定 |
 | 滑动窗口提交循环 | `SlidingWindowSubmitter` 在每次提交前检查取消状态，发现取消后停止提交剩余任务 | 无需任何操作 |
 
 ## 滑动窗口准备与终态
@@ -26,7 +26,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 因此取消既能中断正在运行的任务，也能阻止尚未提交的任务开始。
 
 `Par.map` 等待所有结果确定并尝试有界清理，返回冻结的 `ImmediateResult` 数据。
-`unfinishedBodies()` 报告尚未确认退出的直接任务体；取消终态不代表任务体已经停止。
+`unexitedExecutions()` 报告尚未确认退出的直接任务代码；取消终态不代表任务代码已经停止。
 
 这意味着：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
@@ -73,7 +73,7 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 | `Checkpoints.remaining()` | 读取当前作用域任务的剩余预算（`Optional<Duration>`）；作用域之外为空，deadline 已过时为零，无 deadline 时恰为 `Duration.ofNanos(Long.MAX_VALUE)` 哨兵。只读：不抛异常、不触发取消、不触碰中断标志 | 把真实预算传给下游客户端 |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
 
-`remaining()` 让任务体把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
+`remaining()` 让任务代码把真实预算交给下游调用，而不是维护一份独立的客户端 timeout：
 
 ```java
 .par(TaskKey.<User>named("user"), ioPar, () -> {
@@ -164,7 +164,7 @@ Checkpoints.checkSleep(Duration.ofSeconds(1));        // 同上，Duration 形�
 
 ## 取消之后的日志 {#logging-after-cancellation}
 
-取消已经落定任务之后，body 再抛出异常时已没有结果可承载；内核在 `ExecutionPhaseHintFuture` 的
+取消已经落定任务之后，执行再抛出异常时已没有结果可承载；内核在 `ExecutionPhaseHintFuture` 的
 logger 上记录 `task '<name>' failed after cancellation` 并附原异常。级别按异常来源决定，不按类型：
 
 | 迟到异常（无 suppressed） | 级别 |
@@ -188,12 +188,12 @@ scope 未取消时被中断的 `Checkpoints` 阻塞适配器抛出同一类型�
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
 | 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
 | 父作用域取消 | `PROPAGATED_CANCELLED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
-| 外部取消来源 `cancelOn` | `CANCELLED` | 调用方持有的 `ListenableFuture` 以成功、失败或取消任一方式完成时，取消整个批次或组；归因 first-wins，来源先赢记 `GROUP_CANCELLED`，与其他取消来源一样中断正在运行的任务体 |
+| 外部取消来源 `cancelOn` | `CANCELLED` | 调用方持有的 `ListenableFuture` 以成功、失败或取消任一方式完成时，取消整个批次或组；归因 first-wins，来源先赢记 `GROUP_CANCELLED`，与其他取消来源一样中断正在运行的任务代码 |
 
 所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
-外部取消输入声明在批次的 `BatchOptions` 或组的 `GroupStart` 上（组须在首个成员前声明），任务体内无需轮询应用标志，
+外部取消输入声明在批次的 `BatchOptions` 或组的 `GroupStart` 上（组须在首个成员前声明），任务代码内无需轮询应用标志，
 详见[请求完成时取消执行](../user-guide.md#request-cancellation)。
-任务体也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
+任务代码也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
 见[即时结果](../user-guide.md#task-future-attribution)。
 中断等待 `map` / `runAll` 的调用线程不会取消执行；等待结束恢复中断标志。
 结果不暴露执行所属的 token 或运行中的 future，`asFuture().cancel(...)` 始终返回 false。

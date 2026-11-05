@@ -53,7 +53,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 |---|---|
 | `TaskListener` SPI 及 `ParRuntime.Builder.taskListener`/`parTaskListener`、`ParRuntime.taskListeners()`/`taskListenersFor(ParId)` 整条注册与读取面 | [decision-log.md](../decision-log.md) 对应条目（已落地） |
 | `DeadlockDetectionListener` SPI + `DeadlockDetectionEvent` | [decision-log.md](../decision-log.md) 对应条目（已落地） |
-| `TaskGroupDefinition`（+`Builder`/`Member`）、`TaskGroup`（+`Bindings`/`CombineBody`/`CombineContext`）、`TaskFuture` 接口、`Par.submit` | 组一次性链式 API（[group-one-shot-api-refactor-codex.md](../group-one-shot-api-refactor-codex.md)）+ 同步出口契约（[synchronous-scope-exit.md](../synchronous-scope-exit.md)） |
+| `TaskGroupDefinition`（+`Builder`/`Member`）、`TaskGroup`（+`Bindings`/`Combiner`/`CombineContext`）、`TaskFuture` 接口、`Par.submit` | 组一次性链式 API（[group-one-shot-api-refactor-codex.md](../group-one-shot-api-refactor-codex.md)）+ 同步出口契约（[synchronous-scope-exit.md](../synchronous-scope-exit.md)） |
 | `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | `df89b43 feat!: drop the runOnCallerThread submission option` |
 | `ParRuntime.executorTags()`/`executorTags(ParId)`/`executorTags(ExecutorService)`/`parsWithExecutorTag`、`ParRuntime.Builder.register(ParId, ExecutorService, String...)` 重载 | 可用性缺口收口提交 |
 | `TaskGroupResult.memberCount()`（09-27 版 C2） | 已随上述重构移除 |
@@ -76,7 +76,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 | 组链（同步出口） | `GroupStart` | 5 | ✗ | ✓ |
 | | `GroupStep` | 7 | ✗ | ✓ |
 | | `CombinedGroupStep` | 1 | ✗ | ✓ |
-| | `CombineBody`（SPI 接口） | 1 | ✗ | ✓ |
+| | `Combiner`（SPI 接口） | 1 | ✗ | ✓ |
 | 结果与归因 | `TaskGroupResult` | 25 | ✗ | ✓ |
 | | `GroupValues` | 11 | ✗ | ✓ |
 | | `Tuple2` | 6 | ✗ | ✓ |
@@ -200,11 +200,11 @@ task-completion-and-queue-factories 行。`TaskBatchResult.BatchReport` 也随�
 
 | 项 | 保留理由 | 证据 |
 |---|---|---|
-| `Tuple2.of` | 用户为公开 SPI `CombineBody` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
+| `Tuple2.of` | 用户为公开 SPI `Combiner` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
 | `ImmediateResult.succeeded`/`failed` | user-guide（en）已记载语义；内核 `TaskGroup.java` 在用 | user-guide |
 | `ImmediateResult.asFuture()` | demo 最高频引用形式（约 42 处方法引用），Guava 组合的逃生口 | demo + user-guide en:477 |
 | `Checkpoints` 阻塞适配器族、`rawCheckpoint` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
-| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`bodyCompletionConfirmed()`/`unfinishedBodies()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
+| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`executionExitConfirmed()`/`unexitedExecutions()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
 | `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |

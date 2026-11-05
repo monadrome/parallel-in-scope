@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 /**
  * One-shot draft lifecycle and payload ownership: declaration failures run no user code, the draft
  * is usable only from its creating thread, every earlier stage goes stale once the chain advances or
- * is submitted, the payload carrier releases bodies deterministically, and independent chains never
+ * is submitted, the payload carrier releases executions deterministically, and independent chains never
  * cross-talk.
  */
 class GroupDraftLifecycleTest {
@@ -111,7 +111,7 @@ class GroupDraftLifecycleTest {
                 .build();
         try {
             Par par = global.par(ParId.of("worker"));
-            // The second declaration is rejected after the first one registered a body: nothing has
+            // The second declaration is rejected after the first one registered an execution: nothing has
             // been admitted, no executor has been called, and no cell of the draft is reachable from
             // the framework.
             assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
@@ -139,7 +139,7 @@ class GroupDraftLifecycleTest {
                     global.groupDraft("page", TIMEOUT).par(TaskKey.<Integer>named("one"), par, runs::incrementAndGet);
 
             // Closing the owner before the submission loses the admission race deterministically:
-            // the declaration is complete and the bodies have moved into the kernel, and only then
+            // the declaration is complete and the executions have moved into the kernel, and only then
             // does whileOpen reject the run.
             global.close();
             assertThatThrownBy(step::submitAll)
@@ -158,7 +158,7 @@ class GroupDraftLifecycleTest {
     @Test
     void payloadCarrierClearsEachSlotOnTakeAndEverythingOnDiscard() throws Exception {
         Callable<Object> member = () -> 1;
-        CombineBody<Object, Object> combine = values -> "x";
+        Combiner<Object, Object> combine = values -> "x";
         TaskGroup.RunBindings payloads =
                 new TaskGroup.RunBindings(new Callable<?>[] {member}, new AdoptedSource[1], combine);
 
@@ -167,8 +167,7 @@ class GroupDraftLifecycleTest {
         assertThat(payloads.takeCallable(0).call()).isEqualTo(1);
         assertThat(payloads.taskSlotCleared(0)).isTrue();
 
-        CombineBody<Object, Object> taken =
-                (CombineBody<Object, Object>) Objects.requireNonNull(payloads.takeCombineBody());
+        Combiner<Object, Object> taken = (Combiner<Object, Object>) Objects.requireNonNull(payloads.takeCombiner());
         assertThat(payloads.combineSlotCleared()).isTrue();
         assertThat(taken.apply(null)).isEqualTo("x");
 
@@ -181,7 +180,7 @@ class GroupDraftLifecycleTest {
     }
 
     @Test
-    void rejectedCancelledAndFailFastMembersReleaseTheirBodyHolders() throws Exception {
+    void rejectedCancelledAndFailFastMembersReleaseTheirExecutionHolders() throws Exception {
         ExecutorService worker = Executors.newSingleThreadExecutor();
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = ParRuntime.builder()
@@ -238,7 +237,7 @@ class GroupDraftLifecycleTest {
     }
 
     @Test
-    void timeoutBeforeRunReleasesTheMemberBodyHolders() throws Exception {
+    void timeoutBeforeRunReleasesTheMemberExecutionHolders() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -261,7 +260,7 @@ class GroupDraftLifecycleTest {
     }
 
     @Test
-    void aRunningBodyHasNotYetReleasedItsHolder() throws Exception {
+    void aRunningExecutionHasNotYetReleasedItsHolder() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -276,7 +275,7 @@ class GroupDraftLifecycleTest {
                 .submitAll()) {
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
-            // The probes are not constants: a body still inside its finally has not released yet, so
+            // The probes are not constants: an execution still inside its finally has not released yet, so
             // both the positional and the named probe have to report false here. Without this the
             // release contract could be satisfied by a probe that always answers true.
             assertThat(group.callableReleasedAt(0)).isFalse();
@@ -285,7 +284,7 @@ class GroupDraftLifecycleTest {
             release.countDown();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
-            // The body exits after the future settles, so the release is awaited rather than assumed.
+            // The execution exits after the future settles, so the release is awaited rather than assumed.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.callableReleasedAt(0)).isTrue();
                 assertThat(group.callableReleased("user")).isTrue();

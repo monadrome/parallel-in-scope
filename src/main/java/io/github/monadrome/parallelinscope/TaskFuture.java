@@ -73,13 +73,13 @@ interface TaskFuture<T> extends ListenableFuture<T> {
      * immutable {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
      * outcome, failure, and on success the result.
      *
-     * <p>The snapshot is published only after this future is terminal <em>and</em> the task body
+     * <p>The snapshot is published only after this future is terminal <em>and</em> the task execution
      * has exited (or was determined to never run), so the recorded end time is always final: a
      * callback consuming it never hits the window in which the future settled before the user
      * {@code finally}. A task that never started reports zero start/end times and durations with
      * its real outcome — submission failure and pre-execution cancellation included. Once the
-     * enclosing scope has completed (every future terminal and every task body exited), this future
-     * is guaranteed to be done; {@link TaskBatch#awaitBodyCompletion(Duration)} returning {@code
+     * enclosing scope has completed (every future terminal and every task execution exited), this future
+     * is guaranteed to be done; {@link TaskBatch#awaitExecutionExit(Duration)} returning {@code
      * true} implies the data is already available.
      *
      * <p>User task failure, cancellation, and rejection all complete this future successfully with

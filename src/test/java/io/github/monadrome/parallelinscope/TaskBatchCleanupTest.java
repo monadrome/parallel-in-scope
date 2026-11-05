@@ -16,16 +16,16 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 /**
- * Batch close and terminal-read loudness: closing a batch cancels its token so parked bodies are
+ * Batch close and terminal-read loudness: closing a batch cancels its token so parked executions are
  * interrupted within the grace, {@code valuesOrThrow} prefers a recorded element failure over the
  * cancellation that followed it, an interrupted caller gets the lean translation with the flag
- * restored, and the combined wrapper reports unfinished bodies truthfully.
+ * restored, and the combined wrapper reports unfinished executions truthfully.
  */
 class TaskBatchCleanupTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     @Test
-    void closingABatchCancelsItsTokenSoParkedBodiesExit() throws Exception {
+    void closingABatchCancelsItsTokenSoParkedExecutionsExit() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
@@ -45,8 +45,8 @@ class TaskBatchCleanupTest {
             batch.close();
             TaskBatchResult<Integer> frozen = batch.finish();
 
-            assertThat(frozen.bodyCompletionConfirmed())
-                    .as("the close grace cancels the batch token, interrupting parked bodies")
+            assertThat(frozen.executionExitConfirmed())
+                    .as("the close grace cancels the batch token, interrupting parked executions")
                     .isTrue();
         } finally {
             release.countDown();
@@ -165,16 +165,16 @@ class TaskBatchCleanupTest {
     }
 
     @Test
-    void aCombinedBatchReportsItsUnfinishedBodiesThroughTheWrapper() throws Exception {
+    void aCombinedBatchReportsItsUnfinishedExecutionsThroughTheWrapper() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            // The deadline cancels the element's future while its body ignores the interrupt and
+            // The deadline cancels the element's future while its execution ignores the interrupt and
             // parks: the synchronous mapAndCombine freezes its results with a provably unfinished
-            // body, and the wrapper must report that state rather than a clean confirmation.
+            // execution, and the wrapper must report that state rather than a clean confirmation.
             BatchCombinedResult<Integer, Integer> combined = global.par(ParId.of("worker"))
                     .mapAndCombine(
                             Arrays.asList(1),
@@ -187,10 +187,10 @@ class TaskBatchCleanupTest {
                             values -> 42);
 
             assertThat(started.getCount()).isZero();
-            assertThat(combined.bodyCompletionConfirmed())
-                    .as("a body that outlives its cancelled future is not confirmed exited")
+            assertThat(combined.executionExitConfirmed())
+                    .as("an execution that outlives its cancelled future is not confirmed exited")
                     .isFalse();
-            assertThat(combined.unfinishedBodies()).isNotEmpty();
+            assertThat(combined.unexitedExecutions()).isNotEmpty();
         } finally {
             release.countDown();
             global.close();
@@ -214,7 +214,7 @@ class TaskBatchCleanupTest {
             try {
                 release.await(30, TimeUnit.SECONDS);
             } catch (InterruptedException ignored) {
-                // test-owned body; released in the finally below
+                // test-owned execution; released in the finally below
             }
         }
         return element;

@@ -4,7 +4,7 @@ package io.github.monadrome.parallelinscope;
  * Releases a value produced by an adopted future that the group never handed out.
  *
  * <p>Every non-null value an adopted future produces has exactly one owner. The terminal combine
- * owns the adopted values once its body is entered; a group without a combine hands them to the
+ * owns the adopted values once its execution is entered; a group without a combine hands them to the
  * caller of {@code runAll()} when it succeeds. A member declared with a closer through {@link
  * GroupStart#adopt(TaskKey, com.google.common.util.concurrent.ListenableFuture, ResourceCloser)}
  * passes every other value it produced to the closer exactly once: the value of a group that
@@ -24,7 +24,7 @@ package io.github.monadrome.parallelinscope;
  * fails because its runtime is closed — and that path makes no bounded-return promise. A closer
  * may block, but it then holds one runtime thread; dispatch to an
  * executor of your own when releasing can wait long. {@code runAll()} waits for pending closers
- * only within its bounded cleanup wait: {@link TaskGroupResult#bodyCompletionConfirmed()} is {@code
+ * only within its bounded cleanup wait: {@link TaskGroupResult#executionExitConfirmed()} is {@code
  * true} only after every adopted future settled and every discarded value's closer finished
  * running. An exception
  * thrown here is logged at {@code WARNING} and never changes an outcome; an {@link

@@ -10,8 +10,8 @@ import org.springframework.context.SmartLifecycle;
  * Stops a {@link ParRuntime} during the Spring lifecycle stop phase.
  *
  * <p>{@link #stop()} closes the runtime, so new batches and groups are rejected, and then waits up
- * to the configured timeout for every admitted body to exit. Spring runs the stop phase before it
- * destroys any singleton, so the clients, data sources, and executors those bodies use are still
+ * to the configured timeout for every admitted execution to exit. Spring runs the stop phase before it
+ * destroys any singleton, so the clients, data sources, and executors those executions use are still
  * open while they finish. The phase is below Spring Boot's web server phases: the server stops
  * accepting requests before the runtime stops accepting work.
  *
@@ -37,7 +37,7 @@ public final class ParRuntimeLifecycle implements SmartLifecycle {
      * Creates the lifecycle for one runtime.
      *
      * @param runtime the runtime to stop
-     * @param shutdownTimeout how long {@link #stop()} waits for admitted bodies
+     * @param shutdownTimeout how long {@link #stop()} waits for admitted executions
      */
     public ParRuntimeLifecycle(ParRuntime runtime, Duration shutdownTimeout) {
         this.runtime = runtime;

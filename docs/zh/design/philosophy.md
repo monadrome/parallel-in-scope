@@ -153,10 +153,10 @@ fail-fast 接好，之后才允许提交。deadline 位于 token 中，取请求
 ```
 
 没有 placeholder，也没有事后交换 delegate 的绑定步骤。
-视图从创建起就指向实际执行 future，因此取消能到达正在运行任务体的线程。
+视图从创建起就指向实际执行 future，因此取消能到达正在运行任务代码的线程。
 滑动窗口仅决定同一 prepared future 何时进入线程池。
 
-绑定必须先于任何提交：direct executor 或 CallerRunsPolicy 可能在 `execute()` 内运行用户任务体，
+绑定必须先于任何提交：direct executor 或 CallerRunsPolicy 可能在 `execute()` 内运行用户任务代码，
 deadline 是这条同步执行路径的取消来源。公开同步出口不改变内部并行和取消拓扑。
 
 ---
@@ -181,7 +181,7 @@ for (Item item : items) {
 }
 ```
 
-检查点读到已提交的取消后退出，是 body 对取消的正确响应，不是失败：归因读 token，取消已落定时
+检查点读到已提交的取消后退出，是执行对取消的正确响应，不是失败：归因读 token，取消已落定时
 内核按来源把这种确认记为 `FINE`，不产生告警。
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
@@ -196,7 +196,7 @@ for (Item item : items) {
 | `MEMBER_CANCELLED` | 单个组成员自身被取消 |
 
 token 本身是包私有的内核类型：用户既拿不到也不需要它，限时用 `BatchOptions.timeout` / `TaskOptions.timeout`，
-在任务体内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。
+在任务代码内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。
 
 > 好的并发框架不仅要告诉你"任务被取消了"，还要告诉你"为什么被取消"。
 
@@ -277,7 +277,7 @@ par.map("shared-pool", orders, order -> {
 
 这不是传统的锁死锁，线程 dump 里看不到 `BLOCKED` 状态。这是**线程池的死锁**——线程在 `Future.get()` 上等待，而不是在 `synchronized` 上等待。
 
-parallel-in-scope 的解决方案是 **运行时级的执行器等待图**。每个 `ParRuntime` 常开地记录：一个任务体在 `Par.map()`、`mapAndCombine` 或组 `runAll()` 里同步等待它准入的单元时，就是「任务体所在的池 → 被等待单元所在的池」的一条等待。只记被等待方可能饿死的等待：
+parallel-in-scope 的解决方案是 **运行时级的执行器等待图**。每个 `ParRuntime` 常开地记录：一个任务代码在 `Par.map()`、`mapAndCombine` 或组 `runAll()` 里同步等待它准入的单元时，就是「任务代码所在的池 → 被等待单元所在的池」的一条等待。只记被等待方可能饿死的等待：
 
 - 零容量交接队列（如 `CachedThreadPool` 的 `SynchronousQueue`）→ 不会，入队被拒，池子只能开新线程或显式拒绝
 - 有缓冲能力的队列（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能**，子任务排在已阻塞的 worker 后面，`maximumPoolSize` 再大也没机会开新线程

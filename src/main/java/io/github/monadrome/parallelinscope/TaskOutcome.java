@@ -11,8 +11,8 @@ package io.github.monadrome.parallelinscope;
  * from {@link #USER_FAILURE} and names a cancellation's cause.
  *
  * <p>{@link #TIMEOUT} means the execution deadline cancelled the task; it is not inferred from a
- * {@link java.util.concurrent.TimeoutException} thrown by a body, which is an ordinary {@link
- * #USER_FAILURE}. The exception is a body that throws after the deadline already cancelled its
+ * {@link java.util.concurrent.TimeoutException} thrown by an execution, which is an ordinary {@link
+ * #USER_FAILURE}. The exception is an execution that throws after the deadline already cancelled its
  * future: that cancellation has committed the outcome, and the late failure is only logged.
  *
  * <p>This enum is also the terminal vocabulary of a whole task group: {@link

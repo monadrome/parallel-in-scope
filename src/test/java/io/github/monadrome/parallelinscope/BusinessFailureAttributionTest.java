@@ -12,7 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * A business {@link TimeoutException} thrown by a task body is a user failure, not the framework
+ * A business {@link TimeoutException} thrown by a task execution is a user failure, not the framework
  * deadline: the group must converge on the recorded failure's outcome with the original throwable,
  * and unfinished siblings must read {@link TaskOutcome#FAIL_FAST} — never {@link
  * TaskOutcome#TIMEOUT} while the group deadline has not expired.
@@ -40,7 +40,7 @@ class BusinessFailureAttributionTest {
 
             TaskGroupResult<Tuple2<Integer, Integer>, Void> result = global.group("load", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("failing"), global.par(ParId.of("worker")), () -> {
-                        // Wait until the sibling is mid-flight so the cascade reaches a running body.
+                        // Wait until the sibling is mid-flight so the cascade reaches a running execution.
                         assertThat(siblingStarted.await(30, TimeUnit.SECONDS)).isTrue();
                         throw businessFailure;
                     })

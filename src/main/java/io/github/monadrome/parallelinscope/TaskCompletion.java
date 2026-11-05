@@ -6,7 +6,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable final observation of a task whose result is terminal and body has exited or can never
+ * Immutable final observation of a task whose result is terminal and execution has exited or can never
  * start. Synchronous batches expose available observations through TaskBatchResult.completions;
  * groups expose them through TaskGroupResult.members and terminal.
  *
@@ -133,7 +133,7 @@ public final class TaskCompletion<T> {
      * TaskGroup#completionFuture()}: the group name stands in for the task name, the group's own
      * identity fills {@link #groupId()} while {@link #unitId()} stays null — a group run is not a
      * task unit — the index is zero, submit/start/end are the group-level times, and the result is
-     * the {@link TaskGroupReport} itself. The summary describes no additional task body, so it is
+     * the {@link TaskGroupReport} itself. The summary describes no additional task execution, so it is
      * not counted among the members or as a task unit.
      */
     static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
@@ -176,7 +176,7 @@ public final class TaskCompletion<T> {
      * Returns the identity of the task-group run this record summarizes, or null on every record
      * that is not a group's own summary — see {@link TaskGroup#completionFuture()}.
      *
-     * <p>A group run is not a task unit: it has no body of its own, so its identity is never
+     * <p>A group run is not a task unit: it has no execution of its own, so its identity is never
      * returned by {@link #unitId()}.
      */
     public @Nullable TaskId<TaskGroupRun> groupId() {
@@ -230,9 +230,9 @@ public final class TaskCompletion<T> {
     /**
      * Returns the throwable recorded for this task, or null on success.
      *
-     * <p>Every non-success outcome carries a throwable: the body-thrown exception for {@link
+     * <p>Every non-success outcome carries a throwable: the execution-thrown exception for {@link
      * TaskOutcome#USER_FAILURE} — including an {@link InterruptedException} or {@link
-     * java.util.concurrent.CancellationException} the body raised itself — and, for
+     * java.util.concurrent.CancellationException} the execution raised itself — and, for
      * cancellation-attributed endings such as {@link TaskOutcome#TIMEOUT} or {@link
      * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome. Read
      * {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the

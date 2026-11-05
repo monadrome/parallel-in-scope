@@ -3,7 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
- * Final stage of a one-shot task-group declaration that ends in a terminal {@link CombineBody}.
+ * Final stage of a one-shot task-group declaration that ends in a terminal {@link Combiner}.
  *
  * <p>The combine is already declared, so this stage exposes exactly one operation: {@link
  * #runAll()}. Adding a member after the combine, declaring a second combine, or setting a close
@@ -12,7 +12,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
  *
  * <p>The same one-shot, single-threaded contract as {@link GroupStart} applies.
  *
- * @param <V> the group's assembled member-value type, handed to the combine body
+ * @param <V> the group's assembled member-value type, handed to the combiner
  * @param <R> the combine's declared result type
  * @since 0.3.0
  */
@@ -26,7 +26,7 @@ public interface CombinedGroupStep<V, R> {
      * rejected by its executor, is skipped because a member failed, or is cancelled is reported as
      * terminal outcome data. Waiting ignores interruption and restores the interrupt flag; deadline
      * and ancestor cancellation still apply. Cleanup is bounded by the declared grace or remaining
-     * deadline; check TaskGroupResult.bodyCompletionConfirmed for body exit.
+     * deadline; check TaskGroupResult.executionExitConfirmed for execution exit.
      *
      * @return the frozen group result
      * @throws IllegalStateException if this stage is stale, the draft was already submitted, the

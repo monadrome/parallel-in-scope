@@ -20,7 +20,7 @@ class TaskKeyCompileTest {
     Path output;
 
     @Test
-    void java8AcceptsGenericKeyBodiesAndTypedReads() throws Exception {
+    void java8AcceptsGenericKeyExecutionsAndTypedReads() throws Exception {
         assertThat(compiles(
                         "TaskGroupResult<java.util.List<String>, Integer> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
                                 + ".par(names, par, () -> java.util.Arrays.asList(\"a\"))"
@@ -31,7 +31,7 @@ class TaskKeyCompileTest {
     }
 
     @Test
-    void java8RejectsBodiesThatDisagreeWithTheirKeyAndCannotWidenTheKeyType() throws Exception {
+    void java8RejectsExecutionsThatDisagreeWithTheirKeyAndCannotWidenTheKeyType() throws Exception {
         assertThat(compiles("runtime.group(\"g\", java.time.Duration.ofSeconds(1)).par(count, par, () -> \"wrong\");"))
                 .isFalse();
         assertThat(compiles("runtime.group(\"g\", java.time.Duration.ofSeconds(1))"

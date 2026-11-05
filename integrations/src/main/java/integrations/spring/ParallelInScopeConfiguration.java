@@ -15,9 +15,9 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Wires one {@link ParRuntime} and its executors into a Spring application context.
  *
- * <p>The runtime has two entries. {@link #QUOTES} runs the outer per-request fan-out, whose bodies
+ * <p>The runtime has two entries. {@link #QUOTES} runs the outer per-request fan-out, whose executions
  * wait for nested groups; {@link #DOWNSTREAM} runs the remote calls those groups make. Waiting
- * bodies and the work they wait for use separate pools, so a full pool cannot starve its own
+ * executions and the work they wait for use separate pools, so a full pool cannot starve its own
  * children; {@link ParRuntime#executorWaitReport()} stays free of cycles.
  *
  * <p>The executors are plain {@link ThreadPoolExecutor} beans, not Spring's {@code
@@ -26,21 +26,21 @@ import org.springframework.context.annotation.Configuration;
  * by this library; context propagation goes through TransmittableThreadLocal instead.
  *
  * <p>Shutdown runs in three owners' order. {@link ParRuntimeLifecycle} closes the runtime and
- * waits for admitted bodies during the lifecycle stop phase, while every other bean is still
- * available to those bodies. The runtime's own {@code close} destroy method is a second, idempotent
+ * waits for admitted executions during the lifecycle stop phase, while every other bean is still
+ * available to those executions. The runtime's own {@code close} destroy method is a second, idempotent
  * close for a context that never started. The executor beans are destroyed after the runtime that
  * depends on them, with {@code shutdown}.
  */
 @Configuration(proxyBeanMethods = false)
 public class ParallelInScopeConfiguration {
 
-    /** Entry for the outer fan-out whose bodies wait for nested groups. */
+    /** Entry for the outer fan-out whose executions wait for nested groups. */
     public static final ParId QUOTES = ParId.of("quotes");
 
     /** Entry for blocking downstream calls. */
     public static final ParId DOWNSTREAM = ParId.of("downstream");
 
-    /** How long the lifecycle stop phase waits for admitted bodies to exit. */
+    /** How long the lifecycle stop phase waits for admitted executions to exit. */
     public static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
 
     /**
@@ -82,7 +82,7 @@ public class ParallelInScopeConfiguration {
     }
 
     /**
-     * Closes the runtime and waits for its bodies before the context destroys any bean.
+     * Closes the runtime and waits for its executions before the context destroys any bean.
      *
      * @param parRuntime the runtime to stop
      * @return the lifecycle bean

@@ -107,7 +107,7 @@ class ParRuntimePoliciesTest {
         // The guard reads the structure of the object it can see, and a TTL wrapper is not a
         // ThreadPoolExecutor. Before the wrapper was looked through, registering this pool skipped
         // the guard entirely and the silent-drop configuration the guard exists to refuse built
-        // successfully, surfacing only as a late timeout with no task body ever entered.
+        // successfully, surfacing only as a late timeout with no task execution ever entered.
         ThreadPoolExecutor physical = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new ThreadPoolExecutor.DiscardPolicy());
         ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);

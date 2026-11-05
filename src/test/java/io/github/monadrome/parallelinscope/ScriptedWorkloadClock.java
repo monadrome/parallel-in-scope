@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link WorkloadClock} whose wall and CPU readings advance only when the calling thread spends
- * scripted time, so each body's measured ratio is exactly what it declares.
+ * scripted time, so each execution's measured ratio is exactly what it declares.
  */
 final class ScriptedWorkloadClock implements WorkloadClock {
     private final ThreadLocal<long[]> elapsed = ThreadLocal.withInitial(() -> new long[2]);
@@ -15,7 +15,7 @@ final class ScriptedWorkloadClock implements WorkloadClock {
     private volatile boolean readable = true;
     private volatile @Nullable Error failure;
 
-    /** Advances the calling thread's clocks as a body that ran for {@code execution} using {@code cpu}. */
+    /** Advances the calling thread's clocks as an execution that ran for {@code execution} using {@code cpu}. */
     void spend(Duration execution, Duration cpu) {
         long[] clocks = elapsed.get();
         clocks[0] += execution.toNanos();

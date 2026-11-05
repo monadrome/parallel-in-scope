@@ -19,19 +19,19 @@ import org.junit.jupiter.api.Test;
  * Direct contract test of the shared close mechanism: counts, bounded waits, the zero-grace close,
  * and interruption during a close wait.
  */
-class BodyCompletionTrackerTest {
+class ExecutionExitTrackerTest {
 
     @Test
     void emptyTrackerIsDoneWithoutReleases() {
-        assertThat(BodyCompletionTracker.empty().isDone()).isTrue();
-        assertThat(BodyCompletionTracker.create(0).isDone()).isTrue();
+        assertThat(ExecutionExitTracker.empty().isDone()).isTrue();
+        assertThat(ExecutionExitTracker.create(0).isDone()).isTrue();
     }
 
     @Test
-    void outstandingBodiesKeepTheSignalPendingUntilTheLastRelease() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(2);
-        TaskBodyState first = tracker.register(context("first"));
-        TaskBodyState second = tracker.register(context("second"));
+    void outstandingExecutionsKeepTheSignalPendingUntilTheLastRelease() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(2);
+        TaskExecutionState first = tracker.register(context("first"));
+        TaskExecutionState second = tracker.register(context("second"));
 
         assertThat(tracker.isDone()).isFalse();
         assertThat(first.claimRunning()).isTrue();
@@ -44,8 +44,8 @@ class BodyCompletionTrackerTest {
 
     @Test
     void awaitBoundedNonPositiveBudgetPerformsASingleCheck() throws Exception {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context("task"));
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context("task"));
 
         assertThat(tracker.awaitBounded(0L)).isFalse();
         assertThat(tracker.awaitBounded(-1L)).isFalse();
@@ -58,8 +58,8 @@ class BodyCompletionTrackerTest {
 
     @Test
     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(context("task"));
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(context("task"));
         assertThat(slot.claimRunning()).isTrue();
         slot.exited();
 
@@ -67,28 +67,28 @@ class BodyCompletionTrackerTest {
     }
 
     @Test
-    void awaitBodyCompletionZeroTimeoutIsASingleCheck() throws Exception {
-        BodyCompletionTracker pending = BodyCompletionTracker.create(1);
+    void awaitExecutionExitZeroTimeoutIsASingleCheck() throws Exception {
+        ExecutionExitTracker pending = ExecutionExitTracker.create(1);
         pending.register(context("task"));
-        assertThat(pending.awaitBodyCompletion(Duration.ZERO)).isFalse();
+        assertThat(pending.awaitExecutionExit(Duration.ZERO)).isFalse();
 
-        BodyCompletionTracker done = BodyCompletionTracker.create(1);
-        TaskBodyState doneSlot = done.register(context("task"));
+        ExecutionExitTracker done = ExecutionExitTracker.create(1);
+        TaskExecutionState doneSlot = done.register(context("task"));
         assertThat(doneSlot.claimRunning()).isTrue();
         doneSlot.exited();
-        assertThat(done.awaitBodyCompletion(Duration.ZERO)).isTrue();
+        assertThat(done.awaitExecutionExit(Duration.ZERO)).isTrue();
     }
 
     @Test
     void zeroGraceCloseCancelsWithoutWaitingAndWithoutAWarning() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("task"));
         AtomicBoolean cancelled = new AtomicBoolean(false);
         List<String> warnings = new Vector<>();
 
         runWithLogCapture(
                 warnings::add,
-                () -> BodyCompletionTracker.cancelAndAwaitBodyExit(
+                () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
                         () -> cancelled.set(true), tracker, 0L, "scope 'x'", logger()));
 
         assertThat(cancelled).isTrue();
@@ -96,14 +96,14 @@ class BodyCompletionTrackerTest {
     }
 
     @Test
-    void closeGraceWaitReportsOutstandingBodiesWhenItElapses() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void closeGraceWaitReportsOutstandingExecutionsWhenItElapses() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("stuck"));
         List<String> warnings = new Vector<>();
 
         runWithLogCapture(
                 warnings::add,
-                () -> BodyCompletionTracker.cancelAndAwaitBodyExit(
+                () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
                         () -> {}, tracker, Duration.ofMillis(20).toNanos(), "scope 'x'", logger()));
 
         assertThat(warnings).hasSize(1);
@@ -112,7 +112,7 @@ class BodyCompletionTrackerTest {
 
     @Test
     void interruptionDuringACloseWaitRestoresTheFlagAndStopsQuietly() throws Exception {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("task"));
         List<String> warnings = new Vector<>();
         AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -120,7 +120,7 @@ class BodyCompletionTrackerTest {
             try {
                 runWithLogCapture(
                         warnings::add,
-                        () -> BodyCompletionTracker.cancelAndAwaitBodyExit(
+                        () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
                                 () -> {}, tracker, Duration.ofSeconds(10).toNanos(), "scope 'x'", logger()));
             } catch (Throwable thrown) {
                 failure.set(thrown);
@@ -145,11 +145,11 @@ class BodyCompletionTrackerTest {
         SettableFuture<String> pending = SettableFuture.create();
         long start = System.nanoTime();
 
-        assertThat(BodyCompletionTracker.awaitSettledUninterruptibly(done, 0L, start, null))
+        assertThat(ExecutionExitTracker.awaitSettledUninterruptibly(done, 0L, start, null))
                 .isTrue();
-        assertThat(BodyCompletionTracker.awaitSettledUninterruptibly(pending, 0L, start, null))
+        assertThat(ExecutionExitTracker.awaitSettledUninterruptibly(pending, 0L, start, null))
                 .isFalse();
-        assertThat(BodyCompletionTracker.awaitSettledUninterruptibly(
+        assertThat(ExecutionExitTracker.awaitSettledUninterruptibly(
                         pending, Duration.ofMillis(50).toNanos(), start, null))
                 .isFalse();
 
@@ -157,12 +157,12 @@ class BodyCompletionTrackerTest {
         // cannot fail — then it is an implementation defect the wait reports.
         SettableFuture<String> lateFailure = SettableFuture.create();
         failAfter(100L, lateFailure);
-        assertThat(BodyCompletionTracker.awaitSettledUninterruptibly(
+        assertThat(ExecutionExitTracker.awaitSettledUninterruptibly(
                         lateFailure, Duration.ofSeconds(10).toNanos(), System.nanoTime(), null))
                 .isTrue();
         SettableFuture<String> declaredCannotFail = SettableFuture.create();
         failAfter(100L, declaredCannotFail);
-        assertThatThrownBy(() -> BodyCompletionTracker.awaitSettledUninterruptibly(
+        assertThatThrownBy(() -> ExecutionExitTracker.awaitSettledUninterruptibly(
                         declaredCannotFail,
                         Duration.ofSeconds(10).toNanos(),
                         System.nanoTime(),
@@ -181,7 +181,7 @@ class BodyCompletionTrackerTest {
         });
         finisher.setDaemon(true);
         finisher.start();
-        assertThat(BodyCompletionTracker.awaitSettledUninterruptibly(
+        assertThat(ExecutionExitTracker.awaitSettledUninterruptibly(
                         lateDone, Duration.ofSeconds(10).toNanos(), System.nanoTime(), null))
                 .isTrue();
         finisher.join(5000L);
@@ -208,9 +208,9 @@ class BodyCompletionTrackerTest {
         SettableFuture<String> pending = SettableFuture.create();
         long start = System.nanoTime();
 
-        assertThat(BodyCompletionTracker.awaitSettled(done, 0L, start, null)).isTrue();
-        assertThat(BodyCompletionTracker.awaitSettled(pending, 0L, start, null)).isFalse();
-        assertThat(BodyCompletionTracker.awaitSettled(
+        assertThat(ExecutionExitTracker.awaitSettled(done, 0L, start, null)).isTrue();
+        assertThat(ExecutionExitTracker.awaitSettled(pending, 0L, start, null)).isFalse();
+        assertThat(ExecutionExitTracker.awaitSettled(
                         pending, Duration.ofMillis(50).toNanos(), start, null))
                 .isFalse();
 
@@ -226,22 +226,24 @@ class BodyCompletionTrackerTest {
         });
         finisher.setDaemon(true);
         finisher.start();
-        assertThat(BodyCompletionTracker.awaitSettled(
+        assertThat(ExecutionExitTracker.awaitSettled(
                         lateDone, Duration.ofSeconds(10).toNanos(), System.nanoTime(), null))
                 .isTrue();
         finisher.join(5000L);
     }
 
     @Test
-    void stuckBodySummaryCountsOutstandingBodiesByName() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(3);
-        TaskBodyState first = tracker.register(context("worker"));
+    void stuckExecutionSummaryCountsOutstandingExecutionsByName() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(3);
+        TaskExecutionState first = tracker.register(context("worker"));
         tracker.register(context("worker"));
         tracker.register(context("other"));
 
         assertThat(first.claimRunning()).isTrue();
         first.exited();
-        assertThat(tracker.stuckBodySummary()).containsEntry("worker", 1).containsEntry("other", 1);
+        assertThat(tracker.unexitedExecutionSummary())
+                .containsEntry("worker", 1)
+                .containsEntry("other", 1);
     }
 
     private static MultiTaskContext context(String taskName) {
@@ -250,7 +252,7 @@ class BodyCompletionTrackerTest {
     }
 
     private static Logger logger() {
-        return Logger.getLogger(BodyCompletionTrackerTest.class.getName());
+        return Logger.getLogger(ExecutionExitTrackerTest.class.getName());
     }
 
     /** Captures WARNING records published while {@code action} runs on this thread's logger. */

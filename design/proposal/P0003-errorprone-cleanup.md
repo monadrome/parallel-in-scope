@@ -135,7 +135,7 @@
 
 ### BooleanLiteral（3 条）
 
-- `src/test/java/io/github/monadrome/parallelinscope/TaskGroupBodyCompletionTest.java [BooleanLiteral]`：布尔值断言可直接表达期望值，应改成更清晰的布尔断言。
+- `src/test/java/io/github/monadrome/parallelinscope/TaskGroupExecutionExitTest.java [BooleanLiteral]`：布尔值断言可直接表达期望值，应改成更清晰的布尔断言。
 - `src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueCartesianTest.java [BooleanLiteral]`：布尔表达式写法冗余，应改为直接布尔断言。
 - `src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueCartesianTest.java [BooleanLiteral]`：布尔表达式写法冗余，应改为直接布尔断言。
 

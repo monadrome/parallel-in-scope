@@ -328,10 +328,10 @@ class TaskKeyTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    void uncheckedBodiesAreTheCallersResponsibility() throws Exception {
-        Callable rawBody = () -> 42;
+    void uncheckedExecutionsAreTheCallersResponsibility() throws Exception {
+        Callable rawTaskCode = () -> 42;
         TaskGroupResult<String, Void> result =
-                runtime.group("page", TIMEOUT).par(user, par, rawBody).runAll();
+                runtime.group("page", TIMEOUT).par(user, par, rawTaskCode).runAll();
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(result.resultOf("user").valueOrThrow()).isEqualTo(42);
         assertThatThrownBy(() -> {
@@ -340,7 +340,7 @@ class TaskKeyTest {
                 })
                 .isInstanceOf(ClassCastException.class);
 
-        CombineBody rawCombine = value -> 42;
+        Combiner rawCombine = value -> 42;
         TaskGroupResult<Integer, String> combined = runtime.group("page", TIMEOUT)
                 .par(total, par, () -> 1)
                 .combineValues(user, par, rawCombine)
@@ -402,7 +402,7 @@ class TaskKeyTest {
                     })
                     .runAll();
             assertThat(result.terminalValueOrThrow()).isZero();
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             TaskGroupResult<Void, Void> empty = inline.group("empty", TIMEOUT).runAll();
             assertThatThrownBy(() -> empty.resultOf(user)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> empty.valuesOrThrow().valueOf(user)).isInstanceOf(IllegalArgumentException.class);
@@ -454,7 +454,7 @@ class TaskKeyTest {
             TaskGroupResult<String, Integer> result = group.finish();
             assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(submissions).hasValue(0);
         }
     }
@@ -479,12 +479,12 @@ class TaskKeyTest {
         TaskGroupResult<String, Integer> result = group.finish();
         assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
         assertThat(calls).hasValue(1);
     }
 
     @Test
-    void rejectedValueViewTerminalIsAKeyedSubmissionFailureAndNeverEntersTheBody() {
+    void rejectedValueViewTerminalIsAKeyedSubmissionFailureAndNeverEntersTheExecution() {
         ExecutorService rejected = Executors.newFixedThreadPool(1);
         rejected.shutdown();
         AtomicInteger calls = new AtomicInteger();
@@ -501,7 +501,7 @@ class TaskKeyTest {
                     .runAll();
             assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(calls).hasValue(0);
         } finally {
             rejected.shutdownNow();
@@ -509,7 +509,7 @@ class TaskKeyTest {
     }
 
     @Test
-    void anUncooperativeValueViewTerminalDoesNotExtendCleanupOrClaimBodyExit() throws Exception {
+    void anUncooperativeValueViewTerminalDoesNotExtendCleanupOrClaimExecutionExit() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         TaskGroup<String, Integer> group = runtime.groupDraft("page", TIMEOUT)
@@ -527,12 +527,12 @@ class TaskKeyTest {
             group.cancel();
             TaskGroupResult<String, Integer> result = finishing.get(2, TimeUnit.SECONDS);
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-            assertThat(result.bodyCompletionConfirmed()).isFalse();
-            assertThat(result.unfinishedBodies()).containsEntry("total", 1);
+            assertThat(result.executionExitConfirmed()).isFalse();
+            assertThat(result.unexitedExecutions()).containsEntry("total", 1);
         } finally {
             release.countDown();
             try {
-                assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+                assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             } finally {
                 try {
                     finishing.get(2, TimeUnit.SECONDS);

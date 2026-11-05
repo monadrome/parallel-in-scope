@@ -30,9 +30,9 @@ import org.junit.jupiter.params.provider.EnumSource;
  * FINE} by provenance, every other late failure stays a {@code WARNING} (design/synchronous-scope-exit.md
  * section 4; design/interruption-contract.md sections 2.4 and 3.1).
  *
- * <p>Each body waits for a fact that happens only after its future settled as cancelled: the
+ * <p>Each execution waits for a fact that happens only after its future settled as cancelled: the
  * kernel's cancellation interrupt ({@code interruptTask()} runs after the cancelled state is
- * published), or an explicit {@code cancel(false)} the test performs before releasing the body.
+ * published), or an explicit {@code cancel(false)} the test performs before releasing the execution.
  * The late-failure branch is therefore reached deterministically.
  */
 @Timeout(10)
@@ -189,7 +189,7 @@ class LateFailureLoggingTest {
         assertThat(records).isEmpty();
     }
 
-    /** Late failures thrown by a body released only after an explicit {@code cancel(false)}. */
+    /** Late failures thrown by an execution released only after an explicit {@code cancel(false)}. */
     enum LateFailure {
         ACKNOWLEDGEMENT(false, () -> CheckpointCancellation.acknowledge("cancel during running", null)),
         ACKNOWLEDGEMENT_WITH_SUPPRESSED(true, () -> {
@@ -238,7 +238,7 @@ class LateFailureLoggingTest {
     }
 
     @Test
-    void interruptedExceptionAfterTheBodyRestoredTheKernelInterruptStaysAWarning() throws Exception {
+    void interruptedExceptionAfterTheExecutionRestoredTheKernelInterruptStaysAWarning() throws Exception {
         InterruptedException independent = new InterruptedException("close did not finish");
         Throwable logged = runDeliveredThenThrow(() -> {
             try {
@@ -303,12 +303,12 @@ class LateFailureLoggingTest {
         }
     }
 
-    /** Runs {@code body} on a worker, cancels it with interrupt once entered, returns the logged failure. */
-    private Throwable runDeliveredThenThrow(java.util.concurrent.Callable<Void> body) throws Exception {
+    /** Runs {@code taskCode} on a worker, cancels it with interrupt once entered, returns the logged failure. */
+    private Throwable runDeliveredThenThrow(java.util.concurrent.Callable<Void> taskCode) throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(() -> {
             entered.countDown();
-            return body.call();
+            return taskCode.call();
         });
         Thread worker = new Thread(future);
         worker.start();

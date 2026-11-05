@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  * <p>A group may declare one terminal combine: a real scoped task that depends on every member. Its
  * execution context and TTL snapshot are prepared at submission like a member's, but it is
  * submitted to its own {@code Par} only after all members succeed, and the group completes only
- * when its future is terminal. Its body receives the assembled member values as {@code V}; its own
+ * when its future is terminal. Its execution receives the assembled member values as {@code V}; its own
  * value is reached through {@link #terminalFuture()} and is not a slot in {@link GroupValues}.
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
@@ -114,7 +114,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     private final Task<TaskGroupReport> completionTask;
     private final CancellationToken groupToken;
-    private final BodyCompletionTracker bodyCompletion;
+    private final ExecutionExitTracker executionExit;
     private final @Nullable Duration closeGrace;
 
     /** Convergence barrier: incremented exactly once per completed task (member or combine). */
@@ -133,7 +133,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
     private final int totalTasks;
 
     /**
-     * Who owns the values of the group's adopted members: decided once, by the combine body's entry
+     * Who owns the values of the group's adopted members: decided once, by the combiner's entry
      * or by convergence, so a value is never both handed out and closed.
      */
     private final AtomicReference<ValueOwner> valueOwner;
@@ -149,7 +149,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
     enum ValueOwner {
         /** No owner yet: the combine has not entered and the group has not converged. */
         UNDECIDED,
-        /** The combine body entered, or the group succeeded without a combine. */
+        /** The combiner entered, or the group succeeded without a combine. */
         HANDED_OUT,
         /** The group converged with no owner; adopted members close what they produce. */
         DISCARDED
@@ -162,7 +162,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             CancellationToken groupToken,
             Map<String, MemberState> memberStates,
             @Nullable MemberState terminal,
-            BodyCompletionTracker bodyCompletion,
+            ExecutionExitTracker executionExit,
             @Nullable Duration closeGrace,
             AtomicReference<ValueOwner> valueOwner) {
         this.groupName = groupName;
@@ -170,7 +170,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.groupToken = groupToken;
-        this.bodyCompletion = bodyCompletion;
+        this.executionExit = executionExit;
         this.closeGrace = closeGrace;
         this.memberStates = ImmutableMap.copyOf(memberStates);
         this.orderedMembers = this.memberStates.values().asList();
@@ -197,7 +197,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // the group token, so a caller waiting on convergence reads the same attribution vocabulary
         // as on a member future. Its observation is the single group-level summary — the result is
         // the TaskGroupReport itself and the timings are the group's own — which describes no
-        // additional task body and is counted neither among the members nor as an executor wait.
+        // additional task execution and is counted neither among the members nor as an executor wait.
         this.completionTask = Task.of(
                 groupName, groupToken, completion, TaskObservation.of(() -> groupSummary(completion), completion));
         Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
@@ -259,10 +259,11 @@ final class TaskGroup<V, R> implements AutoCloseable {
             throw new AssertionError("group completion cannot fail", impossible);
         }
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, groupToken);
-        BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
+        long budget = ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, groupToken);
+        ExecutionExitTracker.awaitSettledUninterruptibly(
+                executionExit.executionExit(), budget, start, "execution-exit signal");
         for (MemberState member : membersAndTerminal) {
-            BodyCompletionTracker.awaitSettledUninterruptibly(
+            ExecutionExitTracker.awaitSettledUninterruptibly(
                     member.view.observationView(), budget, start, "member observation signal");
         }
         Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
@@ -292,8 +293,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
             frozenValues = ImmediateResult.failed(report.outcome(), failure);
         }
-        Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
-        BodyCompletionTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
+        Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
+        ExecutionExitTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
         ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
         if (terminal != null) {
             keyedResults.put(terminal.key, com.google.common.base.Verify.verifyNotNull(terminalResult));
@@ -400,7 +401,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      *
      * <p>This is the cancel-only entry: it issues the cancellation request and returns. Use {@link
      * #close()} when the calling thread should also wait, within the group's close grace, for task
-     * bodies to exit, and {@link #awaitBodyCompletion(Duration)} to wait with an independently
+     * executions to exit, and {@link #awaitExecutionExit(Duration)} to wait with an independently
      * chosen budget.
      */
     public void cancel() {
@@ -408,55 +409,55 @@ final class TaskGroup<V, R> implements AutoCloseable {
     }
 
     /**
-     * Cancels every unfinished member, then waits for task bodies to exit within the close grace,
+     * Cancels every unfinished member, then waits for task executions to exit within the close grace,
      * and returns.
      *
      * <p>The close grace is a cleanup budget set through {@link GroupStart#closeGrace(Duration)}.
      * When never configured, the wait budget is derived from the group's remaining execution
      * deadline at close time: a close triggered by an expired deadline returns right after
-     * cancelling, and a body that ignores interruption can hold this method at most until the
+     * cancelling, and an execution that ignores interruption can hold this method at most until the
      * deadline. An explicit grace overrides the derivation; {@link Duration#ZERO} makes this method
      * cancel-only, equivalent to {@link #cancel()}.
      *
-     * <p>Cancellation is idempotent; every call may wait for bodies that have not exited yet, but
+     * <p>Cancellation is idempotent; every call may wait for executions that have not exited yet, but
      * the grace never extends the group's execution deadline and does not revive cancelled tasks.
-     * When the grace elapses with bodies still running, the outstanding member names are logged at
-     * WARN level: a leaked body is visible data, not silence. The group's executors are never shut
+     * When the grace elapses with executions still running, the outstanding member names are logged at
+     * WARN level: a leaked execution is visible data, not silence. The group's executors are never shut
      * down, and user code that ignores interruption may keep running after this method returns.
      *
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait is
      * skipped with the interrupt flag preserved; an interruption during the wait likewise restores
      * the flag and returns. This method adds no checked exception.
      *
-     * <p>A normal return does not by itself make resources used by task bodies safe to release;
-     * confirm body exit with {@link #awaitBodyCompletion(Duration)} first.
+     * <p>A normal return does not by itself make resources used by task executions safe to release;
+     * confirm execution exit with {@link #awaitExecutionExit(Duration)} first.
      *
-     * @throws IllegalStateException if called from within a task body of this group, including a
+     * @throws IllegalStateException if called from within a task execution of this group, including a
      *     nested inline call on the same thread
      */
     @Override
     public void close() {
-        BodyCompletionTracker.cancelAndAwaitBodyExit(
+        ExecutionExitTracker.cancelAndAwaitExecutionExit(
                 () -> {
                     if (!completion.isDone()) {
                         cancel();
                     }
                 },
-                bodyCompletion,
-                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, groupToken),
+                executionExit,
+                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, groupToken),
                 "TaskGroup '" + groupName + "'",
                 LOGGER);
     }
 
     /**
-     * Waits until every task body of this group — all members and the terminal combine — has
+     * Waits until every task execution of this group — all members and the terminal combine — has
      * exited, or the budget elapses.
      *
-     * <p>Body exit means the user {@code Callable} returned or threw and its {@code finally}
+     * <p>Execution exit means the user {@code Callable} returned or threw and its {@code finally}
      * completed. A {@code true} result also covers tasks that will never be entered (cancelled,
-     * rejected, or never submitted) and establishes a happens-before edge from every task body's
+     * rejected, or never submitted) and establishes a happens-before edge from every task execution's
      * writes to this thread; once {@code true}, the result cannot be invalidated by a task starting
-     * late. {@code false} means the budget elapsed while at least one body had not exited, which
+     * late. {@code false} means the budget elapsed while at least one execution had not exited, which
      * may include tasks that have not started yet. A {@code true} result additionally waits out the
      * member observation publication barrier, so every member's {@link
      * TaskFuture#completionFuture()} is already done with its final snapshot.
@@ -466,25 +467,25 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * revives cancelled tasks. A zero timeout performs a single check.
      *
      * @param timeout the cleanup wait budget
-     * @return {@code true} if all task bodies exited within the budget
+     * @return {@code true} if all task executions exited within the budget
      * @throws NullPointerException if {@code timeout} is null
      * @throws IllegalArgumentException if {@code timeout} is negative
-     * @throws IllegalStateException if called from within a task body of this group, including a
+     * @throws IllegalStateException if called from within a task execution of this group, including a
      *     nested inline call on the same thread
      * @throws InterruptedException if the calling thread is interrupted before or during the wait
      */
-    public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
+    public boolean awaitExecutionExit(Duration timeout) throws InterruptedException {
         long startNanos = System.nanoTime();
-        if (!bodyCompletion.awaitBodyCompletion(timeout)) {
+        if (!executionExit.awaitExecutionExit(timeout)) {
             return false;
         }
-        // Bodies exited, so every member observation is published or about to be: the publication
+        // Executions exited, so every member observation is published or about to be: the publication
         // barrier fires on the same signals, but a member future's get() waiters can wake before
         // its observation listener runs. Wait out that window too, so a true result guarantees
         // every member's completionFuture() already carries its final snapshot.
         long budgetNanos = Deadlines.saturatedNanos(timeout);
         for (MemberState member : membersAndTerminal) {
-            if (!BodyCompletionTracker.awaitSettled(
+            if (!ExecutionExitTracker.awaitSettled(
                     member.view.observationView(), budgetNanos, startNanos, "member observation signal")) {
                 return false;
             }
@@ -548,10 +549,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * Prepares one complete run inside a single {@link ParRuntime#whileOpen} admission. Resolves
      * nesting, deadline, and TTL context from the calling thread and takes ownership of this run's
-     * bodies from {@code payloads}. No body executes until preparation succeeds.
+     * executions from {@code payloads}. No execution executes until preparation succeeds.
      *
-     * <p>The terminal combine's body is wrapped to receive the assembled member values. On any
-     * preparation failure every prepared future is cancelled — releasing the bodies the kernel took
+     * <p>The terminal combine's execution is wrapped to receive the assembled member values. On any
+     * preparation failure every prepared future is cancelled — releasing the executions the kernel took
      * — and the exception propagates so the caller can discard the untaken payloads; no user code
      * runs on this path.
      *
@@ -590,10 +591,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 structuralParent == null
                         ? env.timeoutScheduler()
                         : structuralParent.cancellationToken().timeoutScheduler());
-        // Every member and the terminal combine registers its body-completion slot here, before
+        // Every member and the terminal combine registers its execution exit slot here, before
         // any submission, so the shared signal covers tasks that start late or never start.
-        BodyCompletionTracker bodyCompletion =
-                BodyCompletionTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
+        ExecutionExitTracker executionExit =
+                ExecutionExitTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
         Map<String, MemberState> states = new LinkedHashMap<>();
         AtomicReference<ValueOwner> valueOwner = new AtomicReference<>(ValueOwner.UNDECIDED);
         MemberState terminal = null;
@@ -615,7 +616,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 MemberState state;
                 if (slot.adopted) {
                     TaskExecutionContext taskContext =
-                            new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
+                            new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
                     AdoptedSource adopted = payloads.adoptedAt(index);
                     adopted.attach(taskContext);
                     state = MemberState.adopted(slot.key, taskContext, adopted);
@@ -623,9 +624,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     Par runPar = slot.runPar();
                     runPar.diagnoseAdmission(unit);
                     TaskExecutionContext taskContext =
-                            new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
-                    Callable<Object> body = payloads.takeCallable(index);
-                    ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
+                            new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
+                    Callable<Object> taskCode = payloads.takeCallable(index);
+                    ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
                     state = MemberState.prepared(
                             slot.key,
                             taskContext,
@@ -647,10 +648,10 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 //
                 // Declining a rejection is not enough on its own, because a pool whose
                 // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
-                // the body without ever throwing RejectedExecutionException. There is nothing to
+                // the execution without ever throwing RejectedExecutionException. There is nothing to
                 // decline, and the combine would run on the convergence callback thread in silence.
                 // forbidInlineExecution() closes that path for a TPE-backed target, where thread
-                // identity proves a handler ran the body; see ExecutorRuntime for why it is scoped
+                // identity proves a handler ran the execution; see ExecutorRuntime for why it is scoped
                 // to a TPE and why an always-inline executor is left alone.
                 Par par = combineSlot.runPar();
                 MultiTaskContext unit = MultiTaskContext.resolve(
@@ -662,16 +663,16 @@ final class TaskGroup<V, R> implements AutoCloseable {
                                 .executor(par));
                 par.diagnoseAdmission(unit);
                 TaskExecutionContext taskContext =
-                        new TaskExecutionContext(unit, 0, start, bodyCompletion.register(unit));
-                CombineBody<Object, Object> combineBody = castCombineBody(payloads.takeCombineBody());
+                        new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
+                Combiner<Object, Object> combiner = castCombiner(payloads.takeCombiner());
                 boolean takesAdoptedValues = definition.members().stream().anyMatch(slot -> slot.adopted);
-                Callable<Object> body = () -> {
+                Callable<Object> taskCode = () -> {
                     if (takesAdoptedValues) {
                         claimValuesForCombine(valueOwner, combineSlot.name);
                     }
-                    return assembleTerminal(combineBody, states, combineSlot.valueView);
+                    return assembleTerminal(combiner, states, combineSlot.valueView);
                 };
-                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, body);
+                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
                 if (par.executorRuntime().threadPoolBacked()) {
                     future.forbidInlineExecution();
                 }
@@ -688,7 +689,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     groupToken,
                     states,
                     terminal,
-                    bodyCompletion,
+                    executionExit,
                     definition.closeGrace(),
                     valueOwner);
             if (structuralParent != null) {
@@ -712,25 +713,25 @@ final class TaskGroup<V, R> implements AutoCloseable {
             retained.add(group.ownershipSettled);
         }
         env.retainUntilComplete(retained);
-        env.trackBodies(bodyCompletion);
+        env.trackExecutions(executionExit);
         return group;
     }
 
     /**
-     * Assembles the terminal combine's input from the frozen member registry and applies the body.
+     * Assembles the terminal combine's input from the frozen member registry and applies the execution.
      *
      * <p>The combine runs only after every member succeeded, so each member future is already
      * settled; anything else is a framework invariant violation rather than user input.
      */
     private static @Nullable Object assembleTerminal(
-            CombineBody<Object, Object> body, Map<String, MemberState> states, boolean valueView) throws Exception {
-        return body.apply(valueView ? memberValues(states) : foldMemberValues(states));
+            Combiner<Object, Object> combiner, Map<String, MemberState> states, boolean valueView) throws Exception {
+        return combiner.apply(valueView ? memberValues(states) : foldMemberValues(states));
     }
 
     /**
-     * Hands the adopted values to the combine body that is about to run. Convergence can discard
-     * them first only after the combine future is already terminal, in which case the body's
-     * result is ignored anyway; the body then stops instead of reading values that are being closed.
+     * Hands the adopted values to the combiner that is about to run. Convergence can discard
+     * them first only after the combine future is already terminal, in which case the execution's
+     * result is ignored anyway; the execution then stops instead of reading values that are being closed.
      */
     private static void claimValuesForCombine(AtomicReference<ValueOwner> owner, String combineName) {
         if (!owner.compareAndSet(ValueOwner.UNDECIDED, ValueOwner.HANDED_OUT)) {
@@ -854,7 +855,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * Submits the prepared combine to its own executor exactly once, with no group state lock held.
      * The submission runs on the convergence callback thread (or the submit thread for an empty
-     * group); the executor decides where the body runs, including inline execution for a direct
+     * group); the executor decides where the execution runs, including inline execution for a direct
      * executor. A recognized thread pool's inline rejection fallback is refused. A combine that
      * lost to cancellation is never submitted, and a cancellation racing the submission still
      * cannot enter user code because the future's phase claim guards the call.
@@ -1034,20 +1035,20 @@ final class TaskGroup<V, R> implements AutoCloseable {
              * The run's retention keeps the releases pool alive until ownershipSettled below, so
              * the hand-off normally dispatches; a pool that cannot start a thread runs the release
              * inline on this thread, and runAll's liveness rests on the deadline, never on a closer
-             * returning. The bounded cleanup wait covers the closers through the body slots.
+             * returning. The bounded cleanup wait covers the closers through the execution slots.
              */
             if (discard) {
                 settleAdopted(true);
             }
         } finally {
-            BodyCompletionTracker.complete(ownershipSettled);
+            ExecutionExitTracker.complete(ownershipSettled);
         }
     }
 
     /**
      * Decides who owns the adopted values from the converged outcome and reports whether nobody
      * does. A successful group hands them out (the combine already took them, or the caller
-     * receives them); any other outcome discards them unless the combine body had already entered.
+     * receives them); any other outcome discards them unless the combiner had already entered.
      */
     private boolean decideValueOwner(TaskOutcome decided) {
         if (decided == TaskOutcome.SUCCESS) {
@@ -1248,7 +1249,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             this.adopted = adopted;
         }
 
-        /** A member or combine whose prepared body the library submits to {@code executor}. */
+        /** A member or combine whose prepared execution the library submits to {@code executor}. */
         static MemberState prepared(
                 TaskKey<?> key,
                 TaskExecutionContext context,
@@ -1270,7 +1271,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         }
 
         /**
-         * Starts this member after the binds: submits a prepared body once with the member's batch
+         * Starts this member after the binds: submits a prepared execution once with the member's batch
          * scope installed unless it already settled, or connects an adopted source — always, so a
          * mirror cancelled before this point still cancels its source.
          */
@@ -1287,7 +1288,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
         }
 
-        /** Whether the prepared body reference is released; an adopted member never held one. */
+        /** Whether the prepared execution reference is released; an adopted member never held one. */
         private boolean callableReleased() {
             ExecutionPhaseHintFuture<Object> task = prepared;
             return task == null || task.callableReleased();
@@ -1301,25 +1302,25 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
     /**
      * The one-shot payload carrier handed from the declaration draft to the preparation kernel:
-     * lives only until each prepared task adopts its body, clearing its slot on every take, and is
+     * lives only until each prepared task adopts its execution, clearing its slot on every take, and is
      * cleared wholesale on any failure path so a rejected submission retains no user closure.
      */
     static final class RunBindings {
-        private final @Nullable Callable<?>[] taskBodies;
+        private final @Nullable Callable<?>[] taskCodes;
         private final @Nullable AdoptedSource[] adoptedSources;
-        private @Nullable CombineBody<?, ?> combineBody;
+        private @Nullable Combiner<?, ?> combiner;
 
         RunBindings(
-                @Nullable Callable<?>[] taskBodies,
+                @Nullable Callable<?>[] taskCodes,
                 @Nullable AdoptedSource[] adoptedSources,
-                @Nullable CombineBody<?, ?> combineBody) {
-            this.taskBodies = taskBodies;
+                @Nullable Combiner<?, ?> combiner) {
+            this.taskCodes = taskCodes;
             this.adoptedSources = adoptedSources;
-            this.combineBody = combineBody;
+            this.combiner = combiner;
         }
 
         /**
-         * The adopted source of one member. Unlike a body it stays in this carrier, so {@link
+         * The adopted source of one member. Unlike an execution it stays in this carrier, so {@link
          * #discard()} can still abandon it if admission fails after preparation took it.
          */
         AdoptedSource adoptedAt(int memberIndex) {
@@ -1327,26 +1328,26 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     adoptedSources[memberIndex], "member %s has no adopted source", memberIndex);
         }
 
-        /** Moves one member's callable out: the slot is cleared before the body is returned. */
+        /** Moves one member's callable out: the slot is cleared before the execution is returned. */
         @SuppressWarnings("unchecked")
         Callable<Object> takeCallable(int memberIndex) {
-            Callable<Object> body = (Callable<Object>) taskBodies[memberIndex];
-            taskBodies[memberIndex] = null;
-            return body;
+            Callable<Object> taskCode = (Callable<Object>) taskCodes[memberIndex];
+            taskCodes[memberIndex] = null;
+            return taskCode;
         }
 
-        /** Moves the combine body out: the slot is cleared before the body is returned. */
+        /** Moves the combiner out: the slot is cleared before the execution is returned. */
         @Nullable
-        CombineBody<?, ?> takeCombineBody() {
-            CombineBody<?, ?> body = combineBody;
-            combineBody = null;
-            return body;
+        Combiner<?, ?> takeCombiner() {
+            Combiner<?, ?> taken = combiner;
+            combiner = null;
+            return taken;
         }
 
         /** Clears every payload still held; used when preparation or admission never consumed them. */
         void discard() {
-            Arrays.fill(taskBodies, null);
-            combineBody = null;
+            Arrays.fill(taskCodes, null);
+            combiner = null;
             for (AdoptedSource source : adoptedSources) {
                 if (source != null) {
                     source.abandon();
@@ -1357,19 +1358,19 @@ final class TaskGroup<V, R> implements AutoCloseable {
         /** Package-private probe for ownership tests. */
         @VisibleForTesting
         boolean taskSlotCleared(int memberIndex) {
-            return taskBodies[memberIndex] == null;
+            return taskCodes[memberIndex] == null;
         }
 
         /** Package-private probe for ownership tests. */
         @VisibleForTesting
         boolean combineSlotCleared() {
-            return combineBody == null;
+            return combiner == null;
         }
     }
 
-    /** Re-asserts the combine body's two-parameter shape after the declaration layer erased it. */
+    /** Re-asserts the combiner's two-parameter shape after the declaration layer erased it. */
     @SuppressWarnings("unchecked")
-    private static CombineBody<Object, Object> castCombineBody(@Nullable CombineBody<?, ?> body) {
-        return (CombineBody<Object, Object>) Objects.requireNonNull(body, "combine body cannot be null");
+    private static Combiner<Object, Object> castCombiner(@Nullable Combiner<?, ?> combiner) {
+        return (Combiner<Object, Object>) Objects.requireNonNull(combiner, "combiner cannot be null");
     }
 }

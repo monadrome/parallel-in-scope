@@ -14,7 +14,7 @@
 3. 包级 CheckReturnValue 是否有比现有类/接口级规则更高的收益，须重新给出真实命中证据。
 4. fullyLock 辅助方法的窄抑制是否需要重构，与错误锁协议修复分别论证。
 5. submissionExecutorIsAdapter、TaskExecutionContext 计时查询的注解用途，以及
-   awaitQuiescence/awaitBodyCompletion 布尔返回值的忽略策略，按具体调用契约决定。
+   awaitQuiescence/awaitExecutionExit 布尔返回值的忽略策略，按具体调用契约决定。
 
 ## 边界与来源
 

@@ -12,11 +12,11 @@ ISE or MEMBER_CANCELLED attribution should inspect the actual result and caller 
 | Source | Finding and evidence | Disposition |
 |---|---|---|
 | P0014 | Completed SettableFuture failure inspection and every batch/group/terminal freezing path on direct and pooled executors throws unrelated ISE for an interrupted caller | Retained: Futures.getDone preserves the business cause, flag, and existing settle pin |
-| P0015 | Public runAll with a token-domain clock advanced inside a body and a pending timer returns member/terminal TIMEOUT but group MEMBER_CANCELLED | Retained: register the existing TIMEOUT listener before deciding whether to skip redundant bind; no new clock fallback or convergence policy |
+| P0015 | Public runAll with a token-domain clock advanced inside an execution and a pending timer returns member/terminal TIMEOUT but group MEMBER_CANCELLED | Retained: register the existing TIMEOUT listener before deciding whether to skip redundant bind; no new clock fallback or convergence policy |
 | P0016 | Direct report listener Error leaves an ISSUE report published but diagnostic count zero | Retained: diagnose in publication finally, preserve Error propagation and reentrant publication order |
 | P0016 | Existing graph-data test seam throws detection Error, then a report listener throws another Error; close loses the detection Error | Retained as a defensive internal test: primary detection Error and report cause remain, publication Error is suppressed |
 | P0010 | Nonempty null-mapper map returns task USER_FAILURE; empty/null inputs accept the invalid mapper | Retained: reject the caller argument before admission, with ordered options/function validation |
-| P0011 | Surefire selection by TaskBatchResultBodyCompletionTest reports no matching tests | Retained: align the class name with its existing file |
+| P0011 | Surefire selection by TaskBatchResultExecutionExitTest reports no matching tests | Retained: align the class name with its existing file |
 | P0011 | Actual bilingual client and fallback snippets fail Java 8 compilation (checked IOException method reference and missing lambda return) | Retained: translate checked IO failure in the Function and return success; interruption is restored and translated with its original cause |
 | P0011 | Actual MDC recipe on a direct executor clears enclosing TTL and MDC fields | Retained: save/restore enclosing values, including the absent-context case |
 | P0011 | IO prose promises interrupt stops blocking IO and socket read timeouts bound a whole call, contradicting interruption and client contracts | Retained as a documentation contradiction: explain interrupt requests and individual client waits |
@@ -38,7 +38,7 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0002 | Deferred: breaking API reductions have downstream counterevidence and unresolved migration choices |
 | P0003 | Already fixed in the baseline; no additional evidenced runtime defect |
 | P0004 | Deferred: new shared-budget API and clock-domain choice |
-| P0005 | Deferred: subtree confirmation is a new capability; current direct-body boundary is explicitly contracted |
+| P0005 | Deferred: subtree confirmation is a new capability; current direct-execution boundary is explicitly contracted |
 | P0006 | Deferred: protocol/live-surface refactors lack a measured failure; its interruption concern is covered by P0014 |
 | P0007 | Batch failure selection uses one scan before collecting successful values; the fused single-pass alternative regressed medium batches and failed reads in local measurements. Remaining statistics, projection, and lookup measurements continue in P0027 |
 | P0008 | Deferred: new diagnostic identity/lifetime capability |
@@ -116,7 +116,7 @@ This does not claim that Central already serves a byte-identical artifact. Histo
 Examples MUST compile against the documented Function/Callable shape and follow interruption P1-P4.
 TTL/MDC bridges MUST restore original context on the same thread, including nested and direct execution;
 the established restore rule is in [extension-and-wrapping](extension-and-wrapping.md). IO teaching
-MUST distinguish interrupt delivery, client wait timeouts, and the independent body-exit boundary.
+MUST distinguish interrupt delivery, client wait timeouts, and the independent execution-exit boundary.
 Targeted test selection by the documented file's class name MUST address the intended test class.
 Historical source: `proposal:P0011`; remaining maintenance directions are in P0022.
 

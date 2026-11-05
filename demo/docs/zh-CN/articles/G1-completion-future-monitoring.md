@@ -41,9 +41,9 @@ Future<String> future = pool.submit(() -> {
 - `totalTime()` — 总耗时（等待 + 执行），返回 `Duration`
 - `outcome()` / `failure()` — 终态归因与任务异常（成功时 failure 为 null）
 
-快照只在结果确定**且**直接任务体退出后可用，计时为最终值；失败、取消、拒绝均保留真实 outcome，
+快照只在结果确定**且**直接执行退出后可用，计时为最终值；失败、取消、拒绝均保留真实 outcome，
 从未开始的任务 start/end 为零。清理预算耗尽时，尚无最终快照的项为 null，返回后不会补写。
-此时用 `results()` / `outcomeCounts()` 统计全部任务状态，用 `unfinishedBodies()` 报告未确认退出项；
+此时用 `results()` / `outcomeCounts()` 统计全部任务状态，用 `unexitedExecutions()` 报告未确认退出项；
 不要把缺失快照计作零耗时。可用快照通过 `executionTime()`、`waitTime()` 接入延迟和排队监控。
 
 ## 代码

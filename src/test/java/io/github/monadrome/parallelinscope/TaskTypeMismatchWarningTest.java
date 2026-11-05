@@ -185,7 +185,7 @@ class TaskTypeMismatchWarningTest {
     }
 
     /**
-     * A nested unit declares its own type: a batch submitted from a body of a {@code BLOCKING} batch
+     * A nested unit declares its own type: a batch submitted from an execution of a {@code BLOCKING} batch
      * is undeclared unless it says otherwise, and the terminal combine of {@code mapAndCombine}
      * never inherits the batch's type.
      */

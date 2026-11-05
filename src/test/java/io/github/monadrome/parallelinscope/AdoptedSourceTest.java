@@ -21,15 +21,15 @@ import org.junit.jupiter.api.Test;
 /** Kernel lifecycle of one adopted member, below the group API: abandonment, null values, and logging. */
 class AdoptedSourceTest {
 
-    private static TaskExecutionContext prepared(BodyCompletionTracker tracker) {
+    private static TaskExecutionContext prepared(ExecutionExitTracker tracker) {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 TaskOptions.timeout(Duration.ofSeconds(5)).spec("adopted"), 1));
         return new TaskExecutionContext(unit, 0, System.nanoTime(), tracker.register(unit));
     }
 
     @Test
-    void abandoningAPreparedSourceReleasesItsBodySlotOnceTheSourceSettles() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void abandoningAPreparedSourceReleasesItsExecutionSlotOnceTheSourceSettles() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         SettableFuture<String> source = SettableFuture.create();
         AdoptedSource adopted = new AdoptedSource("adopted", source, null, MoreExecutors.directExecutor());
         adopted.attach(prepared(tracker));
@@ -43,7 +43,7 @@ class AdoptedSourceTest {
 
     @Test
     void abandoningAConnectedSourceLeavesItToTheGroup() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         SettableFuture<String> source = SettableFuture.create();
         AdoptedSource adopted = new AdoptedSource("adopted", source, null, MoreExecutors.directExecutor());
         adopted.attach(prepared(tracker));
@@ -59,7 +59,7 @@ class AdoptedSourceTest {
 
     @Test
     void aDiscardedNullValueIsNeverPassedToTheCloser() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicInteger closes = new AtomicInteger();
         AdoptedSource adopted = new AdoptedSource(
                 "adopted",
@@ -95,7 +95,7 @@ class AdoptedSourceTest {
         try {
             for (Exception failure :
                     new Exception[] {new IllegalStateException("broken"), new InterruptedException("stop")}) {
-                BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+                ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
                 AdoptedSource adopted = new AdoptedSource(
                         "adopted",
                         Futures.immediateFuture("value"),
@@ -125,7 +125,7 @@ class AdoptedSourceTest {
 
     @Test
     void aReleaseTheExecutorRefusesRunsOnTheSettlingThread() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicInteger closes = new AtomicInteger();
         AdoptedSource adopted = new AdoptedSource(
                 "adopted", Futures.immediateFuture("value"), value -> closes.incrementAndGet(), command -> {

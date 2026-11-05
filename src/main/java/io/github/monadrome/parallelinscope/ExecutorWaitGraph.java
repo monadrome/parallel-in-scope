@@ -71,7 +71,7 @@ final class ExecutorWaitGraph {
         this.state = new AtomicReference<>(State.empty());
     }
 
-    /** Records that {@code waiter}'s body synchronously waits for {@code awaited}. */
+    /** Records that {@code waiter}'s execution synchronously waits for {@code awaited}. */
     void record(@Nullable TaskNode waiter, TaskNode awaited) {
         if (waiter == null) {
             return;
@@ -88,7 +88,7 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * Records that {@code waiter}'s body synchronously waits for both {@code firstAwaited} and
+     * Records that {@code waiter}'s execution synchronously waits for both {@code firstAwaited} and
      * {@code secondAwaited}: the two-target form of {@link #record(TaskNode, int, IntFunction)}, so
      * both new waits become visible together.
      */
@@ -117,7 +117,7 @@ final class ExecutorWaitGraph {
     }
 
     /**
-     * Records one admission: {@code waiter}'s body synchronously waits for every unit read through
+     * Records one admission: {@code waiter}'s execution synchronously waits for every unit read through
      * {@code awaitedAt} at indices {@code [0, awaitedCount)}. The accessor must be total over that
      * range and return non-null units. A top-level admission, without a waiter, records nothing.
      * The admission's new waits become visible together. A failure of the recording itself is
@@ -205,7 +205,7 @@ final class ExecutorWaitGraph {
 
     private static String warning(ExecutorWaitReport.Component component) {
         return "Potential executor deadlock: " + component
-                + ". A task body on each of these starvation-prone pools synchronously waits for work"
+                + ". A task execution on each of these starvation-prone pools synchronously waits for work"
                 + " queued on the next, so under load every worker of the cycle can wait for work queued"
                 + " behind itself. This is a wait structure the ParRuntime has observed at some point,"
                 + " not proof that the waits overlap or that threads are deadlocked now; see"

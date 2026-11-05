@@ -101,7 +101,7 @@ class TaskGroupCombineTest {
             assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(Objects.requireNonNull(result.terminal()).startTimeNanos())
                     .isZero();
-            // The skipped combine released its body holder with the terminal future
+            // The skipped combine released its execution holder with the terminal future
             // (task-group-terminal-combine.md §3, completion-count invariant).
             assertThat(group.callableReleased("assemble")).isTrue();
         } finally {
@@ -172,10 +172,10 @@ class TaskGroupCombineTest {
     }
 
     @Test
-    void combineFailsSubmissionOnRejectionWithoutRunningTheBody() throws Exception {
+    void combineFailsSubmissionOnRejectionWithoutRunningTheExecution() throws Exception {
         // The terminal combine never runs on the submitting thread — its submission thread is the
         // join-time convergence callback, and forbidInlineExecution refuses an inline handoff — so
-        // a rejection stays SUBMISSION_FAILURE and the combine body never runs.
+        // a rejection stays SUBMISSION_FAILURE and the combiner never runs.
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
         ParRuntime global = ParRuntime.builder()
@@ -393,7 +393,7 @@ class TaskGroupCombineTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            // The combine body receives the assembled tuple itself, not a handle-keyed view: the
+            // The combiner receives the assembled tuple itself, not a handle-keyed view: the
             // positions are the declaration order of the par calls, and a member that succeeded
             // with null keeps its slot.
             TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", TIMEOUT)

@@ -16,12 +16,12 @@ import org.jspecify.annotations.Nullable;
  * <p>The terminal combine shares the batch's deadline and cancellation lifecycle: it runs exactly
  * once, only after every element succeeded, and it is cancelled without running when any element
  * failed, was cancelled, or the deadline expired first. Its outcome is attributed like an element's
- * — {@code USER_FAILURE} for a business failure of the combine body (the original throwable is
+ * — {@code USER_FAILURE} for a business failure of the combiner (the original throwable is
  * preserved), {@code SUBMISSION_FAILURE} when the combine's own executor rejected it, {@code
  * FAIL_FAST}/{@code TIMEOUT}/{@code GROUP_CANCELLED} for the framework paths.
  *
  * <p>The element results keep their full fidelity in {@link #batchResult()}; both the elements and
- * the combine are covered by {@link #bodyCompletionConfirmed()} and {@link #unfinishedBodies()}.
+ * the combine are covered by {@link #executionExitConfirmed()} and {@link #unexitedExecutions()}.
  *
  * @param <E> the element result type
  * @param <C> the terminal combine result type
@@ -48,7 +48,7 @@ public final class BatchCombinedResult<E, C> {
 
     /**
      * The frozen element batch: per-element results, observations, and outcome counts, in input
-     * order. A successful element may carry a null value; the list the combine body received
+     * order. A successful element may carry a null value; the list the combiner received
      * preserves those nulls.
      *
      * @return the element batch result
@@ -68,7 +68,7 @@ public final class BatchCombinedResult<E, C> {
 
     /**
      * The terminal combine's final observation snapshot, or {@code null} when the bounded cleanup
-     * wait elapsed before the combine's body-exit observation was published — the same honesty rule
+     * wait elapsed before the combine's execution-exit observation was published — the same honesty rule
      * as missing element observations.
      *
      * @return the terminal observation, or {@code null} when unavailable
@@ -121,22 +121,22 @@ public final class BatchCombinedResult<E, C> {
     }
 
     /**
-     * Whether every task body — all elements and the terminal combine — exited within the cleanup
-     * budget. See {@link TaskBatchResult#bodyCompletionConfirmed()}.
+     * Whether every task execution — all elements and the terminal combine — exited within the cleanup
+     * budget. See {@link TaskBatchResult#executionExitConfirmed()}.
      *
-     * @return {@code true} if every body exited or was atomically prevented from starting
+     * @return {@code true} if every execution exited or was atomically prevented from starting
      */
-    public boolean bodyCompletionConfirmed() {
-        return elements.bodyCompletionConfirmed();
+    public boolean executionExitConfirmed() {
+        return elements.executionExitConfirmed();
     }
 
     /**
-     * The bodies still running when the cleanup budget elapsed; see {@link
-     * TaskBatchResult#unfinishedBodies()}.
+     * The executions still running when the cleanup budget elapsed; see {@link
+     * TaskBatchResult#unexitedExecutions()}.
      *
-     * @return unfinished body counts by task name
+     * @return unfinished execution counts by task name
      */
-    public Map<String, Integer> unfinishedBodies() {
-        return elements.unfinishedBodies();
+    public Map<String, Integer> unexitedExecutions() {
+        return elements.unexitedExecutions();
     }
 }

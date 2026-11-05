@@ -1,7 +1,7 @@
 # 仅同步出口的并行作用域
 
 > 公开执行仅同步返回；内部并行。退出策略采用现有有界清理，保留 closeGrace，
-> 不采用无限等待任务体退出。本文是公开执行/结果形状的权威契约。
+> 不采用无限等待执行退出。本文是公开执行/结果形状的权威契约。
 
 ## 1. 决策与边界
 
@@ -11,16 +11,16 @@ ImmediateResult<T> 类似 Either<Throwable,T>，不实现 Future；asFuture 提�
 两个边界独立：
 
 - 结果确定：任务成功、失败或取消已经落定。
-- 任务体退出：直接任务退出 finally，或被原子确定不会再进入 body。
+- 执行退出：直接任务退出 finally，或被原子确定不会再进入执行。
 
-取消可能先完成结果而 body 仍在关闭资源。Java 不能强制停止任意 Callable/close，
-因此没有硬性“资源一定关闭”或墙钟耗时上限；executor.execute 也可能同步阻塞在用户 body。
-有界清理耗尽时返回 unfinishedBodies、缺失最终观测，并告警；不伪造退出时刻。
+取消可能先完成结果而执行仍在关闭资源。Java 不能强制停止任意 Callable/close，
+因此没有硬性“资源一定关闭”或墙钟耗时上限；executor.execute 也可能同步阻塞在用户执行。
+有界清理耗尽时返回 unexitedExecutions、缺失最终观测，并告警；不伪造退出时刻。
 
-bodyCompletionConfirmed 只覆盖直接 batch 元素或 group 成员及 combine，**不递归覆盖子调用**。
-嵌套执行可能返回未确认退出的结果，父 body 随后成功退出。释放共享资源必须确认全部使用者，
-包括分别检查相关子调用；外部线程/异步 IO 不属于库任务体边界。runtime 关闭并成功
-awaitQuiescence 可在应用 shutdown 边界确认全部已接纳 body。
+executionExitConfirmed 只覆盖直接 batch 元素或 group 成员及 combine，**不递归覆盖子调用**。术语与退出确认的定义见 [中断契约](interruption-contract.md) §1.2（`proposal:P0035`）。
+嵌套执行可能返回未确认退出的结果，父执行随后成功退出。释放共享资源必须确认全部使用者，
+包括分别检查相关子调用；外部线程/异步 IO 不属于库任务代码边界。runtime 关闭并成功
+awaitQuiescence 可在应用 shutdown 边界确认全部已接纳执行。
 
 ## 2. 最佳用户代码与消除的失败模式
 
@@ -69,7 +69,7 @@ return runtime.group("profile", Duration.ofSeconds(3))
 ```
 
 消除：忘记等待、忘记每次执行清理、把运行句柄当成已完成值。
-清理仍不承诺全部 body 退出，结果显式暴露此事实。单任务迁移到单成员组；不新增另一套 unary
+清理仍不承诺全部执行退出，结果显式暴露此事实。单任务迁移到单成员组；不新增另一套 unary
 公开 API，不提供 async 变体。公开接口与签名破坏性变更无兼容 shim。
 
 请求取消的改前最佳代码只能在检查点轮询应用标志：
@@ -105,7 +105,7 @@ par.map(ids, this::fetch,
 | Group.valuesResult | ImmediateResult<GroupValues<V>>；combine 失败也使聚合失败 |
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
-| bodyCompletionConfirmed / unfinishedBodies | 返回时直接 body 退出状态，浅不可变、不轮询 |
+| executionExitConfirmed / unexitedExecutions | 返回时直接执行退出状态，浅不可变、不轮询 |
 | Batch.completions | 输入顺序 @Nullable TaskCompletion 列表，缺失项为 null |
 | Group.members / terminal | 可用最终快照，缺失成员省略、缺失 combine 为 null |
 
@@ -131,10 +131,10 @@ ExecutionException.cause"，不承诺异常类型；取消形状不等于 Cancel
 `USER_FAILURE`/`SUBMISSION_FAILURE` 元素；批+combine 先取元素、再取 combine 自身，因此元素失败不会被报成
 combine 的 FAIL_FAST 取消；组取已记录的失败成员或 combine。选中失败是 `RuntimeException`/`Error` 时原样抛出，
 checked 时包成 `CompletionException`（消息含作用域名与任务定位）；没有记录失败而 outcome 非 `SUCCESS` 时抛
-`CancellationException`。body 自抛的 `CancellationException` 归 `USER_FAILURE`，原样抛出后与框架取消同类型，
+`CancellationException`。执行自抛的 `CancellationException` 归 `USER_FAILURE`，原样抛出后与框架取消同类型，
 区分要读 `outcome()`。单任务容器 `ImmediateResult.valueOrThrow()` 不是聚合读取，保持受检：作用域级 join
 非受检、单任务 Either 受检，与 JDK 25 `StructuredTaskScope.join()` 和 `Future.get()` 的分工一致。
-结果函数不重跑 body。
+结果函数不重跑执行。
 类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。左嵌套 Tuple2、nullable 值与空组保持。
 
 批次失败检查在一次扫描中记住首个取消项，遇到首个已记录执行失败时立即抛出，只有整遍扫描
@@ -175,12 +175,12 @@ MUST 落到 `AssertionError`，不被 default 分支吸收：新增 `TaskOutcome
 MUST NOT 收集每个观测值或构造完整聚合结果列表；使用不收集值的 Guava 成功组合，观测构造
 异常 MUST 保持可见，不能把失败输入当作成功发布。完整列表只在内部观测入口被请求时惰性
 构造，其 future MUST 保持引用稳定、忽略取消，列表仍只读并保留原单元素观测对象。
-内部 `awaitBodyCompletion` 返回 true 时，既有完整列表 future 也 MUST 已完成；只等待轻量
+内部 `awaitExecutionExit` 返回 true 时，既有完整列表 future 也 MUST 已完成；只等待轻量
 屏障不足以保证随后注册的完整列表监听器已发布。
 
 最终快照仍按每个元素的 settle pin 冻结结果，并从可用观测读取最终时间；MUST NOT 用较晚的
-共享 token 状态替换落定归因，也 MUST NOT 在返回后补齐缺失观测。body 退出、future 终态、
-观测发布三者保持独立；body/观测清理共用一个预算起点。仅惰性化同一个聚合列表而继续在
+共享 token 状态替换落定归因，也 MUST NOT 在返回后补齐缺失观测。执行退出、future 终态、
+观测发布三者保持独立；执行/观测清理共用一个预算起点。仅惰性化同一个聚合列表而继续在
 同步出口等待它，不能消除主路径收集成本；直接复用所有原观测也会丢失归因校正。
 
 ## 4. 中断与有界清理
@@ -194,20 +194,20 @@ caller interrupt 不转成结果 Left、不触发 scope 取消，不跳过或重
 
 deadline、fail-fast、parent token、显式 `cancelOn` 请求来源、runner interruption、checkpoint 保持；
 所有入口仍 bind-before-submit，prepared future 视图从创建即绑定，不恢复 placeholder/later-bind。
-运行在调用线程的 direct/CallerRuns body 继续按既有借用线程政策隔离入口标志；不声称
-inline body 期间新收到的外部中断一定保留。只读结果/adapter 不消费标志。
+运行在调用线程的 direct/CallerRuns 执行继续按既有借用线程政策隔离入口标志；不声称
+inline 执行期间新收到的外部中断一定保留。只读结果/adapter 不消费标志。
 
 每项结果与 submission loop settled 后开始一次 cleanup budget：
-显式 closeGrace，或剩余 deadline；多个 body/观测屏障共享预算。
+显式 closeGrace，或剩余 deadline；多个执行/观测屏障共享预算。
 零 grace 单次检查，无无限 join。超时不延长任务执行资格、不恢复被取消任务。
 显式 timeout（`BatchOptions.timeout`、`TaskOptions.timeout`、`ParRuntime.group`）MUST 解析为有限
 deadline：和溢出时钳制在 `Long.MAX_VALUE - 1`，MUST NOT 解析成「无 deadline」哨兵，否则不布防定时器、
 默认清理预算归零，更大的 timeout 反而得到更小的清理等待。哨兵只能经继承到达；公开入口都有 deadline。
 时钟读数本身已在钳制点时，钳制后的 deadline 即已过期，真实 `nanoTime()` 到不了这一点。
-观测仅从真实完成的信号读取。返回时未确认退出的 body 仍由 runtime 的现有信号跟踪。
+观测仅从真实完成的信号读取。返回时未确认退出的执行仍由 runtime 的现有信号跟踪。
 
-任务局部资源使用 body 内 try-with-resources；库不注册资源、不发现捕获/返回对象。
-关闭主异常/suppressed 按 Java 规则；取消先落定后的迟到 body/close 失败在共享 future
+任务局部资源使用执行内 try-with-resources；库不注册资源、不发现捕获/返回对象。
+关闭主异常/suppressed 按 Java 规则；取消先落定后的迟到执行/close 失败在共享 future
 执行内核记录原 Throwable（包含 suppressed），logger handler 失败不阻止清理。MUST NOT 按异常类型过滤：
 close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟到失败，按类型丢弃会隐藏它。
 级别 MUST 按来源判定，判定只读异常对象与本 future 自身的投递标记，MUST NOT 读 token（避免与级联竞态）：
@@ -215,24 +215,24 @@ close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟�
   [中断契约](interruption-contract.md) §3.1）记 `FINE`；
 - 无 suppressed 的 `InterruptedException`，且本 future 的取消中断已投递到本次运行（中断契约 §2.4）、
   记录时线程中断标志为清除状态，记 `FINE`。JDK 阻塞调用因中断抛出时会清除标志；标志仍置位说明
-  这个异常不是那次中断的消费（例如 body 恢复标志后 close 另抛 `InterruptedException`）；
+  这个异常不是那次中断的消费（例如执行恢复标志后 close 另抛 `InterruptedException`）；
 - 其他一律 `WARNING`：带 suppressed、无标记或包装后的取消异常、用户自建的 `CancellationException`、
   未经内核投递的 `InterruptedException`。
 
 接受的残余风险：内核投递之后、标志已清除时，独立抛出的无 suppressed `InterruptedException` 也记
 `FINE`；此时取消已提交、结果已落定，降级不隐藏任何结果。被否决：按类型过滤（会隐藏 close 失败）；
-新增 `TaskOutcome` 表示「body 读到取消」（见中断契约 §3.1）。`proposal:P0034`
+新增 `TaskOutcome` 表示「执行读到取消」（见中断契约 §3.1）。`proposal:P0034`
 结果归因不因迟到异常被改写。外部 root 取消不再依赖运行句柄或 caller interrupt；
 显式 deadline、fail-fast、祖先取消与 `cancelOn` 请求来源是四类执行取消来源，runtime.close
-接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或 body 退出确认；
+接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或执行退出确认；
 注册、切断与来源所有权规则见 [取消传播契约](cancellation-propagation.md) §5.4；所有取消来源都中断
-运行中的 body（同文 §5.1）。
+运行中的执行（同文 §5.1）。
 历史来源：`proposal:P0001`。
 
 ## 5. 第一性原理
 
 - 减少忘记：入口统一 join/cleanup；未退出显式报告。
-- 复用：共享提交/取消/TTL/phase/body tracker；只新增 terminal Either 容器和冻结数据。
+- 复用：共享提交/取消/TTL/phase/执行 tracker；只新增 terminal Either 容器和冻结数据。
 - 结构继承：保留 parent token/min deadline/TTL install-restore。
 - 没有第二套执行管道、隐式 current group、可配置 failure policy。
 - 失败形状沿用 TaskOutcome；Batch 同构、Group 异构，单任务复用组。

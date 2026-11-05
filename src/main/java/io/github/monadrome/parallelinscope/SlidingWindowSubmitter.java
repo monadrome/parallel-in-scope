@@ -40,26 +40,26 @@ final class SlidingWindowSubmitter<V> {
 
     private final ListeningExecutorService pool;
     private final MultiTaskContext unit;
-    private final BodyCompletionTracker bodyCompletion;
+    private final ExecutionExitTracker executionExit;
     private final @Nullable Duration closeGrace;
 
     /** Creates a submitter for the new immutable multi-task unit. */
     SlidingWindowSubmitter(ListeningExecutorService pool, MultiTaskContext unit) {
-        this(pool, unit, BodyCompletionTracker.empty(), null);
+        this(pool, unit, ExecutionExitTracker.empty(), null);
     }
 
     /**
      * Creates a submitter for the new immutable multi-task unit, carrying the submission's shared
-     * body-completion signal and close grace. The tracker must have registered one slot per
+     * execution exit signal and close grace. The tracker must have registered one slot per
      * prepared task before {@link #submitAll(List, List)} runs.
      */
     SlidingWindowSubmitter(
             ListeningExecutorService pool,
             MultiTaskContext unit,
-            BodyCompletionTracker bodyCompletion,
+            ExecutionExitTracker executionExit,
             @Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
-        this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
+        this.executionExit = Objects.requireNonNull(executionExit, "executionExit cannot be null");
         this.closeGrace = closeGrace;
         this.pool = Objects.requireNonNull(pool, "pool cannot be null");
     }
@@ -72,7 +72,7 @@ final class SlidingWindowSubmitter<V> {
      * later bind step swaps a delegate. That is what lets the caller bind its {@link
      * CancellationToken} before submission: the token holds the same objects the caller does, and
      * cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the
-     * thread actually running the body — including a caller thread running it inline.
+     * thread actually running the execution — including a caller thread running it inline.
      *
      * @param tasks prepared task futures, in element order
      * @return the element views, positionally aligned with {@code tasks}
@@ -107,7 +107,7 @@ final class SlidingWindowSubmitter<V> {
     TaskBatch<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> results) {
         if (tasks.isEmpty()) {
             return TaskBatch.of(
-                    bodyCompletion,
+                    executionExit,
                     Futures.immediateVoidFuture(),
                     ImmutableList.of(),
                     unit.cancellationToken(),
@@ -124,7 +124,7 @@ final class SlidingWindowSubmitter<V> {
         int remaining = tasks.size() - Math.min(tasks.size(), parallelism());
         if (remaining <= 0 || driver.initialHandoffFailure()) {
             return TaskBatch.of(
-                    bodyCompletion, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
+                    executionExit, Futures.immediateVoidFuture(), results, unit.cancellationToken(), closeGrace);
         }
 
         ListenableFuture<Integer> signal = driver.signal();
@@ -140,7 +140,7 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatch.of(bodyCompletion, signal, results, unit.cancellationToken(), closeGrace);
+        return TaskBatch.of(executionExit, signal, results, unit.cancellationToken(), closeGrace);
     }
 
     /**
@@ -241,7 +241,7 @@ final class SlidingWindowSubmitter<V> {
          * refilling batch), every submitted element's completion listener claims and hands off the
          * next element itself. Claims are serialized by a single non-reentrant guard so that an
          * inline completion — a direct executor or a saturated CallerRunsPolicy pool running the
-         * next body on the completing thread — extends the guard holder's loop instead of
+         * next execution on the completing thread — extends the guard holder's loop instead of
          * recursing.
          */
 
@@ -403,10 +403,10 @@ final class SlidingWindowSubmitter<V> {
      * Without this cleanup, the batch's synchronous result would wait on elements that no worker
      * will ever settle, and the recorded cause would be lost.
      *
-     * <p>The abandoned prepared futures are never submitted, so their body slots are released here
+     * <p>The abandoned prepared futures are never submitted, so their execution slots are released here
      * as skipped — exactly once, guarded by the same atomic state the cancel-before-run path uses.
      * The skip runs before the future is settled so that a caller observing the abandonment (a
-     * thrown {@code valuesOrThrow}, a report) already finds the prepared body released and its slot
+     * thrown {@code valuesOrThrow}, a report) already finds the prepared execution released and its slot
      * published.
      *
      * @param tasks the prepared task futures, positionally aligned with {@code result}
@@ -421,10 +421,10 @@ final class SlidingWindowSubmitter<V> {
             int fromIndex,
             @Nullable Throwable reason) {
         // Settle the prepared future directly: its own phase CAS makes this idempotent and keeps
-        // the body unentered, and the view over it reports the outcome to the caller.
+        // the execution unentered, and the view over it reports the outcome to the caller.
         if (reason == null) {
             for (int i = fromIndex; i < result.size(); i++) {
-                tasks.get(i).skipBody();
+                tasks.get(i).skipExecution();
                 tasks.get(i).cancel(true);
             }
             return;

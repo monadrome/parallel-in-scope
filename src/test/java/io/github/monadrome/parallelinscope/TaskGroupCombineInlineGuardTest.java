@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * the executor is a framework thread whose contract forbids user code; the combine therefore
  * declares {@code forbidInlineExecution}. A submission-time refusal alone cannot enforce that
  * contract: a pool whose {@code RejectedExecutionHandler} runs the task inside {@code execute()} —
- * the JDK's {@code CallerRunsPolicy} — reaches the body without ever raising {@code
+ * the JDK's {@code CallerRunsPolicy} — reaches the execution without ever raising {@code
  * RejectedExecutionException}. Without the execution-time guard the group then reported {@code
  * SUCCESS} while the user function had run on the convergence callback thread, which is the first
  * candidate the design rejects because which member finishes last is a race.
@@ -92,7 +92,7 @@ class TaskGroupCombineInlineGuardTest {
 
             TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
-            // The violation is now visible instead of silent, and the body never ran at all.
+            // The violation is now visible instead of silent, and the execution never ran at all.
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(combineThread.get()).isNull();
             assertThat(result.failedTaskName()).isEqualTo("sum");
@@ -109,11 +109,11 @@ class TaskGroupCombineInlineGuardTest {
     }
 
     @Test
-    void aRefusedCombineStillReleasesItsBodyCompletionSlot() throws Exception {
-        // The guard fires after the phase claim has already moved the body slot to RUNNING, so the
+    void aRefusedCombineStillReleasesItsExecutionExitSlot() throws Exception {
+        // The guard fires after the phase claim has already moved the execution slot to RUNNING, so the
         // slot must be released by the exit publish rather than the skip transition. Getting that
-        // wrong strands the body-completion barrier: close() and awaitBodyCompletion() would wait for
-        // a body that is never going to run.
+        // wrong strands the execution exit barrier: close() and awaitExecutionExit() would wait for
+        // an execution that is never going to run.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
         ThreadPoolExecutor combinePool = saturatingPool("combine-worker");
         ParRuntime runtime = ParRuntime.builder()
@@ -146,8 +146,8 @@ class TaskGroupCombineInlineGuardTest {
 
             assertThat(group.completionFuture().get(10, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            // Zero wait: every body slot must already be released, not merely releasable.
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            // Zero wait: every execution slot must already be released, not merely releasable.
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
         } finally {
             release.countDown();
             runtime.close();
@@ -207,7 +207,7 @@ class TaskGroupCombineInlineGuardTest {
         try {
             // A direct executor runs every task on whoever submits it. That is not a saturation
             // symptom but the executor's whole contract, chosen explicitly by whoever registered it,
-            // and CombineBody documents it as an accepted exception. The guard must leave it alone:
+            // and Combiner documents it as an accepted exception. The guard must leave it alone:
             // it is scoped to ThreadPoolExecutor, where inline execution can only come from a
             // rejection handler.
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))

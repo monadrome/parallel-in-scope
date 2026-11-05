@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * only invokes the rejection handler when the pool is already at its maximum size. So the refusal
  * converts queueing into thread growth first, and into rejection handling once the pool has created
  * its maximum number of workers, whether or not they are busy: idle workers only take queued tasks.
- * With a {@code CallerRunsPolicy} pool, that last case executes the task body on whichever thread
+ * With a {@code CallerRunsPolicy} pool, that last case runs the task code on whichever thread
  * called {@code execute} — for a batch refill, this may be a thread completing another element.
  *
  * <p>Refusal is opt-in, so the capacity means something: the default on {@link TaskOptions}/{@link

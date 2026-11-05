@@ -11,7 +11,7 @@ import java.util.concurrent.Callable;
  * Duration)} and {@link ParRuntime#groupInheriting(String)}.
  *
  * <p>A group is declared and submitted in a single fluent chain: each {@link #par} states a
- * member's name, its {@link Par}, its declared result type, and <em>this run's</em> body. Building
+ * member's name, its {@link Par}, its declared result type, and <em>this run's</em> execution. Building
  * the chain neither executes work nor captures the execution context. Each {@link #adopt} instead
  * states a member whose result is a future already in flight, which the group owns from {@code
  * runAll} on. Execution budgets and TTL
@@ -47,7 +47,7 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> body);
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
 
     /** Declares the first keyed member with explicit task options.
      *
@@ -55,7 +55,7 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> body);
+    <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
 
     /**
      * Declares the first member as an adopted future: work already in flight whose result becomes
@@ -72,11 +72,11 @@ public interface GroupStart {
      *
      * <p>The member reads {@link TaskOutcome#SUCCESS} with the source's value and {@link
      * TaskOutcome#USER_FAILURE} with its failure; cancellation is attributed through the group like
-     * any member's. The library runs no body for it: no executor submission, TTL replay, task-type
-     * diagnostic, or workload-fit timing applies. Its body-exit slot is released when the source
-     * settles, so {@link TaskGroupResult#bodyCompletionConfirmed()} also confirms that every adopted
+     * any member's. The library runs no execution for it: no executor submission, TTL replay, task-type
+     * diagnostic, or workload-fit timing applies. Its execution-exit slot is released when the source
+     * settles, so {@link TaskGroupResult#executionExitConfirmed()} also confirms that every adopted
      * source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
-     * waiting and is reported among the unfinished bodies.
+     * waiting and is reported among the unfinished executions.
      *
      * <p>An unattributed source records no executor wait. Use {@link #adopt(TaskKey, Par,
      * ListenableFuture)} when a registered executor completes the source.
@@ -91,7 +91,7 @@ public interface GroupStart {
     /**
      * Declares the first member as an adopted future whose undelivered values are released by
      * {@code closer}. Each non-null value the source produces has one owner: the terminal combine
-     * once its body is entered, otherwise the caller when the group succeeds. Every other value —
+     * once its execution is entered, otherwise the caller when the group succeeds. Every other value —
      * of a group that did not succeed, or one that arrived after the group cancelled the source —
      * is passed to {@code closer} exactly once. See {@link ResourceCloser} for threading and failure
      * handling, and {@link #adopt(TaskKey, ListenableFuture)} for ownership and attribution.
@@ -106,7 +106,7 @@ public interface GroupStart {
     /**
      * Declares the first member as an adopted future completed by work on {@code producer}'s
      * registered executor. The attribution feeds only the runtime's executor wait report: a group
-     * run from a task body waits for the producer's executor like it waits for a {@code par}
+     * run from a task execution waits for the producer's executor like it waits for a {@code par}
      * member's. It never submits, wraps, or reroutes work. Declare a producer only when that
      * executor completes the source; a wrong attribution records a wrong wait.
      *
@@ -139,9 +139,9 @@ public interface GroupStart {
      * <p>Callable only before the first member is declared. When never configured, the close budget
      * is derived from the group's remaining execution deadline at close time. A group that ends at
      * its deadline has no remaining budget: unless a grace was declared explicitly, its derived
-     * cleanup wait is zero and bodies still unwinding are not awaited.
+     * cleanup wait is zero and executions still unwinding are not awaited.
      *
-     * @param grace the cleanup wait budget; zero skips waiting for body exit
+     * @param grace the cleanup wait budget; zero skips waiting for execution exit
      * @return this stage, for chaining
      * @throws NullPointerException if {@code grace} is null
      * @throws IllegalArgumentException if {@code grace} is negative
@@ -152,11 +152,11 @@ public interface GroupStart {
 
     /**
      * Declares a caller-owned source whose completion in any way cancels this group. Like a deadline
-     * or fail-fast, the cancellation interrupts running bodies; there is no non-interrupting variant.
+     * or fail-fast, the cancellation interrupts running executions; there is no non-interrupting variant.
      * The library does not complete or cancel the source.
      *
      * <p>Callable only before the first member is declared. The source takes effect at admission,
-     * before any body can start; an empty group returns successfully without registering.
+     * before any execution can start; an empty group returns successfully without registering.
      * Interruption is cooperative and does not guarantee that arbitrary IO or user code stops.
      *
      * @return this stage, for chaining

@@ -27,10 +27,10 @@ import org.jspecify.annotations.Nullable;
  * rethrown as-is when unchecked and wrapped in {@link CompletionException} when checked. A batch
  * that did not succeed without recording such a failure throws {@link CancellationException}.
  *
- * <p>Terminal results do not prove resource release: cancellation can settle before a body exits.
- * Check bodyCompletionConfirmed before releasing resources shared by this batch's direct bodies.
- * Nested calls must separately confirm their own body exit; confirmation is not transitive.
- * Task-local resources belong in the body's try-with-resources. This snapshot never discovers or
+ * <p>Terminal results do not prove resource release: cancellation can settle before an execution exits.
+ * Check executionExitConfirmed before releasing resources shared by this batch's direct executions.
+ * Nested calls must separately confirm their own execution exit; confirmation is not transitive.
+ * Task-local resources belong in the execution's try-with-resources. This snapshot never discovers or
  * closes user objects.
  *
  * @since 0.3.0
@@ -39,17 +39,17 @@ public final class TaskBatchResult<T> {
     private final String batchName;
     private final List<ImmediateResult<T>> results;
     private final List<@Nullable TaskCompletion<T>> completions;
-    private final Map<String, Integer> unfinishedBodies;
+    private final Map<String, Integer> unexitedExecutions;
 
     TaskBatchResult(
             String batchName,
             List<ImmediateResult<T>> results,
             List<@Nullable TaskCompletion<T>> completions,
-            Map<String, Integer> unfinishedBodies) {
+            Map<String, Integer> unexitedExecutions) {
         this.batchName = batchName;
         this.results = ImmutableList.copyOf(results);
         this.completions = Collections.unmodifiableList(new ArrayList<>(completions));
-        this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
+        this.unexitedExecutions = ImmutableMap.copyOf(unexitedExecutions);
     }
 
     /** Terminal values or failures in input order. */
@@ -58,21 +58,21 @@ public final class TaskBatchResult<T> {
     }
 
     /**
-     * Final observations in input order; null means body exit or observation publication was not
+     * Final observations in input order; null means execution exit or observation publication was not
      * confirmed before returning. Missing entries remain missing in this frozen snapshot.
      */
     public List<@Nullable TaskCompletion<T>> completions() {
         return completions;
     }
 
-    /** Whether every direct body exited or was atomically prevented from starting at return. */
-    public boolean bodyCompletionConfirmed() {
-        return unfinishedBodies.isEmpty();
+    /** Whether every direct execution exited or was atomically prevented from starting at return. */
+    public boolean executionExitConfirmed() {
+        return unexitedExecutions.isEmpty();
     }
 
-    /** Bodies whose exit was not confirmed at return, counted by task name. */
-    public Map<String, Integer> unfinishedBodies() {
-        return unfinishedBodies;
+    /** Executions whose exit was not confirmed at return, counted by task name. */
+    public Map<String, Integer> unexitedExecutions() {
+        return unexitedExecutions;
     }
 
     /**

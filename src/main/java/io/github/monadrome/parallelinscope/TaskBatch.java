@@ -41,7 +41,7 @@ final class TaskBatch<T> implements AutoCloseable {
 
     private final ListenableFuture<?> submitCanceller;
     private final List<TaskFuture<T>> results;
-    private final BodyCompletionTracker bodyCompletion;
+    private final ExecutionExitTracker executionExit;
     private final @Nullable CancellationToken token;
     private final @Nullable Duration closeGrace;
     /** Publication barrier for synchronous exits, without an aggregated observation value. */
@@ -53,12 +53,12 @@ final class TaskBatch<T> implements AutoCloseable {
     private TaskBatch(
             ListenableFuture<?> submitCanceller,
             List<? extends TaskFuture<T>> results,
-            BodyCompletionTracker bodyCompletion,
+            ExecutionExitTracker executionExit,
             @Nullable CancellationToken token,
             @Nullable Duration closeGrace) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
-        this.bodyCompletion = Objects.requireNonNull(bodyCompletion, "bodyCompletion cannot be null");
+        this.executionExit = Objects.requireNonNull(executionExit, "executionExit cannot be null");
         this.token = token;
         this.closeGrace = closeGrace;
         ImmutableList.Builder<ListenableFuture<TaskCompletion<T>>> observations =
@@ -79,8 +79,8 @@ final class TaskBatch<T> implements AutoCloseable {
     private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(
             List<ListenableFuture<TaskCompletion<T>>> observations) {
         /*
-         * Each element observation waits for both future settlement and body exit. The aggregate
-         * therefore needs no additional body-exit check. The element observation futures only fail
+         * Each element observation waits for both future settlement and execution exit. The aggregate
+         * therefore needs no additional execution-exit check. The element observation futures only fail
          * on a publication defect; ordinary task failure is carried as observation data.
          */
 
@@ -129,7 +129,7 @@ final class TaskBatch<T> implements AutoCloseable {
     TaskBatchResult<T> finish() {
         awaitElementsAndSubmission();
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token);
+        long budget = ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, token);
         awaitBarriers(budget, start);
         return freezeResults();
     }
@@ -137,16 +137,16 @@ final class TaskBatch<T> implements AutoCloseable {
     /**
      * The {@link #finish()} of a batch carrying a terminal combine: additionally waits out the
      * combine's future and observation before freezing, and returns the combine's own result and
-     * observation next to the element batch. The combine's body slot is part of the shared tracker,
-     * so the body-exit barrier already covers it.
+     * observation next to the element batch. The combine's execution slot is part of the shared tracker,
+     * so the execution-exit barrier already covers it.
      */
     <C> BatchCombinedResult<T, C> finishCombined(Task<C> terminal) {
         awaitElementsAndSubmission();
         awaitAttribution(terminal);
         long start = System.nanoTime();
-        long budget = BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token);
+        long budget = ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, token);
         awaitBarriers(budget, start);
-        BodyCompletionTracker.awaitSettledUninterruptibly(
+        ExecutionExitTracker.awaitSettledUninterruptibly(
                 terminal.observationView(), budget, start, "terminal observation signal");
         TaskBatchResult<T> frozen = freezeResults();
         ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, attributionAtSettle(terminal));
@@ -175,10 +175,11 @@ final class TaskBatch<T> implements AutoCloseable {
         }
     }
 
-    /** Waits out the body-exit and element-observation barriers within the cleanup budget. */
+    /** Waits out the execution-exit and element-observation barriers within the cleanup budget. */
     private void awaitBarriers(long budget, long start) {
-        BodyCompletionTracker.awaitSettledUninterruptibly(bodyCompletion.bodyExit(), budget, start, "body-exit signal");
-        BodyCompletionTracker.awaitSettledUninterruptibly(observationsReady, budget, start, "batch observation signal");
+        ExecutionExitTracker.awaitSettledUninterruptibly(
+                executionExit.executionExit(), budget, start, "execution-exit signal");
+        ExecutionExitTracker.awaitSettledUninterruptibly(observationsReady, budget, start, "batch observation signal");
     }
 
     /**
@@ -237,8 +238,8 @@ final class TaskBatch<T> implements AutoCloseable {
                 throw new AssertionError("task observation cannot fail", impossible);
             }
         }
-        Map<String, Integer> unfinished = bodyCompletion.stuckBodySummary();
-        BodyCompletionTracker.warnUnfinished("batch", unfinished, LOGGER);
+        Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
+        ExecutionExitTracker.warnUnfinished("batch", unfinished, LOGGER);
         String batchName = results.isEmpty() ? "" : results.get(0).taskName();
         return new TaskBatchResult<>(batchName, frozen, observations, unfinished);
     }
@@ -249,14 +250,14 @@ final class TaskBatch<T> implements AutoCloseable {
      * outcome, failure, and on success the result.
      *
      * <p>Each element snapshot is published only after its future is terminal <em>and</em> its task
-     * body has exited (or was determined to never run), so the recorded end times are always final;
+     * execution has exited (or was determined to never run), so the recorded end times are always final;
      * the aggregate completes only once every element snapshot is published. Elements that never
      * started — rejected, cancelled, or abandoned by the sliding window — are included with zero
      * start/end times and their real outcome. Once the batch scope has completed this future is
-     * guaranteed to be done: {@link #awaitBodyCompletion(Duration)} returning {@code true} implies
+     * guaranteed to be done: {@link #awaitExecutionExit(Duration)} returning {@code true} implies
      * the data is already available, with no extra wait. A {@link #close()} that exhausts its close
-     * grace while bodies ignore interruption may leave this future pending; it then completes as
-     * the remaining bodies exit.
+     * grace while executions ignore interruption may leave this future pending; it then completes as
+     * the remaining executions exit.
      *
      * <p>Element failure and cancellation complete this future successfully with the real outcome
      * data; it never returns {@code null}, never requires polling, and ignores cancellation ({@code
@@ -330,15 +331,15 @@ final class TaskBatch<T> implements AutoCloseable {
      * @return a new batch result
      */
     static <T> TaskBatch<T> of(List<? extends TaskFuture<T>> results) {
-        return new TaskBatch<>(Futures.immediateVoidFuture(), results, BodyCompletionTracker.empty(), null, null);
+        return new TaskBatch<>(Futures.immediateVoidFuture(), results, ExecutionExitTracker.empty(), null, null);
     }
 
     /**
      * Creates a result for a batch whose submissions may still be running, carrying its
-     * body-completion signal, its cancellation token, and its close grace.
+     * execution exit signal, its cancellation token, and its close grace.
      *
      * @param <T> the element result type
-     * @param bodyCompletion shared task-body completion signal of this submission
+     * @param executionExit shared execution exit signal of this submission
      * @param submitCanceller the control and completion signal for remaining submissions
      * @param results the individual result futures
      * @param token the batch cancellation token used by {@link #close()}
@@ -346,16 +347,16 @@ final class TaskBatch<T> implements AutoCloseable {
      * @return a new batch result
      */
     static <T> TaskBatch<T> of(
-            BodyCompletionTracker bodyCompletion,
+            ExecutionExitTracker executionExit,
             ListenableFuture<?> submitCanceller,
             List<? extends TaskFuture<T>> results,
             CancellationToken token,
             @Nullable Duration closeGrace) {
-        return new TaskBatch<>(submitCanceller, results, bodyCompletion, token, closeGrace);
+        return new TaskBatch<>(submitCanceller, results, executionExit, token, closeGrace);
     }
 
     /**
-     * Cancels every unfinished element, then waits for task bodies to exit within the batch's close
+     * Cancels every unfinished element, then waits for task executions to exit within the batch's close
      * grace, and returns.
      *
      * <p>This is the batch's structured-close entry, symmetric with {@link TaskGroup#close()}:
@@ -363,7 +364,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * cancelled with the usual attribution. The close grace is a cleanup budget configured on
      * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout. When
      * never configured, the wait budget is derived from the batch's remaining deadline at close
-     * time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with bodies
+     * time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with executions
      * still running, the outstanding task names are logged at WARN level. The executor is never
      * shut down, and user code that ignores interruption may keep running after this method
      * returns.
@@ -371,17 +372,17 @@ final class TaskBatch<T> implements AutoCloseable {
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait is
      * skipped with the interrupt flag preserved. Cancellation runs before the wait and settles
      * every bound element future synchronously, so once this method returns, every future in {@link
-     * #results()} is terminal — even when a body is still unwinding. A normal return does not by
-     * itself make resources used by task bodies safe to release; confirm body exit with {@link
-     * #awaitBodyCompletion(Duration)} first.
+     * #results()} is terminal — even when an execution is still unwinding. A normal return does not by
+     * itself make resources used by task executions safe to release; confirm execution exit with {@link
+     * #awaitExecutionExit(Duration)} first.
      *
-     * @throws IllegalStateException if called from within a task body of this batch, including a
+     * @throws IllegalStateException if called from within a task execution of this batch, including a
      *     nested inline call on the same thread
      */
     @Override
     public void close() {
         CancellationToken batchToken = token;
-        BodyCompletionTracker.cancelAndAwaitBodyExit(
+        ExecutionExitTracker.cancelAndAwaitExecutionExit(
                 () -> {
                     if (batchToken != null) {
                         batchToken.cancel();
@@ -389,27 +390,27 @@ final class TaskBatch<T> implements AutoCloseable {
                         submitCanceller.cancel(true);
                     }
                 },
-                bodyCompletion,
-                BodyCompletionTracker.closeGraceBudgetNanos(closeGrace, token),
+                executionExit,
+                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, token),
                 "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
                 LOGGER);
     }
 
     /**
-     * Waits until every task body of this batch has exited and every element future has settled, or
+     * Waits until every task execution of this batch has exited and every element future has settled, or
      * the budget elapses.
      *
-     * <p>Body exit means the user function returned or threw and its {@code finally} completed. A
-     * body publishes its exit before its future settles, so body exit alone does not imply a
+     * <p>Execution exit means the user function returned or threw and its {@code finally} completed. A
+     * execution publishes its exit before its future settles, so execution exit alone does not imply a
      * terminal future; this method waits out that window as well. A {@code true} result therefore
      * implies every future in {@link #results()} is terminal — {@link #report()} and {@link
      * #reportString()} called after it read a terminal snapshot — and also covers tasks that will
      * never be entered (cancelled, rejected, or abandoned before execution). It additionally waits
      * out the observation publication barrier, so a {@code true} result also implies {@link
      * #completionFuture()} is already done with the final snapshots. It establishes a
-     * happens-before edge from every task body's writes to this thread; once {@code true}, the
+     * happens-before edge from every task execution's writes to this thread; once {@code true}, the
      * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
-     * while at least one body had not exited or one future had not settled, which may include tasks
+     * while at least one execution had not exited or one future had not settled, which may include tasks
      * that have not started yet.
      *
      * <p>This method never cancels tasks and does not require prior cancellation: cancel through
@@ -417,41 +418,41 @@ final class TaskBatch<T> implements AutoCloseable {
      * here. A zero timeout performs a single check.
      *
      * @param timeout the cleanup wait budget; independent of the batch's execution deadline
-     * @return {@code true} if all task bodies exited and all element futures settled within the
+     * @return {@code true} if all task executions exited and all element futures settled within the
      *     budget
      * @throws NullPointerException if {@code timeout} is null
      * @throws IllegalArgumentException if {@code timeout} is negative
-     * @throws IllegalStateException if called from within a task body of this batch
+     * @throws IllegalStateException if called from within a task execution of this batch
      * @throws InterruptedException if the calling thread is interrupted before or during the wait
      */
-    public boolean awaitBodyCompletion(Duration timeout) throws InterruptedException {
+    public boolean awaitExecutionExit(Duration timeout) throws InterruptedException {
         long budgetNanos = Deadlines.saturatedNanos(Objects.requireNonNull(timeout, "timeout cannot be null"));
         if (timeout.isNegative()) {
             throw new IllegalArgumentException("timeout must not be negative: " + timeout);
         }
         long startNanos = System.nanoTime();
-        if (!bodyCompletion.awaitBodyCompletion(timeout)) {
+        if (!executionExit.awaitExecutionExit(timeout)) {
             return false;
         }
         for (TaskFuture<T> future : results) {
-            if (!BodyCompletionTracker.awaitSettled(future, budgetNanos, startNanos, null)) {
+            if (!ExecutionExitTracker.awaitSettled(future, budgetNanos, startNanos, null)) {
                 return false;
             }
         }
-        // Bodies exited and futures settled, so every element observation is published or about to
+        // Executions exited and futures settled, so every element observation is published or about to
         // be: the publication barrier fires on the same signals this method just waited out, but a
         // future's get() waiters can wake before its listeners run. Wait out that window too, so a
         // true result guarantees completionFuture() already carries the final snapshots.
-        return BodyCompletionTracker.awaitSettled(
+        return ExecutionExitTracker.awaitSettled(
                 completionFuture(), budgetNanos, startNanos, "batch observation signal");
     }
 
     /**
      * Generates execution report: counts tasks by outcome and extracts first failure exception.
      *
-     * <p>Counts reflect the futures' states at call time: an element whose body has exited but
+     * <p>Counts reflect the futures' states at call time: an element whose execution has exited but
      * whose future has not settled yet still reads {@code RUNNING}. For a terminal snapshot, call
-     * this after {@link #awaitBodyCompletion(Duration)} returned {@code true} or after {@link
+     * this after {@link #awaitExecutionExit(Duration)} returned {@code true} or after {@link
      * #close()} returned — both guarantee every element future is terminal.
      *
      * <p>Each element is classified by {@link TaskFuture#outcome()} from its own token, which is

@@ -26,7 +26,7 @@
     -->
     <Match>
         <Class name="io.github.monadrome.parallelinscope.TaskGroup"/>
-        <Method name="castCombineBody"/>
+        <Method name="castCombiner"/>
         <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
     </Match>
 </FindBugsFilter>

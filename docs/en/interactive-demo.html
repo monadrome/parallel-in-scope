@@ -374,7 +374,7 @@ httpPar.map(userIds, user -&gt; {
       <span class="sc-num">04</span>
       <div>
         <h2>运行时执行器等待图与死锁检测</h2>
-        <p>map 的 body 里再开 map，会在运行时注册的<b>执行器</b>之间留下等待边：节点是执行器（同一池以多个 ParId 注册仍是一个节点），只有指向 starvation-prone 池的同步等待才成边；顶层调用没有等待者，不成边，也没有 root 哨兵。运行时常开收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁，哪怕两条边来自不同的请求。</p>
+        <p>map 的执行里再开 map，会在运行时注册的<b>执行器</b>之间留下等待边：节点是执行器（同一池以多个 ParId 注册仍是一个节点），只有指向 starvation-prone 池的同步等待才成边；顶层调用没有等待者，不成边，也没有 root 哨兵。运行时常开收集这些边并检查环 —— http 等 database、database 又等回 http，就是潜在的池耗尽死锁，哪怕两条边来自不同的请求。</p>
       </div>
     </div>
     <div class="sc-body">
@@ -412,7 +412,7 @@ http.map(requests, req -&gt; {
     return database.map(user.orderIds(), db::fetchOrder, syncOrders);
 }, handleOrders);
 
-// 另一条请求里 database 的 body 再嵌套 http.map，就得到反向边 database → http
+// 另一条请求里 database 的执行再嵌套 http.map，就得到反向边 database → http
 // 形成环时运行时自动打 WARNING；也可以随时读取报告
 if (!runtime.executorWaitReport().cyclicComponents().isEmpty()) {
     LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");

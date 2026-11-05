@@ -101,8 +101,8 @@ class TaskGroupValuesFutureTest {
                 .submitAll();
         try {
             // The order is forced by this thread observing the second member's *future* complete,
-            // not by a latch its body counts down on its way out. Releasing from inside the second
-            // body would only order the bodies: the first future could still settle first, and an
+            // not by a latch its execution counts down on its way out. Releasing from inside the second
+            // execution would only order the executions: the first future could still settle first, and an
             // implementation that assembled values in completion order would pass.
             assertThat(group.futureOf(KEY_SECOND_INTEGER).get(5, TimeUnit.SECONDS))
                     .isEqualTo(42);
@@ -237,7 +237,7 @@ class TaskGroupValuesFutureTest {
                     })
                     .submitAll();
 
-            // Wait until the body is provably running, so the cancel below lands while the group is
+            // Wait until the execution is provably running, so the cancel below lands while the group is
             // still in flight. A cancel attempted after the group had already converged would be
             // refused by any future at all, including a raw sink, and the test would then pass
             // against the unfixed code purely because it lost the race.
@@ -273,7 +273,7 @@ class TaskGroupValuesFutureTest {
                         return "value";
                     })
                     .submitAll();
-            // The listener must be in place before publication, and the body must be running, so the
+            // The listener must be in place before publication, and the execution must be running, so the
             // Error is guaranteed to be raised on the converging thread instead of the registration
             // racing the publication.
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();

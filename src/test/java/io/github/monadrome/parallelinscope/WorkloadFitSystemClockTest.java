@@ -53,7 +53,7 @@ class WorkloadFitSystemClockTest {
     }
 
     @Test
-    void sleepingBodiesOnAComputeEntryAreMeasuredOnTheRealClocks() {
+    void sleepingExecutionsOnAComputeEntryAreMeasuredOnTheRealClocks() {
         ThreadMXBean threads = ManagementFactory.getThreadMXBean();
         assumeTrue(threads.isCurrentThreadCpuTimeSupported() && threads.isThreadCpuTimeEnabled());
         ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -75,8 +75,8 @@ class WorkloadFitSystemClockTest {
 
             WorkloadFitReport.ParMeasurement measurement =
                     runtime.workloadFitReport().pars().get(0);
-            assertThat(measurement.bodies()).isEqualTo(20);
-            assertThat(measurement.unmeasuredBodies()).isZero();
+            assertThat(measurement.executions()).isEqualTo(20);
+            assertThat(measurement.unmeasuredExecutions()).isZero();
             assertThat(measurement.executionTime()).isGreaterThanOrEqualTo(Duration.ofMillis(20 * 15));
             assertThat(measurement.cpuToExecutionRatio()).isLessThan(0.5);
             assertThat(measurement.issue()).isFalse();

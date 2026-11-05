@@ -10,13 +10,13 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The scoped wrapper's entry and exit contract: a task whose deadline has already expired never
- * enters its user body, and a body blocked at a cancellation checkpoint is rejected once the scope
+ * enters its user task code, and an execution blocked at a cancellation checkpoint is rejected once the scope
  * is cancelled.
  */
 class ScopedCallableEntryTest {
 
     @Test
-    void anExpiredDeadlineRejectsTheBodyBeforeItRuns() throws Exception {
+    void anExpiredDeadlineRejectsTheExecutionBeforeItRuns() throws Exception {
         MultiTaskContext expired = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("expired", Duration.ofNanos(1)).spec(), 1));
         Thread.sleep(5L);
@@ -29,11 +29,13 @@ class ScopedCallableEntryTest {
                                 })
                                 .call())
                 .isInstanceOf(LeanCancellationException.class);
-        assertThat(ran).as("the body is never entered past an expired deadline").isFalse();
+        assertThat(ran)
+                .as("the execution is never entered past an expired deadline")
+                .isFalse();
     }
 
     @Test
-    void aCancelledScopeRejectsTheBodyBeforeItRuns() throws Exception {
+    void aCancelledScopeRejectsTheExecutionBeforeItRuns() throws Exception {
         MultiTaskContext cancelled = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
         cancelled.cancellationToken().cancel();
@@ -46,18 +48,18 @@ class ScopedCallableEntryTest {
                                 })
                         .call())
                 .isInstanceOf(LeanCancellationException.class);
-        assertThat(ran).as("a cancelled scope's body is never entered").isFalse();
+        assertThat(ran).as("a cancelled scope's execution is never entered").isFalse();
     }
 
     @Test
-    void theBodyExitIsPublishedBeforeTheFutureSettles() throws Exception {
+    void theExecutionExitIsPublishedBeforeTheFutureSettles() throws Exception {
         // The tracker's signal completes inside the scoped wrapper's finally, before the future's
         // own settlement listeners can run: a listener that observes settlement already observes a
-        // released body slot.
+        // released execution slot.
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
-        TaskBodyState slot = tracker.register(unit);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        TaskExecutionState slot = tracker.register(unit);
         CountDownLatch settled = new CountDownLatch(1);
         AtomicBoolean exitPublishedAtSettlement = new AtomicBoolean(false);
 
@@ -74,7 +76,7 @@ class ScopedCallableEntryTest {
         assertThat(settled.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
         assertThat(com.google.common.util.concurrent.Futures.getDone(future)).isEqualTo("value");
         assertThat(exitPublishedAtSettlement.get())
-                .as("the body slot is released before settlement listeners observe the future")
+                .as("the execution slot is released before settlement listeners observe the future")
                 .isTrue();
     }
 }

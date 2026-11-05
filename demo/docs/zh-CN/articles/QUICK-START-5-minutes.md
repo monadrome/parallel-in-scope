@@ -78,7 +78,7 @@ TaskBatchResult<Integer> result = par.map(numbers, n -> {
 ```
 
 超时后，未完成的任务会被取消：排队中尚未提交的元素直接不执行，正在运行的线程会被 `interrupt()`；
-任务体仍需响应中断，或改用 `Checkpoints.checkSleep(...)` 这类协作式原语，才能及时退出——
+任务代码仍需响应中断，或改用 `Checkpoints.checkSleep(...)` 这类协作式原语，才能及时退出——
 `Thread.sleep(...)` 之外的不可中断 IO 无法被强行终止。
 
 ## 4. 控制并发度
@@ -120,7 +120,7 @@ Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // �
 需要知道的一条契约：**批次默认快速失败**。任意元素失败会取消同批其余元素（包括尚未提交的元素），
 因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `ImmediateResult.outcome()`，
 逐项的 “全部成功才返回” 可以用 `result.valuesOrThrow()`。结果无需关闭。
-`bodyCompletionConfirmed()` 只确认本批直接任务体退出；清理预算耗尽时查看 `unfinishedBodies()`。
+`executionExitConfirmed()` 只确认本批直接执行退出；清理预算耗尽时查看 `unexitedExecutions()`。
 嵌套调用的未退出任务需分别确认。任务内资源用 try-with-resources 关闭。
 应用关闭时调用 `ParRuntime.close()` / `awaitQuiescence(...)`，然后关闭自有线程池。
 

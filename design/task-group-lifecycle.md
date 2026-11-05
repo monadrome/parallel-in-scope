@@ -24,7 +24,7 @@ runAll() ── 冻结/校验/统一 admission ── TaskGroup（包私有运�
     ── running ── all terminal ── finish()（有界清理）── TaskGroupResult（冻结数据）
 
 每个成员对象生命周期
-声明（name/顺序/options/body）── frozen 进运行对象 ─┐
+声明（name/顺序/options/taskCode）── frozen 进运行对象 ─┐
 MemberState ─────────────────────────────────────── prepared/submitted/running ── terminal
 MultiTaskContext ─────────────────────────────────────────────────
 TaskExecutionContext ─ created ─ queued ─ run ─ completed/event ─────
@@ -41,7 +41,7 @@ ExecutorWaitGraph ────────────────────�
 
 声明草稿（`GroupDraft`）收集组结构与本次 payload：组名、timeout/closeGrace、请求来源、
 成员与可选 combine 的声明顺序、名称、已解析的 owner-bound `Par`、不可变 `TaskOptions` 和本次 `Callable`；
-提交时结构部分冻结为包私有 `TaskGroupDefinition`（不含 body），body 转移为内部 `RunBindings`。
+提交时结构部分冻结为包私有 `TaskGroupDefinition`（不含执行），执行转移为内部 `RunBindings`。
 草稿单次使用、绑定创建线程，owner 关闭后不能再提交。外层上下文和 deadline 归属
 在提交的准备阶段按提交线程解析。成员不新增公共 Context。
 
@@ -117,7 +117,7 @@ restore previous task
 outer current -> member current -> outer current
 ```
 
-观测快照的发布不依赖当前线程上下文：成员的 observation future 由 future 终态与任务体
+观测快照的发布不依赖当前线程上下文：成员的 observation future 由 future 终态与任务代码
 `EXITED`/`SKIPPED` 两个信号汇合发布，快照显式读取 `TaskExecutionContext` 与 token，因此
 不存在"读取上下文时被误判为已完成成员结构化子任务"的窗口。
 
@@ -253,28 +253,28 @@ null --all success-----------> SUCCESS
 - Group 原因可以先固定，但内部 completion future 仍必须等所有成员 future 达到终态；
 - 空组提交后立即以 `SUCCESS` 完成，不启动物理 deadline timer；
 
-### 6.1 三种终止状态与任务体退出等待
+### 6.1 三种终止状态与执行退出等待
 
 区分三种终止（关闭语义见
 [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）：
 
 1. **Future 完成**：成员 future 已有不可变终态；`CLOSED`/收敛只承诺到这一层；
-2. **任务体退出**：用户 Callable 已返回或抛出并完成其 finally；由每任务预登记的原子状态机
-   （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享的 body-exit future 信号跟踪，
-   名额在任何任务提交之前预登记（含窗口外任务与 terminal combine），正常路径在用户任务体
+2. **执行退出**：用户 Callable 已返回或抛出并完成其 finally；由每任务预登记的原子状态机
+   （`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）与共享的执行-exit future 信号跟踪，
+   名额在任何任务提交之前预登记（含窗口外任务与 terminal combine），正常路径在用户任务代码
    finally 完成后发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
    或 `SKIPPED` 各恰好释放一次名额；
-3. **观测快照发布**：成员 observation future 由 future 终态与任务体退出两个信号汇合后
-   以终态 `TaskCompletion` 快照完成；它不运行在任务体 finally 内，也不属于任务体退出范围。
-   包私有 `awaitBodyCompletion(...) == true` 额外等待观测发布屏障，保证快照已经可得；
-   公开侧 `TaskGroupResult.bodyCompletionConfirmed()` 只表达第 2 层（任务体退出），
+3. **观测快照发布**：成员 observation future 由 future 终态与执行退出两个信号汇合后
+   以终态 `TaskCompletion` 快照完成；它不运行在任务代码 finally 内，也不属于执行退出范围。
+   包私有 `awaitExecutionExit(...) == true` 额外等待观测发布屏障，保证快照已经可得；
+   公开侧 `TaskGroupResult.executionExitConfirmed()` 只表达第 2 层（执行退出），
    最终观测仍按 `members()`/`terminal()` 的可得性给出、缺失项省略，两者不是同一事实。
 
 `close()`（包私有；`runAll()` 的同步清理由 `finish()` 复用同一预算规则）保证第一层，并在
 close grace（`GroupStart.closeGrace(Duration)`，未配置时派生自关闭时剩余的有效 deadline）内
 等待第二层；grace 耗尽时未退出任务的名称以 WARN 记录。第三层不在关闭保证内。嵌套
-作用域各自负责退出：外层任务体返回不代表它创建的子组或 Batch 已退出。术语统一使用
-「future 完成」与「任务体退出」，禁止混用「工作终态」。
+作用域各自负责退出：外层任务代码返回不代表它创建的子组或 Batch 已退出。术语统一使用
+「future 完成」与「执行退出」，禁止混用「工作终态」。
 
 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作，不持锁。成员
 future 的完成 callback 先更新小型状态（归类、成功计数、首失败名），再执行外部动作（级联取消、
@@ -300,7 +300,7 @@ combine 提交、fail-fast），最后对收敛屏障 `completedTasks` 做一次
   但不得提前关闭 timer/submitter/maintenance 服务；
 - Group 不创建或关闭业务 executor；
 - `ParRuntime.close()` 不阻塞，不关闭注册 executor；`awaitQuiescence(Duration)` 等待拓扑完全
-  排空——无进行中的 admission、无未完成 future、所有已接纳任务体已退出、框架服务已关闭，
-  其中任务体退出独立于 future 终态单独跟踪（见
+  排空——无进行中的 admission、无未完成 future、所有已接纳执行已退出、框架服务已关闭，
+  其中执行退出独立于 future 终态单独跟踪（见
   [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）；
 - Group deadline 使用 ParRuntime 拥有的 scheduler。

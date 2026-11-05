@@ -144,7 +144,7 @@ class TaskGroupAdoptedFutureTest {
         assertThat(values.second()).isSameAs(second);
         assertThat(first.closes).hasValue(0);
         assertThat(second.closes).hasValue(0);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
         TaskCompletion<?> observed = Objects.requireNonNull(result.members().get("second"));
         assertThat(observed.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(observed.result()).isSameAs(second);
@@ -191,7 +191,7 @@ class TaskGroupAdoptedFutureTest {
         assertThat(pending.interrupted).isTrue();
         assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         assertThat(produced.closes).hasValue(1);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
@@ -223,7 +223,7 @@ class TaskGroupAdoptedFutureTest {
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         assertThat(pending.isCancelled()).isTrue();
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
@@ -271,8 +271,8 @@ class TaskGroupAdoptedFutureTest {
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         assertThat(stubborn.cancelRequests).hasValue(1);
-        assertThat(result.bodyCompletionConfirmed()).isFalse();
-        assertThat(result.unfinishedBodies()).containsEntry("first", 1);
+        assertThat(result.executionExitConfirmed()).isFalse();
+        assertThat(result.unexitedExecutions()).containsEntry("first", 1);
 
         Resource late = new Resource("late");
         assertThat(stubborn.complete(late)).isTrue();
@@ -282,7 +282,7 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void theCombineOwnsTheAdoptedValuesOnceItsBodyIsEntered() {
+    void theCombineOwnsTheAdoptedValuesOnceItsExecutionIsEntered() {
         ParRuntime runtime = runtime(pool(1));
         Resource first = new Resource("first");
         AtomicReference<Resource> seen = new AtomicReference<>();
@@ -339,7 +339,7 @@ class TaskGroupAdoptedFutureTest {
                     })
                     .runAll();
 
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             int expected = source.isCancelled() ? 0 : 1;
             assertThat(value.closes)
                     .as("run %s ended %s", run, result.outcome())
@@ -365,7 +365,7 @@ class TaskGroupAdoptedFutureTest {
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.failedTaskName()).isEqualTo("failing");
         assertThat(attempts).hasValue(1);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
@@ -392,8 +392,8 @@ class TaskGroupAdoptedFutureTest {
 
             assertThat(closerEntered.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.bodyCompletionConfirmed()).isFalse();
-            assertThat(result.unfinishedBodies()).containsEntry("first", 1);
+            assertThat(result.executionExitConfirmed()).isFalse();
+            assertThat(result.unexitedExecutions()).containsEntry("first", 1);
         } finally {
             releaseCloser.countDown();
         }
@@ -437,7 +437,7 @@ class TaskGroupAdoptedFutureTest {
 
         TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
         assertThat(closerThread.get()).isNotSameAs(Thread.currentThread());
         assertThat(Objects.requireNonNull(closerThread.get()).getName()).startsWith("ParRuntime-services-");
     }
@@ -486,7 +486,7 @@ class TaskGroupAdoptedFutureTest {
         assertThat(throwing.isCancelled()).isTrue();
         assertThat(sibling.isCancelled()).isTrue();
         assertThat(produced.closes).hasValue(1);
-        assertThat(result.bodyCompletionConfirmed()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
@@ -623,7 +623,7 @@ class TaskGroupAdoptedFutureTest {
             TaskGroupResult<Tuple2<Resource, Resource>, Void> result = running.get(5, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.bodyCompletionConfirmed()).isFalse();
+            assertThat(result.executionExitConfirmed()).isFalse();
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closerThread.get() != null);
             assertThat(closerThread.get()).isNotSameAs(callerThread.get());
         } finally {

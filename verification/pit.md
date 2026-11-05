@@ -62,7 +62,7 @@ The command is offline-safe when dependencies are already installed.
 `targetClasses`, `targetTests`, and `mutators` are POM properties so command-line
 overrides work; inline plugin values would shadow those overrides.
 
-Core runs MUST include `VOID_METHOD_CALLS`: deleting an interrupt, body-exit
+Core runs MUST include `VOID_METHOD_CALLS`: deleting an interrupt, execution-exit
 notification, or resource release can expose a contract failure. The POM default
 omits it to reduce equivalent queue mutants; that default is insufficient for a
 core run. Document any additional exclusions and the behavior they leave unchecked.

@@ -443,7 +443,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
+    void awaitQuiescenceWaitsForTaskExecutionsThatOutliveTheirCancelledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -456,7 +456,7 @@ class ParRuntimeTest {
                             x -> {
                                 entered.countDown();
                                 // Ignore interruption: the future is cancelled immediately, but
-                                // the body stays inside user code until released.
+                                // the execution stays inside user code until released.
                                 boolean interrupted = false;
                                 while (true) {
                                     try {
@@ -469,14 +469,14 @@ class ParRuntimeTest {
                                 if (interrupted) Thread.currentThread().interrupt();
                                 return x;
                             },
-                            BatchOptions.timeout("body-quiesce", Duration.ofSeconds(30)));
+                            BatchOptions.timeout("execution-quiesce", Duration.ofSeconds(30)));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             batch.results().get(0).cancel(true);
             assertThat(batch.results().get(0).isDone()).isTrue();
             global.close();
 
-            // Services have drained and the future is terminal, but the body is still running:
+            // Services have drained and the future is terminal, but the execution is still running:
             // quiescence must not be reported.
             assertThat(global.awaitQuiescence(Duration.ofMillis(200))).isFalse();
 
@@ -490,7 +490,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceCoversSingleSubmittedTaskBodies() throws Exception {
+    void awaitQuiescenceCoversSingleSubmittedTaskExecutions() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -626,7 +626,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWakesPromptlyWhenTheLastTrackedBodyExits() throws Exception {
+    void awaitQuiescenceWakesPromptlyWhenTheLastTrackedExecutionExits() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -656,7 +656,7 @@ class ParRuntimeTest {
             task.cancel(true);
             global.close();
 
-            // Park the waiter while the body is still running: the body-exit listener's signal
+            // Park the waiter while the execution is still running: the execution-exit listener's signal
             // is then the only thing that can end the wait before the budget expires. No "parked"
             // signal exists on this path; the grace period parks the waiter before the release.
             AtomicBoolean result = new AtomicBoolean();
@@ -674,7 +674,7 @@ class ParRuntimeTest {
             release.countDown();
             waiter.join(5000L);
             assertThat(waiter.isAlive())
-                    .as("body exit never woke the parked waiter")
+                    .as("execution exit never woke the parked waiter")
                     .isFalse();
             assertThat(failure.get()).isNull();
             assertThat(result.get()).isTrue();

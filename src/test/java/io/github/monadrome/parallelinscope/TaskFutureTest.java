@@ -478,9 +478,9 @@ class TaskFutureTest {
         }
     }
 
-    /** A prepared future with no observation and no body slot, standing in for a batch element. */
-    private static <V> ExecutionPhaseHintFuture<V> preparedFuture(Callable<V> body) {
-        return ExecutionPhaseHintFuture.create(body);
+    /** A prepared future with no observation and no execution slot, standing in for a batch element. */
+    private static <V> ExecutionPhaseHintFuture<V> preparedFuture(Callable<V> taskCode) {
+        return ExecutionPhaseHintFuture.create(taskCode);
     }
 
     @Test
@@ -501,21 +501,21 @@ class TaskFutureTest {
     }
 
     @Test
-    void cancellingAnElementBeforeSubmissionKeepsItsBodyUnentered() {
-        AtomicBoolean bodyRan = new AtomicBoolean();
+    void cancellingAnElementBeforeSubmissionKeepsItsExecutionUnentered() {
+        AtomicBoolean executionRan = new AtomicBoolean();
         ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> {
-            bodyRan.set(true);
+            executionRan.set(true);
             return "done";
         });
         Task<String> element = Task.of("orders", new CancellationToken(), prepared);
 
         assertThat(element.cancel(true)).isTrue();
         // Cancelling the view forwards to the prepared future: the executor may still invoke it, and
-        // the phase claim is what keeps the body unentered.
+        // the phase claim is what keeps the execution unentered.
         assertThat(prepared.isCancelled()).isTrue();
         prepared.run();
 
-        assertThat(bodyRan).isFalse();
+        assertThat(executionRan).isFalse();
         assertThat(element.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
     }
 
@@ -529,7 +529,7 @@ class TaskFutureTest {
         assertThat(rejected.claimSubmissionFailure(new InterruptedException("submitter interrupted")))
                 .isTrue();
         rejected.settleSubmissionFailure();
-        cancelled.skipBody();
+        cancelled.skipExecution();
         cancelled.cancel(true);
 
         assertThat(rejectedView.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);

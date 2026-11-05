@@ -14,7 +14,7 @@ import java.util.function.Supplier;
  * Guards one downstream call inside a batch element or group member with a Sentinel resource.
  *
  * <p>Sentinel keeps its call stack in a plain {@link ThreadLocal}, so an entry must be acquired and
- * exited on the same thread, inside the body. Acquiring it around {@code Par.map} on the caller
+ * exited on the same thread, inside the execution. Acquiring it around {@code Par.map} on the caller
  * would count one call for the whole fan-out and exit on the wrong thread. A blocked entry degrades
  * that element or member to the fallback value; it does not fail the batch or group. Business
  * failures are reported to Sentinel with {@link Tracer#traceEntry}, while failures caused by
@@ -66,7 +66,7 @@ public final class SentinelGuard {
      * <p>The origin is a request value that does not reach the worker by itself: capture it on the
      * request thread and pass it in. The context is exited before this method returns, so it never
      * stays behind on a pooled thread for the next task. When the current thread already has a
-     * Sentinel context, as on a caller thread that runs a body inline, that context and its origin
+     * Sentinel context, as on a caller thread that runs an execution inline, that context and its origin
      * are kept and left in place.
      *
      * @param contextName the Sentinel context name, typically the entrance of the request

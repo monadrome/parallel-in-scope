@@ -9,9 +9,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Executes a task with its scoped context, cancellation checkpoint, timing, and final observation.
  *
- * <p>The previous {@link TaskExecutionContext} is restored on exit. Body exit is published only
- * after the user body's {@code finally} has completed and its captured body reference has been
- * released. Workload diagnostics must not replace the body's own value or failure.
+ * <p>The previous {@link TaskExecutionContext} is restored on exit. Execution exit is published only
+ * after the user task code's {@code finally} has completed and its captured execution reference has been
+ * released. Workload diagnostics must not replace the execution's own value or failure.
  *
  * @param <V> return value type
  * @author Eric Lin (linqinghua4 at gmail dot com)
@@ -19,9 +19,9 @@ import org.jspecify.annotations.Nullable;
 final class ScopedCallable<V> implements Callable<V> {
 
     /*
-     * The user body (plus any decorator chain), held in a one-way releasable slot. call()'s finally
-     * clears it after the user body's own finally has exited, so neither this wrapper nor anything
-     * retaining it (for example the TTL wrapper) keeps the user closure reachable once the body has
+     * The user task code (plus any decorator chain), held in a one-way releasable slot. call()'s finally
+     * clears it after the user task code's own finally has exited, so neither this wrapper nor anything
+     * retaining it (for example the TTL wrapper) keeps the user closure reachable once the execution has
      * ended. Written by the worker thread only; read by the worker and by test probes, hence the
      * volatile slot. Plain volatile reads and writes are enough: the slot only ever moves from set
      * to cleared, so it needs no CAS.
@@ -48,17 +48,17 @@ final class ScopedCallable<V> implements Callable<V> {
             // the delegate is released only after call() returns (releaseDelegate in finally)
             return callTimed(Objects.requireNonNull(delegate));
         } finally {
-            // delegate.call() has returned, so the user body's finally has exited: release the
-            // one-way holder before publishing body exit, and a waiter that observes EXITED never
+            // delegate.call() has returned, so the user task code's finally has exited: release the
+            // one-way holder before publishing execution exit, and a waiter that observes EXITED never
             // sees this wrapper still referencing the user closure.
             releaseDelegate();
             taskContext.markEnded(ticker.read());
-            // Publish body exit after the user body's finally: the end time marked above is then
+            // Publish execution exit after the user task code's finally: the end time marked above is then
             // final before the observation barrier can publish. The outer future finally retries
             // this as a fallback; the shared atomic state releases the slot exactly once.
-            TaskBodyState bodyState = taskContext.bodyState();
-            if (bodyState != null) {
-                bodyState.exited();
+            TaskExecutionState executionState = taskContext.executionState();
+            if (executionState != null) {
+                executionState.exited();
             }
             // Observation futures read the completed task explicitly and never inherit an implicit
             // current-task identity, even when this callable ran inline inside another task.
@@ -73,14 +73,14 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /**
-     * Runs the body inside its workload-fit timing, if it is screened. The timing ends before
-     * {@link #call()}'s cleanup begins and never throws, so the caller sees the body's own result
+     * Runs the execution inside its workload-fit timing, if it is screened. The timing ends before
+     * {@link #call()}'s cleanup begins and never throws, so the caller sees the execution's own result
      * or exception.
      */
-    private V callTimed(Callable<V> body) throws Exception {
+    private V callTimed(Callable<V> taskCode) throws Exception {
         WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());
         try {
-            return body.call();
+            return taskCode.call();
         } finally {
             if (timing != null) {
                 timing.stop();
@@ -89,14 +89,14 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /**
-     * Permanently releases the user-body reference; one-way and idempotent. Called from {@link
-     * #call()}'s finally, i.e. after the user body's own finally has exited.
+     * Permanently releases the user task code reference; one-way and idempotent. Called from {@link
+     * #call()}'s finally, i.e. after the user task code's own finally has exited.
      */
     private void releaseDelegate() {
         delegate = null;
     }
 
-    /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the body. */
+    /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the execution. */
     @VisibleForTesting
     boolean delegateReleased() {
         return delegate == null;
@@ -104,13 +104,13 @@ final class ScopedCallable<V> implements Callable<V> {
 
     @Override
     public String toString() {
-        Callable<V> body = delegate;
+        Callable<V> taskCode = delegate;
         return "ScopedCallable{"
                 + "taskName='"
                 + taskContext.multiTaskContext().name()
                 + '\''
                 + ", delegate="
-                + (body == null ? "released" : body)
+                + (taskCode == null ? "released" : taskCode)
                 + ", taskIndex="
                 + taskContext.taskIndex()
                 + ", submitTime="

@@ -10,7 +10,7 @@ import com.google.errorprone.annotations.Immutable;
  * field. The name supplies the group's unique diagnostic name, not the key's equality.
  * A key does not prove that a task was declared or executed, and is not a {@link TaskId}.
  *
- * <p>The type binds the task body and result lookup at compile time. Keys carry no runtime
+ * <p>The type binds the task execution and result lookup at compile time. Keys carry no runtime
  * type information and results are not checked at runtime. Raw types and unchecked casts can
  * defeat these guarantees and are the caller's responsibility.
  *
