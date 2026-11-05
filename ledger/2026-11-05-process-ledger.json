@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-05-process-ledger",
+  "date": "2026-11-05",
+  "topic": "process-ledger",
+  "routes": [
+    "docs",
+    "other"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "claude-opus-5.5"
+  },
+  "change": {
+    "commits": [
+      "feat(scripts): add a delivery ledger and process metrics report",
+      "refactor: share subprocess and run-merge helpers in process-metrics",
+      "test: cover process-metrics markdown output and pin literal oracles",
+      "fix(scripts): accept the review disposition in process-metrics"
+    ],
+    "files": 4,
+    "insertions": 1021,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-process-ledger-2026-11-05",
+        "head": "fc945297199f5c7a9a6c5b8a39e0aa52914ea20f",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "T02"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "T02"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "mvn test failure was the JDK enforcer: shell default JDK 21; adversarial review not required (tooling, no contract)"
+}
