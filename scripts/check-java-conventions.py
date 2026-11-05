@@ -367,28 +367,49 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
 
 
 def override_context(source: Source, offset: int) -> bool:
-    """Whether the line at offset, or the annotation lines above it, carry Override."""
+    """Whether the line at offset, or the annotation lines above it, carry Override.
+
+    The walk reads masked code, so an annotation named in a comment or string
+    cannot exempt a line, and it balances brackets so a multiline annotation
+    is crossed on the way to the `@Override` above it.
+    """
     start = source.text.rfind("\n", 0, offset) + 1
-    if OVERRIDE.search(source.text[start:offset]):
+    if OVERRIDE.search(source.code[start:offset]):
         return True
     position = start
+    pending = 0
     while position > 0:
         end = position - 1
-        while end > 0 and source.text[end].isspace():
+        while end > 0 and source.code[end].isspace():
             end -= 1
-        begin = source.text.rfind("\n", 0, end) + 1
-        line = source.text[begin:end + 1]
-        if OVERRIDE.search(line):
-            return True
-        if not line.strip().startswith("@"):
-            return False
+        begin = source.code.rfind("\n", 0, end) + 1
+        line = source.code[begin:end + 1]
+        pending += sum(line.count(char) for char in ")]}") - sum(line.count(char) for char in "([{")
+        pending = max(pending, 0)
+        stripped = line.strip()
+        if pending == 0:
+            if not stripped:
+                position = begin
+                continue
+            if not stripped.startswith("@"):
+                return False
+            if OVERRIDE.search(line):
+                return True
         position = begin
     return False
 
 
+def is_method_name(code: str, offset: int) -> bool:
+    """Whether the token ending at offset is followed by an opening parenthesis."""
+    index = offset
+    while index < len(code) and code[index] in " \t":
+        index += 1
+    return index < len(code) and code[index] == "("
+
+
 def check_spelling(path: str, source: Source) -> Iterator[Violation]:
     for match in SINGLE_L.finditer(source.text):
-        if override_context(source, match.start()):
+        if override_context(source, match.start()) and is_method_name(source.code, match.end()):
             continue
         word = match.group().lower()
         yield Violation(
