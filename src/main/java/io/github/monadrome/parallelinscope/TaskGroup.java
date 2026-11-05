@@ -815,8 +815,9 @@ final class TaskGroup<V, R> implements AutoCloseable {
         if (terminal != null) {
             terminal.future.addListener(() -> memberCompleted(terminal), directExecutor());
         }
-        CancellationToken.RequestCancellationLink cancellation = definition.admitCancellation(groupToken);
+        CancellationToken.RequestCancellationLink cancellation = null;
         try {
+            cancellation = definition.admitCancellation(groupToken);
             // Group level: group deadline, unified fail-fast (any failure or member cancellation), and
             // all-success detection, in one bind over the member futures. The terminal future joins the
             // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
@@ -839,7 +840,29 @@ final class TaskGroup<V, R> implements AutoCloseable {
             if (cancellation != null) {
                 cancellation.sever();
             }
+            abandonStartup(failure);
             throw failure;
+        }
+    }
+
+    /*
+     * Startup failed after prepare registered retention and execution-exit tracking, and before any
+     * submission, so no execution has run. The caller receives the failure and never sees this group,
+     * which leaves this method as the only owner of what prepare acquired. Cancelling the group token
+     * first terminates it, which severs its parent link and makes convergence attribute the cancelled
+     * members to the group. Cancelling every prepared future then skips each execution — releasing
+     * its exit slot — and drives the member listeners registered above through convergence, which
+     * settles adopted ownership; together they complete everything retainUntilComplete and
+     * trackExecutions hold. A cleanup failure is suppressed into the startup failure the caller sees.
+     */
+    private void abandonStartup(Throwable failure) {
+        try {
+            groupToken.cancel();
+            for (MemberState member : membersAndTerminal) {
+                member.future.cancel(true);
+            }
+        } catch (RuntimeException | Error cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
         }
     }
 
