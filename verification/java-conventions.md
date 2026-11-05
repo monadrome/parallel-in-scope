@@ -29,7 +29,10 @@ keep their mandated names, and such implementations carry `@Override`.
 Anonymous class bodies and method bodies are not scanned for declarations.
 Annotation arguments are ignored when deciding whether a declaration is a
 field initializer, so `@SuppressWarnings(value = "unchecked") public T getX()`
-is still reported.
+is still reported. Braces inside annotation arguments, including an array
+value such as `@SuppressWarnings({"unchecked"})`, neither open a type body nor
+cut the declaration prefix, so a preceding `@Override` still exempts the
+method.
 
 R2 rationale: messages are lowercase fragments without a trailing period, and
 Guava's `Strings.lenientFormat` recognizes only the two-character `%s`. Every
@@ -41,12 +44,15 @@ in a variable or built from non-literal parts is skipped. For
 description (third argument). Whether a message interpolates the offending
 value or names an actionable alternative is not mechanically checkable and is
 left to review. A comma inside type arguments is treated as nesting, including
-`Map<String, Integer>` and an explicit method type argument such as
-`this.<String, Integer>call()`, so it does not shift the message position. The
+`Map<String, Integer>`, an explicit method type argument such as
+`this.<String, Integer>call()`, and an explicit constructor invocation such as
+`new <String, Integer>Holder()`, so it does not shift the message position. The
 nesting applies only when a `>` follows later in the call, which keeps
 `checkArgument(a<b, "message")` split correctly; an expression that combines
 both brackets, such as `a<b, c>d`, is still indistinguishable from a type
-argument list and merges the two arguments, which skips the message.
+argument list and merges the two arguments, which skips the message. The
+style checks read the literal with Java escapes decoded, so `"bad value.\n"`
+is still seen as ending with a period.
 
 Leading code identifier: the message may start uppercase when its first token
 (`[A-Za-z_$][\w.$]*`) looks like code, meaning it contains an uppercase letter
@@ -59,7 +65,10 @@ R3 rationale: the project uses the doubled-l family listed in `AGENTS.md`
 (`cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`,
 `labelled`). Third-party names and dated records keep their original
 spellings; they already exist in the base, so baseline subtraction passes
-them, and no exemption list is kept.
+them, and no exemption list is kept. A newly written mandated name is exempt
+when it appears on an `@Override` declaration line or on the line immediately
+after the annotation; an acronym prefix such as `URLCanceledTask` is still
+reported because it is a new local name, not a mandated one.
 
 R4 rationale: `AGENTS.md` prefers `Preconditions.checkNotNull` over
 `Objects.requireNonNull`.

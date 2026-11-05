@@ -45,7 +45,7 @@ DEFAULT_UPSTREAM = "origin/dev/v0.4.0"
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
 EXCLUDED_PREFIXES = ("io/github/monadrome/parallelinscope/queue/",)
 
-ACCESSOR_NAME = re.compile(r"(?:get|is)[A-Z]\w*")
+ACCESSOR_NAME = re.compile(r"(?:get|is)[A-Z][\w$]*")
 OVERRIDE = re.compile(r"@(?:\w+\.)*Override\b")
 METHOD_HEAD = re.compile(r"(?P<head>.*?)\b(?P<name>[A-Za-z_$][\w$]*)\s*$", re.DOTALL)
 TYPE_HEADER = re.compile(r"(?:^|[^\w$.])(?:(?P<interface>@?interface)|class|enum)\s+[A-Za-z_$]")
@@ -72,7 +72,7 @@ BAD_PLACEHOLDER = re.compile(r"%(?!s)")
 
 SINGLE_L = re.compile(
     r"(?<![A-Za-z])(?:cancel(?:ed|ing|ers?|able)|signaling|labeled)(?![a-z])"
-    r"|(?<![A-Z])(?:Cancel(?:ed|ing|ers?|able)|Signaling|Labeled)(?![a-z])"
+    r"|(?:Cancel(?:ed|ing|ers?|able)|Signaling|Labeled)(?![a-z])"
     r"|(?<![A-Za-z])(?:CANCEL(?:ED|ING|ERS?|ABLE)|SIGNALING|LABELED)(?![A-Za-z])"
 )
 DOUBLED_L = {
@@ -201,13 +201,18 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
             depth += 1
         elif char in ")]}":
             depth -= 1
-        elif (char == "<" and depth == 0 and index > 0 and not code[index - 1].isspace()
-                and (code[index - 1].isalnum() or code[index - 1] in "_$>.]") and index < last_close_angle):
-            # Type arguments after an identifier (`Map<String, Integer>`) nest their commas.
-            # Requiring a later `>` keeps `checkArgument(a<b, "msg")` split correctly; an
-            # expression with both brackets, such as `a<b, c>d`, is still indistinguishable
-            # from a type argument list and merges two arguments.
-            angles += 1
+        elif char == "<" and depth == 0 and index < last_close_angle:
+            before = index - 1
+            adjacent = (before >= 0 and not code[before].isspace()
+                        and (code[before].isalnum() or code[before] in "_$>.]"))
+            after_new = re.search(r"\bnew\s*$", code[open_index:index]) is not None
+            if adjacent or after_new:
+                # Type arguments after an identifier (`Map<String, Integer>`) or an explicit
+                # constructor invocation (`new <String, Integer>Foo()`) nest their commas.
+                # Requiring a later `>` keeps `checkArgument(a<b, "msg")` split correctly; an
+                # expression with both brackets, such as `a<b, c>d`, is still indistinguishable
+                # from a type argument list and merges two arguments.
+                angles += 1
         elif char == ">" and angles > 0 and code[index - 1] != "-":
             angles -= 1
         elif char == "," and depth == 0 and angles == 0:
@@ -260,6 +265,31 @@ def message_problems(message: str) -> list[str]:
     return problems
 
 
+def decode_literal(text: str) -> str:
+    """Java string-literal contents with the standard escapes decoded."""
+    escapes = {"b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t",
+               '"': '"', "'": "'", "\\": "\\"}
+    out = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\\" and index + 1 < len(text):
+            escape = text[index + 1]
+            if escape == "u" and index + 5 < len(text):
+                try:
+                    out.append(chr(int(text[index + 2:index + 6], 16)))
+                    index += 6
+                    continue
+                except ValueError:
+                    pass
+            out.append(escapes.get(escape, escape))
+            index += 2
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
 def check_messages(path: str, source: Source) -> Iterator[Violation]:
     for match in MESSAGE_CALL.finditer(source.code):
         open_index = match.end() - 1
@@ -274,11 +304,12 @@ def check_messages(path: str, source: Source) -> Iterator[Violation]:
         parts = literal_parts(source, start, end)
         if parts is None:
             continue
-        message = "".join(parts)
+        raw = "".join(parts)
+        message = decode_literal(raw)
         first = skip_space(source.text, start, end)
         for problem in message_problems(message):
             yield Violation(
-                path, source.line_of(first), "R2", f'{match["name"]} message "{message}" {problem}',
+                path, source.line_of(first), "R2", f'{match["name"]} message "{raw}" {problem}',
                 f'{match["name"]}:{normalize(source.text[start:end])}:{problem}',
             )
 
@@ -298,19 +329,12 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
     code = source.code
     stack: list[str] = []
     segment = 0
+    paren_depth = 0
     for index, char in enumerate(code):
-        if char == "{":
-            header = code[segment:index]
-            match = TYPE_HEADER.search(header)
-            stack.append(("interface" if match["interface"] else "type") if match else "block")
-            segment = index + 1
-        elif char == "}":
-            if stack:
-                stack.pop()
-            segment = index + 1
-        elif char == ";":
-            segment = index + 1
-        elif char == "(" and stack and stack[-1] != "block":
+        if char == "(":
+            paren_depth += 1
+            if not stack or stack[-1] == "block":
+                continue
             head = METHOD_HEAD.match(code, segment, index)
             if not head or not ACCESSOR_NAME.fullmatch(head["name"]):
                 continue
@@ -327,10 +351,37 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
                 "when it implements a JDK or third-party contract",
                 normalize(code[segment:close + 1]),
             )
+        elif char == ")":
+            paren_depth = max(paren_depth - 1, 0)
+        elif char == "{" and paren_depth == 0:
+            header = code[segment:index]
+            match = TYPE_HEADER.search(header)
+            stack.append(("interface" if match["interface"] else "type") if match else "block")
+            segment = index + 1
+        elif char == "}" and paren_depth == 0:
+            if stack:
+                stack.pop()
+            segment = index + 1
+        elif char == ";" and paren_depth == 0:
+            segment = index + 1
+
+
+def override_context(source: Source, offset: int) -> bool:
+    """Whether the line at offset, or the line before it, carries an Override annotation."""
+    start = source.text.rfind("\n", 0, offset) + 1
+    if OVERRIDE.search(source.text[start:offset]):
+        return True
+    prior_end = start - 1
+    while prior_end > 0 and source.text[prior_end].isspace():
+        prior_end -= 1
+    prior_start = source.text.rfind("\n", 0, prior_end) + 1
+    return bool(OVERRIDE.search(source.text[prior_start:prior_end + 1]))
 
 
 def check_spelling(path: str, source: Source) -> Iterator[Violation]:
     for match in SINGLE_L.finditer(source.text):
+        if override_context(source, match.start()):
+            continue
         word = match.group().lower()
         yield Violation(
             path, source.line_of(match.start()), "R3",
