@@ -42,7 +42,7 @@ BENCH_RUNS = Path(".review-benchmark/runs")
 REVIEWS_DIR = Path(".agents/reviews")
 BENCH_RUN_SCHEMA = "llm-review-bench/run/v1"
 ROUTES = ("mechanical", "defect", "contract", "concurrency", "docs", "dependency", "release", "other")
-DISPOSITIONS = ("applied", "rejected", "deferred", "reverted")
+DISPOSITIONS = ("applied", "rejected", "deferred", "review", "reverted")
 # pit.md "Interpret every raw status": these four are conclusive (or reported separately, for
 # NON_VIABLE); every other status -- TIMED_OUT, MEMORY_ERROR, RUN_ERROR, unknown -- is inconclusive.
 PIT_CONCLUSIVE = ("KILLED", "SURVIVED", "NO_COVERAGE", "NON_VIABLE")
