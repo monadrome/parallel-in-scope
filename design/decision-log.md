@@ -295,6 +295,12 @@ Narrowly adopted as `ImmediateResult.successful()` and three-way `fold` (`propos
 
 Reopen with real consuming code that `fold` cannot express and existing entries cannot serve.
 
+The four-way `ImmediateResult.fold` refinement (2026-11-06) keeps the one-shot result consumer but
+separates `USER_FAILURE` from `SUBMISSION_FAILURE` so callers can apply different business and
+infrastructure policies without rereading `outcome()`. It does not reopen the rejected FuturePath,
+visitor, or typestate directions; ordinary `ListenableFuture` values still lack the frozen attribution
+needed for this classification. The current contract is in `synchronous-scope-exit.md`.
+
 ### Removed `TaskCompletion` and `SmartBlockingQueue` factories (2026-10-27, maintainer decision)
 
 `TaskCompletion.succeeded/failed` were removed: no public method accepts a `TaskCompletion`, and

@@ -19,8 +19,10 @@ class ImmediateResultFoldTest {
 
     @Test
     void successAppliesOnValueIncludingNull() {
-        String present = ImmediateResult.succeeded("v").fold(v -> "value:" + v, f -> "failure", (o, t) -> "cancelled");
-        String absent = ImmediateResult.<String>succeeded(null).fold(v -> "value:" + v, f -> "failure", (o, t) -> "x");
+        String present = ImmediateResult.succeeded("v")
+                .fold(v -> "value:" + v, f -> "user", f -> "submission", (o, t) -> "cancelled");
+        String absent = ImmediateResult.<String>succeeded(null)
+                .fold(v -> "value:" + v, f -> "user", f -> "submission", (o, t) -> "x");
 
         assertThat(present).isEqualTo("value:v");
         assertThat(absent).isEqualTo("value:null");
@@ -35,7 +37,9 @@ class ImmediateResultFoldTest {
                 continue;
             }
             if (outcome == TaskOutcome.SUCCESS) {
-                branches.put(outcome, ImmediateResult.succeeded(1).fold(v -> "value", f -> "failure", (o, t) -> "x"));
+                branches.put(
+                        outcome,
+                        ImmediateResult.succeeded(1).fold(v -> "value", f -> "user", f -> "submission", (o, t) -> "x"));
                 continue;
             }
             IllegalStateException stored = new IllegalStateException(outcome.name());
@@ -45,9 +49,13 @@ class ImmediateResultFoldTest {
                     outcome,
                     result.fold(
                             v -> "value",
-                            failure -> {
-                                assertThat(failure).isSameAs(stored);
-                                return "failure";
+                            userFailure -> {
+                                assertThat(userFailure).isSameAs(stored);
+                                return "user";
+                            },
+                            submissionFailure -> {
+                                assertThat(submissionFailure).isSameAs(stored);
+                                return "submission";
                             },
                             (cancelledOutcome, detail) -> {
                                 assertThat(cancelledOutcome).isEqualTo(outcome);
@@ -57,8 +65,8 @@ class ImmediateResultFoldTest {
         }
         assertThat(branches)
                 .containsEntry(TaskOutcome.SUCCESS, "value")
-                .containsEntry(TaskOutcome.USER_FAILURE, "failure")
-                .containsEntry(TaskOutcome.SUBMISSION_FAILURE, "failure")
+                .containsEntry(TaskOutcome.USER_FAILURE, "user")
+                .containsEntry(TaskOutcome.SUBMISSION_FAILURE, "submission")
                 .containsEntry(TaskOutcome.MEMBER_CANCELLED, "cancelled")
                 .containsEntry(TaskOutcome.GROUP_CANCELLED, "cancelled")
                 .containsEntry(TaskOutcome.FAIL_FAST, "cancelled")
@@ -70,11 +78,16 @@ class ImmediateResultFoldTest {
     @SuppressWarnings("NullAway")
     void foldRejectsNullFunctions() {
         ImmediateResult<String> result = ImmediateResult.succeeded("v");
-        assertThatThrownBy(() -> result.fold(null, f -> "", (o, t) -> "")).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", null, (o, t) -> "")).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(null, f -> "", f -> "", (o, t) -> ""))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", null, f -> "", (o, t) -> ""))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", f -> "", null, (o, t) -> ""))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", f -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
         ImmediateResult<String> failed = ImmediateResult.failed(TaskOutcome.USER_FAILURE, new IllegalStateException());
-        assertThatThrownBy(() -> failed.fold(null, f -> "", (o, t) -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> failed.fold(null, f -> "", f -> "", (o, t) -> ""))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -98,8 +111,8 @@ class ImmediateResultFoldTest {
             int failures = 0;
             int cancellations = 0;
             for (ImmediateResult<Integer> result : batch.results()) {
-                String kind = result.fold(v -> "value", f -> "failure", (o, t) -> "cancelled");
-                if (kind.equals("failure")) {
+                String kind = result.fold(v -> "value", f -> "user", f -> "submission", (o, t) -> "cancelled");
+                if (kind.equals("user") || kind.equals("submission")) {
                     failures++;
                 } else if (kind.equals("cancelled")) {
                     cancellations++;

@@ -327,20 +327,22 @@ failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括
 组一旦记录了成员或 combine 失败，即使组 outcome 是取消形状，cause 仍为该存储失败。
 手动 `failed(outcome, failure)` 保留传入异常；outcome 是元数据，不转换异常类型。
 
-`fold` 按 outcome 穷尽消费结果：fail-fast 的兄弟不会被算作失败，漏写分支编译不过：
+`fold` 按四类公共终态消费结果：用户代码失败与提交失败分别处理，fail-fast 的兄弟不会被算作失败：
 
 ```java
 Price price = batch.results().get(i).fold(
         value -> value,
-        failure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, failure);
+        userFailure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, userFailure);
             return Price.UNKNOWN;
         },
+        submissionFailure -> Price.UNKNOWN,
         (outcome, detail) -> Price.UNKNOWN);
 ```
 
-`onValue` 接收可能为 null 的成功值；`onFailure` 处理 `USER_FAILURE` 与 `SUBMISSION_FAILURE`；
-`onCancelled` 接收其余 outcome 及其存储的异常，该异常不一定是 `CancellationException`。
+`onValue` 接收可能为 null 的成功值；第二个处理器接收 `USER_FAILURE` 的异常，第三个处理器接收
+`SUBMISSION_FAILURE` 的异常；`onCancelled` 接收取消类 outcome 及其存储的异常，该异常不一定是
+`CancellationException`。四个处理器都必须提供，`fold` 返回被选处理器的结果。
 `successful()` 只判断是否为 `SUCCESS`。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
@@ -524,7 +526,7 @@ TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
 否则它会读作 `USER_FAILURE`。
 
 想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
-`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理三种形状。执行内的 `runAll` 遵循
+`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理四种公共终态。执行内的 `runAll` 遵循
 同一规则，而组成员执行是 `Callable`，还可以抛受检异常。
 
 ## 观测嵌套工作 {#nested-observation}

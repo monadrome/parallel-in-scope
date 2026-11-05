@@ -44,6 +44,26 @@ Literal-null `valueOf(null)` / `resultOf(null)` calls need a `String` or `TaskKe
 Cancellation, deadline, TTL, success-gated terminal submission, and bounded cleanup semantics
 are unchanged. These API removals have no compatibility shims; recompile consumers against 0.4.
 
+## ImmediateResult.fold failure branches
+
+`ImmediateResult.fold` now separates user-code failures from submission failures. Migrate the old
+three-argument call:
+
+```java
+result.fold(onValue, onFailure, onCancelled);
+```
+
+to four handlers:
+
+```java
+result.fold(onValue, onUserFailure, onSubmissionFailure, onCancelled);
+```
+
+`onUserFailure` handles only `USER_FAILURE`; `onSubmissionFailure` handles
+`SUBMISSION_FAILURE`, which is recorded before user code runs. All four cancellation outcomes still
+go to `onCancelled`, with the concrete `TaskOutcome` passed as its first argument. This is a public
+0.4 API change; the three-argument overload is not retained.
+
 ## Execution exit terminology
 
 A run of task code is an **execution**, and its exit from the task code is an **execution exit**. A `Task` is still the caller-visible future. The names below are removed with no aliases:
