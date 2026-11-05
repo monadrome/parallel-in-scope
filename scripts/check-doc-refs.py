@@ -45,18 +45,25 @@ EXEMPT_FILES = {
     "todo.md",
 }
 
-HASH_RETRIEVAL = re.compile(r"\bgit\s+(?:show|log)\b")
+HEX = r"(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}"
+HASH_RETRIEVAL = re.compile(
+    r"\bgit\s+(?:show|log)\b"
+    r"|\bgit\s+(?:worktree\s+add\s+\S+|checkout|switch|diff|cherry-pick|rebase|reset(?:\s+--\w+)?)"
+    r"\s+(?:" + HEX + r"|[0-9]{7,40})\b"
+)
 LINE_SUFFIX = re.compile(
     r"(?<![A-Za-z0-9_./-])[A-Za-z0-9_./-]+\.(?:md|java|py|ya?ml|xml|sh|html|kt|ts)"
     r":\d+(?:[-,]\d+)*"
 )
 # Seven to forty lowercase hex digits containing both a digit and a letter, not
 # part of a longer word, path, or URL segment.
-# An all-digit abbreviated hash is indistinguishable from a number in prose, so
-# it is flagged only inside backticks, where hashes are conventionally quoted.
-COMMIT_HASH = re.compile(
-    r"(?<![\w./#-])(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w/-])"
-    r"|`[0-9]{7,12}`"
+COMMIT_HASH = re.compile(r"(?<![\w./#-])" + HEX + r"(?![\w/-])")
+# An all-digit abbreviated hash looks like any number, so it is flagged only when
+# quoted in backticks or parentheses on a line that talks about commits.
+DIGIT_HASH = re.compile(r"[`(][0-9]{7,40}[`)]")
+COMMIT_CONTEXT = re.compile(
+    r"\bcommit|\bhash|\b(?:removed|landed|fixed|added|reverted)\s+in\b|提交|落地|修复|删除|移除",
+    re.IGNORECASE,
 )
 HISTORY_RETRIEVAL = re.compile(
     r"git\s*历史[^。\n]{0,12}(?:取回|取到)"
@@ -91,7 +98,7 @@ def violations(root: Path) -> list[str]:
                 found.append(f"{relative}:{number}: hash-based retrieval: {line.strip()}")
             if LINE_SUFFIX.search(line):
                 found.append(f"{relative}:{number}: line-number reference: {line.strip()}")
-            if COMMIT_HASH.search(line):
+            if COMMIT_HASH.search(line) or (DIGIT_HASH.search(line) and COMMIT_CONTEXT.search(line)):
                 found.append(f"{relative}:{number}: commit-hash reference: {line.strip()}")
             if HISTORY_RETRIEVAL.search(line):
                 found.append(f"{relative}:{number}: git-history retrieval: {line.strip()}")
