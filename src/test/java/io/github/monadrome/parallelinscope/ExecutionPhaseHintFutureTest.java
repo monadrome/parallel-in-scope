@@ -208,6 +208,38 @@ public class ExecutionPhaseHintFutureTest {
     }
 
     @Test
+    public void queuedCancellationWithInterruptDoesNotEnterBodyWhenDequeuedLater() throws Exception {
+        ThreadPoolExecutor executor =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        CountDownLatch blockerEntered = new CountDownLatch(1);
+        CountDownLatch blockerRelease = new CountDownLatch(1);
+        AtomicInteger bodyCalls = new AtomicInteger();
+        ExecutionPhaseHintFuture<Integer> queued = ExecutionPhaseHintFuture.create(bodyCalls::incrementAndGet);
+        try {
+            executor.execute(() -> {
+                blockerEntered.countDown();
+                Uninterruptibles.awaitUninterruptibly(blockerRelease);
+            });
+            assertThat(blockerEntered.await(5, TimeUnit.SECONDS)).isTrue();
+
+            executor.execute(queued);
+            assertThat(executor.getQueue()).containsExactly((Runnable) queued);
+            assertThat(queued.cancel(true)).isTrue();
+            assertThat(queued.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
+
+            blockerRelease.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(bodyCalls).hasValue(0);
+            assertThat(queued.isCancelled()).isTrue();
+            assertThat(queued.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
+        } finally {
+            blockerRelease.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     public void runningCancellationRemainsQueryableUntilCleanupFinishes() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
