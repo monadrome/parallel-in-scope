@@ -1,0 +1,24 @@
+design/AGENTS.md
+  s_c4476fac723ad0::t_b5d51a4e871c8b 122
+design/cancellation-propagation.md
+  s_c4476fac723ad0::t_945cec0d0b2f7b 5
+design/cancellation-model.md
+  s_c4476fac723ad0::t_3ceab4224d09f8 57-58
+  s_c4476fac723ad0::t_3705cd4b1d9318 1-56,59-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b9dc0dbfaddba2ed032344c988e45927cf6e5894",
+  "prompts": {},
+  "sessions": {
+    "s_c4476fac723ad0": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_ac5b5e35-cca6-4584-b477-1b352687fbeb",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
