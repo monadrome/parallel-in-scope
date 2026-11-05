@@ -46,6 +46,7 @@ DEFAULT_UPSTREAM = "origin/dev/v0.4.0"
 EXCLUDED_PREFIXES = ("io/github/monadrome/parallelinscope/queue/",)
 
 ACCESSOR_NAME = re.compile(r"(?:get|is)[A-Z]\w*")
+OVERRIDE = re.compile(r"@(?:\w+\.)*Override\b")
 METHOD_HEAD = re.compile(r"(?P<head>.*?)\b(?P<name>[A-Za-z_$][\w$]*)\s*$", re.DOTALL)
 TYPE_HEADER = re.compile(r"(?:^|[^\w$.])(?:(?P<interface>@?interface)|class|enum)\s+[A-Za-z_$]")
 HEAD_LAST_TOKEN = re.compile(r"[\w$>\]]\s*$")
@@ -201,7 +202,7 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
         elif char in ")]}":
             depth -= 1
         elif (char == "<" and depth == 0 and index > 0 and not code[index - 1].isspace()
-                and (code[index - 1].isalnum() or code[index - 1] in "_$>]") and index < last_close_angle):
+                and (code[index - 1].isalnum() or code[index - 1] in "_$>.]") and index < last_close_angle):
             # Type arguments after an identifier (`Map<String, Integer>`) nest their commas.
             # Requiring a later `>` keeps `checkArgument(a<b, "msg")` split correctly; an
             # expression with both brackets, such as `a<b, c>d`, is still indistinguishable
@@ -289,7 +290,7 @@ def is_reported_accessor(prefix: str, scope: str) -> bool:
         return False
     words = set(re.findall(r"[\w@$]+", prefix))
     visible = bool(words & {"public", "protected"}) or (scope == "interface" and "private" not in words)
-    return visible and "@Override" not in words
+    return visible and not OVERRIDE.search(prefix)
 
 
 def check_accessors(path: str, source: Source) -> Iterator[Violation]:
