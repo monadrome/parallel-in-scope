@@ -27,6 +27,9 @@ not by a sweep.
 R1 rationale: accessors use the bare `x()` form; JDK or third-party contracts
 keep their mandated names, and such implementations carry `@Override`.
 Anonymous class bodies and method bodies are not scanned for declarations.
+Annotation arguments are ignored when deciding whether a declaration is a
+field initializer, so `@SuppressWarnings(value = "unchecked") public T getX()`
+is still reported.
 
 R2 rationale: messages are lowercase fragments without a trailing period, and
 Guava's `Strings.lenientFormat` recognizes only the two-character `%s`. Every
@@ -37,7 +40,10 @@ in a variable or built from non-literal parts is skipped. For
 `checkElementIndex`/`checkPositionIndex` the checked argument is the
 description (third argument). Whether a message interpolates the offending
 value or names an actionable alternative is not mechanically checkable and is
-left to review.
+left to review. A comma inside `Identifier<...>` is treated as type-argument
+nesting, so `Map<String, Integer>` does not shift the message position; an
+unspaced comparison such as `a<b, c>d` is indistinguishable from a type
+argument list and merges the two arguments, which skips the message.
 
 Leading code identifier: the message may start uppercase when its first token
 (`[A-Za-z_$][\w.$]*`) looks like code, meaning it contains an uppercase letter

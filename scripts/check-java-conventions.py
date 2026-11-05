@@ -121,6 +121,19 @@ def normalize(text: str) -> str:
     return " ".join(text.split())
 
 
+def top_level(text: str) -> str:
+    """The text outside parentheses and brackets, so annotation arguments do not count."""
+    depth, kept = 0, []
+    for character in text:
+        if character in "([":
+            depth += 1
+        elif character in ")]":
+            depth = max(depth - 1, 0)
+        elif depth == 0:
+            kept.append(character)
+    return "".join(kept)
+
+
 def blank(text: str) -> str:
     return "".join(char if char == "\n" else " " for char in text)
 
@@ -179,14 +192,22 @@ def matching_paren(code: str, open_index: int) -> int:
 
 
 def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[int, int]]:
-    spans, depth, start = [], 0, open_index + 1
+    spans, depth, angles, start = [], 0, 0, open_index + 1
     for index in range(open_index + 1, close_index):
         char = code[index]
         if char in "([{":
             depth += 1
         elif char in ")]}":
             depth -= 1
-        elif char == "," and depth == 0:
+        elif (char == "<" and depth == 0 and index > 0 and not code[index - 1].isspace()
+                and (code[index - 1].isalnum() or code[index - 1] in "_$>]")):
+            # Type arguments after an identifier (`Map<String, Integer>`) nest their commas.
+            # An unspaced comparison such as `a<b, c>d` is indistinguishable from a type
+            # argument list and merges two arguments; the message then stays unchecked.
+            angles += 1
+        elif char == ">" and angles > 0 and code[index - 1] != "-":
+            angles -= 1
+        elif char == "," and depth == 0 and angles == 0:
             spans.append((start, index))
             start = index + 1
     spans.append((start, close_index))
@@ -247,9 +268,12 @@ def check_messages(path: str, source: Source) -> Iterator[Violation]:
         if parts is None:
             continue
         message = "".join(parts)
+        first = start
+        while first < end and source.text[first].isspace():
+            first += 1
         for problem in message_problems(message):
             yield Violation(
-                path, source.line_of(start), "R2", f'{match["name"]} message "{message}" {problem}',
+                path, source.line_of(first), "R2", f'{match["name"]} message "{message}" {problem}',
                 f'{match["name"]}:{normalize(source.text[start:end])}:{problem}',
             )
 
@@ -276,7 +300,8 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
             if not head or not ACCESSOR_NAME.fullmatch(head["name"]):
                 continue
             prefix = head["head"]
-            if "=" in prefix or not HEAD_LAST_TOKEN.search(prefix) or re.search(r"\b(?:new|return)\b", prefix):
+            plain = top_level(prefix)
+            if "=" in plain or not HEAD_LAST_TOKEN.search(prefix) or re.search(r"\b(?:new|return)\b", plain):
                 continue
             close = matching_paren(code, index)
             if close < 0 or code[index + 1:close].strip():
