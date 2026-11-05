@@ -117,15 +117,19 @@ and [interruption-contract.md](interruption-contract.md).
   rejected because "what kind of work" and "what to do when the executor is full" are orthogonal; a
   caller would need an inaccurate type to get inline execution, and the default type silently
   enabled a path that pulls user code onto the submitting thread.
-- A per-task `runOnCallerThread` option: removed before 0.3.0. The inline path had three defects:
-  idempotence when an executor both runs and rejects a task, a sliding window left pending forever
-  because inline execution bypassed its completion events, and a deadline that stopped working on
-  the borrowed thread. The executor's own handler expresses the same choice once, where the pool is
-  built.
+- A per-task `runOnCallerThread` option: removed before 0.3.0. Double execution was never the
+  problem (`ThreadPoolExecutor` does not both enqueue and reject, and the phase CAS runs a task at
+  most once). The inline path had three other defects, all from borrowing a thread without
+  isolating it: the task's restored interrupt flag leaked onto the caller or submitter thread; that
+  dirty flag made the submit loop abandon the rest of the batch (12 elements ran 3 and reported 9
+  `SUBMISSION_FAILURE`); and synchronous occupation of the submitting thread deadlocked in a way no
+  deadline could rescue, because bind came after submission. The executor's own handler expresses
+  the same choice once, where the pool is built.
 - A rejected terminal combine is recorded as `SUBMISSION_FAILURE` and never runs inline: its
   submission happens on a convergence callback thread that the scope does not own.
-- One shared relay thread for all batches: rejected because inline fallback would serialize user
-  code from unrelated batches onto one thread.
+- One shared relay thread for all batches: rejected in review because `runOnCallerThread` inline
+  fallback would serialize user code from unrelated batches onto one thread. The reason weakened when
+  the option was removed, but `CallerRunsPolicy` causes the same serialization.
 - `CallerRunsPolicy` is allowed but not recommended: it is less direct than an executor that throws,
   and while its pool is shut down it neither runs nor rejects the task, so the task is silently
   dropped.
@@ -301,8 +305,9 @@ data and executor waits are read from `ParRuntime.executorWaitReport()`
   attribution timing, Builder-registered SPIs with per-`Par` overrides are a library-invented
   concept next to Guava's future-plus-callback idiom, and a runtime-wide listener list is
   configuration invisible at the submission point.
-- A `TaskFuture` timing triple for immediate callbacks (an unadopted variant): not needed once the
-  running `Task` and `TaskFuture` types became package-private with the synchronous exit.
+- A `TaskFuture` timing triple for immediate callbacks (an unadopted variant): the record gives no
+  reason for not adopting it. The question became moot when `Task` and `TaskFuture` became
+  package-private with the synchronous exit; a reopener must first show a public live future.
 - The request-scoped `TaskGraphObservationScope` and its report (the adopted variant), and the
   variants that deleted or kept `ParRuntimeDeadlockPolicy`: all removed in 0.4, because a request
   scope cannot see the cross-request cycle and its static queries ignored the policy and read
@@ -321,8 +326,9 @@ Rejected alternatives are in [ADR 0008](../adr/0008-tasktype-as-workload-fit-dia
   [ADR 0006](../adr/0006-queues-ship-with-core.md). Do not reopen it in reviews, triage, or
   refactor proposals.
 - Resizable blocking queue experiment (three variants: condition, monitor, future-coordinated):
-  removed before 0.2 as exploratory code that the engine never referenced; none entered a contract,
-  and the implementations live only on an unmerged local branch. A future implementation must answer, without relying on timing: which
+  removed on the v0.2 line; the removal commit called them exploratory and not referenced by the
+  engine. None entered a contract, and the implementations were kept only on a local branch. A future
+  implementation must answer, without relying on timing: which
   object makes delegate, capacity, and generation appear atomically related; where a waiter sleeps
   and how it learns its delegate was replaced; what keeps a reserved drain head valid against take,
   poll, remove, clear, iterator removal, and resize; what stays authoritative when replacement
@@ -350,6 +356,23 @@ no gate requiring every pointer to resolve.
 state qualitative comment principles; count, density, and length gates stay rejected. Do not
 reopen comment gates in reviews, triage, or refactor proposals.
 
+### Annotations not adopted (`proposal:P0028`)
+
+The annotation pilot added immutability, return-value, lock-ownership, and test-visibility
+annotations. Not adopted: `@LazyInit` (the code has no lazy-initialization field pattern),
+`@ThreadSafe` (it cannot prove cross-method protocols), and `@CompileTimeConstant`, `@FormatMethod`,
+`@Var`, `@StrictlyNonNullGeneric`, `@WeakOuter`, `@ParametricNullness`, `@GwtIncompatible`, `@Beta`,
+`@DoNotCall` (limited benefit; they are shaped by GWT, Android, Checker Framework, or Guava
+compatibility constraints that this project does not have).
+
+### JSpecify null safety (v0.3)
+
+Nullability moved from mixed JSR-305 and Checker Framework annotations, which had no compile-time
+enforcement and only served IDE hints, to JSpecify enforced by NullAway with `OnlyNullMarked=true`.
+`JSpecifyMode=true` (full generic, array, and varargs semantics) was deferred because NullAway's
+support was still incomplete; JDK 25 already meets its javac threshold, so reopen it as a separate
+increment when that support is judged complete.
+
 ### ADR condensation (2026-10-27)
 
 ADR history text may be condensed: outdated non-decision content (implementation maps, type and test
@@ -362,11 +385,12 @@ it were current. The procedure is in [adr/AGENTS.md](../adr/AGENTS.md).
 
 The tracked archive directories for retired proposals, harvested analyses, review records, and
 pre-condensation ADR text were deleted after their conclusions and rejection reasons were distilled
-into this log, the owning contracts, and the ADR `History` sections. Reasons: agents need the current
-view plus the rejection reasons, not the full text; repository-wide searches kept surfacing obsolete
-contracts as if they were current; and links into frozen files and commit hashes forced chained
-edits whenever the target moved. Rejected: keeping the archives as frozen read-only trees, because
-the search noise and link maintenance remain while the distilled reasons already answer "why not".
+into this log, the owning contracts, and the ADR `History` sections. The maintainer's reason: only
+the current view is needed, plus the reasons behind rejections; commit-hash references must go
+because a changed hash forces chained edits. The implementer added two observations: repository-wide
+searches surfaced obsolete contracts as if they were current, and links into frozen files needed
+upkeep. Rejected: keeping the archives as frozen read-only trees, because those costs remain while
+the distilled reasons already answer "why not".
 
 ### Process decisions
 
@@ -385,6 +409,24 @@ the search noise and link maintenance remain while the distilled reasons already
   No `distill-proposal.py`, because placing and wording a distillation needs judgment and the
   existing gates already check the mechanical steps.
 
+### Rejections from session harvests (2026-10-01 to 2026-10-12)
+
+- A live contract is not rejected because it changed often: co-evolution with the implementation is
+  separate from documentation drift.
+- Low adoption does not prove that the library has no users or poor quality.
+- The benchmark deferral is not lifted because "marketing is cheap"; it needs a real downstream
+  threshold.
+- No community or compliance platform is built by default; there is no demand that needs one.
+- The CompletableFuture, async, or retry pipeline is not restored: the comparison with HKJ only
+  confirmed the boundary between future settlement and execution exit.
+- Branch or worktree deletion instructions found in historical sessions are not executed; they
+  belonged to their own sessions.
+- Listener-error diagnostics (`proposal:P0016`): a permanently pending report is not re-reported,
+  since the re-entry deadlock behind it was fixed, and an internal error injection is not used as a
+  natural public counterexample.
+- Comment density and zero call sites are not evidence for deleting concurrency knowledge or
+  public capability.
+
 ## Harvested analysis inputs
 
 Historical observations are not current defect evidence, and a carried item is not approved work.
@@ -402,4 +444,4 @@ Historical observations are not current defect evidence, and a carried item is n
 | OpenTelemetry sessions (2026-10-09/10) | Unexecuted SDK and agent verification is [P0013](proposal/P0013-opentelemetry-verification.md). Withdrawn as unproven: "the agent works everywhere", "propagation always duplicates spans", "OTel necessarily violates TTL I3" |
 | PR #56 reland branches | The checkpoint `TIMEOUT` escalation gap was reproduced and fixed in [task-group-cancellation.md](task-group-cancellation.md); the RUNNING-clock fallback is a new policy choice in [P0020](proposal/P0020-deadline-attribution-policy.md), not a proven defect. Failure-read and interruption regressions were fixed in [interruption-contract.md](interruption-contract.md); a single classification carrier remains a [P0006](proposal/P0006-execution-protocol-consolidation.md) candidate. The O-13/O-14 teaching items (empty `failedTaskResult()` for a pure timeout, ambiguous `FAIL_FAST` history) are in [P0022](proposal/P0022-documentation-maintenance.md) with current semantics kept |
 | OSS audits (2026-10-09) | Adoption path in [P0017](proposal/P0017-oss-adoption-path.md), artifact verification in [P0023](proposal/P0023-artifact-verification.md). Benchmarks stay deferred until a real downstream threshold exists; `closeAndAwait` only joins two existing steps without removing a failure mode, so no new API |
-| SSOT audit, question 2 (2026-10-29) | See the MkDocs edit-link decision above; the follow-up about publishing-time link flipping is BACKLOG O-18 |
+| SSOT audit, question 2 (2026-10-29) | MkDocs `edit_uri` stays `edit/main/docs/` (decided under "Process decisions"); the follow-up about publishing-time link flipping is BACKLOG O-18 |

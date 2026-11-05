@@ -6,8 +6,8 @@
 - Supersedes: None
 - Superseded by: [Execution future simplification](../design/execution-future-simplification.md)
 
-> Note (2026-10-27): automatic purge was removed from the main line in 0.3.0
-> (`9784312`). The library no longer purges a user executor because a task was
+> Note (2026-10-27): automatic purge was removed from the main line in 0.3.0.
+> The library no longer purges a user executor because a task was
 > cancelled; physical queue cleanup is the executor owner's job (`ThreadPoolExecutor.purge()`
 > at the application's own maintenance boundary). The removed failure surface was the
 > coordination this record designed — phase-notification ordering, observer capture and

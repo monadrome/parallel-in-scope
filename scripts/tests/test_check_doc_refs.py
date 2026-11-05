@@ -51,19 +51,23 @@ class CheckDocRefsTest(unittest.TestCase):
         self.assertEqual(len(docs.violations(self.root)), 2)
 
     def test_provenance_hashes_are_a_violation(self):
-        self.write("design/contract.md", "# Contract\nRemoved in `abc1234`.\nLanded in 7e2ceae.\n")
+        self.write(
+            "design/contract.md",
+            "# Contract\nRemoved in `abc1234`.\nLanded in 7e2ceae.\nRemoved in 0.3.0 (`9784312`).\n",
+        )
         self.assertEqual(
             docs.violations(self.root),
             [
                 "design/contract.md:2: commit-hash reference: Removed in `abc1234`.",
                 "design/contract.md:3: commit-hash reference: Landed in 7e2ceae.",
+                "design/contract.md:4: commit-hash reference: Removed in 0.3.0 (`9784312`).",
             ],
         )
 
     def test_hex_like_words_and_relative_links_are_allowed(self):
         self.write(
             "design/contract.md",
-            "# Contract\nSee [decision-log.md](decision-log.md), `deadbeef`, `1234567`, and #1e75d3aa.\n"
+            "# Contract\nSee [decision-log.md](decision-log.md), `deadbeef`, `123456`, 1234567 items, and #1e75d3aa.\n"
             "Also design/abc1234-notes.md and v0.4.0-abc12345x.\n",
         )
         self.assertEqual(docs.violations(self.root), [])

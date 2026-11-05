@@ -52,7 +52,12 @@ LINE_SUFFIX = re.compile(
 )
 # Seven to forty lowercase hex digits containing both a digit and a letter, not
 # part of a longer word, path, or URL segment.
-COMMIT_HASH = re.compile(r"(?<![\w./#-])(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w/-])")
+# An all-digit abbreviated hash is indistinguishable from a number in prose, so
+# it is flagged only inside backticks, where hashes are conventionally quoted.
+COMMIT_HASH = re.compile(
+    r"(?<![\w./#-])(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w/-])"
+    r"|`[0-9]{7,12}`"
+)
 HISTORY_RETRIEVAL = re.compile(
     r"git\s*历史[^。\n]{0,12}(?:取回|取到)"
     r"|recoverable\s+(?:with|from)\s+git\s+history"
