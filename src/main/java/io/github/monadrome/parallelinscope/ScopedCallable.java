@@ -1,39 +1,30 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Central task wrapper with full lifecycle instrumentation.
+ * Executes a task with its scoped context, cancellation checkpoint, timing, and final observation.
  *
- * <p>Wraps a {@link Callable} with:
- *
- * <ul>
- *   <li>Context setup (TaskExecutionContext)
- *   <li>Cooperative cancellation checkpoint
- *   <li>Timing metrics published through the task's observation future
- *   <li>Cleanup on completion
- * </ul>
- *
- * <p>The active {@link TaskExecutionContext} is available to inner callables through {@link
- * TaskExecutionContext#current()}.
- *
- * <p>Timeline: {@code submitTime -> startTime -> endTime}
+ * <p>The previous {@link TaskExecutionContext} is restored on exit. Execution exit is published only
+ * after the user task code's {@code finally} has completed and its captured execution reference has been
+ * released. Workload diagnostics must not replace the execution's own value or failure.
  *
  * @param <V> return value type
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class ScopedCallable<V> implements Callable<V> {
 
-    /**
-     * The user body (plus any decorator chain), held in a one-way releasable slot. {@link
-     * #call()}'s finally clears it after the user body's own finally has exited, so neither this
-     * wrapper nor anything retaining it (for example the TTL wrapper) keeps the user closure
-     * reachable once the body has ended. Written by the worker thread only; read by the worker
-     * and by test probes, hence the volatile slot. Plain volatile reads and writes are enough: the
-     * slot only ever moves from set to cleared, so it needs no CAS.
+    /*
+     * The user task code (plus any decorator chain), held in a one-way releasable slot. call()'s finally
+     * clears it after the user task code's own finally has exited, so neither this wrapper nor anything
+     * retaining it (for example the TTL wrapper) keeps the user closure reachable once the execution has
+     * ended. Written by the worker thread only; read by the worker and by test probes, hence the
+     * volatile slot. Plain volatile reads and writes are enough: the slot only ever moves from set
+     * to cleared, so it needs no CAS.
      */
     private volatile @Nullable Callable<V> delegate;
 
@@ -51,26 +42,23 @@ final class ScopedCallable<V> implements Callable<V> {
     public V call() throws Exception {
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
-        // wrapper that TaskSubmissions.wrapScoped creates for every entry point.
-
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
             // the delegate is released only after call() returns (releaseDelegate in finally)
-            return Objects.requireNonNull(delegate).call();
+            return callTimed(Objects.requireNonNull(delegate));
         } finally {
-            // delegate.call() has returned, so the user body's finally has exited: release the
-            // one-way holder before publishing body exit, and a waiter that observes EXITED never
+            // delegate.call() has returned, so the user task code's finally has exited: release the
+            // one-way holder before publishing execution exit, and a waiter that observes EXITED never
             // sees this wrapper still referencing the user closure.
             releaseDelegate();
             taskContext.markEnded(ticker.read());
-            // Publish body exit after the user body's finally: the end time marked above is then
+            // Publish execution exit after the user task code's finally: the end time marked above is then
             // final before the observation barrier can publish. The outer future finally retries
             // this as a fallback; the shared atomic state releases the slot exactly once.
-            TaskBodyState bodyState = taskContext.bodyState();
-            if (bodyState != null) {
-                bodyState.exited();
+            TaskExecutionState executionState = taskContext.executionState();
+            if (executionState != null) {
+                executionState.exited();
             }
             // Observation futures read the completed task explicitly and never inherit an implicit
             // current-task identity, even when this callable ran inline inside another task.
@@ -85,27 +73,44 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     /**
-     * Permanently releases the user-body reference; one-way and idempotent. Called from {@link
-     * #call()}'s finally, i.e. after the user body's own finally has exited.
+     * Runs the execution inside its workload-fit timing, if it is screened. The timing ends before
+     * {@link #call()}'s cleanup begins and never throws, so the caller sees the execution's own result
+     * or exception.
+     */
+    private V callTimed(Callable<V> taskCode) throws Exception {
+        WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());
+        try {
+            return taskCode.call();
+        } finally {
+            if (timing != null) {
+                timing.stop();
+            }
+        }
+    }
+
+    /**
+     * Permanently releases the user task code reference; one-way and idempotent. Called from {@link
+     * #call()}'s finally, i.e. after the user task code's own finally has exited.
      */
     private void releaseDelegate() {
         delegate = null;
     }
 
-    /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the body. */
+    /** Package-private probe for tests: whether {@link #releaseDelegate()} has released the execution. */
+    @VisibleForTesting
     boolean delegateReleased() {
         return delegate == null;
     }
 
     @Override
     public String toString() {
-        @Nullable Callable<V> body = delegate;
+        Callable<V> taskCode = delegate;
         return "ScopedCallable{"
                 + "taskName='"
                 + taskContext.multiTaskContext().name()
                 + '\''
                 + ", delegate="
-                + (body == null ? "released" : body)
+                + (taskCode == null ? "released" : taskCode)
                 + ", taskIndex="
                 + taskContext.taskIndex()
                 + ", submitTime="

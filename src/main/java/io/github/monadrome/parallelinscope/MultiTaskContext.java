@@ -18,12 +18,15 @@ import org.jspecify.annotations.Nullable;
  * parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when there
  * is none). The cancellation token is always a new child token, so cancellation propagates downward
  * without making child failure cancel its parent.
- *
- * <p>The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live in
- * the {@link TaskNode} created once here; this context adds the execution state around it. The node
- * never points back, so the task graph holds nodes without keeping tokens or parent chains alive.
  */
 final class MultiTaskContext {
+    /*
+     * The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live
+     * in the TaskNode created once here; this context adds the execution state around it. The node
+     * never points back, so the task graph holds nodes without keeping tokens or parent chains
+     * alive.
+     */
+
     /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
     private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
 
@@ -31,31 +34,30 @@ final class MultiTaskContext {
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
     private final @Nullable MultiTaskContext structuralParent;
-    private final @Nullable TaskGraphObservationScope taskGraphObservationScope;
     private final boolean rejectEnqueue;
+    private final @Nullable Par par;
 
     private MultiTaskContext(
             TaskNode node,
             long deadlineNanos,
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
-            @Nullable TaskGraphObservationScope taskGraphObservationScope,
-            boolean rejectEnqueue) {
+            boolean rejectEnqueue,
+            @Nullable Par par) {
         this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
-        this.taskGraphObservationScope = taskGraphObservationScope;
         this.rejectEnqueue = rejectEnqueue;
+        this.par = par;
     }
 
     /**
      * Resolution parameters for one unit: everything {@link #resolve(Resolution)} needs beyond the
      * {@link UnitSpec}. Unset parent-dependent values default from the structural parent — the
      * cancellation parent to its token, the deadline ceiling to its deadline — so callers that nest
-     * under an enclosing scoped task set only the parent. The observation scope is deliberately not
-     * among them: ownership decides it, so the caller always states it.
-     * Setters are order-independent: explicitly set values always win over inherited defaults.
+     * under an enclosing scoped task set only the parent. Setters are order-independent: explicitly
+     * set values always win over inherited defaults.
      */
     static final class Resolution {
         private final UnitSpec spec;
@@ -66,9 +68,7 @@ final class MultiTaskContext {
         private @Nullable Long resolutionTimeNanos;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
-        private @Nullable TaskGraphObservationScope taskGraphObservationScope;
-        private @Nullable ExecutorRuntime executor;
-        private @Nullable ParId executorId;
+        private @Nullable Par par;
 
         private Resolution(UnitSpec spec, int taskCount) {
             this.spec = Objects.requireNonNull(spec, "spec cannot be null");
@@ -82,8 +82,8 @@ final class MultiTaskContext {
         }
 
         /**
-         * The cancellation parent, when it differs from the structural parent — a task-group
-         * member takes the group token, which is not a graph parent.
+         * The cancellation parent, when it differs from the structural parent — a task-group member
+         * takes the group token, which is not a graph parent.
          */
         Resolution cancellationParent(@Nullable CancellationToken parent) {
             this.cancellationParent = parent;
@@ -122,24 +122,37 @@ final class MultiTaskContext {
         }
 
         /**
-         * The scope this unit joins, as {@link TaskGraphObservationScope#resolveFor} decided it:
-         * null means it joins none. Not inherited from the structural parent — that parent may
-         * belong to another {@code ParRuntime} and carry a scope this unit must not join.
+         * The entry the unit is submitted through: the unit's node takes its executor's identity,
+         * its id as display label, and whether an execution blocked on the unit can starve it, and the
+         * unit's executions report workload measurements under it. Diagnostic and graph state only,
+         * never a submission target.
          */
-        Resolution taskGraphObservationScope(@Nullable TaskGraphObservationScope scope) {
-            this.taskGraphObservationScope = scope;
+        Resolution executor(Par par) {
+            this.par = checkNotNull(par, "par cannot be null");
             return this;
         }
 
-        /**
-         * The executor the unit runs on and the id it is registered under: the unit's node takes the
-         * executor's identity, the id as display label, and whether a body blocked on the unit can
-         * starve it. Diagnostic and graph state only, never a submission target.
-         */
-        Resolution executor(ExecutorRuntime runtime, ParId id) {
-            this.executor = checkNotNull(runtime, "runtime cannot be null");
-            this.executorId = checkNotNull(id, "id cannot be null");
-            return this;
+        /** The explicit cancellation parent, or the structural parent's token when none was set. */
+        private @Nullable CancellationToken effectiveCancellationParent() {
+            MultiTaskContext parent = structuralParent;
+            return cancellationParent != null ? cancellationParent : parent == null ? null : parent.cancellationToken;
+        }
+
+        /** The explicit deadline ceiling, or the structural parent's deadline when none was set. */
+        private long effectiveDeadlineCeilingNanos() {
+            return deadlineCeilingNanos != null
+                    ? deadlineCeilingNanos
+                    : MultiTaskContext.deadlineCeilingFor(structuralParent);
+        }
+
+        /** The cancellation parent's clock, or the explicit/system root clock without a parent. */
+        private Ticker domain(@Nullable CancellationToken cancellationParent) {
+            return MultiTaskContext.domainFor(cancellationParent, ticker);
+        }
+
+        /** The explicit resolution reading, or the selected domain's current reading. */
+        private long effectiveResolutionTimeNanos(Ticker domain) {
+            return resolutionTimeNanos != null ? resolutionTimeNanos : domain.read();
         }
     }
 
@@ -148,12 +161,29 @@ final class MultiTaskContext {
         return new Resolution(spec, taskCount);
     }
 
+    /** Returns the structural parent's deadline, or the no-deadline sentinel at the top level. */
+    static long deadlineCeilingFor(@Nullable MultiTaskContext structuralParent) {
+        return structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos;
+    }
+
+    /** Returns the cancellation parent's domain, or the explicit/system root domain without one. */
+    static Ticker domainFor(@Nullable CancellationToken cancellationParent, @Nullable Ticker rootTicker) {
+        return cancellationParent != null
+                ? cancellationParent.ticker()
+                : rootTicker != null ? rootTicker : Ticker.systemTicker();
+    }
+
+    static @Nullable MultiTaskContext requireDeadlineSource(@Nullable Duration timeout, String remedy) {
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        if (timeout == null && currentTask == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; " + remedy);
+        }
+        return currentTask == null ? null : currentTask.multiTaskContext();
+    }
+
     /**
-     * Resolves a unit from its parameters: requested parallelism is capped by task count, an
-     * explicit timeout uses the earlier of its own and any ceiling deadline, and an inherited
-     * timeout resolves to the enclosing deadline (rejected when there is none). The cancellation
-     * token is always a new child token, so cancellation propagates downward without making child
-     * failure cancel its parent.
+     * Resolves one executable unit under the deadline, cancellation, and parallelism rules of this
+     * class. Explicitly configured resolution parameters take precedence over inherited defaults.
      */
     static MultiTaskContext resolve(Resolution resolution) {
         UnitSpec spec = resolution.spec;
@@ -165,37 +195,23 @@ final class MultiTaskContext {
         if (spec.timeout() == null && parent == null && resolution.deadlineCeilingNanos == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
-        CancellationToken cancellationParent = resolution.cancellationParent != null
-                ? resolution.cancellationParent
-                : parent == null ? null : parent.cancellationToken;
-        long deadlineCeiling = resolution.deadlineCeilingNanos != null
-                ? resolution.deadlineCeilingNanos
-                : parent == null ? Long.MAX_VALUE : parent.deadlineNanos;
+        CancellationToken cancellationParent = resolution.effectiveCancellationParent();
+        long deadlineCeiling = resolution.effectiveDeadlineCeilingNanos();
         // The deadline domain follows the cancellation parent's clock; only a root unit takes the
         // resolution's own clock (the owning ParRuntime's). This keeps a nested runtime's units on
         // the ancestor's clock instead of mixing domains inside one token tree.
-        Ticker domain = cancellationParent != null
-                ? cancellationParent.ticker()
-                : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
-        long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
-        // No parent fallback: the caller has already applied the ownership rule via
-        // TaskGraphObservationScope.resolveFor, and a null answer from it means "this unit joins no
-        // scope". Falling back to the parent's scope here would hand back the very scope that rule
-        // rejected -- and because resolveFor reads the parent's stored scope, a unit of another
-        // ParRuntime carrying its parent's scope would launder it into the next nesting level.
-        TaskGraphObservationScope observation = resolution.taskGraphObservationScope;
-        // A non-positive request has no fallback left: the sliding window would never submit and
-        // the batch would wait forever, so the invariant both producers already keep fails loudly.
+        Ticker domain = resolution.domain(cancellationParent);
+        long resolutionTime = resolution.effectiveResolutionTimeNanos(domain);
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
-        ExecutorRuntime executor = resolution.executor;
-        ParId executorId = resolution.executorId;
+        Par par = resolution.par;
+        ExecutorRuntime executor = par == null ? null : par.executorRuntime();
         TaskNode node = new TaskNode(
                 TaskId.unit(String.valueOf(UNIT_SEQUENCE.incrementAndGet())),
                 spec.name(),
                 executor == null ? null : executor.identity(),
-                executorId == null ? null : executorId.value(),
+                par == null ? null : par.id().value(),
                 executor != null && executor.starvationProne(),
                 spec.taskType(),
                 effective,
@@ -206,29 +222,39 @@ final class MultiTaskContext {
                 deadline,
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
-                observation,
-                spec.rejectEnqueue());
+                spec.rejectEnqueue(),
+                par);
     }
 
     /**
      * Resolves a deadline from an explicit timeout or an enclosing ceiling. An explicit timeout
      * expires at the earlier of its own deadline and the ceiling; a null timeout inherits the
-     * ceiling verbatim. Overflow saturates to {@link Long#MAX_VALUE}.
+     * ceiling verbatim, which is the only way to reach the {@link Long#MAX_VALUE} no-deadline
+     * sentinel.
      */
     static long resolveDeadlineNanos(@Nullable Duration timeout, long ceilingNanos, long nowNanos) {
+        /*
+         * The explicit sum goes through Deadlines.after because both ends can be extreme — a
+         * saturated timeout and a negative System.nanoTime() reading — and a wrapped sum would read
+         * as already expired. Where that sum saturates, the deadline is clamped to
+         * Deadlines.LATEST_FINITE_DEADLINE: a declared timeout keeps arming its timer and deriving
+         * its cleanup budget from the remaining deadline instead of turning into the sentinel,
+         * which arms no timer and waits for no execution exit. A clock reading already at that latest
+         * deadline leaves the clamped deadline expired; no real nanoTime() gets there.
+         */
+
         if (timeout == null) {
             return ceilingNanos;
         }
         long timeoutNanos = Deadlines.saturatedNanos(timeout);
-        // Both ends can be extreme — a saturated timeout and a far-from-zero clock reading
-        // (nanoTime() may legally be negative) — so the sum goes through Deadlines.after, whose
-        // saturation yields the no-deadline sentinel instead of a negative deadline that
-        // Deadlines.remaining would read as already expired.
-        long requestedDeadline = Deadlines.after(nowNanos, timeoutNanos);
+        long requestedDeadline = Math.min(Deadlines.after(nowNanos, timeoutNanos), Deadlines.LATEST_FINITE_DEADLINE);
         return Math.min(requestedDeadline, ceilingNanos);
     }
 
-    /** The logical unit name: batches use the options name; group members and combines use the key name. */
+    /**
+     * The logical unit name: batches use the options name; group members and combines use the key
+     * name.
+     */
     String name() {
         return node.name();
     }
@@ -275,8 +301,8 @@ final class MultiTaskContext {
     }
 
     /**
-     * The structural parent used for nesting and graph edges. Cancellation parentage may differ:
-     * a task-group member's cancellation parent is the group token, carried inside {@link
+     * The structural parent used for nesting and graph edges. Cancellation parentage may differ: a
+     * task-group member's cancellation parent is the group token, carried inside {@link
      * #cancellationToken()}, not by this field.
      */
     @Nullable
@@ -284,16 +310,18 @@ final class MultiTaskContext {
         return structuralParent;
     }
 
-    @Nullable
-    TaskGraphObservationScope taskGraphObservationScope() {
-        return taskGraphObservationScope;
-    }
-
+    /** The unit's own diagnostic task type; a nested unit never inherits its parent's. */
     TaskType taskType() {
         return node.taskType();
     }
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
+    }
+
+    /** The entry the unit was submitted through, or null for a unit resolved without one. */
+    @Nullable
+    Par par() {
+        return par;
     }
 }

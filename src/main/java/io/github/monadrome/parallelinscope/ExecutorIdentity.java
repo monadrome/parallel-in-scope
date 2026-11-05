@@ -6,18 +6,20 @@ import java.util.concurrent.ExecutorService;
 /**
  * Identity key for one exact supplied executor object.
  *
- * <p>Equality deliberately uses reference equality, not {@link Object#equals(Object)}.
- * This prevents independent wrappers or value-like executors from being merged as one resource. The
+ * <p>Equality deliberately uses reference equality, not {@link Object#equals(Object)}. This
+ * prevents independent wrappers or value-like executors from being merged as one resource. The
  * textual form is diagnostics only and must not be persisted or used as a graph key.
- *
- * <p>Identity is always keyed on the supplied executor, never on a derived object. When the supplied
- * executor is not already a Guava {@code ListeningExecutorService}, the framework submits through a
- * {@code listeningDecorator} adapter that exists only to obtain {@code ListenableFuture}s. That
- * adapter is a per-registration view of the same resource, not a pool of its own, so keying on it
- * would split one physical executor into several identities and corrupt identity-based runtime
- * merging, executor-graph edges, and deadlock detection.
  */
 final class ExecutorIdentity {
+    /*
+     * Identity is always keyed on the supplied executor, never on a derived object. When the
+     * supplied executor is not already a Guava ListeningExecutorService, the framework submits
+     * through a listeningDecorator adapter that exists only to obtain ListenableFutures. That
+     * adapter is a per-registration view of the same resource, not a pool of its own, so keying on
+     * it would split one physical executor into several identities and corrupt identity-based
+     * runtime merging, executor-graph edges, and deadlock detection.
+     */
+
     private final ExecutorService supplied;
     private final int hash;
 
