@@ -1,0 +1,35 @@
+scripts/tests/fixtures/java_conventions/clean/io/example/Clean.java
+  s_1fbad2db5e6a52::t_6ffc10410ad4d7 14
+  s_1fbad2db5e6a52::t_aa6ee67ec3f8af 1-13,15-65
+scripts/check-java-conventions.py
+  s_1fbad2db5e6a52::t_03702058befd3f 73-74
+  s_1fbad2db5e6a52::t_d79d1750167291 11-12
+  s_1fbad2db5e6a52::t_85c3f66f2cd13c 293
+  s_1fbad2db5e6a52::t_153c47ea041f8f 1-10,13-48,50-71,77-80,82-152,157,159-292,294-418
+  s_1fbad2db5e6a52::t_1acf66ea5b2095 153-156,158
+  s_1fbad2db5e6a52::t_2a47407f6d6cea 72,75-76,81
+scripts/tests/test_check_java_conventions.py
+  s_1fbad2db5e6a52::t_63ba7431060f39 1-251
+verification/java-conventions.md
+  s_1fbad2db5e6a52::t_2d203cb7fc96d6 111-113
+  s_1fbad2db5e6a52::t_d9d4fa61ddc9ff 4-8
+  s_1fbad2db5e6a52::t_f52fdfffd0df41 1-3,9-110,114-116
+scripts/tests/fixtures/java_conventions/violations/io/example/Violations.java
+  s_1fbad2db5e6a52::t_817af4042acd39 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7b00f4cd6e41f35c063f9566e37da706be204002",
+  "prompts": {},
+  "sessions": {
+    "s_1fbad2db5e6a52": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_8f08f879-84ea-479b-ba59-0d1178e958a0",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
