@@ -66,9 +66,10 @@ R3 rationale: the project uses the doubled-l family listed in `AGENTS.md`
 `labelled`). Third-party names and dated records keep their original
 spellings; they already exist in the base, so baseline subtraction passes
 them, and no exemption list is kept. A newly written mandated name is exempt
-when it appears on an `@Override` declaration line or on the line immediately
-after the annotation; an acronym prefix such as `URLCanceledTask` is still
-reported because it is a new local name, not a mandated one.
+when it appears on an `@Override` declaration line or below a run of
+annotation lines that includes `@Override`; an acronym prefix such as
+`URLCanceledTask` is still reported because it is a new local name, not a
+mandated one.
 
 R4 rationale: `AGENTS.md` prefers `Preconditions.checkNotNull` over
 `Objects.requireNonNull`.

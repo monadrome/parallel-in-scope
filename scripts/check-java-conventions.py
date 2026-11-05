@@ -367,15 +367,23 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
 
 
 def override_context(source: Source, offset: int) -> bool:
-    """Whether the line at offset, or the line before it, carries an Override annotation."""
+    """Whether the line at offset, or the annotation lines above it, carry Override."""
     start = source.text.rfind("\n", 0, offset) + 1
     if OVERRIDE.search(source.text[start:offset]):
         return True
-    prior_end = start - 1
-    while prior_end > 0 and source.text[prior_end].isspace():
-        prior_end -= 1
-    prior_start = source.text.rfind("\n", 0, prior_end) + 1
-    return bool(OVERRIDE.search(source.text[prior_start:prior_end + 1]))
+    position = start
+    while position > 0:
+        end = position - 1
+        while end > 0 and source.text[end].isspace():
+            end -= 1
+        begin = source.text.rfind("\n", 0, end) + 1
+        line = source.text[begin:end + 1]
+        if OVERRIDE.search(line):
+            return True
+        if not line.strip().startswith("@"):
+            return False
+        position = begin
+    return False
 
 
 def check_spelling(path: str, source: Source) -> Iterator[Violation]:
