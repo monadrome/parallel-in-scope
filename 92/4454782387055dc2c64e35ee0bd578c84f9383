@@ -1,0 +1,29 @@
+design/interruption-contract.md
+  s_5d5a610ceba84e::t_298c39af74a6ae 28
+docs/en/migration-v0.4.md
+  s_5d5a610ceba84e::t_bfd29cae0ac160 47-67
+CHANGELOG.md
+  s_5d5a610ceba84e::t_6c2356754718c4 7
+design/synchronous-scope-exit.md
+  s_5d5a610ceba84e::t_909083312be810 20
+docs/zh/migration-v0.4.md
+  s_5d5a610ceba84e::t_1d32d40dee47ea 44-64
+design/workload-fit-screening.md
+  s_5d5a610ceba84e::t_4bc2942ce3f764 35-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "924454782387055dc2c64e35ee0bd578c84f9383",
+  "prompts": {},
+  "sessions": {
+    "s_5d5a610ceba84e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_eb627f8c-a585-4848-a3c0-c60bec371620",
+        "model": "claude-haiku-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
