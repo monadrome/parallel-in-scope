@@ -1,0 +1,40 @@
+docs/zh/migration-v0.4.md
+  s_5d5a610ceba84e::t_1d32d40dee47ea 44-64
+design/synchronous-scope-exit.md
+  s_5d5a610ceba84e::t_909083312be810 20
+CHANGELOG.md
+  s_5d5a610ceba84e::t_6c2356754718c4 7
+design/interruption-contract.md
+  s_5d5a610ceba84e::t_298c39af74a6ae 28
+design/workload-fit-screening.md
+  s_5d5a610ceba84e::t_4bc2942ce3f764 35-36
+design/cancellation-model.md
+  s_c4476fac723ad0::t_3705cd4b1d9318 10,17-18,20,47,54,62-63,78-79,84
+  s_c4476fac723ad0::t_3ceab4224d09f8 57
+docs/en/migration-v0.4.md
+  s_5d5a610ceba84e::t_bfd29cae0ac160 47-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5af6c42fe36a3c9c32501b33d821f4ffb3491e2d",
+  "prompts": {},
+  "sessions": {
+    "s_5d5a610ceba84e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_eb627f8c-a585-4848-a3c0-c60bec371620",
+        "model": "claude-haiku-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_c4476fac723ad0": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_ac5b5e35-cca6-4584-b477-1b352687fbeb",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
