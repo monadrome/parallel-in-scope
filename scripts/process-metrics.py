@@ -55,11 +55,16 @@ class RunError(Exception):
     """The command cannot run; reported with exit status 2."""
 
 
-def git(repo: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+def run_command(argv: list[str], shown: list[str]) -> str:
+    """Run ``argv`` and return its stdout; a nonzero exit raises RunError naming ``shown``."""
+    result = subprocess.run(argv, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RunError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+        raise RunError(f"{' '.join(shown)} failed: {result.stderr.strip()}")
     return result.stdout
+
+
+def git(repo: Path, *args: str) -> str:
+    return run_command(["git", "-C", str(repo), *args], ["git", *args])
 
 
 def read_json(path: Path) -> dict:
@@ -333,10 +338,10 @@ def scan_runs(roots: list[Path], repo: Path) -> tuple[list[dict], list[dict]]:
         for path in candidates:
             if is_bench_run(path):
                 snapshot = bench_snapshot(path)
-                adversarial.setdefault(snapshot["runId"], snapshot)
+                adversarial.setdefault(bench_identity(snapshot), snapshot)
             elif is_refactoring_run(path):
                 snapshot = refactoring_snapshot(path, repo)
-                refactoring.setdefault(snapshot["head"] or snapshot["run"], snapshot)
+                refactoring.setdefault(refactoring_identity(snapshot), snapshot)
     return list(adversarial.values()), list(refactoring.values())
 
 
@@ -421,10 +426,7 @@ Runner = Callable[[list[str]], str]
 
 
 def run_gh(args: list[str]) -> str:
-    result = subprocess.run(["gh", *args], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RunError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
-    return result.stdout
+    return run_command(["gh", *args], ["gh", *args])
 
 
 def ci_failures(limit: int, gh: Runner = run_gh) -> dict:
@@ -454,13 +456,25 @@ def ci_failures(limit: int, gh: Runner = run_gh) -> dict:
     }
 
 
+def bench_identity(run: dict) -> str:
+    return run["runId"]
+
+
+def refactoring_identity(run: dict) -> str:
+    return run["head"] or run["run"]
+
+
+def merge_runs(records: list[dict], kind: str, scanned: list[dict], identity: Callable[[dict], str]) -> tuple[list[dict], list[dict]]:
+    """Return (recorded runs followed by unrecorded scanned runs, the unrecorded scanned runs)."""
+    recorded = [run for record in records for run in record["reviews"][kind]]
+    known = {identity(run) for run in recorded}
+    extra = [run for run in scanned if identity(run) not in known]
+    return recorded + extra, extra
+
+
 def build_report(records: list[dict], scanned: tuple[list[dict], list[dict]], titles: dict[str, str]) -> dict:
-    recorded_bench = {run["runId"] for r in records for run in r["reviews"]["adversarial"]}
-    recorded_refactoring = {run["head"] or run["run"] for r in records for run in r["reviews"]["refactoring"]}
-    extra_bench = [run for run in scanned[0] if run["runId"] not in recorded_bench]
-    extra_refactoring = [run for run in scanned[1] if (run["head"] or run["run"]) not in recorded_refactoring]
-    adversarial = [run for r in records for run in r["reviews"]["adversarial"]] + extra_bench
-    refactoring = [run for r in records for run in r["reviews"]["refactoring"]] + extra_refactoring
+    adversarial, extra_bench = merge_runs(records, "adversarial", scanned[0], bench_identity)
+    refactoring, extra_refactoring = merge_runs(records, "refactoring", scanned[1], refactoring_identity)
     gates: Counter = Counter()
     for record in records:
         gates.update(record["gates"]["failures"])
