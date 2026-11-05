@@ -40,6 +40,7 @@ mvn spotless:check                    # verify formatting without writing; CI ru
 mvn clean verify                      # tests + package checks; not a release build
 mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not in default CI
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
+python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 ```
 
 ## Task Routes
@@ -140,7 +141,9 @@ low-level primitives such as `Thread.interrupt()` and `synchronized`, whose
 protocols are easy to get wrong. Before introducing or changing a mechanism
 that directly uses such primitives, explain why the higher-level alternatives
 are insufficient, present the proposed mechanism and its risks, and obtain
-explicit human confirmation before implementing it.
+explicit human confirmation before implementing it. The ordered ladder of
+mechanisms, from no sharing down to hand-built protocols, lives in
+`refactoring-review/lenses/concurrency.md`.
 
 ## Key Conventions
 
@@ -310,6 +313,14 @@ Documentation must stay readable and correct without the Git object database:
   caused by the change and rerun affected checks without pausing for review of
   the first implementation. Report unrelated failures or blockers; do not claim
   completion while required checks are blocked.
+- For every code change, run `/refactoring-review`
+  (`.claude/skills/refactoring-review/SKILL.md`) after the behavior commit and
+  before Adversarial Review or delivery. `scripts/refactoring-review.py plan`
+  decides whether a diff counts (documentation-only and comment-only diffs do
+  not) and how many read-only detectors cover which lenses; rules are routed
+  by `refactoring-review/AGENTS.md`. Accepted refactors land as separate
+  `refactor:` commits that leave test assertions unchanged; it runs once per
+  change and never on its own refactor commits.
 - Report each check separately and honestly: behavior tests, external consumer,
   independent review, and mutation coverage are distinct facts. Give each check
   one status (pass, fail, blocked, inconclusive, or skipped) and a reason for
@@ -365,6 +376,10 @@ later sessions:
   use a fresh-context agent on another model in a clone without a remote. The
   reviewer must not edit files. Name attack surfaces: interleavings, contract
   versus implementation, test quality, Java 8, and generics.
+- When refactoring-review ran, review the range from its base, including its
+  `refactor:` commits. Read its report as settled findings, and add behavior
+  preservation of each refactor commit and each applied `T1` item as attack
+  surfaces.
 - A review counts only when its output or transcript shows the reviewer read
   the changed files. A timeout, a failed run, or a reviewer that cannot read
   the files is no review: rerun it once, then record the review as blocked,
@@ -473,6 +488,9 @@ Load documents when their subject affects the task:
 - `design/decision-log.md` - Conclusions and rejection reasons of retired
   directions; read before reopening an old direction.
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
+- `refactoring-review/AGENTS.md` - Rule router for the refactoring-review step:
+  principles, tiers, lenses (including the concurrency-mechanism ladder), and the
+  config the planner reads. Read before running the step or changing its rules.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
   or other breaking changes from `0.1.x`.

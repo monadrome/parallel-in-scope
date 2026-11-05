@@ -106,6 +106,10 @@ class CheckDocRefsTest(unittest.TestCase):
             ["design/contract.md:2: git-history retrieval: 全文从 git 历史取回。"],
         )
 
+    def test_refactoring_review_rules_are_scanned(self):
+        self.write("refactoring-review/lenses/structure.md", "# Lens\nSee Foo.java:9.\n")
+        self.assertEqual(len(docs.violations(self.root)), 1)
+
     def test_repository_documents_are_clean(self):
         result = subprocess.run(
             [sys.executable, str(SCRIPTS / "check-doc-refs.py")],
