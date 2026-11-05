@@ -39,8 +39,7 @@ def java_class(body):
 
 
 def violations_in(text, path="io/example/Sample.java"):
-    source = conventions.mask(text)
-    return [v for check in conventions.CHECKS for v in check(path, source)]
+    return conventions.scan_text(path, text)
 
 
 def rules_in(text):
@@ -170,6 +169,9 @@ class RuleTest(unittest.TestCase):
 class BaselineTest(TreeTest):
     LEGACY = java_class("    public Object getLegacy() {\n        return java.util.Objects.requireNonNull(null);\n    }\n")
 
+    def legacy_base(self):
+        return self.tree("base", {"io/example/Sample.java": self.LEGACY})
+
     def test_a_clean_tree_passes(self):
         code, out, err = self.run_check("--base-root", FIXTURES / "clean", "--head-root", FIXTURES / "clean")
         self.assertEqual((code, err), (0, ""))
@@ -182,14 +184,14 @@ class BaselineTest(TreeTest):
         self.assertIn("src/main/java/io/example/Violations.java:21: R1: accessor getValue()", out)
 
     def test_an_unchanged_violation_passes_even_when_its_lines_shift(self):
-        base = self.tree("base", {"io/example/Sample.java": self.LEGACY})
+        base = self.legacy_base()
         shifted = self.LEGACY.replace("public class Sample {\n", "public class Sample {\n\n    int added;\n\n")
         head = self.tree("head", {"io/example/Sample.java": shifted})
         code, _, err = self.run_check("--base-root", base, "--head-root", head)
         self.assertEqual((code, err), (0, ""))
 
     def test_a_duplicate_of_an_existing_violation_fails(self):
-        base = self.tree("base", {"io/example/Sample.java": self.LEGACY})
+        base = self.legacy_base()
         doubled = self.LEGACY.replace(
             "    }\n}", "    }\n\n    Object again() {\n        return java.util.Objects.requireNonNull(null);\n    }\n}")
         head = self.tree("head", {"io/example/Sample.java": doubled})
@@ -199,7 +201,7 @@ class BaselineTest(TreeTest):
         self.assertNotIn(": R1: ", out)
 
     def test_moving_a_violation_to_another_file_counts_as_new(self):
-        base = self.tree("base", {"io/example/Sample.java": self.LEGACY})
+        base = self.legacy_base()
         head = self.tree("head", {"io/example/Moved.java": self.LEGACY})
         code, _, _ = self.run_check("--base-root", base, "--head-root", head)
         self.assertEqual(code, 1)

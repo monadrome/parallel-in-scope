@@ -214,20 +214,24 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
     return spans
 
 
+def skip_space(text: str, index: int, end: int) -> int:
+    """The first index at or after index that is not whitespace, never past end."""
+    while index < end and text[index].isspace():
+        index += 1
+    return index
+
+
 def literal_parts(source: Source, start: int, end: int) -> list[str] | None:
     """The literal contents of an argument made only of `+`-joined string literals."""
     parts: list[str] = []
     index = start
     while index < end:
-        while index < end and source.code[index].isspace():
-            index += 1
+        index = skip_space(source.code, index, end)
         literal_end = source.literals.get(index)
         if literal_end is None or literal_end > end:
             return None
         parts.append(source.text[index + 1:literal_end - 1])
-        index = literal_end
-        while index < end and source.code[index].isspace():
-            index += 1
+        index = skip_space(source.code, literal_end, end)
         if index < end:
             if source.code[index] != "+":
                 return None
@@ -268,14 +272,22 @@ def check_messages(path: str, source: Source) -> Iterator[Violation]:
         if parts is None:
             continue
         message = "".join(parts)
-        first = start
-        while first < end and source.text[first].isspace():
-            first += 1
+        first = skip_space(source.text, start, end)
         for problem in message_problems(message):
             yield Violation(
                 path, source.line_of(first), "R2", f'{match["name"]} message "{message}" {problem}',
                 f'{match["name"]}:{normalize(source.text[start:end])}:{problem}',
             )
+
+
+def is_reported_accessor(prefix: str, scope: str) -> bool:
+    """Whether a declaration prefix names a visible, non-override zero-argument get/is method."""
+    plain = top_level(prefix)
+    if "=" in plain or not HEAD_LAST_TOKEN.search(prefix) or re.search(r"\b(?:new|return)\b", plain):
+        return False
+    words = set(re.findall(r"[\w@$]+", prefix))
+    visible = bool(words & {"public", "protected"}) or (scope == "interface" and "private" not in words)
+    return visible and "@Override" not in words
 
 
 def check_accessors(path: str, source: Source) -> Iterator[Violation]:
@@ -300,15 +312,10 @@ def check_accessors(path: str, source: Source) -> Iterator[Violation]:
             if not head or not ACCESSOR_NAME.fullmatch(head["name"]):
                 continue
             prefix = head["head"]
-            plain = top_level(prefix)
-            if "=" in plain or not HEAD_LAST_TOKEN.search(prefix) or re.search(r"\b(?:new|return)\b", plain):
+            if not is_reported_accessor(prefix, stack[-1]):
                 continue
             close = matching_paren(code, index)
             if close < 0 or code[index + 1:close].strip():
-                continue
-            words = set(re.findall(r"[\w@$]+", prefix))
-            visible = bool(words & {"public", "protected"}) or (stack[-1] == "interface" and "private" not in words)
-            if not visible or "@Override" in words:
                 continue
             name_at = head.start("name")
             yield Violation(
@@ -352,6 +359,15 @@ def java_files(root: Path) -> list[tuple[str, Path]]:
     return files
 
 
+def scan_text(relative: str, text: str) -> list[Violation]:
+    """Every violation in one source text, in rule order."""
+    source = mask(text)
+    violations = []
+    for check in CHECKS:
+        violations.extend(check(relative, source))
+    return violations
+
+
 def scan(root: Path) -> list[Violation]:
     violations: list[Violation] = []
     for relative, path in java_files(root):
@@ -359,9 +375,7 @@ def scan(root: Path) -> list[Violation]:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as error:
             raise CheckError(f"cannot read {path}: {error}") from error
-        source = mask(text)
-        for check in CHECKS:
-            violations.extend(check(relative, source))
+        violations.extend(scan_text(relative, text))
     return violations
 
 
