@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { RunStore } from '../protocol/store.js';
 import type { CountSet, EvaluationRecord, RateSet, SystemMetrics, Usage } from '../protocol/types.js';
+import { emptyCounts, rateSet } from './metrics.js';
 import { latestEvaluation } from './pipeline.js';
 
 export const LEADERBOARD_SCHEMA = 'llm-review-bench/leaderboard/v1';
@@ -83,10 +84,6 @@ interface MutableGroup {
   costs: Map<string, { currency: string | null; cost: number }>;
 }
 
-function emptyCounts(): CountSet {
-  return { total: 0, adjudicated: 0, confirmed: 0, rejected: 0, neutral: 0, uncertain: 0, pending: 0 };
-}
-
 function addCounts(target: CountSet, source: CountSet): void {
   target.total += source.total;
   target.adjudicated += source.adjudicated;
@@ -95,18 +92,6 @@ function addCounts(target: CountSet, source: CountSet): void {
   target.neutral += source.neutral;
   target.uncertain += source.uncertain;
   target.pending += source.pending;
-}
-
-function rateSet(counts: CountSet): RateSet {
-  if (counts.adjudicated === 0) {
-    return { confirmed: null, rejected: null, neutral: null, uncertain: null };
-  }
-  return {
-    confirmed: counts.confirmed / counts.adjudicated,
-    rejected: counts.rejected / counts.adjudicated,
-    neutral: counts.neutral / counts.adjudicated,
-    uncertain: counts.uncertain / counts.adjudicated,
-  };
 }
 
 function average(values: number[]): number | null {

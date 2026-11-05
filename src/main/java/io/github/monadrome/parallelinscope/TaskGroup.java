@@ -251,6 +251,18 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return completionTask;
     }
 
+    /**
+     * Waits for this group to converge and freezes its result; the synchronous {@code runAll} paths
+     * call it on the submitting thread.
+     *
+     * <p>Waits uninterruptibly for the completion report, then for the execution-exit signal and
+     * every member and combine observation under one shared close-grace budget; an interrupt
+     * arriving during either wait is restored on return and does not cancel the group. Members whose
+     * bodies have not exited when the budget elapses are logged and reported as unfinished rather
+     * than awaited further.
+     *
+     * @return the frozen result
+     */
     TaskGroupResult<V, R> finish() {
         TaskGroupReport report;
         try {
@@ -1225,6 +1237,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
         private final @Nullable ExecutionPhaseHintFuture<Object> prepared;
         private final @Nullable Executor executor;
         private final @Nullable AdoptedSource adopted;
+
+        /*
+         * reason and failure are plain fields: memberCompleted writes them on the member's
+         * completing thread before its barrier increment of completedTasks, and readers run on the
+         * converging thread after the final increment or after completion publication, so that
+         * increment is their publishing edge.
+         */
         private @Nullable TaskOutcome reason;
         private @Nullable Throwable failure;
 

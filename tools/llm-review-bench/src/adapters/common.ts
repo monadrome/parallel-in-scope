@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { ValidationError } from '../util/errors.js';
-import { parseStrictJson } from '../util/json.js';
+import { isJsonObject, parseStrictJson } from '../util/json.js';
 import { parseReviewOutput } from '../protocol/findings.js';
 import type { ParseResult, SystemConfig, SystemIdentity } from '../protocol/types.js';
 import type { AdapterContext, AdapterPlan, ExecutionView } from './types.js';
@@ -44,16 +44,12 @@ export async function readLimited(file: string, maxBytes: number, label: string)
   return fs.readFile(file, 'utf8');
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
 function assistantRole(record: Record<string, unknown>): string | undefined {
   if (typeof record['role'] === 'string') {
     return record['role'];
   }
   const message = record['message'];
-  if (isObject(message) && typeof message['role'] === 'string') {
+  if (isJsonObject(message) && typeof message['role'] === 'string') {
     return message['role'];
   }
   return record['type'] === 'assistant' ? 'assistant' : undefined;
@@ -70,7 +66,7 @@ function appendAssistantText(value: unknown, chunks: string[]): void {
     }
     return;
   }
-  if (!isObject(value)) {
+  if (!isJsonObject(value)) {
     return;
   }
   if (typeof value['text'] === 'string') {
@@ -123,7 +119,7 @@ export function extractKimiText(stream: string): string {
     } catch {
       continue;
     }
-    if (!isObject(value) || assistantRole(value) !== 'assistant') {
+    if (!isJsonObject(value) || assistantRole(value) !== 'assistant') {
       continue;
     }
     chunks.push(...assistantText(value));
