@@ -1,0 +1,27 @@
+verification/delivery-ledger.md
+  s_ecff0396a8fdc7::t_fca6cf032c5135 1-96
+AGENTS.md
+  s_ecff0396a8fdc7::t_60859e3fae451b 520-522
+  s_ecff0396a8fdc7::t_cb826d438adebe 45-46
+  s_ecff0396a8fdc7::t_da6579873da0d3 347-353
+scripts/tests/test_process_metrics.py
+  s_ecff0396a8fdc7::t_617b59e2ee1dee 1-264
+scripts/process-metrics.py
+  s_ecff0396a8fdc7::t_75e7b0b4203404 1-12,14-38,40-169,171-187,190-276,278-280,282-324,326-337,340-458,460,462-538,540-599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fc945297199f5c7a9a6c5b8a39e0aa52914ea20f",
+  "prompts": {},
+  "sessions": {
+    "s_ecff0396a8fdc7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_1a3d6810-efb0-4cb0-8997-e2cb1a0fbdca",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
