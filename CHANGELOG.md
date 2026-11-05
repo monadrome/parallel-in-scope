@@ -4,8 +4,9 @@
 
 ### Breaking changes
 
-- Change `ImmediateResult.fold` to four handlers: `onValue`, `onUserFailure`, `onSubmissionFailure`,
-  and `onCancelled`; the three-argument overload is removed. See the [0.4 migration guide](docs/en/migration-v0.4.md).
+- Change the earlier 0.4 development `ImmediateResult.fold` from three handlers to four:
+  `onValue`, `onUserFailure`, `onSubmissionFailure`, and `onCancelled`; the three-argument overload
+  is removed. See the [0.4 migration guide](docs/en/migration-v0.4.md).
 
 - Remove `ResourceCloser` and the closer-taking `adopt` overloads from the earlier 0.4 development API.
   Adopted futures keep structured cancellation, deadlines, attribution, and frozen results, but the group no longer
