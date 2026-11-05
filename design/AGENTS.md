@@ -119,6 +119,7 @@
 
 | 文档 | 摘要 |
 |---|---|
+| [cancellation-model.md](cancellation-model.md) | **取消机制总览（导航，不持有规则）**：决策/传播/执行/协作/归因/出口六层与各自的权威契约、四类取消来源与非来源、一次取消经过各层的顺序、各入口的 token 拓扑、易混淆事实；改动取消相关机制前先读，再按其索引进入具体契约 |
 | [cancellation-propagation.md](cancellation-propagation.md) | Guava `ListenableFuture` 取消传播机制（transform/catching/addCallback/组合 future 的方向差异），`CancellationToken.bind` 依赖的语义与源码索引 |
 | [sliding-window-refill.md](sliding-window-refill.md) | 滑窗事件驱动补窗契约：调用方完成初始窗口、完成线程认领下一元素、窗口上界与取消/失败处置、框架线程 O(1) 资源上界 |
 | [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
