@@ -41,8 +41,10 @@ in a variable or built from non-literal parts is skipped. For
 description (third argument). Whether a message interpolates the offending
 value or names an actionable alternative is not mechanically checkable and is
 left to review. A comma inside `Identifier<...>` is treated as type-argument
-nesting, so `Map<String, Integer>` does not shift the message position; an
-unspaced comparison such as `a<b, c>d` is indistinguishable from a type
+nesting, so `Map<String, Integer>` does not shift the message position. The
+nesting applies only when a `>` follows later in the call, which keeps
+`checkArgument(a<b, "message")` split correctly; an expression that combines
+both brackets, such as `a<b, c>d`, is still indistinguishable from a type
 argument list and merges the two arguments, which skips the message.
 
 Leading code identifier: the message may start uppercase when its first token
