@@ -129,7 +129,7 @@ class PlanModeTest(RepoTestCase):
         run_dir, summary, plan = self.plan()
         self.assertEqual(plan["mode"], "single")
         self.assertEqual([a["id"] for a in plan["agents"]], ["all"])
-        self.assertEqual(plan["agents"][0]["lenses"], ["S", "V"])
+        self.assertEqual(plan["agents"][0]["lenses"], ["D", "S", "V"])
         self.assertEqual(plan["agents"][0]["budget"], LIMITS["singleAgentBudget"])
         brief = (run_dir / "agents" / "all" / "brief.md").read_text(encoding="utf-8")
         self.assertNotIn("{{", brief)
@@ -144,7 +144,7 @@ class PlanModeTest(RepoTestCase):
         _, _, plan = self.plan()
         self.assertEqual(plan["mode"], "per-lens")
         ids = [a["id"] for a in plan["agents"]]
-        self.assertEqual(ids, ["M", "C", "S", "V"])
+        self.assertEqual(ids, ["M", "C", "D", "S", "V"])
         agents = {a["id"]: a for a in plan["agents"]}
         self.assertEqual(agents["C"]["files"], [f"{MAIN}/A.java"])
         self.assertTrue(agents["M"]["wholeDiff"])
@@ -256,6 +256,7 @@ class MergeTest(RepoTestCase):
         self.write_findings("C", [self.finding(rule="C02", tier="T2", refactoring="extract   function!")])
         self.write_findings("M", [self.finding(refactoring="Inline Function", rule="M06")])
         self.write_findings("V", [self.finding(file=f"{MAIN}/B.java", rule="V01")] * 5)
+        self.write_findings("D", [])
         status, summary, _ = self.run_script("merge", str(self.run_dir))
         self.assertEqual(status, 0)
         merged = json.loads((self.run_dir / "merged.json").read_text(encoding="utf-8"))
@@ -277,7 +278,63 @@ class MergeTest(RepoTestCase):
         status, summary, _ = self.run_script("merge", str(self.run_dir))
         self.assertEqual(status, 1)
         statuses = {a["id"]: a["status"] for a in summary["agents"]}
-        self.assertEqual(statuses, {"M": "missing", "C": "invalid", "S": "completed", "V": "missing"})
+        self.assertEqual(
+            statuses, {"M": "missing", "C": "invalid", "D": "missing", "S": "completed", "V": "missing"}
+        )
+
+
+FAKE_REVIEWER = """
+import json, pathlib, sys
+prompt = sys.argv[1]
+agent = prompt.split("detector `", 1)[1].split("`", 1)[0]
+mode = sys.argv[2]
+if mode == "edit":
+    pathlib.Path("touched.txt").write_text("x")
+print("thinking...")
+print(json.dumps({"agent": agent, "summary": "s", "findings": [] if mode != "prose" else None}))
+"""
+
+
+class DetectTest(RepoTestCase):
+    def setUp(self):
+        super().setUp()
+        self.write(f"{MAIN}/A.java", java("A", 60, "volatile int value{index};"))
+        self.write(f"{MAIN}/B.java", java("B", 60))
+        self.commit("medium")
+        self.run_dir, _, self.plan_data = self.plan()
+        script = Path(self.temp.name) / "fake_reviewer.py"
+        script.write_text(FAKE_REVIEWER, encoding="utf-8")
+        self.mode = "ok"
+        review.REVIEWERS["fake"] = lambda prompt, repo, agent_dir, last: [sys.executable, str(script), prompt, self.mode]
+        self.addCleanup(review.REVIEWERS.pop, "fake")
+
+    def test_detect_runs_every_detector_and_saves_findings(self):
+        status, result, err = self.run_script("detect", str(self.run_dir), "--reviewer", "fake", "--concurrency", "2")
+        self.assertEqual(status, 0, err)
+        self.assertEqual({d["agent"] for d in result["detectors"]}, {a["id"] for a in self.plan_data["agents"]})
+        for agent in self.plan_data["agents"]:
+            saved = json.loads((self.run_dir / "agents" / agent["id"] / "findings.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved["agent"], agent["id"])
+        status, _, _ = self.run_script("merge", str(self.run_dir))
+        self.assertEqual(status, 0)
+
+    def test_unparsable_output_and_snapshot_edits_fail(self):
+        self.mode = "prose"
+        status, result, _ = self.run_script("detect", str(self.run_dir), "--reviewer", "fake", "--only", "M")
+        self.assertEqual(status, 1)
+        self.assertEqual(result["detectors"][0]["status"], "unparsable")
+        self.mode = "edit"
+        status, result, _ = self.run_script("detect", str(self.run_dir), "--reviewer", "fake", "--only", "S")
+        self.assertEqual(status, 1)
+        self.assertTrue(result["snapshotModified"])
+        self.assertEqual(result["detectors"][0]["attempt"], 1)
+
+    def test_detect_refuses_a_working_tree_away_from_the_plan_head(self):
+        self.write(f"{MAIN}/C.java", java("C", 3))
+        self.commit("later")
+        status, _, err = self.run_script("detect", str(self.run_dir), "--reviewer", "fake")
+        self.assertEqual(status, 2)
+        self.assertIn("not the plan head", err)
 
 
 class VerifyTest(RepoTestCase):

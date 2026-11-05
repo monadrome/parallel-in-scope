@@ -36,12 +36,19 @@ python3 scripts/refactoring-review.py plan [--base <ref>] [--reviewers <a,b,c>]
 
 ## 2. 发现（并行）
 
-对 `plan.json` 中每个 agent，启动一个全新上下文的只读 agent，工作目录为仓库根（处于 behavior head），
-提示词就是 `<runDir>/agents/<id>/brief.md` 的全文。所有 detector 并行启动。
+默认用脚本派发：
 
-- 本 harness 的子 agent、或其他模型的 CLI 都可以；CLI 用只读模式，参数参考
-  `tools/llm-review-bench/docs/adapters.md`（例如 codex 的 `--sandbox read-only`）。
-- 把 detector 最终返回的 JSON 原样保存为 `<runDir>/agents/<id>/findings.json`，不要编辑内容。
+```bash
+python3 scripts/refactoring-review.py detect <runDir> [--reviewer kimi|codex|claude] [--concurrency 3] [--only <ids>]
+```
+
+- 工作树必须处于 plan head 且代码路径干净（脚本检查）；每个 detector 的提示词是
+  `<runDir>/agents/<id>/brief.md` 全文，reviewer 取 plan 中的分配，未分配时用 `--reviewer`。
+- 只读参数与 `tools/llm-review-bench/docs/adapters.md` 一致；运行前后比较 `git status`，
+  工作树被改动时所有 detector 记为 `snapshot-modified`。
+- 退出码 1 表示有 detector 未完成：用 `--only <id>` 重跑一次，仍失败记为 blocked。
+- 也可以用本 harness 的子 agent 手动派发：提示词同样是 brief 全文，把最终 JSON 原样保存为
+  `<runDir>/agents/<id>/findings.json`。
 
 ## 3. 合并
 
