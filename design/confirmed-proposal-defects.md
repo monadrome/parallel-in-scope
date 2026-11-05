@@ -1,6 +1,6 @@
 # Confirmed proposal defects
 
-The implementation starts from `e5cb966` and retains only reachable failures or direct contradictions
+The implementation retains only reachable failures or direct contradictions
 of active contracts. Public call signatures stay unchanged. The best existing calls remain
 `par.map(inputs, mapper, options)` and `runtime.group(...).par(...).runAll()`; they now return their
 actual failures with an interrupted caller and report checkpoint-driven inherited timeouts correctly.

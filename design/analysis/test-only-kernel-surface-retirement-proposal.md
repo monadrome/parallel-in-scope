@@ -312,7 +312,7 @@ future 后直接调用探针。
 - `interruption-contract.md` §5.2 的「自等待检查」一环，以及必测矩阵第 7 行（`awaitBodyCompletion` 带标志调用）：
   删除或改指 `ParRuntime.awaitQuiescence`（矩阵第 10 行已覆盖它）。
 - `AGENTS.md:52-55` 的 bind-before-submit 不变量：「`Par.submit`, `Par.map`, and `TaskGroup.start`」去掉 `Par.submit`。
-- dated record 不改：`history/cancel-intent-clock-domain-validation.md` 的 PIT 分类行、`group-one-shot` §2 的改前
+- dated record 不改：时钟域评审记录的 PIT 分类行（已删除）、`group-one-shot` §2 的改前
   示例、`migration-v0.2.md`。
 - `decision-log.md` 新增一行：推翻 `:90-92` 的保留条款，并写明保留 `callableReleased()` 的理由（§5）。
 

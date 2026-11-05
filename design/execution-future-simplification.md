@@ -5,7 +5,7 @@
 删除主线的自动 purger、公开 purge 配置和通用 phase 通知，保留包私有
 `ExecutionPhaseHintFuture`、五态 `ExecutionPhase` 及非阻塞 `phase()` 查询。
 
-原实现、配置、测试和文档保存在 `dev/experimental`，以提交 `3557bff` 为保存基线。
+原实现、配置、测试和文档保存在 `dev/experimental` 分支。
 主线不再将执行前取消信号传播到 executor/runtime 的维护服务。
 
 ## 用户代码与迁移

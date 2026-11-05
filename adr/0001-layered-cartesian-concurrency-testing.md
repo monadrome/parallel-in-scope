@@ -210,8 +210,6 @@ stronger and faster tests.
 
 ## History
 
-Condensed on 2026-10-27; the previous full text is
-[archive/0001-layered-cartesian-concurrency-testing.md](archive/0001-layered-cartesian-concurrency-testing.md). Removed: the per-value
-tables of each layer, the L10 purger layer and the list of local Cartesian surfaces, the
-placeholder, caller-thread fallback, and purge compatibility predicates, the deep test report
-path, and the implementation mapping to individual test classes.
+Condensed on 2026-10-27. Removed: the per-value tables of each layer, the L10 purger layer and the
+list of local Cartesian surfaces, the placeholder, caller-thread fallback, and purge compatibility
+predicates, the deep test report path, and the implementation mapping to individual test classes.

@@ -242,7 +242,15 @@ close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟�
 执行器等待诊断由 `ParRuntime.executorWaitReport()` 读取（见 [task-graph.md](task-graph.md)），它是运行时诊断，不是运行业务句柄。
 queue 不在本次机制变更范围。
 
-## 6. 验证与评审记录
+## 6. 评审中驳回的主张
 
-反向验证、PIT 分类与各轮独立评审的流水见
-[同步出口评审与验证记录](history/synchronous-scope-exit-review-records.md)；本文只保留结论。
+各轮独立评审保留的发现已并入上文规则；下列主张经复现或论证后驳回，重提前先回答其中理由：
+
+- 「`fromTask` 可能把成功的 future 冻结成非成功 outcome」：终态 future 的成功读取决定 `SUCCESS`，
+  结果在冻结前已经完成，不会因稍后的 token 取消改判。
+- 「同池饥饿会让结果等待无限」：有限 deadline 下独立 timer 与 bind-before-submit 仍能取消排队中的
+  future；饥饿是执行布局限制，不是同步出口的活性缺陷。不合作的执行与 `execute` 的墙钟耗时限制见 §4。
+- 「`SUCCESS` 与已记录失败可能并存」：`SUCCESS` 要求 future 成功，提交失败的 phase claim 排斥执行进入
+  任务代码，合法路径不可达；只在内部矛盾输入下表现为异常形状差异。
+- 「deadline 读取测试须先用 latch 证明执行已开始」：断言对象是冻结读取的形状，执行是否已开始都落
+  `TIMEOUT`，读取结果相同。

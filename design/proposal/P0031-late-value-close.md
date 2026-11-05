@@ -83,4 +83,4 @@ runtime.group("leases", Duration.ofSeconds(2))
 旧稿（布尔 `closeLateValue`、只关闭迟到值）经 Kimi Code 两轮只读讨论；其中"非成功作用域不关闭已送达值"的取舍
 在 adopt 契约的三方独立投票中被改判为"所有权与可见性分离"，本稿随之对齐，以免同一组里两种成员遵守两套规则。
 迟到值以 `set()` 返回值判定、只延后执行-exit 槽的结论保留。被取代的异步成员方向见 decision-log 的
-async-group-member 行。
+「Async group member `parAsync` superseded by `adopt`」条目。

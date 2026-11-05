@@ -19,5 +19,5 @@
 
 只处理测试说明和有证据的无效断言；不借此改变 public API、队列协议或执行引擎。
 核心源码的文案事实修正和分层规则由 [ADR 0012](../../adr/0012-contract-and-implementation-comment-layers.md)
-承接。历史输入见 [P0024 原文](../archive/P0024-comment-and-javadoc-maintenance.md)。
+承接（`proposal:P0024`）。
 队列移植说明继续遵守其目录 AGENTS。本提案没有签名迁移；改前改后用户代码相同。

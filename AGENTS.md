@@ -231,20 +231,24 @@ lifecycle rules in `design/AGENTS.md` and `adr/AGENTS.md`.
 
 Documentation must stay readable and correct without the Git object database:
 
-- Never require a commit hash to reach content. Historical material lives in a
-  tracked archive (`design/archive/`, `design/analysis/archive/`,
-  `design/history/`, `adr/archive/`) and is linked with a relative path. A hash
-  may appear only as provenance ("removed in `<hash>`") when it is not needed to
-  reach the content; it is not a storage mechanism.
+- Keep only the current view. The repository keeps no full-text archive of
+  retired proposals, harvested analyses, review transcripts, or superseded ADR
+  wording. Before deleting such material, distill its conclusions into the owning
+  contract, ADR, or `design/decision-log.md`, with at least one reason for every
+  rejected or superseded direction so the rejection can later be revisited.
+- Do not cite commit hashes in documentation, not even as provenance: a hash
+  changes when history is rewritten and forces chained edits in every document
+  that cites it. Name the date, the proposal number (`proposal:P<NNNN>`), the
+  release, or the mechanism instead. Never point at git history to retrieve
+  content.
 - Never identify code or prose by a line number appended to a path. Cite the
   symbol, the section heading, or the file path instead. Line numbers drift and
   make the document wrong by default.
-- Archived files are frozen: do not edit them, and do not add current decisions
-  there. Retire a document by moving it into the matching archive directory and
-  pointing at it from `design/decision-log.md`, an ADR, or the owning contract.
+- Write a pointer so that it reads on its own: when the target holds a single
+  sentence, write that sentence at the pointer instead of a jump to it.
 - `scripts/check-doc-refs.py` enforces these rules on live documents. `BACKLOG.md`
-  (pinned baseline), `todo.md` (scratch), analysis inputs, archives, and the
-  changelog are exempt.
+  (pinned baseline), `todo.md` (scratch), analysis inputs, and the changelog
+  are exempt.
 
 ## Autonomous Completion
 
@@ -461,12 +465,11 @@ Load documents when their subject affects the task:
   input, not contract.
   Current `design/` contracts take precedence over historical ADRs, except for
   boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
-  boundary (its retired `design/` companion is archived under `design/archive/`
-  and indexed by `design/decision-log.md`). Its principle 10 decides where decision
+  boundary (its retired `design/` companion is summarized in
+  `design/decision-log.md`). Its principle 10 decides where decision
   rationale lands: ADR, a contract's rejected-alternatives section, or the decision log.
-- `design/archive/`, `design/analysis/archive/`, `design/history/`, `adr/archive/` -
-  Frozen historical material. Read them only to trace a decision; never treat them
-  as current contracts and never add new decisions there.
+- `design/decision-log.md` - Conclusions and rejection reasons of retired
+  directions; read before reopening an old direction.
 - `design/first-principles.md` - Evaluate new capabilities, APIs, or mechanisms.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
 - `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,

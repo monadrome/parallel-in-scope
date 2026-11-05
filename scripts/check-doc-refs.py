@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Check that live documentation is self-contained within the repository.
 
-Two reference styles are rejected because they silently rot:
+Reference styles that silently rot or force chained edits are rejected:
 
-- a commit hash used to retrieve content (a ``git show``/``git log`` command);
-- a line number appended to a file path.
+- a commit hash, whether used to retrieve content (a ``git show``/``git log``
+  command) or cited as provenance;
+- a line number appended to a file path;
+- wording that sends the reader to git history for content.
 
-Historical material belongs in a tracked archive directory instead. See the
-"Documentation References" section of the root AGENTS.md.
+The repository keeps only the current view: retired material is distilled into
+live documents and deleted. See the "Documentation References" section of the
+root AGENTS.md.
 """
 
 from __future__ import annotations
@@ -35,12 +38,7 @@ SCAN_PREFIXES = (
     "docs/",
     "mkdocs/",
 )
-EXEMPT_PREFIXES = (
-    "design/analysis/",
-    "design/archive/",
-    "design/history/",
-    "adr/archive/",
-)
+EXEMPT_PREFIXES = ("design/analysis/",)
 EXEMPT_FILES = {
     "BACKLOG.md",
     "CHANGELOG.md",
@@ -52,6 +50,9 @@ LINE_SUFFIX = re.compile(
     r"(?<![A-Za-z0-9_./-])[A-Za-z0-9_./-]+\.(?:md|java|py|ya?ml|xml|sh|html|kt|ts)"
     r":\d+(?:[-,]\d+)*"
 )
+# Seven to forty lowercase hex digits containing both a digit and a letter, not
+# part of a longer word, path, or URL segment.
+COMMIT_HASH = re.compile(r"(?<![\w./#-])(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w/-])")
 HISTORY_RETRIEVAL = re.compile(
     r"git\s*历史[^。\n]{0,12}(?:取回|取到)"
     r"|recoverable\s+(?:with|from)\s+git\s+history"
@@ -85,6 +86,8 @@ def violations(root: Path) -> list[str]:
                 found.append(f"{relative}:{number}: hash-based retrieval: {line.strip()}")
             if LINE_SUFFIX.search(line):
                 found.append(f"{relative}:{number}: line-number reference: {line.strip()}")
+            if COMMIT_HASH.search(line):
+                found.append(f"{relative}:{number}: commit-hash reference: {line.strip()}")
             if HISTORY_RETRIEVAL.search(line):
                 found.append(f"{relative}:{number}: git-history retrieval: {line.strip()}")
     return found

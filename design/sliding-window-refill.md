@@ -40,7 +40,7 @@
 
 框架不再为等待补窗的批次创建线程：线程成本从 O(并发有限窗口批次数) 降为 O(1)（只取决于业务
 executor 自身的线程）。回归 `SlidingWindowResourceBoundTest` 用公开入口锁住该上界，反向验证在
-基线 `346d389` 上得到 24 条 `submitRemaining` 等待线程、在新实现上为 0。
+旧的驻留 submitter 实现上得到 24 条 `submitRemaining` 等待线程、在新实现上为 0。
 
 ## 取消与窗口一致性
 

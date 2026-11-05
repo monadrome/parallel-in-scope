@@ -204,7 +204,7 @@ state 与意图、意图沿父链传播、输家不得升级意图）——只�
 教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
 token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
 公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
-deadline、bind 与归因状态机）。历史来源：[P0025-internal-cancellation-token.md](archive/P0025-internal-cancellation-token.md)。
+deadline、bind 与归因状态机）。历史来源：`proposal:P0025`（internal-cancellation-token）。
 
 ## 5.4 显式请求取消输入
 
@@ -231,9 +231,15 @@ deadline、bind 与归因状态机）。历史来源：[P0025-internal-cancellat
 被否决的替代方向：重新公开 token 或新增公共 `CancellationSource`（重复概念并暴露内部状态机）；
 接收 `CompletionStage`（形成第二套 future 体系）；ambient `RequestScope` 或第二棵 parent 树
 （增加归因与封口协议）；要求 immutable options 自动清空来源（来源字段本来就随请求寿命持有）。
-历史来源：`proposal:P0001`；中断参数的移除见 §5.1。验证与评审流水见
-[取消传播评审记录](history/cancellation-propagation-review-records.md)；时钟域与意图原子发布的旧评审见
-[取消意图与时钟域评审记录](history/cancel-intent-clock-domain-validation.md)。
+历史来源：`proposal:P0001`；中断参数的移除见 §5.1。
+
+评审中驳回的主张（2026-11-04，§5.1 中断意图移除的三轮评审）：要求统计终态竞争输家的第二次
+取消——输家只多调用一次 `futureToken.cancel(true)`，该 future 的值从不被读取，其监听（父传播、timer
+撤销）都重读 state，SUCCESS 已提交时父传播是 no-op，与不调用等价；要求被收养成员支持 `cancel(false)`——
+公开面没有成员句柄，被收养成员也不交给执行器，不存在可选择的中断意图。更早的时钟域评审驳回过
+「普通 bound 直消或父传 `cancel(false)` 一律升级为 `true`」：Guava 沿 futureToken→allAsList 链先以
+`wasInterrupted()=false` 取消输入，聚合回调的 `cancel(true)` 落在已终态 future 上是 no-op，反向验证
+在旧代码下全部通过；该区分随 §5.1 的意图移除失去对象，不重提。
 
 ## 6. 速查表
 

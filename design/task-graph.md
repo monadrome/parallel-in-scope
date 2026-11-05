@@ -127,7 +127,7 @@ ExecutorWaitReport   公开：cyclicComponents()，每个 Component 有 members(
 
 ## 8. 实现评审与处置
 
-- Claude 对 `3b89ee5..59fe375` 的只读评审确认：单目标与 `mapAndCombine` 双目标记录点在已知边查表前分配临时集合，
+- Claude 对执行器等待图首个实现的只读评审确认：单目标与 `mapAndCombine` 双目标记录点在已知边查表前分配临时集合，
   违反 P6。保留并修复：两种记录形式先按同一不可变快照完成资格与已知边检查，已知边不分配集合；仅冷路径构造
   缺失边列表，一次准入仍由同一次 CAS 安装，见证与异常隔离不变。
 - 同一评审发现 BACKLOG A-P2 与交互 demo 仍描述已删除的请求级任务图。保留并修复：A-P2 随旧公开查询面删除而关闭；

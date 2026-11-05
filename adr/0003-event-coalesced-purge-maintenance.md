@@ -12,7 +12,7 @@
 > at the application's own maintenance boundary). The removed failure surface was the
 > coordination this record designed — phase-notification ordering, observer capture and
 > release, the cancellation estimate, and maintenance-service shutdown. The implementation,
-> configuration, and tests are preserved on `dev/experimental` from baseline `3557bff`.
+> configuration, and tests are preserved on the `dev/experimental` branch.
 > The record below is kept as the design to start from if automatic purge returns.
 
 ## Context
@@ -95,7 +95,5 @@ reclaim running tasks or govern permanently blocked workers.
 
 ## History
 
-Condensed on 2026-10-27; the previous full text is
-[archive/0003-event-coalesced-purge-maintenance.md](archive/0003-event-coalesced-purge-maintenance.md).
-Removed: the threshold formula block and the lazy-expiry marker layout (kept as one-line
-rules above), and the `ParConfig` accessor and JUL level details.
+Condensed on 2026-10-27. Removed: the threshold formula block and the lazy-expiry marker layout
+(kept as one-line rules above), and the `ParConfig` accessor and JUL level details.

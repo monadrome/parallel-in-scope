@@ -18,8 +18,7 @@
 
 ## 边界与来源
 
-已落地的类/接口注解、测试 seam 清理及复核记录见
-[P0028 原文](../archive/P0028-annotation-and-comment-layers.md)。记录的历史命中数不作为当前证据。
+已落地的类/接口注解与测试 seam 清理以当前代码为准（`proposal:P0028`）；当时记录的命中数不作为当前证据。
 注释层由 [ADR 0012](../../adr/0012-contract-and-implementation-comment-layers.md) 承接：
 允许就地实现块，但不规定块数量或行数，不复制 design 协议。
 未选择扩展前，用户写法不变；若改变下游编译诊断，后续提案须给出改前/改后代码、失败模式与迁移说明。

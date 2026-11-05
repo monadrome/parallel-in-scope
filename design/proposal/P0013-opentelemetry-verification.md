@@ -94,9 +94,9 @@ OTel 的独立 ThreadLocal 不自动违反 TTL 集合的 I3；同时桥接同一
 
 ## 来源与复核
 
-2026-10-09/10 的 Claude 会话 `a32c8992`，Kimi 独立推导 `f8fdc80d` 与对抗评审 `1e75d300`。
+2026-10-09/10 的 Claude 会话、Kimi 独立推导与对抗评审。
 会话曾读取上游 executor/Runnable advice、VirtualField 与 ContextStorage，但没有实际带
 agent 运行本库。官方源码入口是
 [executors instrumentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/tree/main/instrumentation/executors)
 与 [Context API](https://github.com/open-telemetry/opentelemetry-java/tree/main/context)；实施时固定
-revision/版本重验，不将历史 main 链接当当前兼容证明。当前调用点已按 `fb6af08` 重新核对。
+revision/版本重验，不将历史 main 链接当当前兼容证明。当前调用点已按 2026-10-12 的代码重新核对。

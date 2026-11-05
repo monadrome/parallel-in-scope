@@ -266,7 +266,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 - Guava 的 `WrappingExecutorService` 是包私有且无公开解包入口，因此**只修 TTL 一侧**；
 - **身份不跟着解包**：`ExecutorIdentity` 仍按注册对象（见其 javadoc 的理由），否则同一物理池以两个对象注册会被合并，改变执行器图语义。
 
-> **落地记录（提交 `fa5f303`）**：新增
+> **落地记录**：新增
 > `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`，
 > blocking-risk 分类、饥饿判定、`rejectEnqueue` 生效判定、purge 绑定、注册期「看不透」告警
 > 全部改读解包对象；身份仍按注册对象。实测根模块 644/644、demo 54/54 全绿，新增 3 条回归测试。

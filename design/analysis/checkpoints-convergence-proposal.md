@@ -186,7 +186,7 @@ public final class Checkpoints {
 `Duration`。
 
 **不在本次范围、保持不变：**`checkpoint(String, boolean)` 是「断言当前任务名 + 可选带栈」，不是
-逐原语双胞胎（`design/kimi-review-0.3.0-snapshot.md` A3 已建议不动）；`checkRunnable`/
+逐原语双胞胎（kimi 0.3.0 审核 A3 已建议不动，原稿已删除）；`checkRunnable`/
 `checkSupplier` 是「按声明类型把非中断失败转译为 `CancellationException`」，`interruptible` 不覆盖
 这个语义。它们与 `interruptible` 的命名不一致（`checkX` vs 同名重载）是另一件事，本文不处理。
 
