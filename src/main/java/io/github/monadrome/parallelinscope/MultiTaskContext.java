@@ -133,28 +133,25 @@ final class MultiTaskContext {
         }
 
         /** The explicit cancellation parent, or the structural parent's token when none was set. */
-        private @Nullable CancellationToken cancellationParent() {
+        private @Nullable CancellationToken effectiveCancellationParent() {
             MultiTaskContext parent = structuralParent;
             return cancellationParent != null ? cancellationParent : parent == null ? null : parent.cancellationToken;
         }
 
         /** The explicit deadline ceiling, or the structural parent's deadline when none was set. */
-        private long deadlineCeilingNanos() {
-            MultiTaskContext parent = structuralParent;
+        private long effectiveDeadlineCeilingNanos() {
             return deadlineCeilingNanos != null
                     ? deadlineCeilingNanos
-                    : parent == null ? Long.MAX_VALUE : parent.deadlineNanos;
+                    : MultiTaskContext.deadlineCeilingFor(structuralParent);
         }
 
         /** The cancellation parent's clock, or the explicit/system root clock without a parent. */
         private Ticker domain(@Nullable CancellationToken cancellationParent) {
-            return cancellationParent != null
-                    ? cancellationParent.ticker()
-                    : ticker != null ? ticker : Ticker.systemTicker();
+            return MultiTaskContext.domainFor(cancellationParent, ticker);
         }
 
         /** The explicit resolution reading, or the selected domain's current reading. */
-        private long resolutionTimeNanos(Ticker domain) {
+        private long effectiveResolutionTimeNanos(Ticker domain) {
             return resolutionTimeNanos != null ? resolutionTimeNanos : domain.read();
         }
     }
@@ -162,6 +159,18 @@ final class MultiTaskContext {
     /** Starts a resolution for the given spec and task count. */
     static Resolution resolution(UnitSpec spec, int taskCount) {
         return new Resolution(spec, taskCount);
+    }
+
+    /** Returns the structural parent's deadline, or the no-deadline sentinel at the top level. */
+    static long deadlineCeilingFor(@Nullable MultiTaskContext structuralParent) {
+        return structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos;
+    }
+
+    /** Returns the cancellation parent's domain, or the explicit/system root domain without one. */
+    static Ticker domainFor(@Nullable CancellationToken cancellationParent, @Nullable Ticker rootTicker) {
+        return cancellationParent != null
+                ? cancellationParent.ticker()
+                : rootTicker != null ? rootTicker : Ticker.systemTicker();
     }
 
     static @Nullable MultiTaskContext requireDeadlineSource(@Nullable Duration timeout, String remedy) {
@@ -186,13 +195,13 @@ final class MultiTaskContext {
         if (spec.timeout() == null && parent == null && resolution.deadlineCeilingNanos == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
-        CancellationToken cancellationParent = resolution.cancellationParent();
-        long deadlineCeiling = resolution.deadlineCeilingNanos();
+        CancellationToken cancellationParent = resolution.effectiveCancellationParent();
+        long deadlineCeiling = resolution.effectiveDeadlineCeilingNanos();
         // The deadline domain follows the cancellation parent's clock; only a root unit takes the
         // resolution's own clock (the owning ParRuntime's). This keeps a nested runtime's units on
         // the ancestor's clock instead of mixing domains inside one token tree.
         Ticker domain = resolution.domain(cancellationParent);
-        long resolutionTime = resolution.resolutionTimeNanos(domain);
+        long resolutionTime = resolution.effectiveResolutionTimeNanos(domain);
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);

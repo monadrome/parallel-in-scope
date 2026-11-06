@@ -124,6 +124,10 @@ public final class ThreadPoolStarvationObservationScope implements AutoCloseable
     /**
      * Publishes the report even when {@code samplingError} is pending, suppressing a distinct
      * publication failure onto that error before rethrowing it.
+     *
+     * @throws RuntimeException if publication fails without a pending sampling error
+     * @throws Error if publication fails without a pending sampling error, or for a pending
+     *     sampling error after publication has been attempted
      */
     @SuppressWarnings("ReferenceEquality")
     private void publishReport(@Nullable Error samplingError) {

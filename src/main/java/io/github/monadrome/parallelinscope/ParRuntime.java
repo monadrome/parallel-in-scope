@@ -145,7 +145,8 @@ public final class ParRuntime implements AutoCloseable {
         ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
-            ExecutorRuntime runtime = runtimeFor(entry.getKey(), entry.getValue(), identity, identityRuntimes);
+            ExecutorRuntime runtime =
+                    identityRuntimes.computeIfAbsent(identity, ignored -> runtimeFor(entry.getKey(), entry.getValue()));
             aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
             TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
@@ -159,18 +160,12 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the existing runtime for {@code identity}, or inspects and registers {@code executor}
-     * once. Warnings and rejection checks therefore run only for the first alias of an executor.
+     * Inspects {@code executor} and creates its runtime. The caller's identity registry invokes this
+     * factory only for the first alias, so its warnings and rejection checks run once per identity.
+     *
+     * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
      */
-    private static ExecutorRuntime runtimeFor(
-            ParId id,
-            ExecutorService executor,
-            ExecutorIdentity identity,
-            Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes) {
-        ExecutorRuntime runtime = identityRuntimes.get(identity);
-        if (runtime != null) {
-            return runtime;
-        }
+    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor) {
         // A TTL wrapper hides the physical pool, so every structural fact below is read
         // through it. Without this the wrapper is indistinguishable from a foreign
         // executor: blocking-risk detection silently downgrades, and the
@@ -219,9 +214,7 @@ public final class ParRuntime implements AutoCloseable {
                     + "; register the physical pool instead. TTL capture then happens twice"
                     + " for every task: once at the executor boundary and once at prepare.");
         }
-        runtime = new ExecutorRuntime(executor);
-        identityRuntimes.put(identity, runtime);
-        return runtime;
+        return new ExecutorRuntime(executor);
     }
 
     /** Returns a mutable builder for a runtime topology. */
