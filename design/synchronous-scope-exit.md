@@ -159,7 +159,7 @@ throwable MUST NOT 被承诺为 `CancellationException`：组级 valuesResult �
 不被 default 分支吸收：新增 `TaskOutcome` 值时遍历全部 outcome 的测试先变红，迫使显式归类。
 四个处理器都 MUST 非 null；fold 与 `successful()` 只读冻结数据，不等待、不消费中断。被否决的
 平行快照类型、typestate 链与单任务获取入口见 [decision-log.md](decision-log.md)。历史来源：
-`proposal:P0019`；四类终态分派的落地来源：`proposal:P0037`。
+`proposal:P0019`；四类终态分派的实现事实由现行 `ImmediateResult` 契约和对应测试维护。
 
 ### 输入快照与观测屏障
 
