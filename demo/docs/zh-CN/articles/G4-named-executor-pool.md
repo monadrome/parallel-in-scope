@@ -47,22 +47,26 @@ ParRuntime config = ParRuntime.builder()
         .register(ParId.of("io-pool"), ioPool)
         .register(ParId.of("cpu-pool"), cpuPool)
         .register(ParId.of("report-pool"), reportPool)
+        .defaultPar(ParId.of("io-pool"))
         .build();
 Par par = config.defaultPar();
+Par ioPar = config.par(ParId.of("io-pool"));
+Par cpuPar = config.par(ParId.of("cpu-pool"));
+Par reportPar = config.par(ParId.of("report-pool"));
 
 // 按名字引用，不可能传错
-BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.IO_BOUND);
-TaskBatchResult<Order> orders = par.map( orderIds, id -> {
+BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.BLOCKING);
+TaskBatchResult<Order> orders = ioPar.map( orderIds, id -> {
     return orderService.fetch(id);  // IO 任务走 io-pool
 }, ioOpts);
 
-BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.CPU_BOUND);
-TaskBatchResult<Double> scores = par.map( users, user -> {
+BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.COMPUTE);
+TaskBatchResult<Double> scores = cpuPar.map( users, user -> {
     return scoreEngine.compute(user);  // 计算任务走 cpu-pool
 }, cpuOpts);
 
 BatchOptions reportOpts = BatchOptions.timeout("gen-report", java.time.Duration.ofMillis(60000)).parallelism(1);
-TaskBatchResult<Report> reports = par.map( months, month -> {
+TaskBatchResult<Report> reports = reportPar.map( months, month -> {
     return reportService.generate(month);  // 报表任务走 report-pool
 }, reportOpts);
 ```
@@ -83,4 +87,4 @@ TaskBatchResult<Report> reports = par.map( months, month -> {
 
 ---
 
-> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)
+> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)

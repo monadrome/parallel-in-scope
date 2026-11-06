@@ -30,7 +30,7 @@ futures.forEach(f -> f.cancel(true));
 
 配合 `BatchOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
 - `parallelism(3)` 限制最大并行数为 3，采用滑动窗口调度避免线程池过载
-- `taskType(TaskType.IO_BOUND)` 标记为 IO 密集型任务，影响调度策略
+- `taskType(TaskType.BLOCKING)` 声明为会阻塞的任务；它只用于诊断，不改变入队或调度
 - `timeout(500)` 设置本次批量调用的 500ms 超时，超时后取消未完成任务
 
 ## 代码
@@ -41,17 +41,18 @@ futures.forEach(f -> f.cancel(true));
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
 // 设置选项：3 并发，500ms 超时
-BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
+BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.BLOCKING);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2", "url3");
 TaskBatchResult<String> result = par.map( urls, url -> {
-    // 模拟 IO 操作（Checkpoints.sleep 响应框架取消信号）
-    Checkpoints.sleep(5000);
+    // 模拟 IO 操作（Checkpoints.checkSleep 响应框架取消信号）
+    Checkpoints.checkSleep(5000, TimeUnit.MILLISECONDS);
     return fetchContent(url);
 }, opts);
 
@@ -60,4 +61,4 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
+> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)

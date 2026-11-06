@@ -40,6 +40,7 @@ System.out.println("10000 exceptions: " + elapsed / 1_000_000 + " ms");
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -70,4 +71,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)
+> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)
