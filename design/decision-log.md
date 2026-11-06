@@ -64,7 +64,8 @@ Reopen only with a concrete case where every finite bound is harmful rather than
 together with a liveness design for a scope without a deadline. The orthogonal saturation defect
 (an astronomically large timeout reaching the sentinel) was fixed separately: explicit timeouts
 clamp below the sentinel, see [synchronous-scope-exit.md](synchronous-scope-exit.md) §4. The
-analysis input is [analysis/unbounded-timeout-factory-proposal.md](analysis/unbounded-timeout-factory-proposal.md).
+supporting analysis was temporary input and its conclusion is recorded here; the draft is not
+retained in the release tree.
 
 ### No public time-source SPI (2026-10-27)
 
@@ -478,6 +479,15 @@ the distilled reasons already answer "why not".
   public capability.
 
 ## Harvested analysis inputs
+
+### Release-tree cleanup (2026-11-07)
+
+The temporary `design/analysis/` drafts were removed before the `v0.4.0` release candidate.
+Their conclusions are either already represented by the current contracts and decision entries,
+remain as explicit proposals under `design/proposal/`, or are non-authoritative review and
+marketing material with no product contract. The cleanup does not close or approve any proposal:
+unresolved directions remain in `BACKLOG.md` or their proposal files, while `ADR` and verification
+records remain the durable history.
 
 Historical observations are not current defect evidence, and a carried item is not approved work.
 
