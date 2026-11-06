@@ -1,6 +1,6 @@
 # Confirmed proposal defects
 
-The implementation starts from `e5cb966` and retains only reachable failures or direct contradictions
+The implementation retains only reachable failures or direct contradictions
 of active contracts. Public call signatures stay unchanged. The best existing calls remain
 `par.map(inputs, mapper, options)` and `runtime.group(...).par(...).runAll()`; they now return their
 actual failures with an interrupted caller and report checkpoint-driven inherited timeouts correctly.
@@ -12,11 +12,11 @@ ISE or MEMBER_CANCELLED attribution should inspect the actual result and caller 
 | Source | Finding and evidence | Disposition |
 |---|---|---|
 | P0014 | Completed SettableFuture failure inspection and every batch/group/terminal freezing path on direct and pooled executors throws unrelated ISE for an interrupted caller | Retained: Futures.getDone preserves the business cause, flag, and existing settle pin |
-| P0015 | Public runAll with a token-domain clock advanced inside a body and a pending timer returns member/terminal TIMEOUT but group MEMBER_CANCELLED | Retained: register the existing TIMEOUT listener before deciding whether to skip redundant bind; no new clock fallback or convergence policy |
+| P0015 | Public runAll with a token-domain clock advanced inside an execution and a pending timer returns member/terminal TIMEOUT but group MEMBER_CANCELLED | Retained: register the existing TIMEOUT listener before deciding whether to skip redundant bind; no new clock fallback or convergence policy |
 | P0016 | Direct report listener Error leaves an ISSUE report published but diagnostic count zero | Retained: diagnose in publication finally, preserve Error propagation and reentrant publication order |
 | P0016 | Existing graph-data test seam throws detection Error, then a report listener throws another Error; close loses the detection Error | Retained as a defensive internal test: primary detection Error and report cause remain, publication Error is suppressed |
 | P0010 | Nonempty null-mapper map returns task USER_FAILURE; empty/null inputs accept the invalid mapper | Retained: reject the caller argument before admission, with ordered options/function validation |
-| P0011 | Surefire selection by TaskBatchResultBodyCompletionTest reports no matching tests | Retained: align the class name with its existing file |
+| P0011 | Surefire selection by TaskBatchResultExecutionExitTest reports no matching tests | Retained: align the class name with its existing file |
 | P0011 | Actual bilingual client and fallback snippets fail Java 8 compilation (checked IOException method reference and missing lambda return) | Retained: translate checked IO failure in the Function and return success; interruption is restored and translated with its original cause |
 | P0011 | Actual MDC recipe on a direct executor clears enclosing TTL and MDC fields | Retained: save/restore enclosing values, including the absent-context case |
 | P0011 | IO prose promises interrupt stops blocking IO and socket read timeouts bound a whole call, contradicting interruption and client contracts | Retained as a documentation contradiction: explain interrupt requests and individual client waits |
@@ -38,21 +38,21 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0002 | Deferred: breaking API reductions have downstream counterevidence and unresolved migration choices |
 | P0003 | Already fixed in the baseline; no additional evidenced runtime defect |
 | P0004 | Deferred: new shared-budget API and clock-domain choice |
-| P0005 | Deferred: subtree confirmation is a new capability; current direct-body boundary is explicitly contracted |
+| P0005 | Deferred: subtree confirmation is a new capability; current direct-execution boundary is explicitly contracted |
 | P0006 | Deferred: protocol/live-surface refactors lack a measured failure; its interruption concern is covered by P0014 |
-| P0007 | Deferred: additional allocation is visible but no current performance regression is measured |
+| P0007 | Batch failure selection uses one scan before collecting successful values; the fused single-pass alternative regressed medium batches and failed reads in local measurements. Remaining statistics, projection, and lookup measurements continue in P0027 |
 | P0008 | Deferred: new diagnostic identity/lifetime capability |
 | P0009 | Deferred: new named terminal input API without a demonstrated failing use case |
 | P0010 | Null mapper fixed; shutdown quick failure, wrapper identity, and resource measurements continue in P0021 |
 | P0011 | Concrete recipes, IO prose, and test name fixed; broader history/navigation/ADR/changelog/BACKLOG maintenance continues in P0022 |
-| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; general accessor/Javadoc/comment maintenance continues in P0024 without a demonstrated runtime failure |
+| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; core comment contracts and implementation notes are reconciled under ADR 0012; test-comment follow-ups remain in P0029 without a demonstrated runtime failure |
 | P0013 | Deferred: SDK/agent compatibility requires fixed-version external verification; manual Context recipe is already corrected |
 | P0014 | Fully implemented, distilled into interruption-contract |
 | P0015 | Confirmed propagation fixed; uncommitted RUNNING-clock attribution choice continues in P0020 |
 | P0016 | Fully implemented, distilled into task-graph; nonreturning listeners remain outside the liveness promise |
 | P0017 | Deferred: selection/support/public artifact claims need current external evidence or a policy choice |
 | P0018 | Publication summary fixed; artifact identity/cache/source/consumer verification continues in P0023; cache replacement has no current reproduced mismatch |
-| P0019 | Deferred: new exhaustive matching or unary convenience API; existing interruption defect fixed through P0014 |
+| P0019 | Landed as `ImmediateResult.fold`/`successful()` (contract in synchronous-scope-exit §3); the unary convenience API was rejected (decision-log); the interruption defect was fixed through P0014 |
 
 ## Review And Verification
 
@@ -91,7 +91,7 @@ The existing external consumer was clean-compiled and ran nine tests on Corretto
 the final locally installed 0.3.0-SNAPSHOT. Its actual Surefire classpath artifact SHA-256 matches
 the built JAR. This is local-artifact verification, not Central download verification. Normal JAR,
 sources, and Javadoc packaging succeeded; Javadoc emitted 100 existing accessor/queue documentation
-warnings, which remain separate maintenance in P0024. No deploy or remote consumer verification was
+warnings, which remain separate maintenance in P0029 and P0030. No deploy or remote consumer verification was
 run. The pre-commit read-only review and follow-up findings above are independent of these checks.
 
 Reverse verification in an independent checkout removed only the four production fixes: all 17
@@ -116,11 +116,11 @@ This does not claim that Central already serves a byte-identical artifact. Histo
 Examples MUST compile against the documented Function/Callable shape and follow interruption P1-P4.
 TTL/MDC bridges MUST restore original context on the same thread, including nested and direct execution;
 the established restore rule is in [extension-and-wrapping](extension-and-wrapping.md). IO teaching
-MUST distinguish interrupt delivery, client wait timeouts, and the independent body-exit boundary.
+MUST distinguish interrupt delivery, client wait timeouts, and the independent execution-exit boundary.
 Targeted test selection by the documented file's class name MUST address the intended test class.
 Historical source: `proposal:P0011`; remaining maintenance directions are in P0022.
 
 Concrete Javadoc responsibility and obsolete reference corrections came from `proposal:P0012`.
 They change teaching only, preserving Checkpoints.remaining as a read-only query and
 propagateCancellation's existing cancellation-only control behavior. General maintenance remains
-in P0024.
+in P0029.

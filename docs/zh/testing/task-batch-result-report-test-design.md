@@ -3,7 +3,7 @@
 
 ## 1. 目标
 
-本测试集验证 TaskBatchResult.report()/reportString() 对冻结终态结果的表达，并验证 Par.map
+本测试集验证 TaskBatchResult.outcomeCounts()/failedTaskResult()/reportString() 对冻结终态结果的表达，并验证 Par.map
 fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING，也不会在返回后更新。
 
 测试不把线程调度产生的偶然状态数量当作产品契约。凡是断言精确数量的场景，都必须先通过已完成 Future 或显式同步原语建立确定状态。
@@ -14,7 +14,7 @@ fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING�
 |---|---|---|
 | 状态分类 | 每个冻结结果为 SUCCESS、USER_FAILURE、SUBMISSION_FAILURE 或 MEMBER_CANCELLED/GROUP_CANCELLED/FAIL_FAST/TIMEOUT 之一，不含 RUNNING | 核心单元测试 |
 | 状态计数 | 所有计数之和等于冻结结果数量 | 单元测试、集成测试 |
-| 首异常 | results 中第一个 USER_FAILURE/SUBMISSION_FAILURE 的 cause；纯取消/超时可为 null | 核心单元测试 |
+| 首失败 | results 中第一个 USER_FAILURE/SUBMISSION_FAILURE 元素（`failedTaskResult()`），其 `failure()` 为记录的原对象；纯取消/超时为空 | 核心单元测试 |
 | 快照语义 | report 只读取冻结数据，重复查询不变化 | 核心单元测试 |
 | 报告不可变 | 已生成报告的状态 map 不允许调用方修改 | 核心单元测试 |
 | 文本摘要 | 按状态枚举顺序输出计数；有失败时追加首异常消息 | 核心单元测试 |
@@ -55,7 +55,7 @@ fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING�
 ```text
 所有状态计数之和 == 输入任务数
 至少存在一个 USER_FAILURE
-firstException == 触发 fail-fast 的根异常
+failedTaskResult().failure() == 触发 fail-fast 的根异常
 ```
 
 即使场景通过 latch 得到确定终态，也不把未经控制的普通任务执行速度作为断言前提。
@@ -72,7 +72,7 @@ sleep 只能提高某种执行顺序出现的概率，不能建立 happens-befor
 
 ### 只断言字符串包含若干片段
 
-文本断言不能替代结构化状态验证。核心测试先验证 `BatchReport`，再验证字符串是该结构的稳定表示。
+文本断言不能替代结构化状态验证。核心测试先验证 `outcomeCounts()`/`failedTaskResult()`，再验证字符串是该结构的稳定表示。
 
 ### 为了得到 6/4 而吞掉任务异常
 
@@ -84,8 +84,8 @@ sleep 只能提高某种执行顺序出现的概率，不能建立 happens-befor
 |---|---|---|
 | mixed terminal states | success + two failures + cancellation | 精确计数、列表首失败、完整字符串 |
 | frozen report | 重复读取终态报告 | 内容一致且不含 RUNNING |
-| empty batch | 空 Future 列表 | 空 map、null 异常、空字符串 |
-| immutable report | 修改 stateCounts | 抛 `UnsupportedOperationException` |
+| empty batch | 空 Future 列表 | 空 map、空 `failedTaskResult()`、空字符串 |
+| immutable counts | 修改 outcomeCounts | 抛 `UnsupportedOperationException` |
 | all-success integration | `Par.map()` 全部返回 | 总数 N、无异常、`SUCCESS:N` |
 | controlled fail-fast integration | 根失败 + 阻塞 sibling + 待提交任务 | 总数守恒、失败根因、存在取消 |
 

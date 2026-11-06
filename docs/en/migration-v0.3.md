@@ -4,6 +4,11 @@ The 0.3 API executes synchronously: internal tasks remain parallel, but `Par.map
 `runAll()` return frozen values/failures after result convergence and bounded cleanup.
 There is no public asynchronous submission or running result scope.
 
+## Adopting typed keys on the 0.4 development line
+
+The 0.4 group API replaces the 0.3 type-token protocol with reference-identity `TaskKey<T>`.
+See the [v0.4 migration guide](migration-v0.4.md) for before/after examples and removed APIs.
+
 ## From an earlier 0.3 snapshot
 
 Before:
@@ -69,7 +74,7 @@ Successful null values remain valid; null terminalResult means no combine was de
 The group outcome and per-member results preserve authoritative convergence attribution.
 Batch aggregate reads keep ExecutionException for recorded execution failure and CancellationException
 for pure cancellation; group aggregate reads rethrow unchecked failures and wrap checked failures in
-CompletionException. Single ImmediateResult Left reads uniformly throw ExecutionException with the
+CompletionException. Single ImmediateResult value reads uniformly throw ExecutionException with the
 stored cause, including cancellation.
 
 `asFuture()` is done and cannot be cancelled, and `isCancelled()` is always false. It returns
@@ -82,7 +87,7 @@ get overloads preserve interruption; their static Future signatures still declar
 exceptions. Consumer listeners are outside the business scope/resource lifetime.
 
 `BatchOptions` parallelism no longer uses a `-1` sentinel for "unbounded": the default is
-`Integer.MAX_VALUE` (resolution still caps it by the task count, so default behaviour is unchanged),
+`Integer.MAX_VALUE` (resolution still caps it by the task count, so default behavior is unchanged),
 and `parallelism(int)` rejects zero or negative with `IllegalArgumentException` instead of silently
 resolving them to one worker per task.
 

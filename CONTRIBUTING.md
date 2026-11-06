@@ -44,7 +44,7 @@ The issue forms live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/):
 |---|---|
 | **Bug report** | Something behaves differently from what the documentation promises |
 | **Design proposal** | A new capability, or a change to existing behavior or API |
-| **Documentation issue** | A page, javadoc, or example that is wrong, missing, or misleading |
+| **Documentation issue** | A page, Javadoc, or example that is wrong, missing, or misleading |
 
 Blank issues are also enabled for anything that does not fit a form. The
 new-issue page links the [user guide](docs/en/user-guide.md), the
@@ -97,6 +97,10 @@ mvn spotless:apply                     # format Java sources before committing
 For a code change, finish with a green `mvn test`. Documentation-only changes
 do not need Java tests — see
 [AGENTS.md — Verification And Completion](AGENTS.md#verification-and-completion).
+For executable production changes (including refactors), mutation-relevant test
+or helper changes, and toolchain or build/PIT configuration changes, follow
+[PIT verification](verification/pit.md) for applicability, scope, commands, and
+result dispositions.
 
 ## Commits and pull requests
 
@@ -123,7 +127,7 @@ documented rationale. If your change renames or alters a public API or a
 documented contract, update both migration guides of the current release line
 in the same pull request: `docs/en/migration-v<major>.<minor>.md` and
 `docs/zh/migration-v<major>.<minor>.md`, where `<major>.<minor>` comes from the
-`pom.xml` version (on `0.3.0`,
+`pom.xml` version (for example, the `0.3.0` release uses
 [docs/en/migration-v0.3.md](docs/en/migration-v0.3.md) and
 [docs/zh/migration-v0.3.md](docs/zh/migration-v0.3.md)). State the rationale
 in the PR description.
