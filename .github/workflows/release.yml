@@ -116,6 +116,22 @@ jobs:
             mvn -B -ntp -f demo \
             -Dparallel-in-scope.version="$LIBRARY_VERSION" test
 
+      # Maven deploy needs the build JDK again: the repository .mvn/jvm.config contains
+      # JDK 25 module flags that Java 8 correctly rejects.
+      - name: Restore build JDK 25 for publish
+        uses: actions/setup-java@v6
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
       # `maven.repository.credentialScope=id` restores credential matching by server id. The
       # runner image's Maven scopes credentials by repository origin, and the `central` server
       # that `setup-java` writes into settings.xml is associated with the super-POM's
