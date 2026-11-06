@@ -204,7 +204,7 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 ## 五、SmartBlockingQueue：CPU 密集型任务的"反队列"策略
 
-> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SmartBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
+> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SmartBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
 
 解决了取消和超时之后，还有两个横切关注点需要处理：任务怎么排队（CPU 任务和 IO 任务的策略不同），以及上下文怎么跨线程传播。先说排队。
 

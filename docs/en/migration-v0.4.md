@@ -113,7 +113,7 @@ from a zero-time pair. Handle the new `SAMPLING_FAILED` status and inspect `fail
 complete normally after a sampling exception; a sampling `Error` is rethrown from close after the
 report publishes. Evidence takes priority over failure, which takes priority over unsupported
 executors. Evidence remains a capture-time snapshot even after the pool recovers. No alias for
-`stagnantSamples()` is retained in this unreleased API.
+`stagnantSamples()` is retained in the `0.4.0` API.
 
 ## Batch aggregate reads
 

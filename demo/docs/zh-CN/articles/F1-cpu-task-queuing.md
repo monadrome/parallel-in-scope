@@ -76,4 +76,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)
+> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)

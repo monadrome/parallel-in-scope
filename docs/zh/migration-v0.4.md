@@ -104,7 +104,7 @@ try-with-resources 关闭。下游 Error Prone 构建会报告违反 `@CheckRetu
 打开后立即关闭不再用零间隔样本对误报饥饿。调用方须处理新增的 `SAMPLING_FAILED`
 状态并读取 `failureMessage()`。采样异常后报告仍正常完成；采样 `Error` 在 close
 发布报告后继续抛出。证据优先于失败，失败优先于不可见执行器。证据始终是捕获时的
-快照，池恢复后也不会清除。这个未发布 API 不保留 `stagnantSamples()` 兼容别名。
+快照，池恢复后也不会清除。这个 `0.4.0` API 不保留 `stagnantSamples()` 兼容别名。
 
 ## 批次聚合读取
 

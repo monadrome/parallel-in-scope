@@ -61,4 +61,4 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
+> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)

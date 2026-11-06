@@ -2,7 +2,7 @@
 
 本库没有可注入的时钟，以后也不会提供：公开的时间源只能虚拟化一半相关时间，生产环境误配置还会拿走
 同步 `map`/`runAll` 唯一的活性保证。理由见
-[决策日志](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/design/decision-log.md)。
+[决策日志](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/design/decision-log.md)。
 超时路径仍然可以确定性地测试，本页说明做法。
 
 ## 注入 timeout，而不是时钟

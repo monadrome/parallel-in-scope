@@ -1,29 +1,22 @@
 # 批量调用入门示例
 
-首次使用请先阅读开发线的 [5 分钟快速上手](../../../../docs/zh/quickstart.md)。本文是 Demo 的详细入门示例，继续展开依赖、超时、并发度和结果读取。
+首次使用请先阅读 [5 分钟快速上手](../../../../docs/zh/quickstart.md)。本文是 Demo 的详细入门示例，继续展开依赖、超时、并发度和结果读取。
 
 `parallel-in-scope` 是一个面向 Java 8+ 的结构化并发工具库。它提供滑动窗口并发控制、协作式取消、跨线程上下文传播等能力，让你用最少的代码完成批量并行任务。
 
 ## 1. 添加依赖
 
-开发线使用 `0.4.0-SNAPSHOT`，快照不在默认 Central 仓库中，需要先声明快照仓库；也可以先在仓库根目录运行 `mvn install` 使用本地构件：
+正式版使用 `0.4.0`，可直接从 Maven Central 获取：
 
 ```xml
-<repositories>
-    <repository>
-        <id>central-snapshots</id>
-        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-    </repository>
-</repositories>
-
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-最新的稳定版是 `0.3.0`，可使用稳定版坐标；从 `0.2.x` 升级请先读
+从 `0.3.x` 升级请先读
 [v0.3 迁移指南](../../../../docs/zh/migration-v0.3.md)。
 
 ## 2. 最小示例
@@ -135,4 +128,4 @@ Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // �
 更多用法请参考项目 README 和 `demo/` 目录下的示例代码。
 
 ---
-> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/QuickStartTest.java)
+> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/QuickStartTest.java)

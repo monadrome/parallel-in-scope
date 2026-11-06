@@ -8,8 +8,8 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> Latest stable release: `0.3.0`. This version is a breaking redesign of the task-group API —
-> migrating from `0.2.x`? Read the [v0.3 migration guide](docs/en/migration-v0.3.md) first.
+> Latest stable release: `0.4.0`. This release adds typed task keys, request cancellation, adopted
+> futures, and runtime diagnostics. Migrating from `0.3.x`? Read the [v0.4 migration guide](docs/en/migration-v0.4.md) first.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
 context propagation, sliding-window scheduling, and thread-pool deadlock and starvation diagnostics.
@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
@@ -96,8 +96,8 @@ java.util.function.Function<String, String> mapper = value -> {
 };
 ```
 
-On `0.3.x`, `valuesOrThrow()` reports a checked `ExecutionException`; the `0.4.0-SNAPSHOT`
-line uses an unchecked failure instead.
+On `0.3.x`, `valuesOrThrow()` reports a checked `ExecutionException`; the `0.4.0` release uses
+an unchecked failure instead.
 
 Three contracts shape that first call:
 
@@ -113,25 +113,27 @@ Three contracts shape that first call:
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
 A fixed, heterogeneous set of named operations — fetch the user and the account, then build the
-profile — goes through a one-shot group instead of a batch. On the released `0.3.0` line the member
-type is a `Class` token:
+profile — goes through a one-shot group instead of a batch. On the `0.4.0` release, reuse typed
+keys for declarations and result reads:
 
 ```java
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<Account> account = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
 TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
         .group("profile", Duration.ofSeconds(3))
-        .par("user", io, User.class, () -> loadUser(userId))
-        .par("account", io, Account.class, () -> loadAccount(userId))
-        .combine("profile", io, Profile.class,
+        .par(user, io, () -> loadUser(userId))
+        .par(account, io, () -> loadAccount(userId))
+        .combine(profileKey, io,
                 values -> Profile.of(values.first(), values.second()))
         .runAll();
 Profile value = profile.terminalValueOrThrow();
 ```
 
 `runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
-The first member failure cancels its siblings, and a member timeout cancels the group. The
-development line replaces the `Class` tokens with reusable typed keys — and makes batch aggregate
-reads unchecked there; group reads were already unchecked. See the
-[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/docs/en/migration-v0.4.md).
+The first member failure cancels its siblings, and a member timeout cancels the group. Batch
+aggregate reads are unchecked in `0.4.0`; group reads were already unchecked. See the
+[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/docs/en/migration-v0.4.md).
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
@@ -152,14 +154,14 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 |---|---|
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
 | [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
-| [Stable English documentation](https://monadrome.github.io/parallel-in-scope/) | Guide for the released `0.3.0` line |
-| [v0.3 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.3.0/docs/en) | Frozen source for the stable release |
-| [0.4 development documentation](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/docs/en) | Next-line guide for `0.4.0-SNAPSHOT` |
-| [Demo project](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/demo) | Runnable examples and the article catalog |
-| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/dev/v0.4.0/integrations) | 0.4 development: standalone Resilience4j, Sentinel, and Spring examples |
+| [Stable English documentation](https://monadrome.github.io/parallel-in-scope/) | Guide for the released `0.4.0` line |
+| [v0.4 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Frozen source for the stable release |
+| [0.4 documentation](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Release guide for `0.4.0` |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/demo) | Runnable examples and the article catalog |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4 development: standalone Resilience4j, Sentinel, and Spring examples |
 | [Contributing](CONTRIBUTING.md) | Development and contribution workflow |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.3.0` line |
+| [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.4.0` line |
 
 ## Compatibility and Build
 
