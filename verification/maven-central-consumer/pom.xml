@@ -18,7 +18,7 @@
              at a published version and resolves it from Maven Central into a throwaway local
              repository instead, so a locally installed copy can never satisfy the check.
              Snapshot versions come from the Central snapshot repository declared below. -->
-        <parallel-in-scope.version>0.3.0</parallel-in-scope.version>
+        <parallel-in-scope.version>0.4.0-SNAPSHOT</parallel-in-scope.version>
     </properties>
 
     <repositories>
@@ -40,6 +40,7 @@
             <artifactId>parallel-in-scope</artifactId>
             <version>${parallel-in-scope.version}</version>
         </dependency>
+        <!-- JUnit 5: this consumer runs on the Java 8 runtime in CI. -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -53,7 +54,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
@@ -62,7 +63,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.6.1</version>
             </plugin>
         </plugins>
     </build>

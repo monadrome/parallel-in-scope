@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-four-way-immediate-result-fold",
+  "date": "2026-11-06",
+  "topic": "four-way-immediate-result-fold",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "feat: split ImmediateResult fold failures",
+      "fix: finish four-way fold migration",
+      "docs: clarify four-way fold history",
+      "chore: record delivery four-way-immediate-result-fold"
+    ],
+    "files": 11,
+    "insertions": 178,
+    "deletions": 53
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "integrations mvn test": 1,
+      "check-doc-refs": 1,
+      "check-design-routes": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "mutations.xml",
+      "statuses": {
+        "KILLED": 34
+      },
+      "total": 34,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Four-way ImmediateResult.fold; focused PIT rerun with root-package tests killed 34/34 mutants with no survivors or no-coverage. Multi-review Claude/OCR completed; Kiro blocked twice because claude-haiku-5.5 was unavailable."
+}

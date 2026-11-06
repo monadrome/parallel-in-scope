@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-p0036-script-robustness",
+  "date": "2026-11-06",
+  "topic": "p0036-script-robustness",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "fix: harden complexity review scripts"
+    ],
+    "files": 3,
+    "insertions": 96,
+    "deletions": 9
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "scripts unittest": 2
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Hardened gray complexity collection and explicitly record blocked evaluation on scanner/config errors. Full Maven test passed; refactoring detector stalled with no output."
+}

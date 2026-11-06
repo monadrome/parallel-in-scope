@@ -1,0 +1,128 @@
+{
+  "claims": [
+    {
+      "id": "cancel-commit-before-cancel",
+      "protocol": "CancellationToken bind",
+      "claim": "Committing FAIL_FAST before cancelBoundWork preserves a listener's chance to fix the cause; reversing the order changes attribution.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+      "mutations": [
+        {
+          "find": "                        transitionTo(FAIL_FAST);\n                        cancelBoundWork(allFutures);",
+          "replace": "                        cancelBoundWork(allFutures);\n                        transitionTo(FAIL_FAST);"
+        }
+      ],
+      "tests": "CancellationTokenTest,TaskGroupCombineGuardCancellationTest,TaskGroupConvergenceTest",
+      "expect": "failure",
+      "note": "TaskGroupConvergenceTest.firstWriterNamesTheGroupUnderConcurrentMemberFailures asserts USER_FAILURE, directly exercising the attribution window."
+    },
+    {
+      "id": "first-wins-cancellation",
+      "protocol": "CancellationToken first-wins",
+      "claim": "A transition that loses the state CAS must not rewrite the terminal state or notify listeners; CancellationTokenTest.losingStateTransitionDoesNotNotifyListeners asserts the state stays CANCELLED and exactly one notification fires.",
+      "method": "existing-test",
+      "tests": "CancellationTokenTest#losingStateTransitionDoesNotNotifyListeners",
+      "expect": "pass",
+      "note": "The bind race test uses one start latch for cancel vs bind, not two cancellation transitions; it does not prove first-wins. This test directly asserts the losing transition."
+    },
+    {
+      "id": "group-barrier-increment-last",
+      "protocol": "TaskGroup convergence barrier",
+      "claim": "The completedTasks increment must stay last so a converging thread sees the classification, cascade, and fail-fast before it counts a task.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "mutations": [
+        {
+          "find": "            if (completedTasks.incrementAndGet() == totalTasks) {\n                converge();\n            }\n",
+          "replace": ""
+        },
+        {
+          "find": "        if (!member.counted.compareAndSet(false, true)) {\n            return;\n        }\n        try {",
+          "replace": "        if (!member.counted.compareAndSet(false, true)) {\n            return;\n        }\n        if (completedTasks.incrementAndGet() == totalTasks) {\n            converge();\n        }\n        try {"
+        }
+      ],
+      "tests": "TaskGroupConvergenceTest",
+      "expect": "failure",
+      "note": "Reduced suite TaskGroupConvergenceTest; convergenceSnapshotPublishesEveryMemberClassificationAndTimestamp asserts the snapshot. The earlier larger-suite timeout was not claim-specific."
+    },
+    {
+      "id": "sliding-window-phantom-index",
+      "protocol": "SlidingWindowSubmitter claim/handoff",
+      "claim": "The cancellation getAndSet(size) can land between the drain loop's range check and getAndIncrement, so the increment observes the phantom index size; handoff's index >= size guard is what prevents tasks.get(size).",
+      "method": "code-proof",
+      "proof": "The single drain holder reads nextIndex == size-1, so the loop condition passes. Cancellation wins settled and executes nextIndex.getAndSet(size). The holder's getAndIncrement() returns size and stores size+1. Without handoff's index >= size guard, tasks.get(size) is out of bounds. draining admits one claimant, normal claims stop at size, and only the winning cancellation performs getAndSet, so the phantom index is exactly size.",
+      "note": "The 3000-round stress test did not kill the range-check mutation because the handoff guard is the actual guard; the test is insensitive. A deterministic seam is still needed for dynamic proof."
+    },
+    {
+      "id": "queue-count-before-head-next",
+      "protocol": "DrainingBlockingQueue peek/poll",
+      "claim": "Reading count before head.next provides the happens-before edge to a concurrent enqueue; reversing the reads can produce a spurious null on a non-empty queue.",
+      "method": "code-proof",
+      "proof": "Enqueue performs the plain linked-node write last = last.next = node before the volatile read-modify-write on count. A consumer that reads a positive count participates in the volatile write/read pair, so the node link and node initialization happen before its subsequent plain head.next read. Head advancement requires takeMonitor, which peek/poll hold, so a positive count cannot legitimately yield a null first node. Reversing the reads permits: consumer reads head.next == null, producer links the node and increments count, consumer reads the positive count but uses its earlier null.",
+      "note": "jcstress would be optional dynamic corroboration of a JMM proof, not a prerequisite."
+    },
+    {
+      "id": "runtime-admission-vs-close",
+      "protocol": "ParRuntime admission/close",
+      "claim": "The entire startup (prepare, binds, submit) is one admission against close; a close racing startup cannot retire the deadline scheduler between the group bind and a tighter member bind.",
+      "method": "code-proof",
+      "proof": "Without the admission, startup can read closed == false, then close can set closed and shut down services while startup is still preparing, binding, or submitting. The real enterAdmission increments first and rechecks closed; a close after the recheck sees a positive admission count and cannot retire services until the matching exit.",
+      "note": "The earlier mutation removed the increment but left whileOpen's unconditional decrement, so it corrupted activeAdmissions and failed ordinary quiescence tests; that result was a false positive, not proof of the close/startup race."
+    },
+    {
+      "id": "taskbatch-observation-publication",
+      "protocol": "TaskBatch.finishCombined observation publication",
+      "claim": "finishCombined waits out the observation publication barrier; removing the observationsReady wait must make the publication-barrier test fail.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+      "mutations": [
+        {
+          "find": "        ExecutionExitTracker.awaitSettledUninterruptibly(observationsReady, budget, start, \"batch observation signal\");\n",
+          "replace": "        // publication wait removed by the race-claim harness\n"
+        }
+      ],
+      "tests": "TaskBatchObservationBarrierTest",
+      "expect": "failure"
+    },
+    {
+      "id": "taskgroup-observation-publication",
+      "protocol": "TaskGroup.awaitExecutionExit observation publication",
+      "claim": "A true awaitExecutionExit result must wait until every member observation future carries the final snapshot; removing the observation loop must make a test fail.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "mutations": [
+        {
+          "find": "        long budgetNanos = Deadlines.saturatedNanos(timeout);\n        for (MemberState member : membersAndTerminal) {\n            if (!ExecutionExitTracker.awaitSettled(\n                    member.view.observationView(), budgetNanos, startNanos, \"member observation signal\")) {\n                return false;\n            }\n        }\n        return true;",
+          "replace": "        return true;"
+        }
+      ],
+      "tests": "TaskGroupExecutionExitTest",
+      "expect": "failure",
+      "note": "Real by code review: ScopedCallable publishes execution exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitExecutionExit, so it cannot exercise the window; needs a deterministic test."
+    },
+    {
+      "id": "adopted-end-time-before-mirror-settle",
+      "protocol": "TaskGroup adopted member",
+      "claim": "AdoptedSource.sourceSettled writes the end time before it settles the mirror, so convergence, which the mirror's settle can trigger synchronously, snapshots a final end time; the mirror settles only through this listener, never by copying an already-done source.",
+      "method": "mutation",
+      "file": "src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
+      "mutations": [
+        {
+          "find": "        verifyNotNull(context).markEnded(System.nanoTime());\n        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }",
+          "replace": "        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }\n        verifyNotNull(context).markEnded(System.nanoTime());"
+        }
+      ],
+      "tests": "TaskGroupAdoptedFutureTest#theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember+aSourceThatCompletesWhileItsEarlierListenersRunStillReportsItsEndTime",
+      "expect": "failure",
+      "note": "Before the third review round the mirror used setFuture, which copies an already-done source without waiting for the source's listeners; codex reproduced a SUCCESS report with endTime 0. The window test drives that interleaving deterministically."
+    },
+    {
+      "id": "kernel-delivery-flag-before-interrupt",
+      "protocol": "ExecutionPhaseHintFuture interrupt delivery",
+      "claim": "interruptTask writes cancellationInterruptDelivered only after reading a non-null runner and before calling interrupt(), so a runner whose JDK blocking call throws InterruptedException because of that interrupt reads the flag as true, and a run that never received this future's delivery reads it as false.",
+      "method": "code-proof",
+      "proof": "The flag write is a volatile write that precedes executing.interrupt() in program order. JLS 17.4.4: a call to interrupt() synchronizes-with any point where another thread determines it was interrupted, which includes the JDK blocking call that throws InterruptedException; the runner's later volatile read in lateFailureLevel therefore sees true. The write is guarded by the same non-null runner read as the delivery, so a cancellation before runner publication or after run()'s finally withdraws the runner leaves the flag false; AbstractFuture calls interruptTask only for the single winning cancel(true), so there is one writer. The field belongs to the future, which runs at most once (phase CAS SUBMITTED to RUNNING), so a later task reusing the thread reads its own false flag. Writing after interrupt() would let a fast runner read false and log a kernel-caused InterruptedException at WARNING; the window is too narrow for a deterministic mutation test.",
+      "note": "LateFailureLoggingTest#rawBlockingCallInterruptedByKernelCancellationIsNotAWarning and #kernelDeliveryDoesNotLeakToTheNextFutureOnTheSameThread fail when the flag write is removed; the write-after-interrupt ordering is not reliably observable, so this stays a code proof."
+    }
+  ]
+}
