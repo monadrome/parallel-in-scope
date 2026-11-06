@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -30,26 +31,94 @@ class CheckpointsTest {
     }
 
     @Test
-    void checkpointHonorsTaskNameAndCancellationKind() throws Exception {
-        MultiTaskContext context = context("task");
-        assertThatThrownBy(() -> runInTask(context, () -> Checkpoints.checkpoint("other", true)))
-                .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> Checkpoints.checkpoint("task", true)).isInstanceOf(IllegalStateException.class);
-
-        MultiTaskContext leanContext = context("task");
-        assertThatThrownBy(() -> runInTask(leanContext, () -> {
-                    leanContext.cancellationToken().cancel(false);
-                    Checkpoints.checkpoint("task", true);
+    void checkpointOnACommittedTokenThrowsTheLibraryAcknowledgement() throws Exception {
+        MultiTaskContext cancelled = context("task");
+        assertThatThrownBy(() -> runInTask(cancelled, () -> {
+                    cancelled.cancellationToken().cancel();
+                    Checkpoints.checkpoint();
                 }))
-                .isInstanceOf(LeanCancellationException.class);
+                .isInstanceOf(CheckpointCancellation.class)
+                .hasNoCause();
+    }
 
-        MultiTaskContext fatContext = context("task");
-        assertThatThrownBy(() -> runInTask(fatContext, () -> {
-                    fatContext.cancellationToken().cancel(false);
-                    Checkpoints.checkpoint("task", false);
-                }))
-                .isInstanceOf(CancellationException.class)
-                .isNotInstanceOf(LeanCancellationException.class);
+    @Test
+    void interruptUnderAnUncommittedTokenIsNotAnAcknowledgement() throws Exception {
+        MultiTaskContext running = context("task");
+        AtomicReference<Throwable> take = new AtomicReference<>();
+        AtomicReference<Throwable> raw = new AtomicReference<>();
+        AtomicBoolean takeFlag = new AtomicBoolean();
+        AtomicBoolean rawFlag = new AtomicBoolean();
+        runInTask(running, () -> {
+            Thread.currentThread().interrupt();
+            try {
+                Checkpoints.checkTake(new ArrayBlockingQueue<Integer>(1));
+            } catch (Throwable failure) {
+                take.set(failure);
+                takeFlag.set(Thread.interrupted());
+            }
+            Thread.currentThread().interrupt();
+            try {
+                Checkpoints.rawCheckpoint();
+            } catch (Throwable failure) {
+                raw.set(failure);
+                rawFlag.set(Thread.interrupted());
+            }
+        });
+
+        assertThat(verifyNotNull(take.get()).getClass()).isEqualTo(LeanCancellationException.class);
+        assertThat(take.get()).hasCauseInstanceOf(InterruptedException.class);
+        assertThat(takeFlag).isTrue();
+        assertThat(verifyNotNull(raw.get()).getClass()).isEqualTo(LeanCancellationException.class);
+        assertThat(rawFlag).isTrue();
+        assertThat(running.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
+    }
+
+    @Test
+    void interruptAfterTheTokenCommittedIsAnAcknowledgement() throws Exception {
+        MultiTaskContext committed = context("task");
+        Throwable failure = interruptBlockedTake(
+                committed, () -> committed.cancellationToken().cancel());
+        assertThat(failure).isInstanceOf(CheckpointCancellation.class).hasCauseInstanceOf(InterruptedException.class);
+    }
+
+    @Test
+    void interruptAfterTheDeadlineExpiredCommitsTheTimeoutAndAcknowledgesIt() throws Exception {
+        MultiTaskContext expiring = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("task", Duration.ofMillis(50)).spec(), 1));
+        Throwable failure = interruptBlockedTake(
+                expiring,
+                () -> await().atMost(2, TimeUnit.SECONDS)
+                        .until(() -> expiring.cancellationToken().deadlineExpired()));
+        assertThat(failure).isInstanceOf(CheckpointCancellation.class).hasCauseInstanceOf(InterruptedException.class);
+        assertThat(expiring.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
+    }
+
+    /**
+     * Blocks a scoped task in {@code checkTake}, runs {@code beforeInterrupt} on another thread once
+     * the task is parked, then interrupts it, so the translation reads the token after that action.
+     */
+    private static Throwable interruptBlockedTake(MultiTaskContext context, Runnable beforeInterrupt) throws Exception {
+        Thread caller = Thread.currentThread();
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        Thread interrupter = new Thread(() -> {
+            await().atMost(2, TimeUnit.SECONDS).until(() -> caller.getState() == Thread.State.WAITING);
+            beforeInterrupt.run();
+            caller.interrupt();
+        });
+        interrupter.start();
+        try {
+            runInTask(context, () -> {
+                try {
+                    Checkpoints.checkTake(new ArrayBlockingQueue<Integer>(1));
+                } catch (Throwable failure) {
+                    thrown.set(failure);
+                }
+            });
+        } finally {
+            interrupter.join(2000L);
+            Thread.interrupted();
+        }
+        return verifyNotNull(thrown.get());
     }
 
     @Test
@@ -61,10 +130,10 @@ class CheckpointsTest {
 
         MultiTaskContext cancelled = context("task");
         assertThatThrownBy(() -> runInTask(cancelled, () -> {
-                    cancelled.cancellationToken().cancel(false);
+                    cancelled.cancellationToken().cancel();
                     Checkpoints.checkpoint();
                 }))
-                .isInstanceOf(LeanCancellationException.class);
+                .isInstanceOf(CheckpointCancellation.class);
     }
 
     @Test
@@ -74,11 +143,10 @@ class CheckpointsTest {
         Thread.sleep(5L);
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThatThrownBy(() -> runInTask(expired, Checkpoints::checkpoint))
-                .isInstanceOf(LeanCancellationException.class);
+                .isInstanceOf(CheckpointCancellation.class);
         assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     private static Void runInTask(MultiTaskContext context, Runnable action) throws Exception {
         return new ScopedCallable<Void>(new TaskExecutionContext(context, 0, System.nanoTime()), () -> {
@@ -89,12 +157,15 @@ class CheckpointsTest {
     }
 
     @Test
-    void rawCheckpointAndSleepTranslateInterruption() {
+    void rawCheckpointAndCheckSleepTranslateInterruption() {
         Thread.currentThread().interrupt();
         assertThatThrownBy(Checkpoints::rawCheckpoint).isInstanceOf(LeanCancellationException.class);
 
         Thread.currentThread().interrupt();
-        assertThatThrownBy(() -> Checkpoints.sleep(1)).isInstanceOf(LeanCancellationException.class);
+        assertThatThrownBy(() -> Checkpoints.checkSleep(1, TimeUnit.MILLISECONDS))
+                .isInstanceOf(LeanCancellationException.class)
+                .isNotInstanceOf(CheckpointCancellation.class)
+                .hasCauseInstanceOf(InterruptedException.class);
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
     }
 
@@ -361,50 +432,12 @@ class CheckpointsTest {
     }
 
     @Test
-    void runnableSupplierAndPropagationTranslateDeclaredCancellationTriggers() {
-        Checkpoints.checkRunnable(() -> {}, IllegalArgumentException.class);
-        assertThat(Checkpoints.checkSupplier(() -> "result", IllegalArgumentException.class))
-                .isEqualTo("result");
-
-        assertThatThrownBy(() -> Checkpoints.checkRunnable(
-                        () -> {
-                            throw new IllegalArgumentException("stop");
-                        },
-                        IllegalArgumentException.class))
-                .isInstanceOf(CancellationException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw new IllegalStateException("stop");
-                        },
-                        IllegalStateException.class))
-                .isInstanceOf(CancellationException.class)
-                .hasCauseInstanceOf(IllegalStateException.class);
-
+    void propagateCancellationRethrowsCancellationAndIgnoresOrdinaryFailures() {
         assertThatThrownBy(() -> Checkpoints.propagateCancellation(new LeanCancellationException("stop")))
                 .isInstanceOf(LeanCancellationException.class);
         assertThatThrownBy(() -> Checkpoints.propagateCancellation(new CancellationException("stop")))
                 .isInstanceOf(CancellationException.class);
 
-        IllegalArgumentException unmatched = new IllegalArgumentException("unmatched");
-        assertThatThrownBy(() -> Checkpoints.checkRunnable(
-                        () -> {
-                            throw unmatched;
-                        },
-                        IllegalStateException.class))
-                .isSameAs(unmatched);
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw new AssertionError("error");
-                        },
-                        IllegalStateException.class))
-                .isInstanceOf(AssertionError.class);
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw unmatched;
-                        },
-                        IllegalStateException.class))
-                .isSameAs(unmatched);
         Checkpoints.propagateCancellation(new IllegalStateException("ordinary"));
     }
 
@@ -442,6 +475,49 @@ class CheckpointsTest {
     }
 
     @Test
+    void durationCheckJoinWaitsForALiveTarget() throws Exception {
+        CountDownLatch releaseTarget = new CountDownLatch(1);
+        Thread target = new Thread(() -> {
+            try {
+                releaseTarget.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        AtomicReference<Throwable> joinerOutcome = new AtomicReference<>();
+        Thread joiner = new Thread(() -> {
+            try {
+                Checkpoints.checkJoin(target, Duration.ofSeconds(30));
+            } catch (Throwable failure) {
+                joinerOutcome.set(failure);
+            }
+        });
+        target.start();
+        joiner.start();
+        try {
+            // The Duration overload must forward its budget to the timed join: a joiner that only
+            // checks cancellation leaves the wait immediately instead of parking on the live
+            // target.
+            await().atMost(2, TimeUnit.SECONDS)
+                    .until(() -> joiner.getState() == Thread.State.TIMED_WAITING || !joiner.isAlive());
+            assertThat(joiner.getState()).isEqualTo(Thread.State.TIMED_WAITING);
+            assertThat(target.isAlive()).isTrue();
+            assertThat(joinerOutcome.get()).isNull();
+        } finally {
+            releaseTarget.countDown();
+            target.join(2000L);
+            joiner.join(2000L);
+            if (joiner.isAlive()) {
+                joiner.interrupt();
+                joiner.join(2000L);
+            }
+        }
+        assertThat(joinerOutcome.get()).isNull();
+        assertThat(target.isAlive()).isFalse();
+        assertThat(joiner.isAlive()).isFalse();
+    }
+
+    @Test
     void blockingAdaptersTranslateInterruptionsAndRestoreTheFlag() throws Exception {
         Thread.currentThread().interrupt();
         assertThatThrownBy(Checkpoints::rawCheckpoint).isInstanceOf(LeanCancellationException.class);
@@ -449,7 +525,6 @@ class CheckpointsTest {
         // flag stays set, exactly as after the blocking adapters.
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
         Thread.interrupted();
-        assertInterrupted(() -> Checkpoints.sleep(1));
         assertInterrupted(() -> Checkpoints.checkAwait(new CountDownLatch(1)));
         assertInterrupted(() -> Checkpoints.checkAwait(new CountDownLatch(1), 1, TimeUnit.SECONDS));
         Thread joinTarget = new Thread(() -> {

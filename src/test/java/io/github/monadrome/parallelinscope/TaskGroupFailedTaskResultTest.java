@@ -32,7 +32,7 @@ class TaskGroupFailedTaskResultTest {
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroupResult<Integer, Void> result = runtime.group("ok", Duration.ofSeconds(30))
-                    .par("only", runtime.par(ParId.of("worker")), Integer.class, () -> 1)
+                    .par(TaskKey.<Integer>named("only"), runtime.par(ParId.of("worker")), () -> 1)
                     .runAll();
             assertThat(result.failedTaskName()).isNull();
             assertThat(result.failedTaskResult()).isEmpty();
@@ -49,8 +49,8 @@ class TaskGroupFailedTaskResultTest {
             IllegalStateException boom = new IllegalStateException("boom");
             TaskGroupResult<Tuple2<Integer, Integer>, Void> result = runtime.group(
                             "member-fails", Duration.ofSeconds(30))
-                    .par("ok", runtime.par(ParId.of("worker")), Integer.class, () -> 1)
-                    .par("bad", runtime.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("ok"), runtime.par(ParId.of("worker")), () -> 1)
+                    .par(TaskKey.<Integer>named("bad"), runtime.par(ParId.of("worker")), () -> {
                         throw boom;
                     })
                     .runAll();
@@ -72,8 +72,8 @@ class TaskGroupFailedTaskResultTest {
         try {
             IllegalStateException boom = new IllegalStateException("combine boom");
             TaskGroupResult<Integer, Integer> result = runtime.group("combine-fails", Duration.ofSeconds(30))
-                    .par("ok", runtime.par(ParId.of("worker")), Integer.class, () -> 1)
-                    .combine("join", runtime.par(ParId.of("worker")), Integer.class, values -> {
+                    .par(TaskKey.<Integer>named("ok"), runtime.par(ParId.of("worker")), () -> 1)
+                    .combine(TaskKey.<Integer>named("join"), runtime.par(ParId.of("worker")), values -> {
                         throw boom;
                     })
                     .runAll();

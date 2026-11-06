@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Set;
@@ -22,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * <p>What these tests deliberately do <em>not</em> claim to cover: the narrow interleaving in which a
  * cancellation lands between the phase claim in {@code run()} and the guard's {@code setException} a
  * few instructions later. That window is never hit here — the first test settles as {@code
- * SUBMISSION_FAILURE} every time, and the second gates the member body on a latch so the
+ * SUBMISSION_FAILURE} every time, and the second gates the member execution on a latch so the
  * cancellation commits before the member can complete, meaning the combine is never submitted and
  * the guard never runs. Constructing the interleaving would require injecting a barrier into {@code
  * run()}.
@@ -31,7 +30,7 @@ import org.junit.jupiter.api.Test;
  * it: {@code AbstractFuture} serialises completion, so exactly one of {@code cancel} and {@code
  * setException} takes effect and the loser is a no-op. The guard introduces no state of its own on
  * that path — it calls {@code setException} and falls into the same {@code finally} as every other
- * outcome — so whichever wins, the phase advance, the observer release and the body-exit publish all
+ * outcome — so whichever wins, the phase advance, the observer release and the execution-exit publish all
  * run exactly once. If cancellation wins, the outcome reports the cancellation's cause, which outranks
  * the combine's: a group being torn down has a reason of its own, and {@code classifyCancelled}
  * already encodes that precedence for every member.
@@ -53,7 +52,7 @@ class TaskGroupCombineGuardCancellationTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(100),
+                new SmartBlockingQueue<>(100),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }
@@ -83,22 +82,20 @@ class TaskGroupCombineGuardCancellationTest {
                     }
                 });
             }
-            AtomicBoolean bodyRan = new AtomicBoolean();
+            AtomicBoolean executionRan = new AtomicBoolean();
             try {
                 TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
-                                "a",
+                                TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
-                                TypeToken.of(String.class),
                                 () -> "a")
                         .combine(
-                                "sum",
+                                TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
-                                TypeToken.of(String.class),
                                 values -> {
-                                    bodyRan.set(true);
+                                    executionRan.set(true);
                                     return "combined";
                                 })
                         .submitAll();
@@ -107,10 +104,10 @@ class TaskGroupCombineGuardCancellationTest {
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-                assertThat(bodyRan).isFalse();
+                assertThat(executionRan).isFalse();
                 // A stranded slot here would mean the guard's path skipped the exit publish that its
                 // phase claim made it responsible for.
-                assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+                assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             } finally {
                 release.countDown();
                 runtime.close();
@@ -124,11 +121,11 @@ class TaskGroupCombineGuardCancellationTest {
     void aCancelThatBeatsTheSubmissionKeepsItsOwnAttribution() throws Exception {
         // The cancellation must beat the combine's submission by construction, not by scheduling
         // luck. The submission is triggered by the last member's success callback, so an instant
-        // member body can complete, be rejected by the saturated combine pool, and have the
+        // member execution can complete, be rejected by the saturated combine pool, and have the
         // rejection cascade commit FAIL_FAST on the group token — settling the group as
         // SUBMISSION_FAILURE — before a slow test thread even reaches cancel(). That interleaving
         // is what CI observed, and it is a legitimate outcome: a cancel that lands after the
-        // commit cannot rewrite it. Gating the member body on a latch released only after cancel()
+        // commit cannot rewrite it. Gating the member execution on a latch released only after cancel()
         // returns removes the race: the member cannot succeed first, so the group token commits
         // CANCELLED, the combine is never submitted, and the outcome must be the cancellation's
         // own, not SUBMISSION_FAILURE — the guard must not be able to relabel a group that was
@@ -151,14 +148,13 @@ class TaskGroupCombineGuardCancellationTest {
                 });
             }
             CountDownLatch memberGate = new CountDownLatch(1);
-            AtomicBoolean bodyRan = new AtomicBoolean();
+            AtomicBoolean executionRan = new AtomicBoolean();
             try {
                 TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
-                                "a",
+                                TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
-                                TypeToken.of(String.class),
                                 () -> {
                                     // Held until cancel() has committed below; the cancellation's
                                     // interrupt releases this wait early.
@@ -166,12 +162,11 @@ class TaskGroupCombineGuardCancellationTest {
                                     return "a";
                                 })
                         .combine(
-                                "sum",
+                                TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
-                                TypeToken.of(String.class),
                                 values -> {
-                                    bodyRan.set(true);
+                                    executionRan.set(true);
                                     return "combined";
                                 })
                         .submitAll();
@@ -182,8 +177,8 @@ class TaskGroupCombineGuardCancellationTest {
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-                assertThat(bodyRan).isFalse();
-                assertThat(group.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+                assertThat(executionRan).isFalse();
+                assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             } finally {
                 memberGate.countDown();
                 release.countDown();

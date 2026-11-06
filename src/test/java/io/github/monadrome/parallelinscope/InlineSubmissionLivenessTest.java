@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Arrays;
@@ -16,14 +15,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 /**
- * A body running on a borrowed thread stays under the deadline, and gives the thread back clean.
+ * An execution running on a borrowed thread stays under the deadline, and gives the thread back clean.
  *
- * <p>When an element's body runs inline it occupies the very thread that submits the rest of the
- * batch. A body that waits for a later element of its own batch therefore holds the only resource
+ * <p>When an element's execution runs inline it occupies the very thread that submits the rest of the
+ * batch. An execution that waits for a later element of its own batch therefore holds the only resource
  * that could ever satisfy it. Nothing in the batch can break that on its own, so the deadline is the
  * only source of liveness on this path — which is why the token binds before submission starts
  * rather than after every element is handed off. The timer cancels the element, the cancellation
- * interrupts the thread running its body, and submission resumes.
+ * interrupts the thread running its execution, and submission resumes.
  *
  * <p>That rescue leaves an interrupt on a thread the library borrowed rather than owns, so {@code
  * run()} restores the thread's entry state on the way out. Without it the caller's next blocking
@@ -36,14 +35,14 @@ class InlineSubmissionLivenessTest {
     private static final Duration WATCHDOG = Duration.ofSeconds(20);
 
     @Test
-    void aBatchWhoseInlineBodyWaitsForALaterElementStillConvergesOnItsDeadline() throws Exception {
+    void aBatchWhoseInlineExecutionWaitsForALaterElementStillConvergesOnItsDeadline() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), direct).build();
         CountDownLatch lastElementStarted = new CountDownLatch(1);
         AtomicBoolean returned = new AtomicBoolean();
         AtomicBoolean flagLeaked = new AtomicBoolean();
-        AtomicInteger bodiesStarted = new AtomicInteger();
+        AtomicInteger executionsStarted = new AtomicInteger();
 
         Thread caller = new Thread(
                 () -> {
@@ -51,14 +50,14 @@ class InlineSubmissionLivenessTest {
                             .submitBatch(
                                     Arrays.asList(0, 1, 2, 3, 4, 5),
                                     value -> {
-                                        bodiesStarted.incrementAndGet();
+                                        executionsStarted.incrementAndGet();
                                         if (value == 5) {
                                             lastElementStarted.countDown();
                                         }
                                         if (value == 0) {
                                             try {
                                                 // Unbounded on purpose: element 5 cannot start until
-                                                // this body releases the thread, so only the deadline
+                                                // this execution releases the thread, so only the deadline
                                                 // can end this wait.
                                                 lastElementStarted.await();
                                             } catch (InterruptedException e) {
@@ -72,7 +71,7 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-liveness", DEADLINE)
                                             .parallelism(6)
-                                            .taskType(TaskType.CPU_BOUND));
+                                            .taskType(TaskType.COMPUTE));
                     returned.set(true);
                     flagLeaked.set(Thread.currentThread().isInterrupted());
                     assertThat(batch.report().stateCounts()).containsOnlyKeys(TaskOutcome.TIMEOUT);
@@ -87,9 +86,9 @@ class InlineSubmissionLivenessTest {
                     .as("map() must return on its deadline; a wedged caller thread never would")
                     .isTrue();
             assertThat(flagLeaked)
-                    .as("the rescue interrupt must not outlive the body that answered it")
+                    .as("the rescue interrupt must not outlive the execution that answered it")
                     .isFalse();
-            assertThat(bodiesStarted.get())
+            assertThat(executionsStarted.get())
                     .as("elements the expired deadline cancelled must never enter user code")
                     .isEqualTo(1);
         } finally {
@@ -129,11 +128,11 @@ class InlineSubmissionLivenessTest {
                                     },
                                     BatchOptions.timeout("inline-verdict", DEADLINE)
                                             .parallelism(3)
-                                            .taskType(TaskType.CPU_BOUND));
+                                            .taskType(TaskType.COMPUTE));
                     // The first thing any real caller does after map() returns. A leaked flag makes
                     // this throw, so the caller learns nothing about why the batch ended.
                     try {
-                        awaitAnswered.set(batch.awaitBodyCompletion(Duration.ofSeconds(5)));
+                        awaitAnswered.set(batch.awaitExecutionExit(Duration.ofSeconds(5)));
                     } catch (InterruptedException e) {
                         awaitThrew.set(true);
                         Thread.currentThread().interrupt();
@@ -172,7 +171,7 @@ class InlineSubmissionLivenessTest {
 
         try {
             TaskGroup<?, Void> group = global.groupDraft("inline-group", DEADLINE)
-                    .par("a", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
+                    .par(TaskKey.<Integer>named("a"), global.par(ParId.of("worker")), memberOptions, () -> {
                         try {
                             secondStarted.await();
                         } catch (InterruptedException e) {
@@ -184,7 +183,7 @@ class InlineSubmissionLivenessTest {
                         }
                         return 1;
                     })
-                    .par("b", global.par(ParId.of("worker")), memberOptions, TypeToken.of(Integer.class), () -> {
+                    .par(TaskKey.<Integer>named("b"), global.par(ParId.of("worker")), memberOptions, () -> {
                         secondStarted.countDown();
                         return 2;
                     })
@@ -207,7 +206,7 @@ class InlineSubmissionLivenessTest {
     }
 
     /**
-     * The pooled-path control: a body that restores the interrupt flag must not poison the next task
+     * The pooled-path control: an execution that restores the interrupt flag must not poison the next task
      * on the same worker. {@code ThreadPoolExecutor.runWorker} already clears it, so this pins that
      * the isolation in {@code run()} neither relies on nor disturbs that immunity.
      */
@@ -229,7 +228,7 @@ class InlineSubmissionLivenessTest {
                             },
                             BatchOptions.timeout("pooled-control", Duration.ofSeconds(10))
                                     .parallelism(1)
-                                    .taskType(TaskType.IO_BOUND));
+                                    .taskType(TaskType.BLOCKING));
 
             assertThat(batch.valuesOrThrow()).containsExactly(false, false);
         } finally {
@@ -240,13 +239,13 @@ class InlineSubmissionLivenessTest {
 
     /**
      * The borrowed-thread case, which is the one that silently lost work in the pre-refill design:
-     * the sliding-window refill ran the handoff on the library's own submitter thread, so a body
+     * the sliding-window refill ran the handoff on the library's own submitter thread, so an execution
      * running inline there left a dirty flag on a thread the library owned, and the refill loop's
      * {@code take()} then threw at once and abandoned every element still unsubmitted. The refill
      * is now event-driven and the same borrowed-thread isolation keeps the inline case safe.
      */
     @Test
-    void aBodyRunningInlineOnTheCompletingThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {
+    void anExecutionRunningInlineOnTheCompletingThreadDoesNotAbandonTheRestOfTheBatch() throws Exception {
         // Core pool of 1 with a zero-capacity queue and CallerRunsPolicy: the first element
         // occupies the worker, and each later handoff is claimed by the completing thread and then
         // runs inline on that same thread — not on the caller's.
@@ -266,15 +265,15 @@ class InlineSubmissionLivenessTest {
                             Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
                             value -> {
                                 executed.incrementAndGet();
-                                // Every body restores the flag, the textbook way.
+                                // Every execution restores the flag, the textbook way.
                                 Thread.currentThread().interrupt();
                                 return value;
                             },
                             BatchOptions.timeout("completing-thread", Duration.ofSeconds(15))
                                     .parallelism(1)
-                                    .taskType(TaskType.CPU_BOUND));
+                                    .taskType(TaskType.COMPUTE));
 
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(15))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(15))).isTrue();
             assertThat(executed.get())
                     .as("a dirty flag on the completing thread must not abandon unsubmitted elements")
                     .isEqualTo(12);

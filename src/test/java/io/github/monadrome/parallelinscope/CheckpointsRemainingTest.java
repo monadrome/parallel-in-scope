@@ -44,7 +44,7 @@ class CheckpointsRemainingTest {
         MultiTaskContext expired = contextWithTimeout(Duration.ofNanos(1));
         AtomicReference<Optional<Duration>> observed = new AtomicReference<>();
         // Install the context directly: ScopedCallable would checkpoint first and throw on the
-        // expired deadline before the body could read the budget.
+        // expired deadline before the execution could read the budget.
         TaskExecutionContext previous =
                 TaskExecutionContext.install(new TaskExecutionContext(expired, 0, System.nanoTime()));
         try {
@@ -101,7 +101,7 @@ class CheckpointsRemainingTest {
         TaskExecutionContext previous =
                 TaskExecutionContext.install(new TaskExecutionContext(context, 0, System.nanoTime()));
         try {
-            context.cancellationToken().cancel(false);
+            context.cancellationToken().cancel();
             observed.set(Checkpoints.remaining());
         } finally {
             TaskExecutionContext.restore(previous);

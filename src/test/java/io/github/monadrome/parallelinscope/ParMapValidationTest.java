@@ -36,4 +36,19 @@ class ParMapValidationTest {
             executor.shutdownNow();
         }
     }
+
+    @ParameterizedTest
+    @MethodSource("inputs")
+    void inheritedTimeoutWithoutParentIsRejectedBeforeEmptyReturn(@Nullable List<Integer> input) {
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build()) {
+            Par par = runtime.par(ParId.of("worker"));
+            assertThatThrownBy(() -> par.map(input, value -> value, BatchOptions.inheritTimeout("batch")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("no enclosing deadline to inherit; call timeout(Duration)");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 }

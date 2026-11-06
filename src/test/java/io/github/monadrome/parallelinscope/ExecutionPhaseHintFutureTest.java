@@ -32,16 +32,16 @@ public class ExecutionPhaseHintFutureTest {
 
     @Test
     public void cancellationDeliveryCannotReachTheNextTask() throws Exception {
-        CountDownLatch bodyEntered = new CountDownLatch(1);
-        CountDownLatch bodyRelease = new CountDownLatch(1);
+        CountDownLatch executionEntered = new CountDownLatch(1);
+        CountDownLatch executionRelease = new CountDownLatch(1);
         CountDownLatch deliveryEntered = new CountDownLatch(1);
         CountDownLatch deliveryRelease = new CountDownLatch(1);
         CountDownLatch nextEntered = new CountDownLatch(1);
         CountDownLatch nextRelease = new CountDownLatch(1);
         AtomicBoolean nextInterrupted = new AtomicBoolean();
         ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(() -> {
-            bodyEntered.countDown();
-            bodyRelease.await();
+            executionEntered.countDown();
+            executionRelease.await();
             return null;
         });
         Thread worker =
@@ -69,11 +69,11 @@ public class ExecutionPhaseHintFutureTest {
         canceller.setDaemon(true);
         try {
             worker.start();
-            assertThat(bodyEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(executionEntered.await(5, TimeUnit.SECONDS)).isTrue();
             canceller.start();
             assertThat(deliveryEntered.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
-            bodyRelease.countDown();
+            executionRelease.countDown();
             long cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
             while (!future.callableReleased() && System.nanoTime() < cleanupDeadline) {
                 Thread.sleep(1L);
@@ -87,7 +87,7 @@ public class ExecutionPhaseHintFutureTest {
             assertThat(canceller.isAlive()).isFalse();
             assertThat(nextEntered.await(5, TimeUnit.SECONDS)).isTrue();
         } finally {
-            bodyRelease.countDown();
+            executionRelease.countDown();
             deliveryRelease.countDown();
             canceller.join(5000);
             nextRelease.countDown();
@@ -129,10 +129,10 @@ public class ExecutionPhaseHintFutureTest {
     @Test
     public void selfCancellationRestoresTheBorrowedThreadsEntryFlag() throws Exception {
         AtomicReference<ExecutionPhaseHintFuture<Void>> holder = new AtomicReference<>();
-        AtomicBoolean cleanBodyEntry = new AtomicBoolean();
+        AtomicBoolean cleanExecutionEntry = new AtomicBoolean();
         AtomicBoolean entryRestored = new AtomicBoolean();
         ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(() -> {
-            cleanBodyEntry.set(!Thread.currentThread().isInterrupted());
+            cleanExecutionEntry.set(!Thread.currentThread().isInterrupted());
             verifyNotNull(holder.get()).cancel(true);
             return null;
         });
@@ -146,7 +146,7 @@ public class ExecutionPhaseHintFutureTest {
         borrowed.start();
         borrowed.join(5000);
         assertThat(borrowed.isAlive()).isFalse();
-        assertThat(cleanBodyEntry).isTrue();
+        assertThat(cleanExecutionEntry).isTrue();
         assertThat(entryRestored).isTrue();
         assertThat(future.isCancelled()).isTrue();
     }
@@ -183,8 +183,8 @@ public class ExecutionPhaseHintFutureTest {
     }
 
     private static <V> ExecutionPhaseHintFuture<V> submit(
-            Executor executor, BlockingQueue<ListenableFuture<V>> completions, Callable<V> body) {
-        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(body);
+            Executor executor, BlockingQueue<ListenableFuture<V>> completions, Callable<V> taskCode) {
+        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(taskCode);
         future.addListener(() -> completions.add(future), MoreExecutors.directExecutor());
         executor.execute(future);
         return future;
@@ -205,6 +205,38 @@ public class ExecutionPhaseHintFutureTest {
         assertThat(cancelled.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
         assertThat(cancelled.callableReleased()).isTrue();
         assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    public void queuedCancellationWithInterruptDoesNotEnterBodyWhenDequeuedLater() throws Exception {
+        ThreadPoolExecutor executor =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        CountDownLatch blockerEntered = new CountDownLatch(1);
+        CountDownLatch blockerRelease = new CountDownLatch(1);
+        AtomicInteger bodyCalls = new AtomicInteger();
+        ExecutionPhaseHintFuture<Integer> queued = ExecutionPhaseHintFuture.create(bodyCalls::incrementAndGet);
+        try {
+            executor.execute(() -> {
+                blockerEntered.countDown();
+                Uninterruptibles.awaitUninterruptibly(blockerRelease);
+            });
+            assertThat(blockerEntered.await(5, TimeUnit.SECONDS)).isTrue();
+
+            executor.execute(queued);
+            assertThat(executor.getQueue()).containsExactly((Runnable) queued);
+            assertThat(queued.cancel(true)).isTrue();
+            assertThat(queued.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
+
+            blockerRelease.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(bodyCalls).hasValue(0);
+            assertThat(queued.isCancelled()).isTrue();
+            assertThat(queued.phase()).isEqualTo(ExecutionPhase.CANCELLED_BEFORE_RUN);
+        } finally {
+            blockerRelease.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -335,13 +367,13 @@ public class ExecutionPhaseHintFutureTest {
     @SuppressWarnings({"DoNotMock", "ForOverride"})
     @Test
     public void delayedCancellationCleanupCannotRegressTerminal() throws Exception {
-        CountDownLatch bodyEntered = new CountDownLatch(1);
-        CountDownLatch bodyRelease = new CountDownLatch(1);
+        CountDownLatch executionEntered = new CountDownLatch(1);
+        CountDownLatch executionRelease = new CountDownLatch(1);
         CountDownLatch cleanupEntered = new CountDownLatch(1);
         CountDownLatch cleanupRelease = new CountDownLatch(1);
         ExecutionPhaseHintFuture<Integer> future = spy(ExecutionPhaseHintFuture.create(() -> {
-            bodyEntered.countDown();
-            bodyRelease.await();
+            executionEntered.countDown();
+            executionRelease.await();
             return 1;
         }));
         doAnswer(invocation -> {
@@ -357,16 +389,16 @@ public class ExecutionPhaseHintFutureTest {
         canceller.setDaemon(true);
         try {
             runner.start();
-            assertThat(bodyEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(executionEntered.await(5, TimeUnit.SECONDS)).isTrue();
             canceller.start();
             assertThat(cleanupEntered.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
-            bodyRelease.countDown();
+            executionRelease.countDown();
             runner.join(5000);
             assertThat(runner.isAlive()).isFalse();
             assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
         } finally {
-            bodyRelease.countDown();
+            executionRelease.countDown();
             cleanupRelease.countDown();
             runner.join(5000);
             canceller.join(5000);

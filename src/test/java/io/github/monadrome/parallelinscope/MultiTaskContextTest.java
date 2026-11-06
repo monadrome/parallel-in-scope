@@ -27,19 +27,25 @@ class MultiTaskContextTest {
     void resolvesParallelismAndRuntimeMetadata() {
         BatchOptions options = BatchOptions.timeout("io", Duration.ofSeconds(30))
                 .parallelism(99)
-                .taskType(TaskType.IO_BOUND)
+                .taskType(TaskType.BLOCKING)
                 .rejectEnqueue(false);
-        ExecutorRuntime executor = new ExecutorRuntime(new ExecutorServiceStub());
-        MultiTaskContext context = MultiTaskContext.resolve(
-                MultiTaskContext.resolution(options.spec(), 3).executor(executor, ParId.of("http")));
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("http"), new ExecutorServiceStub(), TaskType.COMPUTE)
+                .build()) {
+            Par par = runtime.par(ParId.of("http"));
+            ExecutorRuntime executor = par.executorRuntime();
+            MultiTaskContext context = MultiTaskContext.resolve(
+                    MultiTaskContext.resolution(options.spec(), 3).executor(par));
 
-        assertThat(context.effectiveParallelism()).isEqualTo(3);
-        assertThat(context.node().executor()).isSameAs(executor.identity());
-        assertThat(context.node().executorLabel()).isEqualTo("http");
-        assertThat(context.node().starvationProne()).isEqualTo(executor.starvationProne());
-        assertThat(context.taskType()).isEqualTo(TaskType.IO_BOUND);
-        assertThat(context.rejectEnqueue()).isFalse();
-        assertThat(context.remaining().isNegative()).isFalse();
+            assertThat(context.effectiveParallelism()).isEqualTo(3);
+            assertThat(context.node().executor()).isSameAs(executor.identity());
+            assertThat(context.node().executorLabel()).isEqualTo("http");
+            assertThat(context.node().starvationProne()).isEqualTo(executor.starvationProne());
+            assertThat(context.par()).isSameAs(par);
+            assertThat(context.taskType()).isEqualTo(TaskType.BLOCKING);
+            assertThat(context.rejectEnqueue()).isFalse();
+            assertThat(context.remaining().isNegative()).isFalse();
+        }
     }
 
     @Test
@@ -53,7 +59,7 @@ class MultiTaskContextTest {
         MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
                         BatchOptions.timeout("inner", Duration.ofSeconds(60))
                                 .parallelism(4)
-                                .taskType(TaskType.CPU_BOUND)
+                                .taskType(TaskType.COMPUTE)
                                 .spec(),
                         6)
                 .structuralParent(parent));
@@ -64,7 +70,7 @@ class MultiTaskContextTest {
         assertThat(node.name()).isEqualTo("inner");
         assertThat(node.taskCount()).isEqualTo(6);
         assertThat(node.parallelism()).isEqualTo(4);
-        assertThat(node.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(node.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(node.budget()).isEqualTo(Duration.ofSeconds(20));
         assertThat(node.executor()).isNull();
         assertThat(node.starvationProne()).isFalse();
@@ -133,39 +139,21 @@ class MultiTaskContextTest {
     }
 
     @Test
-    void doesNotInheritTheParentObservationAndCreatesLinkedCancellationToken() {
-        ParRuntime global = ParRuntime.builder().build();
-        TaskGraphObservationScope observation = global.openTaskGraphObservation();
-        try {
-            MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("parent", Duration.ofSeconds(30))
-                                    .spec(),
-                            2)
-                    .taskGraphObservationScope(observation));
-            MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                            BatchOptions.timeout("child", Duration.ofSeconds(30))
-                                    .spec(),
-                            1)
-                    .structuralParent(parent));
+    void childLinksToTheParentAndCreatesItsOwnCancellationToken() {
+        MultiTaskContext parent = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("parent", Duration.ofSeconds(30)).spec(), 2));
+        MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("child", Duration.ofSeconds(30)).spec(), 1)
+                .structuralParent(parent));
 
-            assertThat(parent.name()).isEqualTo("parent");
-            assertThat(parent.taskCount()).isEqualTo(2);
-            assertThat(parent.structuralParent()).isNull();
-            assertThat(child.structuralParent()).isSameAs(parent);
-            // The observation scope is not a parent-inherited default. Ownership decides it, and only
-            // the caller knows which ParRuntime is admitting this unit, so an unstated scope stays
-            // unset rather than being taken from the parent -- a parent that may belong to another
-            // topology entirely. Every production caller states it from
-            // TaskGraphObservationScope.resolveFor.
-            assertThat(child.taskGraphObservationScope()).isNull();
-            assertThat(parent.taskGraphObservationScope()).isSameAs(observation);
-            assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
-            assertThat(child.node().executor()).isNull();
-            assertThat(child.node().executorLabel()).isNull();
-        } finally {
-            observation.close();
-            global.close();
-        }
+        assertThat(parent.name()).isEqualTo("parent");
+        assertThat(parent.taskCount()).isEqualTo(2);
+        assertThat(parent.structuralParent()).isNull();
+        assertThat(child.structuralParent()).isSameAs(parent);
+        assertThat(child.structuralParentNode()).isEqualTo(parent.node());
+        assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
+        assertThat(child.node().executor()).isNull();
+        assertThat(child.node().executorLabel()).isNull();
     }
 
     /** Minimal executor identity object; no tasks are submitted by this test. */

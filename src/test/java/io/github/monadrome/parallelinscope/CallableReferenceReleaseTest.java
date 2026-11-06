@@ -40,18 +40,18 @@ class CallableReferenceReleaseTest {
 
     @Test
     void runFinallyReleasesFutureAndDelegateReferences() throws Exception {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         Fixture fixture = fixture(unit("run-release"), tracker, 0, () -> "ok");
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             fixture.future.submitPrepared(workers);
 
             assertThat(fixture.future.get(5, TimeUnit.SECONDS)).isEqualTo("ok");
-            // releaseDelegate and the body-exit publish happen before the future completes, so they
+            // releaseDelegate and the execution-exit publish happen before the future completes, so they
             // are happens-before visible here; the future-holder release sits in run()'s finally,
             // just after completion, and must arrive without any GC.
             assertThat(fixture.scoped.delegateReleased()).isTrue();
-            assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+            assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                     .isFalse();
             await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(
@@ -63,7 +63,7 @@ class CallableReferenceReleaseTest {
 
     @Test
     void directExecutorSubmissionStillRunsAndReleases() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicBoolean ran = new AtomicBoolean();
         Fixture fixture = fixture(unit("inline-release"), tracker, 0, () -> {
             ran.set(true);
@@ -75,13 +75,13 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
         assertThat(fixture.scoped.delegateReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                 .isFalse();
     }
 
     @Test
-    void executorRejectionReleasesWithoutRunningBody() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void executorRejectionReleasesWithoutRunningExecution() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicBoolean ran = new AtomicBoolean();
         Fixture fixture = fixture(unit("reject-release"), tracker, 0, () -> {
             ran.set(true);
@@ -98,13 +98,13 @@ class CallableReferenceReleaseTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(SubmissionException.class);
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                 .isFalse();
     }
 
     @Test
-    void cancelBeforeRunReleasesWithoutRunningBody() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void cancelBeforeRunReleasesWithoutRunningExecution() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicBoolean ran = new AtomicBoolean();
         Fixture fixture = fixture(unit("cancel-release"), tracker, 0, () -> {
             ran.set(true);
@@ -116,28 +116,28 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isCancelled()).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                 .isFalse();
     }
 
     @Test
-    void windowAbandonmentMarkBodySkippedReleasesWithoutCompletingTheFuture() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void windowAbandonmentMarkExecutionSkippedReleasesWithoutCompletingTheFuture() {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         Fixture fixture = fixture(unit("skip-release"), tracker, 0, () -> "never");
 
-        fixture.future.skipBody();
+        fixture.future.skipExecution();
 
-        // The skipped-body path never completes the engine future; only the body slot and the
+        // The skipped-execution path never completes the engine future; only the execution slot and the
         // reference are released.
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                 .isFalse();
     }
 
     @Test
     void runToleratesHolderClearedBetweenClaimAndDereference() {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         AtomicBoolean ran = new AtomicBoolean();
         Fixture fixture = fixture(unit("clear-before-deref"), tracker, 0, () -> {
             ran.set(true);
@@ -146,32 +146,32 @@ class CallableReferenceReleaseTest {
 
         // Simulates the sliding-window race where the abandonment callback clears the holder after
         // the worker won the phase claim but before it dereferenced it: from run()'s perspective
-        // the clear lands between the claim and the read. The body must not run, no NPE may be
-        // published, and the run must still exit through the normal finally, releasing the body
+        // the clear lands between the claim and the read. The execution must not run, no NPE may be
+        // published, and the run must still exit through the normal finally, releasing the execution
         // slot through the existing fallback publish.
-        fixture.future.skipBody();
+        fixture.future.skipExecution();
         fixture.future.run();
 
         assertThat(ran).isFalse();
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                 .isFalse();
     }
 
     @Test
-    void cancelDuringRunKeepsReferencesUntilBodyExits() throws Exception {
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(1);
+    void cancelDuringRunKeepsReferencesUntilExecutionExits() throws Exception {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CountDownLatch bodyFinally = new CountDownLatch(1);
+        CountDownLatch executionFinally = new CountDownLatch(1);
         Fixture fixture = fixture(unit("cancel-running"), tracker, 0, () -> {
             entered.countDown();
             try {
                 awaitUninterruptibly(release);
                 return "ignored-cancel";
             } finally {
-                bodyFinally.countDown();
+                executionFinally.countDown();
             }
         });
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
@@ -180,19 +180,19 @@ class CallableReferenceReleaseTest {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
             assertThat(fixture.future.cancel(true)).isTrue();
-            // A cancelled future whose body is still running must not drop the reference
-            // early — the body and its captures are still in use.
+            // A cancelled future whose execution is still running must not drop the reference
+            // early — the execution and its captures are still in use.
             assertThat(fixture.future.callableReleased()).isFalse();
             assertThat(fixture.scoped.delegateReleased()).isFalse();
-            assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+            assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
                     .isTrue();
 
             release.countDown();
-            assertThat(bodyFinally.await(5, TimeUnit.SECONDS)).isTrue();
-            // The holder release precedes the body-exit publish, so observing the released slot
+            assertThat(executionFinally.await(5, TimeUnit.SECONDS)).isTrue();
+            // The holder release precedes the execution-exit publish, so observing the released slot
             // implies both references are gone.
             await().atMost(5, TimeUnit.SECONDS)
-                    .untilAsserted(() -> assertThat(Objects.requireNonNull(fixture.context.bodyState())
+                    .untilAsserted(() -> assertThat(Objects.requireNonNull(fixture.context.executionState())
                                     .isOutstanding())
                             .isFalse());
             assertThat(fixture.future.callableReleased()).isTrue();
@@ -206,7 +206,7 @@ class CallableReferenceReleaseTest {
     @Test
     void batchPathReleasesEveryPreparedFuture() throws Exception {
         MultiTaskContext batch = batchUnit("batch-release", 3, 1);
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(3);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(3);
         List<Fixture> fixtures = IntStream.range(0, 3)
                 .mapToObj(i -> fixture(batch, tracker, i, () -> "element-" + i))
                 .collect(Collectors.toList());
@@ -220,7 +220,8 @@ class CallableReferenceReleaseTest {
                 assertThat(result.results().get(i).get(5, TimeUnit.SECONDS)).isEqualTo("element-" + i);
             }
             for (Fixture fixture : fixtures) {
-                assertThat(Objects.requireNonNull(fixture.context.bodyState()).isOutstanding())
+                assertThat(Objects.requireNonNull(fixture.context.executionState())
+                                .isOutstanding())
                         .isFalse();
                 await().atMost(5, TimeUnit.SECONDS)
                         .untilAsserted(() ->
@@ -234,7 +235,7 @@ class CallableReferenceReleaseTest {
     @Test
     void batchAbandonmentReleasesUnsubmittedFutures() throws Exception {
         MultiTaskContext batch = batchUnit("batch-abandon-release", 3, 1);
-        BodyCompletionTracker tracker = BodyCompletionTracker.create(3);
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(3);
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         List<AtomicBoolean> ran =
@@ -279,12 +280,12 @@ class CallableReferenceReleaseTest {
     }
 
     private static Fixture fixture(
-            MultiTaskContext unit, BodyCompletionTracker tracker, int index, Callable<String> body) {
+            MultiTaskContext unit, ExecutionExitTracker tracker, int index, Callable<String> taskCode) {
         TaskExecutionContext context =
                 new TaskExecutionContext(unit, index, Ticker.systemTicker().read(), tracker.register(unit));
-        Callable<String> wrapped = TaskSubmissions.wrapScoped(context, body);
+        Callable<String> wrapped = TaskSubmissions.wrapScoped(context, taskCode);
         ScopedCallable<String> scoped = (ScopedCallable<String>) ((TtlCallable<String>) wrapped).unwrap();
-        ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.bodyState());
+        ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.executionState());
         return new Fixture(context, scoped, future);
     }
 
@@ -297,7 +298,7 @@ class CallableReferenceReleaseTest {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(name, Duration.ofSeconds(30))
                         .parallelism(parallelism)
-                        .taskType(TaskType.IO_BOUND)
+                        .taskType(TaskType.BLOCKING)
                         .spec(),
                 tasks));
     }

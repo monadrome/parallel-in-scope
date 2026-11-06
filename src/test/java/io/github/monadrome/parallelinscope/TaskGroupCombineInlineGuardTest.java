@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -21,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * the executor is a framework thread whose contract forbids user code; the combine therefore
  * declares {@code forbidInlineExecution}. A submission-time refusal alone cannot enforce that
  * contract: a pool whose {@code RejectedExecutionHandler} runs the task inside {@code execute()} —
- * the JDK's {@code CallerRunsPolicy} — reaches the body without ever raising {@code
+ * the JDK's {@code CallerRunsPolicy} — reaches the execution without ever raising {@code
  * RejectedExecutionException}. Without the execution-time guard the group then reported {@code
  * SUCCESS} while the user function had run on the convergence callback thread, which is the first
  * candidate the design rejects because which member finishes last is a race.
@@ -38,7 +37,7 @@ class TaskGroupCombineInlineGuardTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(100),
+                new SmartBlockingQueue<>(100),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }
@@ -68,26 +67,23 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .par(
-                            "b",
+                            TaskKey.<String>named("b"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "b")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             // rejectEnqueue is requested so the queue refuses the combine and the
                             // handler decides its fate. Without it the default enqueues onto the
                             // 100-deep queue and the combine simply waits for a worker, which is the
                             // correct behavior but not the one under test here.
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -96,7 +92,7 @@ class TaskGroupCombineInlineGuardTest {
 
             TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
 
-            // The violation is now visible instead of silent, and the body never ran at all.
+            // The violation is now visible instead of silent, and the execution never ran at all.
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(combineThread.get()).isNull();
             assertThat(result.failedTaskName()).isEqualTo("sum");
@@ -113,11 +109,11 @@ class TaskGroupCombineInlineGuardTest {
     }
 
     @Test
-    void aRefusedCombineStillReleasesItsBodyCompletionSlot() throws Exception {
-        // The guard fires after the phase claim has already moved the body slot to RUNNING, so the
+    void aRefusedCombineStillReleasesItsExecutionExitSlot() throws Exception {
+        // The guard fires after the phase claim has already moved the execution slot to RUNNING, so the
         // slot must be released by the exit publish rather than the skip transition. Getting that
-        // wrong strands the body-completion barrier: close() and awaitBodyCompletion() would wait for
-        // a body that is never going to run.
+        // wrong strands the execution exit barrier: close() and awaitExecutionExit() would wait for
+        // an execution that is never going to run.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
         ThreadPoolExecutor combinePool = saturatingPool("combine-worker");
         ParRuntime runtime = ParRuntime.builder()
@@ -137,23 +133,21 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
-                            TypeToken.of(String.class),
                             values -> "combined")
                     .submitAll();
 
             assertThat(group.completionFuture().get(10, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            // Zero wait: every body slot must already be released, not merely releasable.
-            assertThat(group.awaitBodyCompletion(Duration.ZERO)).isTrue();
+            // Zero wait: every execution slot must already be released, not merely releasable.
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
         } finally {
             release.countDown();
             runtime.close();
@@ -177,16 +171,14 @@ class TaskGroupCombineInlineGuardTest {
             // violated here, so the combine must run normally.
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -215,21 +207,19 @@ class TaskGroupCombineInlineGuardTest {
         try {
             // A direct executor runs every task on whoever submits it. That is not a saturation
             // symptom but the executor's whole contract, chosen explicitly by whoever registered it,
-            // and CombineBody documents it as an accepted exception. The guard must leave it alone:
+            // and Combiner documents it as an accepted exception. The guard must leave it alone:
             // it is scoped to ThreadPoolExecutor, where inline execution can only come from a
             // rejection handler.
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("direct")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";
@@ -260,22 +250,19 @@ class TaskGroupCombineInlineGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .par(
-                            "b",
+                            TaskKey.<String>named("b"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "b")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 return "combined";

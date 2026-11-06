@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Test clock: a manual ticker paired with a scheduler whose tasks fire only when the ticker
  * advances past their due time. Advancing the clock runs due tasks on the advancing thread; it
- * never runs task bodies, which still execute on real executor threads with real interruption.
+ * never runs task executions, which still execute on real executor threads with real interruption.
  */
 final class ManualClock {
 

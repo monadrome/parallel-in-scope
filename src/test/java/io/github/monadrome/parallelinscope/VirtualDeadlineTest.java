@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Deterministic deadline detection through the internal time seam: a token's deadline reads and
  * its timer both live on the injected clock, so advancing the clock — not sleeping — drives the
- * TIMEOUT transition. Task bodies still run on real executor threads with real interruption; the
+ * TIMEOUT transition. Task executions still run on real executor threads with real interruption; the
  * seam replaces guessing with sleeps only for the deadline domain.
  */
 class VirtualDeadlineTest {
@@ -104,7 +104,7 @@ class VirtualDeadlineTest {
             AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(runtime.group("gated", Duration.ofSeconds(5))
-                            .par("m", runtime.par(ParId.of("worker")), Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("m"), runtime.par(ParId.of("worker")), () -> {
                                 started.countDown();
                                 new CountDownLatch(1).await();
                                 return 1;
@@ -115,7 +115,7 @@ class VirtualDeadlineTest {
             caller.start();
 
             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
-            // The body is mid-flight on a real worker; advancing the virtual deadline must fire
+            // The execution is mid-flight on a real worker; advancing the virtual deadline must fire
             // the timer, cancel the member, and deliver a real interrupt to that worker.
             clock.advance(Duration.ofSeconds(5));
 
@@ -137,17 +137,16 @@ class VirtualDeadlineTest {
         ManualClock clock = new ManualClock();
         CancellationToken token =
                 new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker());
-        assertThat(BodyCompletionTracker.closeGraceBudgetNanos(null, token)).isEqualTo(TimeUnit.MINUTES.toNanos(1));
+        assertThat(ExecutionExitTracker.closeGraceBudgetNanos(null, token)).isEqualTo(TimeUnit.MINUTES.toNanos(1));
 
         clock.advance(Duration.ofSeconds(20));
-        assertThat(BodyCompletionTracker.closeGraceBudgetNanos(null, token)).isEqualTo(TimeUnit.SECONDS.toNanos(40));
+        assertThat(ExecutionExitTracker.closeGraceBudgetNanos(null, token)).isEqualTo(TimeUnit.SECONDS.toNanos(40));
 
         CancellationToken noDeadline = new CancellationToken(null, Long.MAX_VALUE, clock.ticker());
-        assertThat(BodyCompletionTracker.closeGraceBudgetNanos(null, noDeadline))
-                .isZero();
+        assertThat(ExecutionExitTracker.closeGraceBudgetNanos(null, noDeadline)).isZero();
         CancellationToken expired = new CancellationToken(null, clock.read() - 1, clock.ticker());
-        assertThat(BodyCompletionTracker.closeGraceBudgetNanos(null, expired)).isZero();
-        assertThat(BodyCompletionTracker.closeGraceBudgetNanos(Duration.ofSeconds(5), token))
+        assertThat(ExecutionExitTracker.closeGraceBudgetNanos(null, expired)).isZero();
+        assertThat(ExecutionExitTracker.closeGraceBudgetNanos(Duration.ofSeconds(5), token))
                 .isEqualTo(TimeUnit.SECONDS.toNanos(5));
     }
 
@@ -155,7 +154,7 @@ class VirtualDeadlineTest {
     void cleanupBudgetDerivesFromTheTokenClock() {
         // A scope that converges before its virtual deadline derives its cleanup budget from the
         // token's clock. Subtracting the manual deadline from System.nanoTime() instead would read
-        // zero and skip the bounded wait for bodies that are still exiting.
+        // zero and skip the bounded wait for executions that are still exiting.
         ManualClock clock = new ManualClock();
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime runtime = ParRuntime.builder()
@@ -172,7 +171,7 @@ class VirtualDeadlineTest {
                                 if (value == 1) {
                                     try {
                                         if (!slowStarted.await(10, TimeUnit.SECONDS)) {
-                                            throw new IllegalStateException("slow body never started");
+                                            throw new IllegalStateException("slow execution never started");
                                         }
                                     } catch (InterruptedException interrupted) {
                                         Thread.currentThread().interrupt();
@@ -197,10 +196,9 @@ class VirtualDeadlineTest {
                             },
                             BatchOptions.timeout("batch", Duration.ofMinutes(1)));
 
-            assertThat(result.report().stateCounts().get(TaskOutcome.USER_FAILURE))
-                    .isEqualTo(1);
-            assertThat(result.bodyCompletionConfirmed())
-                    .as("the derived cleanup budget must cover the slow body's real exit")
+            assertThat(result.outcomeCounts().get(TaskOutcome.USER_FAILURE)).isEqualTo(1);
+            assertThat(result.executionExitConfirmed())
+                    .as("the derived cleanup budget must cover the slow execution's real exit")
                     .isTrue();
         } finally {
             runtime.close();
@@ -229,7 +227,7 @@ class VirtualDeadlineTest {
             AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(outer.group("outer", Duration.ofMinutes(10))
-                            .par("m", outer.par(ParId.of("outer")), Integer.class, () -> {
+                            .par(TaskKey.<Integer>named("m"), outer.par(ParId.of("outer")), () -> {
                                 nested.set(inner.par(ParId.of("inner"))
                                         .map(
                                                 Arrays.asList(1),
@@ -259,10 +257,7 @@ class VirtualDeadlineTest {
             assertThat(caller.isAlive())
                     .as("the nested deadline must fire on the inherited manual scheduler")
                     .isFalse();
-            assertThat(Objects.requireNonNull(nested.get())
-                            .report()
-                            .stateCounts()
-                            .get(TaskOutcome.TIMEOUT))
+            assertThat(Objects.requireNonNull(nested.get()).outcomeCounts().get(TaskOutcome.TIMEOUT))
                     .isEqualTo(1);
             assertThat(Objects.requireNonNull(outcome.get()).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         } finally {
@@ -298,18 +293,17 @@ class VirtualDeadlineTest {
                     () -> {
                         try {
                             outerOutcome.set(outer.group("outer", Duration.ofMinutes(10))
-                                    .par("nest", outer.par(ParId.of("outer")), Integer.class, () -> {
+                                    .par(TaskKey.<Integer>named("nest"), outer.par(ParId.of("outer")), () -> {
                                         nestedOutcome.set(inner.group("nested", Duration.ofMinutes(10))
                                                 .par(
-                                                        "tight",
+                                                        TaskKey.<Integer>named("tight"),
                                                         inner.par(ParId.of("inner")),
                                                         TaskOptions.timeout(Duration.ofMinutes(1)),
-                                                        com.google.common.reflect.TypeToken.of(Integer.class),
                                                         () -> 1)
                                                 .runAll());
                                         return 1;
                                     })
-                                    .par("boom", outer.par(ParId.of("outer")), Integer.class, () -> {
+                                    .par(TaskKey.<Integer>named("boom"), outer.par(ParId.of("outer")), () -> {
                                         // Fail fast only once the nested member bind is in flight.
                                         try {
                                             if (!pausing.pauseEntered.await(10, TimeUnit.SECONDS)) {

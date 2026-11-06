@@ -55,11 +55,11 @@ public class CancellationPropagationCartesianTest {
         try {
             fixture.awaitEntry();
             if (timing == ParentTiming.BEFORE_CHILD_BIND) {
-                parent.cancel(true);
+                parent.cancel();
             }
             child.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             if (timing == ParentTiming.AFTER_CHILD_BIND) {
-                parent.cancel(true);
+                parent.cancel();
             }
 
             awaitCancelled(fixture.future);
@@ -82,7 +82,7 @@ public class CancellationPropagationCartesianTest {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         try {
             CancellationToken parent = CancellationToken.create();
-            parent.cancel(true);
+            parent.cancel();
             CancellationToken child = new CancellationToken(parent);
             SettableFuture<Integer> childFuture = SettableFuture.create();
 
@@ -143,7 +143,6 @@ public class CancellationPropagationCartesianTest {
         }
 
         /** Creates pending work or running work parked at a controlled gate. */
-        // NullAway: deliberate null arguments — probes the null-rejection contract
         @SuppressWarnings("NullAway")
         private static ChildFixture create(ChildWork work) {
             if (work == ChildWork.PENDING) {
@@ -171,7 +170,7 @@ public class CancellationPropagationCartesianTest {
             return new ChildFixture(raw, entered, release, interrupted, future);
         }
 
-        /** Waits until running child work enters its body. */
+        /** Waits until running child work enters its execution. */
         private void awaitEntry() throws InterruptedException {
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
         }
