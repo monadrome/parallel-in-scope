@@ -145,61 +145,7 @@ public final class ParRuntime implements AutoCloseable {
         ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
-            ExecutorRuntime runtime = identityRuntimes.get(identity);
-            if (runtime == null) {
-                // A TTL wrapper hides the physical pool, so every structural fact below is read
-                // through it. Without this the wrapper is indistinguishable from a foreign
-                // executor: blocking-risk detection silently downgrades, and the
-                // discarding-policy guard below never runs at all.
-                ExecutorService introspectable = TtlUnwrap.unwrap(entry.getValue());
-                if (!(introspectable instanceof ThreadPoolExecutor)) {
-                    // Detection that silently downgrades is worse than a diagnostic: a decorated
-                    // or foreign executor hides the physical pool from deadlock-risk
-                    // classification, so say so once at the composition root.
-                    LOGGER.warning(
-                            "Par '" + entry.getKey() + "' is registered with "
-                                    + entry.getValue().getClass().getName()
-                                    + ", which this library cannot see through:"
-                                    + " blocking-risk detection is disabled for it. If this executor only"
-                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
-                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
-                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
-                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
-                } else {
-                    // A discarding policy never reports rejection: DiscardPolicy drops the new
-                    // task outright, and DiscardOldestPolicy drops the oldest queued task to make
-                    // room for it. Either way the framework would keep waiting on a future whose
-                    // execution may never run. Refuse to register such a pool at all.
-                    RejectedExecutionHandler policy =
-                            ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
-                    if (policy instanceof ThreadPoolExecutor.DiscardPolicy
-                            || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
-                        // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
-                        // named: rejection as a thrown exception is the more direct contract, and
-                        // running the execution on the submitting thread carries consequences a caller
-                        // has to opt into knowingly — see ADR-0007.
-                        throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
-                                + introspectable.getClass().getName() + " using "
-                                + policy.getClass().getName()
-                                + ", which discards rejected tasks silently: submission of an"
-                                + " overflowing task would never complete and the batch would hang. Register a"
-                                + " pool with AbortPolicy instead, which fails such a submission as"
-                                + " SUBMISSION_FAILURE.");
-                    }
-                }
-                if (TtlUnwrap.isWrapper(entry.getValue())) {
-                    // The facts above survive because they are read through the wrapper. What a
-                    // wrapper still costs is a second TTL capture: the executor boundary adds one
-                    // on top of the one prepare already performs. That boundary is the caller's
-                    // executor, so it is named rather than unwrapped.
-                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with the TTL wrapper "
-                            + entry.getValue().getClass().getName()
-                            + "; register the physical pool instead. TTL capture then happens twice"
-                            + " for every task: once at the executor boundary and once at prepare.");
-                }
-                runtime = new ExecutorRuntime(entry.getValue());
-                identityRuntimes.put(identity, runtime);
-            }
+            ExecutorRuntime runtime = runtimeFor(entry.getKey(), entry.getValue(), identity, identityRuntimes);
             aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
             TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
@@ -210,6 +156,72 @@ public final class ParRuntime implements AutoCloseable {
         this.pars = ImmutableMap.copyOf(builtPars);
         this.announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
         this.executorWaits = new ExecutorWaitGraph(aliases.build(), announcements);
+    }
+
+    /**
+     * Returns the existing runtime for {@code identity}, or inspects and registers {@code executor}
+     * once. Warnings and rejection checks therefore run only for the first alias of an executor.
+     */
+    private static ExecutorRuntime runtimeFor(
+            ParId id,
+            ExecutorService executor,
+            ExecutorIdentity identity,
+            Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes) {
+        ExecutorRuntime runtime = identityRuntimes.get(identity);
+        if (runtime != null) {
+            return runtime;
+        }
+        // A TTL wrapper hides the physical pool, so every structural fact below is read
+        // through it. Without this the wrapper is indistinguishable from a foreign
+        // executor: blocking-risk detection silently downgrades, and the
+        // discarding-policy guard below never runs at all.
+        ExecutorService introspectable = TtlUnwrap.unwrap(executor);
+        if (!(introspectable instanceof ThreadPoolExecutor)) {
+            // Detection that silently downgrades is worse than a diagnostic: a decorated
+            // or foreign executor hides the physical pool from deadlock-risk
+            // classification, so say so once at the composition root.
+            LOGGER.warning("Par '" + id + "' is registered with "
+                    + executor.getClass().getName()
+                    + ", which this library cannot see through:"
+                    + " blocking-risk detection is disabled for it. If this executor only"
+                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
+        } else {
+            // A discarding policy never reports rejection: DiscardPolicy drops the new
+            // task outright, and DiscardOldestPolicy drops the oldest queued task to make
+            // room for it. Either way the framework would keep waiting on a future whose
+            // execution may never run. Refuse to register such a pool at all.
+            RejectedExecutionHandler policy = ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
+            if (policy instanceof ThreadPoolExecutor.DiscardPolicy
+                    || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
+                // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
+                // named: rejection as a thrown exception is the more direct contract, and
+                // running the execution on the submitting thread carries consequences a caller
+                // has to opt into knowingly — see ADR-0007.
+                throw new IllegalArgumentException("Par '" + id + "' is registered with "
+                        + introspectable.getClass().getName() + " using "
+                        + policy.getClass().getName()
+                        + ", which discards rejected tasks silently: submission of an"
+                        + " overflowing task would never complete and the batch would hang. Register a"
+                        + " pool with AbortPolicy instead, which fails such a submission as"
+                        + " SUBMISSION_FAILURE.");
+            }
+        }
+        if (TtlUnwrap.isWrapper(executor)) {
+            // The facts above survive because they are read through the wrapper. What a
+            // wrapper still costs is a second TTL capture: the executor boundary adds one
+            // on top of the one prepare already performs. That boundary is the caller's
+            // executor, so it is named rather than unwrapped.
+            LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+                    + executor.getClass().getName()
+                    + "; register the physical pool instead. TTL capture then happens twice"
+                    + " for every task: once at the executor boundary and once at prepare.");
+        }
+        runtime = new ExecutorRuntime(executor);
+        identityRuntimes.put(identity, runtime);
+        return runtime;
     }
 
     /** Returns a mutable builder for a runtime topology. */

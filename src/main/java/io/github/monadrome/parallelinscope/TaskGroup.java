@@ -607,6 +607,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
         // any submission, so the shared signal covers tasks that start late or never start.
         ExecutionExitTracker executionExit =
                 ExecutionExitTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
+        PreparationContext preparation = new PreparationContext(
+                payloads, structuralParent, groupToken, groupDeadline, deadlineNow, start, executionExit);
         Map<String, MemberState> states = new LinkedHashMap<>();
         AtomicReference<ValueOwner> valueOwner = new AtomicReference<>(ValueOwner.UNDECIDED);
         MemberState terminal = null;
@@ -614,85 +616,12 @@ final class TaskGroup<V, R> implements AutoCloseable {
         TaskGroup<Object, Object> group;
         try {
             for (TaskGroupDefinition.Slot slot : definition.members()) {
-                int index = memberIndex++;
-                MultiTaskContext.Resolution resolution = MultiTaskContext.resolution(slot.options.spec(slot.name), 1)
-                        .structuralParent(structuralParent)
-                        .cancellationParent(groupToken)
-                        .deadlineCeilingNanos(groupDeadline)
-                        .resolutionTimeNanos(deadlineNow);
-                Par par = slot.par;
-                if (par != null) {
-                    resolution.executor(par);
-                }
-                MultiTaskContext unit = MultiTaskContext.resolve(resolution);
-                MemberState state;
-                if (slot.adopted) {
-                    TaskExecutionContext taskContext =
-                            new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
-                    AdoptedSource adopted = payloads.adoptedAt(index);
-                    adopted.attach(taskContext);
-                    state = MemberState.adopted(slot.key, taskContext, adopted);
-                } else {
-                    Par runPar = slot.runPar();
-                    runPar.diagnoseAdmission(unit);
-                    TaskExecutionContext taskContext =
-                            new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
-                    Callable<Object> taskCode = payloads.takeCallable(index);
-                    ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
-                    state = MemberState.prepared(
-                            slot.key,
-                            taskContext,
-                            future,
-                            runPar.executorRuntime().submissionExecutor());
-                }
-                states.put(slot.name, state);
+                states.put(slot.name, preparation.prepareMember(slot, memberIndex++));
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
             if (combineSlot != null) {
-                // The combine is prepared exactly like a member — token, context, TTL snapshot,
-                // structural parent — so its context capture happens on the submitting thread at
-                // submit time; only the executor submission is deferred to the join. The member
-                // states captured below are the frozen run registry created above, so the assembled
-                // values are read from already-settled futures. A rejected combine fails as
-                // SUBMISSION_FAILURE rather than running user code on the convergence callback thread:
-                // it is submitted by that callback at join time, not by the caller of submitAll(), so
-                // there is no caller thread for it to borrow in the first place.
-                //
-                // Declining a rejection is not enough on its own, because a pool whose
-                // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
-                // the execution without ever throwing RejectedExecutionException. There is nothing to
-                // decline, and the combine would run on the convergence callback thread in silence.
-                // forbidInlineExecution() closes that path for a TPE-backed target, where thread
-                // identity proves a handler ran the execution; see ExecutorRuntime for why it is scoped
-                // to a TPE and why an always-inline executor is left alone.
-                Par par = combineSlot.runPar();
-                MultiTaskContext unit = MultiTaskContext.resolve(
-                        MultiTaskContext.resolution(combineSlot.options.spec(combineSlot.name), 1)
-                                .structuralParent(structuralParent)
-                                .cancellationParent(groupToken)
-                                .deadlineCeilingNanos(groupDeadline)
-                                .resolutionTimeNanos(deadlineNow)
-                                .executor(par));
-                par.diagnoseAdmission(unit);
-                TaskExecutionContext taskContext =
-                        new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
-                Combiner<Object, Object> combiner = castCombiner(payloads.takeCombiner());
                 boolean takesAdoptedValues = definition.members().stream().anyMatch(slot -> slot.adopted);
-                Callable<Object> taskCode = () -> {
-                    if (takesAdoptedValues) {
-                        claimValuesForCombine(valueOwner, combineSlot.name);
-                    }
-                    return assembleTerminal(combiner, states, combineSlot.valueView);
-                };
-                ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
-                if (par.executorRuntime().threadPoolBacked()) {
-                    future.forbidInlineExecution();
-                }
-                terminal = MemberState.prepared(
-                        combineSlot.key,
-                        taskContext,
-                        future,
-                        par.executorRuntime().submissionExecutor());
+                terminal = preparation.prepareTerminalCombine(combineSlot, states, valueOwner, takesAdoptedValues);
             }
             group = new TaskGroup<>(
                     definition.name(),
@@ -709,12 +638,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                         .record(structuralParent.node(), group.membersAndTerminal.size(), group::awaitedUnitAt);
             }
         } catch (Throwable failure) {
-            for (MemberState state : states.values()) {
-                state.future.cancel(true);
-            }
-            if (terminal != null) {
-                terminal.future.cancel(true);
-            }
+            cancelPrepared(states, terminal);
             throw failure;
         }
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
@@ -727,6 +651,122 @@ final class TaskGroup<V, R> implements AutoCloseable {
         env.retainUntilComplete(retained);
         env.trackExecutions(executionExit);
         return group;
+    }
+
+    /** Common inputs shared while preparing the members and terminal of one group run. */
+    private static final class PreparationContext {
+        private final RunBindings payloads;
+        private final @Nullable MultiTaskContext structuralParent;
+        private final CancellationToken groupToken;
+        private final long groupDeadline;
+        private final long deadlineNow;
+        private final long start;
+        private final ExecutionExitTracker executionExit;
+
+        private PreparationContext(
+                RunBindings payloads,
+                @Nullable MultiTaskContext structuralParent,
+                CancellationToken groupToken,
+                long groupDeadline,
+                long deadlineNow,
+                long start,
+                ExecutionExitTracker executionExit) {
+            this.payloads = payloads;
+            this.structuralParent = structuralParent;
+            this.groupToken = groupToken;
+            this.groupDeadline = groupDeadline;
+            this.deadlineNow = deadlineNow;
+            this.start = start;
+            this.executionExit = executionExit;
+        }
+
+        /** Resolves one slot under the group's cancellation parent and deadline ceiling. */
+        private MultiTaskContext resolveUnit(TaskGroupDefinition.Slot slot) {
+            MultiTaskContext.Resolution resolution = MultiTaskContext.resolution(slot.options.spec(slot.name), 1)
+                    .structuralParent(structuralParent)
+                    .cancellationParent(groupToken)
+                    .deadlineCeilingNanos(groupDeadline)
+                    .resolutionTimeNanos(deadlineNow);
+            Par par = slot.par;
+            if (par != null) {
+                resolution.executor(par);
+            }
+            return MultiTaskContext.resolve(resolution);
+        }
+
+        /** Registers the unit's execution-exit slot before creating its submission-time context. */
+        private TaskExecutionContext taskContext(MultiTaskContext unit) {
+            return new TaskExecutionContext(unit, 0, start, executionExit.register(unit));
+        }
+
+        /** Prepares one adopted or library-executed member without submitting user code. */
+        private MemberState prepareMember(TaskGroupDefinition.Slot slot, int index) {
+            MultiTaskContext unit = resolveUnit(slot);
+            if (slot.adopted) {
+                TaskExecutionContext taskContext = taskContext(unit);
+                AdoptedSource adopted = payloads.adoptedAt(index);
+                adopted.attach(taskContext);
+                return MemberState.adopted(slot.key, taskContext, adopted);
+            }
+            Par runPar = slot.runPar();
+            runPar.diagnoseAdmission(unit);
+            TaskExecutionContext taskContext = taskContext(unit);
+            Callable<Object> taskCode = payloads.takeCallable(index);
+            ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
+            return MemberState.prepared(
+                    slot.key, taskContext, future, runPar.executorRuntime().submissionExecutor());
+        }
+
+        /** Prepares the deferred terminal combine over the already-prepared member registry. */
+        private MemberState prepareTerminalCombine(
+                TaskGroupDefinition.Slot combineSlot,
+                Map<String, MemberState> states,
+                AtomicReference<ValueOwner> valueOwner,
+                boolean takesAdoptedValues) {
+            // The combine is prepared exactly like a member — token, context, TTL snapshot,
+            // structural parent — so its context capture happens on the submitting thread at
+            // submit time; only the executor submission is deferred to the join. The member
+            // states captured below are the frozen run registry created above, so the assembled
+            // values are read from already-settled futures. A rejected combine fails as
+            // SUBMISSION_FAILURE rather than running user code on the convergence callback thread:
+            // it is submitted by that callback at join time, not by the caller of submitAll(), so
+            // there is no caller thread for it to borrow in the first place.
+            //
+            // Declining a rejection is not enough on its own, because a pool whose
+            // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
+            // the execution without ever throwing RejectedExecutionException. There is nothing to
+            // decline, and the combine would run on the convergence callback thread in silence.
+            // forbidInlineExecution() closes that path for a TPE-backed target, where thread
+            // identity proves a handler ran the execution; see ExecutorRuntime for why it is scoped
+            // to a TPE and why an always-inline executor is left alone.
+            Par par = combineSlot.runPar();
+            MultiTaskContext unit = resolveUnit(combineSlot);
+            par.diagnoseAdmission(unit);
+            TaskExecutionContext taskContext = taskContext(unit);
+            Combiner<Object, Object> combiner = castCombiner(payloads.takeCombiner());
+            Callable<Object> taskCode = () -> {
+                if (takesAdoptedValues) {
+                    claimValuesForCombine(valueOwner, combineSlot.name);
+                }
+                return assembleTerminal(combiner, states, combineSlot.valueView);
+            };
+            ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
+            if (par.executorRuntime().threadPoolBacked()) {
+                future.forbidInlineExecution();
+            }
+            return MemberState.prepared(
+                    combineSlot.key, taskContext, future, par.executorRuntime().submissionExecutor());
+        }
+    }
+
+    /** Cancels every future created before a preparation failure, including a prepared terminal. */
+    private static void cancelPrepared(Map<String, MemberState> states, @Nullable MemberState terminal) {
+        for (MemberState state : states.values()) {
+            state.future.cancel(true);
+        }
+        if (terminal != null) {
+            terminal.future.cancel(true);
+        }
     }
 
     /**
@@ -802,19 +842,28 @@ final class TaskGroup<V, R> implements AutoCloseable {
         return assembled;
     }
 
-    @SuppressWarnings("FutureReturnValueIgnored")
     void start(ParRuntime global, TaskGroupDefinition definition) {
         if (memberStates.isEmpty() && terminal == null) {
             completeEmpty();
             return;
         }
-        // Member observers first, so cancellation performed by the binds below is always counted.
+        registerCompletionObservers();
+        bindTokens(global, definition);
+    }
+
+    /** Registers completion observers before any bind can cancel a member. */
+    private void registerCompletionObservers() {
         for (MemberState member : orderedMembers) {
             member.future.addListener(() -> memberCompleted(member), directExecutor());
         }
         if (terminal != null) {
             terminal.future.addListener(() -> memberCompleted(terminal), directExecutor());
         }
+    }
+
+    /** Admits cancellation and binds the group and every tighter member deadline before submission. */
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void bindTokens(ParRuntime global, TaskGroupDefinition definition) {
         CancellationToken.RequestCancellationLink cancellation = null;
         try {
             cancellation = definition.admitCancellation(groupToken);
@@ -824,17 +873,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             // combine, and the group token cannot observe SUCCESS before the combine completes.
             groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
             for (MemberState member : membersAndTerminal) {
-                CancellationToken memberToken =
-                        member.context.multiTaskContext().cancellationToken();
-                memberToken.addStateListener(state -> {
-                    if (state == CancellationToken.State.TIMEOUT) {
-                        groupToken.timeoutCancel();
-                    }
-                });
-                if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
-                    continue;
-                }
-                memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
+                bindMemberDeadline(member, global);
             }
         } catch (RuntimeException | Error failure) {
             if (cancellation != null) {
@@ -843,6 +882,21 @@ final class TaskGroup<V, R> implements AutoCloseable {
             abandonStartup(failure);
             throw failure;
         }
+    }
+
+    /** Registers timeout escalation before binding only a deadline tighter than the group's. */
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void bindMemberDeadline(MemberState member, ParRuntime global) {
+        CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
+        memberToken.addStateListener(state -> {
+            if (state == CancellationToken.State.TIMEOUT) {
+                groupToken.timeoutCancel();
+            }
+        });
+        if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
+            return;
+        }
+        memberToken.bind(Collections.singletonList(member.future), NO_SUBMISSION, global.timeoutScheduler());
     }
 
     /**

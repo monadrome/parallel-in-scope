@@ -193,12 +193,17 @@ final class ExecutorWaitGraph {
                 return;
             }
             if (state.compareAndSet(current, next)) {
-                for (ExecutorWaitReport.Component component : next.report.cyclicComponents()) {
-                    if (!current.componentKeys.contains(component.identities())) {
-                        announce(() -> LOGGER.warning(warning(component)));
-                    }
-                }
+                announceNewComponents(current, next);
                 return;
+            }
+        }
+    }
+
+    /** Announces exactly those components formed by the successful installation. */
+    private void announceNewComponents(State previous, State installed) {
+        for (ExecutorWaitReport.Component component : installed.report.cyclicComponents()) {
+            if (!previous.componentKeys.contains(component.identities())) {
+                announce(() -> LOGGER.warning(warning(component)));
             }
         }
     }
@@ -355,37 +360,57 @@ final class ExecutorWaitGraph {
      */
     private ImmutableList<ExecutorWaitReport.Component> cyclicComponents(
             ImmutableTable<ExecutorIdentity, ExecutorIdentity, Wait> waits) {
-        ImmutableGraph.Builder<ExecutorIdentity> builder =
-                GraphBuilder.directed().allowsSelfLoops(true).<ExecutorIdentity>immutable();
-        for (Table.Cell<ExecutorIdentity, ExecutorIdentity, Wait> cell : waits.cellSet()) {
-            builder.putEdge(checkNotNull(cell.getRowKey()), checkNotNull(cell.getColumnKey()));
-        }
-        ImmutableGraph<ExecutorIdentity> graph = builder.build();
+        ImmutableGraph<ExecutorIdentity> graph = graphOf(waits);
         List<ExecutorIdentity> nodes = new ArrayList<>(graph.nodes());
         nodes.sort((left, right) -> Integer.compare(position(left), position(right)));
-        Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = new HashMap<>();
-        for (ExecutorIdentity node : nodes) {
-            reach.put(node, Graphs.reachableNodes(graph, node));
-        }
+        Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = reachabilityByNode(nodes, graph);
         Set<ExecutorIdentity> assigned = new HashSet<>();
         ImmutableList.Builder<ExecutorWaitReport.Component> components = ImmutableList.builder();
         for (ExecutorIdentity node : nodes) {
             if (assigned.contains(node)) {
                 continue;
             }
-            List<ExecutorIdentity> members = new ArrayList<>();
-            for (ExecutorIdentity other : nodes) {
-                if (verifyNotNull(reach.get(node)).contains(other)
-                        && verifyNotNull(reach.get(other)).contains(node)) {
-                    members.add(other);
-                }
-            }
+            List<ExecutorIdentity> members = mutuallyReachableMembers(node, nodes, reach);
             assigned.addAll(members);
             if (members.size() > 1 || graph.hasEdgeConnecting(node, node)) {
                 components.add(component(members, graph, waits));
             }
         }
         return components.build();
+    }
+
+    /** Builds the directed executor graph, retaining self-loops used by the report contract. */
+    private static ImmutableGraph<ExecutorIdentity> graphOf(
+            ImmutableTable<ExecutorIdentity, ExecutorIdentity, Wait> waits) {
+        ImmutableGraph.Builder<ExecutorIdentity> builder =
+                GraphBuilder.directed().allowsSelfLoops(true).<ExecutorIdentity>immutable();
+        for (Table.Cell<ExecutorIdentity, ExecutorIdentity, Wait> cell : waits.cellSet()) {
+            builder.putEdge(checkNotNull(cell.getRowKey()), checkNotNull(cell.getColumnKey()));
+        }
+        return builder.build();
+    }
+
+    /** Computes each node's reachable set once for the component grouping pass. */
+    private static Map<ExecutorIdentity, Set<ExecutorIdentity>> reachabilityByNode(
+            List<ExecutorIdentity> nodes, ImmutableGraph<ExecutorIdentity> graph) {
+        Map<ExecutorIdentity, Set<ExecutorIdentity>> reach = new HashMap<>();
+        for (ExecutorIdentity node : nodes) {
+            reach.put(node, Graphs.reachableNodes(graph, node));
+        }
+        return reach;
+    }
+
+    /** Returns every node reachable from {@code node} that can also reach it. */
+    private static List<ExecutorIdentity> mutuallyReachableMembers(
+            ExecutorIdentity node, List<ExecutorIdentity> nodes, Map<ExecutorIdentity, Set<ExecutorIdentity>> reach) {
+        List<ExecutorIdentity> members = new ArrayList<>();
+        for (ExecutorIdentity other : nodes) {
+            if (verifyNotNull(reach.get(node)).contains(other)
+                    && verifyNotNull(reach.get(other)).contains(node)) {
+                members.add(other);
+            }
+        }
+        return members;
     }
 
     private int position(ExecutorIdentity identity) {

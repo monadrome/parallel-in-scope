@@ -131,6 +131,32 @@ final class MultiTaskContext {
             this.par = checkNotNull(par, "par cannot be null");
             return this;
         }
+
+        /** The explicit cancellation parent, or the structural parent's token when none was set. */
+        private @Nullable CancellationToken cancellationParent() {
+            MultiTaskContext parent = structuralParent;
+            return cancellationParent != null ? cancellationParent : parent == null ? null : parent.cancellationToken;
+        }
+
+        /** The explicit deadline ceiling, or the structural parent's deadline when none was set. */
+        private long deadlineCeilingNanos() {
+            MultiTaskContext parent = structuralParent;
+            return deadlineCeilingNanos != null
+                    ? deadlineCeilingNanos
+                    : parent == null ? Long.MAX_VALUE : parent.deadlineNanos;
+        }
+
+        /** The cancellation parent's clock, or the explicit/system root clock without a parent. */
+        private Ticker domain(@Nullable CancellationToken cancellationParent) {
+            return cancellationParent != null
+                    ? cancellationParent.ticker()
+                    : ticker != null ? ticker : Ticker.systemTicker();
+        }
+
+        /** The explicit resolution reading, or the selected domain's current reading. */
+        private long resolutionTimeNanos(Ticker domain) {
+            return resolutionTimeNanos != null ? resolutionTimeNanos : domain.read();
+        }
     }
 
     /** Starts a resolution for the given spec and task count. */
@@ -160,19 +186,13 @@ final class MultiTaskContext {
         if (spec.timeout() == null && parent == null && resolution.deadlineCeilingNanos == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
-        CancellationToken cancellationParent = resolution.cancellationParent != null
-                ? resolution.cancellationParent
-                : parent == null ? null : parent.cancellationToken;
-        long deadlineCeiling = resolution.deadlineCeilingNanos != null
-                ? resolution.deadlineCeilingNanos
-                : parent == null ? Long.MAX_VALUE : parent.deadlineNanos;
+        CancellationToken cancellationParent = resolution.cancellationParent();
+        long deadlineCeiling = resolution.deadlineCeilingNanos();
         // The deadline domain follows the cancellation parent's clock; only a root unit takes the
         // resolution's own clock (the owning ParRuntime's). This keeps a nested runtime's units on
         // the ancestor's clock instead of mixing domains inside one token tree.
-        Ticker domain = cancellationParent != null
-                ? cancellationParent.ticker()
-                : resolution.ticker != null ? resolution.ticker : Ticker.systemTicker();
-        long resolutionTime = resolution.resolutionTimeNanos != null ? resolution.resolutionTimeNanos : domain.read();
+        Ticker domain = resolution.domain(cancellationParent);
+        long resolutionTime = resolution.resolutionTimeNanos(domain);
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
         int effective = Math.min(requested, resolution.taskCount);
         long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeiling, resolutionTime);
