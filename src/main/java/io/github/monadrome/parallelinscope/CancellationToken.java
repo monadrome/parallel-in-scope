@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.github.monadrome.parallelinscope.CancellationToken.State.CANCELLED;
@@ -336,7 +337,7 @@ final class CancellationToken {
     }
 
     RequestCancellationLink cancelOn(ListenableFuture<?> signal) {
-        Objects.requireNonNull(signal, "signal cannot be null");
+        checkNotNull(signal, "signal cannot be null");
         RequestCancellationLink link = new RequestCancellationLink(this::cancel);
         requestCancellationLink = link;
         if (state() != RUNNING) {

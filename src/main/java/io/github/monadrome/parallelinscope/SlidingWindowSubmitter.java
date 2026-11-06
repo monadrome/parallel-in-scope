@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.common.collect.ImmutableList;
@@ -59,7 +60,7 @@ final class SlidingWindowSubmitter<V> {
             ExecutionExitTracker executionExit,
             @Nullable Duration closeGrace) {
         this.unit = Objects.requireNonNull(unit, "unit cannot be null");
-        this.executionExit = Objects.requireNonNull(executionExit, "executionExit cannot be null");
+        this.executionExit = checkNotNull(executionExit, "executionExit cannot be null");
         this.closeGrace = closeGrace;
         this.pool = Objects.requireNonNull(pool, "pool cannot be null");
     }

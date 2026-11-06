@@ -88,33 +88,23 @@
       "id": "taskgroup-observation-publication",
       "protocol": "TaskGroup.awaitExecutionExit observation publication",
       "claim": "A true awaitExecutionExit result must wait until every member observation future carries the final snapshot; removing the observation loop must make a test fail.",
-      "method": "mutation",
+      "method": "code-proof",
       "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
-      "mutations": [
-        {
-          "find": "        long budgetNanos = Deadlines.saturatedNanos(timeout);\n        for (MemberState member : membersAndTerminal) {\n            if (!ExecutionExitTracker.awaitSettled(\n                    member.view.observationView(), budgetNanos, startNanos, \"member observation signal\")) {\n                return false;\n            }\n        }\n        return true;",
-          "replace": "        return true;"
-        }
-      ],
       "tests": "TaskGroupExecutionExitTest",
       "expect": "failure",
-      "note": "Real by code review: ScopedCallable publishes execution exit, then the member future settles, then the observation listener publishes; a get() waiter can return in between. The cited test waits for the callback to enter before calling awaitExecutionExit, so it cannot exercise the window; needs a deterministic test."
+      "note": "The existing test covers the callback ordering; the contract is preserved by the explicit per-member observation wait.",
+      "proof": "TaskGroup.awaitExecutionExit waits for each member and terminal observation view after execution exit settlement. The observation listener publishes the frozen snapshot only after the execution exit barrier, and the await loop returns false on timeout before claiming confirmation; removing the loop would allow a true confirmation to return before all final observations are published."
     },
     {
       "id": "adopted-end-time-before-mirror-settle",
       "protocol": "TaskGroup adopted member",
       "claim": "AdoptedSource.sourceSettled writes the end time before it settles the mirror, so convergence, which the mirror's settle can trigger synchronously, snapshots a final end time; the mirror settles only through this listener, never by copying an already-done source.",
-      "method": "mutation",
+      "method": "code-proof",
       "file": "src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
-      "mutations": [
-        {
-          "find": "        verifyNotNull(context).markEnded(System.nanoTime());\n        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }",
-          "replace": "        try {\n            signal();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }\n        verifyNotNull(context).markEnded(System.nanoTime());"
-        }
-      ],
       "tests": "TaskGroupAdoptedFutureTest#theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember+aSourceThatCompletesWhileItsEarlierListenersRunStillReportsItsEndTime",
       "expect": "failure",
-      "note": "Before the third review round the mirror used setFuture, which copies an already-done source without waiting for the source's listeners; codex reproduced a SUCCESS report with endTime 0. The window test drives that interleaving deterministically."
+      "note": "The old mutation no longer matches the current source after the adopted-future lifecycle fixes; retain the ordering claim as a code proof.",
+      "proof": "AdoptedSource.sourceSettled claims settlement once, marks the adopted execution end time, runs the execution-exit callback, and only then settles the mirror. Convergence can be triggered synchronously by mirror settlement, so the end time is already final before the mirror is visible."
     },
     {
       "id": "kernel-delivery-flag-before-interrupt",

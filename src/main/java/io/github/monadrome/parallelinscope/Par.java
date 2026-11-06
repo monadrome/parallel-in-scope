@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
@@ -62,7 +63,7 @@ public final class Par {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
         this.executorRuntime = Objects.requireNonNull(executorRuntime, "executorRuntime cannot be null");
         this.id = Objects.requireNonNull(id, "id cannot be null");
-        this.taskType = Objects.requireNonNull(taskType, "taskType cannot be null");
+        this.taskType = checkNotNull(taskType, "taskType cannot be null");
     }
 
     static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
@@ -186,7 +187,7 @@ public final class Par {
         Objects.requireNonNull(options, "options cannot be null");
         Objects.requireNonNull(function, "function cannot be null");
         Objects.requireNonNull(combinePar, "combinePar cannot be null");
-        Objects.requireNonNull(combiner, "combiner cannot be null");
+        checkNotNull(combiner, "combiner cannot be null");
         return runtime.whileOpen(() -> mapAndCombineWhileOpen(elements, function, options, combinePar, combiner));
     }
 
