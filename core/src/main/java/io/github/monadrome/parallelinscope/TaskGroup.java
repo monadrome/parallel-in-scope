@@ -221,6 +221,15 @@ final class TaskGroup<R> implements AutoCloseable {
         return valuesView;
     }
 
+    /**
+     * The report future for this group's convergence. It completes after every member and the
+     * optional terminal combine have a final outcome and after {@link #valuesFuture()} has been
+     * published; it returns a {@link TaskGroupReport} rather than failing or being cancelled.
+     * The report is an observation of the run and does not imply that user code has exited; use
+     * {@link TaskGroupResult#executionExitConfirmed()} on the frozen result for that guarantee.
+     *
+     * @return the report future, which is terminal only when the group has converged
+     */
     public TaskFuture<TaskGroupReport> completionFuture() {
         return completionTask;
     }
@@ -499,7 +508,7 @@ final class TaskGroup<R> implements AutoCloseable {
      */
     @VisibleForTesting
     boolean callableReleased(String name) {
-        Objects.requireNonNull(name, "name cannot be null");
+        checkNotNull(name, "name cannot be null");
         MemberState member = memberStates.get(name);
         if (member == null && terminal != null && terminal.name.equals(name)) {
             member = terminal;
@@ -519,7 +528,7 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     private MemberState memberNamed(String name) {
-        Objects.requireNonNull(name, "name cannot be null");
+        checkNotNull(name, "name cannot be null");
         MemberState member = memberStates.get(name);
         if (member == null) {
             throw new IllegalArgumentException("no member named '" + name + "'");
