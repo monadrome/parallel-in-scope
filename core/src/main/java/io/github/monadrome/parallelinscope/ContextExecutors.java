@@ -6,7 +6,7 @@ import com.alibaba.ttl.TransmittableThreadLocal.Transmitter;
 import java.util.concurrent.Executor;
 
 /**
- * Executors that preserve the calling thread's registered context while retaining direct execution.
+ * Executors that preserve a selected TTL context while retaining direct execution.
  *
  * <p>{@link #directExecutor()} captures the TTL context when it is created. Each command then runs
  * synchronously on the thread that calls {@link Executor#execute(Runnable)}, with the captured context
@@ -25,6 +25,12 @@ import java.util.concurrent.Executor;
  * <p>Creating one executor per request context prevents unrelated requests from sharing a captured
  * snapshot, but it does not turn mutable values into independent copies.
  *
+ * <p>{@link #lazyDirectExecutor()} provides a different contract: it captures the current TTL
+ * context on every {@link Executor#execute(Runnable)} call. Use it when the call site's context is
+ * authoritative, or when a configured TTL copier should create a fresh per-command value. It does
+ * not propagate the context of the thread that created the executor, and copied values are not
+ * guaranteed to retain object identity.
+ *
  * @since 0.5.0
  */
 public final class ContextExecutors {
@@ -41,6 +47,21 @@ public final class ContextExecutors {
         return new CapturedDirectExecutor(Transmitter.capture());
     }
 
+    /**
+     * Creates a direct executor that captures the calling thread's TTL context for each command.
+     *
+     * <p>Unlike {@link #directExecutor()}, this executor does not retain a creation-time snapshot.
+     * The context at each {@link Executor#execute(Runnable)} call is copied, replayed around the
+     * command, and restored afterwards. A configured TTL copier therefore runs once per command;
+     * use immutable or properly isolated values when commands need independent mutable state.
+     *
+     * @return an executor that captures the execute caller's context for every command
+     * @since 0.5.0
+     */
+    public static Executor lazyDirectExecutor() {
+        return new LazyDirectExecutor();
+    }
+
     private static final class CapturedDirectExecutor implements Executor {
         private final Object captured;
 
@@ -51,17 +72,34 @@ public final class ContextExecutors {
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
-            Object previous = Transmitter.replay(captured);
-            try {
-                command.run();
-            } finally {
-                Transmitter.restore(previous);
-            }
+            runWithCaptured(captured, command);
         }
 
         @Override
         public String toString() {
             return "ContextExecutors.directExecutor()";
+        }
+    }
+
+    private static final class LazyDirectExecutor implements Executor {
+        @Override
+        public void execute(Runnable command) {
+            checkNotNull(command, "command cannot be null");
+            runWithCaptured(Transmitter.capture(), command);
+        }
+
+        @Override
+        public String toString() {
+            return "ContextExecutors.lazyDirectExecutor()";
+        }
+    }
+
+    private static void runWithCaptured(Object captured, Runnable command) {
+        Object previous = Transmitter.replay(captured);
+        try {
+            command.run();
+        } finally {
+            Transmitter.restore(previous);
         }
     }
 }

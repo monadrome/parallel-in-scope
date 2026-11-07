@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +20,13 @@ class ContextExecutorsTest {
 
     private static final TransmittableThreadLocal<String> TTL = new TransmittableThreadLocal<>();
     private static final TransmittableThreadLocal<Map<String, String>> MUTABLE_TTL = new TransmittableThreadLocal<>();
+    private static final TransmittableThreadLocal<List<String>> COPYING_TTL =
+            new TransmittableThreadLocal<List<String>>() {
+                @Override
+                public List<String> copy(List<String> parentValue) {
+                    return new ArrayList<>(parentValue);
+                }
+            };
 
     @Test
     void capturesAtExecutorCreationInsteadOfCommandExecution() throws Exception {
@@ -82,11 +92,81 @@ class ContextExecutorsTest {
         assertThatThrownBy(() -> ContextExecutors.directExecutor().execute(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("command cannot be null");
+        assertThatThrownBy(() -> ContextExecutors.lazyDirectExecutor().execute(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("command cannot be null");
     }
 
     @Test
     void hasAStableDiagnosticNameWithoutExposingTheCapturedContext() {
         assertThat(ContextExecutors.directExecutor()).hasToString("ContextExecutors.directExecutor()");
+    }
+
+    @Test
+    void lazyExecutorCapturesTheCurrentContextForEachCommand() {
+        Executor lazy = ContextExecutors.lazyDirectExecutor();
+        try {
+            TTL.set("first");
+            AtomicReference<String> first = new AtomicReference<>();
+            lazy.execute(() -> first.set(TTL.get()));
+
+            TTL.set("second");
+            AtomicReference<String> second = new AtomicReference<>();
+            lazy.execute(() -> second.set(TTL.get()));
+
+            assertThat(first).hasValue("first");
+            assertThat(second).hasValue("second");
+            assertThat(TTL.get()).isEqualTo("second");
+        } finally {
+            TTL.remove();
+        }
+    }
+
+    @Test
+    void lazyExecutorRunsTheCopierForEachCommandAndRestoresTheCallerBinding() {
+        List<String> original = new ArrayList<>(Arrays.asList("a"));
+        COPYING_TTL.set(original);
+        Executor lazy = ContextExecutors.lazyDirectExecutor();
+        try {
+            AtomicReference<List<String>> first = new AtomicReference<>();
+            lazy.execute(() -> {
+                first.set(COPYING_TTL.get());
+                COPYING_TTL.get().add("first");
+            });
+
+            AtomicReference<List<String>> second = new AtomicReference<>();
+            lazy.execute(() -> second.set(COPYING_TTL.get()));
+
+            assertThat(first.get()).containsExactly("a", "first");
+            assertThat(second.get()).containsExactly("a");
+            assertThat(second.get()).isNotSameAs(first.get());
+            assertThat(COPYING_TTL.get()).isSameAs(original).containsExactly("a");
+        } finally {
+            COPYING_TTL.remove();
+        }
+    }
+
+    @Test
+    void lazyExecutorRestoresTheCallerBindingAfterFailure() {
+        TTL.set("caller");
+        Executor lazy = ContextExecutors.lazyDirectExecutor();
+        try {
+            assertThatThrownBy(() -> lazy.execute(() -> {
+                        assertThat(TTL.get()).isEqualTo("caller");
+                        TTL.set("command");
+                        throw new IllegalStateException("boom");
+                    }))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("boom");
+            assertThat(TTL.get()).isEqualTo("caller");
+        } finally {
+            TTL.remove();
+        }
+    }
+
+    @Test
+    void lazyExecutorHasAStableDiagnosticName() {
+        assertThat(ContextExecutors.lazyDirectExecutor()).hasToString("ContextExecutors.lazyDirectExecutor()");
     }
 
     @Test

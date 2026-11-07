@@ -868,6 +868,21 @@ task, so these executions need no TTL agent; code on the same pool that submits 
 library, still has to wrap TTL itself. Saving and restoring both values also preserves enclosing
 contexts when an execution runs directly on the caller or makes a nested library call.
 
+When the context at each `execute` call is the intended source, use the lazy variant:
+
+```java
+Executor activeContextExecutor = ContextExecutors.lazyDirectExecutor();
+activeContextExecutor.execute(callback);
+```
+
+`lazyDirectExecutor()` captures the calling thread's current TTL context for every command, then
+replays and restores it around that inline command. It is suitable when one executor is reused by
+different call-site contexts, or when a TTL copier must create a fresh per-command value. It does not
+propagate the context from executor creation, so asynchronous listeners that need registration-time
+context must continue to use `directExecutor()`. A copier that creates a shallow or deep copy also
+means the callback may not see the same object identity; use value equality or immutable values when
+that is the intended contract.
+
 ### OpenTelemetry
 
 Capture the complete OTel `Context` on this call's thread and make it current inside each execution.

@@ -737,6 +737,19 @@ TaskBatchResult<Account> batch = MdcBridge.withFields(
 同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在
 direct/CallerRuns 或嵌套调用时保留外层上下文。
 
+如果每次 `execute` 调用点的当前上下文才是权威来源，可以使用 lazy 版本：
+
+```java
+Executor activeContextExecutor = ContextExecutors.lazyDirectExecutor();
+activeContextExecutor.execute(callback);
+```
+
+`lazyDirectExecutor()` 在每次 command 执行前捕获调用线程当前的 TTL，再在本次 inline 执行前回放，
+执行结束后恢复调用线程原有的绑定。它适合同一个 executor 被不同调用方上下文复用，或需要让 TTL copier
+为每次 command 创建新的值副本的场景。它不会传播创建 executor 的线程上下文，因此异步 listener 如果需要
+注册时上下文，仍应使用 `directExecutor()`。如果 copier 会创建浅拷贝或深拷贝，callback 看到的对象可能与
+调用方不是同一个 identity；需要这类语义时应使用值相等或不可变对象。
+
 ### 让直接回调携带注册时上下文
 
 Guava 的 `MoreExecutors.directExecutor()` 会在 future 完成线程上执行 listener，不会保存注册 listener
